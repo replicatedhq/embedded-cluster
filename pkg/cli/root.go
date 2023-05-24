@@ -28,7 +28,7 @@ func NewRootCommand(cli *CLI) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   executable,
-		Short: "TODO",
+		Short: "An embeddable Kubernetes distribution",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if debug {
 				logrus.SetLevel(logrus.DebugLevel)
