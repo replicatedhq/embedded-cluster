@@ -63,20 +63,20 @@ func (w *logWriter) writeBytes(in []byte) {
 		// Issue a chunked log entry in case the buffer is full
 		if w.len == len(w.buf) {
 			// Try to chunk at UTF-8 rune boundaries
-			len := w.len
+			length := w.len
 			for i := 0; i < utf8.MaxRune && i < w.len; i++ {
 				if r, _ := utf8.DecodeLastRune(w.buf[:w.len-i]); r != utf8.RuneError {
-					len = len - i
+					length = length - i
 					break
 				}
 			}
 
 			// Strip trailing carriage returns
-			line := bytes.TrimRight(w.buf[:len], "\r")
+			line := bytes.TrimRight(w.buf[:length], "\r")
 
 			w.log.WithField("chunk", w.chunkNo+1).Infof("%s", line)
-			w.chunkNo++                      // increase chunk number
-			w.len = copy(w.buf, w.buf[len:]) // discard logged bytes
+			w.chunkNo++                         // increase chunk number
+			w.len = copy(w.buf, w.buf[length:]) // discard logged bytes
 		}
 	}
 }

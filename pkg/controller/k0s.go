@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// k0s implement the component interface to run etcd
+// K0s implements the component interface to run the k0s controller
 type K0s struct {
 	Config config.Config
 

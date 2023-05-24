@@ -19,10 +19,6 @@ all: clean lint test build ## Run all commands to build the tool
 clean: ## Clean the bin directory
 	rm -rf bin
 
-.PHONY: test
-test: ## Run the unit tests
-	go test $(GO_TAGS) -race -v ./...
-
 .PHONY: build
 build: static bin/helmbin ## Build helmbin binaries
 
@@ -34,9 +30,22 @@ LD_FLAGS = -ldflags " \
 	-X main.gitCommit=$(shell git rev-parse HEAD) \
 	-X main.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
 	"
+BIN = bin/helmbin
 bin/helmbin: $(GO_SRCS) go.sum
-	mkdir -p bin
-	go build $(GO_GCFLAGS) $(GO_ASMFLAGS) $(LD_FLAGS) $(GO_TAGS) -o bin/helmbin ./cmd/helmbin
+	@mkdir -p bin
+	go build $(GO_GCFLAGS) $(GO_ASMFLAGS) $(LD_FLAGS) $(GO_TAGS) -o $(BIN) ./cmd/helmbin
+
+static: static/bin/k0s static/bin/k3s ## Build static assets
+
+static/bin/k0s:
+	@mkdir -p static/bin
+	@curl -sSL -o static/bin/k0s https://github.com/k0sproject/k0s/releases/download/v1.27.2%2Bk0s.0/k0s-v1.27.2+k0s.0-amd64
+	chmod +x static/bin/k0s
+
+static/bin/k3s:
+	@mkdir -p static/bin
+	@curl -sSL -o static/bin/k3s https://github.com/k3s-io/k3s/releases/download/v1.27.1%2Bk3s1/k3s
+	chmod +x static/bin/k3s
 
 ##@ Development
 
@@ -55,14 +64,6 @@ golangci-lint:
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT));\
 	}
 
-static: static/bin/k0s static/bin/k3s ## Build static assets
-
-static/bin/k0s:
-	@mkdir -p static/bin
-	@curl -sSL -o static/bin/k0s https://github.com/k0sproject/k0s/releases/download/v1.27.2%2Bk0s.0/k0s-v1.27.2+k0s.0-amd64
-	chmod +x static/bin/k0s
-
-static/bin/k3s:
-	@mkdir -p static/bin
-	@curl -sSL -o static/bin/k3s https://github.com/k3s-io/k3s/releases/download/v1.27.1%2Bk3s1/k3s
-	chmod +x static/bin/k3s
+.PHONY: test
+test: ## Run the unit tests
+	go test $(GO_TAGS) -race -v ./...

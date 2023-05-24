@@ -1,3 +1,6 @@
+/*
+Package server implements a static HTTP file server for the application.
+*/
 package server
 
 import (
