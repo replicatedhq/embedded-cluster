@@ -2,6 +2,30 @@
 
 Embeds Kubernetes and Helm charts as a single installable binary.
 
+```bash
+$ ./bin/helmbin 
+An embeddable Kubernetes distribution
+
+Usage:
+  helmbin [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  install     Installs and starts the server as a systemd service
+  kubectl     kubectl controls the Kubernetes cluster manager
+  run         Runs the server
+  start       Starts the systemd service
+  stop        Stops the systemd service
+  version     Prints version information
+
+Flags:
+  -d, --debug                Debug logging (default: false)
+  -h, --help                 help for helmbin
+
+Use "helmbin [command] --help" for more information about a command.
+```
+
 ## Building
 
 ```bash
