@@ -10,7 +10,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// RootOptions is a struct to support `helmbin` command
+// RootOptions is a struct to support the `helmbin` command
 type RootOptions struct {
 }
 
@@ -40,8 +40,10 @@ func NewRootCommand(cli *CLI) *cobra.Command {
 	initKlog(cmd.PersistentFlags())
 	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Debug logging (default: false)")
 
-	cmd.AddCommand(NewCmdServer(cli))
 	cmd.AddCommand(NewCmdInstall(cli))
+	cmd.AddCommand(NewCmdRun(cli))
+	cmd.AddCommand(NewCmdStart(cli))
+	cmd.AddCommand(NewCmdStop(cli))
 	cmd.AddCommand(NewCmdKubectl(cli))
 	cmd.AddCommand(NewCmdVersion(cli))
 

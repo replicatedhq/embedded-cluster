@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// CmdVersionOptions is a struct to support version command
+// CmdVersionOptions is a struct to support the version command
 type CmdVersionOptions struct {
 }
 

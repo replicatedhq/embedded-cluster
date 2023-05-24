@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// CmdInstallOptions is a struct to support install command
+// CmdInstallOptions is a struct to support the install command
 type CmdInstallOptions struct {
 	DataDir string
 }
@@ -29,7 +29,7 @@ func NewCmdInstall(cli *CLI) *cobra.Command {
 	o := NewCmdInstallOptions()
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "Installs the server as a systemd service",
+		Short: "Installs and starts the server as a systemd service",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(args); err != nil {
 				return err

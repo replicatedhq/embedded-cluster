@@ -13,21 +13,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// CmdServerOptions is a struct to support server command
-type CmdServerOptions struct {
+// CmdRunOptions is a struct to support the run command
+type CmdRunOptions struct {
 	DataDir string
 }
 
-// NewCmdServerOptions returns initialized ServerOptions
-func NewCmdServerOptions() *CmdServerOptions {
-	return &CmdServerOptions{}
+// NewCmdRunOptions returns initialized RunOptions
+func NewCmdRunOptions() *CmdRunOptions {
+	return &CmdRunOptions{}
 }
 
-// NewCmdServer returns a cobra command for running a bundle
-func NewCmdServer(cli *CLI) *cobra.Command {
-	o := NewCmdServerOptions()
+// NewCmdRun returns a cobra command for running the Kubernetes server
+func NewCmdRun(cli *CLI) *cobra.Command {
+	o := NewCmdRunOptions()
 	cmd := &cobra.Command{
-		Use:     "server",
+		Use:     "run",
 		Aliases: []string{"controller"},
 		Short:   "Runs the server",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -58,19 +58,19 @@ func NewCmdServer(cli *CLI) *cobra.Command {
 }
 
 // Complete completes all the required options
-func (o *CmdServerOptions) Complete(_ []string) error {
+func (o *CmdRunOptions) Complete(_ []string) error {
 	// nothing to complete
 	return nil
 }
 
 // Validate validates the provided options
-func (o *CmdServerOptions) Validate() error {
+func (o *CmdRunOptions) Validate() error {
 	// nothing to validate
 	return nil
 }
 
 // Run executes the command
-func (o *CmdServerOptions) Run(ctx context.Context, _ *CLI) error {
+func (o *CmdRunOptions) Run(ctx context.Context, _ *CLI) error {
 	// TODO: options
 	config := config.Default()
 
