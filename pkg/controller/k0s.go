@@ -92,6 +92,11 @@ func (k *K0s) writeConfigFile() error {
 			"network": map[string]interface{}{
 				"provider": "calico",
 			},
+			"api": map[string]interface{}{
+				"extraArgs": map[string]interface{}{
+					"service-node-port-range": "80-60000",
+				},
+			},
 			"extensions": map[string]interface{}{
 				"storage": map[string]interface{}{
 					"type":                         "openebs_local_storage",
@@ -104,7 +109,7 @@ func (k *K0s) writeConfigFile() error {
 							"namespace": "default",
 							"chartname": "http://localhost:10680/static/charts/admin-console-1.98.3.tgz",
 							"version":   "1.98.3",
-							"values":    "password: password\nminimalRBAC: false\nisHelmManaged: false\nservice:\n  type: ClusterIP",
+							"values":    "password: password\nminimalRBAC: false\nisHelmManaged: false\nservice:\n  type: NodePort\n  nodePort: 8800\n",
 						},
 					},
 				},
