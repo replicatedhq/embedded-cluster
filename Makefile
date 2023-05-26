@@ -7,6 +7,7 @@ help: ## Display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Build
+ADMIN_CONSOLE_VERSION=1.99.0
 
 GO_TAGS = -tags=''
 
@@ -18,6 +19,8 @@ all: clean lint test build ## Run all commands to build the tool
 .PHONY: clean
 clean: ## Clean the bin directory
 	rm -rf bin
+	rm -rf static/bin/k0s
+	rm -rf static/helm/*tgz
 
 .PHONY: build
 build: static bin/helmbin ## Build helmbin binaries
@@ -33,19 +36,19 @@ LD_FLAGS = -ldflags " \
 BIN = bin/helmbin
 bin/helmbin: $(GO_SRCS) go.sum
 	@mkdir -p bin
-	go build $(GO_GCFLAGS) $(GO_ASMFLAGS) $(LD_FLAGS) $(GO_TAGS) -o $(BIN) ./cmd/helmbin
+	CGO_ENABLED=0 go build $(GO_GCFLAGS) $(GO_ASMFLAGS) $(LD_FLAGS) $(GO_TAGS) -o $(BIN) ./cmd/helmbin
 
-static: static/bin/k0s static/bin/k3s ## Build static assets
+## Build static assets
+static: static/bin/k0s static/helm/000-admin-console-$(ADMIN_CONSOLE_VERSION).tgz
 
 static/bin/k0s:
 	@mkdir -p static/bin
 	@curl -sSL -o static/bin/k0s https://github.com/k0sproject/k0s/releases/download/v1.27.2%2Bk0s.0/k0s-v1.27.2+k0s.0-amd64
 	chmod +x static/bin/k0s
 
-static/bin/k3s:
-	@mkdir -p static/bin
-	@curl -sSL -o static/bin/k3s https://github.com/k3s-io/k3s/releases/download/v1.27.1%2Bk3s1/k3s
-	chmod +x static/bin/k3s
+static/helm/000-admin-console-$(ADMIN_CONSOLE_VERSION).tgz:
+	@helm pull oci://registry.replicated.com/library/admin-console --version=$(ADMIN_CONSOLE_VERSION)
+	mv admin-console-$(ADMIN_CONSOLE_VERSION).tgz static/helm/000-admin-console-$(ADMIN_CONSOLE_VERSION).tgz
 
 ##@ Development
 

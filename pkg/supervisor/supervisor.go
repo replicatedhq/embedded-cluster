@@ -6,6 +6,7 @@ package supervisor
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -40,6 +41,7 @@ type Supervisor struct {
 	KillFunction func(int, syscall.Signal) error
 	// A function to clean some leftovers before starting or restarting the supervised process
 	CleanBeforeFn func() error
+	Output        io.Writer
 
 	cmd            *exec.Cmd
 	done           chan bool
@@ -169,13 +171,18 @@ func (s *Supervisor) Supervise() error {
 				s.cmd.SysProcAttr = DetachAttr(s.UID, s.GID)
 
 				const maxLogChunkLen = 16 * 1024
-				s.cmd.Stdout = &logWriter{
-					log: logrus.WithField("stream", "stdout"),
-					buf: make([]byte, maxLogChunkLen),
-				}
-				s.cmd.Stderr = &logWriter{
-					log: logrus.WithField("stream", "stderr"),
-					buf: make([]byte, maxLogChunkLen),
+				if s.Output != nil {
+					s.cmd.Stdout = s.Output
+					s.cmd.Stderr = s.Output
+				} else {
+					s.cmd.Stdout = &logWriter{
+						log: logrus.WithField("stream", "stdout"),
+						buf: make([]byte, maxLogChunkLen),
+					}
+					s.cmd.Stderr = &logWriter{
+						log: logrus.WithField("stream", "stderr"),
+						buf: make([]byte, maxLogChunkLen),
+					}
 				}
 
 				err = s.cmd.Start()

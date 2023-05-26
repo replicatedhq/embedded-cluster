@@ -6,10 +6,8 @@ import "context"
 type Component interface {
 	// Init initializes the component and prepares it for execution.
 	Init(context.Context) error
-
 	// Start starts the component.
 	Start(context.Context) error
-
 	// Stop stops this component, potentially cleaning up any temporary
 	// resources attached to it.
 	Stop() error

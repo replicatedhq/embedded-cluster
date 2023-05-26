@@ -4,16 +4,18 @@ Package main is the entrypoint for the helmbin binary
 package main
 
 import (
-	"fmt"
-	"os"
+	"context"
+	"log"
+	"os/signal"
+	"syscall"
 
 	"github.com/emosbaugh/helmbin/pkg/cli"
 )
 
 func main() {
-	err := cli.NewDefaultRootCommand().Execute() // TODO: ExecuteContext
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR:", err)
-		os.Exit(1)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+	if err := cli.NewDefaultRootCommand().ExecuteContext(ctx); err != nil {
+		log.Fatalf("error executing command: %v", err)
 	}
 }

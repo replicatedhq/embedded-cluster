@@ -7,9 +7,9 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -22,7 +22,7 @@ type Manager struct {
 	started *list.List
 }
 
-// New creates a manager
+// New creates a manager.
 func New() *Manager {
 	return &Manager{
 		Components:        []Component{},
@@ -31,39 +31,32 @@ func New() *Manager {
 	}
 }
 
-// Add adds a component to the manager
+// Add adds a component to the manager.
 func (m *Manager) Add(component Component) {
 	m.Components = append(m.Components, component)
 }
 
-// Init initializes all managed components
+// Init initializes all managed components.
 func (m *Manager) Init(ctx context.Context) error {
 	g, _ := errgroup.WithContext(ctx)
-
 	for _, comp := range m.Components {
-		compName := reflect.TypeOf(comp).Elem().Name()
-		logrus.Infof("initializing %v", compName)
+		logrus.Infof("Initializing component %T", comp)
 		c := comp
-		// init this async
-		g.Go(func() error {
-			return c.Init(ctx)
-		})
+		g.Go(func() error { return c.Init(ctx) })
 	}
-	err := g.Wait()
-	return err
+	return g.Wait()
 }
 
-// Start starts all managed components
+// Start starts all managed components.
 func (m *Manager) Start(ctx context.Context) error {
 	for _, comp := range m.Components {
-		compName := reflect.TypeOf(comp).Elem().Name()
-		logrus.Infof("starting %v", compName)
+		logrus.Infof("Starting component %T", comp)
 		if err := comp.Start(ctx); err != nil {
 			_ = m.Stop()
 			return err
 		}
 		m.started.PushFront(comp)
-		if err := waitForReady(ctx, comp, compName, m.ReadyWaitDuration); err != nil {
+		if err := waitForReady(ctx, comp, m.ReadyWaitDuration); err != nil {
 			_ = m.Stop()
 			return err
 		}
@@ -71,58 +64,48 @@ func (m *Manager) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops all managed components
+// Stop stops all managed components.
 func (m *Manager) Stop() error {
-	var ret error
+	var result *multierror.Error
 	var next *list.Element
-
 	for e := m.started.Front(); e != nil; e = next {
-		component := e.Value.(Component)
-		name := reflect.TypeOf(component).Elem().Name()
-
-		if err := component.Stop(); err != nil {
-			logrus.Errorf("failed to stop component %s: %s", name, err.Error())
-			if ret == nil {
-				ret = fmt.Errorf("failed to stop components")
-			}
-		} else {
-			logrus.Infof("stopped component %s", name)
+		comp := e.Value.(Component)
+		if err := comp.Stop(); err != nil {
+			logrus.Errorf("Failed to stop component %T: %s", comp, err.Error())
+			result = multierror.Append(result, err)
+			next = e.Next()
+			m.started.Remove(e)
+			continue
 		}
-
+		logrus.Infof("Stopped component %T", comp)
 		next = e.Next()
 		m.started.Remove(e)
 	}
-	return ret
+	return result.ErrorOrNil()
 }
 
-// waitForReady waits until the component is ready and returns true upon success. If a timeout occurs, it returns false
-func waitForReady(ctx context.Context, comp Component, name string, timeout time.Duration) error {
-	compWithReady, ok := comp.(Ready)
+// waitForReady waits until the component is ready. if a timeout occurs an error is
+// returned instead.
+func waitForReady(ctx context.Context, comp Component, timeout time.Duration) error {
+	assessable, ok := comp.(Ready)
 	if !ok {
 		return nil
 	}
-
-	ctx, cancelFunction := context.WithTimeout(ctx, timeout)
-
-	// clear up context after timeout
-	defer cancelFunction()
-
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	// loop forever, until the context is canceled or until etcd is healthy
 	ticker := time.NewTicker(100 * time.Millisecond)
-	l := logrus.WithField("component", name)
+	log := logrus.WithField("component", fmt.Sprintf("%T", comp))
 	for {
-		l.Debugf("waiting for component readiness")
-		if err := compWithReady.Ready(); err != nil {
-			l.WithError(err).Debugf("component not ready yet")
-		} else {
+		log.Debugf("Waiting for component readiness")
+		if err := assessable.Ready(); err == nil {
 			return nil
 		}
-
 		select {
 		case <-ticker.C:
 			continue
 		case <-ctx.Done():
-			return fmt.Errorf("%s health-check timed out", name)
+			return fmt.Errorf("%T component health-check timed out", comp)
 		}
 	}
 }

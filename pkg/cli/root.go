@@ -16,18 +16,10 @@ type RootOptions struct {
 
 // NewDefaultRootCommand creates the `helmbin` command with default arguments
 func NewDefaultRootCommand() *cobra.Command {
-	cli := NewCLI()
-	return NewRootCommand(cli)
-}
-
-// NewRootCommand creates the `helmbin` command and its nested children.
-func NewRootCommand(cli *CLI) *cobra.Command {
-	executable := filepath.Base(cli.Args[0])
-
 	var debug bool
-
+	cli := NewCLI()
 	cmd := &cobra.Command{
-		Use:   executable,
+		Use:   filepath.Base(cli.Args[0]),
 		Short: "An embeddable Kubernetes distribution",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if debug {
@@ -36,17 +28,14 @@ func NewRootCommand(cli *CLI) *cobra.Command {
 		},
 	}
 	cmd.SetArgs(cli.Args[1:])
-
 	initKlog(cmd.PersistentFlags())
-	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Debug logging (default: false)")
-
-	cmd.AddCommand(NewCmdInstall(cli))
 	cmd.AddCommand(NewCmdRun(cli))
+	cmd.AddCommand(NewCmdInstall(cli))
 	cmd.AddCommand(NewCmdStart(cli))
 	cmd.AddCommand(NewCmdStop(cli))
 	cmd.AddCommand(NewCmdKubectl(cli))
 	cmd.AddCommand(NewCmdVersion(cli))
-
+	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enables debug logging")
 	return cmd
 }
 

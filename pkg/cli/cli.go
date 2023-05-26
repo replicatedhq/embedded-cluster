@@ -18,11 +18,11 @@ type CLI struct {
 // NewCLI creates a new CLI
 func NewCLI() *CLI {
 	return &CLI{
+		Args: os.Args,
 		IOStreams: genericclioptions.IOStreams{
 			In:     os.Stdin,
 			Out:    os.Stdout,
 			ErrOut: os.Stderr,
 		},
-		Args: os.Args,
 	}
 }
