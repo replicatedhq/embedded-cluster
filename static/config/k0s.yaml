@@ -1,0 +1,14 @@
+apiVersion: k0s.k0sproject.io/v1beta1
+kind: ClusterConfig
+metadata:
+  name: k0s
+spec:
+  network:
+    provider: calico
+  api:
+    extraArgs:
+      service-node-port-range: 80-60000
+  extensions:
+    storage:
+      create_default_storage_class: true
+      type: openebs_local_storage
