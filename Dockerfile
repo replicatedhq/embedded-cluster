@@ -2,7 +2,7 @@
 ARG ARCH
 
 FROM docker.io/library/golang:1.20-alpine as build
-RUN apk add make
+RUN apk add --no-cache bash curl make openssl
 WORKDIR /go/src/github.com/emosbaugh/helmbin
 COPY . .
 ARG VERSION="dev"
@@ -10,7 +10,7 @@ RUN make build
 
 FROM docker.io/library/${ARCH}alpine
 
-RUN apk add --no-cache bash coreutils findutils iptables curl tini
+RUN apk add --no-cache bash coreutils curl findutils iptables tini
 
 ENV KUBECONFIG=/var/lib/replicated/k0s/pki/admin.conf
 
@@ -19,4 +19,4 @@ COPY --from=build /go/src/github.com/emosbaugh/helmbin/bin/helmbin /usr/local/bi
 
 ENTRYPOINT ["/sbin/tini", "--", "/bin/sh", "/entrypoint.sh" ]
 
-CMD ["helmbin", "server"]
+CMD ["helmbin", "run"]

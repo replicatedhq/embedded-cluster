@@ -12,7 +12,7 @@ import (
 )
 
 // NewCmdRun returns a cobra command for running the Kubernetes server
-func NewCmdRun(cli *CLI) *cobra.Command {
+func NewCmdRun(_ *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "run",
 		Short: "Runs the server",

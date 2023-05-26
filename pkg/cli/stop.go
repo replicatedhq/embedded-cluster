@@ -8,7 +8,7 @@ import (
 )
 
 // NewCmdStop returns a cobra command for stopping the systemd service
-func NewCmdStop(cli *CLI) *cobra.Command {
+func NewCmdStop(_ *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop",
 		Short: "Stops the systemd service",

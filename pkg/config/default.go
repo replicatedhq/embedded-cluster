@@ -13,7 +13,7 @@ func Default() Config {
 	return Config{
 		DataDir:       DataDirDefault,
 		BinDir:        filepath.Join(DataDirDefault, "bin"),
-		RunDir:        filepath.Join(DataDirDefault, "run"),
-		K0sConfigFile: path.Join(DataDirDefault, "config.yaml"),
+		RunDir:        "/run/replicated",
+		K0sConfigFile: path.Join(DataDirDefault, "etc/k0s-config.yaml"),
 	}
 }

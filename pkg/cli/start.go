@@ -8,7 +8,7 @@ import (
 )
 
 // NewCmdStart returns a cobra command for starting the systemd service
-func NewCmdStart(cli *CLI) *cobra.Command {
+func NewCmdStart(_ *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
 		Short: "Starts the systemd service",

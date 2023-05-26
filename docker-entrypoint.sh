@@ -28,7 +28,7 @@ sed -e "s/${docker_embedded_dns_ip}/${docker_host_ip}/g" /etc/resolv.conf.origin
 # write config from environment variable
 if [ ! -z "$K0S_CONFIG" ]; then
   mkdir -p /etc/k0s
-  echo -n "$K0S_CONFIG" > /etc/replicated/k0s/config.yaml
+  echo -n "$K0S_CONFIG" > /var/lib/replicated/etc/k0s-config.yaml
 fi
 
 exec $@

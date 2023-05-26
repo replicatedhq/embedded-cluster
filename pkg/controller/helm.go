@@ -23,7 +23,6 @@ import (
 type Helm struct {
 	Config config.Config
 
-	ctx        context.Context
 	packages   []string
 	helmConfig *action.Configuration
 }
@@ -65,7 +64,9 @@ func (k *Helm) apply(ctx context.Context) {
 			logrus.Errorf("Failed to open helm package %s: %v", fname, err)
 			continue
 		}
-		defer fp.Close()
+		defer func() {
+			_ = fp.Close()
+		}()
 		chart, err := loader.LoadArchive(fp)
 		if err != nil {
 			logrus.Errorf("Failed to load chart %s: %v", fname, err)
@@ -119,7 +120,7 @@ func (k *Helm) applyChart(ctx context.Context, chart *chart.Chart, values map[st
 	return nil
 }
 
-func (k *Helm) installedRelease(ctx context.Context, releaseName string) (*release.Release, error) {
+func (k *Helm) installedRelease(_ context.Context, _ string) (*release.Release, error) {
 	list := action.NewList(k.helmConfig)
 	list.StateMask = action.ListDeployed
 	releases, err := list.Run()

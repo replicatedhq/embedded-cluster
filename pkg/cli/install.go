@@ -12,7 +12,7 @@ import (
 )
 
 // NewCmdInstall returns a cobra command for installing the server as a systemd service
-func NewCmdInstall(cli *CLI) *cobra.Command {
+func NewCmdInstall(_ *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "install",
 		Short: "Installs and starts the server as a systemd service",

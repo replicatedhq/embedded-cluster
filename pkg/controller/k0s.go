@@ -22,16 +22,16 @@ import (
 
 // K0s implements the component interface to run the k0s controller.
 type K0s struct {
-	supervisor.Supervisor
-
 	Config config.Config
-	Output io.Writer
-	uid    int
-	gid    int
+
+	supervisor supervisor.Supervisor
+	Output     io.Writer
+	uid        int
+	gid        int
 }
 
 // Init initializes k0s.
-func (k *K0s) Init(ctx context.Context) error {
+func (k *K0s) Init(_ context.Context) error {
 	if err := assets.Stage(static.FS(), k.Config.DataDir, "bin/k0s", 0550); err != nil {
 		return fmt.Errorf("failed to stage k0s: %w", err)
 	}
@@ -44,7 +44,7 @@ func (k *K0s) Init(ctx context.Context) error {
 	if err := k.writeConfigFile(); err != nil {
 		return fmt.Errorf("failed to write k0s config file: %w", err)
 	}
-	k.Supervisor = supervisor.Supervisor{
+	k.supervisor = supervisor.Supervisor{
 		Name:          "k0s",
 		UID:           k.uid,
 		GID:           k.gid,
@@ -65,14 +65,19 @@ func (k *K0s) Init(ctx context.Context) error {
 }
 
 // Start starts k0s.
-func (k *K0s) Start(ctx context.Context) error {
-	return k.Supervisor.Supervise()
+func (k *K0s) Start(_ context.Context) error {
+	return k.supervisor.Supervise()
+}
+
+// Stop stops k0s
+func (k *K0s) Stop() error {
+	return k.supervisor.Stop()
 }
 
 // Ready is the health-check interface.
 func (k *K0s) Ready() error {
 	kubeconfig := path.Join(k.Config.DataDir, "k0s", "pki", "admin.conf")
-	os.Setenv("KUBECONFIG", kubeconfig)
+	_ = os.Setenv("KUBECONFIG", kubeconfig)
 	config, err := kconfig.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to read kubeconfig: %w", err)
@@ -100,12 +105,16 @@ func (k *K0s) writeConfigFile() error {
 	if err != nil {
 		return fmt.Errorf("failed to open k0s config template: %w", err)
 	}
-	defer in.Close()
+	defer func() {
+		_ = in.Close()
+	}()
 	out, err := os.OpenFile(k.Config.K0sConfigFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open k0s config file %s: %w", k.Config.K0sConfigFile, err)
 	}
-	defer out.Close()
+	defer func() {
+		_ = out.Close()
+	}()
 	if _, err := io.Copy(out, in); err != nil {
 		return fmt.Errorf("failed to write k0s config file %s: %w", k.Config.K0sConfigFile, err)
 	}

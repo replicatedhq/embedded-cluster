@@ -1,3 +1,6 @@
+/*
+Package config provides the configuration for the helmbin binary
+*/
 package config
 
 // Config is the configuration for the helmbin binary
