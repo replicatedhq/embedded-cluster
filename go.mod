@@ -12,7 +12,6 @@ require (
 	golang.org/x/sync v0.2.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.11.3
-	k8s.io/apimachinery v0.27.2
 	k8s.io/cli-runtime v0.27.2
 	k8s.io/client-go v0.27.2
 	k8s.io/component-base v0.27.2
@@ -169,6 +168,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/api v0.27.2 // indirect
 	k8s.io/apiextensions-apiserver v0.27.2 // indirect
+	k8s.io/apimachinery v0.27.2 // indirect
 	k8s.io/apiserver v0.27.2 // indirect
 	k8s.io/cloud-provider v0.27.2 // indirect
 	k8s.io/component-helpers v0.27.2 // indirect

@@ -29,8 +29,14 @@ func NewDefaultRootCommand() *cobra.Command {
 	}
 	cmd.SetArgs(cli.Args[1:])
 	initKlog(cmd.PersistentFlags())
+
 	cmd.AddCommand(NewCmdRun(cli))
 	cmd.AddCommand(NewCmdInstall(cli))
+	// required for the install command
+	controllerCmd := NewCmdRunController(cli)
+	controllerCmd.Hidden = true
+	cmd.AddCommand(controllerCmd)
+
 	cmd.AddCommand(NewCmdStart(cli))
 	cmd.AddCommand(NewCmdStop(cli))
 	cmd.AddCommand(NewCmdKubectl(cli))

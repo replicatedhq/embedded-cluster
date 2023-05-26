@@ -22,7 +22,8 @@ import (
 
 // K0s implements the component interface to run the k0s controller.
 type K0s struct {
-	Config config.Config
+	Config            config.Config
+	ControllerOptions config.ControllerOptions
 
 	supervisor supervisor.Supervisor
 	Output     io.Writer
@@ -44,6 +45,17 @@ func (k *K0s) Init(_ context.Context) error {
 	if err := k.writeConfigFile(); err != nil {
 		return fmt.Errorf("failed to write k0s config file: %w", err)
 	}
+	args := []string{
+		"controller",
+		fmt.Sprintf("--data-dir=%s", filepath.Join(k.Config.DataDir, "k0s")),
+		fmt.Sprintf("--config=%s", k.Config.K0sConfigFile),
+	}
+	if k.ControllerOptions.EnableWorker {
+		args = append(args, "--enable-worker")
+	}
+	if k.ControllerOptions.NoTaints {
+		args = append(args, "--no-taints")
+	}
 	k.supervisor = supervisor.Supervisor{
 		Name:          "k0s",
 		UID:           k.uid,
@@ -53,13 +65,7 @@ func (k *K0s) Init(_ context.Context) error {
 		RunDir:        k.Config.RunDir,
 		DataDir:       k.Config.DataDir,
 		KeepEnvPrefix: true,
-		Args: []string{
-			"controller",
-			"--enable-worker",
-			"--no-taints",
-			fmt.Sprintf("--data-dir=%s", filepath.Join(k.Config.DataDir, "k0s")),
-			fmt.Sprintf("--config=%s", k.Config.K0sConfigFile),
-		},
+		Args:          args,
 	}
 	return nil
 }
