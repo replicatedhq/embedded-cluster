@@ -20,8 +20,8 @@ import (
 	"github.com/emosbaugh/helmbin/static"
 )
 
-// K0s implements the component interface to run the k0s controller.
-type K0s struct {
+// K0sController implements the component interface to run the k0s controller.
+type K0sController struct {
 	Config            config.Config
 	ControllerOptions config.ControllerOptions
 
@@ -32,7 +32,7 @@ type K0s struct {
 }
 
 // Init initializes k0s.
-func (k *K0s) Init(_ context.Context) error {
+func (k *K0sController) Init(_ context.Context) error {
 	if err := assets.Stage(static.FS(), k.Config.DataDir, "bin/k0s", 0550); err != nil {
 		return fmt.Errorf("failed to stage k0s: %w", err)
 	}
@@ -56,6 +56,9 @@ func (k *K0s) Init(_ context.Context) error {
 	if k.ControllerOptions.NoTaints {
 		args = append(args, "--no-taints")
 	}
+	if k.ControllerOptions.TokenFile != "" {
+		args = append(args, fmt.Sprintf("--token-file=%s", k.ControllerOptions.TokenFile))
+	}
 	k.supervisor = supervisor.Supervisor{
 		Name:          "k0s",
 		UID:           k.uid,
@@ -71,17 +74,17 @@ func (k *K0s) Init(_ context.Context) error {
 }
 
 // Start starts k0s.
-func (k *K0s) Start(_ context.Context) error {
+func (k *K0sController) Start(_ context.Context) error {
 	return k.supervisor.Supervise()
 }
 
 // Stop stops k0s
-func (k *K0s) Stop() error {
+func (k *K0sController) Stop() error {
 	return k.supervisor.Stop()
 }
 
 // Ready is the health-check interface.
-func (k *K0s) Ready() error {
+func (k *K0sController) Ready() error {
 	kubeconfig := path.Join(k.Config.DataDir, "k0s", "pki", "admin.conf")
 	_ = os.Setenv("KUBECONFIG", kubeconfig)
 	config, err := kconfig.GetConfig()
@@ -103,7 +106,7 @@ func (k *K0s) Ready() error {
 }
 
 // writeConfigFile writes the k0s config file under Config.K0sConfigFile location.
-func (k *K0s) writeConfigFile() error {
+func (k *K0sController) writeConfigFile() error {
 	if err := os.MkdirAll(filepath.Dir(k.Config.K0sConfigFile), 0755); err != nil {
 		return fmt.Errorf("failed to create dir %s: %w", filepath.Dir(k.Config.K0sConfigFile), err)
 	}

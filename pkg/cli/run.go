@@ -55,7 +55,7 @@ func NewCmdRunController(_ *CLI) *cobra.Command {
 func runController(ctx context.Context, opts config.ControllerOptions) error {
 	config := config.Default()
 	manager := manager.New()
-	manager.Add(&controller.K0s{
+	manager.Add(&controller.K0sController{
 		Config:            config,
 		ControllerOptions: opts,
 	})
