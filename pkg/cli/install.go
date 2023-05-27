@@ -12,30 +12,65 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewCmdInstall returns a cobra command for installing the server as a systemd service
-func NewCmdInstall(_ *CLI) *cobra.Command {
-	return &cobra.Command{
+// NewCmdInstall returns a cobra command for installing a controller+worker as a systemd service
+func NewCmdInstall(cli *CLI) *cobra.Command {
+	o := config.ControllerOptions{}
+
+	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "Installs and starts the server as a systemd service",
+		Short: "Installs and starts a controller+worker as a systemd service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInstall(cmd.Context(), args)
+			return runInstallController(cmd.Context(), o)
 		},
 	}
+
+	cmd.Flags().AddFlagSet(config.GetControllerFlags(&o, true))
+
+	cmd.AddCommand(NewCmdInstallController(cli))
+
+	return cmd
 }
 
-func runInstall(ctx context.Context, args []string) error {
+// NewCmdInstallController returns a cobra command for installing a controller as a systemd service
+func NewCmdInstallController(_ *CLI) *cobra.Command {
+	o := config.ControllerOptions{}
+
+	cmd := &cobra.Command{
+		Use:   "controller",
+		Short: "Installs and starts a controller as a systemd service",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runInstallController(cmd.Context(), o)
+		},
+	}
+
+	cmd.Flags().AddFlagSet(config.GetControllerFlags(&o, false))
+
+	return cmd
+}
+
+func runInstallController(ctx context.Context, opts config.ControllerOptions) error {
 	// TODO: options
 	config := config.Default()
 	// Hack so you can re-run this command
 	_ = os.RemoveAll("/etc/systemd/system/k0scontroller.service")
-	cmd := install.NewInstallCmd()
-	cmd.SetArgs([]string{
+
+	args := []string{
 		"controller",
-		"--enable-worker",
-		"--no-taints",
 		fmt.Sprintf("--data-dir=%s", filepath.Join(config.DataDir, "k0s")),
 		fmt.Sprintf("--config=%s", config.K0sConfigFile),
-	})
+	}
+	if opts.EnableWorker {
+		args = append(args, "--enable-worker")
+	}
+	if opts.NoTaints {
+		args = append(args, "--no-taints")
+	}
+	if opts.TokenFile != "" {
+		args = append(args, fmt.Sprintf("--token-file=%s", opts.TokenFile))
+	}
+
+	cmd := install.NewInstallCmd()
+	cmd.SetArgs(args)
 	if err := cmd.ExecuteContext(ctx); err != nil {
 		return fmt.Errorf("failed to install k0s: %w", err)
 	}
