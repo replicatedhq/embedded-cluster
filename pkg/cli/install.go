@@ -16,16 +16,18 @@ import (
 func NewCmdInstall(cli *CLI) *cobra.Command {
 	controllerOpts := config.ControllerOptions{}
 	workerOpts := config.WorkerOptions{}
+	var startService bool
 
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Installs and starts a controller+worker as a systemd service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInstallController(cmd.Context(), controllerOpts, workerOpts)
+			return runInstallController(cmd.Context(), controllerOpts, workerOpts, startService)
 		},
 	}
 
 	cmd.Flags().AddFlagSet(config.GetControllerFlags(&controllerOpts, &workerOpts, true))
+	cmd.Flags().BoolVar(&startService, "start", true, "Start the service after installation")
 
 	// TODO
 	// required for the install command to work
@@ -33,6 +35,7 @@ func NewCmdInstall(cli *CLI) *cobra.Command {
 	_ = cmd.Flags().MarkHidden("config")
 
 	cmd.AddCommand(NewCmdInstallController(cli))
+	cmd.AddCommand(NewCmdInstallWorker(cli))
 
 	return cmd
 }
@@ -41,16 +44,18 @@ func NewCmdInstall(cli *CLI) *cobra.Command {
 func NewCmdInstallController(_ *CLI) *cobra.Command {
 	controllerOpts := config.ControllerOptions{}
 	workerOpts := config.WorkerOptions{}
+	var startService bool
 
 	cmd := &cobra.Command{
 		Use:   "controller",
 		Short: "Installs and starts a controller as a systemd service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInstallController(cmd.Context(), controllerOpts, workerOpts)
+			return runInstallController(cmd.Context(), controllerOpts, workerOpts, startService)
 		},
 	}
 
 	cmd.Flags().AddFlagSet(config.GetControllerFlags(&controllerOpts, &workerOpts, false))
+	cmd.Flags().BoolVar(&startService, "start", true, "Start the service after installation")
 
 	// TODO
 	// required for the install command to work
@@ -61,7 +66,7 @@ func NewCmdInstallController(_ *CLI) *cobra.Command {
 }
 
 func runInstallController(
-	ctx context.Context, controllerOpts config.ControllerOptions, workerOpts config.WorkerOptions,
+	ctx context.Context, controllerOpts config.ControllerOptions, workerOpts config.WorkerOptions, startService bool,
 ) error {
 
 	// TODO: options
@@ -89,10 +94,12 @@ func runInstallController(
 	if err := cmd.ExecuteContext(ctx); err != nil {
 		return fmt.Errorf("failed to install k0s: %w", err)
 	}
-	cmd = start.NewStartCmd()
-	cmd.SetArgs([]string{})
-	if err := cmd.ExecuteContext(ctx); err != nil {
-		return fmt.Errorf("failed to start k0s: %w", err)
+	if startService {
+		cmd = start.NewStartCmd()
+		cmd.SetArgs([]string{})
+		if err := cmd.ExecuteContext(ctx); err != nil {
+			return fmt.Errorf("failed to start k0s: %w", err)
+		}
 	}
 	return nil
 }
@@ -100,16 +107,18 @@ func runInstallController(
 // NewCmdInstallWorker returns a cobra command for installing a worker as a systemd service
 func NewCmdInstallWorker(_ *CLI) *cobra.Command {
 	workerOpts := config.WorkerOptions{}
+	var startService bool
 
 	cmd := &cobra.Command{
 		Use:   "controller",
 		Short: "Installs and starts a worker as a systemd service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInstallWorker(cmd.Context(), workerOpts)
+			return runInstallWorker(cmd.Context(), workerOpts, startService)
 		},
 	}
 
 	cmd.Flags().AddFlagSet(config.GetWorkerFlags(&workerOpts))
+	cmd.Flags().BoolVar(&startService, "start", true, "Start the service after installation")
 
 	// TODO
 	// required for the install command to work
@@ -119,7 +128,7 @@ func NewCmdInstallWorker(_ *CLI) *cobra.Command {
 	return cmd
 }
 
-func runInstallWorker(_ context.Context, _ config.WorkerOptions) error {
+func runInstallWorker(_ context.Context, _ config.WorkerOptions, _ bool) error {
 	// TODO
 	return nil
 }

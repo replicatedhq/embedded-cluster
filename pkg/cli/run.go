@@ -33,6 +33,7 @@ func NewCmdRun(cli *CLI) *cobra.Command {
 	_ = cmd.Flags().MarkHidden("config")
 
 	cmd.AddCommand(NewCmdRunController(cli))
+	cmd.AddCommand(NewCmdRunWorker(cli))
 
 	return cmd
 }
