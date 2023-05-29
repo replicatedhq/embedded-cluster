@@ -24,6 +24,7 @@ import (
 type K0sController struct {
 	Config            config.Config
 	ControllerOptions config.ControllerOptions
+	WorkerOptions     config.WorkerOptions
 
 	supervisor supervisor.Supervisor
 	Output     io.Writer
@@ -56,8 +57,8 @@ func (k *K0sController) Init(_ context.Context) error {
 	if k.ControllerOptions.NoTaints {
 		args = append(args, "--no-taints")
 	}
-	if k.ControllerOptions.TokenFile != "" {
-		args = append(args, fmt.Sprintf("--token-file=%s", k.ControllerOptions.TokenFile))
+	if k.WorkerOptions.TokenFile != "" {
+		args = append(args, fmt.Sprintf("--token-file=%s", k.WorkerOptions.TokenFile))
 	}
 	k.supervisor = supervisor.Supervisor{
 		Name:          "k0s",
