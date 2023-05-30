@@ -77,4 +77,4 @@ golangci-lint:
 HELM_VERSION = v3.12.0
 helm:
 	@mkdir -p $(BIN_DIR)
-	curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | DESIRED_VERSION=$(HELM_VERSION) HELM_INSTALL_DIR=$(BIN_DIR) bash
+	curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | DESIRED_VERSION=$(HELM_VERSION) HELM_INSTALL_DIR=$(BIN_DIR) USE_SUDO=false bash
