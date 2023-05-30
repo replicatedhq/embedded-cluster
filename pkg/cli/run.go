@@ -14,23 +14,17 @@ import (
 
 // NewCmdRun returns a cobra command for running a combined controller and worker node
 func NewCmdRun(cli *CLI) *cobra.Command {
-	controllerOpts := config.ControllerOptions{}
-	workerOpts := config.WorkerOptions{}
+	opts := config.K0sControllerOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Runs a controller+worker node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runController(cmd.Context(), controllerOpts, workerOpts)
+			return runController(cmd.Context(), opts)
 		},
 	}
 
-	cmd.Flags().AddFlagSet(config.GetControllerFlags(&controllerOpts, &workerOpts, true))
-
-	// TODO
-	// required for the install command to work
-	cmd.Flags().String("config", "", "")
-	_ = cmd.Flags().MarkHidden("config")
+	cmd.Flags().AddFlagSet(config.GetK0sControllerFlags(&opts, true))
 
 	cmd.AddCommand(NewCmdRunController(cli))
 	cmd.AddCommand(NewCmdRunWorker(cli))
@@ -40,40 +34,28 @@ func NewCmdRun(cli *CLI) *cobra.Command {
 
 // NewCmdRunController returns a cobra command for running a controller node
 func NewCmdRunController(_ *CLI) *cobra.Command {
-	controllerOpts := config.ControllerOptions{}
-	workerOpts := config.WorkerOptions{}
+	opts := config.K0sControllerOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "controller",
 		Short: "Runs a controller node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runController(cmd.Context(), controllerOpts, workerOpts)
+			return runController(cmd.Context(), opts)
 		},
 	}
 
-	cmd.Flags().AddFlagSet(config.GetControllerFlags(&controllerOpts, &workerOpts, false))
-
-	// TODO
-	// required for the install command to work
-	cmd.Flags().String("config", "", "")
-	_ = cmd.Flags().MarkHidden("config")
+	cmd.Flags().AddFlagSet(config.GetK0sControllerFlags(&opts, false))
 
 	return cmd
 }
 
-func runController(
-	ctx context.Context, controllerOpts config.ControllerOptions, workerOpts config.WorkerOptions,
-) error {
-
-	config := config.Default()
+func runController(ctx context.Context, opts config.K0sControllerOptions) error {
 	manager := manager.New()
 	manager.Add(&controller.K0sController{
-		Config:            config,
-		ControllerOptions: controllerOpts,
-		WorkerOptions:     workerOpts,
+		Options: opts,
 	})
 	manager.Add(&controller.Helm{
-		Config: config,
+		Options: opts.CLIOptions,
 	})
 	if err := manager.Init(ctx); err != nil {
 		return fmt.Errorf("failed to initialize manager: %w", err)
@@ -95,22 +77,22 @@ func runController(
 
 // NewCmdRunWorker returns a cobra command for running a worker node
 func NewCmdRunWorker(_ *CLI) *cobra.Command {
-	workerOpts := config.WorkerOptions{}
+	opts := config.K0sWorkerOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "worker",
 		Short: "Runs a worker node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWorker(cmd.Context(), workerOpts)
+			return runWorker(cmd.Context(), opts)
 		},
 	}
 
-	cmd.Flags().AddFlagSet(config.GetWorkerFlags(&workerOpts))
+	cmd.Flags().AddFlagSet(config.GetK0sWorkerFlags(&opts))
 
 	return cmd
 }
 
-func runWorker(_ context.Context, _ config.WorkerOptions) error {
+func runWorker(_ context.Context, _ config.K0sWorkerOptions) error {
 	// TODO
 	return nil
 }

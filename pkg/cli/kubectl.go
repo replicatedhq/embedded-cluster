@@ -5,18 +5,17 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/component-base/logs"
 	kubectl "k8s.io/kubectl/pkg/cmd"
-
-	"github.com/spf13/cobra"
 
 	"github.com/emosbaugh/helmbin/pkg/config"
 )
 
 // NewCmdKubectl returns a cobra command for running kubectl
 func NewCmdKubectl(_ *CLI) *cobra.Command {
-	var dataDir string
+	var cliOpts config.CLIOptions
 	// Create a new kubectl command without a plugin handler.
 	kubectlCmd := kubectl.NewKubectlCommand(kubectl.KubectlOptions{
 		IOStreams: genericclioptions.IOStreams{
@@ -28,13 +27,14 @@ func NewCmdKubectl(_ *CLI) *cobra.Command {
 	// Add some additional kubectl flags:
 	persistentFlags := kubectlCmd.PersistentFlags()
 	logs.AddFlags(persistentFlags) // This is done by k8s.io/component-base/cli
-	kubectlCmd.Flags().StringVar(&dataDir, "data-dir", config.DataDirDefault, "Path to the data directory.")
+	cliFlags := config.GetCLIFlags(&cliOpts)
+	kubectlCmd.Flags().AddFlagSet(cliFlags)
 	originalPreRunE := kubectlCmd.PersistentPreRunE
 	kubectlCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if err := callParentPersistentPreRun(kubectlCmd, args); err != nil {
 			return err
 		}
-		if err := fallbackToK0sKubeconfig(cmd, dataDir); err != nil {
+		if err := fallbackToK0sKubeconfig(cmd, cliOpts.DataDir); err != nil {
 			return err
 		}
 		return originalPreRunE(cmd, args)

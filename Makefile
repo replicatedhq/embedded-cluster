@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+include inttest/Makefile.variables
+
 BIN_DIR := $(shell pwd)/bin
 export PATH := $(BIN_DIR):$(PATH)
 
@@ -24,6 +26,7 @@ clean: ## Clean the bin directory
 	rm -rf $(BIN_DIR)
 	rm -rf static/bin/k0s
 	rm -rf static/helm/*tgz
+	$(MAKE) -C inttest clean
 
 .PHONY: build
 build: static bin/helmbin ## Build helmbin binaries
@@ -67,7 +70,15 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 test: ## Run the unit tests
 	go test $(GO_TAGS) -race -v ./...
 
+.PHONY: $(smoketests)
+$(smoketests): build
+	$(MAKE) -C inttest $@
+
+.PHONY: smoketests
+smoketests: $(smoketests)
+
 GOLANGCI_LINT = $(BIN_DIR)/golangci-lint
+.PHONY: golangci-lint
 golangci-lint:
 	@[ -f $(GOLANGCI_LINT) ] || { \
 	set -e ;\
@@ -75,6 +86,7 @@ golangci-lint:
 	}
 
 HELM_VERSION = v3.12.0
+.PHONY: helm
 helm:
 	@mkdir -p $(BIN_DIR)
 	curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | DESIRED_VERSION=$(HELM_VERSION) HELM_INSTALL_DIR=$(BIN_DIR) bash

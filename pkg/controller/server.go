@@ -14,7 +14,7 @@ import (
 
 // Server implement the component interface to run the helmbin server
 type Server struct {
-	Config config.Config
+	Options config.CLIOptions
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -22,12 +22,12 @@ type Server struct {
 
 // Init initializes the server
 func (k *Server) Init(_ context.Context) error {
-	err := os.RemoveAll(filepath.Join(k.Config.DataDir, "server/static"))
+	err := os.RemoveAll(filepath.Join(k.Options.DataDir, "server/static"))
 	if err != nil {
 		return fmt.Errorf("remove server/static: %w", err)
 	}
 
-	err = assets.Stage(static.FS(), k.Config.DataDir, "server/static", 0440)
+	err = assets.Stage(static.FS(), k.Options.DataDir, "server/static", 0440)
 	if err != nil {
 		return fmt.Errorf("stage server/static: %w", err)
 	}
@@ -41,7 +41,7 @@ func (k *Server) Start(ctx context.Context) error {
 
 	options := server.Options{
 		Address:   ":10680",
-		StaticDir: filepath.Join(k.Config.DataDir, "server/static"),
+		StaticDir: filepath.Join(k.Options.DataDir, "server/static"),
 	}
 	return server.StartServer(k.ctx, options)
 }

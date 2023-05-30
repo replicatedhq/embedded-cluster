@@ -21,7 +21,7 @@ import (
 
 // Helm implement the component interface to run the Helm controller
 type Helm struct {
-	Config config.Config
+	Options config.CLIOptions
 
 	packages   []string
 	helmConfig *action.Configuration
