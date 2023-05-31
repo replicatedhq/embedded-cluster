@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/emosbaugh/helmbin/pkg/config"
 	"github.com/k0sproject/k0s/cmd/install"
@@ -60,8 +59,10 @@ func runInstallController(ctx context.Context, opts config.K0sControllerOptions,
 
 	args := []string{
 		"controller",
-		fmt.Sprintf("--data-dir=%s", filepath.Join(opts.DataDir, "k0s")),
-		fmt.Sprintf("--config=%s", opts.CfgFile),
+		fmt.Sprintf("--data-dir=%s", opts.DataDir),
+	}
+	if opts.CfgFile != "" {
+		args = append(args, fmt.Sprintf("--config=%s", opts.CfgFile))
 	}
 	if opts.EnableWorker {
 		args = append(args, "--enable-worker")
