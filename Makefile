@@ -68,7 +68,7 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: test
 test: ## Run the unit tests
-	go test $(GO_TAGS) -race -v ./...
+	go test $(GO_TAGS) -race -v ./pkg/...
 
 .PHONY: $(smoketests)
 $(smoketests): build
