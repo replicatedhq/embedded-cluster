@@ -3,12 +3,14 @@ package controller
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s.k0sproject.io/v1beta1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -62,6 +64,9 @@ func (k *K0sController) Init(_ context.Context) error {
 	}
 	if k.Options.TokenFile != "" {
 		args = append(args, fmt.Sprintf("--token-file=%s", k.Options.TokenFile))
+	}
+	if k.Options.CmdLogLevels != nil {
+		args = append(args, fmt.Sprintf("--logging=%s", createS2SFlag(k.Options.CmdLogLevels)))
 	}
 	k.supervisor = supervisor.Supervisor{
 		Name:          "k0s",
@@ -157,4 +162,19 @@ func mergeK0sConfigFiles(cfgFile string) ([]byte, error) {
 		return nil, fmt.Errorf("marshal merged config file: %w", err)
 	}
 	return out, nil
+}
+
+func createS2SFlag(vals map[string]string) string {
+	records := make([]string, 0, len(vals)>>1)
+	for k, v := range vals {
+		records = append(records, k+"="+v)
+	}
+
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	if err := w.Write(records); err != nil {
+		panic(err)
+	}
+	w.Flush()
+	return strings.TrimSpace(buf.String())
 }

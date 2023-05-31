@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	k0sconfig "github.com/k0sproject/k0s/pkg/config"
 	k0sconstant "github.com/k0sproject/k0s/pkg/constant"
 	"github.com/spf13/pflag"
 )
@@ -15,9 +16,10 @@ type CLIOptions struct {
 
 // K0sOptions are common options for the controller and worker
 type K0sOptions struct {
-	Debug     bool
-	CfgFile   string
-	TokenFile string
+	Debug        bool
+	CfgFile      string
+	TokenFile    string
+	CmdLogLevels map[string]string
 }
 
 // BinDir returns the path to the bin directory
@@ -70,6 +72,8 @@ func GetK0sFlags(opts *K0sOptions) *pflag.FlagSet {
 	flagset.StringVarP(&opts.CfgFile, "config", "c", "", descString)
 	// TODO cobra auto completes files
 	flagset.StringVar(&opts.TokenFile, "token-file", "", "Path to the file containing join-token.")
+	flagset.StringToStringVarP(
+		&opts.CmdLogLevels, "logging", "l", k0sconfig.DefaultLogLevels(), "Logging Levels for the different components")
 	return flagset
 }
 

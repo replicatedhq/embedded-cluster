@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/emosbaugh/helmbin/pkg/config"
 	"github.com/k0sproject/k0s/cmd/install"
@@ -73,6 +76,9 @@ func runInstallController(ctx context.Context, opts config.K0sControllerOptions,
 	if opts.TokenFile != "" {
 		args = append(args, fmt.Sprintf("--token-file=%s", opts.TokenFile))
 	}
+	if opts.CmdLogLevels != nil {
+		args = append(args, fmt.Sprintf("--logging=%s", createS2SFlag(opts.CmdLogLevels)))
+	}
 
 	cmd := install.NewInstallCmd()
 	cmd.SetArgs(args)
@@ -111,4 +117,19 @@ func NewCmdInstallWorker(_ *CLI) *cobra.Command {
 func runInstallWorker(_ context.Context, _ config.K0sWorkerOptions, _ bool) error {
 	// TODO
 	return nil
+}
+
+func createS2SFlag(vals map[string]string) string {
+	records := make([]string, 0, len(vals)>>1)
+	for k, v := range vals {
+		records = append(records, k+"="+v)
+	}
+
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	if err := w.Write(records); err != nil {
+		panic(err)
+	}
+	w.Flush()
+	return strings.TrimSpace(buf.String())
 }
