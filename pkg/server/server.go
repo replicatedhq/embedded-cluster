@@ -9,7 +9,7 @@ import (
 	"net"
 	"net/http"
 
-	"k8s.io/klog/v2"
+	"github.com/sirupsen/logrus"
 )
 
 // Options is the configuration for the server
@@ -35,12 +35,12 @@ func StartServer(ctx context.Context, opts Options) error {
 		Handler: router,
 	}
 
-	klog.Infof("Starting server on %s", opts.Address)
+	logrus.Infof("Starting server on %s", opts.Address)
 
 	go func() {
 		err := server.Serve(listener)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			klog.Fatalf("Server stopped: %v", err)
+			logrus.Fatalf("Server stopped: %v", err)
 		}
 	}()
 

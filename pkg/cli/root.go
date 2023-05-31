@@ -1,13 +1,10 @@
 package cli
 
 import (
-	"flag"
 	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"k8s.io/klog/v2"
 )
 
 // RootOptions is a struct to support the `helmbin` command
@@ -28,7 +25,6 @@ func NewDefaultRootCommand() *cobra.Command {
 		},
 	}
 	cmd.SetArgs(cli.Args[1:])
-	initKlog(cmd.PersistentFlags())
 
 	cmd.AddCommand(NewCmdRun(cli))
 	cmd.AddCommand(NewCmdInstall(cli))
@@ -39,20 +35,9 @@ func NewDefaultRootCommand() *cobra.Command {
 
 	cmd.AddCommand(NewCmdStart(cli))
 	cmd.AddCommand(NewCmdStop(cli))
+	cmd.AddCommand(NewCmdKubeconfig(cli))
 	cmd.AddCommand(NewCmdKubectl(cli))
 	cmd.AddCommand(NewCmdVersion(cli))
 	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enables debug logging")
 	return cmd
-}
-
-// TODO: use logrus
-func initKlog(fs *pflag.FlagSet) {
-	var allFlags flag.FlagSet
-	klog.InitFlags(&allFlags)
-	allFlags.VisitAll(func(f *flag.Flag) {
-		switch f.Name {
-		case "v", "vmodule":
-			fs.AddGoFlag(f)
-		}
-	})
 }
