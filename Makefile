@@ -21,10 +21,16 @@ TARGET_OS ?= linux
 BUILD_GO_FLAGS := -tags osusergo
 BUILD_GO_FLAGS += -asmflags "all=-trimpath=$(shell dirname $(PWD))"
 BUILD_GO_FLAGS += -gcflags "all=-trimpath=$(shell dirname $(PWD))"
+BUILD_GO_LDFLAGS_EXTRA := -extldflags=-static
+ifeq ($(shell go env GOOS),darwin)
+BUILD_GO_LDFLAGS_EXTRA =
+endif
+
 LD_FLAGS := -X main.goos=$(shell go env GOOS)
 LD_FLAGS += -X main.goarch=$(shell go env GOARCH)
 LD_FLAGS += -X main.gitCommit=$(shell git rev-parse HEAD)
 LD_FLAGS += -X main.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+LD_FLAGS += $(BUILD_GO_LDFLAGS_EXTRA)
 
 GO_SRCS := $(shell find . -type f -name '*.go' -not -name '*_test.go' -not -name 'zz_generated*')
 
@@ -34,7 +40,7 @@ all: clean lint test build ## Run all commands to build the tool
 .PHONY: clean
 clean: ## Clean the bin directory
 	rm -rf $(BIN_DIR)
-	rm -rf static/bin/k0s
+	rm -rf static/bin
 	rm -rf static/helm/*tgz
 	$(MAKE) -C inttest clean
 
@@ -62,13 +68,22 @@ static/helm/000-admin-console-$(admin_console_version).tgz: helm
 
 ##@ Development
 
+GOLANGCI_LINT = $(BIN_DIR)/golangci-lint
+.PHONY: golangci-lint
+golangci-lint:
+	@[ -f $(GOLANGCI_LINT) ] || { \
+	set -e ;\
+	curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
+		sh -s -- -b $(shell dirname $(GOLANGCI_LINT));\
+	}
+
 .PHONY: lint
 lint: golangci-lint go.sum ## Run golangci-lint linter
-	golangci-lint run
+	$(GOLANGCI_LINT) run
 
 .PHONY: lint-fix
-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
-	golangci-lint run --fix
+lint-fix: golangci-lint go.sum ## Run golangci-lint linter and perform fixes
+	$(GOLANGCI_LINT) run --fix
 
 .PHONY: test
 test: GO_TEST_RACE ?= -race
@@ -81,15 +96,6 @@ $(smoketests): build
 
 .PHONY: smoketests
 smoketests: $(smoketests)
-
-GOLANGCI_LINT = $(BIN_DIR)/golangci-lint
-.PHONY: golangci-lint
-golangci-lint:
-	@[ -f $(GOLANGCI_LINT) ] || { \
-	set -e ;\
-	curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		sh -s -- -b $(shell dirname $(GOLANGCI_LINT));\
-	}
 
 .PHONY: helm
 helm:
