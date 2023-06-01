@@ -12,15 +12,15 @@ Usage:
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
-  install     Installs and starts the server as a systemd service
+  install     Installs and starts a controller+worker as a systemd service
   kubectl     kubectl controls the Kubernetes cluster manager
-  run         Runs the server
+  run         Runs a controller+worker node
   start       Starts the systemd service
   stop        Stops the systemd service
   version     Prints version information
 
 Flags:
-  -d, --debug                Debug logging (default: false)
+  -d, --debug                Enables debug logging
   -h, --help                 help for helmbin
 
 Use "helmbin [command] --help" for more information about a command.
@@ -37,33 +37,49 @@ go build -gcflags "all=-trimpath=/home/ethan/go/src/github.com/emosbaugh" -asmfl
 
 ```bash
 ./bin/helmbin server  --help
-Runs the server
+Runs a controller+worker node
 
 Usage:
-  helmbin server [flags]
+  helmbin run [flags]
+  helmbin run [command]
 
-Aliases:
-  server, controller
+Available Commands:
+  controller  Runs a controller node
+  worker      Runs a worker node
 
 Flags:
-      --data-dir string   Path to the data directory. (default "/var/lib/replicated")
-  -h, --help              help for server
+  -c, --config string       k0s config file, use '-' to read the config from stdin (default "/etc/k0s/k0s.yaml")
+      --data-dir string     Data Directory. DO NOT CHANGE for an existing setup, things will break! (default "/var/lib/replicated")
+  -d, --debug               Debug logging (default: false)
+      --enable-worker       enable worker (default true)
+  -h, --help                help for run
+      --no-taints           disable default taints for controller node (default true)
+      --token-file string   Path to the file containing join-token.
 
-Global Flags:
-  -d, --debug                Debug logging (default: false)
+Use "helmbin run [command] --help" for more information about a command.
 ```
 
 ```bash
 $ ./bin/helmbin install --help
-Installs the server as a systemd service
+Installs and starts a controller+worker as a systemd service
 
 Usage:
   helmbin install [flags]
+  helmbin install [command]
+
+Available Commands:
+  controller  Installs and starts a controller as a systemd service
+  controller  Installs and starts a worker as a systemd service
 
 Flags:
-      --data-dir string   Path to the data directory. (default "/var/lib/replicated")
-  -h, --help              help for install
+  -c, --config string       k0s config file, use '-' to read the config from stdin (default "/etc/k0s/k0s.yaml")
+      --data-dir string     Data Directory. DO NOT CHANGE for an existing setup, things will break! (default "/var/lib/replicated")
+  -d, --debug               Debug logging (default: false)
+      --enable-worker       enable worker (default true)
+  -h, --help                help for install
+      --no-taints           disable default taints for controller node (default true)
+      --start               Start the service after installation (default true)
+      --token-file string   Path to the file containing join-token.
 
-Global Flags:
-  -d, --debug                Debug logging (default: false)
+Use "helmbin install [command] --help" for more information about a command.
 ```

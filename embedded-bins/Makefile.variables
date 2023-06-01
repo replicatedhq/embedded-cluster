@@ -1,0 +1,10 @@
+k0s_version = v1.27.2+k0s.0
+admin_console_version = 1.99.0
+
+alpine_version = 3.17
+alpine_patch_version = $(alpine_version).3
+golang_buildimage=docker.io/library/golang:$(go_version)-alpine$(alpine_version)
+go_version = 1.20.4
+kubernetes_version = 1.27.2
+helm_version = 3.11.1
+etcd_version = 3.5.9

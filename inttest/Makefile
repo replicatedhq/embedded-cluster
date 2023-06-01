@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+include ../embedded-bins/Makefile.variables
 include Makefile.variables
 
 ARCH := $(shell go env GOARCH)
@@ -47,7 +48,6 @@ $(smoketests): HELMBIN_PATH ?= $(realpath ../bin/helmbin)
 $(smoketests): .footloose-alpine.stamp
 $(smoketests): TEST_PACKAGE ?= $(subst check-,,$@)
 $(smoketests):
-	HELMBIN_PATH='$(HELMBIN_PATH)' \
 	K0S_PATH='$(HELMBIN_PATH)' \
 	go test -count=1 -v -timeout $(TIMEOUT) github.com/emosbaugh/helmbin/inttest/$(TEST_PACKAGE)
 

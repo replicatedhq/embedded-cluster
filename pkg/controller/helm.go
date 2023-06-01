@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -25,6 +26,7 @@ type Helm struct {
 
 	packages   []string
 	helmConfig *action.Configuration
+	log        logrus.FieldLogger
 }
 
 // Init initializes the Helm controller
@@ -32,8 +34,8 @@ func (k *Helm) Init(_ context.Context) error {
 	env := cli.New()
 	env.SetNamespace("default")
 	k.helmConfig = &action.Configuration{}
-	log := logrus.WithField("component", "helm")
-	if err := k.helmConfig.Init(env.RESTClientGetter(), "default", "", log.Infof); err != nil {
+	k.log = logrus.WithField("component", "helm")
+	if err := k.helmConfig.Init(env.RESTClientGetter(), "default", "", k.log.Infof); err != nil {
 		return fmt.Errorf("failed to init helm configuration: %w", err)
 	}
 	packages, err := static.FS().ReadDir("helm")
@@ -58,37 +60,41 @@ func (k *Helm) Start(ctx context.Context) error {
 
 func (k *Helm) apply(ctx context.Context) {
 	for _, fname := range k.packages {
-		logrus.Infof("Processing Helm %s", fname)
-		fp, err := static.FS().Open(fname)
+		err := k.applyOne(ctx, fname)
 		if err != nil {
-			logrus.Errorf("Failed to open helm package %s: %v", fname, err)
-			continue
-		}
-		defer func() {
-			_ = fp.Close()
-		}()
-		chart, err := loader.LoadArchive(fp)
-		if err != nil {
-			logrus.Errorf("Failed to load chart %s: %v", fname, err)
-			continue
-		}
-		fprefix := strings.TrimSuffix(fname, filepath.Ext(fname))
-		yamlfile := fmt.Sprintf("%s.yaml", fprefix)
-		content, err := static.FS().ReadFile(yamlfile)
-		if err != nil {
-			logrus.Errorf("Failed to read values file %s: %v", yamlfile, err)
-			continue
-		}
-		values := map[string]interface{}{}
-		if err := yaml.Unmarshal(content, &values); err != nil {
-			logrus.Errorf("Failed to unmarshal values file %s: %v", yamlfile, err)
-			continue
-		}
-		if err := k.applyChart(ctx, chart, nil); err != nil {
-			logrus.Errorf("Failed to apply chart %s: %v", fname, err)
-			continue
+			k.log.Errorf("Failed to apply chart %s: %v", fname, err)
 		}
 	}
+}
+
+func (k *Helm) applyOne(ctx context.Context, fname string) error {
+	fprefix := strings.TrimSuffix(fname, filepath.Ext(fname))
+	k.log.Infof("Processing chart %s", fname)
+	fp, err := static.FS().Open(fname)
+	if err != nil {
+		return fmt.Errorf("failed to open chart archive: %w", err)
+	}
+	defer func() {
+		_ = fp.Close()
+	}()
+	chart, err := loader.LoadArchive(fp)
+	if err != nil {
+		return fmt.Errorf("failed to load chart archive: %w", err)
+	}
+	yamlfile := fmt.Sprintf("%s.yaml", fprefix)
+	content, err := static.FS().ReadFile(yamlfile)
+	values := map[string]interface{}{}
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to read values file %s: %w", yamlfile, err)
+		}
+	} else {
+		k.log.Infof("Found chart values %s", yamlfile)
+		if err := yaml.Unmarshal(content, &values); err != nil {
+			return fmt.Errorf("failed to unmarshal values file: %w", err)
+		}
+	}
+	return k.applyChart(ctx, chart, values)
 }
 
 func (k *Helm) applyChart(ctx context.Context, chart *chart.Chart, values map[string]interface{}) error {
@@ -97,7 +103,7 @@ func (k *Helm) applyChart(ctx context.Context, chart *chart.Chart, values map[st
 		return fmt.Errorf("failed to check if release %s is installed: %w", chart.Name(), err)
 	}
 	if installed == nil {
-		logrus.Infof("Helm %s hasn't been installed yet, installing it.", chart.Name())
+		k.log.Infof("Helm %s hasn't been installed yet, installing it.", chart.Name())
 		act := action.NewInstall(k.helmConfig)
 		act.Namespace = "default"
 		act.ReleaseName = chart.Name()
@@ -106,7 +112,7 @@ func (k *Helm) applyChart(ctx context.Context, chart *chart.Chart, values map[st
 		}
 		return nil
 	}
-	logrus.Infof("Helm %s is already installed, applying changes (possible upgrade).", chart.Name())
+	k.log.Infof("Helm %s is already installed, applying changes (possible upgrade).", chart.Name())
 	curver := fmt.Sprintf("v%s", installed.Chart.Metadata.Version)
 	newver := fmt.Sprintf("v%s", chart.Metadata.Version)
 	if out := semver.Compare(curver, newver); out > 0 {
