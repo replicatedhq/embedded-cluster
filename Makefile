@@ -3,6 +3,8 @@
 include embedded-bins/Makefile.variables
 include inttest/Makefile.variables
 
+ARCH ?= $(shell go env GOARCH)
+
 BIN_DIR := $(shell pwd)/bin
 export PATH := $(BIN_DIR):$(PATH)
 
@@ -14,7 +16,15 @@ help: ## Display this help
 
 ##@ Build
 
-GO_TAGS = -tags=''
+# runs on linux even if it's built on mac or windows
+TARGET_OS ?= linux
+BUILD_GO_FLAGS := -tags osusergo
+BUILD_GO_FLAGS += -asmflags "all=-trimpath=$(shell dirname $(PWD))"
+BUILD_GO_FLAGS += -gcflags "all=-trimpath=$(shell dirname $(PWD))"
+LD_FLAGS := -X main.goos=$(shell go env GOOS)
+LD_FLAGS += -X main.goarch=$(shell go env GOARCH)
+LD_FLAGS += -X main.gitCommit=$(shell git rev-parse HEAD)
+LD_FLAGS += -X main.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 GO_SRCS := $(shell find . -type f -name '*.go' -not -name '*_test.go' -not -name 'zz_generated*')
 
@@ -31,35 +41,29 @@ clean: ## Clean the bin directory
 .PHONY: build
 build: static bin/helmbin ## Build helmbin binaries
 
-GO_ASMFLAGS = -asmflags "all=-trimpath=$(shell dirname $(PWD))"
-GO_GCFLAGS = -gcflags "all=-trimpath=$(shell dirname $(PWD))"
-LD_FLAGS = -ldflags " \
-	-X main.goos=$(shell go env GOOS) \
-	-X main.goarch=$(shell go env GOARCH) \
-	-X main.gitCommit=$(shell git rev-parse HEAD) \
-	-X main.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
-	"
-BIN = bin/helmbin
+bin/helmbin: BIN = bin/helmbin
+bin/helmbin: TARGET_OS = linux
+bin/helmbin: BUILD_GO_CGO_ENABLED = 0
 bin/helmbin: $(GO_SRCS) go.sum
 	@mkdir -p bin
-	CGO_ENABLED=0 go build $(GO_GCFLAGS) $(GO_ASMFLAGS) $(LD_FLAGS) $(GO_TAGS) -o $(BIN) ./cmd/helmbin
+	CGO_ENABLED=$(BUILD_GO_CGO_ENABLED) GOOS=$(TARGET_OS) go build $(BUILD_GO_FLAGS) -ldflags='$(LD_FLAGS)' -o $(BIN) ./cmd/helmbin
 
 static: static/bin/k0s static/helm/000-admin-console-$(admin_console_version).tgz ## Build static assets
 
 static/bin/k0s:
 	@mkdir -p static/bin
-	@curl -fsSL -o static/bin/k0s https://github.com/k0sproject/k0s/releases/download/$(k0s_version)/k0s-$(k0s_version)-amd64
+	curl -fsSL -o static/bin/k0s https://github.com/k0sproject/k0s/releases/download/$(k0s_version)/k0s-$(k0s_version)-$(ARCH)
 	chmod +x static/bin/k0s
 
 static/helm/000-admin-console-$(admin_console_version).tgz: helm
 	@mkdir -p static/helm
-	@helm pull oci://registry.replicated.com/library/admin-console --version=$(admin_console_version)
+	helm pull oci://registry.replicated.com/library/admin-console --version=$(admin_console_version)
 	mv admin-console-$(admin_console_version).tgz static/helm/000-admin-console-$(admin_console_version).tgz
 
 ##@ Development
 
 .PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter
+lint: golangci-lint go.sum ## Run golangci-lint linter
 	golangci-lint run
 
 .PHONY: lint-fix
@@ -67,8 +71,9 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	golangci-lint run --fix
 
 .PHONY: test
-test: ## Run the unit tests
-	go test $(GO_TAGS) -race -v ./pkg/...
+test: GO_TEST_RACE ?= -race
+test: go.sum ## Run the unit tests
+	go test $(GO_TEST_RACE) -ldflags='$(LD_FLAGS)' -v ./pkg/...
 
 .PHONY: $(smoketests)
 $(smoketests): build
@@ -82,10 +87,15 @@ GOLANGCI_LINT = $(BIN_DIR)/golangci-lint
 golangci-lint:
 	@[ -f $(GOLANGCI_LINT) ] || { \
 	set -e ;\
-	curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT));\
+	curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
+		sh -s -- -b $(shell dirname $(GOLANGCI_LINT));\
 	}
 
 .PHONY: helm
 helm:
 	@mkdir -p $(BIN_DIR)
-	curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | DESIRED_VERSION=v$(helm_version) HELM_INSTALL_DIR=$(BIN_DIR) bash
+	curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | \
+		DESIRED_VERSION=v$(helm_version) HELM_INSTALL_DIR=$(BIN_DIR) USE_SUDO=false bash
+
+go.sum: go.mod
+	$(GO) mod tidy && touch -c -- '$@'
