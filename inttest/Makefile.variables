@@ -1,4 +1,3 @@
 smoketests := \
+	check-cli \
 	check-noderole-no-taints
-
-# check-cli
