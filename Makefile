@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+include hack/tools/Makefile.variables
 include embedded-bins/Makefile.variables
 include inttest/Makefile.variables
 
@@ -63,19 +64,17 @@ static/bin/k0s:
 
 static/helm/000-admin-console-$(admin_console_version).tgz: helm
 	@mkdir -p static/helm
-	helm pull oci://registry.replicated.com/library/admin-console --version=$(admin_console_version)
+	$(HELM) pull oci://registry.replicated.com/library/admin-console --version=$(admin_console_version)
 	mv admin-console-$(admin_console_version).tgz static/helm/000-admin-console-$(admin_console_version).tgz
 
-##@ Development
+HELM = $(BIN_DIR)/helm
+.PHONY: helm
+helm:
+	@mkdir -p $(BIN_DIR)
+	curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | \
+		DESIRED_VERSION=v$(helm_version) HELM_INSTALL_DIR=$(BIN_DIR) USE_SUDO=false bash
 
-GOLANGCI_LINT = $(BIN_DIR)/golangci-lint
-.PHONY: golangci-lint
-golangci-lint:
-	@[ -f $(GOLANGCI_LINT) ] || { \
-	set -e ;\
-	curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		sh -s -- -b $(shell dirname $(GOLANGCI_LINT));\
-	}
+##@ Development
 
 .PHONY: lint
 lint: golangci-lint go.sum ## Run golangci-lint linter
@@ -97,11 +96,12 @@ $(smoketests): build
 .PHONY: smoketests
 smoketests: $(smoketests)
 
-.PHONY: helm
-helm:
+GOLANGCI_LINT = $(BIN_DIR)/golangci-lint
+.PHONY: golangci-lint
+golangci-lint:
 	@mkdir -p $(BIN_DIR)
-	curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | \
-		DESIRED_VERSION=v$(helm_version) HELM_INSTALL_DIR=$(BIN_DIR) USE_SUDO=false bash
+	curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
+		sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) v$(golangci-lint_version)
 
 go.sum: go.mod
 	$(GO) mod tidy && touch -c -- '$@'
