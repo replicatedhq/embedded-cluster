@@ -62,3 +62,6 @@ RUN if [ "$TARGETARCH" != arm ]; then \
       && chmod 755 /usr/local/bin/cri-dockerd; \
   fi
 ADD cri-dockerd.sh /etc/init.d/cri-dockerd
+
+ADD docker-entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
