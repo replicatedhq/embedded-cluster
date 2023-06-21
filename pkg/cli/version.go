@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/emosbaugh/helmbin/pkg/version"
+	"github.com/replicatedhq/helmbin/pkg/version"
 	"github.com/spf13/cobra"
 )
 

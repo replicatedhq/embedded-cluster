@@ -1,4 +1,4 @@
-module github.com/emosbaugh/helmbin
+module github.com/replicatedhq/helmbin
 
 go 1.20
 

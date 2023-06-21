@@ -7,9 +7,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/emosbaugh/helmbin/pkg/config"
-	"github.com/emosbaugh/helmbin/pkg/controller"
-	"github.com/emosbaugh/helmbin/pkg/controller/manager"
+	"github.com/replicatedhq/helmbin/pkg/config"
+	"github.com/replicatedhq/helmbin/pkg/controller"
+	"github.com/replicatedhq/helmbin/pkg/controller/manager"
 )
 
 // NewCmdRun returns a cobra command for running a combined controller and worker node

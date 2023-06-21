@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/emosbaugh/helmbin/pkg/config"
 	"github.com/k0sproject/k0s/cmd/install"
 	"github.com/k0sproject/k0s/cmd/start"
+	"github.com/replicatedhq/helmbin/pkg/config"
 	"github.com/spf13/cobra"
 )
 

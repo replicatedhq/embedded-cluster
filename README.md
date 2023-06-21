@@ -30,7 +30,7 @@ Use "helmbin [command] --help" for more information about a command.
 
 ```bash
 $ make build
-go build -gcflags "all=-trimpath=/home/ethan/go/src/github.com/emosbaugh" -asmflags "all=-trimpath=/home/ethan/go/src/github.com/emosbaugh" -ldflags " -X main.goos=linux -X main.goarch=amd64 -X main.gitCommit=1a6e487bb4bcb5049c448983758912afbdb9d1c2 -X main.buildDate=2023-05-24T21:42:34Z " -tags='' -o bin/helmbin ./cmd/helmbin
+go build -gcflags "all=-trimpath=/home/ethan/go/src/github.com/replicatedhq" -asmflags "all=-trimpath=/home/ethan/go/src/github.com/replicatedhq" -ldflags " -X main.goos=linux -X main.goarch=amd64 -X main.gitCommit=1a6e487bb4bcb5049c448983758912afbdb9d1c2 -X main.buildDate=2023-05-24T21:42:34Z " -tags='' -o bin/helmbin ./cmd/helmbin
 ```
 
 ## Running

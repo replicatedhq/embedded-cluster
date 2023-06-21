@@ -104,4 +104,4 @@ golangci-lint:
 		sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) v$(golangci-lint_version)
 
 go.sum: go.mod
-	$(GO) mod tidy && touch -c -- '$@'
+	go mod tidy && touch -c -- '$@'

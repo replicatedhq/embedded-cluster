@@ -49,7 +49,7 @@ $(smoketests): .footloose-alpine.stamp
 $(smoketests): TEST_PACKAGE ?= $(subst check-,,$@)
 $(smoketests):
 	K0S_PATH='$(HELMBIN_PATH)' \
-	go test -count=1 -v -timeout $(TIMEOUT) github.com/emosbaugh/helmbin/inttest/$(TEST_PACKAGE)
+	go test -count=1 -v -timeout $(TIMEOUT) github.com/replicatedhq/helmbin/inttest/$(TEST_PACKAGE)
 
 .PHONY: clean
 clean:
