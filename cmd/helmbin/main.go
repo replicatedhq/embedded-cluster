@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/emosbaugh/helmbin/pkg/cli"
+	"github.com/replicatedhq/helmbin/pkg/cli"
 )
 
 func main() {

@@ -15,7 +15,7 @@ import (
 	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/spf13/cobra"
 
-	"github.com/emosbaugh/helmbin/pkg/config"
+	"github.com/replicatedhq/helmbin/pkg/config"
 )
 
 // NewCmdKubeconfig returns a cobra command for getting the kubeconfig

@@ -10,7 +10,7 @@ import (
 	"k8s.io/component-base/logs"
 	kubectl "k8s.io/kubectl/pkg/cmd"
 
-	"github.com/emosbaugh/helmbin/pkg/config"
+	"github.com/replicatedhq/helmbin/pkg/config"
 )
 
 // NewCmdKubectl returns a cobra command for running kubectl

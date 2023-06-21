@@ -18,10 +18,10 @@ import (
 	kconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/yaml"
 
-	"github.com/emosbaugh/helmbin/pkg/assets"
-	"github.com/emosbaugh/helmbin/pkg/config"
-	"github.com/emosbaugh/helmbin/pkg/supervisor"
-	"github.com/emosbaugh/helmbin/static"
+	"github.com/replicatedhq/helmbin/pkg/assets"
+	"github.com/replicatedhq/helmbin/pkg/config"
+	"github.com/replicatedhq/helmbin/pkg/supervisor"
+	"github.com/replicatedhq/helmbin/static"
 )
 
 // K0sController implements the component interface to run the k0s controller.

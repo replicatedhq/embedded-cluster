@@ -16,8 +16,8 @@ import (
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
 
-	"github.com/emosbaugh/helmbin/pkg/config"
-	"github.com/emosbaugh/helmbin/static"
+	"github.com/replicatedhq/helmbin/pkg/config"
+	"github.com/replicatedhq/helmbin/static"
 )
 
 // Helm implement the component interface to run the Helm controller

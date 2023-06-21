@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/emosbaugh/helmbin/pkg/assets"
-	"github.com/emosbaugh/helmbin/pkg/config"
-	"github.com/emosbaugh/helmbin/pkg/server"
-	"github.com/emosbaugh/helmbin/static"
+	"github.com/replicatedhq/helmbin/pkg/assets"
+	"github.com/replicatedhq/helmbin/pkg/config"
+	"github.com/replicatedhq/helmbin/pkg/server"
+	"github.com/replicatedhq/helmbin/static"
 )
 
 // Server implement the component interface to run the helmbin server
