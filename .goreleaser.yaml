@@ -1,0 +1,16 @@
+project_name: helmbin
+release:
+  github:
+    owner: replicatedhq
+    name: helmbin
+builds:
+  - id: helmbin
+    goos:
+      - linux
+    goarch:
+      - amd64
+    env:
+      - CGO_ENABLED=0
+    hooks:
+      pre: make static
+    main: cmd/helmbin/main.go
