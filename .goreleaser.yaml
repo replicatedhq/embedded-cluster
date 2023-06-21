@@ -14,3 +14,5 @@ builds:
     hooks:
       pre: make static
     main: cmd/helmbin/main.go
+snapshot:
+  name_template: "devel"
