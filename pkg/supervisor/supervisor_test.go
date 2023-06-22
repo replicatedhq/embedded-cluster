@@ -3,7 +3,6 @@ package supervisor
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
@@ -34,11 +33,9 @@ func TestNew(t *testing.T) {
 }
 
 func TestSupervise(t *testing.T) {
-	s, err := New("/usr/bin/sleep", []string{"60"}, WithPIDFile("/tmp/cat.pid"))
+	s, err := New("/usr/bin/sleep", []string{"60"}, WithPIDFile("/tmp/supervise.pid"))
 	assert.NoError(t, err)
-	fmt.Println(time.Now())
 	assert.NoError(t, s.Supervise())
-	fmt.Println(time.Now())
 	time.Sleep(time.Second)
 	assert.NoError(t, s.Stop())
 }
@@ -52,7 +49,7 @@ func Test_shouldKillProcess(t *testing.T) {
 	should, err = s.shouldKillProcess(os.Getpid())
 	assert.NoError(t, err)
 	assert.False(t, should)
-	s, err = New("/usr/bin/sleep", []string{"60"}, WithPIDFile("/tmp/cat.pid"))
+	s, err = New("/usr/bin/sleep", []string{"60"}, WithPIDFile("/tmp/should_kill.pid"))
 	assert.NoError(t, err)
 	assert.NoError(t, s.Supervise())
 	time.Sleep(time.Second)
@@ -63,7 +60,7 @@ func Test_shouldKillProcess(t *testing.T) {
 }
 
 func Test_killPid(t *testing.T) {
-	s, err := New("/usr/bin/sleep", []string{"60"}, WithPIDFile("/tmp/cat.pid"))
+	s, err := New("/usr/bin/sleep", []string{"60"}, WithPIDFile("/tmp/kill_pid.pid"))
 	assert.NoError(t, err)
 	assert.NoError(t, s.Supervise())
 	time.Sleep(time.Second)
@@ -113,8 +110,8 @@ exit 3
 func TestCrashingProcess(t *testing.T) {
 	assert.NoError(t, os.RemoveAll("/tmp/bad_supervisor_test.log"))
 	assert.NoError(t, os.WriteFile("/tmp/bad_supervisor_test.sh", []byte(badScript), 0755))
-	script := "/tmp/good_supervisor_test.sh"
-	pidpath := "/tmp/good_supervisor_test.pid"
+	script := "/tmp/bad_supervisor_test.sh"
+	pidpath := "/tmp/bad_supervisor_test.pid"
 	s, err := New(script, nil, WithPIDFile(pidpath), WithTimeoutRespawn(100*time.Millisecond))
 	assert.NoError(t, err)
 	assert.NoError(t, s.Supervise())
