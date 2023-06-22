@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  goreleaser:
+  releaser:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,12 +26,12 @@ jobs:
         run: make build
 
       - name: Compress binary
-        run: tar -C bin -czvf helmbin.tar.gz helmbin
+        run: tar -C bin -czvf helmbin.tgz helmbin
 
-      - name: publish release
+      - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
         with:
-          automatic_release_tag: latest
+          automatic_release_tag: development
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: true
           title: Development Release Build
