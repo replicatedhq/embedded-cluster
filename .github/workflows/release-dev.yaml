@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.20"
+
+      - name: Build
+        run: make build
+
+      - name: Compress binary
+        run: tar -C bin -czvf helmbin.tar.gz helmbin
+
+      - name: publish release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          automatic_release_tag: latest
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
+          title: Development Release Build
+          files: |
+            *.tgz
