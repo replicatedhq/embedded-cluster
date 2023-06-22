@@ -91,7 +91,9 @@ date >> /tmp/good_supervisor_test.log
 func TestExitingProcess(t *testing.T) {
 	assert.NoError(t, os.RemoveAll("/tmp/good_supervisor_test.log"))
 	assert.NoError(t, os.WriteFile("/tmp/good_supervisor_test.sh", []byte(goodScript), 0755))
-	s, err := New("/tmp/good_supervisor_test.sh", nil, WithPIDFile("/tmp/good_supervisor_test.pid"), WithTimeoutRespawn(100*time.Millisecond))
+	script := "/tmp/good_supervisor_test.sh"
+	pidpath := "/tmp/good_supervisor_test.pid"
+	s, err := New(script, nil, WithPIDFile(pidpath), WithTimeoutRespawn(100*time.Millisecond))
 	assert.NoError(t, err)
 	assert.NoError(t, s.Supervise())
 	time.Sleep(time.Second)
@@ -111,7 +113,9 @@ exit 3
 func TestCrashingProcess(t *testing.T) {
 	assert.NoError(t, os.RemoveAll("/tmp/bad_supervisor_test.log"))
 	assert.NoError(t, os.WriteFile("/tmp/bad_supervisor_test.sh", []byte(badScript), 0755))
-	s, err := New("/tmp/bad_supervisor_test.sh", nil, WithPIDFile("/tmp/bad_supervisor_test.pid"), WithTimeoutRespawn(100*time.Millisecond))
+	script := "/tmp/good_supervisor_test.sh"
+	pidpath := "/tmp/good_supervisor_test.pid"
+	s, err := New(script, nil, WithPIDFile(pidpath), WithTimeoutRespawn(100*time.Millisecond))
 	assert.NoError(t, err)
 	assert.NoError(t, s.Supervise())
 	time.Sleep(time.Second)
@@ -128,8 +132,12 @@ func Test_maybeKillPid(t *testing.T) {
 	assert.NoError(t, os.WriteFile(ppath, []byte("abc"), 0644))
 	s, err := New("/usr/bin/sleep", []string{"60"}, WithPIDFile(ppath))
 	assert.NoError(t, err)
-	assert.Error(t, s.maybeKillPid(), "failed to parse pid file %[1]s: strconv.Atoi: parsing \"abc\": invalid syntax", ppath)
-
+	assert.Error(
+		t,
+		s.maybeKillPid(),
+		"failed to parse pid file %[1]s: strconv.Atoi: parsing \"abc\": invalid syntax",
+		ppath,
+	)
 	assert.NoError(t, os.WriteFile(ppath, []byte("1"), 0644))
 	s, err = New("/usr/bin/sleep", []string{"60"}, WithPIDFile(ppath))
 	assert.NoError(t, err)

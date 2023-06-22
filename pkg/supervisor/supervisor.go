@@ -1,3 +1,4 @@
+// Package supervisor package implements tooling for spawning and keep processes running.
 package supervisor
 
 import (
@@ -256,7 +257,7 @@ func (s *Supervisor) maybeKillPid() error {
 	return s.killPid(pid)
 }
 
-// shouldKillProcess returns true if the proccess with the provided pid should be killed. By should be
+// shouldKillProcess returns true if the process with the provided pid should be killed. By should be
 // killed is understood as the command for process with the given pid matches the command we are
 // supervising.
 func (s *Supervisor) shouldKillProcess(pid int) (bool, error) {
