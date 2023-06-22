@@ -14,7 +14,9 @@ To install Helmbin, follow these steps:
 2. Extract the downloaded archive to a directory of your choice.
 3. Add the directory containing the Helmbin binary to your system's `PATH` variable.
 
-## Building
+## Contributing
+
+### Building
 
 If you want to build the binary on your own you can, after cloning this repository, run:
 
@@ -23,6 +25,15 @@ $ make build
 ```
 
 The compiled binary will be then placed under the `bin/` subdirectory.
+
+### Testing your changes
+
+Before submitting a PR you may want to run a few local checks, namely `linter` and `tests`. You can do it by running the following commands in your cloned repository directory:
+
+```bash
+$ make lint
+$ make test
+```
 
 ## Running
 
