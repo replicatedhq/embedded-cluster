@@ -1,17 +1,13 @@
-/*
-Package supervisor implements a simple process supervisor
-*/
+// Package supervisor package implements tooling for spawning and keep processes running.
 package supervisor
 
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
-	"path"
-	"runtime"
-	"sort"
+	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,277 +17,258 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Supervisor is dead simple and stupid process supervisor, just tries to keep the process running in a while-true loop
-type Supervisor struct {
-	Name           string
-	BinPath        string
-	RunDir         string
-	DataDir        string
-	Args           []string
-	PidFile        string
-	UID            int
-	GID            int
-	TimeoutStop    time.Duration
-	TimeoutRespawn time.Duration
-	// For those components having env prefix convention such as ETCD_xxx, we should keep the prefix.
-	KeepEnvPrefix bool
-	// ProcFSPath is only used for testing
-	ProcFSPath string
-	// KillFunction is only used for testing
-	KillFunction func(int, syscall.Signal) error
-	// A function to clean some leftovers before starting or restarting the supervised process
-	CleanBeforeFn func() error
-	Output        io.Writer
+// New returns a new Supervisor that will start and supervise the provided command with
+// the provided arguments.
+func New(path string, args []string, opts ...Option) (*Supervisor, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine current user: %w", err)
+	}
+	uid, err := strconv.Atoi(usr.Uid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse current user id: %w", err)
+	}
+	gid, err := strconv.Atoi(usr.Gid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse current group id: %w", err)
+	}
+	res := &Supervisor{
+		binPath:        path,
+		args:           args,
+		name:           filepath.Base(path),
+		log:            logrus.WithField("component", filepath.Base(path)),
+		pidFile:        fmt.Sprintf("/run/replicated/%s.pid", filepath.Base(path)),
+		timeoutStop:    5 * time.Second,
+		timeoutRespawn: 5 * time.Second,
+		uid:            uid,
+		gid:            gid,
+	}
+	for _, opt := range opts {
+		opt(res)
+	}
+	return res, nil
+}
 
+// Supervisor is process supervisor, just tries to keep the process running in a while-true loop.
+type Supervisor struct {
+	name           string
+	binPath        string
+	log            logrus.FieldLogger
+	args           []string
+	uid            int
+	gid            int
+	timeoutStop    time.Duration
+	timeoutRespawn time.Duration
+	pidFile        string
 	cmd            *exec.Cmd
 	done           chan bool
-	log            logrus.FieldLogger
-	mutex          sync.Mutex
 	startStopMutex sync.Mutex
 	cancel         context.CancelFunc
 }
 
-const k0sManaged = "_K0S_MANAGED=yes"
-
-// processWaitQuit waits for a process to exit or a shut down signal
-// returns true if shutdown is requested
-func (s *Supervisor) processWaitQuit(ctx context.Context) bool {
+// processWaitQuit waits for a process to exit or a shut down signal returns true if shutdown is requested.
+func (s *Supervisor) processWaitQuit(ctx context.Context) (bool, error) {
 	waitresult := make(chan error)
 	go func() {
 		waitresult <- s.cmd.Wait()
 	}()
-
-	pidbuf := []byte(strconv.Itoa(s.cmd.Process.Pid) + "\n")
-	err := os.WriteFile(s.PidFile, pidbuf, 0644)
-	if err != nil {
-		s.log.Warnf("Failed to write file %s: %v", s.PidFile, err)
+	pidbuf := []byte(strconv.Itoa(s.cmd.Process.Pid))
+	if err := os.WriteFile(s.pidFile, pidbuf, 0644); err != nil {
+		return false, fmt.Errorf("failed to write file %s: %w", s.pidFile, err)
 	}
 	defer func() {
-		_ = os.Remove(s.PidFile)
+		_ = os.Remove(s.pidFile)
 	}()
 
 	select {
 	case <-ctx.Done():
-		for {
-			if runtime.GOOS == "windows" {
-				// Graceful shutdown not implemented on Windows. This requires
-				// attaching to the target process's console and generating a
-				// CTRL+BREAK (or CTRL+C) event. Since a process can only be
-				// attached to a single console at a time, this would require
-				// k0s to detach from its own console, which is definitely not
-				// something that k0s wants to do. There might be ways to do
-				// this by generating the event via a separate helper process,
-				// but that's left open here as a TODO.
-				// https://learn.microsoft.com/en-us/windows/console/freeconsole
-				// https://learn.microsoft.com/en-us/windows/console/attachconsole
-				// https://learn.microsoft.com/en-us/windows/console/generateconsolectrlevent
-				// https://learn.microsoft.com/en-us/windows/console/ctrl-c-and-ctrl-break-signals
-				s.log.Infof("Killing pid %d", s.cmd.Process.Pid)
-				if err := s.cmd.Process.Kill(); err != nil {
-					s.log.Warnf("Failed to kill pid %d: %s", s.cmd.Process.Pid, err)
-				}
-			} else {
-				s.log.Infof("Shutting down pid %d", s.cmd.Process.Pid)
-				if err := s.cmd.Process.Signal(syscall.SIGTERM); err != nil {
-					s.log.Warnf("Failed to send SIGTERM to pid %d: %s", s.cmd.Process.Pid, err)
-				}
-			}
-			select {
-			case <-time.After(s.TimeoutStop):
-				continue
-			case <-waitresult:
-				return true
-			}
+		if err := s.maybeKillPid(); err != nil {
+			return true, fmt.Errorf("failed to kill %s process: %w", s.name, err)
 		}
+		return true, nil
 	case err := <-waitresult:
 		if err != nil {
-			s.log.Warnf("Failed to wait for process: %v", err)
-		} else {
-			s.log.Warnf("Process exited: %s", s.cmd.ProcessState)
+			s.log.Warnf("Failed to waiting for process %q: %v", s.name, err)
+			break
 		}
+		s.log.Warnf("Process %q exited: %s", s.name, s.cmd.ProcessState)
 	}
-	return false
+	return false, nil
 }
 
-// Supervise Starts supervising the given process
+// Supervise Starts supervising the given process.
 func (s *Supervisor) Supervise() error {
 	s.startStopMutex.Lock()
 	defer s.startStopMutex.Unlock()
-	// check if it is already started
 	if s.cancel != nil {
-		s.log.Warn("Already started")
+		s.log.Warn("Supervisor for %q already started", s.name)
 		return nil
 	}
-	s.log = logrus.WithField("component", s.Name)
-	s.PidFile = path.Join(s.RunDir, s.Name) + ".pid"
-
-	if err := os.MkdirAll(s.RunDir, 0755); err != nil {
+	dir := filepath.Dir(s.pidFile)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create run dir: %w", err)
+	}
+	if err := s.maybeKillPid(); err != nil {
 		return err
 	}
-
-	if s.TimeoutStop == 0 {
-		s.TimeoutStop = 5 * time.Second
-	}
-	if s.TimeoutRespawn == 0 {
-		s.TimeoutRespawn = 5 * time.Second
-	}
-
-	if err := s.maybeKillPidFile(nil, nil); err != nil {
-		return err
-	}
-
 	var ctx context.Context
 	ctx, s.cancel = context.WithCancel(context.Background())
-	started := make(chan error)
 	s.done = make(chan bool)
-
-	go func() {
-		defer func() {
-			close(s.done)
-		}()
-
-		s.log.Info("Starting to supervise")
-		restarts := 0
-		for {
-			s.mutex.Lock()
-
-			var err error
-			if s.CleanBeforeFn != nil {
-				err = s.CleanBeforeFn()
-			}
-			if err != nil {
-				s.log.Warnf("Failed to clean before running the process %s: %s", s.BinPath, err)
-			} else {
-				s.cmd = exec.Command(s.BinPath, s.Args...)
-				s.cmd.Dir = s.DataDir
-				s.cmd.Env = getEnv(s.DataDir, s.Name, s.KeepEnvPrefix)
-
-				// detach from the process group so children don't
-				// get signals sent directly to parent.
-				s.cmd.SysProcAttr = DetachAttr(s.UID, s.GID)
-
-				const maxLogChunkLen = 16 * 1024
-				if s.Output != nil {
-					s.cmd.Stdout = s.Output
-					s.cmd.Stderr = s.Output
-				} else {
-					s.cmd.Stdout = &logWriter{
-						log: logrus.WithField("stream", "stdout"),
-						buf: make([]byte, maxLogChunkLen),
-					}
-					s.cmd.Stderr = &logWriter{
-						log: logrus.WithField("stream", "stderr"),
-						buf: make([]byte, maxLogChunkLen),
-					}
-				}
-
-				err = s.cmd.Start()
-			}
-			s.mutex.Unlock()
-			if err != nil {
-				s.log.Warnf("Failed to start: %s", err)
-				if restarts == 0 {
-					started <- err
-					return
-				}
-			} else {
-				if restarts == 0 {
-					s.log.Infof("Started successfully, go nuts pid %d", s.cmd.Process.Pid)
-					started <- nil
-				} else {
-					s.log.Infof("Restarted (%d)", restarts)
-				}
-				restarts++
-				if s.processWaitQuit(ctx) {
-					return
-				}
-			}
-
-			// TODO Maybe some backoff thingy would be nice
-			s.log.Infof("respawning in %s", s.TimeoutRespawn.String())
-
-			select {
-			case <-ctx.Done():
-				s.log.Debug("respawn cancelled")
-				return
-			case <-time.After(s.TimeoutRespawn):
-				s.log.Debug("respawning")
-			}
-		}
-	}()
-	return <-started
-}
-
-// Stop stops the supervised
-func (s *Supervisor) Stop() error {
-	s.startStopMutex.Lock()
-	defer s.startStopMutex.Unlock()
-	if s.cancel == nil {
-		s.log.Warn("Not started")
-		return nil
-	}
-	s.log.Debug("Sending stop message")
-
-	s.cancel()
-	s.cancel = nil
-	s.log.Debug("Waiting for stopping is done")
-	if s.done != nil {
-		<-s.done
+	if err := s.supervise(ctx); err != nil {
+		return fmt.Errorf("failed to supervise %q: %w", s.name, err)
 	}
 	return nil
 }
 
-// Prepare the env for exec:
-// - handle component specific env
-// - inject k0s embedded bins into path
-func getEnv(dataDir, component string, keepEnvPrefix bool) []string {
-	env := os.Environ()
-	componentPrefix := fmt.Sprintf("%s_", strings.ToUpper(component))
-
-	// put the component specific env vars in the front.
-	sort.Slice(env, func(i, j int) bool { return strings.HasPrefix(env[i], componentPrefix) })
-
-	overrides := map[string]struct{}{}
-	i := 0
-	for _, e := range env {
-		kv := strings.SplitN(e, "=", 2)
-		k, v := kv[0], kv[1]
-		// if there is already a correspondent component specific env, skip it.
-		if _, ok := overrides[k]; ok {
-			continue
+// DetachAttr creates the proper syscall attributes to run the managed processes.
+func (s *Supervisor) detachAttr() *syscall.SysProcAttr {
+	var creds *syscall.Credential
+	if os.Geteuid() == 0 {
+		creds = &syscall.Credential{
+			Uid: uint32(s.uid),
+			Gid: uint32(s.gid),
 		}
-		if strings.HasPrefix(k, componentPrefix) {
-			var shouldOverride bool
-			k1 := strings.TrimPrefix(k, componentPrefix)
-			switch k1 {
-			// always override proxy env
-			case "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY":
-				shouldOverride = true
-			default:
-				if !keepEnvPrefix {
-					shouldOverride = true
-				}
-			}
-			if shouldOverride {
-				k = k1
-				overrides[k] = struct{}{}
-			}
-		}
-		env[i] = fmt.Sprintf("%s=%s", k, v)
-		if k == "PATH" {
-			env[i] = fmt.Sprintf("PATH=%s:%s", path.Join(dataDir, "bin"), v)
-		}
-		i++
 	}
-	env = append([]string{k0sManaged}, env...)
-	i++
-
-	return env[:i]
+	return &syscall.SysProcAttr{
+		Setpgid:    true,
+		Pgid:       0,
+		Credential: creds,
+	}
 }
 
-// GetProcess returns the last started process
-func (s *Supervisor) GetProcess() *os.Process {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	return s.cmd.Process
+// supervise starts the process and waits for it to exit.
+func (s *Supervisor) supervise(ctx context.Context) error {
+	defer func() {
+		close(s.done)
+	}()
+	s.log.Infof("Starting to supervise %q", s.name)
+	s.cmd = exec.Command(s.binPath, s.args...)
+	s.cmd.Stdout = logrus.WithField("stream", "stdout").Writer()
+	s.cmd.Stdout = logrus.WithField("stream", "stderr").Writer()
+	s.cmd.SysProcAttr = s.detachAttr()
+	if err := s.cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start %q: %w", s.name, err)
+	}
+	s.log.Infof("Started %q with pid %d", s.name, s.cmd.Process.Pid)
+
+	go func() {
+		var restarts int
+		for {
+			if ended, err := s.processWaitQuit(ctx); err != nil {
+				s.log.Errorf("Supervise for %q ended with error: %w", s.name, err)
+				return
+			} else if ended {
+				s.log.Infof("Supervise for %q ended", s.name)
+				return
+			}
+			restarts++
+			s.log.Infof("Respawning %q in %s", s.name, s.timeoutRespawn.String())
+			select {
+			case <-ctx.Done():
+				s.log.Infof("Respawn of %q cancelled", s.name)
+				return
+			case <-time.After(s.timeoutRespawn):
+				s.log.Infof("Respawning %q", s.name)
+			}
+			s.cmd = exec.Command(s.binPath, s.args...)
+			s.cmd.Stdout = logrus.WithField("stream", "stdout").Writer()
+			s.cmd.Stdout = logrus.WithField("stream", "stderr").Writer()
+			s.cmd.SysProcAttr = s.detachAttr()
+			if err := s.cmd.Start(); err != nil {
+				s.log.Errorf("Failed to respawn %q: %s", s.name, err)
+			}
+		}
+	}()
+	return nil
+}
+
+// Stop stops the supervised process.
+func (s *Supervisor) Stop() error {
+	s.startStopMutex.Lock()
+	defer s.startStopMutex.Unlock()
+	if s.cancel == nil {
+		s.log.Warn("Supervised not started")
+		return nil
+	}
+	s.log.Infof("Sending stop message")
+	s.cancel()
+	s.cancel = nil
+	if s.done != nil {
+		<-s.done
+	}
+	s.log.Infof("Supervisor for %q stopped", s.name)
+	return nil
+}
+
+// killPid signals SIGTERM to a PID and if it's still running after s.timeoutStop sends SIGKILL.
+func (s *Supervisor) killPid(pid int) error {
+	deadlineTicker := time.NewTicker(s.timeoutStop)
+	checkTicker := time.NewTicker(time.Second)
+	defer deadlineTicker.Stop()
+	defer checkTicker.Stop()
+	var stop bool
+	for {
+		select {
+		case <-checkTicker.C:
+			s.log.Infof("Sending SIGTERM to pid %d", pid)
+			if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+				if err == syscall.ESRCH {
+					return nil
+				}
+				return fmt.Errorf("failed to send sigterm to %d: %w", pid, err)
+			}
+		case <-deadlineTicker.C:
+			stop = true
+		}
+		if !stop {
+			continue
+		}
+		s.log.Errorf("Process %d still running, sending SIGKILL", pid)
+		break
+	}
+	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+		if err == syscall.ESRCH {
+			return nil
+		}
+		return fmt.Errorf("failed to send SIGKILL to pid %d: %s", s.cmd.Process.Pid, err)
+	}
+	return nil
+}
+
+// maybeKillPid checks kills the process in the pidFile if it's has the same binary as the supervisor's.
+// This function does not delete the old pidFile as this is done by the caller.
+func (s *Supervisor) maybeKillPid() error {
+	bpid, err := os.ReadFile(s.pidFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to read pid file %s: %v", s.pidFile, err)
+	}
+	pid, err := strconv.Atoi(string(bpid))
+	if err != nil {
+		return fmt.Errorf("failed to parse pid file %s: %v", s.pidFile, err)
+	}
+	if should, err := s.shouldKillProcess(pid); err != nil {
+		return fmt.Errorf("failed to assess if we should kill pid %d: %w", pid, err)
+	} else if !should {
+		return fmt.Errorf("pid %d is not a %q process", pid, s.name)
+	}
+	return s.killPid(pid)
+}
+
+// shouldKillProcess returns true if the process with the provided pid should be killed. By should be
+// killed is understood as the command for process with the given pid matches the command we are
+// supervising.
+func (s *Supervisor) shouldKillProcess(pid int) (bool, error) {
+	cmdline, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "cmdline"))
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("failed to read process %d cmdline: %v", pid, err)
+	}
+	if cmd := strings.Split(string(cmdline), "\x00"); len(cmd) > 0 {
+		return cmd[0] == s.binPath, nil
+	}
+	return false, nil
 }
