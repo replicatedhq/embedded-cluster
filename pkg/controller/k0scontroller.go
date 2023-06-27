@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -27,7 +28,8 @@ import (
 type K0sController struct {
 	Options config.K0sControllerOptions
 
-	supervisor *supervisor.Supervisor
+	supervisor supervisor.Supervisor
+	Output     io.Writer
 	uid        int
 	gid        int
 }
@@ -66,9 +68,16 @@ func (k *K0sController) Init(_ context.Context) error {
 	if k.Options.CmdLogLevels != nil {
 		args = append(args, fmt.Sprintf("--logging=%s", createS2SFlag(k.Options.CmdLogLevels)))
 	}
-	k0spath := assets.BinPath("k0s", k.Options.BinDir())
-	if k.supervisor, err = supervisor.New(k0spath, args); err != nil {
-		return fmt.Errorf("failed to create supervisor: %w", err)
+	k.supervisor = supervisor.Supervisor{
+		Name:          "k0s",
+		UID:           k.uid,
+		GID:           k.gid,
+		BinPath:       assets.BinPath("k0s", k.Options.BinDir()),
+		Output:        k.Output,
+		RunDir:        k.Options.RunDir(),
+		DataDir:       k.Options.DataDir,
+		KeepEnvPrefix: true,
+		Args:          args,
 	}
 	return nil
 }
