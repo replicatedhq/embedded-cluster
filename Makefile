@@ -78,7 +78,7 @@ helm:
 
 .PHONY: lint
 lint: golangci-lint go.sum ## Run golangci-lint linter
-	$(GOLANGCI_LINT) run --timeout=5m
+	$(GOLANGCI_LINT) run --timeout=10m
 
 .PHONY: lint-fix
 lint-fix: golangci-lint go.sum ## Run golangci-lint linter and perform fixes
