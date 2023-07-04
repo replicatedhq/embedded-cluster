@@ -1,5 +1,5 @@
 k0s_version = v1.27.2+k0s.0
-admin_console_version = 1.99.0
+admin_console_version = 1.100.3
 
 alpine_version = 3.17
 alpine_patch_version = $(alpine_version).3
