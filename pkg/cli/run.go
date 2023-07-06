@@ -57,6 +57,9 @@ func runController(ctx context.Context, opts config.K0sControllerOptions) error 
 	manager.Add(&controller.Helm{
 		Options: opts.CLIOptions,
 	})
+	manager.Add(&controller.KotsRelease{
+		Options: opts.CLIOptions,
+	})
 	if err := manager.Init(ctx); err != nil {
 		return fmt.Errorf("failed to initialize manager: %w", err)
 	}
