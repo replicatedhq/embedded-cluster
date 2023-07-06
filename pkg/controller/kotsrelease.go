@@ -42,7 +42,9 @@ func (k *KotsRelease) Init(_ context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to open %s binary: %w", os.Args[0], err)
 	}
-	defer fpbin.Close()
+	defer func() {
+		_ = fpbin.Close()
+	}()
 	section := fpbin.Section("sec_bundle")
 	if section == nil {
 		k.log.Infof("No kots release bundle found inside the binary.")
@@ -63,7 +65,9 @@ func (k *KotsRelease) processBundleSection(section *elf.Section) ([]byte, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gzip reader for sec_bundle section: %w", err)
 	}
-	defer gzr.Close()
+	defer func() {
+		_ = gzr.Close()
+	}()
 	tr := tar.NewReader(gzr)
 	for {
 		header, err := tr.Next()
