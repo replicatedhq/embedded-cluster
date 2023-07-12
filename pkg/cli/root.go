@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"path/filepath"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -16,7 +14,7 @@ func NewDefaultRootCommand() *cobra.Command {
 	var debug bool
 	cli := NewCLI()
 	cmd := &cobra.Command{
-		Use:   filepath.Base(cli.Args[0]),
+		Use:   cli.Name,
 		Short: "An embeddable Kubernetes distribution",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if debug {

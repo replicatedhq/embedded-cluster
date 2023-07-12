@@ -1,135 +1,248 @@
 package cli
 
 import (
-	"bytes"
-	"context"
-	"encoding/csv"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/k0sproject/k0s/cmd/install"
-	"github.com/k0sproject/k0s/cmd/start"
-	"github.com/replicatedhq/helmbin/pkg/config"
+	"github.com/k0sproject/k0s/pkg/config"
+	k0sinstall "github.com/k0sproject/k0s/pkg/install"
+	"github.com/replicatedhq/helmbin/pkg/constants"
+	"github.com/replicatedhq/helmbin/pkg/install"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
+
+type command config.CLIOptions
+
+type installFlags struct {
+	force   bool
+	envVars []string
+}
 
 // NewCmdInstall returns a cobra command for installing a controller+worker as a systemd service
 func NewCmdInstall(cli *CLI) *cobra.Command {
-	opts := config.K0sControllerOptions{}
-	var startService bool
+	cmdinstall := newInstallCmd(cli)
+	cli.cmdReplaceK0s(cmdinstall)
+	for _, cmd := range cmdinstall.Commands() {
+		cli.cmdReplaceK0s(cmd)
+		if cmd.Use == "controller" {
+			cmdinstall.PreRunE = cmd.PreRunE
+			cmdinstall.RunE = cmd.RunE
+		}
+	}
+	return cmdinstall
+}
 
+func newInstallCmd(cli *CLI) *cobra.Command {
+	var installFlags installFlags
+
+	cmd := installCmd(cli, &installFlags)
+
+	cmd.AddCommand(installControllerCmd(cli, &installFlags))
+	cmd.AddCommand(installWorkerCmd(cli, &installFlags))
+	cmd.PersistentFlags().BoolVar(&installFlags.force, "force", false, "force init script creation")
+	cmd.PersistentFlags().StringArrayVarP(&installFlags.envVars, "env", "e", nil, "set environment variable")
+	cmd.PersistentFlags().AddFlagSet(config.GetPersistentFlagSet())
+	cmd.Flags().AddFlagSet(config.GetControllerFlags())
+	cmd.Flags().AddFlagSet(config.GetWorkerFlags())
+
+	return cmd
+}
+
+func installCmd(cli *CLI, installFlags *installFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "Installs and starts a controller+worker as a systemd service",
+		Short: "Install k0s on a brand-new system. Must be run as root (or with sudo)",
+		Example: `With the install command you can setup a single node cluster by running:
+
+	k0s install
+	`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInstallController(cmd.Context(), opts, startService)
+			c := command(config.GetCmdOpts())
+			if err := c.convertFileParamsToAbsolute(); err != nil {
+				cmd.SilenceUsage = true
+				return err
+			}
+			flagsAndVals := []string{"controller"}
+
+			// hardcode flags for controller+worker
+			err := cmd.Flags().Lookup("enable-worker").Value.Set("true")
+			if err != nil {
+				panic(err)
+			}
+			err = cmd.Flags().Lookup("no-taints").Value.Set("true")
+			if err != nil {
+				panic(err)
+			}
+
+			flagsAndVals = append(flagsAndVals, cmdFlagsToArgs(cmd)...)
+			if err := c.setup(cli.Name, constants.RoleController, flagsAndVals, installFlags); err != nil {
+				cmd.SilenceUsage = true
+				return err
+			}
+			return nil
+		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			c := command(config.GetCmdOpts())
+			return config.PreRunValidateConfig(c.K0sVars)
 		},
 	}
+	// append flags
+	cmd.PersistentFlags().AddFlagSet(config.GetPersistentFlagSet())
+	cmd.Flags().AddFlagSet(config.GetControllerFlags())
+	cmd.Flags().AddFlagSet(config.GetWorkerFlags())
 
-	cmd.Flags().AddFlagSet(config.GetK0sControllerFlags(&opts, true))
-	cmd.Flags().BoolVar(&startService, "start", true, "Start the service after installation")
-
-	cmd.AddCommand(NewCmdInstallController(cli))
-	cmd.AddCommand(NewCmdInstallWorker(cli))
+	// hardcode flags for controller+worker
+	cmd.Flags().Lookup("enable-worker").Hidden = true
+	cmd.Flags().Lookup("no-taints").Hidden = true
+	cmd.Flags().Lookup("single").Hidden = true
 
 	return cmd
 }
 
-// NewCmdInstallController returns a cobra command for installing a controller as a systemd service
-func NewCmdInstallController(_ *CLI) *cobra.Command {
-	opts := config.K0sControllerOptions{}
-	var startService bool
-
+func installControllerCmd(cli *CLI, installFlags *installFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "controller",
-		Short: "Installs and starts a controller as a systemd service",
+		Short: "Install k0s controller on a brand-new system. Must be run as root (or with sudo)",
+		Example: `With the controller subcommand you can setup a controller node for a multi-node cluster by running:
+
+	k0s install controller
+	`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInstallController(cmd.Context(), opts, startService)
+			c := command(config.GetCmdOpts())
+			if err := c.convertFileParamsToAbsolute(); err != nil {
+				cmd.SilenceUsage = true
+				return err
+			}
+			flagsAndVals := []string{"controller"}
+			flagsAndVals = append(flagsAndVals, cmdFlagsToArgs(cmd)...)
+			if err := c.setup(cli.Name, constants.RoleController, flagsAndVals, installFlags); err != nil {
+				cmd.SilenceUsage = true
+				return err
+			}
+			return nil
+		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			c := command(config.GetCmdOpts())
+			return config.PreRunValidateConfig(c.K0sVars)
 		},
 	}
+	// append flags
+	cmd.PersistentFlags().AddFlagSet(config.GetPersistentFlagSet())
+	cmd.Flags().AddFlagSet(config.GetControllerFlags())
+	cmd.Flags().AddFlagSet(config.GetWorkerFlags())
+	return cmd
+}
 
-	cmd.Flags().AddFlagSet(config.GetK0sControllerFlags(&opts, false))
-	cmd.Flags().BoolVar(&startService, "start", true, "Start the service after installation")
+func installWorkerCmd(cli *CLI, installFlags *installFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "worker",
+		Short: "Install k0s worker on a brand-new system. Must be run as root (or with sudo)",
+		Example: `With the worker subcommand you can setup a worker node for a multi-node cluster by running:
+
+		k0s install worker`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c := command(config.GetCmdOpts())
+			if err := c.convertFileParamsToAbsolute(); err != nil {
+				cmd.SilenceUsage = true
+				return err
+			}
+
+			flagsAndVals := []string{"worker"}
+			flagsAndVals = append(flagsAndVals, cmdFlagsToArgs(cmd)...)
+			if err := c.setup(cli.Name, constants.RoleWorker, flagsAndVals, installFlags); err != nil {
+				cmd.SilenceUsage = true
+				return err
+			}
+
+			return nil
+		},
+	}
+	// append flags
+	cmd.PersistentFlags().AddFlagSet(config.GetPersistentFlagSet())
+	cmd.PersistentFlags().AddFlagSet(config.GetWorkerFlags())
 
 	return cmd
 }
 
-func runInstallController(ctx context.Context, opts config.K0sControllerOptions, startService bool) error {
-
-	// Hack so you can re-run this command
-	_ = os.RemoveAll("/etc/systemd/system/k0scontroller.service")
-
-	args := []string{
-		"controller",
-		fmt.Sprintf("--data-dir=%s", opts.DataDir),
-	}
-	if opts.CfgFile != "" {
-		args = append(args, fmt.Sprintf("--config=%s", opts.CfgFile))
-	}
-	if opts.EnableWorker {
-		args = append(args, "--enable-worker")
-	}
-	if opts.NoTaints {
-		args = append(args, "--no-taints")
-	}
-	if opts.TokenFile != "" {
-		args = append(args, fmt.Sprintf("--token-file=%s", opts.TokenFile))
-	}
-	if opts.CmdLogLevels != nil {
-		args = append(args, fmt.Sprintf("--logging=%s", createS2SFlag(opts.CmdLogLevels)))
+// The setup functions:
+//   - Ensures that the proper users are created.
+//   - Sets up startup and logging for k0s.
+func (c *command) setup(svcName string, role string, args []string, installFlags *installFlags) error {
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("this command must be run as root")
 	}
 
-	cmd := install.NewInstallCmd()
-	cmd.SetArgs(args)
-	if err := cmd.ExecuteContext(ctx); err != nil {
-		return fmt.Errorf("failed to install k0s: %w", err)
+	if role == constants.RoleController {
+		if err := k0sinstall.CreateControllerUsers(c.NodeConfig, c.K0sVars); err != nil {
+			return fmt.Errorf("failed to create controller users: %v", err)
+		}
 	}
-	if startService {
-		cmd = start.NewStartCmd()
-		cmd.SetArgs([]string{})
-		if err := cmd.ExecuteContext(ctx); err != nil {
-			return fmt.Errorf("failed to start k0s: %w", err)
+	err := install.EnsureService(svcName, args, installFlags.envVars, installFlags.force)
+	if err != nil {
+		return fmt.Errorf("failed to install k0s service: %v", err)
+	}
+	return nil
+}
+
+// This command converts the file paths in the command struct to absolute paths.
+// For flags passed to service init file, see the [cmdFlagsToArgs] func.
+func (c *command) convertFileParamsToAbsolute() (err error) {
+	// don't convert if cfgFile is empty
+
+	if c.CfgFile != "" {
+		c.CfgFile, err = filepath.Abs(c.CfgFile)
+		if err != nil {
+			return err
+		}
+	}
+	if c.K0sVars.DataDir != "" {
+		c.K0sVars.DataDir, err = filepath.Abs(c.K0sVars.DataDir)
+		if err != nil {
+			return err
+		}
+	}
+	if c.TokenFile != "" {
+		c.TokenFile, err = filepath.Abs(c.TokenFile)
+		if err != nil {
+			return err
+		}
+		if !fileExists(c.TokenFile) {
+			return fmt.Errorf("%s does not exist", c.TokenFile)
 		}
 	}
 	return nil
 }
 
-// NewCmdInstallWorker returns a cobra command for installing a worker as a systemd service
-func NewCmdInstallWorker(_ *CLI) *cobra.Command {
-	opts := config.K0sWorkerOptions{}
-	var startService bool
-
-	cmd := &cobra.Command{
-		Use:   "controller",
-		Short: "Installs and starts a worker as a systemd service",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInstallWorker(cmd.Context(), opts, startService)
-		},
-	}
-
-	cmd.Flags().AddFlagSet(config.GetK0sWorkerFlags(&opts))
-	cmd.Flags().BoolVar(&startService, "start", true, "Start the service after installation")
-
-	return cmd
+func cmdFlagsToArgs(cmd *cobra.Command) []string {
+	var flagsAndVals []string
+	// Use visitor to collect all flags and vals into slice
+	cmd.Flags().Visit(func(f *pflag.Flag) {
+		val := f.Value.String()
+		switch f.Value.Type() {
+		case "stringSlice", "stringToString":
+			flagsAndVals = append(flagsAndVals, fmt.Sprintf(`--%s=%s`, f.Name, strings.Trim(val, "[]")))
+		default:
+			if f.Name == "env" || f.Name == "force" {
+				return
+			}
+			if f.Name == "data-dir" || f.Name == "token-file" || f.Name == "config" {
+				val, _ = filepath.Abs(val)
+			}
+			flagsAndVals = append(flagsAndVals, fmt.Sprintf("--%s=%s", f.Name, val))
+		}
+	})
+	return flagsAndVals
 }
 
-func runInstallWorker(_ context.Context, _ config.K0sWorkerOptions, _ bool) error {
-	// TODO
-	return nil
-}
-
-func createS2SFlag(vals map[string]string) string {
-	records := make([]string, 0, len(vals)>>1)
-	for k, v := range vals {
-		records = append(records, k+"="+v)
+// fileExists checks if a file exists and is not a directory before we
+// try using it to prevent further errors.
+func fileExists(fileName string) bool {
+	info, err := os.Stat(fileName)
+	if err != nil {
+		return false
 	}
-
-	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
-	if err := w.Write(records); err != nil {
-		panic(err)
-	}
-	w.Flush()
-	return strings.TrimSpace(buf.String())
+	return !info.IsDir()
 }

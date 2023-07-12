@@ -4,7 +4,6 @@ include hack/tools/Makefile.variables
 include embedded-bins/Makefile.variables
 include inttest/Makefile.variables
 
-ARCH ?= $(shell go env GOARCH)
 
 BIN_DIR := $(shell pwd)/bin
 export PATH := $(BIN_DIR):$(PATH)
@@ -19,16 +18,17 @@ help: ## Display this help
 
 # runs on linux even if it's built on mac or windows
 TARGET_OS ?= linux
+TARGET_ARCH ?= $(shell go env GOARCH)
 BUILD_GO_FLAGS := -tags osusergo
 BUILD_GO_FLAGS += -asmflags "all=-trimpath=$(shell dirname $(PWD))"
 BUILD_GO_FLAGS += -gcflags "all=-trimpath=$(shell dirname $(PWD))"
 BUILD_GO_LDFLAGS_EXTRA := -extldflags=-static
-ifeq ($(shell go env GOOS),darwin)
+ifeq ($(OS),darwin)
 BUILD_GO_LDFLAGS_EXTRA =
 endif
 
-LD_FLAGS := -X main.goos=$(shell go env GOOS)
-LD_FLAGS += -X main.goarch=$(shell go env GOARCH)
+LD_FLAGS := -X main.goos=$(TARGET_OS)
+LD_FLAGS += -X main.goarch=$(TARGET_ARCH)
 LD_FLAGS += -X main.gitCommit=$(shell git rev-parse HEAD)
 LD_FLAGS += -X main.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 LD_FLAGS += $(BUILD_GO_LDFLAGS_EXTRA)
@@ -49,17 +49,16 @@ clean: ## Clean the bin directory
 build: static bin/helmbin ## Build helmbin binaries
 
 bin/helmbin: BIN = bin/helmbin
-bin/helmbin: TARGET_OS = linux
 bin/helmbin: BUILD_GO_CGO_ENABLED = 0
 bin/helmbin: $(GO_SRCS) go.sum
 	@mkdir -p bin
-	CGO_ENABLED=$(BUILD_GO_CGO_ENABLED) GOOS=$(TARGET_OS) go build $(BUILD_GO_FLAGS) -ldflags='$(LD_FLAGS)' -o $(BIN) ./cmd/helmbin
+	CGO_ENABLED=$(BUILD_GO_CGO_ENABLED) GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) go build $(BUILD_GO_FLAGS) -ldflags='$(LD_FLAGS)' -o $(BIN) ./cmd/helmbin
 
 static: static/bin/k0s static/helm/000-admin-console-$(admin_console_version).tgz ## Build static assets
 
 static/bin/k0s:
 	@mkdir -p static/bin
-	curl -fsSL -o static/bin/k0s https://github.com/k0sproject/k0s/releases/download/$(k0s_version)/k0s-$(k0s_version)-$(ARCH)
+	curl -fsSL -o static/bin/k0s https://github.com/k0sproject/k0s/releases/download/$(k0s_version)/k0s-$(k0s_version)-$(TARGET_ARCH)
 	chmod +x static/bin/k0s
 
 static/helm/000-admin-console-$(admin_console_version).tgz: helm
