@@ -23,7 +23,7 @@ BUILD_GO_FLAGS := -tags osusergo
 BUILD_GO_FLAGS += -asmflags "all=-trimpath=$(shell dirname $(PWD))"
 BUILD_GO_FLAGS += -gcflags "all=-trimpath=$(shell dirname $(PWD))"
 BUILD_GO_LDFLAGS_EXTRA := -extldflags=-static
-ifeq ($(OS),darwin)
+ifeq ($(TARGET_OS),darwin)
 BUILD_GO_LDFLAGS_EXTRA =
 endif
 
