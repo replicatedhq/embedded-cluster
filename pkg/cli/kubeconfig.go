@@ -1,4 +1,4 @@
-package cli //nolint:dupl
+package cli
 
 import (
 	"bytes"
