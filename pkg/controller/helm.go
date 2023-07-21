@@ -126,17 +126,19 @@ func (k *Helm) applyChart(ctx context.Context, chart *chart.Chart, values map[st
 	return nil
 }
 
-func (k *Helm) installedRelease(_ context.Context, _ string) (*release.Release, error) {
+func (k *Helm) installedRelease(_ context.Context, name string) (*release.Release, error) {
 	list := action.NewList(k.helmConfig)
 	list.StateMask = action.ListDeployed
 	releases, err := list.Run()
 	if err != nil {
 		return nil, fmt.Errorf("unable to list installed releases: %w", err)
 	}
-	if len(releases) == 0 {
-		return nil, nil
+	for _, release := range releases {
+		if release.Name == name {
+			return release, nil
+		}
 	}
-	return releases[0], nil
+	return nil, nil
 }
 
 // Stop stops the Helm controller
