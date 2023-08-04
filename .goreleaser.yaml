@@ -1,10 +1,10 @@
-project_name: helmbin
+project_name: helmvm
 release:
   github:
     owner: replicatedhq
-    name: helmbin
+    name: helmvm
 builds:
-  - id: helmbin
+  - id: helmvm
     goos:
       - linux
     goarch:
@@ -13,6 +13,4 @@ builds:
       - CGO_ENABLED=0
     hooks:
       pre: make static
-    main: cmd/helmbin/main.go
-snapshot:
-  name_template: "devel"
+    main: ./cmd

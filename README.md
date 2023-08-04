@@ -1,111 +1,248 @@
-# helmbin
+# HelmVM platform
 
-Embeds Kubernetes and Helm charts as a single installable binary.
+This repository houses a cluster installation prototype that utilizes the k0s and k0sctl platforms. It showcases an alternative approach to deploying clusters and serves as a starting point for further exploration and advancement. In HelmVM, all components and functionalities are consolidated into a single binary, this binary facilitates a streamlined cluster installation process, removing the need for external dependencies (rpms, debs, etc). Remote hosts are managed using SSH.
 
-```bash
-$ ./bin/helmbin 
-An embeddable Kubernetes distribution
+HelmVM includes by default the Kots Admin Console and the OpenEBS Storage provisioner, you can very easily embed your own Helm Chart to the binary.
 
-Usage:
-  helmbin [command]
+## Building and running
 
-Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
-  install     Installs and starts a controller+worker as a systemd service
-  kubectl     kubectl controls the Kubernetes cluster manager
-  run         Runs a controller+worker node
-  start       Starts the systemd service
-  stop        Stops the systemd service
-  version     Prints version information
+With the repository checked out locally, to compile you just need to run:
 
-Flags:
-  -d, --debug                Enables debug logging
-  -h, --help                 help for helmbin
-
-Use "helmbin [command] --help" for more information about a command.
+```
+$ make helmvm-linux-amd64
 ```
 
-## Building
+The binary will be located on `output/bin/helmvm`.
+You can also build binaries for other architectures with the following targets: `helmvm-darwin-amd64` and  `helmvm-darwin-arm64` are available.
 
-```bash
-$ make build
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags osusergo -asmflags "all=-trimpath=/Users/ethan/go/src/github.com/replicatedhq" -gcflags "all=-trimpath=/Users/ethan/go/src/github.com/replicatedhq" -ldflags='-X main.goos=linux -X main.goarch=amd64 -X main.gitCommit=5196840140ccbb3fdf9394eec7d8bea9169aae84 -X main.buildDate=2023-07-12T19:33:16Z -extldflags=-static' -o bin/helmbin ./cmd/helmbin
+## Single node deployment
+
+To create a single node deployment you can upload the HelmVM binary to a Linux x86_64 machine and run:
+
+```
+$ ./helmvm install
 ```
 
-## Running
+## Multi node deployment
 
-```bash
-./bin/helmbin run  --help
-Runs a controller+worker node
+To create a multi node deployment you can run the following command and then follow the instructions:
 
-Usage:
-  helmbin run [flags]
-  helmbin run [command]
-
-Available Commands:
-  controller  Runs a controller node
-  worker      Runs a worker node
-
-Flags:
-  -c, --config string            k0s config file, use '-' to read the config from stdin (default "/etc/k0s/k0s.yaml")
-      --data-dir string          Data Directory. DO NOT CHANGE for an existing setup, things will break! (default "/var/lib/replicated")
-  -d, --debug                    Debug logging (default: false)
-      --enable-worker            enable worker (default true)
-  -h, --help                     help for run
-  -l, --logging stringToString   Logging Levels for the different components (default [kube-proxy=1,etcd=info,containerd=info,konnectivity-server=1,kube-apiserver=1,kube-controller-manager=1,kube-scheduler=1,kubelet=1])
-      --no-taints                disable default taints for controller node (default true)
-      --token-file string        Path to the file containing join-token.
-
-Use "helmbin run [command] --help" for more information about a command.
+```
+$ ./helmvm install --multi-node
 ```
 
-```bash
-Install helmbin on a brand-new system. Must be run as root (or with sudo)
+In this case, it's not necessary to execute this command exclusively on a Linux x86_64 machine. You have the flexibility to use any architecture for the process.
 
-Usage:
-  helmbin install [flags]
-  helmbin install [command]
+## Interacting with the cluster
 
-Examples:
-With the install command you can setup a single node cluster by running:
+Once the cluster has been deployed you can open a new terminal to interact with it using `kubectl`:
 
-	helmbin install
-
-
-Available Commands:
-  controller  Install helmbin controller on a brand-new system. Must be run as root (or with sudo)
-  worker      Install helmbin worker on a brand-new system. Must be run as root (or with sudo)
-
-Flags:
-      --api-server string                              HACK: api-server for the windows worker node
-      --cidr-range string                              HACK: cidr range for the windows worker node (default "10.96.0.0/12")
-      --cluster-dns string                             HACK: cluster dns for the windows worker node (default "10.96.0.10")
-  -c, --config string                                  config file, use '-' to read the config from stdin (default "/etc/k0s/k0s.yaml")
-      --cri-socket string                              container runtime socket to use, default to internal containerd. Format: [remote|docker]:[path-to-socket]
-      --data-dir string                                Data Directory for k0s (default: /var/lib/k0s). DO NOT CHANGE for an existing setup, things will break!
-  -d, --debug                                          Debug logging (default: false)
-      --debugListenOn string                           Http listenOn for Debug pprof handler (default ":6060")
-      --disable-components strings                     disable components (valid items: autopilot,control-api,coredns,csr-approver,endpoint-reconciler,helm,konnectivity-server,kube-controller-manager,kube-proxy,kube-scheduler,metrics-server,network-provider,node-role,system-rbac,worker-config)
-      --enable-cloud-provider                          Whether or not to enable cloud provider support in kubelet
-      --enable-dynamic-config                          enable cluster-wide dynamic config based on custom resource
-      --enable-k0s-cloud-provider                      enables the k0s-cloud-provider (default false)
-      --enable-metrics-scraper                         enable scraping metrics from the controller components (kube-scheduler, kube-controller-manager)
-  -e, --env stringArray                                set environment variable
-      --force                                          force init script creation
-  -h, --help                                           help for install
-      --iptables-mode string                           iptables mode (valid values: nft, legacy, auto). default: auto
-      --k0s-cloud-provider-port int                    the port that k0s-cloud-provider binds on (default 10258)
-      --k0s-cloud-provider-update-frequency duration   the frequency of k0s-cloud-provider node updates (default 2m0s)
-      --kube-controller-manager-extra-args string      extra args for kube-controller-manager
-      --kubelet-extra-args string                      extra args for kubelet
-      --labels strings                                 Node labels, list of key=value pairs
-  -l, --logging stringToString                         Logging Levels for the different components (default [etcd=info,containerd=info,konnectivity-server=1,kube-apiserver=1,kube-controller-manager=1,kube-scheduler=1,kubelet=1,kube-proxy=1])
-      --profile string                                 worker profile to use on the node (default "default")
-      --status-socket string                           Full file path to the socket file. (default "status.sock")
-      --taints strings                                 Node taints, list of key=value:effect strings
-      --token-file string                              Path to the file containing join-token.
-  -v, --verbose                                        Verbose logging (default: false)
-
-Use "helmbin install [command] --help" for more information about a command.
 ```
+$ ./helmvm shell
+```
+
+This will drop you in a new shell, this shell is configured to reach the cluster:
+
+```
+ubuntu@ip-172-16-10-242:~$ ./helmvm shell
+
+    __4___
+ _  \ \ \ \   Welcome to helmvm debug shell.
+<'\ /_/_/_/   This terminal is now configured to access your cluster.
+ ((____!___/) Type 'exit' (or CTRL+d) to exit.
+  \0\0\0\0\/  Happy hacking.
+ ~~~~~~~~~~~
+ubuntu@ip-172-16-10-242:~/.helmvm/etc$ export KUBECONFIG="/home/ubuntu/.helmvm/etc/kubeconfig"
+ubuntu@ip-172-16-10-242:~/.helmvm/etc$ export PATH="$PATH:/home/ubuntu/.helmvm/bin"
+ubuntu@ip-172-16-10-242:~/.helmvm/etc$
+```
+
+## Disconnected intalls
+
+To install in a disconnected environment you need to first acquire the Image Bundle. To download the Image Bundle, in a machine with internet access, you can run the following command:
+
+```
+$ ./helmvm build-bundle
+```
+
+This will download all necessary images in a directory called `bundle` in the current directory. Once you have the Image Bundle you must upload it together with the binary to a server that can reach the nodes where you plan to execute the installation through SSH and then run:
+
+```
+$ ./helmvm install --multi-node --bundle ./bundle
+```
+
+## Embedding your own Helm Chart
+
+HelmVM allows you to embed your own Helm Charts so they are installed by default when the cluster is installed or updated. For sake of documenting this let's create a hypothetical scenario: you have a software called `rocks` that is packaged as a Helm Chart and is ready to be installed in any Kubernetes Cluster.
+
+Your Helm Chart is in a file called `rocks-1.0.0.tgz` and you already have a copy of HelmVM binary in your $PATH. To embed your Chart you can run:
+
+```
+$ helmvm embed --chart rocks-1.0.0.tgz --output rocks
+```
+This command will create a binary called `rocks` in the current directory, this command is a copy of HelmVM binary with your Helm Chart embedded into it. You can then use the `rocks` binary to install a cluster that automatically deploys your `rocks-1.0.0.tgz` Helm Chart.
+
+If you want to provide a customised `values.yaml` during the Helm Chart installation you can also embed it into the binary. You can do that with the following command:
+
+```
+$ helmvm embed \
+        --chart rocks-1.0.0.tgz \
+        --values values.yaml \
+        --output rocks
+```
+Now every time someone installs or upgrades a cluster using the `rocks` binary the Helm Chart will be installed with the custom values. At this stage `rocks` is prepared to create installations in environments with access to the internet, if you want to make it capable of installing in disconnected environments you must embed a list of the images necessary to get `rocks-1.0.0.tgz` running too, you can do it by running the following command:
+
+```
+$ helmvm embed \
+        --chart rocks-1.0.0.tgz \
+        --values values.yaml \
+        --images nginx:latest,node:latest \
+        --output rocks
+```
+
+From now on every time an user runs `./rocks build-bundle` your images will be also pulled. You can embed as many Helm Charts and `values.yaml` as you want:
+
+```
+$ helmvm embed \
+        --chart rocks-1.0.0.tgz \
+        --values values.yaml \
+        --chart mongodb-13.16.1.tgz \
+        --values mongo-values.yaml `
+        --images nginx:latest,node:latest,mongo:latest \
+        --output rocks
+```
+
+## Builder server
+
+This repository also contains a Daemon that is capable of building customised versions of the `helmvm` binary on demand. To build the Builder Server you can run:
+
+```
+$ docker build -t helmvm-build-server:latest .
+```
+
+Once the Build Server is built you can start it with:
+
+```
+$ docker run --rm -p 8080:8080 helmvm-build-server
+```
+
+With the Build Server running you can install a version of HelmVM by running:
+
+```
+$ curl build-server-ip-address:8080 | /bin/bash
+```
+
+This will download and installs HelmVM under `/usr/local/bin/helmvm`.  The Builder Server makes the installation of clusters easier. Assuming you are logged in a Linux x86_64 server and you want to create a Single Node deployment, you can simply run:
+
+```
+$ curl build-server-ip-address:8080 | /bin/bash -s install
+```
+Or if you want to go through the interactive installation process you can run:
+```
+$ curl build-server-ip-address:8080 | /bin/bash -s install --multi-node 
+```
+
+The Builder Server also allows for creating customized `helmvm` binaries. You can embed your own Helm Charts into the binary. With the Builder Server running you can then, for example, create an `helmvm` binary that will install the `memcached` and `mongodb` Helm charts by default. To do so first you need to create a `yaml` file (named `request.yaml` in this example)  with the build request content:
+
+```yaml
+name: myapp
+arch: arm64
+os: darwin
+images:
+- php:latest
+- node:latest
+charts:
+- values: |-
+    persistence:
+      enabled: true
+    resources:
+      requests:
+        memory: 1024Mi
+        cpu: 1
+  content: |-
+    <base64 encoded string of the memcached helm tgz file>
+- content: |-
+    <base64 encoded string of the mongodb helm tgz file>
+```
+
+You can then issue a request and receive back a compiled `helmvm` binary that installs both Helm charts by default:
+
+```
+$ curl -o ./helmvm -X POST --data-binary @./request.yaml build-server-ip-address:8080/build
+```
+Supported architectures are: `arm64` and `amd64`. Supported OS are: `linux` and `darwin`. 
+
+## Miscellaneous
+
+HelmVM stores its data under `$HOME/.helmvm` directory, you may want to create a backup of the directory, specially the `$HOME/.helmvm/etc` directory.  Inside the `$HOME/.helmvm/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/.helmvm/bin` directory and you may want to include it into your PATH).
+
+If you want to use an already existing `k0sctl.yaml` configuration during the `install` command you can do so by using the `--config` flag.
+
+Inside `$HOME/.helmvm/bin` you will find a copy of `k0sctl` binary used to bootstrap the cluster, you can use it to manage the cluster as well (e.g. `$HOME/.helmvm/bin/k0sctl kubeconfig --config $HOME/.helmvm/etc/k0sctl.yaml`).
+
+## Experimental features
+
+### Stop and Start nodes for maintenance
+
+Once the cluster is deployed you can easily stop and start nodes using the following:
+
+```
+~: helmvm node list
+~: helmvm node stop node-0
+~: helmvm node start node-0
+```
+
+### Creating and applying your infrastructe
+
+HelmVM is capable of applying a directory with Terraform manifests before installing the cluster on top of it. For that you can use the `--infra /path/to/terraform/manifests` flag. Make sure your Terraform `output` has an variable called `nodes`, something like this for a 6 node cluster should suffice (roles can be `controller`, `controller+worker`, or `worker`):
+
+```
+output "nodes" {
+        value = [
+                {
+                        address = aws_instance.worker_0.public_ip,
+                        role = "controller",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_1.public_ip,
+                        role = "controller",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_2.public_ip,
+                        role = "controller",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_3.public_ip,
+                        role = "worker",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_4.public_ip,
+                        role = "worker",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_5.public_ip,
+                        role = "worker",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+        ]
+}
+```
+
+You have to provide the SSH port, an user and a SSH key so HelmVM can reach the nodes.

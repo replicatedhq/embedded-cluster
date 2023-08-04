@@ -1,6 +1,0 @@
-password: password
-minimalRBAC: false
-isHelmManaged: false
-service:
-  type: NodePort
-  nodePort: 8800

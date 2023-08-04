@@ -1,4 +1,0 @@
-smoketests := \
-	check-noderole-no-taints
-
-#	check-basic \

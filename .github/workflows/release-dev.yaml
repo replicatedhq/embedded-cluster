@@ -23,10 +23,10 @@ jobs:
           go-version: "1.20"
 
       - name: Build
-        run: make build
+        run: make
 
       - name: Compress binary
-        run: tar -C bin -czvf helmbin.tgz helmbin
+        run: tar -C output/bin -czvf helmvm.tgz helmvm
 
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
