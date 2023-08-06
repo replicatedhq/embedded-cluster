@@ -22,13 +22,25 @@ jobs:
         with:
           go-version: "1.20"
 
-      - name: Build
-        run: make
+      - name: Build linux-amd64
+        run: |
+          make helmvm-linux-amd64
+          tar -C output/bin -czvf helmvm-linux-amd64.tgz helmvm
+          make clean
 
-      - name: Compress binary
-        run: tar -C output/bin -czvf helmvm.tgz helmvm
+      - name: Build darwin-amd64
+        run: |
+          make helmvm-darwin-amd64
+          tar -C output/bin -czvf helmvm-darwin-amd64.tgz helmvm
+          make clean
 
-      - name: Publish release
+      - name: Build darwin-arm64
+        run: |
+          make helmvm-darwin-arm64
+          tar -C output/bin -czvf helmvm-darwin-arm64.tgz helmvm
+          make clean
+
+      - name: Publish development release
         uses: marvinpinto/action-automatic-releases@latest
         with:
           automatic_release_tag: development
@@ -37,3 +49,8 @@ jobs:
           title: Development Release Build
           files: |
             *.tgz
+
+      - name: Build HelmVM Builder Server image
+        uses: docker/build-push-action@v4
+        with:
+          tags: replicatedhq/helmvm-builder:latest
