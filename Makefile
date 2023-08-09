@@ -1,106 +1,133 @@
-#!/usr/bin/env bash
+BUILDER_NAME=builder
+APP_NAME=helmvm
+ADMIN_CONSOLE_CHART_VERSION=1.100.1
+KUBECTL_VERSION=v1.27.3
+K0SCTL_VERSION=v0.15.2
+TERRAFORM_VERSION=1.5.4
+OPENEBS_VERSION=3.7.0
+K0S_VERSION=v1.27.2+k0s.0
+LD_FLAGS=-X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION)
 
-include hack/tools/Makefile.variables
-include embedded-bins/Makefile.variables
-include inttest/Makefile.variables
+default: helmvm-linux-amd64
 
+output/bin/yq:
+	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64
+	chmod +x output/bin/yq
 
-BIN_DIR := $(shell pwd)/bin
-export PATH := $(BIN_DIR):$(PATH)
+output/bin/helm:
+	mkdir -p output/bin
+	curl -fsSL "https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3" | \
+		PATH=$(PATH):output/bin HELM_INSTALL_DIR=output/bin USE_SUDO=false bash
 
-##@ General
+pkg/goods/images/list.txt: pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz
+	mkdir -p pkg/goods/images
+	mkdir -p output/tmp/adminconsole
+	tar -zxf "pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz" -C output/tmp/adminconsole
+	output/bin/yq -r ".images[]" output/tmp/adminconsole/admin-console/values.yaml > pkg/goods/images/list.txt
+	rm -rf output/tmp/adminconsole
+	mkdir -p output/tmp/openebs
+	tar -zxf "pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz" -C output/tmp/openebs
+	output/bin/yq -r '(.localprovisioner.image + ":" + .localprovisioner.imageTag)' output/tmp/openebs/openebs/values.yaml >> pkg/goods/images/list.txt
+	output/bin/yq -r '(.ndm.image + ":" + .ndm.imageTag)' output/tmp/openebs/openebs/values.yaml >> pkg/goods/images/list.txt
+	output/bin/yq -r '(.ndmOperator.image + ":" + .ndmOperator.imageTag)' output/tmp/openebs/openebs/values.yaml >> pkg/goods/images/list.txt
+	output/bin/yq -r '(.helper.image + ":" + .helper.imageTag)' output/tmp/openebs/openebs/values.yaml >> pkg/goods/images/list.txt
+	rm -rf output/tmp/openebs
 
-.PHONY: help
-help: ## Display this help
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
+	mkdir -p pkg/goods/bins/k0sctl
+	curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64"
+	chmod +x pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
-##@ Build
+pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz: output/bin/helm
+	output/bin/helm pull oci://registry.replicated.com/library/admin-console --version=$(ADMIN_CONSOLE_CHART_VERSION)
+	mv admin-console-$(ADMIN_CONSOLE_CHART_VERSION).tgz pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz
 
-# runs on linux even if it's built on mac or windows
-TARGET_OS ?= linux
-TARGET_ARCH ?= $(shell go env GOARCH)
-BUILD_GO_FLAGS := -tags osusergo
-BUILD_GO_FLAGS += -asmflags "all=-trimpath=$(shell dirname $(PWD))"
-BUILD_GO_FLAGS += -gcflags "all=-trimpath=$(shell dirname $(PWD))"
-BUILD_GO_LDFLAGS_EXTRA := -extldflags=-static
-ifeq ($(TARGET_OS),darwin)
-BUILD_GO_LDFLAGS_EXTRA =
-endif
+pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz: output/bin/helm
+	curl -L -o pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz https://github.com/openebs/charts/releases/download/openebs-$(OPENEBS_VERSION)/openebs-$(OPENEBS_VERSION).tgz
 
-LD_FLAGS := -X main.goos=$(TARGET_OS)
-LD_FLAGS += -X main.goarch=$(TARGET_ARCH)
-LD_FLAGS += -X main.gitCommit=$(shell git rev-parse HEAD)
-LD_FLAGS += -X main.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-LD_FLAGS += $(BUILD_GO_LDFLAGS_EXTRA)
+pkg/goods/bins/helmvm/terraform-linux-amd64:
+	mkdir -p output/tmp/terraform
+	curl -L -o output/tmp/terraform/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+	unzip -o output/tmp/terraform/terraform.zip -d output/tmp/terraform
+	mv output/tmp/terraform/terraform pkg/goods/bins/helmvm/terraform-linux-amd64
 
-GO_SRCS := $(shell find . -type f -name '*.go' -not -name '*_test.go' -not -name 'zz_generated*')
+pkg/goods/bins/helmvm/terraform-darwin-amd64:
+	mkdir -p output/tmp/terraform
+	curl -L -o output/tmp/terraform/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_amd64.zip
+	unzip -o output/tmp/terraform/terraform.zip -d output/tmp/terraform
+	mv output/tmp/terraform/terraform pkg/goods/bins/helmvm/terraform-darwin-amd64
 
-.PHONY: all
-all: clean lint test build ## Run all commands to build the tool
+pkg/goods/bins/helmvm/terraform-darwin-arm64:
+	mkdir -p output/tmp/terraform
+	curl -L -o output/tmp/terraform/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
+	unzip -o output/tmp/terraform/terraform.zip -d output/tmp/terraform
+	mv output/tmp/terraform/terraform pkg/goods/bins/helmvm/terraform-darwin-arm64
+
+pkg/goods/bins/helmvm/kubectl-linux-amd64:
+	mkdir -p pkg/goods/bins/helmvm
+	curl -L -o pkg/goods/bins/helmvm/kubectl-linux-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+	chmod +x pkg/goods/bins/helmvm/kubectl-linux-amd64
+
+pkg/goods/bins/helmvm/kubectl-darwin-amd64:
+	mkdir -p pkg/goods/bins/helmvm
+	curl -L -o pkg/goods/bins/helmvm/kubectl-darwin-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/darwin/amd64/kubectl"
+	chmod +x pkg/goods/bins/helmvm/kubectl-darwin-amd64
+
+pkg/goods/bins/helmvm/kubectl-darwin-arm64:
+	mkdir -p pkg/goods/bins/helmvm
+	curl -L -o pkg/goods/bins/helmvm/kubectl-darwin-arm64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/darwin/arm64/kubectl"
+	chmod +x pkg/goods/bins/helmvm/kubectl-darwin-arm64
+
+pkg/goods/bins/helmvm/k0sctl-linux-amd64:
+	mkdir -p pkg/goods/bins/helmvm
+	curl -L -o pkg/goods/bins/helmvm/k0sctl-linux-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-linux-x64"
+	chmod +x pkg/goods/bins/helmvm/k0sctl-linux-amd64
+
+pkg/goods/bins/helmvm/k0sctl-darwin-amd64:
+	mkdir -p pkg/goods/bins/helmvm
+	curl -L -o pkg/goods/bins/helmvm/k0sctl-darwin-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-x64"
+	chmod +x pkg/goods/bins/helmvm/k0sctl-darwin-amd64
+
+pkg/goods/bins/helmvm/k0sctl-darwin-arm64:
+	mkdir -p pkg/goods/bins/helmvm
+	curl -L -o pkg/goods/bins/helmvm/k0sctl-darwin-arm64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-arm64"
+	chmod +x pkg/goods/bins/helmvm/k0sctl-darwin-arm64
+
+.PHONY: static
+static: pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz \
+	output/bin/yq pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) \
+	pkg/goods/images/list.txt
+
+.PHONY: static-darwin-arm64
+static-darwin-arm64: pkg/goods/bins/helmvm/kubectl-darwin-arm64 pkg/goods/bins/helmvm/k0sctl-darwin-arm64 pkg/goods/bins/helmvm/terraform-darwin-arm64
+
+.PHONY: static-darwin-amd64
+static-darwin-amd64: pkg/goods/bins/helmvm/kubectl-darwin-amd64 pkg/goods/bins/helmvm/k0sctl-darwin-amd64 pkg/goods/bins/helmvm/terraform-darwin-amd64
+
+.PHONY: static-linux-amd64
+static-linux-amd64: pkg/goods/bins/helmvm/kubectl-linux-amd64 pkg/goods/bins/helmvm/k0sctl-linux-amd64 pkg/goods/bins/helmvm/terraform-linux-amd64
+
+.PHONY: helmvm-linux-amd64
+helmvm-linux-amd64: static static-linux-amd64
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/helmvm
+
+.PHONY: helmvm-darwin-amd64
+helmvm-darwin-amd64: static static-darwin-amd64
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/helmvm
+
+.PHONY: helmvm-darwin-arm64
+helmvm-darwin-arm64: static static-darwin-arm64
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/helmvm
+
+.PHONY: builder
+builder: static static-linux-amd64
+	CGO_ENABLED=0 go build -o ./output/bin/$(BUILDER_NAME) ./cmd/builder
 
 .PHONY: clean
-clean: ## Clean the bin directory
-	rm -rf $(BIN_DIR)
-	rm -rf static/bin
-	rm -rf static/helm/*tgz
-	$(MAKE) -C inttest clean
-
-.PHONY: build
-build: static bin/helmbin ## Build helmbin binaries
-
-bin/helmbin: BIN = bin/helmbin
-bin/helmbin: BUILD_GO_CGO_ENABLED = 0
-bin/helmbin: $(GO_SRCS) go.sum
-	@mkdir -p bin
-	CGO_ENABLED=$(BUILD_GO_CGO_ENABLED) GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) go build $(BUILD_GO_FLAGS) -ldflags='$(LD_FLAGS)' -o $(BIN) ./cmd/helmbin
-
-static: static/bin/k0s static/helm/000-admin-console-$(admin_console_version).tgz ## Build static assets
-
-static/bin/k0s:
-	@mkdir -p static/bin
-	curl -fsSL -o static/bin/k0s https://github.com/k0sproject/k0s/releases/download/$(k0s_version)/k0s-$(k0s_version)-$(TARGET_ARCH)
-	chmod +x static/bin/k0s
-
-static/helm/000-admin-console-$(admin_console_version).tgz: helm
-	@mkdir -p static/helm
-	$(HELM) pull oci://registry.replicated.com/library/admin-console --version=$(admin_console_version)
-	mv admin-console-$(admin_console_version).tgz static/helm/000-admin-console-$(admin_console_version).tgz
-
-HELM = $(BIN_DIR)/helm
-.PHONY: helm
-helm:
-	@mkdir -p $(BIN_DIR)
-	curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | \
-		DESIRED_VERSION=v$(helm_version) HELM_INSTALL_DIR=$(BIN_DIR) USE_SUDO=false bash
-
-##@ Development
-
-.PHONY: lint
-lint: golangci-lint go.sum ## Run golangci-lint linter
-	$(GOLANGCI_LINT) --verbose run --timeout=10m
-
-.PHONY: lint-fix
-lint-fix: golangci-lint go.sum ## Run golangci-lint linter and perform fixes
-	$(GOLANGCI_LINT) run --timeout=5m --fix
-
-.PHONY: test
-test: GO_TEST_RACE ?= -race
-test: go.sum ## Run the unit tests
-	go test $(GO_TEST_RACE) -ldflags='$(LD_FLAGS)' -v ./pkg/...
-
-.PHONY: $(smoketests)
-$(smoketests): build
-	$(MAKE) -C inttest $@
-
-.PHONY: smoketests
-smoketests: $(smoketests)
-
-GOLANGCI_LINT = $(BIN_DIR)/golangci-lint
-.PHONY: golangci-lint
-golangci-lint:
-	@mkdir -p $(BIN_DIR)
-	curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) v$(golangci-lint_version)
-
-go.sum: go.mod
-	go mod tidy && touch -c -- '$@'
+clean:
+	rm -rf output
+	rm -rf pkg/addons/adminconsole/charts/*.tgz
+	rm -rf pkg/addons/openebs/charts/*.tgz
+	rm -rf pkg/goods/bins
+	rm -rf pkg/goods/images
+	rm -rf bundle

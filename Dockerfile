@@ -1,22 +1,21 @@
-# TODO
-ARG ARCH
-
-FROM docker.io/library/golang:1.20-alpine as build
-RUN apk add --no-cache bash curl make openssl
-WORKDIR /go/src/github.com/replicatedhq/helmbin
+FROM golang:1.20.6-bullseye AS builder
+RUN apt update -y
+RUN apt install -y unzip
+WORKDIR /helmvm-builder
+COPY go.mod go.sum ./
 COPY . .
-ARG VERSION="dev"
-RUN make build
+RUN make builder && mv output/bin/builder builder
+RUN make helmvm-linux-amd64 && mv output/bin/helmvm helmvm-linux-amd64
+RUN make clean
+RUN make helmvm-darwin-amd64 && mv output/bin/helmvm helmvm-darwin-amd64
+RUN make clean
+RUN make helmvm-darwin-arm64 && mv output/bin/helmvm helmvm-darwin-arm64
 
-FROM docker.io/library/${ARCH}alpine
-
-RUN apk add --no-cache bash coreutils curl findutils iptables tini
-
-ENV KUBECONFIG=/var/lib/replicated/k0s/pki/admin.conf
-
-ADD docker-entrypoint.sh /entrypoint.sh
-COPY --from=build /go/src/github.com/replicatedhq/helmbin/bin/helmbin /usr/local/bin/helmbin
-
-ENTRYPOINT ["/sbin/tini", "--", "/bin/sh", "/entrypoint.sh" ]
-
-CMD ["helmbin", "run"]
+FROM alpine:3.18.2
+RUN mkdir /helmvm
+COPY --from=builder /helmvm-builder/helmvm-linux-amd64 /helmvm/helmvm-linux-amd64
+COPY --from=builder /helmvm-builder/helmvm-darwin-amd64 /helmvm/helmvm-darwin-amd64
+COPY --from=builder /helmvm-builder/helmvm-darwin-arm64 /helmvm/helmvm-darwin-arm64
+COPY --from=builder /helmvm-builder/builder /helmvm/builder
+EXPOSE 8080/tcp
+CMD ["/helmvm/builder"]
