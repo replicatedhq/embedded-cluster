@@ -35,7 +35,7 @@ func runPostApply(ctx context.Context) error {
 	orig := log.Log
 	rig.SetLogger(logger)
 	defer func() {
-		logger.Infof("post apply process finished")
+		logger.Infof("Post apply process finished")
 		close(logger)
 		<-end
 		log.Log = orig
@@ -153,6 +153,9 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node) error {
 	bundledir := c.String("bundle-dir")
 	bundledir = strings.TrimRight(bundledir, "/")
 	multi := c.Bool("multi-node")
+	if len(nodes) > 0 {
+		multi = true
+	}
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	if usercfg := c.String("config"); usercfg != "" {
 		logrus.Infof("Using %s config file", usercfg)
@@ -310,6 +313,12 @@ var installCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		if defaults.DecentralizedInstall() {
+			logrus.Warnf("Decentralized install was detected. To manage the cluster")
+			logrus.Warnf("you have to use the '%s node' commands instead.", defaults.BinaryName())
+			logrus.Warnf("Run '%s node --help' for more information.", defaults.BinaryName())
+			return nil
+		}
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			return fmt.Errorf("unable to materialize binaries: %w", err)

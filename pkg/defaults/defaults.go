@@ -156,3 +156,24 @@ func PreferredNodeIPAddress() (string, error) {
 	addr := conn.LocalAddr().(*net.UDPAddr)
 	return addr.IP.String(), nil
 }
+
+// DecentralizedInstall returns true if the cluster installation has been
+// executed in a decentralized way (installing the first node then generating
+// a join token and installing the others).
+func DecentralizedInstall() bool {
+	fpath := PathToConfig(".decentralized")
+	_, err := os.Stat(fpath)
+	return err == nil
+}
+
+// SetInstallAsDecentralized sets the decentralized install flag inside the
+// configuration directory.
+func SetInstallAsDecentralized() error {
+	fpath := PathToConfig(".decentralized")
+	fp, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return fmt.Errorf("unable to set installation mode: %w", err)
+	}
+	defer fp.Close()
+	return nil
+}
