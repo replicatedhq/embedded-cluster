@@ -35,7 +35,7 @@ func runPostApply(ctx context.Context) error {
 	orig := log.Log
 	rig.SetLogger(logger)
 	defer func() {
-		logger.Infof("post apply process finished")
+		logger.Infof("Post apply process finished")
 		close(logger)
 		<-end
 		log.Log = orig
@@ -152,7 +152,7 @@ func copyUserProvidedConfig(c *cli.Context) error {
 func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node) error {
 	bundledir := c.String("bundle-dir")
 	bundledir = strings.TrimRight(bundledir, "/")
-	multi := c.Bool("multi-node")
+	multi := c.Bool("multi-node") || len(nodes) > 0
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	if usercfg := c.String("config"); usercfg != "" {
 		logrus.Infof("Using %s config file", usercfg)
@@ -229,10 +229,15 @@ func runK0sctlKubeconfig(ctx context.Context) error {
 	}
 	defer fp.Close()
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
+	if _, err := os.Stat(cfgpath); err != nil {
+		os.RemoveAll(kpath)
+		return fmt.Errorf("cluster configuration not found")
+	}
 	kctl := exec.Command(bin, "kubeconfig", "-c", cfgpath, "--disable-telemetry")
 	kctl.Stderr = fp
 	kctl.Stdout = fp
 	if err := kctl.Run(); err != nil {
+		os.RemoveAll(kpath)
 		return fmt.Errorf("unable to run kubeconfig: %w", err)
 	}
 	logrus.Infof("Kubeconfig saved to %s", kpath)
@@ -310,6 +315,12 @@ var installCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		if defaults.DecentralizedInstall() {
+			logrus.Warnf("Decentralized install was detected. To manage the cluster")
+			logrus.Warnf("you have to use the '%s node' commands instead.", defaults.BinaryName())
+			logrus.Warnf("Run '%s node --help' for more information.", defaults.BinaryName())
+			return fmt.Errorf("decentralized install detected")
+		}
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			return fmt.Errorf("unable to materialize binaries: %w", err)

@@ -33,6 +33,63 @@ $ ./helmvm install --multi-node
 
 In this case, it's not necessary to execute this command exclusively on a Linux x86_64 machine. You have the flexibility to use any architecture for the process.
 
+## Deploying Individual Nodes
+
+HelmVM also facilitates deploying individual nodes through the use of tokens, deviating from the centralized approach.
+To follow this path, you need to exclude yourself from the centralized management facilitated via SSH.
+
+### Installing a Multi-Node Setup using Token-Based Deployment
+
+All operations should be executed directly on the Linux servers and require root privileges.
+Begin by deploying the first node:
+
+```
+server-0# helmvm install
+```
+
+After the cluster is online, you can generate a token to enable the addition of other nodes:
+
+```
+server-0# helmvm node token create --role controller
+INFO[0000] Creating node join token for role controller
+WARN[0000] You are opting out of the centralized cluster management.
+WARN[0000] Through the centralized management you can manage all your
+WARN[0000] cluster nodes from a single location. If you decide to move
+WARN[0000] on the centralized management won't be available anymore
+? Do you want to use continue ? Yes
+INFO[0002] Token created successfully.
+INFO[0002] This token is valid for 24h0m0s hours.
+INFO[0002] You can now run the following command in a remote node to add it
+INFO[0002] to the cluster as a "controller" node:
+helmvm node join --role "controller" "<token redacted>"
+server-0# 
+```
+
+Upon generating the token, you will be prompted to continue; press Enter to proceed (you will be opting out of the centralized management).
+The role in the command above can be either "controller" or "worker", with the generated token tailored to the selected role.
+Copy the command provided and run it on the server you wish to join to the cluster:
+
+```
+server-1# helmvm node join --role "controller" "<token redacted>"
+```
+
+For this to function, you must ensure that the HelmVM binary is present on all nodes within the cluster.
+
+
+### Upgrading clusters
+
+If your installation employs centralized management, simply download the newer version of HelmVM and execute:
+
+```
+$ helmvm apply
+```
+
+For installations without centralized management, download HelmVM, upload it to each server in your cluster, and execute the following command as **root** on each server:
+
+```
+# helmvm node upgrade
+```
+
 ## Interacting with the cluster
 
 Once the cluster has been deployed you can open a new terminal to interact with it using `kubectl`:
