@@ -51,11 +51,9 @@ var tokenCreateCommand = &cli.Command{
 		cfgpath := defaults.PathToConfig("k0sctl.yaml")
 		if _, err := os.Stat(cfgpath); err != nil {
 			if os.IsNotExist(err) {
-				logrus.Errorf("Unable to read the current cluster configuration.")
-				logrus.Errorf("Tried to read cluster config from %s", cfgpath)
-				logrus.Errorf("If you are running this command with sudo you may need")
-				logrus.Errorf("to run it as 'sudo -E' to preserve your user environment.")
-				return fmt.Errorf("k0s is not installed")
+				logrus.Errorf("Unable to find the cluster configuration.")
+				logrus.Errorf("Consider running the command using 'sudo -E'")
+				return fmt.Errorf("configuration not found")
 			}
 			return fmt.Errorf("unable to stat k0sctl.yaml: %w", err)
 		}

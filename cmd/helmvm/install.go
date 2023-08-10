@@ -281,24 +281,6 @@ func applyK0sctl(c *cli.Context, nodes []infra.Node) error {
 	return nil
 }
 
-// we only allow the install command to run as regular user if the user isn't
-// attempting to install the local node as a single node cluster.
-func installRequiresRoot(c *cli.Context) bool {
-	if c.Bool("multi-node") {
-		return false
-	}
-	if c.Bool("addons-only") {
-		return false
-	}
-	if c.String("infra") != "" {
-		return false
-	}
-	if c.String("config") != "" {
-		return false
-	}
-	return true
-}
-
 // installCommands executes the "install" command. This will ensure that a
 // k0sctl.yaml file exists and then run `k0sctl apply` to apply the cluster.
 // Once this is finished then a "kubeconfig" file is created and the addons
@@ -333,9 +315,6 @@ var installCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
-		if installRequiresRoot(c) && os.Getuid() != 0 {
-			return fmt.Errorf("this command must be run as root")
-		}
 		if defaults.DecentralizedInstall() {
 			logrus.Warnf("Decentralized install was detected. To manage the cluster")
 			logrus.Warnf("you have to use the '%s node' commands instead.", defaults.BinaryName())
