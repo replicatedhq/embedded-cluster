@@ -123,6 +123,18 @@ helmvm-darwin-arm64: static static-darwin-arm64
 builder: static static-linux-amd64
 	CGO_ENABLED=0 go build -o ./output/bin/$(BUILDER_NAME) ./cmd/builder
 
+.PHONY: unit-tests
+unit-tests:
+	go test -v ./...
+
+.PHONY: vet
+vet: static-linux-amd64 static
+	go vet ./...
+
+.PHONY: e2e-tests
+e2e-tests:
+	echo to be implemented
+
 .PHONY: clean
 clean:
 	rm -rf output
