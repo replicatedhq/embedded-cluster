@@ -317,7 +317,7 @@ var installCommand = &cli.Command{
 			logrus.Warnf("Decentralized install was detected. To manage the cluster")
 			logrus.Warnf("you have to use the '%s node' commands instead.", defaults.BinaryName())
 			logrus.Warnf("Run '%s node --help' for more information.", defaults.BinaryName())
-			return nil
+			return fmt.Errorf("decentralized install detected")
 		}
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
