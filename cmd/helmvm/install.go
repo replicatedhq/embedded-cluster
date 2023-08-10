@@ -152,10 +152,7 @@ func copyUserProvidedConfig(c *cli.Context) error {
 func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node) error {
 	bundledir := c.String("bundle-dir")
 	bundledir = strings.TrimRight(bundledir, "/")
-	multi := c.Bool("multi-node")
-	if len(nodes) > 0 {
-		multi = true
-	}
+	multi := c.Bool("multi-node") || len(nodes) > 0
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	if usercfg := c.String("config"); usercfg != "" {
 		logrus.Infof("Using %s config file", usercfg)
@@ -232,10 +229,15 @@ func runK0sctlKubeconfig(ctx context.Context) error {
 	}
 	defer fp.Close()
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
+	if _, err := os.Stat(cfgpath); err != nil {
+		os.RemoveAll(kpath)
+		return fmt.Errorf("cluster configuration not found")
+	}
 	kctl := exec.Command(bin, "kubeconfig", "-c", cfgpath, "--disable-telemetry")
 	kctl.Stderr = fp
 	kctl.Stdout = fp
 	if err := kctl.Run(); err != nil {
+		os.RemoveAll(kpath)
 		return fmt.Errorf("unable to run kubeconfig: %w", err)
 	}
 	logrus.Infof("Kubeconfig saved to %s", kpath)
@@ -279,6 +281,24 @@ func applyK0sctl(c *cli.Context, nodes []infra.Node) error {
 	return nil
 }
 
+// we only allow the install command to run as regular user if the user isn't
+// attempting to install the local node as a single node cluster.
+func installRequiresRoot(c *cli.Context) bool {
+	if c.Bool("multi-node") {
+		return false
+	}
+	if c.Bool("addons-only") {
+		return false
+	}
+	if c.String("infra") != "" {
+		return false
+	}
+	if c.String("config") != "" {
+		return false
+	}
+	return true
+}
+
 // installCommands executes the "install" command. This will ensure that a
 // k0sctl.yaml file exists and then run `k0sctl apply` to apply the cluster.
 // Once this is finished then a "kubeconfig" file is created and the addons
@@ -313,6 +333,9 @@ var installCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		if installRequiresRoot(c) && os.Getuid() != 0 {
+			return fmt.Errorf("this command must be run as root")
+		}
 		if defaults.DecentralizedInstall() {
 			logrus.Warnf("Decentralized install was detected. To manage the cluster")
 			logrus.Warnf("you have to use the '%s node' commands instead.", defaults.BinaryName())

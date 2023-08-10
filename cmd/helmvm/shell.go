@@ -38,6 +38,10 @@ var shellCommand = &cli.Command{
 	Name:  "shell",
 	Usage: "Starts a shell with access to the running cluster",
 	Action: func(c *cli.Context) error {
+		cfgpath := defaults.PathToConfig("kubeconfig")
+		if _, err := os.Stat(cfgpath); err != nil {
+			return fmt.Errorf("kubeconfig not found at %s", cfgpath)
+		}
 		shpath := os.Getenv("SHELL")
 		if shpath == "" {
 			shpath = "/bin/bash"
