@@ -14,6 +14,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
 )
@@ -33,10 +34,11 @@ var helmValues = map[string]interface{}{
 }
 
 type AdminConsole struct {
-	config    *action.Configuration
-	logger    action.DebugLog
-	namespace string
-	prompt    bool
+	customization AdminConsoleCustomization
+	config        *action.Configuration
+	logger        action.DebugLog
+	namespace     string
+	prompt        bool
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -96,25 +98,22 @@ func (a *AdminConsole) Apply(ctx context.Context) error {
 		if _, err := act.RunWithContext(ctx, hchart, helmValues); err != nil {
 			return fmt.Errorf("unable to install chart: %w", err)
 		}
-		return nil
+		return a.customization.apply(ctx)
 	}
 
 	a.logger("Admin Console already installed on the cluster, checking version.")
 	installedVersion := fmt.Sprintf("v%s", release.Chart.Metadata.Version)
 	if out := semver.Compare(installedVersion, version); out > 0 {
 		return fmt.Errorf("unable to downgrade from %s to %s", installedVersion, version)
-	} else if out == 0 {
-		a.logger("Admin Console version %s already installed, skipping", version)
-		return nil
 	}
 
-	a.logger("Upgrading Admin Console from %s to %s", installedVersion, version)
+	a.logger("Updating Admin Console from %s to %s", installedVersion, version)
 	act := action.NewUpgrade(a.config)
 	act.Namespace = a.namespace
 	if _, err := act.RunWithContext(ctx, releaseName, hchart, helmValues); err != nil {
 		return fmt.Errorf("unable to upgrade chart: %w", err)
 	}
-	return nil
+	return a.customization.apply(ctx)
 }
 
 func (a *AdminConsole) Latest() (string, error) {
@@ -160,17 +159,18 @@ func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, 
 	return releases[0], nil
 }
 
-func New(namespace string, prompt bool, logger action.DebugLog) (*AdminConsole, error) {
+func New(ns string, prompt bool, kcli client.Client, log action.DebugLog) (*AdminConsole, error) {
 	env := cli.New()
-	env.SetNamespace(namespace)
+	env.SetNamespace(ns)
 	config := &action.Configuration{}
-	if err := config.Init(env.RESTClientGetter(), namespace, "", logger); err != nil {
+	if err := config.Init(env.RESTClientGetter(), ns, "", log); err != nil {
 		return nil, fmt.Errorf("unable to init configuration: %w", err)
 	}
 	return &AdminConsole{
-		namespace: namespace,
-		config:    config,
-		logger:    logger,
-		prompt:    prompt,
+		namespace:     ns,
+		config:        config,
+		logger:        log,
+		prompt:        prompt,
+		customization: AdminConsoleCustomization{kcli},
 	}, nil
 }

@@ -101,7 +101,7 @@ func NewApplier(prompt bool) (*Applier, error) {
 	}
 	applier.addons["openebs"] = obs
 	logger = logrus.WithField("addon", "adminconsole")
-	aconsole, err := adminconsole.New("helmvm", prompt, logger.Infof)
+	aconsole, err := adminconsole.New("helmvm", prompt, kubecli, logger.Infof)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
