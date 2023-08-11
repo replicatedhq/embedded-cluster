@@ -147,40 +147,54 @@ func copyUserProvidedConfig(c *cli.Context) error {
 	return nil
 }
 
+// overwriteExistingConfig asks user if they want to overwrite the existing cluster
+// configuration file.
+func overwriteExistingConfig() (bool, error) {
+	var useCurrent = &survey.Confirm{
+		Message: "Do you want to use the existing configuration ?",
+		Default: true,
+	}
+	logrus.Warn("A cluster configuration file was found. This means you already")
+	logrus.Warn("have created a cluster configured. You can either use the existing")
+	logrus.Warn("configuration or create a new one (the original configuration will")
+	logrus.Warn("be backed up).")
+	var answer bool
+	if err := survey.AskOne(useCurrent, &answer); err != nil {
+		return false, err
+	}
+	return answer, nil
+}
+
 // ensureK0sctlConfig ensures that a k0sctl.yaml file exists in the configuration
 // directory. If none exists then this directs the user to a wizard to create one.
-func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node) error {
+func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, prompt bool) error {
+	multi := c.Bool("multi-node") || len(nodes) > 0
+	if !multi && runtime.GOOS != "linux" {
+		return fmt.Errorf("single node clusters only supported on linux")
+	}
 	bundledir := c.String("bundle-dir")
 	bundledir = strings.TrimRight(bundledir, "/")
-	multi := c.Bool("multi-node") || len(nodes) > 0
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	if usercfg := c.String("config"); usercfg != "" {
 		logrus.Infof("Using %s config file", usercfg)
 		return copyUserProvidedConfig(c)
 	}
-	var useCurrent = &survey.Confirm{
-		Message: "Do you want to use the existing configuration ?",
-		Default: true,
-	}
 	if _, err := os.Stat(cfgpath); err == nil {
-		var answer bool
-		logrus.Warn("A cluster configuration file was found. This means you already")
-		logrus.Warn("have created a cluster configured. You can either use the existing")
-		logrus.Warn("configuration or create a new one (the original configuration will")
-		logrus.Warn("be backed up).")
-		if err := survey.AskOne(useCurrent, &answer); err != nil {
-			return fmt.Errorf("unable to process answers: %w", err)
-		} else if answer {
-			return updateConfigBundle(c.Context, bundledir)
+		if len(nodes) == 0 {
+			if !prompt {
+				return updateConfigBundle(c.Context, bundledir)
+			}
+			if over, err := overwriteExistingConfig(); err != nil {
+				return fmt.Errorf("unable to process answers: %w", err)
+			} else if !over {
+				return updateConfigBundle(c.Context, bundledir)
+			}
 		}
 		if err := createK0sctlConfigBackup(c.Context); err != nil {
 			return fmt.Errorf("unable to create config backup: %w", err)
 		}
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("unable to open config: %w", err)
-	}
-	if !multi && runtime.GOOS != "linux" {
-		return fmt.Errorf("single node clusters only supported on linux")
 	}
 	cfg, err := config.RenderClusterConfig(c.Context, nodes, multi)
 	if err != nil {
@@ -258,9 +272,9 @@ func dumpApplyLogs() {
 
 // applyK0sctl runs the k0sctl apply command and waits for it to finish. If
 // no configuration is found one is generated.
-func applyK0sctl(c *cli.Context, nodes []infra.Node) error {
+func applyK0sctl(c *cli.Context, prompt bool, nodes []infra.Node) error {
 	logrus.Infof("Processing cluster configuration")
-	if err := ensureK0sctlConfig(c, nodes); err != nil {
+	if err := ensureK0sctlConfig(c, nodes, prompt); err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
 	}
 	logrus.Infof("Applying cluster configuration")
@@ -313,6 +327,11 @@ var installCommand = &cli.Command{
 			Usage: "Only apply addons. Skips cluster install",
 			Value: false,
 		},
+		&cli.BoolFlag{
+			Name:  "no-prompt",
+			Usage: "Do not prompt user when it is not necessary",
+			Value: false,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		if defaults.DecentralizedInstall() {
@@ -321,6 +340,7 @@ var installCommand = &cli.Command{
 			logrus.Warnf("Run '%s node --help' for more information.", defaults.BinaryName())
 			return fmt.Errorf("decentralized install detected")
 		}
+		prompt := !c.Bool("no-prompt")
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			return fmt.Errorf("unable to materialize binaries: %w", err)
@@ -330,11 +350,11 @@ var installCommand = &cli.Command{
 			var nodes []infra.Node
 			if dir := c.String("infra"); dir != "" {
 				logrus.Infof("Processing infrastructure manifests")
-				if nodes, err = infra.Apply(c.Context, dir); err != nil {
+				if nodes, err = infra.Apply(c.Context, dir, prompt); err != nil {
 					return fmt.Errorf("unable to create infra: %w", err)
 				}
 			}
-			if err := applyK0sctl(c, nodes); err != nil {
+			if err := applyK0sctl(c, prompt, nodes); err != nil {
 				return fmt.Errorf("unable update cluster: %w", err)
 			}
 		}
@@ -346,7 +366,7 @@ var installCommand = &cli.Command{
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
 		os.Setenv("KUBECONFIG", kcfg)
-		if applier, err := addons.NewApplier(); err != nil {
+		if applier, err := addons.NewApplier(prompt); err != nil {
 			return fmt.Errorf("unable to create applier: %w", err)
 		} else if err := applier.Apply(c.Context); err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)

@@ -77,7 +77,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 }
 
 // NewApplier creates a new Applier instance with all addons registered.
-func NewApplier() (*Applier, error) {
+func NewApplier(prompt bool) (*Applier, error) {
 	k8slogger := zap.New(func(o *zap.Options) {
 		o.DestWriter = io.Discard
 	})
@@ -101,7 +101,7 @@ func NewApplier() (*Applier, error) {
 	}
 	applier.addons["openebs"] = obs
 	logger = logrus.WithField("addon", "adminconsole")
-	aconsole, err := adminconsole.New("helmvm", logger.Infof)
+	aconsole, err := adminconsole.New("helmvm", prompt, logger.Infof)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}

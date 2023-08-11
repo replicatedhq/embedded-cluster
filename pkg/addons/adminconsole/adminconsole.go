@@ -36,9 +36,14 @@ type AdminConsole struct {
 	config    *action.Configuration
 	logger    action.DebugLog
 	namespace string
+	prompt    bool
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
+	if !a.prompt {
+		logrus.Warnf("Admin Console password set to: password")
+		return "password", nil
+	}
 	question := &survey.Password{Message: "Enter a new Admin Console password:"}
 	var pass string
 	for pass == "" {
@@ -155,12 +160,17 @@ func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, 
 	return releases[0], nil
 }
 
-func New(namespace string, logger action.DebugLog) (*AdminConsole, error) {
+func New(namespace string, prompt bool, logger action.DebugLog) (*AdminConsole, error) {
 	env := cli.New()
 	env.SetNamespace(namespace)
 	config := &action.Configuration{}
 	if err := config.Init(env.RESTClientGetter(), namespace, "", logger); err != nil {
 		return nil, fmt.Errorf("unable to init configuration: %w", err)
 	}
-	return &AdminConsole{namespace: namespace, config: config, logger: logger}, nil
+	return &AdminConsole{
+		namespace: namespace,
+		config:    config,
+		logger:    logger,
+		prompt:    prompt,
+	}, nil
 }
