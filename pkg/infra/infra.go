@@ -29,7 +29,7 @@ type Node struct {
 
 // Apply uses "terraform apply" to apply the infrastructe defined in the
 // directory passed as argument.
-func Apply(ctx context.Context, dir string) ([]Node, error) {
+func Apply(ctx context.Context, dir string, prompt bool) ([]Node, error) {
 	log, end := pb.Start()
 	outputs, err := runApply(ctx, dir, log)
 	if err != nil {
@@ -45,10 +45,13 @@ func Apply(ctx context.Context, dir string) ([]Node, error) {
 		return nil, fmt.Errorf("unable to process terraform output: %w", err)
 	}
 	printNodes(nodes)
+	if !prompt {
+		return nodes, nil
+	}
 	logrus.Info("You may want to take note of the output for later use")
-	prompt := &survey.Input{Message: "Press enter to proceed"}
+	question := &survey.Input{Message: "Press enter to proceed"}
 	var ignore string
-	if err := survey.AskOne(prompt, &ignore); err != nil {
+	if err := survey.AskOne(question, &ignore); err != nil {
 		return nil, fmt.Errorf("unable to ask for enter: %w", err)
 	}
 	return nodes, nil

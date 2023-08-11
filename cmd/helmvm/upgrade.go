@@ -45,6 +45,13 @@ func canRunUpgrade(c *cli.Context) error {
 var upgradeCommand = &cli.Command{
 	Name:  "upgrade",
 	Usage: "Upgrade the local node",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "no-prompt",
+			Usage: "Do not prompt user when it is not necessary",
+			Value: false,
+		},
+	},
 	Action: func(c *cli.Context) error {
 		if err := canRunUpgrade(c); err != nil {
 			return err
@@ -74,7 +81,7 @@ var upgradeCommand = &cli.Command{
 		}
 		os.Setenv("KUBECONFIG", kcfg)
 		logrus.Infof("Upgrading addons")
-		if applier, err := addons.NewApplier(); err != nil {
+		if applier, err := addons.NewApplier(c.Bool("no-prompt")); err != nil {
 			return fmt.Errorf("unable to create applier: %w", err)
 		} else if err := applier.Apply(c.Context); err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)
