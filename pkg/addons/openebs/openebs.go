@@ -83,7 +83,7 @@ func (o *OpenEBS) Apply(ctx context.Context) error {
 		return fmt.Errorf("unable to downgrade from %s to %s", installedVersion, version)
 	}
 
-	o.logger("Upgrading OpenEBS from %s to %s", installedVersion, version)
+	o.logger("Updating OpenEBS from %s to %s", installedVersion, version)
 	act := action.NewUpgrade(o.config)
 	act.Namespace = o.namespace
 	if _, err := act.RunWithContext(ctx, releaseName, hchart, helmValues); err != nil {
