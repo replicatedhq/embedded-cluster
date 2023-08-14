@@ -12,9 +12,9 @@ jobs:
 
     - name: Install LXD
       run: |
-        whoami
         sudo snap install lxd
         sudo lxd init --minimal
+        sudo chmod 666 /var/snap/lxd/common/lxd/unix.socket
 
     - name: Install and configure OVN
       run: |
