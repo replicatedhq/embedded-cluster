@@ -28,23 +28,14 @@ jobs:
       run: |
         sudo lxc image copy ubuntu:862f797cfcbc local: --alias ubuntu-22.04
 
-    - name: Create SSH Key
-      run: |
-        ssh-keygen -t dsa -N "" -C "Integration test key" -f /tmp/id_rsa
-
     - name: Setup Go
       uses: actions/setup-go@v4
       with:
         go-version: "1.21.0"
 
-    - name: Install helmvm locally
+    - name: Integration tests
       run: |
-        make helmvm-linux-amd64
-        sudo mv output/bin/helmvm /usr/local/bin
-
-    - name: Run Tests
-      run: |
-        go test -v ./integration
+        make integration-tests
 
   tests:
     name: Test
@@ -62,9 +53,9 @@ jobs:
       run: |
        make vet
 
-    - name: Tests
+    - name: Unit tests
       run: |
-        make tests
+        make unit-tests
 
   build:
     name: Build

@@ -123,9 +123,15 @@ helmvm-darwin-arm64: static static-darwin-arm64
 builder: static static-linux-amd64
 	CGO_ENABLED=0 go build -o ./output/bin/$(BUILDER_NAME) ./cmd/builder
 
-.PHONY: tests
-tests:
-	go test -v ./...
+.PHONY: integration-tests
+integration-tests: helmvm-linux-amd64
+	mkdir -p output/tmp
+	ssh-keygen -t dsa -N "" -C "Integration Test Keys" -f output/tmp/id_rsa
+	go test -timeout 30m -v ./integration
+
+.PHONY: unit-tests
+unit-tests:
+	go test -v $(shell go list ./... | grep -v /integration)
 
 .PHONY: vet
 vet: static-linux-amd64 static
