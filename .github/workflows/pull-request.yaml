@@ -25,6 +25,8 @@ jobs:
 
     - name: Pull images
       run: |
+        lxc image list images: | grep ubuntu
+        lxc image list ubuntu: | grep ubuntu
         sudo lxc image copy ubuntu:99db9953a091 local: --alias ubuntu-22.04
 
     - name: Create SSH Key
