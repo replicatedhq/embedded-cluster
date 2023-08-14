@@ -23,8 +23,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 	tmpcluster := cluster.NewTestCluster(&cluster.Input{
 		T:             t,
 		Nodes:         1,
-		SSHPublicKey:  "output/id_rsa.pub",
-		SSHPrivateKey: "output/id_rsa",
+		SSHPublicKey:  "/tmp/id_rsa.pub",
+		SSHPrivateKey: "/tmp/id_rsa",
 		HelmVMPath:    "/usr/local/bin/helmvm",
 	})
 	defer tmpcluster.Destroy()
@@ -64,8 +64,8 @@ func TestMultiNodeInstallation(t *testing.T) {
 	tmpcluster := cluster.NewTestCluster(&cluster.Input{
 		T:             t,
 		Nodes:         3,
-		SSHPublicKey:  "output/id_rsa.pub",
-		SSHPrivateKey: "output/id_rsa",
+		SSHPublicKey:  "/tmp/id_rsa.pub",
+		SSHPrivateKey: "/tmp/id_rsa",
 		HelmVMPath:    "/usr/local/bin/helmvm",
 	})
 	defer tmpcluster.Destroy()
