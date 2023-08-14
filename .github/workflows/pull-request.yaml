@@ -10,6 +10,27 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
+    - name: Install LXD
+      run: |
+         sudo snap install lxd
+         sudo lxd init --minimal
+
+    - name: Install and configure OVN
+      run: |
+        sudo apt install ovn-host ovn-central -y
+        sudo ovs-vsctl set open_vswitch . \
+          external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
+          external_ids:ovn-encap-type=geneve \
+          external_ids:ovn-encap-ip=127.0.0.1
+
+    - name: Pull images
+      run: |
+        sudo lxc image copy images:99db9953a091 local: --alias ubuntu-22.04
+
+    - name: Create SSH Key
+      run: |
+        ssh-keygen -t dsa -N "" -C "Integration test key" -f ~/.ssh/id_rsaa
+
     - name: Setup Go
       uses: actions/setup-go@v4
       with:
@@ -19,13 +40,14 @@ jobs:
       run: |
        make vet
 
-    - name: Unit tests
+    - name: Install helmvm locally
       run: |
-        make unit-tests
+        make helmvm-linux-amd64
+        sudo mv output/bin/helmvm /usr/local/bin
 
-    - name: E2E tests
+    - name: Tests
       run: |
-        make e2e-tests
+        make tests
 
   build:
     name: Build
