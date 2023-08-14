@@ -30,7 +30,7 @@ jobs:
 
     - name: Create SSH Key
       run: |
-        ssh-keygen -t dsa -N "" -C "Integration test key" -f ~/.ssh/id_rsaa
+        ssh-keygen -t dsa -N "" -C "Integration test key" -f output/id_rsa
 
     - name: Setup Go
       uses: actions/setup-go@v4

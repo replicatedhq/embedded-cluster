@@ -15,8 +15,8 @@ func TestBuildBundle(t *testing.T) {
 	tmpcluster := cluster.NewTestCluster(&cluster.Input{
 		T:             t,
 		Nodes:         1,
-		SSHPublicKey:  "/root/.ssh/id_rsa.pub",
-		SSHPrivateKey: "/root/.ssh/id_rsa",
+		SSHPublicKey:  "output/id_rsa.pub",
+		SSHPrivateKey: "output/id_rsa",
 		HelmVMPath:    "/usr/local/bin/helmvm",
 	})
 	defer tmpcluster.Destroy()
