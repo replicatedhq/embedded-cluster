@@ -20,9 +20,9 @@ type hostcfg struct {
 
 // render returns a cluster.Host from the given config.
 func (h *hostcfg) render() *cluster.Host {
-	ifls := []string{"--disable-components konnectivity-server"}
+	ifls := []string{"--force", "--disable-components konnectivity-server"}
 	if h.Role == "worker" {
-		ifls = nil
+		ifls = []string{"--force"}
 	}
 	return &cluster.Host{
 		Role:         h.Role,

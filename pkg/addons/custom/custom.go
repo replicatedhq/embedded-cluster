@@ -69,6 +69,7 @@ func (c *Custom) applyChart(ctx context.Context, chart *chart.Chart, values map[
 		act := action.NewInstall(c.config)
 		act.Namespace = "helmvm"
 		act.ReleaseName = chart.Name()
+		act.CreateNamespace = true
 		if _, err := act.RunWithContext(ctx, chart, values); err != nil {
 			return fmt.Errorf("unable to install chart %s: %w", chart.Name(), err)
 		}

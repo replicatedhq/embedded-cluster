@@ -311,7 +311,7 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 		Role:         "controller+worker",
 		UploadBinary: true,
 		NoTaints:     true,
-		InstallFlags: []string{"--disable-components konnectivity-server"},
+		InstallFlags: []string{"--force", "--disable-components konnectivity-server"},
 		Connection: rig.Connection{
 			Localhost: &rig.Localhost{
 				Enabled: true,
