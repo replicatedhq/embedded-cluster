@@ -151,8 +151,8 @@ func copyUserProvidedConfig(c *cli.Context) error {
 // configuration file.
 func overwriteExistingConfig() (bool, error) {
 	var useCurrent = &survey.Confirm{
-		Message: "Do you want to use the existing configuration ?",
-		Default: true,
+		Message: "Do you want to create a new cluster configuration ?",
+		Default: false,
 	}
 	logrus.Warn("A cluster configuration file was found. This means you already")
 	logrus.Warn("have created a cluster configured. You can either use the existing")
