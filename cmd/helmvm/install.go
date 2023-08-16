@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -236,23 +237,26 @@ func runK0sctlApply(ctx context.Context) error {
 // is overwritten, no questions asked.
 func runK0sctlKubeconfig(ctx context.Context) error {
 	bin := defaults.PathToHelmVMBinary("k0sctl")
+	cfgpath := defaults.PathToConfig("k0sctl.yaml")
+	if _, err := os.Stat(cfgpath); err != nil {
+		return fmt.Errorf("cluster configuration not found")
+	}
+	buf := bytes.NewBuffer(nil)
+	kctl := exec.Command(bin, "kubeconfig", "-c", cfgpath)
+	kctl.Stderr, kctl.Stdout = buf, buf
+	if err := kctl.Run(); err != nil {
+		logrus.Errorf("Failed to read kubeconfig:")
+		logrus.Errorf(buf.String())
+		return fmt.Errorf("unable to run kubeconfig: %w", err)
+	}
 	kpath := defaults.PathToConfig("kubeconfig")
 	fp, err := os.OpenFile(kpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to open kubeconfig: %w", err)
 	}
 	defer fp.Close()
-	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	if _, err := os.Stat(cfgpath); err != nil {
-		os.RemoveAll(kpath)
-		return fmt.Errorf("cluster configuration not found")
-	}
-	kctl := exec.Command(bin, "kubeconfig", "-c", cfgpath, "--disable-telemetry")
-	kctl.Stderr = fp
-	kctl.Stdout = fp
-	if err := kctl.Run(); err != nil {
-		os.RemoveAll(kpath)
-		return fmt.Errorf("unable to run kubeconfig: %w", err)
+	if _, err := io.Copy(fp, buf); err != nil {
+		return fmt.Errorf("unable to write kubeconfig: %w", err)
 	}
 	logrus.Infof("Kubeconfig saved to %s", kpath)
 	return nil
