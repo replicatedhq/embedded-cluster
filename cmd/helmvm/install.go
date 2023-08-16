@@ -45,7 +45,7 @@ func runPostApply(ctx context.Context) error {
 		return fmt.Errorf("unable to read cluster config: %w", err)
 	}
 	for _, host := range cfg.Spec.Hosts {
-		if err := runPostApplyOnHost(ctx, host, logger); err != nil {
+		if err := runPostApplyOnHost(ctx, host); err != nil {
 			return err
 		}
 	}
@@ -55,7 +55,11 @@ func runPostApply(ctx context.Context) error {
 // runPostApply runs the post-apply script on a host. XXX I don't think this
 // belongs here and needs to be refactored in a more generic way. It's here
 // because I have other things to do and this is a prototype.
-func runPostApplyOnHost(ctx context.Context, host *cluster.Host, logger pb.MessageWriter) error {
+func runPostApplyOnHost(ctx context.Context, host *cluster.Host) error {
+	if host.Localhost != nil && host.Localhost.Enabled {
+		runPostApplyOnLocalhost(ctx, host)
+		return nil
+	}
 	if err := host.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to host: %w", err)
 	}
@@ -67,6 +71,20 @@ func runPostApplyOnHost(ctx context.Context, host *cluster.Host, logger pb.Messa
 	host.ExecOutput(fmt.Sprintf("sudo ln -s %s %s", src, dst))
 	host.ExecOutput("sudo systemctl daemon-reload")
 	return nil
+}
+
+// runPostApplyOnLocalhost runs the post-apply script on localhost.
+func runPostApplyOnLocalhost(ctx context.Context, host *cluster.Host) {
+	src := "/etc/systemd/system/k0scontroller.service"
+	if host.Role == "worker" {
+		src = "/etc/systemd/system/k0sworker.service"
+	}
+	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
+	os.Symlink(src, dst)
+	cmd := exec.Command("systemctl", "daemon-reload")
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	cmd.Run()
 }
 
 // createK0sctlConfigBackup creates a backup of the current k0sctl.yaml file.
