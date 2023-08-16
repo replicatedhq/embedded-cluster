@@ -307,11 +307,16 @@ func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster
 // renderSingleNodeConfig renders a configuration to allow k0sctl to install in the localhost
 // in a single-node configuration.
 func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get hostname: %w", err)
+	}
 	rhost := &cluster.Host{
-		Role:         "controller+worker",
-		UploadBinary: true,
-		NoTaints:     true,
-		InstallFlags: []string{"--force", "--disable-components konnectivity-server"},
+		Role:             "controller+worker",
+		UploadBinary:     true,
+		NoTaints:         true,
+		InstallFlags:     []string{"--force", "--disable-components konnectivity-server"},
+		HostnameOverride: hostname,
 		Connection: rig.Connection{
 			Localhost: &rig.Localhost{
 				Enabled: true,
