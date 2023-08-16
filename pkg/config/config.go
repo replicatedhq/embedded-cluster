@@ -17,12 +17,12 @@ import (
 	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
-	"github.com/k0sproject/rig"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/infra"
+	"github.com/replicatedhq/helmvm/pkg/ssh"
 )
 
 // ReadConfigFile reads the cluster configuration from the provided file.
@@ -307,22 +307,28 @@ func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster
 // renderSingleNodeConfig renders a configuration to allow k0sctl to install in the localhost
 // in a single-node configuration.
 func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
-	hostname, err := os.Hostname()
+	usr, err := user.Current()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get hostname: %w", err)
+		return nil, fmt.Errorf("unable to get current user: %w", err)
 	}
-	rhost := &cluster.Host{
-		Role:             "controller+worker",
-		UploadBinary:     true,
-		NoTaints:         true,
-		InstallFlags:     []string{"--force", "--disable-components konnectivity-server"},
-		HostnameOverride: hostname,
-		Connection: rig.Connection{
-			Localhost: &rig.Localhost{
-				Enabled: true,
-			},
-		},
+	if err := ssh.AllowLocalSSH(); err != nil {
+		return nil, fmt.Errorf("unable to allow localhost SSH: %w", err)
 	}
+	ipaddr, err := defaults.PreferredNodeIPAddress()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get preferred node IP address: %w", err)
+	}
+	host := &hostcfg{
+		Address: ipaddr,
+		Role:    "controller+worker",
+		Port:    22,
+		User:    usr.Username,
+		KeyPath: defaults.SSHKeyPath(),
+	}
+	if err := host.testConnection(); err != nil {
+		return nil, fmt.Errorf("unable to connect to %s: %w", ipaddr, err)
+	}
+	rhost := host.render()
 	return generateConfigForHosts("", rhost)
 }
 
