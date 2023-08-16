@@ -36,6 +36,11 @@ var tokenCreateCommand = &cli.Command{
 			Usage: "For how long the token should be valid",
 			Value: 24 * time.Hour,
 		},
+		&cli.BoolFlag{
+			Name:  "no-prompt",
+			Usage: "Do not prompt user when it is not necessary",
+			Value: false,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		if runtime.GOOS != "linux" {
@@ -48,6 +53,7 @@ var tokenCreateCommand = &cli.Command{
 		if role != "worker" && role != "controller" {
 			return fmt.Errorf("invalid role %q", role)
 		}
+		prompt := !c.Bool("no-prompt")
 		cfgpath := defaults.PathToConfig("k0sctl.yaml")
 		if _, err := os.Stat(cfgpath); err != nil {
 			if os.IsNotExist(err) {
@@ -63,14 +69,17 @@ var tokenCreateCommand = &cli.Command{
 			logrus.Warn("Through the centralized management you can manage all your")
 			logrus.Warn("cluster nodes from a single location. If you decide to move")
 			logrus.Warn("on the centralized management won't be available anymore")
-			question := &survey.Confirm{
-				Message: "Do you want to use continue ?", Default: true,
-			}
-			var moveOn bool
-			if err := survey.AskOne(question, &moveOn); err != nil {
-				return fmt.Errorf("unable to ask for user confirmation: %w", err)
-			} else if !moveOn {
-				return nil
+			if prompt {
+				question := &survey.Confirm{
+					Message: "Do you want to use continue ?",
+					Default: true,
+				}
+				var moveOn bool
+				if err := survey.AskOne(question, &moveOn); err != nil {
+					return fmt.Errorf("unable to ask for confirmation: %w", err)
+				} else if !moveOn {
+					return nil
+				}
 			}
 		}
 		dur := c.Duration("expiry").String()

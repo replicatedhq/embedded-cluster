@@ -280,6 +280,10 @@ func applyK0sctl(c *cli.Context, prompt bool, nodes []infra.Node) error {
 	logrus.Infof("Applying cluster configuration")
 	if err := runK0sctlApply(c.Context); err != nil {
 		logrus.Errorf("Installation or upgrade failed.")
+		if !prompt {
+			dumpApplyLogs()
+			return fmt.Errorf("unable to apply cluster: %w", err)
+		}
 		var useCurrent = &survey.Confirm{
 			Message: "Do you wish to visualize the logs?",
 			Default: true,
