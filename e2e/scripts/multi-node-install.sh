@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 config="
 apiVersion: k0sctl.k0sproject.io/v1beta1
@@ -53,7 +54,7 @@ spec:
 "
 
 wait_for_healthy_nodes() {
-    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
+    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "3" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -62,7 +63,7 @@ wait_for_healthy_nodes() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for node to be ready"
-        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
+        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
         kubectl get nodes || true
     done
     return 0

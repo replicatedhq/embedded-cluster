@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # This script waits for X nodes to be ready. X is the first argument.
+set -euo pipefail
 
 main() {
     expected_nodes="$1"
-    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
+    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "$expected_nodes" ]; do
         echo "Waiting for nodes to be ready ($ready/$expected_nodes)"
@@ -13,7 +14,7 @@ main() {
         fi
         sleep 5
         counter=$((counter+1))
-        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
+        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
         kubectl get nodes || true
     done
     echo "All nodes are ready"

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # This scripts runs helmvm's build-bundle command.
+set -euo pipefail
 
 main() {
     if ! helmvm build-bundle ; then

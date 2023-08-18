@@ -2,9 +2,10 @@
 # This script is used to test the embed capability of helmvm. It will pull the memcached helm chart and
 # embed it into the binary, issuing then a single node install. This script waits for the memcached pod
 # to be ready.
+set -euo pipefail
 
 wait_for_healthy_node() {
-    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
+    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -13,7 +14,7 @@ wait_for_healthy_node() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for node to be ready"
-        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
+        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
         kubectl get nodes || true
     done
     return 0
@@ -53,7 +54,7 @@ embed_helm_chart() {
 }
 
 wait_for_memcached_pods() {
-    ready=$(kubectl get pods -n helmvm | grep -v NotReady | grep Ready | grep -c memcached)
+    ready=$(kubectl get pods -n helmvm | grep -v NotReady | grep Ready | grep -c memcached || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -62,8 +63,8 @@ wait_for_memcached_pods() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for memcached pods to be ready"
-        ready=$(kubectl get pods -n helmvm | grep  Running | grep -c memcached)
-        kubectl get pods -n helmvm 2>&1
+        ready=$(kubectl get pods -n helmvm | grep  Running | grep -c memcached || true)
+        kubectl get pods -n helmvm 2>&1 || true
         echo "$ready"
     done
     return 0
