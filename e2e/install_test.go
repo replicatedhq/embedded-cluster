@@ -3,7 +3,6 @@ package e2e
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/replicatedhq/helmvm/e2e/cluster"
 )
@@ -45,8 +44,6 @@ func TestTokenBasedMultiNodeInstallation(t *testing.T) {
 	t.Log("waiting for cluster nodes to report ready")
 	line = []string{"wait-for-ready-nodes.sh", "3"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Log("ended with error, sleeping")
-		time.Sleep(1 * time.Hour)
 		t.Fatalf("nodes not reporting ready: %v", err)
 	}
 }
