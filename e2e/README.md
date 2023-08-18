@@ -45,7 +45,7 @@ $ make e2e-tests
 You an run a single test with:
 
 ```
-$ make e2e-test TestSomething
+$ make e2e-test TEST_NAME=TestSomething
 ```
 
 TestSomething is the name of the test function you want to run.
