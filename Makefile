@@ -149,10 +149,6 @@ e2e-test: helmvm-linux-amd64
 create-e2e-workflows:
 	./e2e/hack/create-e2e-workflows.sh
 
-.PHONY: verify-e2e-integrity
-verify-e2e-integrity: create-e2e-workflows
-	./e2e/hack/verify-e2e-integrity.sh
-
 .PHONY: clean
 clean:
 	rm -rf output

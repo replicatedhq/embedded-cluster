@@ -53,9 +53,4 @@ TestSomething is the name of the test function you want to run.
 ### Adding more tests
 
 To add more tests you just need to create one inside this directory
-and then run:
-
-```
-$ make create-e2e-workflows
-```
-
+and then add it to the `.github/workflows/e2e.yaml` file.

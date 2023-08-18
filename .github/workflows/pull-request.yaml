@@ -15,9 +15,6 @@ jobs:
     - name: Go vet
       run: |
         make vet
-    - name: Check E2E configuration
-      run: |
-        make verify-e2e-integrity
   tests:
     name: Unit tests
     runs-on: ubuntu-latest
