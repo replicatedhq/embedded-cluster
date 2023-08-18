@@ -99,7 +99,7 @@ var tokenCreateCommand = &cli.Command{
 		logrus.Infof("This token is valid for %s hours.", dur)
 		logrus.Infof("You can now run the following command in a remote node to add it")
 		logrus.Infof("to the cluster as a %q node:", role)
-		fmt.Printf("%s node join --role %q %s", defaults.BinaryName(), role, buf.String())
+		fmt.Printf("%s node join --role %s %s", defaults.BinaryName(), role, buf.String())
 		return nil
 	},
 }

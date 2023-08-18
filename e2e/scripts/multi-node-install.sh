@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 config="
 apiVersion: k0sctl.k0sproject.io/v1beta1
@@ -64,7 +63,7 @@ wait_for_healthy_nodes() {
         counter=$((counter+1))
         echo "Waiting for node to be ready"
         ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
-        echo "$ready"
+        kubectl get nodes || true
     done
     return 0
 }

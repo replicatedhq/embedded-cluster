@@ -1,61 +1,16 @@
 package e2e
 
 import (
-	"bytes"
-	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/replicatedhq/helmvm/e2e/cluster"
 )
 
-func TestSingleNodeInstallation(t *testing.T) {
+func TestTokenBasedMultiNodeInstallation(t *testing.T) {
 	t.Parallel()
-	tmpcluster := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         1,
-		Image:         "ubuntu/jammy",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
-	})
-	defer tmpcluster.Destroy()
-	stdout := &buffer{bytes.NewBuffer(nil)}
-	stderr := &buffer{bytes.NewBuffer(nil)}
-	cmd := cluster.Command{
-		Node:   tmpcluster.Nodes[0],
-		Line:   []string{"apt", "install", "openssh-server", "-y"},
-		Stdout: stdout,
-		Stderr: stderr,
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	if err := cluster.Run(ctx, t, cmd); err != nil {
-		t.Logf("fail to install ssh on node %s: %v", tmpcluster.Nodes[0], err)
-		t.Fatal(err)
-	}
-	stdout = &buffer{bytes.NewBuffer(nil)}
-	stderr = &buffer{bytes.NewBuffer(nil)}
-	cmd = cluster.Command{
-		Node:   tmpcluster.Nodes[0],
-		Line:   []string{"single-node-install.sh"},
-		Stdout: stdout,
-		Stderr: stderr,
-	}
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	t.Logf("installing helmvm on node %s", tmpcluster.Nodes[0])
-	if err := cluster.Run(ctx, t, cmd); err != nil {
-		t.Logf("stdout:\n%s", stdout.String())
-		t.Logf("stderr:\n%s", stderr.String())
-		t.Errorf("fail to deploy: %v", err)
-	}
-}
-
-func TestMultiNodeInstallation(t *testing.T) {
-	t.Parallel()
-	t.Log("creating cluster")
-	tmpcluster := cluster.NewTestCluster(&cluster.Input{
+	tc := cluster.NewTestCluster(&cluster.Input{
 		T:             t,
 		Nodes:         3,
 		Image:         "ubuntu/jammy",
@@ -63,37 +18,84 @@ func TestMultiNodeInstallation(t *testing.T) {
 		SSHPrivateKey: "../output/tmp/id_rsa",
 		HelmVMPath:    "../output/bin/helmvm",
 	})
-	defer tmpcluster.Destroy()
-	for _, node := range tmpcluster.Nodes {
-		t.Logf("installing ssh on node %s", node)
-		out := &buffer{bytes.NewBuffer(nil)}
-		cmd := cluster.Command{
-			Node:   node,
-			Line:   []string{"apt", "install", "openssh-server", "-y"},
-			Stdout: out,
-			Stderr: out,
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		if err := cluster.Run(ctx, t, cmd); err != nil {
-			t.Logf("fail to install ssh on node %s: %v", node, err)
-			t.Fatal(err)
+	defer tc.Destroy()
+	t.Log("installing ssh on node 0")
+	line := []string{"apt", "install", "openssh-server", "-y"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("installing helmvm on node 0")
+	line = []string{"single-node-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("generating token on node 0")
+	line = []string{"helmvm", "node", "token", "create", "--role", "controller", "--no-prompt"}
+	stdout, _, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Fatalf("fail to generate token on node %s: %v", tc.Nodes[0], err)
+	}
+	for i := 1; i <= 2; i++ {
+		t.Logf("joining node %d to the cluster", i)
+		join := strings.Split(stdout, " ")
+		if _, _, err := RunCommandOnNode(t, tc, i, join); err != nil {
+			t.Fatalf("fail to join node %d: %v", i, err)
 		}
 	}
-	t.Logf("running helmvm install from node %s", tmpcluster.Nodes[0])
-	stdout := &buffer{bytes.NewBuffer(nil)}
-	stderr := &buffer{bytes.NewBuffer(nil)}
-	cmd := cluster.Command{
-		Node:   tmpcluster.Nodes[0],
-		Line:   []string{"multi-node-install.sh"},
-		Stdout: stdout,
-		Stderr: stderr,
+	t.Log("waiting for cluster nodes to report ready")
+	line = []string{"wait-for-ready-nodes.sh", "3"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("ended with error, sleeping")
+		time.Sleep(1 * time.Hour)
+		t.Fatalf("nodes not reporting ready: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	if err := cluster.Run(ctx, t, cmd); err != nil {
-		t.Logf("stdout:\n%s", stdout.String())
-		t.Logf("stderr:\n%s", stderr.String())
-		t.Errorf("fail to deploy: %s", err)
+}
+
+func TestSingleNodeInstallation(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:             t,
+		Nodes:         1,
+		Image:         "ubuntu/jammy",
+		SSHPublicKey:  "../output/tmp/id_rsa.pub",
+		SSHPrivateKey: "../output/tmp/id_rsa",
+		HelmVMPath:    "../output/bin/helmvm",
+	})
+	defer tc.Destroy()
+	t.Log("installing ssh on node 0")
+	line := []string{"apt", "install", "openssh-server", "-y"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("installing helmvm on node 0")
+	line = []string{"single-node-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+	}
+}
+
+func TestMultiNodeInstallation(t *testing.T) {
+	t.Parallel()
+	t.Log("creating cluster")
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:             t,
+		Nodes:         3,
+		Image:         "ubuntu/jammy",
+		SSHPublicKey:  "../output/tmp/id_rsa.pub",
+		SSHPrivateKey: "../output/tmp/id_rsa",
+		HelmVMPath:    "../output/bin/helmvm",
+	})
+	defer tc.Destroy()
+	for i := range tc.Nodes {
+		t.Logf("installing ssh on node %d", i)
+		line := []string{"apt", "install", "openssh-server", "-y"}
+		if _, _, err := RunCommandOnNode(t, tc, i, line); err != nil {
+			t.Fatalf("fail to install ssh on node %d: %v", i, err)
+		}
+	}
+	t.Log("running multi node helmvm install from node 0")
+	line := []string{"multi-node-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install helmvm from node 00: %v", err)
 	}
 }

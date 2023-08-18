@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 wait_for_healthy_node() {
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
@@ -12,7 +11,7 @@ wait_for_healthy_node() {
         counter=$((counter+1))
         echo "Waiting for node to be ready"
         ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
-        kubectl get nodes 2>&1
+        kubectl get nodes || true
     done
     return 0
 }

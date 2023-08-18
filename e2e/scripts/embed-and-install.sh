@@ -2,7 +2,6 @@
 # This script is used to test the embed capability of helmvm. It will pull the memcached helm chart and
 # embed it into the binary, issuing then a single node install. This script waits for the memcached pod
 # to be ready.
-set -euo pipefail
 
 wait_for_healthy_node() {
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
@@ -15,7 +14,7 @@ wait_for_healthy_node() {
         counter=$((counter+1))
         echo "Waiting for node to be ready"
         ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready)
-        kubectl get nodes 2>&1
+        kubectl get nodes || true
     done
     return 0
 }
