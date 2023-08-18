@@ -125,15 +125,29 @@ builder: static static-linux-amd64
 
 .PHONY: unit-tests
 unit-tests:
-	go test -v ./...
+	go test -v $(shell go list ./... | grep -v /e2e)
 
 .PHONY: vet
 vet: static-linux-amd64 static
 	go vet ./...
 
 .PHONY: e2e-tests
-e2e-tests:
-	echo to be implemented
+e2e-tests: helmvm-linux-amd64
+	mkdir -p output/tmp
+	rm -rf output/tmp/id_rsa*
+	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
+	go test -timeout 45m -parallel 1 -failfast -v ./e2e
+
+.PHONY: e2e-test
+e2e-test: helmvm-linux-amd64
+	mkdir -p output/tmp
+	rm -rf output/tmp/id_rsa*
+	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
+	go test -timeout 10m -v ./e2e -run $(TEST_NAME)
+
+.PHONY: create-e2e-workflows
+create-e2e-workflows:
+	./e2e/hack/create-e2e-workflows.sh
 
 .PHONY: clean
 clean:

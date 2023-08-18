@@ -45,7 +45,7 @@ func runPostApply(ctx context.Context) error {
 		return fmt.Errorf("unable to read cluster config: %w", err)
 	}
 	for _, host := range cfg.Spec.Hosts {
-		if err := runPostApplyOnHost(ctx, host, logger); err != nil {
+		if err := runPostApplyOnHost(ctx, host); err != nil {
 			return err
 		}
 	}
@@ -55,7 +55,7 @@ func runPostApply(ctx context.Context) error {
 // runPostApply runs the post-apply script on a host. XXX I don't think this
 // belongs here and needs to be refactored in a more generic way. It's here
 // because I have other things to do and this is a prototype.
-func runPostApplyOnHost(ctx context.Context, host *cluster.Host, logger pb.MessageWriter) error {
+func runPostApplyOnHost(ctx context.Context, host *cluster.Host) error {
 	if err := host.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to host: %w", err)
 	}
@@ -280,6 +280,10 @@ func applyK0sctl(c *cli.Context, prompt bool, nodes []infra.Node) error {
 	logrus.Infof("Applying cluster configuration")
 	if err := runK0sctlApply(c.Context); err != nil {
 		logrus.Errorf("Installation or upgrade failed.")
+		if !prompt {
+			dumpApplyLogs()
+			return fmt.Errorf("unable to apply cluster: %w", err)
+		}
 		var useCurrent = &survey.Confirm{
 			Message: "Do you wish to visualize the logs?",
 			Default: true,
