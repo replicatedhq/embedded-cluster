@@ -58,6 +58,14 @@ func (a *AdminConsole) askPassword() (string, error) {
 	return pass, nil
 }
 
+func (a *AdminConsole) Version() (map[string]string, error) {
+	latest, err := a.Latest()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get latest version: %w", err)
+	}
+	return map[string]string{"AdminConsole": latest}, nil
+}
+
 func (a *AdminConsole) Apply(ctx context.Context) error {
 	version, err := a.Latest()
 	if err != nil {

@@ -374,7 +374,7 @@ var installCommand = &cli.Command{
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
 		os.Setenv("KUBECONFIG", kcfg)
-		if applier, err := addons.NewApplier(prompt); err != nil {
+		if applier, err := addons.NewApplier(prompt, true); err != nil {
 			return fmt.Errorf("unable to create applier: %w", err)
 		} else if err := applier.Apply(c.Context); err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)

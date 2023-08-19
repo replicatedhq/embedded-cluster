@@ -1,12 +1,13 @@
-BUILDER_NAME=builder
-APP_NAME=helmvm
-ADMIN_CONSOLE_CHART_VERSION=1.100.1
-KUBECTL_VERSION=v1.27.3
-K0SCTL_VERSION=v0.15.2
-TERRAFORM_VERSION=1.5.4
-OPENEBS_VERSION=3.7.0
-K0S_VERSION=v1.27.2+k0s.0
-LD_FLAGS=-X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION)
+VERSION ?= v0.0.0
+BUILDER_NAME = builder
+APP_NAME = helmvm
+ADMIN_CONSOLE_CHART_VERSION = 1.100.1
+KUBECTL_VERSION = v1.27.3
+K0SCTL_VERSION = v0.15.2
+TERRAFORM_VERSION = 1.5.4
+OPENEBS_VERSION = 3.7.0
+K0S_VERSION = v1.27.2+k0s.0
+LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) -X main.Version=$(VERSION)
 
 default: helmvm-linux-amd64
 

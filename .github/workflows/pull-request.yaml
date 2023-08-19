@@ -37,19 +37,21 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
+    - name: Get short commit hash
+      run: echo "SHORT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
     - name: Setup Go
       uses: actions/setup-go@v4
       with:
         go-version: "1.21.0"
     - name: Build Linux AMD64
       run: |
-        make helmvm-linux-amd64
+        make helmvm-linux-amd64 VERSION=dev-$SHORT_SHA
     - name: Build Darwin AMD64
       run: |
         make helmvm-darwin-amd64
-    - name: Build Darwin ARM64
+    - name: Build Darwin ARM64 VERSION=dev-$SHORT_SHA
       run: |
-        make helmvm-darwin-arm64
+        make helmvm-darwin-arm64 VERSION=dev-$SHORT_SHA
     - name: Build HelmVM Builder Server Image
       uses: docker/build-push-action@v4
       with:
