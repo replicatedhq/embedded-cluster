@@ -143,7 +143,7 @@ e2e-test: helmvm-linux-amd64
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
-	go test -timeout 10m -v ./e2e -run $(TEST_NAME)
+	go test -timeout 10m -v ./e2e -run $(TEST_NAME)$
 
 .PHONY: create-e2e-workflows
 create-e2e-workflows:

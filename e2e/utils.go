@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,17 @@ type buffer struct {
 }
 
 func (b *buffer) Close() error {
+	return nil
+}
+
+func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]string) error {
+	for _, cmd := range cmds {
+		cmdstr := strings.Join(cmd, " ")
+		t.Logf("running `%s` node %d", cmdstr, node)
+		if _, _, err := RunCommandOnNode(t, cl, node, cmd); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
