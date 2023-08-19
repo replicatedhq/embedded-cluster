@@ -24,6 +24,15 @@ lxc.cap.drop=
 lxc.cgroup.devices.allow=a
 lxc.mount.auto=proc:rw sys:rw
 lxc.mount.entry = /dev/kmsg dev/kmsg none defaults,bind,create=file`
+const checkInternet = `#!/bin/bash
+timeout 5 bash -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
+if [ $? == 0 ]; then
+    echo "Internet connectivity is up"
+    exit 0
+fi
+echo "Internet connectivity is down"
+exit 1
+`
 
 func init() {
 	networkaddr = make(chan string, 255)
@@ -214,20 +223,28 @@ func CopyFilesToNode(in *Input, node string) {
 		})
 	}
 	for _, file := range files {
-		fp, err := os.Open(file.SourcePath)
-		if err != nil {
-			in.T.Fatalf("Failed to open file %s: %v", file.SourcePath, err)
-		}
-		defer fp.Close()
-		req = lxd.ContainerFileArgs{
-			Content: fp,
-			Mode:    file.Mode,
-			Type:    "file",
-		}
-		err = client.CreateContainerFile(node, file.DestPath, req)
-		if err != nil {
-			in.T.Fatalf("Failed to copy file %s: %v", file.SourcePath, err)
-		}
+		CopyFileToNode(in, node, file)
+	}
+}
+
+// CopyFileToNode copies a single file to a node.
+func CopyFileToNode(in *Input, node string, file File) {
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		in.T.Fatalf("Failed to connect to LXD: %v", err)
+	}
+	fp, err := os.Open(file.SourcePath)
+	if err != nil {
+		in.T.Fatalf("Failed to open file %s: %v", file.SourcePath, err)
+	}
+	defer fp.Close()
+	req := lxd.ContainerFileArgs{
+		Content: fp,
+		Mode:    file.Mode,
+		Type:    "file",
+	}
+	if err := client.CreateContainerFile(node, file.DestPath, req); err != nil {
+		in.T.Fatalf("Failed to copy file %s: %v", file.SourcePath, err)
 	}
 }
 
@@ -247,13 +264,28 @@ func CreateNodes(in *Input) []string {
 // pinging google.com.
 func NodeHasInternet(in *Input, node string) {
 	in.T.Logf("Testing if node %s can reach the internet", node)
+	fp, err := os.CreateTemp("/tmp", "internet-XXXXX.sh")
+	if err != nil {
+		in.T.Fatalf("Failed to create temporary file: %v", err)
+	}
+	fp.Close()
+	defer func() {
+		os.RemoveAll(fp.Name())
+	}()
+	if err := os.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
+		in.T.Fatalf("Failed to write script: %v", err)
+	}
+	file := File{
+		SourcePath: fp.Name(),
+		DestPath:   "/usr/local/bin/check_internet.sh",
+		Mode:       0755,
+	}
+	CopyFileToNode(in, node, file)
 	cmd := Command{
 		Node:   node,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-		Line: []string{
-			"nc", "-w", "2", "-zv", "www.replicated.com", "80",
-		},
+		Line:   []string{"/usr/local/bin/check_internet.sh"},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -317,7 +349,7 @@ func CreateNode(in *Input, i int) string {
 	state := &api.InstanceState{}
 	for state.Status != "Running" {
 		time.Sleep(5 * time.Second)
-		in.T.Logf("Waiting for node %s to run", name)
+		in.T.Logf("Waiting for node %s to start (running)", name)
 		if state, _, err = client.GetInstanceState(name); err != nil {
 			in.T.Fatalf("Failed to get node state %s: %v", name, err)
 		}

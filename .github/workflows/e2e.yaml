@@ -13,6 +13,9 @@ jobs:
         - TestMultiNodeInstallation
         - TestSingleNodeInstallation
         - TestTokenBasedMultiNodeInstallation
+        - TestSingleNodeInstallationRockyLinux8
+        - TestSingleNodeInstallationDebian12
+        - TestSingleNodeInstallationCentos8Stream
     steps:
     - name: Move Docker aside
       run: |
