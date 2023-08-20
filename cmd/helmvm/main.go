@@ -20,6 +20,7 @@ func main() {
 			embedCommand,
 			shellCommand,
 			nodeCommands,
+			versionCommand,
 		},
 	}
 	if err := app.Run(os.Args); err != nil {

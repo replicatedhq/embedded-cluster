@@ -40,6 +40,14 @@ type OpenEBS struct {
 	namespace string
 }
 
+func (o *OpenEBS) Version() (map[string]string, error) {
+	latest, err := o.latest()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get latest version: %w", err)
+	}
+	return map[string]string{"OpenEBS": latest}, nil
+}
+
 func (o *OpenEBS) Apply(ctx context.Context) error {
 	version, err := o.latest()
 	if err != nil {

@@ -24,6 +24,28 @@ type Custom struct {
 	namespace string
 }
 
+func (c *Custom) Version() (map[string]string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get executable path: %w", err)
+	}
+	opts, err := hembed.ReadEmbedOptionsFromBinary(exe)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read embed options: %w", err)
+	} else if opts == nil {
+		return nil, nil
+	}
+	infos := make(map[string]string)
+	for _, raw := range opts.Charts {
+		chart, err := loader.LoadArchive(raw.ChartReader())
+		if err != nil {
+			return nil, fmt.Errorf("unable to load chart archive: %w", err)
+		}
+		infos[chart.Name()] = chart.Metadata.Version
+	}
+	return infos, nil
+}
+
 func (c *Custom) Apply(ctx context.Context) error {
 	exe, err := os.Executable()
 	if err != nil {

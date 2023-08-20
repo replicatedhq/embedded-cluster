@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"helm.sh/helm/v3/pkg/action"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -27,9 +28,21 @@ type Applier struct {
 	addons     map[string]AddOn
 }
 
+// DoNotLog is a helper function to disable logging for addons.
+func DoNotLog(format string, v ...interface{}) {}
+
+// getLogger creates a logger to be used in an addon.
+func getLogger(addon string, verbose bool) action.DebugLog {
+	if !verbose {
+		return DoNotLog
+	}
+	return logrus.WithField("addon", addon).Infof
+}
+
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
 	Apply(ctx context.Context) error
+	Version() (map[string]string, error)
 }
 
 // Apply applies all registered addons to the cluster. Simply calls Apply on
@@ -46,6 +59,21 @@ func (a *Applier) Apply(ctx context.Context) error {
 		logrus.Infof("Addon %s applied.", name)
 	}
 	return nil
+}
+
+// Version returns a map with the version of each addon that will be applied.
+func (a *Applier) Versions() (map[string]string, error) {
+	versions := map[string]string{}
+	for name, addon := range a.addons {
+		version, err := addon.Version()
+		if err != nil {
+			return nil, fmt.Errorf("unable to get version (%s): %w", name, err)
+		}
+		for k, v := range version {
+			versions[k] = v
+		}
+	}
+	return versions, nil
 }
 
 // waitForKubernetes waits until we manage to make a successful connection to the
@@ -77,7 +105,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 }
 
 // NewApplier creates a new Applier instance with all addons registered.
-func NewApplier(prompt bool) (*Applier, error) {
+func NewApplier(prompt, verbose bool) (*Applier, error) {
 	k8slogger := zap.New(func(o *zap.Options) {
 		o.DestWriter = io.Discard
 	})
@@ -90,24 +118,18 @@ func NewApplier(prompt bool) (*Applier, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kubernetes client: %w", err)
 	}
-	applier := &Applier{
-		addons:     map[string]AddOn{},
-		kubeclient: kubecli,
-	}
-	logger := logrus.WithField("addon", "openebs")
-	obs, err := openebs.New("helmvm", logger.Infof)
+	applier := &Applier{addons: map[string]AddOn{}, kubeclient: kubecli}
+	obs, err := openebs.New("helmvm", getLogger("openebs", verbose))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
 	applier.addons["openebs"] = obs
-	logger = logrus.WithField("addon", "adminconsole")
-	aconsole, err := adminconsole.New("helmvm", prompt, kubecli, logger.Infof)
+	aconsole, err := adminconsole.New("helmvm", prompt, kubecli, getLogger("adminconsole", verbose))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
 	applier.addons["adminconsole"] = aconsole
-	logger = logrus.WithField("addon", "custom")
-	custom, err := custom.New("helmvm", logger.Infof)
+	custom, err := custom.New("helmvm", getLogger("custom", verbose))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
