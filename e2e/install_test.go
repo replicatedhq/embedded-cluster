@@ -69,6 +69,11 @@ func TestSingleNodeInstallation(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
 	}
+	t.Log("creating deployment mounting pvc")
+	line = []string{"deploy-with-pvc.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to create deployment with pvc: %v", err)
+	}
 }
 
 func TestMultiNodeInstallation(t *testing.T) {
@@ -122,6 +127,11 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
 	}
+	t.Log("creating deployment mounting pvc")
+	line = []string{"deploy-with-pvc.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to create deployment with pvc: %v", err)
+	}
 }
 
 func TestSingleNodeInstallationDebian12(t *testing.T) {
@@ -144,6 +154,11 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	line = []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("creating deployment mounting pvc")
+	line = []string{"deploy-with-pvc.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to create deployment with pvc: %v", err)
 	}
 }
 
@@ -171,5 +186,10 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("creating deployment mounting pvc")
+	line = []string{"deploy-with-pvc.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to create deployment with pvc: %v", err)
 	}
 }
