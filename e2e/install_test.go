@@ -193,3 +193,39 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		t.Fatalf("fail to create deployment with pvc: %v", err)
 	}
 }
+
+func TestMultiNodeInteractiveInstallation(t *testing.T) {
+	t.Parallel()
+	t.Log("creating cluster")
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:             t,
+		Nodes:         3,
+		Image:         "ubuntu/jammy",
+		SSHPublicKey:  "../output/tmp/id_rsa.pub",
+		SSHPrivateKey: "../output/tmp/id_rsa",
+		HelmVMPath:    "../output/bin/helmvm",
+	})
+	defer tc.Destroy()
+	for i := range tc.Nodes {
+		t.Logf("installing ssh on node %d", i)
+		line := []string{"apt", "install", "openssh-server", "-y"}
+		if _, _, err := RunCommandOnNode(t, tc, i, line); err != nil {
+			t.Fatalf("fail to install ssh on node %d: %v", i, err)
+		}
+	}
+	t.Logf("installing expect on node 0")
+	line := []string{"apt", "install", "expect", "-y"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install expect on node 0: %v", err)
+	}
+	t.Log("running multi node interactive install from node 0")
+	line = []string{"interactive-multi-node-install.exp"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install helmvm from node 0: %v", err)
+	}
+	t.Log("waiting for cluster nodes to report ready")
+	line = []string{"wait-for-ready-nodes.sh", "3"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("nodes not reporting ready: %v", err)
+	}
+}

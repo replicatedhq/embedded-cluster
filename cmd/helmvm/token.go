@@ -9,11 +9,11 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
 var tokenCommands = &cli.Command{
@@ -53,7 +53,7 @@ var tokenCreateCommand = &cli.Command{
 		if role != "worker" && role != "controller" {
 			return fmt.Errorf("invalid role %q", role)
 		}
-		prompt := !c.Bool("no-prompt")
+		useprompt := !c.Bool("no-prompt")
 		cfgpath := defaults.PathToConfig("k0sctl.yaml")
 		if _, err := os.Stat(cfgpath); err != nil {
 			if os.IsNotExist(err) {
@@ -69,17 +69,8 @@ var tokenCreateCommand = &cli.Command{
 			logrus.Warn("Through the centralized management you can manage all your")
 			logrus.Warn("cluster nodes from a single location. If you decide to move")
 			logrus.Warn("on the centralized management won't be available anymore")
-			if prompt {
-				question := &survey.Confirm{
-					Message: "Do you want to use continue ?",
-					Default: true,
-				}
-				var moveOn bool
-				if err := survey.AskOne(question, &moveOn); err != nil {
-					return fmt.Errorf("unable to ask for confirmation: %w", err)
-				} else if !moveOn {
-					return nil
-				}
+			if useprompt && !prompts.Confirm("Do you want to use continue ?", true) {
+				return nil
 			}
 		}
 		dur := c.Duration("expiry").String()

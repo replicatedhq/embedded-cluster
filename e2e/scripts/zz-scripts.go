@@ -5,5 +5,5 @@ package scripts
 
 import "embed"
 
-//go:embed *.sh
+//go:embed *
 var FS embed.FS

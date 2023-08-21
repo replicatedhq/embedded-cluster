@@ -1,0 +1,23 @@
+#!/usr/bin/env expect
+
+proc configure_node {address} {
+        set timeout 30
+        expect "Node address:" { send "$address\r" }
+        expect "SSH user:" { send "root\r" }
+        expect "SSH port:" { send "22\r" }
+        expect "Type one of the options above:" { send "controller+worker\r" }
+        expect "Type one of the options above:" { send "/root/.ssh/id_rsa\r" }
+}
+
+set env(HELMVM_PLAIN_PROMPTS) "true"
+spawn helmvm install --multi-node
+configure_node "10.0.0.2"
+expect -re "Add another node?.*:" { send "y\r" }
+configure_node "10.0.0.3"
+expect -re "Add another node?.*:" { send "y\r" }
+configure_node "10.0.0.4"
+expect -re "Add another node?.*:" { send "n\r" }
+set timeout 600
+expect "Load balancer address:" { send "\r" }
+expect "Enter a new Admin Console password:" { send "password\r" }
+expect "You can now access your cluster with kubectl"
