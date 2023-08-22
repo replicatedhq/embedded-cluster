@@ -24,8 +24,7 @@ import (
 )
 
 type Applier struct {
-	kubeclient client.Client
-	addons     map[string]AddOn
+	addons map[string]AddOn
 }
 
 // DoNotLog is a helper function to disable logging for addons.
@@ -76,6 +75,19 @@ func (a *Applier) Versions() (map[string]string, error) {
 	return versions, nil
 }
 
+// kubeClient returns a new kubernetes client.
+func (a *Applier) kubeClient() (client.Client, error) {
+	k8slogger := zap.New(func(o *zap.Options) {
+		o.DestWriter = io.Discard
+	})
+	log.SetLogger(k8slogger)
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
+	}
+	return client.New(cfg, client.Options{})
+}
+
 // waitForKubernetes waits until we manage to make a successful connection to the
 // Kubernetes API server.
 func (a *Applier) waitForKubernetes(ctx context.Context) error {
@@ -85,6 +97,10 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 		pb.Close()
 		<-end
 	}()
+	kcli, err := a.kubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	counter := 1
@@ -96,7 +112,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 			return ctx.Err()
 		}
 		counter++
-		if err := a.kubeclient.List(ctx, &corev1.NamespaceList{}); err != nil {
+		if err := kcli.List(ctx, &corev1.NamespaceList{}); err != nil {
 			pb.Infof("%d/n Waiting for Kubernetes API server to be ready.", counter)
 			continue
 		}
@@ -106,25 +122,13 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 
 // NewApplier creates a new Applier instance with all addons registered.
 func NewApplier(prompt, verbose bool) (*Applier, error) {
-	k8slogger := zap.New(func(o *zap.Options) {
-		o.DestWriter = io.Discard
-	})
-	log.SetLogger(k8slogger)
-	cfg, err := config.GetConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
-	}
-	kubecli, err := client.New(cfg, client.Options{})
-	if err != nil {
-		return nil, fmt.Errorf("unable to create kubernetes client: %w", err)
-	}
-	applier := &Applier{addons: map[string]AddOn{}, kubeclient: kubecli}
+	applier := &Applier{addons: map[string]AddOn{}}
 	obs, err := openebs.New("helmvm", getLogger("openebs", verbose))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
 	applier.addons["openebs"] = obs
-	aconsole, err := adminconsole.New("helmvm", prompt, kubecli, getLogger("adminconsole", verbose))
+	aconsole, err := adminconsole.New("helmvm", prompt, getLogger("adminconsole", verbose))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}

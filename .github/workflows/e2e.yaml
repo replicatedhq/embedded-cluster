@@ -16,6 +16,7 @@ jobs:
         - TestSingleNodeInstallationRockyLinux8
         - TestSingleNodeInstallationDebian12
         - TestSingleNodeInstallationCentos8Stream
+        - TestVersion
     steps:
     - name: Move Docker aside
       run: |

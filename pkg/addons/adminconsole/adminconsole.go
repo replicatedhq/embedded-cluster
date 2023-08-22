@@ -14,7 +14,6 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
 )
@@ -167,7 +166,7 @@ func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, 
 	return releases[0], nil
 }
 
-func New(ns string, prompt bool, kcli client.Client, log action.DebugLog) (*AdminConsole, error) {
+func New(ns string, prompt bool, log action.DebugLog) (*AdminConsole, error) {
 	env := cli.New()
 	env.SetNamespace(ns)
 	config := &action.Configuration{}
@@ -179,6 +178,6 @@ func New(ns string, prompt bool, kcli client.Client, log action.DebugLog) (*Admi
 		config:        config,
 		logger:        log,
 		prompt:        prompt,
-		customization: AdminConsoleCustomization{kcli},
+		customization: AdminConsoleCustomization{},
 	}, nil
 }
