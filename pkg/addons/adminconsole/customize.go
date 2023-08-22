@@ -16,14 +16,15 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 // AdminConsoleCustomization is a struct that contains the actions to create and update
 // the admin console customization found inside the binary. This is necessary for
 // backwards compatibility with older versions of helmvm.
-type AdminConsoleCustomization struct {
-	kubeclient client.Client
-}
+type AdminConsoleCustomization struct{}
 
 // extractCustomization will extract the customization from the binary if it exists.
 // If it does not exist, it will return nil, nil. The customization is expected to
@@ -82,6 +83,19 @@ func (a *AdminConsoleCustomization) processSection(section *elf.Section) ([]byte
 	}
 }
 
+// kubeClient returns a new kubernetes client.
+func (a *AdminConsoleCustomization) kubeClient() (client.Client, error) {
+	k8slogger := zap.New(func(o *zap.Options) {
+		o.DestWriter = io.Discard
+	})
+	log.SetLogger(k8slogger)
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
+	}
+	return client.New(cfg, client.Options{})
+}
+
 // apply will attempt to read the helmvm binary and extract the kotsadm portal
 // customization from it. If it finds one, it will apply it to the cluster.
 func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
@@ -98,10 +112,14 @@ func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
 		logrus.Infof("No admin console customization found")
 		return nil
 	}
+	kubeclient, err := a.kubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
 	logrus.Infof("Admin console customization found")
 	nsn := client.ObjectKey{Namespace: "helmvm", Name: "kotsadm-application-metadata"}
 	var cm corev1.ConfigMap
-	if err := a.kubeclient.Get(ctx, nsn, &cm); err != nil {
+	if err := kubeclient.Get(ctx, nsn, &cm); err != nil {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("unable to get kotsadm-application configmap: %w", err)
 		}
@@ -115,14 +133,14 @@ func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
 				"application.yaml": string(cust),
 			},
 		}
-		if err := a.kubeclient.Create(ctx, &cm); err != nil {
+		if err := kubeclient.Create(ctx, &cm); err != nil {
 			return fmt.Errorf("unable to create kotsadm-application configmap: %w", err)
 		}
 		return nil
 	}
 	logrus.Infof("Updating admin console customization config map")
 	cm.Data["application.yaml"] = string(cust)
-	if err := a.kubeclient.Update(ctx, &cm); err != nil {
+	if err := kubeclient.Update(ctx, &cm); err != nil {
 		return fmt.Errorf("unable to update kotsadm-application configmap: %w", err)
 	}
 	return nil
