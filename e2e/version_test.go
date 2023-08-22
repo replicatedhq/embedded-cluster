@@ -29,7 +29,7 @@ func TestVersion(t *testing.T) {
 	output := fmt.Sprintf("%s\n%s", stdout, stderr)
 	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole"}
 	for _, component := range expected {
-		if strings.Contains(output, "Installer") {
+		if strings.Contains(output, component) {
 			continue
 		}
 		t.Errorf("missing %q version in 'version' output", component)
