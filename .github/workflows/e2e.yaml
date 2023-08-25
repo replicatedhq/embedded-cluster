@@ -17,6 +17,8 @@ jobs:
         - TestSingleNodeInstallationCentos8Stream
         - TestVersion
         - TestMultiNodeInteractiveInstallation
+        - TestInstallWithDisabledAddons
+        - TestEmbedAddonsOnly
     steps:
     - name: Move Docker aside
       run: |

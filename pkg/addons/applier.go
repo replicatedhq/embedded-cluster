@@ -23,19 +23,12 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
-type Applier struct {
-	addons map[string]AddOn
-}
-
-// DoNotLog is a helper function to disable logging for addons.
-func DoNotLog(format string, v ...interface{}) {}
-
 // getLogger creates a logger to be used in an addon.
 func getLogger(addon string, verbose bool) action.DebugLog {
-	if !verbose {
-		return DoNotLog
+	if verbose {
+		return logrus.WithField("addon", addon).Infof
 	}
-	return logrus.WithField("addon", addon).Infof
+	return func(string, ...interface{}) {}
 }
 
 // AddOn is the interface that all addons must implement.
@@ -44,13 +37,24 @@ type AddOn interface {
 	Version() (map[string]string, error)
 }
 
+// Applier is an entity that applies (installs and updates) addons in the cluster.
+type Applier struct {
+	disabledAddons map[string]bool
+	prompt         bool
+	verbose        bool
+}
+
 // Apply applies all registered addons to the cluster. Simply calls Apply on
 // each addon.
 func (a *Applier) Apply(ctx context.Context) error {
 	if err := a.waitForKubernetes(ctx); err != nil {
 		return fmt.Errorf("unable to wait for kubernetes: %w", err)
 	}
-	for name, addon := range a.addons {
+	addons, err := a.load()
+	if err != nil {
+		return fmt.Errorf("unable to load addons: %w", err)
+	}
+	for name, addon := range addons {
 		logrus.Infof("Apply addon %s.", name)
 		if err := addon.Apply(ctx); err != nil {
 			return err
@@ -60,10 +64,39 @@ func (a *Applier) Apply(ctx context.Context) error {
 	return nil
 }
 
+// load instantiates all enabled addons.
+func (a *Applier) load() (map[string]AddOn, error) {
+	addons := map[string]AddOn{}
+	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
+		obs, err := openebs.New("helmvm", getLogger("openebs", a.verbose))
+		if err != nil {
+			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
+		}
+		addons["openebs"] = obs
+	}
+	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
+		aconsole, err := adminconsole.New("helmvm", a.prompt, getLogger("adminconsole", a.verbose))
+		if err != nil {
+			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
+		}
+		addons["adminconsole"] = aconsole
+	}
+	custom, err := custom.New("helmvm", getLogger("custom", a.verbose), a.disabledAddons)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
+	}
+	addons["custom"] = custom
+	return addons, nil
+}
+
 // Version returns a map with the version of each addon that will be applied.
 func (a *Applier) Versions() (map[string]string, error) {
+	addons, err := a.load()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load addons: %w", err)
+	}
 	versions := map[string]string{}
-	for name, addon := range a.addons {
+	for name, addon := range addons {
 		version, err := addon.Version()
 		if err != nil {
 			return nil, fmt.Errorf("unable to get version (%s): %w", name, err)
@@ -121,22 +154,14 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 }
 
 // NewApplier creates a new Applier instance with all addons registered.
-func NewApplier(prompt, verbose bool) (*Applier, error) {
-	applier := &Applier{addons: map[string]AddOn{}}
-	obs, err := openebs.New("helmvm", getLogger("openebs", verbose))
-	if err != nil {
-		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
+func NewApplier(opts ...Option) *Applier {
+	applier := &Applier{
+		prompt:         true,
+		verbose:        true,
+		disabledAddons: map[string]bool{},
 	}
-	applier.addons["openebs"] = obs
-	aconsole, err := adminconsole.New("helmvm", prompt, getLogger("adminconsole", verbose))
-	if err != nil {
-		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
+	for _, fn := range opts {
+		fn(applier)
 	}
-	applier.addons["adminconsole"] = aconsole
-	custom, err := custom.New("helmvm", getLogger("custom", verbose))
-	if err != nil {
-		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
-	}
-	applier.addons["custom"] = custom
-	return applier, nil
+	return applier
 }

@@ -81,9 +81,11 @@ var upgradeCommand = &cli.Command{
 		}
 		os.Setenv("KUBECONFIG", kcfg)
 		logrus.Infof("Upgrading addons")
-		if applier, err := addons.NewApplier(c.Bool("no-prompt"), true); err != nil {
-			return fmt.Errorf("unable to create applier: %w", err)
-		} else if err := applier.Apply(c.Context); err != nil {
+		opts := []addons.Option{}
+		if c.Bool("no-prompt") {
+			opts = append(opts, addons.WithoutPrompt())
+		}
+		if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)
 		}
 		logrus.Infof("Upgrade complete")
