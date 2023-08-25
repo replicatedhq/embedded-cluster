@@ -9,7 +9,6 @@ jobs:
         tests:
         - TestBuildBundle
         - TestEmbedAndInstall
-        - TestInstallSingleNodeAndUpgradeToEmbed
         - TestMultiNodeInstallation
         - TestSingleNodeInstallation
         - TestTokenBasedMultiNodeInstallation
@@ -17,6 +16,7 @@ jobs:
         - TestSingleNodeInstallationDebian12
         - TestSingleNodeInstallationCentos8Stream
         - TestVersion
+        - TestMultiNodeInteractiveInstallation
     steps:
     - name: Move Docker aside
       run: |

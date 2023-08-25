@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
@@ -22,8 +21,15 @@ import (
 
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/infra"
+	"github.com/replicatedhq/helmvm/pkg/prompts"
 	"github.com/replicatedhq/helmvm/pkg/ssh"
 )
+
+// roles holds a list of valid roles.
+var roles = []string{"controller+worker", "controller", "worker"}
+
+// quiz prompts for the cluster configuration interactively.
+var quiz = prompts.New()
 
 // ReadConfigFile reads the cluster configuration from the provided file.
 func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
@@ -79,19 +85,16 @@ func listUserSSHKeys() ([]string, error) {
 // askUserForHostSSHKey asks the user for the SSH key path.
 func askUserForHostSSHKey(keys []string, host *hostcfg) error {
 	if len(keys) == 0 {
-		return survey.AskOne(&survey.Input{Message: "SSH Key path:"}, &host.KeyPath)
+		host.KeyPath = quiz.Input("SSH key path:", "", true)
+		return nil
 	}
 	keys = append(keys, "other")
 	if host.KeyPath == "" {
 		host.KeyPath = keys[0]
 	}
-	if err := survey.AskOne(&survey.Select{
-		Message: "SSH key path:", Options: keys, Default: host.KeyPath,
-	}, &host.KeyPath); err != nil {
-		return fmt.Errorf("unable to ask for ssh key: %w", err)
-	}
+	host.KeyPath = quiz.Select("SSH key path:", keys, host.KeyPath)
 	if host.KeyPath == "other" {
-		return survey.AskOne(&survey.Input{Message: "SSH Key path:"}, &host.KeyPath)
+		host.KeyPath = quiz.Input("SSH key path:", "", true)
 	}
 	return nil
 }
@@ -99,47 +102,18 @@ func askUserForHostSSHKey(keys []string, host *hostcfg) error {
 // askUserForHostConfig collects a host SSH configuration interactively.
 func askUserForHostConfig(keys []string, host *hostcfg) error {
 	logrus.Infof("Please provide SSH configuration for the host.")
-	if err := survey.Ask([]*survey.Question{
-		{
-			Name:     "address",
-			Validate: survey.Required,
-			Prompt: &survey.Input{
-				Message: "Node address:",
-				Default: host.Address,
-			},
-		},
-		{
-			Name: "role",
-			Prompt: &survey.Select{
-				Message: "Node role:",
-				Options: []string{"controller+worker", "controller", "worker"},
-				Default: host.Role,
-			},
-		},
-		{
-			Name: "port",
-			Prompt: &survey.Input{
-				Message: "SSH port:",
-				Default: strconv.Itoa(host.Port),
-			},
-			Validate: func(ans interface{}) error {
-				if _, err := strconv.Atoi(ans.(string)); err != nil {
-					return fmt.Errorf("port must be a number")
-				}
-				return nil
-			},
-		},
-		{
-			Name:     "user",
-			Validate: survey.Required,
-			Prompt: &survey.Input{
-				Message: "SSH user:",
-				Default: host.User,
-			},
-		},
-	}, host); err != nil {
-		return fmt.Errorf("unable to ask for host config: %w", err)
+	host.Address = quiz.Input("Node address:", host.Address, true)
+	host.User = quiz.Input("SSH user:", host.User, true)
+	var err error
+	var port int
+	for port == 0 {
+		str := quiz.Input("SSH port:", strconv.Itoa(host.Port), true)
+		if port, err = strconv.Atoi(str); err != nil {
+			logrus.Warnf("Invalid port number")
+		}
 	}
+	host.Port = port
+	host.Role = quiz.Select("Node role:", roles, host.Role)
 	if err := askUserForHostSSHKey(keys, host); err != nil {
 		return fmt.Errorf("unable to ask for host ssh key: %w", err)
 	}
@@ -196,7 +170,6 @@ func validateHosts(hosts []*cluster.Host) (int, int, error) {
 
 // interactiveHosts asks the user for host configuration interactively.
 func interactiveHosts(ctx context.Context) ([]*cluster.Host, error) {
-	question := &survey.Confirm{Message: "Add another node?", Default: true}
 	hosts := []*cluster.Host{}
 	user, err := user.Current()
 	if err != nil {
@@ -214,10 +187,7 @@ func interactiveHosts(ctx context.Context) ([]*cluster.Host, error) {
 			return nil, fmt.Errorf("unable to assemble node config: %w", err)
 		}
 		hosts = append(hosts, host)
-		var more bool
-		if err := survey.AskOne(question, &more); err != nil {
-			return nil, fmt.Errorf("unable to process answers: %w", err)
-		} else if !more {
+		if !quiz.Confirm("Add another node?", true) {
 			break
 		}
 		defhost.Port = host.SSH.Port
@@ -234,12 +204,7 @@ func askForLoadBalancer() (string, error) {
 	logrus.Infof("cluster with multiple controllers, configure a load balancer address that")
 	logrus.Infof("forwards traffic to the controllers on TCP ports 6443, 8132, and 9443.")
 	logrus.Infof("Optionally, you can press enter to skip load balancer configuration.")
-	question := &survey.Input{Message: "Load balancer IP address:"}
-	var lb string
-	if err := survey.AskOne(question, &lb); err != nil {
-		return "", fmt.Errorf("unable to process answers: %w", err)
-	}
-	return lb, nil
+	return quiz.Input("Load balancer address:", "", false), nil
 }
 
 // renderMultiNodeConfig renders a configuration to allow k0sctl to install in a multi-node

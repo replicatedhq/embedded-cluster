@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
 	"helm.sh/helm/v3/pkg/action"
@@ -16,6 +15,7 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
+	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
 const (
@@ -37,24 +37,15 @@ type AdminConsole struct {
 	config        *action.Configuration
 	logger        action.DebugLog
 	namespace     string
-	prompt        bool
+	useprompt     bool
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
-	if !a.prompt {
+	if !a.useprompt {
 		logrus.Warnf("Admin Console password set to: password")
 		return "password", nil
 	}
-	question := &survey.Password{Message: "Enter a new Admin Console password:"}
-	var pass string
-	for pass == "" {
-		if err := survey.AskOne(question, &pass); err != nil {
-			return "", fmt.Errorf("unable to ask for password: %w", err)
-		} else if pass == "" {
-			logrus.Warn("Password cannot be empty")
-		}
-	}
-	return pass, nil
+	return prompts.New().Password("Enter a new Admin Console password:"), nil
 }
 
 func (a *AdminConsole) Version() (map[string]string, error) {
@@ -166,7 +157,7 @@ func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, 
 	return releases[0], nil
 }
 
-func New(ns string, prompt bool, log action.DebugLog) (*AdminConsole, error) {
+func New(ns string, useprompt bool, log action.DebugLog) (*AdminConsole, error) {
 	env := cli.New()
 	env.SetNamespace(ns)
 	config := &action.Configuration{}
@@ -177,7 +168,7 @@ func New(ns string, prompt bool, log action.DebugLog) (*AdminConsole, error) {
 		namespace:     ns,
 		config:        config,
 		logger:        log,
-		prompt:        prompt,
+		useprompt:     useprompt,
 		customization: AdminConsoleCustomization{},
 	}, nil
 }

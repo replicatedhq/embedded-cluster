@@ -27,10 +27,9 @@ lxc.mount.entry = /dev/kmsg dev/kmsg none defaults,bind,create=file`
 const checkInternet = `#!/bin/bash
 timeout 5 bash -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
 if [ $? == 0 ]; then
-    echo "Internet connectivity is up"
     exit 0
 fi
-echo "Internet connectivity is down"
+echo "Internet connection is down"
 exit 1
 `
 
