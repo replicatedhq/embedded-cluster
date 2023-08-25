@@ -45,7 +45,7 @@ func (a *AdminConsole) askPassword() (string, error) {
 		logrus.Warnf("Admin Console password set to: password")
 		return "password", nil
 	}
-	return prompts.Password("Enter a new Admin Console password:"), nil
+	return prompts.New().Password("Enter a new Admin Console password:"), nil
 }
 
 func (a *AdminConsole) Version() (map[string]string, error) {

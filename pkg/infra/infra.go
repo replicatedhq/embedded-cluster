@@ -49,7 +49,7 @@ func Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
 		return nodes, nil
 	}
 	logrus.Info("You may want to take note of the output for later use")
-	prompts.PressEnter("Press enter to continue")
+	prompts.New().PressEnter("Press enter to continue")
 	return nodes, nil
 }
 

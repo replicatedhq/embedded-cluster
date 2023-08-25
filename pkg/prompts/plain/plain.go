@@ -10,9 +10,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Plain implements Prompt using the standard library.
+type Plain struct{}
+
 // Confirm asks for user for a "Yes" or "No" response. The default value
 // is used if the user presses enter without typing neither Y nor N.
-func Confirm(msg string, defvalue bool) bool {
+func (p Plain) Confirm(msg string, defvalue bool) bool {
 	options := " [y/N]"
 	if defvalue {
 		options = " [Y/n]"
@@ -39,7 +42,7 @@ func Confirm(msg string, defvalue bool) bool {
 }
 
 // PressEnter asks the user to press enter to continue.
-func PressEnter(msg string) {
+func (p Plain) PressEnter(msg string) {
 	fmt.Printf("%s ", msg)
 	reader := bufio.NewReader(os.Stdin)
 	if _, err := reader.ReadString('\n'); err != nil {
@@ -49,12 +52,12 @@ func PressEnter(msg string) {
 
 // Password asks the user for a password. We just forward the call to Input
 // with required set to true.
-func Password(msg string) string {
-	return Input(msg, "", true)
+func (p Plain) Password(msg string) string {
+	return p.Input(msg, "", true)
 }
 
 // Select asks the user to select one of the provided options.
-func Select(msg string, options []string, _ string) string {
+func (p Plain) Select(msg string, options []string, _ string) string {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Println(msg)
@@ -79,7 +82,7 @@ func Select(msg string, options []string, _ string) string {
 
 // Input asks the user for a string. If required is true then
 // the string cannot be empty.
-func Input(msg string, _ string, required bool) string {
+func (p Plain) Input(msg string, _ string, required bool) string {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf("%s ", msg)

@@ -28,6 +28,9 @@ import (
 // roles holds a list of valid roles.
 var roles = []string{"controller+worker", "controller", "worker"}
 
+// quiz prompts for the cluster configuration interactively.
+var quiz = prompts.New()
+
 // ReadConfigFile reads the cluster configuration from the provided file.
 func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 	data, err := os.ReadFile(cfgPath)
@@ -82,16 +85,16 @@ func listUserSSHKeys() ([]string, error) {
 // askUserForHostSSHKey asks the user for the SSH key path.
 func askUserForHostSSHKey(keys []string, host *hostcfg) error {
 	if len(keys) == 0 {
-		host.KeyPath = prompts.Input("SSH key path:", "", true)
+		host.KeyPath = quiz.Input("SSH key path:", "", true)
 		return nil
 	}
 	keys = append(keys, "other")
 	if host.KeyPath == "" {
 		host.KeyPath = keys[0]
 	}
-	host.KeyPath = prompts.Select("SSH key path:", keys, host.KeyPath)
+	host.KeyPath = quiz.Select("SSH key path:", keys, host.KeyPath)
 	if host.KeyPath == "other" {
-		host.KeyPath = prompts.Input("SSH key path:", "", true)
+		host.KeyPath = quiz.Input("SSH key path:", "", true)
 	}
 	return nil
 }
@@ -99,18 +102,18 @@ func askUserForHostSSHKey(keys []string, host *hostcfg) error {
 // askUserForHostConfig collects a host SSH configuration interactively.
 func askUserForHostConfig(keys []string, host *hostcfg) error {
 	logrus.Infof("Please provide SSH configuration for the host.")
-	host.Address = prompts.Input("Node address:", host.Address, true)
-	host.User = prompts.Input("SSH user:", host.User, true)
+	host.Address = quiz.Input("Node address:", host.Address, true)
+	host.User = quiz.Input("SSH user:", host.User, true)
 	var err error
 	var port int
 	for port == 0 {
-		str := prompts.Input("SSH port:", strconv.Itoa(host.Port), true)
+		str := quiz.Input("SSH port:", strconv.Itoa(host.Port), true)
 		if port, err = strconv.Atoi(str); err != nil {
 			logrus.Warnf("Invalid port number")
 		}
 	}
 	host.Port = port
-	host.Role = prompts.Select("Node role:", roles, host.Role)
+	host.Role = quiz.Select("Node role:", roles, host.Role)
 	if err := askUserForHostSSHKey(keys, host); err != nil {
 		return fmt.Errorf("unable to ask for host ssh key: %w", err)
 	}
@@ -184,7 +187,7 @@ func interactiveHosts(ctx context.Context) ([]*cluster.Host, error) {
 			return nil, fmt.Errorf("unable to assemble node config: %w", err)
 		}
 		hosts = append(hosts, host)
-		if !prompts.Confirm("Add another node?", true) {
+		if !quiz.Confirm("Add another node?", true) {
 			break
 		}
 		defhost.Port = host.SSH.Port
@@ -201,7 +204,7 @@ func askForLoadBalancer() (string, error) {
 	logrus.Infof("cluster with multiple controllers, configure a load balancer address that")
 	logrus.Infof("forwards traffic to the controllers on TCP ports 6443, 8132, and 9443.")
 	logrus.Infof("Optionally, you can press enter to skip load balancer configuration.")
-	return prompts.Input("Load balancer address:", "", false), nil
+	return quiz.Input("Load balancer address:", "", false), nil
 }
 
 // renderMultiNodeConfig renders a configuration to allow k0sctl to install in a multi-node

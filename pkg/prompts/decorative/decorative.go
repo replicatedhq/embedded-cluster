@@ -6,9 +6,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Decorative is a decorative prompt.
+type Decorative struct{}
+
 // Confirm asks for user for a "Yes" or "No" response. The default value
 // is used if the user presses enter without typing anything.
-func Confirm(msg string, defvalue bool) bool {
+func (d Decorative) Confirm(msg string, defvalue bool) bool {
 	var response bool
 	var confirm = &survey.Confirm{Message: msg, Default: defvalue}
 	if err := survey.AskOne(confirm, &response); err != nil {
@@ -18,7 +21,7 @@ func Confirm(msg string, defvalue bool) bool {
 }
 
 // PressEnter asks the user to press enter to continue.
-func PressEnter(msg string) {
+func (d Decorative) PressEnter(msg string) {
 	var i string
 	if err := survey.AskOne(&survey.Input{Message: msg}, &i); err != nil {
 		logrus.Fatalf("unable to ask for input: %v", err)
@@ -26,7 +29,7 @@ func PressEnter(msg string) {
 }
 
 // Password asks the user for a password. Password can't be empty.
-func Password(msg string) string {
+func (d Decorative) Password(msg string) string {
 	var pass string
 	for pass == "" {
 		question := &survey.Password{Message: msg}
@@ -40,7 +43,7 @@ func Password(msg string) string {
 }
 
 // Select asks the user to select one of the provided options.
-func Select(msg string, options []string, defvalue string) string {
+func (d Decorative) Select(msg string, options []string, defvalue string) string {
 	question := &survey.Select{
 		Message: msg,
 		Options: options,
@@ -55,7 +58,7 @@ func Select(msg string, options []string, defvalue string) string {
 
 // Input asks the user for a string. If required is true then
 // the string cannot be empty.
-func Input(msg string, defvalue string, required bool) string {
+func (d Decorative) Input(msg string, defvalue string, required bool) string {
 	var response string
 	for response == "" {
 		question := &survey.Input{Message: msg, Default: defvalue}

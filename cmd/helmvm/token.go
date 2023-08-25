@@ -69,7 +69,7 @@ var tokenCreateCommand = &cli.Command{
 			logrus.Warn("Through the centralized management you can manage all your")
 			logrus.Warn("cluster nodes from a single location. If you decide to move")
 			logrus.Warn("on the centralized management won't be available anymore")
-			if useprompt && !prompts.Confirm("Do you want to continue ?", true) {
+			if useprompt && !prompts.New().Confirm("Do you want to continue ?", true) {
 				return nil
 			}
 		}

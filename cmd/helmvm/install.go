@@ -155,7 +155,9 @@ func overwriteExistingConfig() bool {
 	logrus.Warn("have created and configured a cluster. You can either use the")
 	logrus.Warn("existing configuration or create a new one (the original config")
 	logrus.Warn("will be backed up).")
-	return prompts.Confirm("Do you want to create a new cluster configuration ?", false)
+	return prompts.New().Confirm(
+		"Do you want to create a new cluster configuration ?", false,
+	)
 }
 
 // ensureK0sctlConfig ensures that a k0sctl.yaml file exists in the configuration
@@ -279,7 +281,7 @@ func applyK0sctl(c *cli.Context, useprompt bool, nodes []infra.Node) error {
 			return fmt.Errorf("unable to apply cluster: %w", err)
 		}
 		msg := "Do you wish to visualize the logs?"
-		if prompts.Confirm(msg, true) {
+		if prompts.New().Confirm(msg, true) {
 			dumpApplyLogs()
 		}
 		return fmt.Errorf("unable to apply cluster: %w", err)
