@@ -17,11 +17,8 @@ var versionCommand = &cli.Command{
 	Name:  "version",
 	Usage: fmt.Sprintf("Shows the %s installer version", defaults.BinaryName()),
 	Action: func(c *cli.Context) error {
-		applier, err := addons.NewApplier(true, false)
-		if err != nil {
-			return fmt.Errorf("unable to create applier: %w", err)
-		}
-		versions, err := applier.Versions()
+		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
+		versions, err := addons.NewApplier(opts...).Versions()
 		if err != nil {
 			return fmt.Errorf("unable to get versions: %w", err)
 		}

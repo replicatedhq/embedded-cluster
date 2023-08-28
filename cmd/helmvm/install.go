@@ -326,6 +326,10 @@ var installCommand = &cli.Command{
 			Usage: "Do not prompt user when it is not necessary",
 			Value: false,
 		},
+		&cli.StringSliceFlag{
+			Name:  "disable-addon",
+			Usage: "Disable addon during install/upgrade",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		if defaults.DecentralizedInstall() {
@@ -360,9 +364,14 @@ var installCommand = &cli.Command{
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
 		os.Setenv("KUBECONFIG", kcfg)
-		if applier, err := addons.NewApplier(useprompt, true); err != nil {
-			return fmt.Errorf("unable to create applier: %w", err)
-		} else if err := applier.Apply(c.Context); err != nil {
+		opts := []addons.Option{}
+		if c.Bool("no-prompt") {
+			opts = append(opts, addons.WithoutPrompt())
+		}
+		for _, addon := range c.StringSlice("disable-addon") {
+			opts = append(opts, addons.WithoutAddon(addon))
+		}
+		if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)
 		}
 		if err := runPostApply(c.Context); err != nil {
