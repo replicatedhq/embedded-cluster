@@ -70,7 +70,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
 		obs, err := openebs.New("helmvm", getLogger("openebs", a.verbose))
 		if err != nil {
-			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
+			return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 		}
 		addons["openebs"] = obs
 	}
@@ -83,7 +83,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 	}
 	custom, err := custom.New("helmvm", getLogger("custom", a.verbose), a.disabledAddons)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
+		return nil, fmt.Errorf("unable to create custom addon: %w", err)
 	}
 	addons["custom"] = custom
 	return addons, nil

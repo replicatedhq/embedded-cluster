@@ -7,7 +7,7 @@ set -euo pipefail
 wait_for_healthy_node() {
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
-    while [ "$ready" -lt "1" ]; do
+    while [ -z "$ready" ] || [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             return 1
         fi
@@ -46,8 +46,7 @@ pull_helm_chart() {
 embed_helm_chart() {
     fpath=$(ls -d chart/*)
     if ! helmvm embed --chart "$fpath" --output helmvm; then
-        echo "Failed embed helm chart"
-        exit 1
+        return 1
     fi
     mv helmvm /usr/local/bin
     return 0
@@ -56,7 +55,7 @@ embed_helm_chart() {
 wait_for_memcached_pods() {
     ready=$(kubectl get pods -n helmvm | grep -v NotReady | grep Ready | grep -c memcached || true)
     counter=0
-    while [ "$ready" -lt "1" ]; do
+    while [ -z "$ready" ] || [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             return 1
         fi

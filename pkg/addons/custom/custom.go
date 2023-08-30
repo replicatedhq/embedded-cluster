@@ -74,7 +74,7 @@ func (c *Custom) applyOne(ctx context.Context, ochart hembed.HelmChart) error {
 		return fmt.Errorf("unable to load chart archive: %w", err)
 	}
 	if c.chartHasBeenDisabled(chart) {
-		c.logger("Skipping disabled chart %s", chart.Name())
+		c.logger("Skipping disabled addon %s", chart.Name())
 		return nil
 	}
 	var values map[string]interface{}
