@@ -302,4 +302,4 @@ output "nodes" {
 }
 ```
 
-You have to provide the SSH port, an user and a SSH key so HelmVM can reach the nodes.
+You have to provide the SSH port, user, and key so HelmVM can reach the nodes.
