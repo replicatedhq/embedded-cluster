@@ -98,7 +98,9 @@ func createK0sctlConfigBackup(ctx context.Context) error {
 
 // updateConfigBundle updates the k0sctl.yaml file in the configuration directory
 // to use the bundle in the specified directory (reads the bundle directory and
-// updates the files that need to be uploaded to the nodes).
+// updates the files that need to be uploaded to the nodes). This function also
+// makes sure that the k0s version used in the configuration matches the version
+// we are planning to install.
 func updateConfigBundle(ctx context.Context, bundledir string) error {
 	if err := createK0sctlConfigBackup(ctx); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
@@ -111,6 +113,7 @@ func updateConfigBundle(ctx context.Context, bundledir string) error {
 	if err := config.UpdateHostsFiles(cfg, bundledir); err != nil {
 		return fmt.Errorf("unable to update hosts files: %w", err)
 	}
+	cfg.Spec.K0s.Version = defaults.K0sVersion
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -122,7 +125,7 @@ func updateConfigBundle(ctx context.Context, bundledir string) error {
 	return nil
 }
 
-// copyUserProvidedConfig copies the user provided configuration to the config directory.
+// copyUserProvidedConfig copies the user provided configuration to the config dir.
 func copyUserProvidedConfig(c *cli.Context) error {
 	usercfg := c.String("config")
 	cfg, err := config.ReadConfigFile(usercfg)
