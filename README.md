@@ -248,3 +248,58 @@ Once the cluster is deployed you can easily stop and start nodes using the follo
 ~: helmvm node stop node-0
 ~: helmvm node start node-0
 ```
+
+### Creating and applying your infrastructe
+
+HelmVM is capable of applying a directory with Terraform manifests before installing the cluster on top of it. For that you can use the `--infra /path/to/terraform/manifests` flag. Make sure your Terraform `output` has an variable called `nodes`, something like this for a 6 node cluster should suffice (roles can be `controller`, `controller+worker`, or `worker`):
+
+```
+output "nodes" {
+        value = [
+                {
+                        address = aws_instance.worker_0.public_ip,
+                        role = "controller",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_1.public_ip,
+                        role = "controller",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_2.public_ip,
+                        role = "controller",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_3.public_ip,
+                        role = "worker",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_4.public_ip,
+                        role = "worker",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+                {
+                        address = aws_instance.worker_5.public_ip,
+                        role = "worker",
+                        port = 22,
+                        user = "ubuntu",
+                        keyPath = "/home/user/.ssh/mykey.pem"
+                },
+        ]
+}
+```
+
+You have to provide the SSH port, user, and key so HelmVM can reach the nodes.
