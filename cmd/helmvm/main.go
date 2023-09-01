@@ -5,29 +5,26 @@ import (
 	"os"
 	"path"
 
+	"github.com/replicatedhq/helmvm/pkg/logging"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
 
-	logrus.SetLevel(logrus.WarnLevel)
+	logging.SetupLogging()
 
 	name := path.Base(os.Args[0])
 	var app = &cli.App{
 		Name: name,
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "verbosity",
-				Usage:   "set verbosity: (warn,info,debug,error)",
-				Aliases: []string{"v"},
-				Value:   "warn",
-				Action: func(ctx *cli.Context, v string) error {
-					logLevel, err := logrus.ParseLevel(v)
-					if err != nil {
-						logrus.Fatal(err)
-					}
-					logrus.SetLevel(logLevel)
+			&cli.BoolFlag{
+				Name:    "debug",
+				Usage:   "output all setup messages to stdout",
+				Aliases: []string{"d"},
+				Value:   false,
+				Action: func(ctx *cli.Context, v bool) error {
+					logging.Debug = v
 					return nil
 				},
 			},
@@ -45,4 +42,5 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		logrus.Fatal(err)
 	}
+
 }

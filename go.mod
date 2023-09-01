@@ -14,8 +14,10 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.15.1
 	github.com/k0sproject/rig v0.10.0
+	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.25.1
+	golang.org/x/crypto v0.11.0
 	golang.org/x/mod v0.12.0
 	golang.org/x/term v0.10.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -190,7 +192,6 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
