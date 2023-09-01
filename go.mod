@@ -14,7 +14,6 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.15.1
 	github.com/k0sproject/rig v0.10.0
-	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.25.1
 	golang.org/x/crypto v0.11.0
