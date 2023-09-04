@@ -28,6 +28,9 @@ func init() {
 	if err := os.MkdirAll(HelmVMBinsSubDir(), 0755); err != nil {
 		panic(fmt.Errorf("unable to create helmvm bin dir: %w", err))
 	}
+	if err := os.MkdirAll(HelmVMLogsSubDir(), 0755); err != nil {
+		panic(fmt.Errorf("unable to create helmvm logs dir: %w", err))
+	}
 }
 
 const (
@@ -71,6 +74,17 @@ func HelmVMBinsSubDir() string {
 	}
 	hidden := fmt.Sprintf(".%s", BinaryName())
 	return filepath.Join(home, hidden, "bin")
+}
+
+// HelmVMLogsSubDir returns the path to the directory where helmvm logs are
+// stored. This is a subdirectory of the user's home directory.
+func HelmVMLogsSubDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	hidden := fmt.Sprintf(".%s", BinaryName())
+	return filepath.Join(home, hidden, "logs")
 }
 
 // K0sctlApplyLogPath returns the path to the k0sctl apply log file.
@@ -128,6 +142,12 @@ func PathToK0sctlBinary(name string) string {
 // belonging to k0sctl). This function does not check if the file exists.
 func PathToHelmVMBinary(name string) string {
 	return filepath.Join(HelmVMBinsSubDir(), name)
+}
+
+// PathToLog returns the full path to a log file. This function does not check
+// if the file exists.
+func PathToLog(name string) string {
+	return filepath.Join(HelmVMLogsSubDir(), name)
 }
 
 // PathToConfig returns the full path to a configuration file. This function

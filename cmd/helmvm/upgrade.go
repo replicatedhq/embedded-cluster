@@ -13,6 +13,8 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/addons"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
+	"github.com/replicatedhq/helmvm/pkg/preflights"
+	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
 func stopHelmVM() error {
@@ -56,6 +58,36 @@ func canRunUpgrade(c *cli.Context) error {
 	return fmt.Errorf("command not available")
 }
 
+// runHostPreflightsLocally runs the embedded host preflights in the local node prior to
+// node upgrade.
+func runHostPreflightsLocally(c *cli.Context) error {
+	logrus.Infof("Running host preflights locally")
+	hpf, err := addons.NewApplier().HostPreflights()
+	if err != nil {
+		return fmt.Errorf("unable to read host preflights: %w", err)
+	}
+	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
+		logrus.Info("No host preflights found")
+		return nil
+	}
+	out, err := preflights.RunLocal(c.Context, hpf)
+	if err != nil {
+		return fmt.Errorf("preflight failed: %w", err)
+	}
+	out.PrintTable()
+	if out.HasFail() {
+		return fmt.Errorf("preflights haven't passed on one or more hosts")
+	}
+	if !out.HasWarn() || c.Bool("no-prompt") {
+		return nil
+	}
+	logrus.Warn("Host preflights have warnings on one or more hosts")
+	if !prompts.New().Confirm("Do you want to continue ?", false) {
+		return fmt.Errorf("user aborted")
+	}
+	return nil
+}
+
 var upgradeCommand = &cli.Command{
 	Name:  "upgrade",
 	Usage: "Upgrade the local node",
@@ -77,6 +109,9 @@ var upgradeCommand = &cli.Command{
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			return fmt.Errorf("unable to materialize binaries: %w", err)
+		}
+		if err := runHostPreflightsLocally(c); err != nil {
+			return fmt.Errorf("unable to run host preflights locally: %w", err)
 		}
 		logrus.Infof("Stopping %s", defaults.BinaryName())
 		if err := stopHelmVM(); err != nil {

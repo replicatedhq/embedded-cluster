@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
 	"helm.sh/helm/v3/pkg/action"
@@ -54,6 +55,12 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
 	return map[string]string{"AdminConsole": latest}, nil
+}
+
+// HostPreflight returns the host preflight objects found inside the adminconsole
+// or as part of the embedded kots release (customization).
+func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
+	return a.customization.hostPreflights()
 }
 
 func (a *AdminConsole) Apply(ctx context.Context) error {
