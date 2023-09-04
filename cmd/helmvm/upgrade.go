@@ -30,8 +30,9 @@ func stopHelmVM() error {
 	return nil
 }
 
-// canRunUpgrade checks if we can run the upgrade command. Checks if we are running on linux
-// and if we are root.
+// canRunUpgrade checks if we can run the upgrade command. Checks if we are running on
+// linux and if we are root. This function also ensures that upgrades can't be run on
+// a cluster that has been deployed using a centralized configuration.
 func canRunUpgrade(c *cli.Context) error {
 	if runtime.GOOS != "linux" {
 		return fmt.Errorf("upgrade command is only supported on linux")
@@ -39,7 +40,20 @@ func canRunUpgrade(c *cli.Context) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("upgrade command must be run as root")
 	}
-	return nil
+	if _, err := os.Stat(defaults.PathToConfig("k0sctl.yaml")); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("unable to read configuration: %w", err)
+	}
+	if defaults.DecentralizedInstall() {
+		return nil
+	}
+	logrus.Errorf("Attempting to upgrade a single node in a cluster with centralized")
+	logrus.Errorf("configuration is not supported. Execute the following command for")
+	logrus.Errorf("a proper upgrade:")
+	logrus.Errorf("\t%s apply", defaults.BinaryName())
+	return fmt.Errorf("command not available")
 }
 
 var upgradeCommand = &cli.Command{
