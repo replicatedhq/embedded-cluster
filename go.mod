@@ -16,6 +16,7 @@ require (
 	github.com/k0sproject/rig v0.10.0
 	github.com/replicatedhq/troubleshoot v0.71.1
 	github.com/sirupsen/logrus v1.9.3
+	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.25.1
 	golang.org/x/crypto v0.11.0
 	golang.org/x/mod v0.12.0
@@ -164,6 +165,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.5 // indirect
 	github.com/pkg/xattr v0.4.9 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.15.1 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
