@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -57,9 +58,9 @@ func (hook *StandardHook) Fire(entry *logrus.Entry) error {
 		return err
 	}
 
-  if !Debug && entry.Level == logrus.InfoLevel || entry.Level == logrus.DebugLevel {
-    return nil
-  }
+	if !Debug && entry.Level == logrus.InfoLevel || entry.Level == logrus.DebugLevel {
+		return nil
+	}
 
 	_, err = hook.Writer.Write(text)
 	return err
@@ -72,13 +73,15 @@ func (hook *StandardHook) Levels() []logrus.Level {
 func SetupLogging() {
 	logrus.SetOutput(io.Discard)
 
-  logrus.AddHook(&StandardHook{
-		Writer: os.Stderr,
+	logrus.AddHook(&StandardHook{
+		Writer:    os.Stderr,
 		LogLevels: logrus.AllLevels,
-    Formatter: &logrus.TextFormatter{ForceColors: true},
+		Formatter: &logrus.TextFormatter{ForceColors: true},
 	})
 
-	fileHook, err := NewLogrusFileHook("log.txt", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	now := time.Now().Format("20060102150405")
+
+	fileHook, err := NewLogrusFileHook("helmvm-"+now+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err == nil {
 		logrus.AddHook(fileHook)
 	}
