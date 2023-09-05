@@ -69,6 +69,7 @@ func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
 		def.SSHAuthorizedKeysPath,
 		def.K0sBinaryPath,
 		def.ConfigSubDir,
+		def.SSHConfigSubDir,
 	} {
 		assert.Contains(t, fn(), tmpdir, "directory should be inside base")
 		count := strings.Count(fn(), tmpdir)

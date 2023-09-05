@@ -45,6 +45,9 @@ func (d *DefaultsProvider) Init() {
 	if err := os.MkdirAll(d.HelmVMLogsSubDir(), 0755); err != nil {
 		panic(fmt.Errorf("unable to create helmvm logs dir: %w", err))
 	}
+	if err := os.MkdirAll(d.SSHConfigSubDir(), 0700); err != nil {
+		panic(fmt.Errorf("unable to create helmvm bin dir: %w", err))
+	}
 }
 
 // BinaryName returns the binary name, this is useful for places where we
@@ -122,11 +125,17 @@ func (d *DefaultsProvider) SSHKeyPath() string {
 
 // SSHAuthorizedKeysPath returns the path to the authorized_hosts file.
 func (d *DefaultsProvider) SSHAuthorizedKeysPath() string {
+	return filepath.Join(d.SSHConfigSubDir(), "authorized_keys")
+}
+
+// SSHConfigSubDir returns the path to the directory where SSH configuration
+// files are stored. This is a subdirectory of the user's home directory.
+func (d *DefaultsProvider) SSHConfigSubDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		panic(err)
 	}
-	return filepath.Join(d.Base, home, ".ssh", "authorized_keys")
+	return filepath.Join(d.Base, home, ".ssh")
 }
 
 // ConfigSubDir returns the path to the directory where k0sctl configuration
