@@ -219,8 +219,8 @@ func runK0sctlApply(ctx context.Context) error {
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	messages.Write([]byte("Running k0sctl apply"))
 	kctl := exec.Command(bin, "apply", "-c", cfgpath, "--disable-telemetry")
-	kctl.Stderr = messages
-	kctl.Stdout = messages
+	kctl.Stderr = logrus.StandardLogger().Writer()
+	kctl.Stdout = logrus.StandardLogger().Writer()
 	return kctl.Run()
 }
 
