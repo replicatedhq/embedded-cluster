@@ -20,7 +20,7 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:    "debug",
-				Usage:   "output all setup messages to stdout",
+				Usage:   "Output all setup messages to stdout",
 				Aliases: []string{"d"},
 				Value:   false,
 				Action: func(ctx *cli.Context, v bool) error {
