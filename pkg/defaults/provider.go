@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gosimple/slug"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -34,20 +35,29 @@ type DefaultsProvider struct {
 // Init makes sure all the necessary directory exists on the system.
 func (d *DefaultsProvider) Init() {
 	if err := os.MkdirAll(d.K0sctlBinsSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create basedir: %w", err))
+		logrus.Fatalf("unable to create basedir: %s", err)
 	}
 	if err := os.MkdirAll(d.ConfigSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create config dir: %w", err))
+		logrus.Fatalf("unable to create config dir: %s", err)
 	}
 	if err := os.MkdirAll(d.HelmVMBinsSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create helmvm bin dir: %w", err))
+		logrus.Fatalf("unable to create helmvm bin dir: %s", err)
 	}
 	if err := os.MkdirAll(d.HelmVMLogsSubDir(), 0755); err != nil {
 		panic(fmt.Errorf("unable to create helmvm logs dir: %w", err))
 	}
 	if err := os.MkdirAll(d.SSHConfigSubDir(), 0700); err != nil {
-		panic(fmt.Errorf("unable to create helmvm bin dir: %w", err))
+		logrus.Fatalf("unable to create ssh config dir: %s", err)
 	}
+}
+
+// home returns the user's home dir.
+func (d *DefaultsProvider) home() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		logrus.Fatalf("unable to get user home dir: %s", err)
+	}
+	return home
 }
 
 // BinaryName returns the binary name, this is useful for places where we
@@ -57,7 +67,7 @@ func (d *DefaultsProvider) Init() {
 func (d *DefaultsProvider) BinaryName() string {
 	exe, err := os.Executable()
 	if err != nil {
-		panic(err)
+		logrus.Fatalf("unable to get executable path: %s", err)
 	}
 	base := filepath.Base(exe)
 	return slug.Make(base)
@@ -84,43 +94,27 @@ func (d *DefaultsProvider) PathToLog(name string) string {
 // are stored. This is a subdirectory of the user's home directory. Follows
 // the k0sctl directory convention.
 func (d *DefaultsProvider) K0sctlBinsSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
 	if runtime.GOOS == "darwin" {
-		return filepath.Join(d.Base, home, k0sBinsSubDirDarwin)
+		return filepath.Join(d.Base, d.home(), k0sBinsSubDirDarwin)
 	}
-	return filepath.Join(d.Base, home, k0sBinsSubDirLinux)
+	return filepath.Join(d.Base, d.home(), k0sBinsSubDirLinux)
 }
 
 // HelmVMBinsSubDir returns the path to the directory where helmvm binaries
 // are stored. This is a subdirectory of the user's home directory.
 func (d *DefaultsProvider) HelmVMBinsSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, home, hidden, "bin")
+	return filepath.Join(d.Base, d.home(), hidden, "bin")
 }
 
 // K0sctlApplyLogPath returns the path to the k0sctl apply log file.
 func (d *DefaultsProvider) K0sctlApplyLogPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(d.Base, home, ".cache", "k0sctl", "k0sctl.log")
+	return filepath.Join(d.Base, d.home(), ".cache", "k0sctl", "k0sctl.log")
 }
 
 // SSHKeyPath returns the path to the SSH managed by helmvm installation.
 func (d *DefaultsProvider) SSHKeyPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(d.Base, home, ".ssh", "helmvm_rsa")
+	return filepath.Join(d.Base, d.home(), ".ssh", "helmvm_rsa")
 }
 
 // SSHAuthorizedKeysPath returns the path to the authorized_hosts file.
@@ -131,22 +125,14 @@ func (d *DefaultsProvider) SSHAuthorizedKeysPath() string {
 // SSHConfigSubDir returns the path to the directory where SSH configuration
 // files are stored. This is a subdirectory of the user's home directory.
 func (d *DefaultsProvider) SSHConfigSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(d.Base, home, ".ssh")
+	return filepath.Join(d.Base, d.home(), ".ssh")
 }
 
 // ConfigSubDir returns the path to the directory where k0sctl configuration
 // files are stored. This is a subdirectory of the user's home directory.
 func (d *DefaultsProvider) ConfigSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, home, hidden, "etc")
+	return filepath.Join(d.Base, d.home(), hidden, "etc")
 }
 
 // K0sBinaryPath returns the path to the k0s binary.
