@@ -15,7 +15,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
 	"github.com/replicatedhq/helmvm/pkg/hembed"
-	"github.com/replicatedhq/helmvm/pkg/progressbar"
+	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
 func pullImage(ctx context.Context, imgurl string) error {
@@ -53,21 +53,18 @@ var bundleCommand = &cli.Command{
 			return fmt.Errorf("unable to open bundle file: %w", err)
 		}
 		defer dst.Close()
-		writer, end := progressbar.Start()
-		_, _ = writer.Write([]byte("Downloading base images bundle."))
+		loading := pb.Start(nil)
+		loading.Infof("Downloading base images bundle.")
 		src, err := goods.DownloadImagesBundle(defaults.K0sVersion)
 		if err != nil {
-			writer.Close()
-			<-end
+			loading.Close()
 			return fmt.Errorf("unable to download bundle: %w", err)
 		}
 		if _, err := io.Copy(dst, src); err != nil {
-			writer.Close()
-			<-end
+			loading.Close()
 			return fmt.Errorf("unable to copy bundle: %w", err)
 		}
-		writer.Close()
-		<-end
+		loading.Close()
 		images, err := goods.ListImages()
 		if err != nil {
 			return fmt.Errorf("unable to list images: %w", err)
@@ -78,15 +75,13 @@ var bundleCommand = &cli.Command{
 		}
 		images = append(images, embed...)
 		for _, img := range images {
-			writer, end = progressbar.Start()
-			_, _ = writer.Write([]byte(fmt.Sprintf("Pulling image %s", img)))
+			loading = pb.Start(nil)
+			loading.Infof(fmt.Sprintf("Pulling image %s", img))
 			if err := pullImage(c.Context, img); err != nil {
-				writer.Close()
-				<-end
+				loading.Close()
 				return fmt.Errorf("unable to pull image %s: %w", img, err)
 			}
-			writer.Close()
-			<-end
+			loading.Close()
 		}
 		logrus.Info("Bundle stored under ./bundle directory.")
 		return nil

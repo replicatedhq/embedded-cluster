@@ -21,7 +21,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
 	"github.com/replicatedhq/helmvm/pkg/addons/custom"
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs"
-	"github.com/replicatedhq/helmvm/pkg/progressbar"
+	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
 // getLogger creates a logger to be used in an addon.
@@ -147,11 +147,9 @@ func (a *Applier) kubeClient() (client.Client, error) {
 // waitForKubernetes waits until we manage to make a successful connection to the
 // Kubernetes API server.
 func (a *Applier) waitForKubernetes(ctx context.Context) error {
-	pb, end := progressbar.Start()
+	loading := pb.Start(nil)
 	defer func() {
-		pb.Infof("Kubernetes API server is ready.")
-		pb.Close()
-		<-end
+		loading.Closef("Kubernetes API server is ready.")
 	}()
 	kcli, err := a.kubeClient()
 	if err != nil {
@@ -160,7 +158,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	counter := 1
-	pb.Infof("1/n Waiting for Kubernetes API server to be ready.")
+	loading.Infof("1/n Waiting for Kubernetes API server to be ready.")
 	for {
 		select {
 		case <-ticker.C:
@@ -169,7 +167,10 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 		}
 		counter++
 		if err := kcli.List(ctx, &corev1.NamespaceList{}); err != nil {
-			pb.Infof("%d/n Waiting for Kubernetes API server to be ready.", counter)
+			loading.Infof(
+				"%d/n Waiting for Kubernetes API server to be ready.",
+				counter,
+			)
 			continue
 		}
 		return nil

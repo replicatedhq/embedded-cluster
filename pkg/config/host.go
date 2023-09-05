@@ -6,7 +6,7 @@ import (
 	"github.com/k0sproject/rig/log"
 
 	"github.com/replicatedhq/helmvm/pkg/infra"
-	"github.com/replicatedhq/helmvm/pkg/progressbar"
+	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
 // hostcfg is a helper struct for collecting a node's configuration.
@@ -42,14 +42,13 @@ func (h *hostcfg) render() *cluster.Host {
 
 // testConnection attempts to connect to the host via SSH.
 func (h *hostcfg) testConnection() error {
-	logger, end := progressbar.Start()
+	loading := pb.Start(nil)
 	orig := log.Log
 	defer func() {
-		close(logger)
-		<-end
+		loading.Close()
 		log.Log = orig
 	}()
-	rig.SetLogger(logger)
+	rig.SetLogger(loading)
 	return h.render().Connection.Connect()
 }
 

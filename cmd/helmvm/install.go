@@ -33,13 +33,11 @@ import (
 // k0sctl. Iterates over all hosts and calls runPostApply on each.
 func runPostApply(ctx context.Context) error {
 	logrus.Infof("Running post-apply script on nodes")
-	logger, end := pb.Start()
+	loading := pb.Start(nil)
 	orig := log.Log
-	rig.SetLogger(logger)
+	rig.SetLogger(loading)
 	defer func() {
-		logger.Infof("Post apply process finished")
-		close(logger)
-		<-end
+		loading.Closef("Post apply process finished")
 		log.Log = orig
 	}()
 	cfg, err := config.ReadConfigFile(defaults.PathToConfig("k0sctl.yaml"))
@@ -256,13 +254,11 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 // the configuration directory. Returns when the command is finished.
 func runK0sctlApply(ctx context.Context) error {
 	bin := defaults.PathToHelmVMBinary("k0sctl")
-	messages, pbwait := pb.Start()
+	loading := pb.Start(nil)
 	defer func() {
-		messages.Close()
-		<-pbwait
+		loading.Close()
 	}()
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	_, _ = messages.Write([]byte("Running k0sctl apply"))
 	kctl := exec.Command(bin, "apply", "-c", cfgpath, "--disable-telemetry")
 	kctl.Stderr = logrus.StandardLogger().Writer()
 	kctl.Stdout = logrus.StandardLogger().Writer()
