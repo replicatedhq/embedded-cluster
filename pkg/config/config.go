@@ -101,7 +101,7 @@ func askUserForHostSSHKey(keys []string, host *hostcfg) error {
 
 // askUserForHostConfig collects a host SSH configuration interactively.
 func askUserForHostConfig(keys []string, host *hostcfg) error {
-	logrus.Infof("Please provide SSH configuration for the host.")
+	fmt.Println("Please provide SSH configuration for the host.")
 	host.Address = quiz.Input("Node address:", host.Address, true)
 	host.User = quiz.Input("SSH user:", host.User, true)
 	var err error
@@ -200,10 +200,10 @@ func interactiveHosts(ctx context.Context) ([]*cluster.Host, error) {
 }
 
 func askForLoadBalancer() (string, error) {
-	logrus.Infof("You have configured more than one controller. To ensure a highly available")
-	logrus.Infof("cluster with multiple controllers, configure a load balancer address that")
-	logrus.Infof("forwards traffic to the controllers on TCP ports 6443, 8132, and 9443.")
-	logrus.Infof("Optionally, you can press enter to skip load balancer configuration.")
+	fmt.Println("You have configured more than one controller. To ensure a highly available")
+	fmt.Println("cluster with multiple controllers, configure a load balancer address that")
+	fmt.Println("forwards traffic to the controllers on TCP ports 6443, 8132, and 9443.")
+	fmt.Println("Optionally, you can press enter to skip load balancer configuration.")
 	return quiz.Input("Load balancer address:", "", false), nil
 }
 
@@ -212,7 +212,7 @@ func askForLoadBalancer() (string, error) {
 func renderMultiNodeConfig(ctx context.Context, nodes []infra.Node) (*v1beta1.Cluster, error) {
 	var err error
 	var hosts []*cluster.Host
-	logrus.Infof("You are about to configure a new cluster.")
+	fmt.Println("You are about to configure a new cluster.")
 	if len(nodes) == 0 {
 		if hosts, err = interactiveHosts(ctx); err != nil {
 			return nil, fmt.Errorf("unable to collect hosts: %w", err)
