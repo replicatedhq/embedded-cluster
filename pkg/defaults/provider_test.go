@@ -64,6 +64,7 @@ func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
 	for _, fn := range []func() string{
 		def.K0sctlBinsSubDir,
 		def.HelmVMBinsSubDir,
+		def.HelmVMLogsSubDir,
 		def.K0sctlApplyLogPath,
 		def.SSHKeyPath,
 		def.SSHAuthorizedKeysPath,

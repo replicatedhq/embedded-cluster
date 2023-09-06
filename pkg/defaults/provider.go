@@ -76,12 +76,8 @@ func (d *DefaultsProvider) BinaryName() string {
 // HelmVMLogsSubDir returns the path to the directory where helmvm logs are
 // stored. This is a subdirectory of the user's home directory.
 func (d *DefaultsProvider) HelmVMLogsSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	hidden := fmt.Sprintf(".%s", BinaryName())
-	return filepath.Join(home, hidden, "logs")
+	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	return filepath.Join(d.Base, d.home(), hidden, "logs")
 }
 
 // PathToLog returns the full path to a log file. This function does not check
