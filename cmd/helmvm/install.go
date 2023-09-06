@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
 	"github.com/replicatedhq/helmvm/pkg/infra"
+	"github.com/replicatedhq/helmvm/pkg/preflights"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
@@ -53,6 +54,46 @@ func runPostApply(ctx context.Context) error {
 	return nil
 }
 
+// runHostPreflights run the host preflights we found embedded in the binary
+// on all configured hosts. We attempt to read HostPreflights from all the
+// embedded Helm Charts and from the Kots Application Release files.
+func runHostPreflights(c *cli.Context) error {
+	logrus.Infof("Running host preflights on nodes")
+	cfg, err := config.ReadConfigFile(defaults.PathToConfig("k0sctl.yaml"))
+	if err != nil {
+		return fmt.Errorf("unable to read cluster config: %w", err)
+	}
+	hpf, err := addons.NewApplier().HostPreflights()
+	if err != nil {
+		return fmt.Errorf("unable to read host preflights: %w", err)
+	}
+	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
+		logrus.Info("No host preflights found")
+		return nil
+	}
+	outputs := preflights.NewOutputs()
+	for _, host := range cfg.Spec.Hosts {
+		addr := host.Address()
+		out, err := preflights.Run(c.Context, host, hpf)
+		if err != nil {
+			return fmt.Errorf("preflight failed on %s: %w", addr, err)
+		}
+		outputs[addr] = out
+	}
+	outputs.PrintTable()
+	if outputs.HaveFails() {
+		return fmt.Errorf("preflights haven't passed on one or more hosts")
+	}
+	if !outputs.HaveWarns() || c.Bool("no-prompt") {
+		return nil
+	}
+	logrus.Warn("Host preflights have warnings on one or more hosts")
+	if !prompts.New().Confirm("Do you want to continue ?", false) {
+		return fmt.Errorf("user aborted")
+	}
+	return nil
+}
+
 // runPostApply runs the post-apply script on a host. XXX I don't think this
 // belongs here and needs to be refactored in a more generic way. It's here
 // because I have other things to do and this is a prototype.
@@ -60,6 +101,7 @@ func runPostApplyOnHost(ctx context.Context, host *cluster.Host) error {
 	if err := host.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to host: %w", err)
 	}
+	defer host.Disconnect()
 	src := "/etc/systemd/system/k0scontroller.service"
 	if host.Role == "worker" {
 		src = "/etc/systemd/system/k0sworker.service"
@@ -98,7 +140,9 @@ func createK0sctlConfigBackup(ctx context.Context) error {
 
 // updateConfigBundle updates the k0sctl.yaml file in the configuration directory
 // to use the bundle in the specified directory (reads the bundle directory and
-// updates the files that need to be uploaded to the nodes).
+// updates the files that need to be uploaded to the nodes). This function also
+// makes sure that the k0s version used in the configuration matches the version
+// we are planning to install.
 func updateConfigBundle(ctx context.Context, bundledir string) error {
 	if err := createK0sctlConfigBackup(ctx); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
@@ -111,6 +155,7 @@ func updateConfigBundle(ctx context.Context, bundledir string) error {
 	if err := config.UpdateHostsFiles(cfg, bundledir); err != nil {
 		return fmt.Errorf("unable to update hosts files: %w", err)
 	}
+	cfg.Spec.K0s.Version = defaults.K0sVersion
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -122,7 +167,7 @@ func updateConfigBundle(ctx context.Context, bundledir string) error {
 	return nil
 }
 
-// copyUserProvidedConfig copies the user provided configuration to the config directory.
+// copyUserProvidedConfig copies the user provided configuration to the config dir.
 func copyUserProvidedConfig(c *cli.Context) error {
 	usercfg := c.String("config")
 	cfg, err := config.ReadConfigFile(usercfg)
@@ -273,6 +318,9 @@ func applyK0sctl(c *cli.Context, useprompt bool, nodes []infra.Node) error {
 	if err := ensureK0sctlConfig(c, nodes, useprompt); err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
 	}
+	if err := runHostPreflights(c); err != nil {
+		return fmt.Errorf("unable to finish preflight checks: %w", err)
+	}
 	fmt.Println("Applying cluster configuration")
 	if err := runK0sctlApply(c.Context); err != nil {
 		logrus.Errorf("Installation or upgrade failed.")
@@ -326,6 +374,10 @@ var installCommand = &cli.Command{
 			Usage: "Do not prompt user when it is not necessary",
 			Value: false,
 		},
+		&cli.StringSliceFlag{
+			Name:  "disable-addon",
+			Usage: "Disable addon during install/upgrade",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		if defaults.DecentralizedInstall() {
@@ -360,9 +412,14 @@ var installCommand = &cli.Command{
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
 		os.Setenv("KUBECONFIG", kcfg)
-		if applier, err := addons.NewApplier(useprompt, true); err != nil {
-			return fmt.Errorf("unable to create applier: %w", err)
-		} else if err := applier.Apply(c.Context); err != nil {
+		opts := []addons.Option{}
+		if c.Bool("no-prompt") {
+			opts = append(opts, addons.WithoutPrompt())
+		}
+		for _, addon := range c.StringSlice("disable-addon") {
+			opts = append(opts, addons.WithoutAddon(addon))
+		}
+		if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)
 		}
 		if err := runPostApply(c.Context); err != nil {

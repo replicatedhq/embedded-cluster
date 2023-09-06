@@ -6,7 +6,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"golang.org/x/mod/semver"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -19,9 +21,10 @@ import (
 )
 
 type Custom struct {
-	config    *action.Configuration
-	logger    action.DebugLog
-	namespace string
+	config         *action.Configuration
+	logger         action.DebugLog
+	namespace      string
+	disabledAddons map[string]bool
 }
 
 func (c *Custom) Version() (map[string]string, error) {
@@ -44,6 +47,13 @@ func (c *Custom) Version() (map[string]string, error) {
 		infos[chart.Name()] = chart.Metadata.Version
 	}
 	return infos, nil
+}
+
+// HostPreflight returns the host preflight objects found inside all the embedded
+// Helm Charts. These host preflights must be merged into a single one. XXX We have
+// to implement this yet.
+func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
+	return nil, nil
 }
 
 func (c *Custom) Apply(ctx context.Context) error {
@@ -71,6 +81,10 @@ func (c *Custom) applyOne(ctx context.Context, ochart hembed.HelmChart) error {
 	if err != nil {
 		return fmt.Errorf("unable to load chart archive: %w", err)
 	}
+	if c.chartHasBeenDisabled(chart) {
+		c.logger("Skipping disabled addon %s", chart.Name())
+		return nil
+	}
 	var values map[string]interface{}
 	if len(ochart.Values) > 0 {
 		values = make(map[string]interface{})
@@ -79,6 +93,12 @@ func (c *Custom) applyOne(ctx context.Context, ochart hembed.HelmChart) error {
 		}
 	}
 	return c.applyChart(ctx, chart, values)
+}
+
+func (c *Custom) chartHasBeenDisabled(chart *chart.Chart) bool {
+	cname := strings.ToLower(chart.Name())
+	_, disabledAddons := c.disabledAddons[cname]
+	return disabledAddons
 }
 
 func (c *Custom) applyChart(ctx context.Context, chart *chart.Chart, values map[string]interface{}) error {
@@ -125,12 +145,17 @@ func (c *Custom) installedRelease(name string) (*release.Release, error) {
 	return releases[0], nil
 }
 
-func New(namespace string, logger action.DebugLog) (*Custom, error) {
+func New(namespace string, logger action.DebugLog, disabledAddons map[string]bool) (*Custom, error) {
 	env := cli.New()
 	env.SetNamespace(namespace)
 	config := &action.Configuration{}
 	if err := config.Init(env.RESTClientGetter(), namespace, "", logger); err != nil {
 		return nil, fmt.Errorf("unable to init configuration: %w", err)
 	}
-	return &Custom{namespace: namespace, config: config, logger: logger}, nil
+	return &Custom{
+		namespace:      namespace,
+		config:         config,
+		logger:         logger,
+		disabledAddons: disabledAddons,
+	}, nil
 }

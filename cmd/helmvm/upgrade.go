@@ -13,6 +13,8 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/addons"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
+	"github.com/replicatedhq/helmvm/pkg/preflights"
+	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
 func stopHelmVM() error {
@@ -30,14 +32,58 @@ func stopHelmVM() error {
 	return nil
 }
 
-// canRunUpgrade checks if we can run the upgrade command. Checks if we are running on linux
-// and if we are root.
+// canRunUpgrade checks if we can run the upgrade command. Checks if we are running on
+// linux and if we are root. This function also ensures that upgrades can't be run on
+// a cluster that has been deployed using a centralized configuration.
 func canRunUpgrade(c *cli.Context) error {
 	if runtime.GOOS != "linux" {
 		return fmt.Errorf("upgrade command is only supported on linux")
 	}
 	if os.Getuid() != 0 {
 		return fmt.Errorf("upgrade command must be run as root")
+	}
+	if _, err := os.Stat(defaults.PathToConfig("k0sctl.yaml")); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("unable to read configuration: %w", err)
+	}
+	if defaults.DecentralizedInstall() {
+		return nil
+	}
+	logrus.Errorf("Attempting to upgrade a single node in a cluster with centralized")
+	logrus.Errorf("configuration is not supported. Execute the following command for")
+	logrus.Errorf("a proper upgrade:")
+	logrus.Errorf("\t%s apply", defaults.BinaryName())
+	return fmt.Errorf("command not available")
+}
+
+// runHostPreflightsLocally runs the embedded host preflights in the local node prior to
+// node upgrade.
+func runHostPreflightsLocally(c *cli.Context) error {
+	logrus.Infof("Running host preflights locally")
+	hpf, err := addons.NewApplier().HostPreflights()
+	if err != nil {
+		return fmt.Errorf("unable to read host preflights: %w", err)
+	}
+	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
+		logrus.Info("No host preflights found")
+		return nil
+	}
+	out, err := preflights.RunLocal(c.Context, hpf)
+	if err != nil {
+		return fmt.Errorf("preflight failed: %w", err)
+	}
+	out.PrintTable()
+	if out.HasFail() {
+		return fmt.Errorf("preflights haven't passed on one or more hosts")
+	}
+	if !out.HasWarn() || c.Bool("no-prompt") {
+		return nil
+	}
+	logrus.Warn("Host preflights have warnings on one or more hosts")
+	if !prompts.New().Confirm("Do you want to continue ?", false) {
+		return fmt.Errorf("user aborted")
 	}
 	return nil
 }
@@ -51,6 +97,10 @@ var upgradeCommand = &cli.Command{
 			Usage: "Do not prompt user when it is not necessary",
 			Value: false,
 		},
+		&cli.StringSliceFlag{
+			Name:  "disable-addon",
+			Usage: "Disable addon during upgrade",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		if err := canRunUpgrade(c); err != nil {
@@ -59,6 +109,9 @@ var upgradeCommand = &cli.Command{
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			return fmt.Errorf("unable to materialize binaries: %w", err)
+		}
+		if err := runHostPreflightsLocally(c); err != nil {
+			return fmt.Errorf("unable to run host preflights locally: %w", err)
 		}
 		logrus.Infof("Stopping %s", defaults.BinaryName())
 		if err := stopHelmVM(); err != nil {
@@ -81,9 +134,14 @@ var upgradeCommand = &cli.Command{
 		}
 		os.Setenv("KUBECONFIG", kcfg)
 		logrus.Infof("Upgrading addons")
-		if applier, err := addons.NewApplier(c.Bool("no-prompt"), true); err != nil {
-			return fmt.Errorf("unable to create applier: %w", err)
-		} else if err := applier.Apply(c.Context); err != nil {
+		opts := []addons.Option{}
+		if c.Bool("no-prompt") {
+			opts = append(opts, addons.WithoutPrompt())
+		}
+		for _, addon := range c.StringSlice("disable-addon") {
+			opts = append(opts, addons.WithoutAddon(addon))
+		}
+		if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)
 		}
 		logrus.Infof("Upgrade complete")

@@ -50,7 +50,11 @@ func Materialize() error {
 	suffix := fmt.Sprintf("-%s-%s", runtime.GOOS, runtime.GOARCH)
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), suffix) {
-			continue
+			// we always materialize 'preflight' binary because
+			// we run it remotely in the configured cluster nodes.
+			if entry.Name() != "preflight" {
+				continue
+			}
 		}
 		srcpath := fmt.Sprintf("bins/helmvm/%s", entry.Name())
 		srcfile, err := binfs.ReadFile(srcpath)
