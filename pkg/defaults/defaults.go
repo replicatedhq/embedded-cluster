@@ -1,199 +1,106 @@
 // Package defaults holds default values for the helmvm binary. For sake of
-// keeping everything simple this packages panics if some error occurs as
+// keeping everything simple this packages exits(1) if some error occurs as
 // these should not happen in the first place.
 package defaults
 
-import (
-	"fmt"
-	"net"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
-
-	"github.com/gosimple/slug"
+var (
+	// K0sVersion holds the version of k0s binary we are embedding. this is
+	// set at compile time via ldflags.
+	K0sVersion = "0.0.0"
+	// provider holds a global reference to the default provider.
+	provider *DefaultsProvider
 )
 
-// K0sVersion holds the version of k0s binary we are embedding. this is set
-// at compile time via ldflags.
-var K0sVersion = "0.0.0"
-
-func init() {
-	if err := os.MkdirAll(K0sctlBinsSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create basedir: %w", err))
+// def returns a global reference to the default provider. creates one if not
+// already created.
+func def() *DefaultsProvider {
+	if provider == nil {
+		provider = NewProvider("")
 	}
-	if err := os.MkdirAll(ConfigSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create config dir: %w", err))
-	}
-	if err := os.MkdirAll(HelmVMBinsSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create helmvm bin dir: %w", err))
-	}
-	if err := os.MkdirAll(HelmVMLogsSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create helmvm logs dir: %w", err))
-	}
+	return provider
 }
 
-const (
-	k0sBinsSubDirDarwin = "Library/Caches/k0sctl/k0s/linux/amd64"
-	k0sBinsSubDirLinux  = ".cache/k0sctl/k0s/linux/amd64"
-)
-
-// BinaryName returns the binary name, this is useful for places where we
-// need to present the name of the binary to the user (the name may vary if
-// the binary is renamed). We make sure the name does not contain invalid
-// characters for a filename.
+// BinaryName calls BinaryName on the default provider.
 func BinaryName() string {
-	exe, err := os.Executable()
-	if err != nil {
-		panic(err)
-	}
-	base := filepath.Base(exe)
-	return slug.Make(base)
+	return def().BinaryName()
 }
 
-// K0sctlBinsSubDir returns the path to the directory where k0sctl binaries
-// are stored. This is a subdirectory of the user's home directory. Follows
-// the k0sctl directory convention.
+// K0sctlBinsSubDir calls K0sctlBinsSubDir on the default provider.
 func K0sctlBinsSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(home, k0sBinsSubDirDarwin)
-	}
-	return filepath.Join(home, k0sBinsSubDirLinux)
+	return def().K0sctlBinsSubDir()
 }
 
-// HelmVMBinsSubDir returns the path to the directory where helmvm binaries
-// are stored. This is a subdirectory of the user's home directory.
+// HelmVMBinsSubDir calls HelmVMBinsSubDir on the default provider.
 func HelmVMBinsSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	hidden := fmt.Sprintf(".%s", BinaryName())
-	return filepath.Join(home, hidden, "bin")
+	return def().HelmVMBinsSubDir()
 }
 
-// HelmVMLogsSubDir returns the path to the directory where helmvm logs are
-// stored. This is a subdirectory of the user's home directory.
+// HelmVMLogsSubDir calls HelmVMLogsSubDir on the default provider.
 func HelmVMLogsSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	hidden := fmt.Sprintf(".%s", BinaryName())
-	return filepath.Join(home, hidden, "logs")
+	return def().HelmVMLogsSubDir()
 }
 
-// K0sctlApplyLogPath returns the path to the k0sctl apply log file.
+// K0sctlApplyLogPath calls K0sctlApplyLogPath on the default provider.
 func K0sctlApplyLogPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(home, ".cache", "k0sctl", "k0sctl.log")
+	return def().K0sctlApplyLogPath()
 }
 
-// SSHKeyPath returns the path to the SSH managed by helmvm installation.
+// SSHKeyPath calls SSHKeyPath on the default provider.
 func SSHKeyPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(home, ".ssh", "helmvm_rsa")
+	return def().SSHKeyPath()
 }
 
-// SSHAuthorizedKeysPath returns the path to the authorized_hosts file.
+// SSHAuthorizedKeysPath calls SSHAuthorizedKeysPath on the default provider.
 func SSHAuthorizedKeysPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(home, ".ssh", "authorized_keys")
+	return def().SSHAuthorizedKeysPath()
 }
 
-// ConfigSubDir returns the path to the directory where k0sctl configuration
-// files are stored. This is a subdirectory of the user's home directory.
+// ConfigSubDir calls ConfigSubDir on the default provider.
 func ConfigSubDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	hidden := fmt.Sprintf(".%s", BinaryName())
-	return filepath.Join(home, hidden, "etc")
+	return def().ConfigSubDir()
 }
 
-// K0sBinaryPath returns the path to the k0s binary.
+// K0sBinaryPath calls K0sBinaryPath on the default provider.
 func K0sBinaryPath() string {
-	return PathToK0sctlBinary(fmt.Sprintf("k0s-%s", K0sVersion))
+	return def().K0sBinaryPath()
 }
 
-// PathToK0sctlBinary is an utility function that returns the full path to
-// a materialized binary that belongs to k0sctl. This function does not check
-// if the file exists.
+// PathToK0sctlBinary calls PathToK0sctlBinary on the default provider.
 func PathToK0sctlBinary(name string) string {
-	return filepath.Join(K0sctlBinsSubDir(), name)
+	return def().PathToK0sctlBinary(name)
 }
 
-// PathToHelmVMBinary is an utility function that returns the full path to a
-// materialized binary that belongs to helmvm (do not confuse with binaries
-// belonging to k0sctl). This function does not check if the file exists.
+// PathToHelmVMBinary calls PathToHelmVMBinary on the default provider.
 func PathToHelmVMBinary(name string) string {
-	return filepath.Join(HelmVMBinsSubDir(), name)
+	return def().PathToHelmVMBinary(name)
 }
 
-// PathToLog returns the full path to a log file. This function does not check
-// if the file exists.
+// PathToLog calls PathToLog on the default provider.
 func PathToLog(name string) string {
-	return filepath.Join(HelmVMLogsSubDir(), name)
+	return def().PathToLog(name)
 }
 
-// PathToConfig returns the full path to a configuration file. This function
-// does not check if the file exists.
+// PathToConfig calls PathToConfig on the default provider.
 func PathToConfig(name string) string {
-	return filepath.Join(ConfigSubDir(), name)
+	return def().PathToConfig(name)
 }
 
-// FileNameForImage returns an appropriate .tar name for a given image.
-// e.g. quay.io/test/test:v1 would return quay.io-test-test-v1.tar.
+// FileNameForImage calls FileNameForImage on the default provider.
 func FileNameForImage(img string) string {
-	prefix := strings.ReplaceAll(img, "/", "-")
-	prefix = strings.ReplaceAll(prefix, ":", "-")
-	return fmt.Sprintf("%s.tar", prefix)
+	return def().FileNameForImage(img)
 }
 
-// PreferredNodeIPAddress returns the ip address the node uses when reaching
-// the internet. This is useful when the node has multiple interfaces and we
-// want to bind to one of the interfaces.
+// PreferredNodeIPAddress calls PreferredNodeIPAddress on the default provider.
 func PreferredNodeIPAddress() (string, error) {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return "", fmt.Errorf("unable to get local IP: %w", err)
-	}
-	defer conn.Close()
-	addr := conn.LocalAddr().(*net.UDPAddr)
-	return addr.IP.String(), nil
+	return def().PreferredNodeIPAddress()
 }
 
-// DecentralizedInstall returns true if the cluster installation has been
-// executed in a decentralized way (installing the first node then generating
-// a join token and installing the others).
+// DecentralizedInstall calls DecentralizedInstall on the default provider.
 func DecentralizedInstall() bool {
-	fpath := PathToConfig(".decentralized")
-	_, err := os.Stat(fpath)
-	return err == nil
+	return def().DecentralizedInstall()
 }
 
-// SetInstallAsDecentralized sets the decentralized install flag inside the
-// configuration directory.
+// SetInstallAsDecentralized calls SetInstallAsDecentralized on the default provider.
 func SetInstallAsDecentralized() error {
-	fpath := PathToConfig(".decentralized")
-	fp, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return fmt.Errorf("unable to set installation mode: %w", err)
-	}
-	defer fp.Close()
-	return nil
+	return def().SetInstallAsDecentralized()
 }
