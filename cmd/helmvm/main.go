@@ -5,9 +5,10 @@ import (
 	"os"
 	"path"
 
-	"github.com/replicatedhq/helmvm/pkg/logging"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+
+	"github.com/replicatedhq/helmvm/pkg/logging"
 )
 
 func main() {
