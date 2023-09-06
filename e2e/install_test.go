@@ -34,10 +34,22 @@ func TestTokenBasedMultiNodeInstallation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to generate token on node %s: %v", tc.Nodes[0], err)
 	}
+
+	var joinCommand []string
+	// scan stdout for our command that starts with `helmvm`
+	for _, lineText := range stdout {
+		if strings.HasPrefix("helmvm", string(lineText)) {
+			joinCommand = strings.Split(string(lineText), " ")
+			break
+		}
+	}
+	if joinCommand == nil {
+		t.Fatalf("could not find token in stdout")
+	}
+
 	for i := 1; i <= 2; i++ {
 		t.Logf("joining node %d to the cluster", i)
-		join := strings.Split(stdout, " ")
-		if _, _, err := RunCommandOnNode(t, tc, i, join); err != nil {
+		if _, _, err := RunCommandOnNode(t, tc, i, joinCommand); err != nil {
 			t.Fatalf("fail to join node %d: %v", i, err)
 		}
 	}
