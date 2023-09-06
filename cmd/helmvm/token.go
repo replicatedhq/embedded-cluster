@@ -90,7 +90,7 @@ var tokenCreateCommand = &cli.Command{
 		fmt.Printf("This token is valid for %s hours.\n", dur)
 		fmt.Println("You can now run the following command in a remote node to add it")
 		fmt.Printf("to the cluster as a %q node:\n", role)
-		fmt.Printf("%s node join --role %s %s\n", defaults.BinaryName(), role, buf.String())
+		fmt.Printf("%s node join --role %s %s", defaults.BinaryName(), role, buf.String())
 		return nil
 	},
 }
