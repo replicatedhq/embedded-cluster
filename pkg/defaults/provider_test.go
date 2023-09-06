@@ -24,7 +24,8 @@ func TestDecentralizedInstall(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
 	assert.False(t, def.DecentralizedInstall(), "default should be centralized")
-	def.SetInstallAsDecentralized()
+	err = def.SetInstallAsDecentralized()
+	assert.NoError(t, err)
 	assert.True(t, def.DecentralizedInstall(), "unable to set decentralized install")
 }
 

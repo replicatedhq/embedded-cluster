@@ -54,7 +54,7 @@ var bundleCommand = &cli.Command{
 		}
 		defer dst.Close()
 		writer, end := progressbar.Start()
-		writer.Write([]byte("Downloading base images bundle."))
+		_, _ = writer.Write([]byte("Downloading base images bundle."))
 		src, err := goods.DownloadImagesBundle(defaults.K0sVersion)
 		if err != nil {
 			writer.Close()
@@ -79,7 +79,7 @@ var bundleCommand = &cli.Command{
 		images = append(images, embed...)
 		for _, img := range images {
 			writer, end = progressbar.Start()
-			writer.Write([]byte(fmt.Sprintf("Pulling image %s", img)))
+			_, _ = writer.Write([]byte(fmt.Sprintf("Pulling image %s", img)))
 			if err := pullImage(c.Context, img); err != nil {
 				writer.Close()
 				<-end

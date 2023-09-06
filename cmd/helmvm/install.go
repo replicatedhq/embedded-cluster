@@ -107,8 +107,8 @@ func runPostApplyOnHost(ctx context.Context, host *cluster.Host) error {
 		src = "/etc/systemd/system/k0sworker.service"
 	}
 	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
-	host.ExecOutput(fmt.Sprintf("sudo ln -s %s %s", src, dst))
-	host.ExecOutput("sudo systemctl daemon-reload")
+	_, _ = host.ExecOutput(fmt.Sprintf("sudo ln -s %s %s", src, dst))
+	_, _ = host.ExecOutput("sudo systemctl daemon-reload")
 	return nil
 }
 
@@ -262,7 +262,7 @@ func runK0sctlApply(ctx context.Context) error {
 		<-pbwait
 	}()
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	messages.Write([]byte("Running k0sctl apply"))
+	_, _ = messages.Write([]byte("Running k0sctl apply"))
 	kctl := exec.Command(bin, "apply", "-c", cfgpath, "--disable-telemetry")
 	kctl.Stderr = logrus.StandardLogger().Writer()
 	kctl.Stdout = logrus.StandardLogger().Writer()

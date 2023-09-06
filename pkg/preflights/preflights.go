@@ -29,7 +29,9 @@ import (
 // UnserlizeSpec unserializes an HostPreflightSpec from a raw slice of bytes.
 func UnserializeSpec(data []byte) (*v1beta2.HostPreflightSpec, error) {
 	scheme := kruntime.NewScheme()
-	v1beta2.AddToScheme(scheme)
+	if err := v1beta2.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
 	decoder := conversion.NewDecoder(scheme)
 	var hpf v1beta2.HostPreflight
 	if err := decoder.DecodeInto(data, &hpf); err != nil {
