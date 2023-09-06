@@ -12,6 +12,16 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: "1.21.0"
+    - name: Pull static dependencies
+      run: |
+        make static
+        make static-linux-amd64
+    - name: Lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: v1.54
+        skip-cache: true
+        args: --timeout=1m
     - name: Go vet
       run: |
         make vet
