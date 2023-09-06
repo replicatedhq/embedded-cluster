@@ -35,10 +35,14 @@ func NewLogrusFileHook(file string, flag int, chmod os.FileMode) (*LogrusFileHoo
 func (hook *LogrusFileHook) Fire(entry *logrus.Entry) error {
 
 	plainformat, err := hook.formatter.Format(entry)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "unable to parse line %v", err)
+		return err
+	}
 	line := string(plainformat)
 	_, err = hook.file.WriteString(line)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "unable to write file on filehook(entry.String)%v", err)
+		fmt.Fprintf(os.Stderr, "unable to write file on filehook(entry.String) %v", err)
 		return err
 	}
 
