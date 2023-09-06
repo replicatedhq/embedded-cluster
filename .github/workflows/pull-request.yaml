@@ -21,7 +21,7 @@ jobs:
       with:
         version: v1.54
         skip-cache: true
-        args: --timeout=1m
+        args: --timeout=10m
     - name: Go vet
       run: |
         make vet
