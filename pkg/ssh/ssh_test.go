@@ -39,6 +39,7 @@ func TestKeysCreatedOnlyOnce(t *testing.T) {
 	err = ssh.AllowLocalSSH()
 	assert.NoError(t, err)
 	newfinfo, err := os.Stat(private)
+	assert.NoError(t, err)
 	assert.Equal(t, oldfinfo.ModTime(), newfinfo.ModTime(), "private key should not be updated")
 }
 

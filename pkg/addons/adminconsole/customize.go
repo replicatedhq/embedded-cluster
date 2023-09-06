@@ -183,12 +183,8 @@ func (a *AdminConsoleCustomization) hostPreflights() (*v1beta2.HostPreflightSpec
 		if err != nil {
 			return nil, fmt.Errorf("unable to unserialize preflight spec: %w", err)
 		}
-		for _, collector := range spec.Collectors {
-			all.Collectors = append(all.Collectors, collector)
-		}
-		for _, analyzer := range spec.Analyzers {
-			all.Analyzers = append(all.Analyzers, analyzer)
-		}
+		all.Collectors = append(all.Collectors, spec.Collectors...)
+		all.Analyzers = append(all.Analyzers, spec.Analyzers...)
 	}
 	return all, nil
 }

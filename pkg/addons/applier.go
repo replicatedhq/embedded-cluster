@@ -81,12 +81,8 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 		} else if hpf == nil {
 			continue
 		}
-		for _, c := range hpf.Collectors {
-			allpf.Collectors = append(allpf.Collectors, c)
-		}
-		for _, a := range hpf.Analyzers {
-			allpf.Analyzers = append(allpf.Analyzers, a)
-		}
+		allpf.Collectors = append(allpf.Collectors, hpf.Collectors...)
+		allpf.Analyzers = append(allpf.Analyzers, hpf.Analyzers...)
 	}
 	return allpf, nil
 }

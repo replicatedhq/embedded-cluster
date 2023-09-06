@@ -63,7 +63,7 @@ func download(w http.ResponseWriter, r *http.Request) {
 	}
 	content = bytes.ReplaceAll(content, []byte("{HOST}"), []byte(r.Host))
 	content = bytes.ReplaceAll(content, []byte("{SCHEME}"), []byte(scheme))
-	w.Write(content)
+	_, _ = w.Write(content)
 }
 
 func main() {
