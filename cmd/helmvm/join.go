@@ -33,6 +33,9 @@ var joinCommand = &cli.Command{
 		if err := goods.Materialize(); err != nil {
 			return fmt.Errorf("unable to materialize binaries: %w", err)
 		}
+		if err := runHostPreflightsLocally(c); err != nil {
+			return fmt.Errorf("unable to run host preflights locally: %w", err)
+		}
 		logrus.Infof("Saving token to disk")
 		if err := saveTokenToDisk(c.Args().First()); err != nil {
 			return fmt.Errorf("unable to save token to disk: %w", err)

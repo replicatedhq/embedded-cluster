@@ -7,6 +7,7 @@ K0SCTL_VERSION = v0.15.5
 TERRAFORM_VERSION = 1.5.4
 OPENEBS_VERSION = 3.7.0
 K0S_VERSION = v1.27.5+k0s.0
+PREFLIGHT_VERSION = v0.71.1
 LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) -X main.Version=$(VERSION)
 
 default: helmvm-linux-amd64
@@ -94,9 +95,18 @@ pkg/goods/bins/helmvm/k0sctl-darwin-arm64:
 	curl -L -o pkg/goods/bins/helmvm/k0sctl-darwin-arm64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-arm64"
 	chmod +x pkg/goods/bins/helmvm/k0sctl-darwin-arm64
 
+pkg/goods/bins/helmvm/preflight:
+	mkdir -p pkg/goods/bins/helmvm
+	mkdir -p output/tmp/preflight
+	curl -L -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(PREFLIGHT_VERSION)/preflight_linux_amd64.tar.gz
+	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
+	mv output/tmp/preflight/preflight pkg/goods/bins/helmvm/preflight
+
 .PHONY: static
 static: pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz \
-	output/bin/yq pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) \
+	output/bin/yq \
+	pkg/goods/bins/helmvm/preflight \
+	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) \
 	pkg/goods/images/list.txt
 
 .PHONY: static-darwin-arm64

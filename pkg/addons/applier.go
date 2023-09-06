@@ -9,6 +9,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	corev1 "k8s.io/api/core/v1"
@@ -35,6 +36,7 @@ func getLogger(addon string, verbose bool) action.DebugLog {
 type AddOn interface {
 	Apply(ctx context.Context) error
 	Version() (map[string]string, error)
+	HostPreflights() (*v1beta2.HostPreflightSpec, error)
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -62,6 +64,31 @@ func (a *Applier) Apply(ctx context.Context) error {
 		logrus.Infof("Addon %s applied.", name)
 	}
 	return nil
+}
+
+// HostPreflights reads all embedded host preflights from all add-ons and returns them
+// merged in a single HostPreflightSpec.
+func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
+	addons, err := a.load()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+	allpf := &v1beta2.HostPreflightSpec{}
+	for _, addon := range addons {
+		hpf, err := addon.HostPreflights()
+		if err != nil {
+			return nil, fmt.Errorf("unable to get preflights for %s: %w", addon, err)
+		} else if hpf == nil {
+			continue
+		}
+		for _, c := range hpf.Collectors {
+			allpf.Collectors = append(allpf.Collectors, c)
+		}
+		for _, a := range hpf.Analyzers {
+			allpf.Analyzers = append(allpf.Analyzers, a)
+		}
+	}
+	return allpf, nil
 }
 
 // load instantiates all enabled addons.

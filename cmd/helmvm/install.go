@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
 	"github.com/replicatedhq/helmvm/pkg/infra"
+	"github.com/replicatedhq/helmvm/pkg/preflights"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
@@ -53,6 +54,46 @@ func runPostApply(ctx context.Context) error {
 	return nil
 }
 
+// runHostPreflights run the host preflights we found embedded in the binary
+// on all configured hosts. We attempt to read HostPreflights from all the
+// embedded Helm Charts and from the Kots Application Release files.
+func runHostPreflights(c *cli.Context) error {
+	logrus.Infof("Running host preflights on nodes")
+	cfg, err := config.ReadConfigFile(defaults.PathToConfig("k0sctl.yaml"))
+	if err != nil {
+		return fmt.Errorf("unable to read cluster config: %w", err)
+	}
+	hpf, err := addons.NewApplier().HostPreflights()
+	if err != nil {
+		return fmt.Errorf("unable to read host preflights: %w", err)
+	}
+	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
+		logrus.Info("No host preflights found")
+		return nil
+	}
+	outputs := preflights.NewOutputs()
+	for _, host := range cfg.Spec.Hosts {
+		addr := host.Address()
+		out, err := preflights.Run(c.Context, host, hpf)
+		if err != nil {
+			return fmt.Errorf("preflight failed on %s: %w", addr, err)
+		}
+		outputs[addr] = out
+	}
+	outputs.PrintTable()
+	if outputs.HaveFails() {
+		return fmt.Errorf("preflights haven't passed on one or more hosts")
+	}
+	if !outputs.HaveWarns() || c.Bool("no-prompt") {
+		return nil
+	}
+	logrus.Warn("Host preflights have warnings on one or more hosts")
+	if !prompts.New().Confirm("Do you want to continue ?", false) {
+		return fmt.Errorf("user aborted")
+	}
+	return nil
+}
+
 // runPostApply runs the post-apply script on a host. XXX I don't think this
 // belongs here and needs to be refactored in a more generic way. It's here
 // because I have other things to do and this is a prototype.
@@ -60,6 +101,7 @@ func runPostApplyOnHost(ctx context.Context, host *cluster.Host) error {
 	if err := host.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to host: %w", err)
 	}
+	defer host.Disconnect()
 	src := "/etc/systemd/system/k0scontroller.service"
 	if host.Role == "worker" {
 		src = "/etc/systemd/system/k0sworker.service"
@@ -275,6 +317,9 @@ func applyK0sctl(c *cli.Context, useprompt bool, nodes []infra.Node) error {
 	logrus.Infof("Processing cluster configuration")
 	if err := ensureK0sctlConfig(c, nodes, useprompt); err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
+	}
+	if err := runHostPreflights(c); err != nil {
+		return fmt.Errorf("unable to finish preflight checks: %w", err)
 	}
 	logrus.Infof("Applying cluster configuration")
 	if err := runK0sctlApply(c.Context); err != nil {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"golang.org/x/mod/semver"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -46,6 +47,12 @@ func (o *OpenEBS) Version() (map[string]string, error) {
 		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
 	return map[string]string{"OpenEBS": latest}, nil
+}
+
+// HostPreflight returns the host preflight objects found inside the OpenEBS
+// Helm Chart, this is empty as there is no host preflight on there.
+func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
+	return nil, nil
 }
 
 func (o *OpenEBS) Apply(ctx context.Context) error {

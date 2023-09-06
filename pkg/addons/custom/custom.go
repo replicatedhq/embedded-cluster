@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"golang.org/x/mod/semver"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -46,6 +47,13 @@ func (c *Custom) Version() (map[string]string, error) {
 		infos[chart.Name()] = chart.Metadata.Version
 	}
 	return infos, nil
+}
+
+// HostPreflight returns the host preflight objects found inside all the embedded
+// Helm Charts. These host preflights must be merged into a single one. XXX We have
+// to implement this yet.
+func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
+	return nil, nil
 }
 
 func (c *Custom) Apply(ctx context.Context) error {
