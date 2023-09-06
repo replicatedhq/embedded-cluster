@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/sirupsen/logrus"
 )
 
@@ -82,7 +84,10 @@ func SetupLogging() {
 
 	now := time.Now().Format("20060102150405")
 
-	fileHook, err := NewLogrusFileHook("helmvm-"+now+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	dir := defaults.HelmVMLogsSubDir()
+	path := filepath.Join(dir, "helmvm-"+now+".log")
+
+	fileHook, err := NewLogrusFileHook(path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err == nil {
 		logrus.AddHook(fileHook)
 	}
