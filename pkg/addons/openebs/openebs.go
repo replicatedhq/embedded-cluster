@@ -35,12 +35,14 @@ var helmValues = map[string]interface{}{
 	},
 }
 
+// OpenEBS implements the AddOn interface for the OpenEBS storage provisioner.
 type OpenEBS struct {
 	config    *action.Configuration
 	logger    action.DebugLog
 	namespace string
 }
 
+// Version returns the version of the OpenEBS addon.
 func (o *OpenEBS) Version() (map[string]string, error) {
 	latest, err := o.latest()
 	if err != nil {
@@ -49,12 +51,13 @@ func (o *OpenEBS) Version() (map[string]string, error) {
 	return map[string]string{"OpenEBS": latest}, nil
 }
 
-// HostPreflight returns the host preflight objects found inside the OpenEBS
+// HostPreflights returns the host preflight objects found inside the OpenEBS
 // Helm Chart, this is empty as there is no host preflight on there.
 func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
+// Apply installs or upgrades the OpenEBS addon in the cluster.
 func (o *OpenEBS) Apply(ctx context.Context) error {
 	version, err := o.latest()
 	if err != nil {
@@ -68,7 +71,7 @@ func (o *OpenEBS) Apply(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to find version %s: %w", version, err)
 	}
-	defer hfp.Close()
+	defer func() { _ = hfp.Close() }()
 
 	hchart, err := loader.LoadArchive(hfp)
 	if err != nil {
@@ -136,7 +139,7 @@ func (o *OpenEBS) latest() (string, error) {
 	return latest, nil
 }
 
-func (o *OpenEBS) installedRelease(ctx context.Context) (*release.Release, error) {
+func (o *OpenEBS) installedRelease(_ context.Context) (*release.Release, error) {
 	list := action.NewList(o.config)
 	list.StateMask = action.ListDeployed
 	list.Filter = releaseName
@@ -150,6 +153,7 @@ func (o *OpenEBS) installedRelease(ctx context.Context) (*release.Release, error
 	return releases[0], nil
 }
 
+// New creates a new OpenEBS addon.
 func New(namespace string, logger action.DebugLog) (*OpenEBS, error) {
 	env := cli.New()
 	env.SetNamespace(namespace)

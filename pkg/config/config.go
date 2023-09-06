@@ -169,7 +169,7 @@ func validateHosts(hosts []*cluster.Host) (int, int, error) {
 }
 
 // interactiveHosts asks the user for host configuration interactively.
-func interactiveHosts(ctx context.Context) ([]*cluster.Host, error) {
+func interactiveHosts(_ context.Context) ([]*cluster.Host, error) {
 	hosts := []*cluster.Host{}
 	user, err := user.Current()
 	if err != nil {
@@ -219,7 +219,7 @@ func renderMultiNodeConfig(ctx context.Context, nodes []infra.Node) (*v1beta1.Cl
 		}
 	} else {
 		for _, node := range nodes {
-			hostcfg := HostConfigFromInfraNode(node)
+			hostcfg := hostConfigFromInfraNode(node)
 			hosts = append(hosts, hostcfg.render())
 		}
 	}
@@ -271,7 +271,7 @@ func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster
 
 // renderSingleNodeConfig renders a configuration to allow k0sctl to install in the localhost
 // in a single-node configuration.
-func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
+func renderSingleNodeConfig(_ context.Context) (*v1beta1.Cluster, error) {
 	usr, err := user.Current()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get current user: %w", err)

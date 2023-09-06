@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 )
 
+// Version is the version of helmvm.
 var Version = "v0.0.0"
 
 var versionCommand = &cli.Command{

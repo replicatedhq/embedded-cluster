@@ -26,7 +26,7 @@ import (
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
-// UnserlizeSpec unserializes an HostPreflightSpec from a raw slice of bytes.
+// UnserializeSpec unserializes an HostPreflightSpec from a raw slice of bytes.
 func UnserializeSpec(data []byte) (*v1beta2.HostPreflightSpec, error) {
 	scheme := kruntime.NewScheme()
 	if err := v1beta2.AddToScheme(scheme); err != nil {
@@ -54,7 +54,7 @@ func SerializeSpec(spec *v1beta2.HostPreflightSpec) ([]byte, error) {
 
 // RunLocal runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func RunLocal(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, error) {
+func RunLocal(_ context.Context, spec *v1beta2.HostPreflightSpec) (*Output, error) {
 	if runtime.GOOS != "linux" {
 		return nil, errors.New("local preflights are only supported on linux hosts")
 	}
@@ -67,7 +67,7 @@ func RunLocal(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, er
 	if err != nil {
 		return nil, fmt.Errorf("unable to save preflight locally: %w", err)
 	}
-	defer os.Remove(fpath)
+	defer func() { _ = os.Remove(fpath) }()
 	binpath := defaults.PathToHelmVMBinary("preflight")
 	stdout := bytes.NewBuffer(nil)
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
@@ -83,7 +83,7 @@ func RunLocal(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, er
 }
 
 // Run runs the provided host preflight spec on the provided host.
-func Run(ctx context.Context, host *cluster.Host, spec *v1beta2.HostPreflightSpec) (*Output, error) {
+func Run(_ context.Context, host *cluster.Host, spec *v1beta2.HostPreflightSpec) (*Output, error) {
 	stop, err := startProgressbar(host.Address())
 	if err != nil {
 		return nil, fmt.Errorf("unable to start running host preflight: %w", err)
@@ -93,7 +93,7 @@ func Run(ctx context.Context, host *cluster.Host, spec *v1beta2.HostPreflightSpe
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(fpath)
+	defer func() { _ = os.Remove(fpath) }()
 	if err := uploadFile(host, fpath, "/tmp/helmvm-preflight.yaml", 0600); err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func startProgressbar(addr string) (func(), error) {
 		close(loading)
 		<-end
 		log.Log = orig
-		fp.Close()
+		_ = fp.Close()
 	}, nil
 }
 
@@ -175,7 +175,7 @@ func saveHostPreflightFile(spec *v1beta2.HostPreflightSpec) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to create temporary file: %w", err)
 	}
-	defer tmpfile.Close()
+	defer func() { _ = tmpfile.Close() }()
 	if data, err := SerializeSpec(spec); err != nil {
 		return "", fmt.Errorf("unable to serialize host preflight spec: %w", err)
 	} else if _, err := tmpfile.Write(data); err != nil {

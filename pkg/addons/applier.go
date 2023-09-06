@@ -112,7 +112,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 	return addons, nil
 }
 
-// Version returns a map with the version of each addon that will be applied.
+// Versions returns a map with the version of each addon that will be applied.
 func (a *Applier) Versions() (map[string]string, error) {
 	addons, err := a.load()
 	if err != nil {

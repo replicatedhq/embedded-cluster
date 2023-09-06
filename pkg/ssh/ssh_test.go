@@ -12,7 +12,7 @@ import (
 func TestAllowLocalSSH(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	def := defaults.NewProvider(tmpdir)
 	ssh := SSH{def}
 	err = ssh.AllowLocalSSH()
@@ -28,7 +28,7 @@ func TestAllowLocalSSH(t *testing.T) {
 func TestKeysCreatedOnlyOnce(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	def := defaults.NewProvider(tmpdir)
 	ssh := SSH{def}
 	err = ssh.AllowLocalSSH()
@@ -46,7 +46,7 @@ func TestKeysCreatedOnlyOnce(t *testing.T) {
 func TestAppendToAuthorized(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	def := defaults.NewProvider(tmpdir)
 	ssh := SSH{def}
 	authkeypath := path.Join(def.SSHConfigSubDir(), "authorized_keys")

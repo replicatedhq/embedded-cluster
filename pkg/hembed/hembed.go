@@ -20,7 +20,9 @@ import (
 )
 
 const (
+	// BaseDir is the base directory where the binaries are stored.
 	BaseDir = "/helmvm"
+	// EndMark is the delimeter that marks the end of the embedded data for extraction.
 	EndMark = "HELMVMCHARTS"
 )
 
@@ -87,7 +89,7 @@ func CalculateRewind(fpath string) (int64, int64, error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("unable to open file %s: %w", fpath, err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	placeHolder := []byte(fmt.Sprintf("%s%010d", EndMark, 0))
 	ruler := bytes.NewBuffer(placeHolder)
 	if _, err = fp.Seek(-int64(ruler.Len()), io.SeekEnd); err != nil {
@@ -118,7 +120,7 @@ func ReadEmbeddedData(fpath string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to open executable: %w", err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	rewind, size, err := CalculateRewind(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to calculate rewind: %w", err)
@@ -183,18 +185,18 @@ func ReadEmbedOptionsFromBinary(fpath string) (*EmbedOptions, error) {
 }
 
 // Embed embeds helmcharts into the helmvm binary.
-func Embed(ctx context.Context, fpath string, opts EmbedOptions) (*Binary, error) {
+func Embed(_ context.Context, fpath string, opts EmbedOptions) (*Binary, error) {
 	request := bytes.NewBuffer(nil)
 	gwriter := gzip.NewWriter(request)
 	ymlenc := yaml.NewEncoder(gwriter)
 	if err := ymlenc.Encode(opts); err != nil {
-		gwriter.Close()
+		defer func() { _ = gwriter.Close() }()
 		return nil, fmt.Errorf("unable to encode charts: %w", err)
 	}
-	gwriter.Close()
+	defer func() { _ = gwriter.Close() }()
 	// we do not accept anything longer than 100MB.
 	if request.Len() > 100*1024*1024 {
-		gwriter.Close()
+		_ = gwriter.Close()
 		return nil, fmt.Errorf("unable to encode: request too large")
 	}
 	binary, err := os.Open(fpath)

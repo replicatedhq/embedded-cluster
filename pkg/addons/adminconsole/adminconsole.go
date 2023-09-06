@@ -33,8 +33,9 @@ var helmValues = map[string]interface{}{
 	},
 }
 
+// AdminConsole implements the AddOn interface for the Kots Admin Console Helm Chart.
 type AdminConsole struct {
-	customization AdminConsoleCustomization
+	customization Customization
 	config        *action.Configuration
 	logger        action.DebugLog
 	namespace     string
@@ -49,6 +50,7 @@ func (a *AdminConsole) askPassword() (string, error) {
 	return prompts.New().Password("Enter a new Admin Console password:"), nil
 }
 
+// Version returns the version of the Kots Admin Console addon.
 func (a *AdminConsole) Version() (map[string]string, error) {
 	latest, err := a.Latest()
 	if err != nil {
@@ -57,12 +59,13 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 	return map[string]string{"AdminConsole": latest}, nil
 }
 
-// HostPreflight returns the host preflight objects found inside the adminconsole
+// HostPreflights returns the host preflight objects found inside the adminconsole
 // or as part of the embedded kots release (customization).
 func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return a.customization.hostPreflights()
 }
 
+// Apply installs or upgrades the Kots Admin Console addon in the cluster.
 func (a *AdminConsole) Apply(ctx context.Context) error {
 	version, err := a.Latest()
 	if err != nil {
@@ -77,7 +80,7 @@ func (a *AdminConsole) Apply(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to find version %s: %w", version, err)
 	}
-	defer hfp.Close()
+	defer func() { _ = hfp.Close() }()
 
 	hchart, err := loader.LoadArchive(hfp)
 	if err != nil {
@@ -121,6 +124,7 @@ func (a *AdminConsole) Apply(ctx context.Context) error {
 	return a.customization.apply(ctx)
 }
 
+// Latest returns the latest version of the Kots Admin Console addon.
 func (a *AdminConsole) Latest() (string, error) {
 	a.logger("Finding Latest Admin Console addon version")
 	files, err := charts.FS.ReadDir(".")
@@ -150,7 +154,7 @@ func (a *AdminConsole) Latest() (string, error) {
 	return latest, nil
 }
 
-func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, error) {
+func (a *AdminConsole) installedRelease(_ context.Context) (*release.Release, error) {
 	list := action.NewList(a.config)
 	list.StateMask = action.ListDeployed
 	list.Filter = releaseName
@@ -164,6 +168,7 @@ func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, 
 	return releases[0], nil
 }
 
+// New creates a new AdminConsole addon.
 func New(ns string, useprompt bool, log action.DebugLog) (*AdminConsole, error) {
 	env := cli.New()
 	env.SetNamespace(ns)
@@ -176,6 +181,6 @@ func New(ns string, useprompt bool, log action.DebugLog) (*AdminConsole, error) 
 		config:        config,
 		logger:        log,
 		useprompt:     useprompt,
-		customization: AdminConsoleCustomization{},
+		customization: Customization{},
 	}, nil
 }

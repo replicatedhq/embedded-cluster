@@ -1,4 +1,4 @@
-// Package prompt provides tooling around asking users for questions. This
+// Package prompts provides tooling around asking users for questions. This
 // package chooses between "decorative" or "plain" prompts based on the
 // environment variable HELMVM_PLAIN_PROMPTS. See 'decorative' and 'plain'
 // packages for more information.

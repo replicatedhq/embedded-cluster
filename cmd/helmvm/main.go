@@ -1,3 +1,4 @@
+// Package main contains the main entrypoint CLI command for the helmvm binary.
 package main
 
 import (

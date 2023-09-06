@@ -66,10 +66,7 @@ func saveTokenToDisk(token string) error {
 		return err
 	}
 	data := []byte(token)
-	if err := os.WriteFile("/etc/k0s/join-token", data, 0644); err != nil {
-		return err
-	}
-	return nil
+	return os.WriteFile("/etc/k0s/join-token", data, 0644)
 }
 
 // installK0sBinary saves the embedded k0s binary to disk under /usr/local/bin.
@@ -78,12 +75,12 @@ func installK0sBinary() error {
 	if err != nil {
 		return fmt.Errorf("unable to open embedded k0s binary: %w", err)
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 	out, err := os.OpenFile("/usr/local/bin/k0s", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
 		return fmt.Errorf("unable to open k0s binary: %w", err)
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 	if _, err := io.Copy(out, in); err != nil {
 		return fmt.Errorf("unable to copy k0s binary: %w", err)
 	}

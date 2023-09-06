@@ -1,3 +1,4 @@
+// Package builder embeds the helmvm binary and the charts inside the binary.
 package main
 
 import (
@@ -39,7 +40,7 @@ func build(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer from.Close()
+	defer func() { _ = from.Close() }()
 	w.Header().Set("Content-Disposition", "attachment; filename="+req.Name)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", from.Size()))
 	w.Header().Set("Content-Type", "application/octet-stream")

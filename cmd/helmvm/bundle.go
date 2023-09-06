@@ -18,7 +18,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
-func pullImage(ctx context.Context, imgurl string) error {
+func pullImage(_ context.Context, imgurl string) error {
 	imgref, err := name.ParseReference(imgurl)
 	if err != nil {
 		return fmt.Errorf("unable to parse image reference: %w", err)
@@ -52,7 +52,7 @@ var bundleCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("unable to open bundle file: %w", err)
 		}
-		defer dst.Close()
+		defer func() { _ = dst.Close() }()
 		writer, end := progressbar.Start()
 		_, _ = writer.Write([]byte("Downloading base images bundle."))
 		src, err := goods.DownloadImagesBundle(defaults.K0sVersion)

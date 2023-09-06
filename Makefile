@@ -13,7 +13,7 @@ LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSI
 default: helmvm-linux-amd64
 
 output/bin/yq:
-	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64
+	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_$(shell go env GOOS)_$(shell go env GOARCH)
 	chmod +x output/bin/yq
 
 output/bin/helm:
@@ -137,6 +137,10 @@ builder: static static-linux-amd64
 .PHONY: unit-tests
 unit-tests:
 	go test -v $(shell go list ./... | grep -v /e2e)
+
+.PHONY: lint
+lint:
+	golangci-lint run
 
 .PHONY: vet
 vet: static-linux-amd64 static

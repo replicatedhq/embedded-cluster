@@ -18,7 +18,7 @@ import (
 
 // SSH is a struct that helps setting up SSH related configurations.
 type SSH struct {
-	def *defaults.DefaultsProvider
+	def *defaults.Provider
 }
 
 // AllowLocalSSH configures the local machine to allow SSH access to the
@@ -52,7 +52,7 @@ func (s *SSH) updateAuthorizedKeys(pubkey []byte) error {
 	if err != nil {
 		return fmt.Errorf("unable to open authorized keys file: %w", err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	pubkey = append(pubkey, '\n')
 	if _, err := fp.Write(pubkey); err != nil {
 		return fmt.Errorf("unable to write authorized keys file: %w", err)
@@ -73,7 +73,7 @@ func (s *SSH) encodePublicKey(privkey *rsa.PublicKey) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create public key file: %w", err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	if _, err := fp.Write(pubkeyb); err != nil {
 		return nil, fmt.Errorf("unable to write public key file: %w", err)
 	}
@@ -95,7 +95,7 @@ func (s *SSH) createPrivateKey() (*rsa.PrivateKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create private key file: %w", err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	if err := pem.Encode(fp, privpem); err != nil {
 		return nil, fmt.Errorf("unable to write private ssh file: %w", err)
 	}

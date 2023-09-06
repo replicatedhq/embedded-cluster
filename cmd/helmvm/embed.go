@@ -20,10 +20,10 @@ func addChartToOptions(path string, opts *hembed.EmbedOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to open chart file %s: %w", path, err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	buf := bytes.NewBuffer(nil)
 	b64enc := base64.NewEncoder(base64.StdEncoding, buf)
-	defer b64enc.Close()
+	defer func() { _ = b64enc.Close() }()
 	if _, err := io.Copy(b64enc, fp); err != nil {
 		return fmt.Errorf("failed to read chart file %s: %w", path, err)
 	}
@@ -93,13 +93,13 @@ var embedCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("unable to embed helm charts: %w", err)
 		}
-		defer from.Close()
+		defer func() { _ = from.Close() }()
 		fpath := c.String("output")
 		fp, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0700)
 		if err != nil {
 			return fmt.Errorf("unable to create output file: %w", err)
 		}
-		defer fp.Close()
+		defer func() { _ = fp.Close() }()
 		if _, err := io.Copy(fp, from); err != nil {
 			return fmt.Errorf("unable to write output file: %w", err)
 		}

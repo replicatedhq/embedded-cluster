@@ -11,7 +11,7 @@ import (
 func TestInit(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	def := NewProvider(tmpdir)
 	assert.DirExists(t, def.K0sctlBinsSubDir(), "k0s binary dir should exist")
 	assert.DirExists(t, def.ConfigSubDir(), "config dir should exist")
@@ -21,7 +21,7 @@ func TestInit(t *testing.T) {
 func TestDecentralizedInstall(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	def := NewProvider(tmpdir)
 	assert.False(t, def.DecentralizedInstall(), "default should be centralized")
 	err = def.SetInstallAsDecentralized()
@@ -32,7 +32,7 @@ func TestDecentralizedInstall(t *testing.T) {
 func TestFileNameForImage(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	def := NewProvider(tmpdir)
 	for img, exp := range map[string]string{
 		"nginx:latest":                   "nginx-latest.tar",
@@ -50,7 +50,7 @@ func TestFileNameForImage(t *testing.T) {
 func TestPreferredNodeIPAddress(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	def := NewProvider(tmpdir)
 	ip, err := def.PreferredNodeIPAddress()
 	assert.NoError(t, err)
@@ -60,7 +60,7 @@ func TestPreferredNodeIPAddress(t *testing.T) {
 func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	def := NewProvider(tmpdir)
 	for _, fn := range []func() string{
 		def.K0sctlBinsSubDir,

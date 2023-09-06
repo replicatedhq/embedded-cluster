@@ -35,7 +35,7 @@ func stopHelmVM() error {
 // canRunUpgrade checks if we can run the upgrade command. Checks if we are running on
 // linux and if we are root. This function also ensures that upgrades can't be run on
 // a cluster that has been deployed using a centralized configuration.
-func canRunUpgrade(c *cli.Context) error {
+func canRunUpgrade(_ *cli.Context) error {
 	if runtime.GOOS != "linux" {
 		return fmt.Errorf("upgrade command is only supported on linux")
 	}
@@ -132,7 +132,7 @@ var upgradeCommand = &cli.Command{
 			}
 			return fmt.Errorf("unable to stat kubeconfig: %w", err)
 		}
-		os.Setenv("KUBECONFIG", kcfg)
+		_ = os.Setenv("KUBECONFIG", kcfg)
 		logrus.Infof("Upgrading addons")
 		opts := []addons.Option{}
 		if c.Bool("no-prompt") {

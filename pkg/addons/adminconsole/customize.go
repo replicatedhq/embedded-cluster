@@ -31,14 +31,14 @@ type ParsedSection struct {
 	HostPreflights [][]byte
 }
 
-// AdminConsoleCustomization is a struct that contains the actions to create and update
-// the admin console customization found inside the binary. This is necessary for
+// Customization is a struct that contains the actions to create and update the
+// admin console customization found inside the binary. This is necessary for
 // backwards compatibility with older versions of helmvm.
-type AdminConsoleCustomization struct{}
+type Customization struct{}
 
 // extractCustomization will extract the customization from the binary if it exists.
 // The customization is expected to be found in the sec_bundle section of the binary.
-func (a *AdminConsoleCustomization) extractCustomization() (*ParsedSection, error) {
+func (a *Customization) extractCustomization() (*ParsedSection, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (a *AdminConsoleCustomization) extractCustomization() (*ParsedSection, erro
 	if err != nil {
 		return nil, err
 	}
-	defer fpbin.Close()
+	defer func() { _ = fpbin.Close() }()
 	section := fpbin.Section("sec_bundle")
 	if section == nil {
 		return nil, nil
@@ -58,12 +58,12 @@ func (a *AdminConsoleCustomization) extractCustomization() (*ParsedSection, erro
 // processSection searches the provided elf section for a gzip compressed tar archive.
 // If it finds one, it will extract the contents and return the kots.io Application
 // and any HostPrefligth objects as a byte slice.
-func (a *AdminConsoleCustomization) processSection(section *elf.Section) (*ParsedSection, error) {
+func (a *Customization) processSection(section *elf.Section) (*ParsedSection, error) {
 	gzr, err := gzip.NewReader(section.Open())
 	if err != nil {
 		return nil, err
 	}
-	defer gzr.Close()
+	defer func() { _ = gzr.Close() }()
 	result := &ParsedSection{}
 	tr := tar.NewReader(gzr)
 	for {
@@ -103,7 +103,7 @@ func (a *AdminConsoleCustomization) processSection(section *elf.Section) (*Parse
 }
 
 // kubeClient returns a new kubernetes client.
-func (a *AdminConsoleCustomization) kubeClient() (client.Client, error) {
+func (a *Customization) kubeClient() (client.Client, error) {
 	k8slogger := zap.New(func(o *zap.Options) {
 		o.DestWriter = io.Discard
 	})
@@ -117,7 +117,7 @@ func (a *AdminConsoleCustomization) kubeClient() (client.Client, error) {
 
 // apply will attempt to read the helmvm binary and extract the kotsadm portal customization
 // from it. If it finds one, it will apply it to the cluster.
-func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
+func (a *Customization) apply(ctx context.Context) error {
 	logrus.Infof("Applying admin console customization")
 	if runtime.GOOS != "linux" {
 		logrus.Infof("Skipping admin console customization on %s", runtime.GOOS)
@@ -167,7 +167,7 @@ func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
 
 // hostPreflights returns a list of HostPreflight specs that are found in the binary.
 // These are part of the embedded Kots Application Release.
-func (a *AdminConsoleCustomization) hostPreflights() (*v1beta2.HostPreflightSpec, error) {
+func (a *Customization) hostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	if runtime.GOOS != "linux" {
 		return &v1beta2.HostPreflightSpec{}, nil
 	}

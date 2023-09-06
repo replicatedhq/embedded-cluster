@@ -18,6 +18,7 @@ func (b *buffer) Close() error {
 	return nil
 }
 
+// RunCommandsOnNode runs a list of commands on a node.
 func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]string) error {
 	for _, cmd := range cmds {
 		cmdstr := strings.Join(cmd, " ")
@@ -29,6 +30,7 @@ func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]stri
 	return nil
 }
 
+// RunCommandOnNode runs a single command on a node.
 func RunCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string) (string, string, error) {
 	stdout := &buffer{bytes.NewBuffer(nil)}
 	stderr := &buffer{bytes.NewBuffer(nil)}

@@ -20,6 +20,8 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/hembed"
 )
 
+// Custom implements the AddOn interface for custom Helm Charts that have been
+// embedded at the end of the helmvm binary.
 type Custom struct {
 	config         *action.Configuration
 	logger         action.DebugLog
@@ -27,6 +29,7 @@ type Custom struct {
 	disabledAddons map[string]bool
 }
 
+// Version returns a map with the version of each custom addon that will be applied.
 func (c *Custom) Version() (map[string]string, error) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -49,13 +52,14 @@ func (c *Custom) Version() (map[string]string, error) {
 	return infos, nil
 }
 
-// HostPreflight returns the host preflight objects found inside all the embedded
+// HostPreflights returns the host preflight objects found inside all the embedded
 // Helm Charts. These host preflights must be merged into a single one. XXX We have
 // to implement this yet.
 func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
+// Apply applies all embedded Helm Charts synchronously.
 func (c *Custom) Apply(ctx context.Context) error {
 	exe, err := os.Executable()
 	if err != nil {
@@ -145,6 +149,7 @@ func (c *Custom) installedRelease(name string) (*release.Release, error) {
 	return releases[0], nil
 }
 
+// New creates a new Applier object.
 func New(namespace string, logger action.DebugLog, disabledAddons map[string]bool) (*Custom, error) {
 	env := cli.New()
 	env.SetNamespace(namespace)

@@ -3,5 +3,7 @@ package charts
 
 import "embed"
 
+// FS is the embedded filesystem.
+//
 //go:embed *.tgz
 var FS embed.FS

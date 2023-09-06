@@ -8,12 +8,12 @@ var (
 	// set at compile time via ldflags.
 	K0sVersion = "0.0.0"
 	// provider holds a global reference to the default provider.
-	provider *DefaultsProvider
+	provider *Provider
 )
 
 // def returns a global reference to the default provider. creates one if not
 // already created.
-func def() *DefaultsProvider {
+func def() *Provider {
 	if provider == nil {
 		provider = NewProvider("")
 	}

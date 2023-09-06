@@ -97,7 +97,7 @@ func runHostPreflights(c *cli.Context) error {
 // runPostApply runs the post-apply script on a host. XXX I don't think this
 // belongs here and needs to be refactored in a more generic way. It's here
 // because I have other things to do and this is a prototype.
-func runPostApplyOnHost(ctx context.Context, host *cluster.Host) error {
+func runPostApplyOnHost(_ context.Context, host *cluster.Host) error {
 	if err := host.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to host: %w", err)
 	}
@@ -113,7 +113,7 @@ func runPostApplyOnHost(ctx context.Context, host *cluster.Host) error {
 }
 
 // createK0sctlConfigBackup creates a backup of the current k0sctl.yaml file.
-func createK0sctlConfigBackup(ctx context.Context) error {
+func createK0sctlConfigBackup(_ context.Context) error {
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	if _, err := os.Stat(cfgpath); err != nil {
 		if os.IsNotExist(err) {
@@ -160,7 +160,7 @@ func updateConfigBundle(ctx context.Context, bundledir string) error {
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	if err := yaml.NewEncoder(fp).Encode(cfg); err != nil {
 		return fmt.Errorf("unable to write config file: %w", err)
 	}
@@ -186,7 +186,7 @@ func copyUserProvidedConfig(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	if err := yaml.NewEncoder(fp).Encode(cfg); err != nil {
 		return fmt.Errorf("unable to write config file: %w", err)
 	}
@@ -245,7 +245,7 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	if err := yaml.NewEncoder(fp).Encode(cfg); err != nil {
 		return fmt.Errorf("unable to write config file: %w", err)
 	}
@@ -254,7 +254,7 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 
 // runK0sctlApply runs `k0sctl apply` refering to the k0sctl.yaml file found on
 // the configuration directory. Returns when the command is finished.
-func runK0sctlApply(ctx context.Context) error {
+func runK0sctlApply(_ context.Context) error {
 	bin := defaults.PathToHelmVMBinary("k0sctl")
 	messages, pbwait := pb.Start()
 	defer func() {
@@ -272,7 +272,7 @@ func runK0sctlApply(ctx context.Context) error {
 // runK0sctlKubeconfig runs the `k0sctl kubeconfig` command. Result is saved
 // under a file called "kubeconfig" inside defaults.ConfigSubDir(). XXX File
 // is overwritten, no questions asked.
-func runK0sctlKubeconfig(ctx context.Context) error {
+func runK0sctlKubeconfig(_ context.Context) error {
 	bin := defaults.PathToHelmVMBinary("k0sctl")
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	if _, err := os.Stat(cfgpath); err != nil {
@@ -291,7 +291,7 @@ func runK0sctlKubeconfig(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to open kubeconfig: %w", err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	if _, err := io.Copy(fp, buf); err != nil {
 		return fmt.Errorf("unable to write kubeconfig: %w", err)
 	}
@@ -307,7 +307,7 @@ func dumpApplyLogs() {
 		logrus.Errorf("Unable to read logs: %s", err.Error())
 		return
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	_, _ = io.Copy(os.Stdout, fp)
 }
 
@@ -411,7 +411,7 @@ var installCommand = &cli.Command{
 		logrus.Infof("Applying add-ons")
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
-		os.Setenv("KUBECONFIG", kcfg)
+		_ = os.Setenv("KUBECONFIG", kcfg)
 		opts := []addons.Option{}
 		if c.Bool("no-prompt") {
 			opts = append(opts, addons.WithoutPrompt())

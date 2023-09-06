@@ -1,3 +1,7 @@
+// Package cluster contains the code to create a test cluster. The cluster is
+// created using LXD and the nodes are Ubuntu containers. The cluster is
+// completely isolated from the host network and from other clusters running
+// on the same host.
 package cluster
 
 import (
@@ -210,11 +214,11 @@ func CopyFilesToNode(in *Input, node string) {
 		if err != nil {
 			in.T.Fatalf("Failed to create temporary file: %v", err)
 		}
-		defer os.Remove(tmp.Name())
+		defer func() { _ = os.Remove(tmp.Name()) }()
 		if _, err := io.Copy(tmp, fp); err != nil {
 			in.T.Fatalf("Failed to copy script %s: %v", script.Name(), err)
 		}
-		fp.Close()
+		_ = fp.Close()
 		files = append(files, File{
 			SourcePath: tmp.Name(),
 			DestPath:   fmt.Sprintf("/usr/local/bin/%s", script.Name()),
@@ -236,7 +240,7 @@ func CopyFileToNode(in *Input, node string, file File) {
 	if err != nil {
 		in.T.Fatalf("Failed to open file %s: %v", file.SourcePath, err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	req := lxd.ContainerFileArgs{
 		Content: fp,
 		Mode:    file.Mode,
@@ -267,9 +271,9 @@ func NodeHasInternet(in *Input, node string) {
 	if err != nil {
 		in.T.Fatalf("Failed to create temporary file: %v", err)
 	}
-	fp.Close()
+	_ = fp.Close()
 	defer func() {
-		os.RemoveAll(fp.Name())
+		_ = os.RemoveAll(fp.Name())
 	}()
 	if err := os.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
 		in.T.Fatalf("Failed to write script: %v", err)
