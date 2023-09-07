@@ -81,7 +81,7 @@ func runHostPreflightsLocally(c *cli.Context) error {
 	if !out.HasWarn() || c.Bool("no-prompt") {
 		return nil
 	}
-	logrus.Warn("Host preflights have warnings on one or more hosts")
+	fmt.Println("Host preflights have warnings on one or more hosts")
 	if !prompts.New().Confirm("Do you want to continue ?", false) {
 		return fmt.Errorf("user aborted")
 	}

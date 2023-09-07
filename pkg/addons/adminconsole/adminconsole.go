@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -43,7 +42,7 @@ type AdminConsole struct {
 
 func (a *AdminConsole) askPassword() (string, error) {
 	if !a.useprompt {
-		logrus.Warnf("Admin Console password set to: password")
+		fmt.Println("Admin Console password set to: password")
 		return "password", nil
 	}
 	return prompts.New().Password("Enter a new Admin Console password:"), nil

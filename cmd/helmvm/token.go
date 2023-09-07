@@ -65,10 +65,10 @@ var tokenCreateCommand = &cli.Command{
 		}
 		logrus.Infof("Creating node join token for role %s", role)
 		if !defaults.DecentralizedInstall() {
-			logrus.Warn("You are opting out of the centralized cluster management.")
-			logrus.Warn("Through the centralized management you can manage all your")
-			logrus.Warn("cluster nodes from a single location. If you decide to move")
-			logrus.Warn("on the centralized management won't be available anymore")
+			fmt.Println("You are opting out of the centralized cluster management.")
+			fmt.Println("Through the centralized management you can manage all your")
+			fmt.Println("cluster nodes from a single location. If you decide to move")
+			fmt.Println("on the centralized management won't be available anymore")
 			if useprompt && !prompts.New().Confirm("Do you want to continue ?", true) {
 				return nil
 			}

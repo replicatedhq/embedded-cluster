@@ -109,7 +109,7 @@ func askUserForHostConfig(keys []string, host *hostcfg) error {
 	for port == 0 {
 		str := quiz.Input("SSH port:", strconv.Itoa(host.Port), true)
 		if port, err = strconv.Atoi(str); err != nil {
-			logrus.Warnf("Invalid port number")
+			fmt.Println("Invalid port number")
 		}
 	}
 	host.Port = port
@@ -133,8 +133,8 @@ func collectHostConfig(host hostcfg) (*cluster.Host, error) {
 		}
 		logrus.Infof("Testing SSH connection to %s", host.Address)
 		if err := host.testConnection(); err != nil {
-			logrus.Warnf("Unable to connect to %s", host.Address)
-			logrus.Warnf("Please check the provided SSH configuration.")
+			fmt.Printf("Unable to connect to %s\n", host.Address)
+			fmt.Println("Please check the provided SSH configuration.")
 			continue
 		}
 		logrus.Infof("SSH connection to %s successful", host.Address)
