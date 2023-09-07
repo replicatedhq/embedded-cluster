@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"bufio"
 	"strings"
 	"testing"
 
@@ -33,11 +34,28 @@ func TestTokenBasedMultiNodeInstallation(t *testing.T) {
 	stdout, _, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Fatalf("fail to generate token on node %s: %v", tc.Nodes[0], err)
+
 	}
+
+	var joinCommand []string
+
+	// scan stdout for our command that starts with `helmvm`
+	newScanner := bufio.NewScanner(strings.NewReader(stdout))
+	for newScanner.Scan() {
+		line := newScanner.Text()
+		if strings.HasPrefix(line, "helmvm") {
+			joinCommand = strings.Split(line, " ")
+			break
+		}
+	}
+
+	if joinCommand == nil {
+		t.Fatalf("could not find token in stdout")
+	}
+
 	for i := 1; i <= 2; i++ {
 		t.Logf("joining node %d to the cluster", i)
-		join := strings.Split(stdout, " ")
-		if _, _, err := RunCommandOnNode(t, tc, i, join); err != nil {
+		if _, _, err := RunCommandOnNode(t, tc, i, joinCommand); err != nil {
 			t.Fatalf("fail to join node %d: %v", i, err)
 		}
 	}

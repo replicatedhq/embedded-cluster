@@ -86,10 +86,10 @@ var tokenCreateCommand = &cli.Command{
 				return fmt.Errorf("failed to set decentralized install: %w", err)
 			}
 		}
-		logrus.Infof("Token created successfully.")
-		logrus.Infof("This token is valid for %s hours.", dur)
-		logrus.Infof("You can now run the following command in a remote node to add it")
-		logrus.Infof("to the cluster as a %q node:", role)
+		fmt.Println("Token created successfully.")
+		fmt.Printf("This token is valid for %s hours.\n", dur)
+		fmt.Println("You can now run the following command in a remote node to add it")
+		fmt.Printf("to the cluster as a %q node:\n", role)
 		fmt.Printf("%s node join --role %s %s", defaults.BinaryName(), role, buf.String())
 		return nil
 	},

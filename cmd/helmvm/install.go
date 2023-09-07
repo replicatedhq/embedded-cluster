@@ -264,8 +264,8 @@ func runK0sctlApply(ctx context.Context) error {
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	_, _ = messages.Write([]byte("Running k0sctl apply"))
 	kctl := exec.Command(bin, "apply", "-c", cfgpath, "--disable-telemetry")
-	kctl.Stderr = messages
-	kctl.Stdout = messages
+	kctl.Stderr = logrus.StandardLogger().Writer()
+	kctl.Stdout = logrus.StandardLogger().Writer()
 	return kctl.Run()
 }
 
@@ -314,14 +314,14 @@ func dumpApplyLogs() {
 // applyK0sctl runs the k0sctl apply command and waits for it to finish. If
 // no configuration is found one is generated.
 func applyK0sctl(c *cli.Context, useprompt bool, nodes []infra.Node) error {
-	logrus.Infof("Processing cluster configuration")
+	fmt.Println("Processing cluster configuration")
 	if err := ensureK0sctlConfig(c, nodes, useprompt); err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
 	}
 	if err := runHostPreflights(c); err != nil {
 		return fmt.Errorf("unable to finish preflight checks: %w", err)
 	}
-	logrus.Infof("Applying cluster configuration")
+	fmt.Println("Applying cluster configuration")
 	if err := runK0sctlApply(c.Context); err != nil {
 		logrus.Errorf("Installation or upgrade failed.")
 		if !useprompt {
@@ -425,11 +425,11 @@ var installCommand = &cli.Command{
 		if err := runPostApply(c.Context); err != nil {
 			return fmt.Errorf("unable to run post apply: %w", err)
 		}
-		logrus.Infof("Cluster configuration has been applied")
-		logrus.Infof("Kubeconfig file has been placed at at %s", kcfg)
-		logrus.Infof("Cluster configuration file has been placed at %s", ccfg)
-		logrus.Infof("You can now access your cluster with kubectl by running:")
-		logrus.Infof("  %s shell", os.Args[0])
+		fmt.Println("Cluster configuration has been applied")
+		fmt.Printf("Kubeconfig file has been placed at at %s\n", kcfg)
+		fmt.Printf("Cluster configuration file has been placed at %s\n", ccfg)
+		fmt.Println("You can now access your cluster with kubectl by running:")
+		fmt.Printf("  %s shell\n", os.Args[0])
 		return nil
 	},
 }

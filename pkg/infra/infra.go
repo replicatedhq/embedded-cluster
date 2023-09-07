@@ -39,7 +39,7 @@ func Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
 	}
 	log.Close()
 	<-end
-	logrus.Infof("Infrastructure applied successfully")
+	fmt.Println("Infrastructure applied successfully")
 	nodes, err := readNodes(outputs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to process terraform output: %w", err)
@@ -48,7 +48,7 @@ func Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
 	if !useprompt {
 		return nodes, nil
 	}
-	logrus.Info("You may want to take note of the output for later use")
+	fmt.Println("You may want to take note of the output for later use")
 	prompts.New().PressEnter("Press enter to continue")
 	return nodes, nil
 }
@@ -59,14 +59,14 @@ func printNodes(nodes []Node) {
 		logrus.Warnf("No node found in terraform output")
 		return
 	}
-	logrus.Infof("These are the nodes configuration applied by your configuration:")
+	fmt.Println("These are the nodes configuration applied by your configuration:")
 	writer := table.NewWriter()
 	writer.AppendHeader(table.Row{"Address", "Role", "SSH Port", "SSH User", "SSH Key Path"})
 	for _, node := range nodes {
 		writer.AppendRow(table.Row{node.Address, node.Role, node.Port, node.User, node.KeyPath})
 	}
 	fmt.Printf("%s\n", writer.Render())
-	logrus.Infof("These are going to be used as your cluster configuration")
+	fmt.Println("These are going to be used as your cluster configuration")
 }
 
 // readIPAddresses reads the nodes from the instance_ips terraform output.
