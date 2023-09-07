@@ -87,7 +87,7 @@ func runHostPreflights(c *cli.Context) error {
 	if !outputs.HaveWarns() || c.Bool("no-prompt") {
 		return nil
 	}
-	logrus.Warn("Host preflights have warnings on one or more hosts")
+	fmt.Println("Host preflights have warnings on one or more hosts")
 	if !prompts.New().Confirm("Do you want to continue ?", false) {
 		return fmt.Errorf("user aborted")
 	}
@@ -196,10 +196,10 @@ func copyUserProvidedConfig(c *cli.Context) error {
 // overwriteExistingConfig asks user if they want to overwrite the existing cluster
 // configuration file.
 func overwriteExistingConfig() bool {
-	logrus.Warn("A cluster configuration file was found. This means you already")
-	logrus.Warn("have created and configured a cluster. You can either use the")
-	logrus.Warn("existing configuration or create a new one (the original config")
-	logrus.Warn("will be backed up).")
+	fmt.Println("A cluster configuration file was found. This means you already")
+	fmt.Println("have created and configured a cluster. You can either use the")
+	fmt.Println("existing configuration or create a new one (the original config")
+	fmt.Println("will be backed up).")
 	return prompts.New().Confirm(
 		"Do you want to create a new cluster configuration ?", false,
 	)
@@ -381,9 +381,9 @@ var installCommand = &cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		if defaults.DecentralizedInstall() {
-			logrus.Warnf("Decentralized install was detected. To manage the cluster")
-			logrus.Warnf("you have to use the '%s node' commands instead.", defaults.BinaryName())
-			logrus.Warnf("Run '%s node --help' for more information.", defaults.BinaryName())
+			fmt.Println("Decentralized install was detected. To manage the cluster")
+			fmt.Printf("you have to use the '%s node' commands instead.\n", defaults.BinaryName())
+			fmt.Printf("Run '%s node --help' for more information.\n", defaults.BinaryName())
 			return fmt.Errorf("decentralized install detected")
 		}
 		useprompt := !c.Bool("no-prompt")

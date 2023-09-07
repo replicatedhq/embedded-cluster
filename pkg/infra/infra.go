@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/terraform-exec/tfexec"
 	"github.com/jedib0t/go-pretty/table"
-	"github.com/sirupsen/logrus"
 
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
@@ -56,7 +55,7 @@ func Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
 // printNodes prints the nodes to stdout in a table.
 func printNodes(nodes []Node) {
 	if len(nodes) == 0 {
-		logrus.Warnf("No node found in terraform output")
+		fmt.Println("No node found in terraform output")
 		return
 	}
 	fmt.Println("These are the nodes configuration applied by your configuration:")
