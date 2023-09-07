@@ -29,15 +29,13 @@ type Node struct {
 // Apply uses "terraform apply" to apply the infrastructe defined in the
 // directory passed as argument.
 func Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
-	log, end := pb.Start()
-	outputs, err := runApply(ctx, dir, log)
+	loading := pb.Start(nil)
+	outputs, err := runApply(ctx, dir, loading)
 	if err != nil {
-		log.Close()
-		<-end
+		loading.Close()
 		return nil, fmt.Errorf("unable to apply infrastructure: %w", err)
 	}
-	log.Close()
-	<-end
+	loading.Close()
 	fmt.Println("Infrastructure applied successfully")
 	nodes, err := readNodes(outputs)
 	if err != nil {

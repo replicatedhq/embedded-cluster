@@ -115,14 +115,12 @@ func startProgressbar(addr string) (func(), error) {
 	logfile := logrus.New()
 	logfile.SetLevel(logrus.DebugLevel)
 	logfile.SetOutput(fp)
-	loading, end := pb.Start()
+	loading := pb.Start(nil)
 	loading.Infof("Running host preflight on %s", addr)
 	orig := log.Log
 	rig.SetLogger(logfile)
 	return func() {
-		loading.Infof("Host Preflight checks completed on host %s", addr)
-		close(loading)
-		<-end
+		loading.Closef("Host Preflight checks completed on host %s", addr)
 		log.Log = orig
 		fp.Close()
 	}, nil
