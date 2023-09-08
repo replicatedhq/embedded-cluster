@@ -32,12 +32,15 @@ import (
 // runPostApply is meant to run things that can't be run automatically with
 // k0sctl. Iterates over all hosts and calls runPostApply on each.
 func runPostApply(ctx context.Context) error {
-	logrus.Infof("Running post-apply script on nodes")
-	loading := pb.Start(nil)
+	mask := func(raw string) string {
+		logrus.StandardLogger().Writer().Write([]byte(raw))
+		return fmt.Sprintf("Creating systemd unit for %s", defaults.BinaryName())
+	}
+	loading := pb.Start(pb.WithMask(mask))
 	orig := log.Log
 	rig.SetLogger(loading)
 	defer func() {
-		loading.Closef("Post apply process finished")
+		loading.Close()
 		log.Log = orig
 	}()
 	cfg, err := config.ReadConfigFile(defaults.PathToConfig("k0sctl.yaml"))
@@ -253,15 +256,29 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 // runK0sctlApply runs `k0sctl apply` refering to the k0sctl.yaml file found on
 // the configuration directory. Returns when the command is finished.
 func runK0sctlApply(ctx context.Context) error {
+	message := "Applying cluster configuration"
+	mask := func(raw string) string {
+		logrus.StandardLogger().Writer().Write([]byte(raw))
+		if !strings.Contains(raw, "Running phase:") {
+			return message
+		}
+		slices := strings.SplitN(raw, ":", 2)
+		message = strings.ReplaceAll(slices[1], `"`, "")
+		message = strings.TrimSpace(message)
+		message = strings.ReplaceAll(message, "k0s", defaults.BinaryName())
+		message = strings.ReplaceAll(message, "Upload", "Copy")
+		message = fmt.Sprintf("Phase: %s", message)
+		return message
+	}
 	bin := defaults.PathToHelmVMBinary("k0sctl")
-	loading := pb.Start(nil)
+	loading := pb.Start(pb.WithMask(mask))
 	defer func() {
-		loading.Close()
+		loading.Closef("Finished applying cluster configuration")
 	}()
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	kctl := exec.Command(bin, "apply", "-c", cfgpath, "--disable-telemetry")
-	kctl.Stderr = logrus.StandardLogger().Writer()
-	kctl.Stdout = logrus.StandardLogger().Writer()
+	kctl.Stderr = loading
+	kctl.Stdout = loading
 	return kctl.Run()
 }
 

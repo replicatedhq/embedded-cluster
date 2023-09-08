@@ -47,7 +47,7 @@ var validTerraformOutput = []byte(`
 
 func TestApply(t *testing.T) {
 	infra := New()
-	infra.apply = func(context.Context, string, pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
+	infra.apply = func(context.Context, string, *pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
 		return nil, fmt.Errorf("test error")
 	}
 	_, err := infra.Apply(context.Background(), "", false)
@@ -55,7 +55,7 @@ func TestApply(t *testing.T) {
 
 	buf := bytes.NewBuffer(nil)
 	infra.printf = writeTo(buf)
-	infra.apply = func(context.Context, string, pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
+	infra.apply = func(context.Context, string, *pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
 		return map[string]tfexec.OutputMeta{"nodes": {Value: []byte(`[]`)}}, nil
 	}
 	_, err = infra.Apply(context.Background(), "", false)
@@ -63,7 +63,7 @@ func TestApply(t *testing.T) {
 
 	buf = bytes.NewBuffer(nil)
 	infra.printf = writeTo(buf)
-	infra.apply = func(context.Context, string, pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
+	infra.apply = func(context.Context, string, *pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
 		return map[string]tfexec.OutputMeta{"nodes": {Value: []byte(`{this is not a valid/json{`)}}, nil
 	}
 	_, err = infra.Apply(context.Background(), "", false)
@@ -71,7 +71,7 @@ func TestApply(t *testing.T) {
 
 	buf = bytes.NewBuffer(nil)
 	infra.printf = writeTo(buf)
-	infra.apply = func(context.Context, string, pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
+	infra.apply = func(context.Context, string, *pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
 		return map[string]tfexec.OutputMeta{"nodes": {Value: validTerraformOutput}}, nil
 	}
 	nodes, err := infra.Apply(context.Background(), "", false)

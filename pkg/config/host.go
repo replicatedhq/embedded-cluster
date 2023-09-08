@@ -1,9 +1,12 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
 	"github.com/k0sproject/rig/log"
+	"github.com/sirupsen/logrus"
 
 	"github.com/replicatedhq/helmvm/pkg/infra"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
@@ -42,7 +45,11 @@ func (h *hostcfg) render() *cluster.Host {
 
 // testConnection attempts to connect to the host via SSH.
 func (h *hostcfg) testConnection() error {
-	loading := pb.Start(nil)
+	mask := func(raw string) string {
+		logrus.StandardLogger().Writer().Write([]byte(raw))
+		return fmt.Sprintf("Validating host %s", h.Address)
+	}
+	loading := pb.Start(pb.WithMask(mask))
 	orig := log.Log
 	defer func() {
 		loading.Close()

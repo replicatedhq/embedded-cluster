@@ -15,6 +15,7 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
+	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
@@ -94,6 +95,9 @@ func (a *AdminConsole) Apply(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("unable to ask for password: %w", err)
 		}
+		loading := pb.Start()
+		loading.Infof("Applying AdminConsole addon")
+		defer loading.Close()
 		helmValues["password"] = pass
 		act := action.NewInstall(a.config)
 		act.Namespace = a.namespace
@@ -111,6 +115,9 @@ func (a *AdminConsole) Apply(ctx context.Context) error {
 		return fmt.Errorf("unable to downgrade from %s to %s", installedVersion, version)
 	}
 
+	loading := pb.Start()
+	loading.Infof("Applying AdminConsole addon")
+	defer loading.Close()
 	a.logger("Updating Admin Console from %s to %s", installedVersion, version)
 	act := action.NewUpgrade(a.config)
 	act.Namespace = a.namespace
