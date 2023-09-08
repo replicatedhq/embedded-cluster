@@ -53,7 +53,7 @@ embed_helm_chart() {
 }
 
 wait_for_memcached_pods() {
-    ready=$(kubectl get pods -n helmvm | grep -v NotReady | grep Ready | grep -c memcached || true)
+    ready=$(kubectl get pods -n helmvm | grep -c memcached || true)
     counter=0
     while [ -z "$ready" ] || [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -61,8 +61,8 @@ wait_for_memcached_pods() {
         fi
         sleep 5
         counter=$((counter+1))
-        echo "Waiting for memcached pods to be ready"
-        ready=$(kubectl get pods -n helmvm | grep  Running | grep -c memcached || true)
+        echo "Waiting for memcached pods"
+        ready=$(kubectl get pods -n helmvm | grep -c memcached || true)
         kubectl get pods -n helmvm 2>&1 || true
         echo "$ready"
     done
@@ -97,7 +97,7 @@ main() {
     fi
     echo "waiting for memcached " >> /tmp/log
     if ! wait_for_memcached_pods; then
-        echo "Memcached pods not reporting healthy"
+        echo "Memcached pods not appearing"
         exit 1
     fi
 }

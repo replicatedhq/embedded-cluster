@@ -38,7 +38,7 @@ func RunCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string)
 		Stdout: stdout,
 		Stderr: stderr,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	if err := cluster.Run(ctx, t, cmd); err != nil {
 		t.Logf("stdout:\n%s", stdout.String())

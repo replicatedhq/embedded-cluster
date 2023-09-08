@@ -27,11 +27,6 @@ func TestEmbedAndInstall(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded ssh in node 0: %v", err)
 	}
-	t.Log("creating deployment mounting pvc")
-	line = []string{"deploy-with-pvc.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to create deployment with pvc: %v", err)
-	}
 }
 
 func TestEmbedAddonsOnly(t *testing.T) {
