@@ -56,12 +56,10 @@ func (a *Applier) Apply(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
-	for name, addon := range addons {
-		logrus.Infof("Apply addon %s.", name)
+	for _, addon := range addons {
 		if err := addon.Apply(ctx); err != nil {
 			return err
 		}
-		logrus.Infof("Addon %s applied.", name)
 	}
 	return nil
 }
@@ -147,9 +145,9 @@ func (a *Applier) kubeClient() (client.Client, error) {
 // waitForKubernetes waits until we manage to make a successful connection to the
 // Kubernetes API server.
 func (a *Applier) waitForKubernetes(ctx context.Context) error {
-	loading := pb.Start(nil)
+	loading := pb.Start()
 	defer func() {
-		loading.Closef("Kubernetes API server is ready.")
+		loading.Closef("Kubernetes API server is ready")
 	}()
 	kcli, err := a.kubeClient()
 	if err != nil {
@@ -158,7 +156,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	counter := 1
-	loading.Infof("1/n Waiting for Kubernetes API server to be ready.")
+	loading.Infof("1/n Waiting for Kubernetes API server to be ready")
 	for {
 		select {
 		case <-ticker.C:

@@ -53,7 +53,7 @@ var bundleCommand = &cli.Command{
 			return fmt.Errorf("unable to open bundle file: %w", err)
 		}
 		defer dst.Close()
-		loading := pb.Start(nil)
+		loading := pb.Start()
 		loading.Infof("Downloading base images bundle.")
 		src, err := goods.DownloadImagesBundle(defaults.K0sVersion)
 		if err != nil {
@@ -75,7 +75,7 @@ var bundleCommand = &cli.Command{
 		}
 		images = append(images, embed...)
 		for _, img := range images {
-			loading = pb.Start(nil)
+			loading = pb.Start()
 			loading.Infof(fmt.Sprintf("Pulling image %s", img))
 			if err := pullImage(c.Context, img); err != nil {
 				loading.Close()

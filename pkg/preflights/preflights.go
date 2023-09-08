@@ -115,7 +115,7 @@ func startProgressbar(addr string) (func(), error) {
 	logfile := logrus.New()
 	logfile.SetLevel(logrus.DebugLevel)
 	logfile.SetOutput(fp)
-	loading := pb.Start(nil)
+	loading := pb.Start()
 	loading.Infof("Running host preflight on %s", addr)
 	orig := log.Log
 	rig.SetLogger(logfile)

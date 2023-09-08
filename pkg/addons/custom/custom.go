@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/hembed"
+	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
 type Custom struct {
@@ -102,6 +103,9 @@ func (c *Custom) chartHasBeenDisabled(chart *chart.Chart) bool {
 }
 
 func (c *Custom) applyChart(ctx context.Context, chart *chart.Chart, values map[string]interface{}) error {
+	loading := pb.Start()
+	loading.Infof("Applying %s addon", chart.Name())
+	defer loading.Close()
 	installed, err := c.installedRelease(chart.Name())
 	if err != nil {
 		return fmt.Errorf("unable to check if release %s is installed: %w", chart.Name(), err)

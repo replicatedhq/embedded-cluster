@@ -15,6 +15,7 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs/charts"
+	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
 const (
@@ -56,6 +57,9 @@ func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 }
 
 func (o *OpenEBS) Apply(ctx context.Context) error {
+	loading := pb.Start()
+	loading.Infof("Applying OpenEBS addon")
+	defer loading.Close()
 	version, err := o.latest()
 	if err != nil {
 		return fmt.Errorf("unable to get latest version: %w", err)

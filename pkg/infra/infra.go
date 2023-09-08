@@ -28,7 +28,7 @@ type Node struct {
 
 // ApplyFn is the function that actually applies the infrastructure using terraform
 // library. This exists so we can make tests that don't actually run terraform.
-type ApplyFn func(context.Context, string, pb.MessageWriter) (map[string]tfexec.OutputMeta, error)
+type ApplyFn func(context.Context, string, *pb.MessageWriter) (map[string]tfexec.OutputMeta, error)
 
 // Infra is a struct that holds functions to apply and create infrastructure.
 type Infra struct {
@@ -44,7 +44,7 @@ func New() *Infra {
 // Apply uses "terraform apply" to apply the infrastructe defined in the
 // directory passed as argument.
 func (inf *Infra) Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
-	loading := pb.Start(nil)
+	loading := pb.Start()
 	loading.Infof("Applying infrastructure from %s", dir)
 	applyfn := inf.runApply
 	if inf.apply != nil {
@@ -56,7 +56,6 @@ func (inf *Infra) Apply(ctx context.Context, dir string, useprompt bool) ([]Node
 		return nil, fmt.Errorf("unable to apply infrastructure: %w", err)
 	}
 	loading.Close()
-	fmt.Println("Infrastructure applied successfully")
 	nodes, err := inf.ReadNodes(outputs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to process terraform output: %w", err)
@@ -102,7 +101,7 @@ func (inf *Infra) ReadNodes(outputs map[string]tfexec.OutputMeta) ([]Node, error
 
 // runApply actually runs the terraform apply. This expects the terraform output to contain a
 // property 'instance_ips' which is a list of the created or updated node ip addresses.
-func (inf *Infra) runApply(ctx context.Context, dir string, log pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
+func (inf *Infra) runApply(ctx context.Context, dir string, log *pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
 	log.Infof("Reading terraform infrastructure from %s", dir)
 	exe := defaults.PathToHelmVMBinary("terraform")
 	tf, err := tfexec.NewTerraform(dir, exe)
