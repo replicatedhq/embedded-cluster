@@ -26,22 +26,42 @@ type Node struct {
 	KeyPath string `json:"keyPath"`
 }
 
+// ApplyFn is the function that actually applies the infrastructure using terraform
+// library. This exists so we can make tests that don't actually run terraform.
+type ApplyFn func(context.Context, string, pb.MessageWriter) (map[string]tfexec.OutputMeta, error)
+
+// Infra is a struct that holds functions to apply and create infrastructure.
+type Infra struct {
+	apply  ApplyFn
+	printf func(string, ...any) (int, error)
+}
+
+// New creates a new Infra struct.
+func New() *Infra {
+	return &Infra{printf: fmt.Printf}
+}
+
 // Apply uses "terraform apply" to apply the infrastructe defined in the
 // directory passed as argument.
-func Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
+func (inf *Infra) Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
 	loading := pb.Start(nil)
-	outputs, err := runApply(ctx, dir, loading)
+	loading.Infof("Applying infrastructure from %s", dir)
+	applyfn := inf.runApply
+	if inf.apply != nil {
+		applyfn = inf.apply
+	}
+	outputs, err := applyfn(ctx, dir, loading)
 	if err != nil {
 		loading.Close()
 		return nil, fmt.Errorf("unable to apply infrastructure: %w", err)
 	}
 	loading.Close()
 	fmt.Println("Infrastructure applied successfully")
-	nodes, err := readNodes(outputs)
+	nodes, err := inf.ReadNodes(outputs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to process terraform output: %w", err)
 	}
-	printNodes(nodes)
+	inf.PrintNodes(nodes)
 	if !useprompt {
 		return nodes, nil
 	}
@@ -50,41 +70,39 @@ func Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
 	return nodes, nil
 }
 
-// printNodes prints the nodes to stdout in a table.
-func printNodes(nodes []Node) {
-	if len(nodes) == 0 {
-		fmt.Println("No node found in terraform output")
-		return
-	}
+// PrintNodes prints the nodes to stdout in a table.
+func (inf *Infra) PrintNodes(nodes []Node) {
 	fmt.Println("These are the nodes configuration applied by your configuration:")
 	writer := table.NewWriter()
 	writer.AppendHeader(table.Row{"Address", "Role", "SSH Port", "SSH User", "SSH Key Path"})
 	for _, node := range nodes {
 		writer.AppendRow(table.Row{node.Address, node.Role, node.Port, node.User, node.KeyPath})
 	}
-	fmt.Printf("%s\n", writer.Render())
+	inf.printf("%s\n", writer.Render())
 	fmt.Println("These are going to be used as your cluster configuration")
 }
 
 // readIPAddresses reads the nodes from the instance_ips terraform output.
-func readNodes(outputs map[string]tfexec.OutputMeta) ([]Node, error) {
+func (inf *Infra) ReadNodes(outputs map[string]tfexec.OutputMeta) ([]Node, error) {
+	var nodes []Node
 	for key, output := range outputs {
 		if key != "nodes" {
 			continue
 		}
-		var nodes []Node
 		if err := json.Unmarshal(output.Value, &nodes); err != nil {
 			return nil, fmt.Errorf("unable to unmarshal terraform output: %w", err)
 		}
-		return nodes, nil
+		break
 	}
-	return nil, nil
+	if len(nodes) == 0 {
+		return nil, fmt.Errorf("no nodes found in terraform output")
+	}
+	return nodes, nil
 }
 
-// runApply actually runs the terraform apply. This expects the terraform output
-// to contain a property 'instance_ips' which is a list of the created or updated
-// node ip addresses.
-func runApply(ctx context.Context, dir string, log pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
+// runApply actually runs the terraform apply. This expects the terraform output to contain a
+// property 'instance_ips' which is a list of the created or updated node ip addresses.
+func (inf *Infra) runApply(ctx context.Context, dir string, log pb.MessageWriter) (map[string]tfexec.OutputMeta, error) {
 	log.Infof("Reading terraform infrastructure from %s", dir)
 	exe := defaults.PathToHelmVMBinary("terraform")
 	tf, err := tfexec.NewTerraform(dir, exe)
@@ -105,4 +123,9 @@ func runApply(ctx context.Context, dir string, log pb.MessageWriter) (map[string
 		return nil, fmt.Errorf("unable to get terraform output: %w", err)
 	}
 	return outputs, nil
+}
+
+// Apply is a helper function that creates an Infra instance and calls Apply on it.
+func Apply(ctx context.Context, dir string, useprompt bool) ([]Node, error) {
+	return New().Apply(ctx, dir, useprompt)
 }
