@@ -13,7 +13,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.15.5
-	github.com/k0sproject/rig v0.12.0
+	github.com/k0sproject/rig v0.13.0
 	github.com/replicatedhq/troubleshoot v0.71.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
