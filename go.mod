@@ -3,7 +3,7 @@ module github.com/replicatedhq/helmvm
 go 1.21.0
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.6
+	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/creack/pty v1.1.18
 	github.com/google/go-containerregistry v0.14.0
