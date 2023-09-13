@@ -53,6 +53,6 @@ jobs:
       run: |
         make helmvm-darwin-arm64 VERSION=dev-$SHORT_SHA
     - name: Build HelmVM Builder Server Image
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         push: false

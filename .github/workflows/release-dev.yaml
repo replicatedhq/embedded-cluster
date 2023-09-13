@@ -42,6 +42,6 @@ jobs:
           files: |
             *.tgz
       - name: Build HelmVM Builder Server image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           tags: replicatedhq/helmvm-builder:latest
