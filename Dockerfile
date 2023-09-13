@@ -1,4 +1,4 @@
-FROM golang:1.20.6-bullseye AS builder
+FROM golang:1.21.0-bullseye AS builder
 RUN apt update -y
 RUN apt install -y unzip
 WORKDIR /helmvm-builder
