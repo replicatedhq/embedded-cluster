@@ -239,6 +239,9 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}
+	if bundledir != "" {
+		config.SetUploadBinary(cfg)
+	}
 	if err := config.UpdateHostsFiles(cfg, bundledir); err != nil {
 		return fmt.Errorf("unable to update hosts files: %w", err)
 	}

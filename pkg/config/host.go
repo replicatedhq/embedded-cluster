@@ -23,13 +23,13 @@ type hostcfg struct {
 
 // render returns a cluster.Host from the given config.
 func (h *hostcfg) render() *cluster.Host {
-	ifls := []string{"--force", "--disable-components konnectivity-server"}
-	if h.Role == "worker" {
-		ifls = []string{"--force"}
+	var ifls []string
+	if h.Role != "worker" {
+		ifls = []string{"--disable-components konnectivity-server"}
 	}
 	return &cluster.Host{
 		Role:         h.Role,
-		UploadBinary: true,
+		UploadBinary: false,
 		NoTaints:     h.Role == "controller+worker",
 		InstallFlags: ifls,
 		Connection: rig.Connection{
