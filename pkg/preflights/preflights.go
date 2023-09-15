@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"runtime"
 
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
@@ -68,7 +70,7 @@ func RunLocal(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, er
 		return nil, fmt.Errorf("unable to save preflight locally: %w", err)
 	}
 	defer os.Remove(fpath)
-	binpath := defaults.PathToHelmVMBinary("preflight")
+	binpath := defaults.PathToHelmVMBinary("kubectl-preflight")
 	stdout := bytes.NewBuffer(nil)
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
 	cmd.Stdout, cmd.Stderr = stdout, io.Discard
@@ -97,8 +99,9 @@ func Run(ctx context.Context, host *cluster.Host, spec *v1beta2.HostPreflightSpe
 	if err := uploadFile(host, fpath, "/tmp/helmvm-preflight.yaml", 0600); err != nil {
 		return nil, err
 	}
-	binpath := defaults.PathToHelmVMBinary("preflight")
-	if err := uploadFile(host, binpath, "/tmp/preflight", 0755); err != nil {
+	src := defaults.PathToHelmVMBinary("kubectl-preflight")
+	dst := path.Join("/tmp", filepath.Base(src))
+	if err := uploadFile(host, src, dst, 0755); err != nil {
 		return nil, err
 	}
 	return execute(host)
@@ -134,7 +137,7 @@ func execute(host *cluster.Host) (*Output, error) {
 	}
 	defer host.Disconnect()
 	arg := "--interactive=false --format=json"
-	cmd := fmt.Sprintf("/tmp/preflight %s /tmp/helmvm-preflight.yaml 2>/dev/null", arg)
+	cmd := fmt.Sprintf("/tmp/kubectl-preflight %s /tmp/helmvm-preflight.yaml 2>/dev/null", arg)
 	var err error
 	out := bytes.NewBuffer(nil)
 	opts := []rexec.Option{rexec.Sudo(host), rexec.Writer(out)}
