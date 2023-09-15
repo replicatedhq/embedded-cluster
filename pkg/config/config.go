@@ -44,6 +44,13 @@ func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 	return &cfg, nil
 }
 
+// SetUploadBinary sets the upload binary config to true in all hosts in the provided configuration.
+func SetUploadBinary(config *v1beta1.Cluster) {
+	for i := range config.Spec.Hosts {
+		config.Spec.Hosts[i].UploadBinary = true
+	}
+}
+
 // RenderClusterConfig renders a cluster configuration interactively.
 func RenderClusterConfig(ctx context.Context, nodes []infra.Node, multi bool) (*v1beta1.Cluster, error) {
 	if multi {
