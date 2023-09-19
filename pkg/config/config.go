@@ -26,7 +26,7 @@ import (
 )
 
 // roles holds a list of valid roles.
-var roles = []string{"controller+worker", "controller", "worker"}
+var roles = []string{"controller+worker", "worker"}
 
 // quiz prompts for the cluster configuration interactively.
 var quiz = prompts.New()
