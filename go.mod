@@ -14,6 +14,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.15.5
 	github.com/k0sproject/rig v0.13.0
+	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.72.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4

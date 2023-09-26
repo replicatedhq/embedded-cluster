@@ -13,6 +13,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
+	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
@@ -63,6 +64,28 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return a.customization.hostPreflights()
 }
 
+// addLicenseToHelmValues adds the embedded license to the helm values.
+func (a *AdminConsole) addLicenseToHelmValues() error {
+	license, err := a.customization.license()
+	if err != nil {
+		return fmt.Errorf("unable to get license: %w", err)
+	}
+	if license == nil {
+		return nil
+	}
+	raw, err := yaml.Marshal(license)
+	if err != nil {
+		return fmt.Errorf("unable to marshal license: %w", err)
+	}
+	helmValues["automation"] = map[string]interface{}{
+		"license": map[string]interface{}{
+			"slug": license.Spec.AppSlug,
+			"data": string(raw),
+		},
+	}
+	return nil
+}
+
 func (a *AdminConsole) Apply(ctx context.Context) error {
 	version, err := a.Latest()
 	if err != nil {
@@ -78,6 +101,10 @@ func (a *AdminConsole) Apply(ctx context.Context) error {
 		return fmt.Errorf("unable to find version %s: %w", version, err)
 	}
 	defer hfp.Close()
+
+	if err := a.addLicenseToHelmValues(); err != nil {
+		return fmt.Errorf("unable to add license to helm values: %w", err)
+	}
 
 	hchart, err := loader.LoadArchive(hfp)
 	if err != nil {
