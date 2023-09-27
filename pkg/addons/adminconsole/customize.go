@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -20,15 +21,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/preflights"
 )
 
 // ParsedSection holds the parsed section from the binary. We only care about the
-// application object and whatever HostPreflight we can find.
+// application object, whatever HostPreflight we can find, and the app License.
 type ParsedSection struct {
 	Application    []byte
 	HostPreflights [][]byte
+	License        []byte
 }
 
 // AdminConsoleCustomization is a struct that contains the actions to create and update
@@ -84,10 +87,12 @@ func (a *AdminConsoleCustomization) processSection(section *elf.Section) (*Parse
 			return nil, fmt.Errorf("unable to copy file out of tar: %w", err)
 		}
 		if bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta1")) {
-			if !bytes.Contains(content.Bytes(), []byte("kind: Application")) {
-				continue
+			if bytes.Contains(content.Bytes(), []byte("kind: Application")) {
+				result.Application = content.Bytes()
 			}
-			result.Application = content.Bytes()
+			if bytes.Contains(content.Bytes(), []byte("kind: License")) {
+				result.License = content.Bytes()
+			}
 			continue
 		}
 		if bytes.Contains(content.Bytes(), []byte("apiVersion: troubleshoot.sh/v1beta2")) {
@@ -187,4 +192,23 @@ func (a *AdminConsoleCustomization) hostPreflights() (*v1beta2.HostPreflightSpec
 		all.Analyzers = append(all.Analyzers, spec.Analyzers...)
 	}
 	return all, nil
+}
+
+// license reads the kots license from the embedded Kots Application Release. If no license is found,
+// returns nil and no error.
+func (a *AdminConsoleCustomization) license() (*v1beta1.License, error) {
+	if runtime.GOOS != "linux" {
+		return nil, nil
+	}
+	section, err := a.extractCustomization()
+	if err != nil {
+		return nil, err
+	} else if section == nil {
+		return nil, nil
+	}
+	var license v1beta1.License
+	if err := yaml.Unmarshal(section.License, &license); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal license: %w", err)
+	}
+	return &license, nil
 }
