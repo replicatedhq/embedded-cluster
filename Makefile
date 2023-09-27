@@ -1,4 +1,4 @@
-VERSION ?= v0.0.0
+VERSION ?= $(shell git describe --tags --dirty)
 BUILDER_NAME = builder
 APP_NAME = helmvm
 ADMIN_CONSOLE_CHART_VERSION = 1.100.1
