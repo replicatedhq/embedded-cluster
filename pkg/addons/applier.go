@@ -9,8 +9,10 @@ import (
 	"io"
 	"time"
 
+	"github.com/k0sproject/dig"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
 	"helm.sh/helm/v3/pkg/action"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
-	"github.com/replicatedhq/helmvm/pkg/addons/custom"
+	//"github.com/replicatedhq/helmvm/pkg/addons/custom"
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
@@ -34,9 +36,10 @@ func getLogger(addon string, verbose bool) action.DebugLog {
 
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
-	Apply(ctx context.Context) error
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
+	GenerateHelmConfig(ctx *cli.Context) (dig.Mapping, error)
+	WtriteChartFile() error
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -46,22 +49,35 @@ type Applier struct {
 	verbose        bool
 }
 
-// Apply applies all registered addons to the cluster. Simply calls Apply on
-// each addon.
-func (a *Applier) Apply(ctx context.Context) error {
-	if err := a.waitForKubernetes(ctx); err != nil {
-		return fmt.Errorf("unable to wait for kubernetes: %w", err)
+func (a *Applier) GenerateHelmConfigs(ctx *cli.Context) (dig.Mapping, error) {
+
+	helmConfig := dig.Mapping{
+		"concurrencyLevel": 5,
 	}
+
+	charts := []dig.Mapping{}
+
 	addons, err := a.load()
 	if err != nil {
-		return fmt.Errorf("unable to load addons: %w", err)
+		return helmConfig, fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
-		if err := addon.Apply(ctx); err != nil {
-			return err
+		addonChartConfig, err := addon.GenerateHelmConfig(ctx)
+		if err != nil {
+			return helmConfig, fmt.Errorf("Could not add chart: %w", err)
 		}
+		charts = append(charts, addonChartConfig)
+
+		err = addon.WtriteChartFile()
+		if err != nil {
+			logrus.Fatalf("could not write chart file: %s", err)
+		}
+
 	}
-	return nil
+
+	helmConfig["charts"] = charts
+
+	return helmConfig, nil
 }
 
 // HostPreflights reads all embedded host preflights from all add-ons and returns them
@@ -102,11 +118,11 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		}
 		addons["adminconsole"] = aconsole
 	}
-	custom, err := custom.New("helmvm", getLogger("custom", a.verbose), a.disabledAddons)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create custom addon: %w", err)
-	}
-	addons["custom"] = custom
+	// custom, err := custom.New("helmvm", getLogger("custom", a.verbose), a.disabledAddons)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("unable to create custom addon: %w", err)
+	// }
+	// addons["custom"] = custom
 	return addons, nil
 }
 

@@ -49,6 +49,9 @@ func (d *DefaultsProvider) Init() {
 	if err := os.MkdirAll(d.SSHConfigSubDir(), 0700); err != nil {
 		logrus.Fatalf("unable to create ssh config dir: %s", err)
 	}
+	if err := os.MkdirAll(d.HelmChartSubDir(), 0755); err != nil {
+		logrus.Fatalf("unable to create helm chart dir: %s", err)
+	}
 }
 
 // home returns the user's home dir.
@@ -94,6 +97,12 @@ func (d *DefaultsProvider) K0sctlBinsSubDir() string {
 		return filepath.Join(d.Base, d.home(), k0sBinsSubDirDarwin)
 	}
 	return filepath.Join(d.Base, d.home(), k0sBinsSubDirLinux)
+}
+
+// HelmChartSubDir returns the path to the directory where helm charts are stored
+func (d *DefaultsProvider) HelmChartSubDir() string {
+	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	return filepath.Join(d.Base, d.home(), hidden, "charts")
 }
 
 // HelmVMBinsSubDir returns the path to the directory where helmvm binaries
@@ -148,6 +157,11 @@ func (d *DefaultsProvider) PathToK0sctlBinary(name string) string {
 // belonging to k0sctl). This function does not check if the file exists.
 func (d *DefaultsProvider) PathToHelmVMBinary(name string) string {
 	return filepath.Join(d.HelmVMBinsSubDir(), name)
+}
+
+// PathToHelmChart returns the directory helm chart archives are meterialized in.
+func (d *DefaultsProvider) PathToHelmChart(name string, version string) string {
+	return filepath.Join(d.HelmChartSubDir(), name+"-"+version+".tgz")
 }
 
 // PathToConfig returns the full path to a configuration file. This function

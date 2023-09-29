@@ -104,3 +104,8 @@ func DecentralizedInstall() bool {
 func SetInstallAsDecentralized() error {
 	return def().SetInstallAsDecentralized()
 }
+
+// HelmChartSubDir calls HelmChartSubDir on the default provider.
+func HelmChartSubDir() string {
+	return def().HelmChartSubDir()
+}

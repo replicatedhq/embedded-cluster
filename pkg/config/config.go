@@ -17,8 +17,10 @@ import (
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
 
+	"github.com/replicatedhq/helmvm/pkg/addons"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/infra"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
@@ -52,7 +54,7 @@ func SetUploadBinary(config *v1beta1.Cluster) {
 }
 
 // RenderClusterConfig renders a cluster configuration interactively.
-func RenderClusterConfig(ctx context.Context, nodes []infra.Node, multi bool) (*v1beta1.Cluster, error) {
+func RenderClusterConfig(ctx *cli.Context, nodes []infra.Node, multi bool) (*v1beta1.Cluster, error) {
 	if multi {
 		return renderMultiNodeConfig(ctx, nodes)
 	}
@@ -216,12 +218,12 @@ func askForLoadBalancer() (string, error) {
 
 // renderMultiNodeConfig renders a configuration to allow k0sctl to install in a multi-node
 // configuration.
-func renderMultiNodeConfig(ctx context.Context, nodes []infra.Node) (*v1beta1.Cluster, error) {
+func renderMultiNodeConfig(ctx *cli.Context, nodes []infra.Node) (*v1beta1.Cluster, error) {
 	var err error
 	var hosts []*cluster.Host
 	fmt.Println("You are about to configure a new cluster.")
 	if len(nodes) == 0 {
-		if hosts, err = interactiveHosts(ctx); err != nil {
+		if hosts, err = interactiveHosts(ctx.Context); err != nil {
 			return nil, fmt.Errorf("unable to collect hosts: %w", err)
 		}
 	} else {
@@ -240,11 +242,26 @@ func renderMultiNodeConfig(ctx context.Context, nodes []infra.Node) (*v1beta1.Cl
 			return nil, fmt.Errorf("unable to ask for load balancer: %w", err)
 		}
 	}
-	return generateConfigForHosts(lb, hosts...)
+	return generateConfigForHosts(ctx, lb, hosts...)
 }
 
 // generateConfigForHosts generates a v1beta1.Cluster object for a given list of hosts.
-func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
+func generateConfigForHosts(c *cli.Context, lb string, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
+
+	opts := []addons.Option{}
+	if c.Bool("no-prompt") {
+		opts = append(opts, addons.WithoutPrompt())
+	}
+
+	for _, addon := range c.StringSlice("disable-addon") {
+		opts = append(opts, addons.WithoutAddon(addon))
+	}
+
+	helmConfigs, err := addons.NewApplier(opts...).GenerateHelmConfigs(c)
+	if err != nil {
+		return nil, fmt.Errorf("unable to apply addons: %w", err)
+	}
+
 	var configSpec = dig.Mapping{
 		"network": dig.Mapping{
 			"provider": "calico",
@@ -252,7 +269,11 @@ func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster
 		"telemetry": dig.Mapping{
 			"enabled": false,
 		},
+		"extensions": dig.Mapping{
+			"helm": helmConfigs,
+		},
 	}
+
 	if lb != "" {
 		configSpec["api"] = dig.Mapping{"externalAddress": lb, "sans": []string{lb}}
 	}
@@ -262,6 +283,7 @@ func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster
 		"metadata":   dig.Mapping{"name": defaults.BinaryName()},
 		"spec":       configSpec,
 	}
+
 	return &v1beta1.Cluster{
 		APIVersion: "k0sctl.k0sproject.io/v1beta1",
 		Kind:       "Cluster",
@@ -278,7 +300,7 @@ func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster
 
 // renderSingleNodeConfig renders a configuration to allow k0sctl to install in the localhost
 // in a single-node configuration.
-func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
+func renderSingleNodeConfig(ctx *cli.Context) (*v1beta1.Cluster, error) {
 	usr, err := user.Current()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get current user: %w", err)
@@ -301,7 +323,7 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 		return nil, fmt.Errorf("unable to connect to %s: %w", ipaddr, err)
 	}
 	rhost := host.render()
-	return generateConfigForHosts("", rhost)
+	return generateConfigForHosts(ctx, "", rhost)
 }
 
 // UpdateHostsFiles passes through all hosts in the provided configuration and makes sure

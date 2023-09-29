@@ -212,7 +212,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apiextensions-apiserver v0.28.1 // indirect
 	k8s.io/apiserver v0.28.1 // indirect
 	k8s.io/cli-runtime v0.28.1 // indirect

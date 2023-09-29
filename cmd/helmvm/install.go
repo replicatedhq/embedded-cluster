@@ -235,7 +235,7 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("unable to open config: %w", err)
 	}
-	cfg, err := config.RenderClusterConfig(c.Context, nodes, multi)
+	cfg, err := config.RenderClusterConfig(c, nodes, multi)
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}
@@ -407,40 +407,47 @@ var installCommand = &cli.Command{
 		if err := goods.Materialize(); err != nil {
 			return fmt.Errorf("unable to materialize binaries: %w", err)
 		}
-		if !c.Bool("addons-only") {
-			var err error
-			var nodes []infra.Node
-			if dir := c.String("infra"); dir != "" {
-				logrus.Infof("Processing infrastructure manifests")
-				if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
-					return fmt.Errorf("unable to create infra: %w", err)
-				}
-			}
-			if err := applyK0sctl(c, useprompt, nodes); err != nil {
-				return fmt.Errorf("unable update cluster: %w", err)
-			}
+
+		//var err error
+		var nodes []infra.Node
+
+		// if dir := c.String("infra"); dir != "" {
+		// 	logrus.Infof("Processing infrastructure manifests")
+		// 	if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
+		// 		return fmt.Errorf("unable to create infra: %w", err)
+		// 	}
+		// }
+
+		if err := applyK0sctl(c, useprompt, nodes); err != nil {
+			return fmt.Errorf("unable update cluster: %w", err)
 		}
+
 		logrus.Infof("Reading cluster access configuration")
 		if err := runK0sctlKubeconfig(c.Context); err != nil {
 			return fmt.Errorf("unable to get kubeconfig: %w", err)
 		}
-		logrus.Infof("Applying add-ons")
+
+		// logrus.Infof("Applying add-ons")
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
-		os.Setenv("KUBECONFIG", kcfg)
-		opts := []addons.Option{}
-		if c.Bool("no-prompt") {
-			opts = append(opts, addons.WithoutPrompt())
-		}
-		for _, addon := range c.StringSlice("disable-addon") {
-			opts = append(opts, addons.WithoutAddon(addon))
-		}
-		if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
-			return fmt.Errorf("unable to apply addons: %w", err)
-		}
-		if err := runPostApply(c.Context); err != nil {
-			return fmt.Errorf("unable to run post apply: %w", err)
-		}
+		// os.Setenv("KUBECONFIG", kcfg)
+		// opts := []addons.Option{}
+		// if c.Bool("no-prompt") {
+		// 	opts = append(opts, addons.WithoutPrompt())
+		// }
+
+		// for _, addon := range c.StringSlice("disable-addon") {
+		// 	opts = append(opts, addons.WithoutAddon(addon))
+		// }
+
+		// if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
+		// 	return fmt.Errorf("unable to apply addons: %w", err)
+		// }
+
+		// if err := runPostApply(c.Context); err != nil {
+		// 	return fmt.Errorf("unable to run post apply: %w", err)
+		// }
+
 		fmt.Println("Cluster configuration has been applied")
 		fmt.Printf("Kubeconfig file has been placed at at %s\n", kcfg)
 		fmt.Printf("Cluster configuration file has been placed at %s\n", ccfg)

@@ -138,12 +138,12 @@ var upgradeCommand = &cli.Command{
 		if c.Bool("no-prompt") {
 			opts = append(opts, addons.WithoutPrompt())
 		}
-		for _, addon := range c.StringSlice("disable-addon") {
-			opts = append(opts, addons.WithoutAddon(addon))
-		}
-		if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
-			return fmt.Errorf("unable to apply addons: %w", err)
-		}
+		// for _, addon := range c.StringSlice("disable-addon") {
+		// 	opts = append(opts, addons.WithoutAddon(addon))
+		// }
+		// if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
+		// 	return fmt.Errorf("unable to apply addons: %w", err)
+		// }
 		logrus.Infof("Upgrade complete")
 		return nil
 	},

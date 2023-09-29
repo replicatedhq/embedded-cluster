@@ -5,21 +5,26 @@ package openebs
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/k0sproject/dig"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
+	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs/charts"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	"github.com/replicatedhq/helmvm/pkg/defaults"
 )
 
 const (
 	releaseName = "openebs"
+	appVersion  = "3.7.0"
 )
 
 var helmValues = map[string]interface{}{
@@ -56,58 +61,43 @@ func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
-func (o *OpenEBS) Apply(ctx context.Context) error {
-	loading := pb.Start()
-	loading.Infof("Applying OpenEBS addon")
-	defer loading.Close()
-	version, err := o.latest()
+func (o *OpenEBS) GetChartFileName() string {
+	return fmt.Sprintf("openebs-%s.tgz", appVersion)
+}
+
+func (o *OpenEBS) GenerateHelmConfig(ctx *cli.Context) (dig.Mapping, error) {
+	chartConfig := dig.Mapping{
+		"name":      releaseName,
+		"namespace": o.namespace,
+		"version":   appVersion,
+	}
+
+	chartConfig["chartName"] = filepath.Join(defaults.HelmChartSubDir(), o.GetChartFileName())
+
+	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
-		return fmt.Errorf("unable to get latest version: %w", err)
+		return chartConfig, err
 	}
-	if !semver.IsValid(version) {
-		return fmt.Errorf("unable to parse version %s", version)
-	}
-	fname := fmt.Sprintf("openebs-%s.tgz", strings.TrimPrefix(version, "v"))
-	hfp, err := charts.FS.Open(fname)
+	chartConfig["values"] = string(valuesStringData)
+
+	return chartConfig, nil
+}
+
+func (o *OpenEBS) WtriteChartFile() error {
+	chartfile := o.GetChartFileName()
+
+	src, err := charts.FS.Open(chartfile)
 	if err != nil {
-		return fmt.Errorf("unable to find version %s: %w", version, err)
+		return fmt.Errorf("could not load chart file: %w", err)
 	}
-	defer hfp.Close()
 
-	hchart, err := loader.LoadArchive(hfp)
+	dstpath := filepath.Join(defaults.HelmChartSubDir(), chartfile)
+	dst, err := os.Create(dstpath)
 	if err != nil {
-		return fmt.Errorf("unable to load chart: %w", err)
+		return fmt.Errorf("could not write helm chart archive: %w", err)
 	}
 
-	release, err := o.installedRelease(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to list openebs releases: %w", err)
-	}
-
-	if release == nil {
-		o.logger("OpenEBS hasn't been installed yet, installing it.")
-		act := action.NewInstall(o.config)
-		act.Namespace = o.namespace
-		act.ReleaseName = releaseName
-		act.CreateNamespace = true
-		if _, err := act.RunWithContext(ctx, hchart, helmValues); err != nil {
-			return fmt.Errorf("unable to install chart: %w", err)
-		}
-		return nil
-	}
-
-	o.logger("OpenEBS already installed on the cluster, checking version.")
-	installedVersion := fmt.Sprintf("v%s", release.Chart.Metadata.Version)
-	if out := semver.Compare(installedVersion, version); out > 0 {
-		return fmt.Errorf("unable to downgrade from %s to %s", installedVersion, version)
-	}
-
-	o.logger("Updating OpenEBS from %s to %s", installedVersion, version)
-	act := action.NewUpgrade(o.config)
-	act.Namespace = o.namespace
-	if _, err := act.RunWithContext(ctx, releaseName, hchart, helmValues); err != nil {
-		return fmt.Errorf("unable to upgrade chart: %w", err)
-	}
+	io.Copy(dst, src)
 	return nil
 }
 
@@ -155,11 +145,5 @@ func (o *OpenEBS) installedRelease(ctx context.Context) (*release.Release, error
 }
 
 func New(namespace string, logger action.DebugLog) (*OpenEBS, error) {
-	env := cli.New()
-	env.SetNamespace(namespace)
-	config := &action.Configuration{}
-	if err := config.Init(env.RESTClientGetter(), namespace, "", logger); err != nil {
-		return nil, fmt.Errorf("unable to init configuration: %w", err)
-	}
-	return &OpenEBS{namespace: namespace, config: config, logger: logger}, nil
+	return &OpenEBS{namespace: namespace, logger: logger}, nil
 }

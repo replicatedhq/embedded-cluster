@@ -5,23 +5,27 @@ package adminconsole
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/k0sproject/dig"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
+	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
-	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
 const (
 	releaseName = "adminconsole"
+	appVersion  = "1.100.1"
 )
 
 var helmValues = map[string]interface{}{
@@ -56,6 +60,7 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
 	return map[string]string{"AdminConsole": latest}, nil
+
 }
 
 // HostPreflight returns the host preflight objects found inside the adminconsole
@@ -86,72 +91,56 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	return nil
 }
 
-func (a *AdminConsole) Apply(ctx context.Context) error {
-	version, err := a.Latest()
-	if err != nil {
-		return fmt.Errorf("unable to get latest Admin Console version: %w", err)
-	}
-	if !semver.IsValid(version) {
-		return fmt.Errorf("unable to parse version %s", version)
+func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context) (dig.Mapping, error) {
+
+	chartConfig := dig.Mapping{
+		"name":      releaseName,
+		"namespace": a.namespace,
+		"version":   appVersion,
 	}
 
-	fname := fmt.Sprintf("adminconsole-%s.tgz", strings.TrimPrefix(version, "v"))
-	hfp, err := charts.FS.Open(fname)
-	if err != nil {
-		return fmt.Errorf("unable to find version %s: %w", version, err)
-	}
-	defer hfp.Close()
+	chartConfig["chartName"] = filepath.Join(defaults.HelmChartSubDir(), a.GetChartFileName())
 
 	if err := a.addLicenseToHelmValues(); err != nil {
-		return fmt.Errorf("unable to add license to helm values: %w", err)
+		return chartConfig, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 
-	hchart, err := loader.LoadArchive(hfp)
+	pass, err := a.askPassword()
 	if err != nil {
-		return fmt.Errorf("unable to load chart: %w", err)
+		return chartConfig, fmt.Errorf("unable to ask for password: %w", err)
 	}
 
-	release, err := a.installedRelease(ctx)
+	helmValues["password"] = pass
+
+	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
-		return fmt.Errorf("unable to list adminconsole releases: %w", err)
+		return chartConfig, err
+	}
+	chartConfig["values"] = string(valuesStringData)
+
+	return chartConfig, nil
+
+}
+
+func (a *AdminConsole) WtriteChartFile() error {
+	chartfile := a.GetChartFileName()
+	src, err := charts.FS.Open(chartfile)
+	if err != nil {
+		return fmt.Errorf("could not load chart file: %w", err)
 	}
 
-	if release == nil {
-		a.logger("Admin Console hasn't been installed yet, installing it.")
-		pass, err := a.askPassword()
-		if err != nil {
-			return fmt.Errorf("unable to ask for password: %w", err)
-		}
-		loading := pb.Start()
-		loading.Infof("Applying AdminConsole addon")
-		defer loading.Close()
-		helmValues["password"] = pass
-		act := action.NewInstall(a.config)
-		act.Namespace = a.namespace
-		act.ReleaseName = releaseName
-		act.CreateNamespace = true
-		if _, err := act.RunWithContext(ctx, hchart, helmValues); err != nil {
-			return fmt.Errorf("unable to install chart: %w", err)
-		}
-		return a.customization.apply(ctx)
+	dstpath := filepath.Join(defaults.HelmChartSubDir(), chartfile)
+	dst, err := os.Create(dstpath)
+	if err != nil {
+		return fmt.Errorf("could not write helm chart archive: %w", err)
 	}
 
-	a.logger("Admin Console already installed on the cluster, checking version.")
-	installedVersion := fmt.Sprintf("v%s", release.Chart.Metadata.Version)
-	if out := semver.Compare(installedVersion, version); out > 0 {
-		return fmt.Errorf("unable to downgrade from %s to %s", installedVersion, version)
-	}
+	io.Copy(dst, src)
+	return nil
+}
 
-	loading := pb.Start()
-	loading.Infof("Applying AdminConsole addon")
-	defer loading.Close()
-	a.logger("Updating Admin Console from %s to %s", installedVersion, version)
-	act := action.NewUpgrade(a.config)
-	act.Namespace = a.namespace
-	if _, err := act.RunWithContext(ctx, releaseName, hchart, helmValues); err != nil {
-		return fmt.Errorf("unable to upgrade chart: %w", err)
-	}
-	return a.customization.apply(ctx)
+func (a *AdminConsole) GetChartFileName() string {
+	return fmt.Sprintf("adminconsole-%s.tgz", appVersion)
 }
 
 func (a *AdminConsole) Latest() (string, error) {
@@ -160,7 +149,7 @@ func (a *AdminConsole) Latest() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to read charts directory: %w", err)
 	}
-	var latest string
+	latest := ""
 	for _, file := range files {
 		if !strings.HasSuffix(file.Name(), ".tgz") {
 			continue
@@ -198,16 +187,8 @@ func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, 
 }
 
 func New(ns string, useprompt bool, log action.DebugLog) (*AdminConsole, error) {
-	env := cli.New()
-	env.SetNamespace(ns)
-	config := &action.Configuration{}
-	if err := config.Init(env.RESTClientGetter(), ns, "", log); err != nil {
-		return nil, fmt.Errorf("unable to init configuration: %w", err)
-	}
 	return &AdminConsole{
 		namespace:     ns,
-		config:        config,
-		logger:        log,
 		useprompt:     useprompt,
 		customization: AdminConsoleCustomization{},
 	}, nil
