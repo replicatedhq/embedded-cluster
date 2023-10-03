@@ -64,7 +64,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 		logrus.Infof("Creating systemd unit file")
-		if err := createSystemdUnitFile(c.String("role")); err != nil {
+		if err := createSystemdUnitFile(hvmtoken.Role); err != nil {
 			err := fmt.Errorf("unable to create systemd unit file: %w", err)
 			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
 			return err
