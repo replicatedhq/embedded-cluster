@@ -73,7 +73,7 @@ func (e UpgradeFailed) Title() string {
 // JoinStarted event is send back home when a node join starts.
 type JoinStarted struct {
 	ClusterID uuid.UUID `json:"clusterID"`
-	Name      string    `json:"name"`
+	NodeName  string    `json:"nodeName"`
 }
 
 // Title returns the name of the event.
@@ -92,7 +92,7 @@ func (e JoinSucceeded) Title() string {
 // JoinFailed event is send back home when a node join fails.
 type JoinFailed struct {
 	ClusterID uuid.UUID `json:"clusterID"`
-	Name      string    `json:"name"`
+	NodeName  string    `json:"nodeName"`
 	Reason    string    `json:"reason"`
 }
 

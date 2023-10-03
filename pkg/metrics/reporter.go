@@ -129,13 +129,13 @@ func ReportJoinSucceeded(ctx context.Context, clusterID uuid.UUID) {
 }
 
 // ReportJoinFailed reports that a join has failed.
-func ReportJoinFailed(ctx context.Context, clusterID uuid.UUID, err error) {
+func ReportJoinFailed(ctx context.Context, clusterID uuid.UUID, exterr error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		logrus.Warnf("unable to get hostname: %s", err)
 		hostname = "unknown"
 	}
-	Send(ctx, JoinFailed{clusterID, hostname, err.Error()})
+	Send(ctx, JoinFailed{clusterID, hostname, exterr.Error()})
 }
 
 // ReportApplyStarted decides if we are going to report an InstallationStarted
