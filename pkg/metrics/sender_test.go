@@ -71,21 +71,21 @@ func TestSend(t *testing.T) {
 			name: "JoinStarted",
 			event: JoinStarted{
 				ClusterID: uuid.New(),
-				Name:      "foo",
+				NodeName:  "foo",
 			},
 		},
 		{
 			name: "JoinSucceeded",
 			event: JoinSucceeded{
 				ClusterID: uuid.New(),
-				Name:      "foo",
+				NodeName:  "foo",
 			},
 		},
 		{
 			name: "JoinFailed",
 			event: JoinFailed{
 				ClusterID: uuid.New(),
-				Name:      "foo",
+				NodeName:  "foo",
 				Reason:    "bar",
 			},
 		},
