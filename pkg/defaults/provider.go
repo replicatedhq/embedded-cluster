@@ -198,3 +198,11 @@ func (d *DefaultsProvider) SetInstallAsDecentralized() error {
 	defer fp.Close()
 	return nil
 }
+
+// IsUpgrade determines if we are upgrading a cluster judging by the existence
+// or not of a kubeconfig file in the configuration directory.
+func (d *DefaultsProvider) IsUpgrade() bool {
+	fpath := d.PathToConfig("kubeconfig")
+	_, err := os.Stat(fpath)
+	return err == nil
+}

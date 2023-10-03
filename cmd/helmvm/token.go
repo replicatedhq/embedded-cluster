@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,10 +11,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/helmvm/pkg/metrics"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
@@ -20,6 +24,14 @@ var tokenCommands = &cli.Command{
 	Name:        "token",
 	Usage:       "Manage node join tokens",
 	Subcommands: []*cli.Command{tokenCreateCommand},
+}
+
+// JoinToken is a struct that holds both the actual token and the cluster id. This is marshaled
+// and base64 encoded and used as argument to the join command in the other nodes.
+type JoinToken struct {
+	ClusterID uuid.UUID `json:"clusterID"`
+	Token     string    `json:"token"`
+	Role      string    `json:"role"`
 }
 
 var tokenCreateCommand = &cli.Command{
@@ -83,14 +95,22 @@ var tokenCreateCommand = &cli.Command{
 		}
 		if !defaults.DecentralizedInstall() {
 			if err := defaults.SetInstallAsDecentralized(); err != nil {
-				return fmt.Errorf("failed to set decentralized install: %w", err)
+				return fmt.Errorf("unable to set decentralized install: %w", err)
 			}
 		}
+		token := JoinToken{ClusterID: metrics.ClusterID(), Token: buf.String(), Role: role}
+		encodedToken := bytes.NewBuffer(nil)
+		encoder := base64.NewEncoder(base64.StdEncoding, encodedToken)
+		marshaler := json.NewEncoder(encoder)
+		if err := marshaler.Encode(token); err != nil {
+			return fmt.Errorf("unable to encode token: %w", err)
+		}
+		encoder.Close()
 		fmt.Println("Token created successfully.")
 		fmt.Printf("This token is valid for %s hours.\n", dur)
 		fmt.Println("You can now run the following command in a remote node to add it")
 		fmt.Printf("to the cluster as a %q node:\n", role)
-		fmt.Printf("%s node join --role %s %s", defaults.BinaryName(), role, buf.String())
+		fmt.Printf("%s node join %s", defaults.BinaryName(), encodedToken.String())
 		return nil
 	},
 }

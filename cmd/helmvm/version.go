@@ -11,8 +11,6 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 )
 
-var Version = "v0.0.0"
-
 var versionCommand = &cli.Command{
 	Name:  "version",
 	Usage: fmt.Sprintf("Shows the %s installer version", defaults.BinaryName()),
@@ -24,7 +22,7 @@ var versionCommand = &cli.Command{
 		}
 		writer := table.NewWriter()
 		writer.AppendHeader(table.Row{"component", "version"})
-		writer.AppendRow(table.Row{"Installer", Version})
+		writer.AppendRow(table.Row{"Installer", defaults.Version})
 		writer.AppendRow(table.Row{"Kubernetes", defaults.K0sVersion})
 		for name, version := range versions {
 			if !strings.HasPrefix(version, "v") {
