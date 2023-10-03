@@ -178,3 +178,33 @@ func ReportApplyFinished(c *cli.Context, err error) {
 	}
 	ReportInstallationSuceeded(ctx)
 }
+
+// ReportNodeUpgradeStarted reports that a node upgrade has started.
+func ReportNodeUpgradeStarted(ctx context.Context) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("unable to get hostname: %s", err)
+		hostname = "unknown"
+	}
+	Send(ctx, NodeUpgradeStarted{ClusterID(), hostname})
+}
+
+// ReportNodeUpgradeSucceeded reports that a node upgrade has finished successfully.
+func ReportNodeUpgradeSucceeded(ctx context.Context) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("unable to get hostname: %s", err)
+		hostname = "unknown"
+	}
+	Send(ctx, NodeUpgradeSucceeded{ClusterID(), hostname})
+}
+
+// ReportNodeUpgradeFailed reports that node upgrade has failed.
+func ReportNodeUpgradeFailed(ctx context.Context, exterr error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("unable to get hostname: %s", err)
+		hostname = "unknown"
+	}
+	Send(ctx, NodeUpgradeFailed{ClusterID(), hostname, exterr.Error()})
+}

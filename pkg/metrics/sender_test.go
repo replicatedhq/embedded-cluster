@@ -89,6 +89,28 @@ func TestSend(t *testing.T) {
 				Reason:    "bar",
 			},
 		},
+		{
+			name: "NodeUpgradeStarted",
+			event: NodeUpgradeStarted{
+				ClusterID: uuid.New(),
+				NodeName:  "foo",
+			},
+		},
+		{
+			name: "NodeUpgradeSucceeded",
+			event: NodeUpgradeSucceeded{
+				ClusterID: uuid.New(),
+				NodeName:  "foo",
+			},
+		},
+		{
+			name: "NodeUpgradeFailed",
+			event: NodeUpgradeFailed{
+				ClusterID: uuid.New(),
+				NodeName:  "foo",
+				Reason:    "bar",
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			payload := map[string]Event{"event": tt.event}

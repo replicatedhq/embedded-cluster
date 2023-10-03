@@ -75,6 +75,13 @@ var joinCommand = &cli.Command{
 			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
 			return err
 		}
+		fpath := defaults.PathToConfig(".cluster-id")
+		cid := hvmtoken.ClusterID.String()
+		if err := os.WriteFile(fpath, []byte(cid), 0644); err != nil {
+			err := fmt.Errorf("unable to write cluster id to disk: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
+		}
 		metrics.ReportJoinSucceeded(c.Context, hvmtoken.ClusterID)
 		return nil
 	},

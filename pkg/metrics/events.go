@@ -100,3 +100,30 @@ type JoinFailed struct {
 func (e JoinFailed) Title() string {
 	return "JoinFailed"
 }
+
+// NodeUpgradeStarted event is send back home when a node upgrade
+// starts.
+type NodeUpgradeStarted JoinStarted
+
+// Title returns the name of the event.
+func (e NodeUpgradeStarted) Title() string {
+	return "NodeUpgradeStarted"
+}
+
+// NodeUpgradeSucceeded event is send back home when a node upgrade
+// succeeds.
+type NodeUpgradeSucceeded NodeUpgradeStarted
+
+// Title returns the name of the event.
+func (e NodeUpgradeSucceeded) Title() string {
+	return "NodeUpgradeSucceeded"
+}
+
+// NodeUpgradeFailed event is send back home when a node upgrade
+// fails.
+type NodeUpgradeFailed JoinFailed
+
+// Title returns the name of the event.
+func (e NodeUpgradeFailed) Title() string {
+	return "NodeUpgradeFailed"
+}
