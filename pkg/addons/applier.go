@@ -50,6 +50,7 @@ type Applier struct {
 	verbose        bool
 }
 
+// GenerateHelmConfigs generates the helm config for all the embedded charts.
 func (a *Applier) GenerateHelmConfigs(ctx *cli.Context) (dig.Mapping, error) {
 
 	helmConfig := dig.Mapping{
@@ -101,21 +102,21 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 func (a *Applier) load() (map[string]AddOn, error) {
 	addons := map[string]AddOn{}
 	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
-		obs, err := openebs.New("helmvm", getLogger("openebs", a.verbose))
+		obs, err := openebs.New("helmvm")
 		if err != nil {
 			return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 		}
 		addons["openebs"] = obs
 	}
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("helmvm", a.prompt, getLogger("adminconsole", a.verbose))
+		aconsole, err := adminconsole.New("helmvm", a.prompt)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 		}
 		addons["adminconsole"] = aconsole
 	}
 
-	custom, err := custom.New("helmvm", getLogger("custom", a.verbose), a.disabledAddons)
+	custom, err := custom.New("helmvm", a.disabledAddons)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create custom addon: %w", err)
 	}

@@ -3,7 +3,6 @@
 package openebs
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -16,8 +15,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v2"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/release"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs/charts"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
@@ -43,8 +40,6 @@ var helmValues = map[string]interface{}{
 }
 
 type OpenEBS struct {
-	config    *action.Configuration
-	logger    action.DebugLog
 	namespace string
 }
 
@@ -113,7 +108,7 @@ func (o *OpenEBS) WriteChartFile() error {
 }
 
 func (o *OpenEBS) latest() (string, error) {
-	o.logger("Finding latest OpenEBS addon version")
+	logrus.Info("Finding latest OpenEBS addon version")
 	files, err := charts.FS.ReadDir(".")
 	if err != nil {
 		return "", fmt.Errorf("unable to read charts directory: %w", err)
@@ -137,24 +132,10 @@ func (o *OpenEBS) latest() (string, error) {
 			latest = currentV
 		}
 	}
-	o.logger("Latest OpenEBS version found: %s", latest)
+	logrus.Infof("Latest OpenEBS version found: %s", latest)
 	return latest, nil
 }
 
-func (o *OpenEBS) installedRelease(ctx context.Context) (*release.Release, error) {
-	list := action.NewList(o.config)
-	list.StateMask = action.ListDeployed
-	list.Filter = releaseName
-	releases, err := list.Run()
-	if err != nil {
-		return nil, fmt.Errorf("unable to list installed releases: %w", err)
-	}
-	if len(releases) == 0 {
-		return nil, nil
-	}
-	return releases[0], nil
-}
-
-func New(namespace string, logger action.DebugLog) (*OpenEBS, error) {
-	return &OpenEBS{namespace: namespace, logger: logger}, nil
+func New(namespace string) (*OpenEBS, error) {
+	return &OpenEBS{namespace: namespace}, nil
 }

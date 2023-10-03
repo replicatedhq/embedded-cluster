@@ -3,7 +3,6 @@
 package adminconsole
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -16,8 +15,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v3"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/release"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
@@ -41,8 +38,6 @@ var helmValues = map[string]interface{}{
 
 type AdminConsole struct {
 	customization AdminConsoleCustomization
-	config        *action.Configuration
-	logger        action.DebugLog
 	namespace     string
 	useprompt     bool
 }
@@ -92,6 +87,8 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	return nil
 }
 
+// GenerateHelmConfig generates the helm config for the adminconsole
+// and writes the charts to the disk.
 func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
 
 	chartConfig := dig.Mapping{
@@ -155,7 +152,7 @@ func (a *AdminConsole) GetChartFileName() string {
 }
 
 func (a *AdminConsole) Latest() (string, error) {
-	a.logger("Finding Latest Admin Console addon version")
+	logrus.Infof("Finding latest Admin Console addon version")
 	files, err := charts.FS.ReadDir(".")
 	if err != nil {
 		return "", fmt.Errorf("unable to read charts directory: %w", err)
@@ -179,25 +176,11 @@ func (a *AdminConsole) Latest() (string, error) {
 			latest = currentV
 		}
 	}
-	a.logger("Latest Admin Console version found: %s", latest)
+	logrus.Infof("Latest Admin Console version found: %s", latest)
 	return latest, nil
 }
 
-func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, error) {
-	list := action.NewList(a.config)
-	list.StateMask = action.ListDeployed
-	list.Filter = releaseName
-	releases, err := list.Run()
-	if err != nil {
-		return nil, fmt.Errorf("unable to list installed releases: %w", err)
-	}
-	if len(releases) == 0 {
-		return nil, nil
-	}
-	return releases[0], nil
-}
-
-func New(ns string, useprompt bool, log action.DebugLog) (*AdminConsole, error) {
+func New(ns string, useprompt bool) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:     ns,
 		useprompt:     useprompt,
