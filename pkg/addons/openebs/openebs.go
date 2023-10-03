@@ -12,6 +12,7 @@ import (
 
 	"github.com/k0sproject/dig"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v2"
@@ -65,7 +66,10 @@ func (o *OpenEBS) GetChartFileName() string {
 	return fmt.Sprintf("openebs-%s.tgz", appVersion)
 }
 
-func (o *OpenEBS) GenerateHelmConfig(ctx *cli.Context) (dig.Mapping, error) {
+func (o *OpenEBS) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
+
+	chartConfigs := []dig.Mapping{}
+
 	chartConfig := dig.Mapping{
 		"name":      releaseName,
 		"namespace": o.namespace,
@@ -76,14 +80,21 @@ func (o *OpenEBS) GenerateHelmConfig(ctx *cli.Context) (dig.Mapping, error) {
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
-		return chartConfig, err
+		return chartConfigs, err
 	}
 	chartConfig["values"] = string(valuesStringData)
 
-	return chartConfig, nil
+	chartConfigs = append(chartConfigs, chartConfig)
+
+	err = o.WriteChartFile()
+	if err != nil {
+		logrus.Fatalf("could not write chart file: %s", err)
+	}
+
+	return chartConfigs, nil
 }
 
-func (o *OpenEBS) WtriteChartFile() error {
+func (o *OpenEBS) WriteChartFile() error {
 	chartfile := o.GetChartFileName()
 
 	src, err := charts.FS.Open(chartfile)

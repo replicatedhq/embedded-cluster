@@ -12,6 +12,7 @@ import (
 
 	"github.com/k0sproject/dig"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v3"
@@ -91,7 +92,7 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	return nil
 }
 
-func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context) (dig.Mapping, error) {
+func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
 
 	chartConfig := dig.Mapping{
 		"name":      releaseName,
@@ -99,30 +100,39 @@ func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context) (dig.Mapping, error)
 		"version":   appVersion,
 	}
 
+	chartConfigs := []dig.Mapping{}
+
 	chartConfig["chartName"] = filepath.Join(defaults.HelmChartSubDir(), a.GetChartFileName())
 
 	if err := a.addLicenseToHelmValues(); err != nil {
-		return chartConfig, fmt.Errorf("unable to add license to helm values: %w", err)
+		return chartConfigs, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 
 	pass, err := a.askPassword()
 	if err != nil {
-		return chartConfig, fmt.Errorf("unable to ask for password: %w", err)
+		return chartConfigs, fmt.Errorf("unable to ask for password: %w", err)
 	}
 
 	helmValues["password"] = pass
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
-		return chartConfig, err
+		return chartConfigs, err
 	}
 	chartConfig["values"] = string(valuesStringData)
 
-	return chartConfig, nil
+	chartConfigs = append(chartConfigs, chartConfig)
+
+	err = a.WriteChartFile()
+	if err != nil {
+		logrus.Fatalf("could not write chart file: %s", err)
+	}
+
+	return chartConfigs, nil
 
 }
 
-func (a *AdminConsole) WtriteChartFile() error {
+func (a *AdminConsole) WriteChartFile() error {
 	chartfile := a.GetChartFileName()
 	src, err := charts.FS.Open(chartfile)
 	if err != nil {
@@ -135,8 +145,9 @@ func (a *AdminConsole) WtriteChartFile() error {
 		return fmt.Errorf("could not write helm chart archive: %w", err)
 	}
 
-	io.Copy(dst, src)
-	return nil
+	_, err = io.Copy(dst, src)
+
+	return err
 }
 
 func (a *AdminConsole) GetChartFileName() string {

@@ -21,6 +21,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
+	"github.com/replicatedhq/helmvm/pkg/addons/custom"
+
 	//"github.com/replicatedhq/helmvm/pkg/addons/custom"
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
@@ -38,8 +40,7 @@ func getLogger(addon string, verbose bool) action.DebugLog {
 type AddOn interface {
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(ctx *cli.Context) (dig.Mapping, error)
-	WtriteChartFile() error
+	GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error)
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -66,12 +67,7 @@ func (a *Applier) GenerateHelmConfigs(ctx *cli.Context) (dig.Mapping, error) {
 		if err != nil {
 			return helmConfig, fmt.Errorf("Could not add chart: %w", err)
 		}
-		charts = append(charts, addonChartConfig)
-
-		err = addon.WtriteChartFile()
-		if err != nil {
-			logrus.Fatalf("could not write chart file: %s", err)
-		}
+		charts = append(charts, addonChartConfig...)
 
 	}
 
@@ -118,11 +114,13 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		}
 		addons["adminconsole"] = aconsole
 	}
-	// custom, err := custom.New("helmvm", getLogger("custom", a.verbose), a.disabledAddons)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("unable to create custom addon: %w", err)
-	// }
-	// addons["custom"] = custom
+
+	custom, err := custom.New("helmvm", getLogger("custom", a.verbose), a.disabledAddons)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create custom addon: %w", err)
+	}
+	addons["custom"] = custom
+
 	return addons, nil
 }
 

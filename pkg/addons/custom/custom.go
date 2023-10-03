@@ -5,18 +5,23 @@ package custom
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/k0sproject/dig"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
 	"sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/hembed"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
@@ -55,6 +60,60 @@ func (c *Custom) Version() (map[string]string, error) {
 // to implement this yet.
 func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
+}
+
+// GenerateHelmConfig generates the helm config for all the embedded charts.
+// and writes the charts to the disk.
+func (c *Custom) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
+
+	chartConfigs := []dig.Mapping{}
+
+	exe, err := os.Executable()
+	if err != nil {
+		return chartConfigs, fmt.Errorf("unable to get executable path: %w", err)
+	}
+	opts, err := hembed.ReadEmbedOptionsFromBinary(exe)
+	if err != nil {
+		return chartConfigs, fmt.Errorf("unable to read embed options: %w", err)
+	} else if opts == nil {
+		c.logger("No embed charts found, skipping custom addons.")
+		return chartConfigs, nil
+	}
+
+	for _, chart := range opts.Charts {
+
+		chartData, err := loader.LoadArchive(chart.ChartReader())
+		if err != nil {
+			return chartConfigs, fmt.Errorf("unable to load chart archive: %w", err)
+		}
+
+		chartName := strings.ToLower(chartData.Name())
+		chartFile := fmt.Sprintf("%s-%s.tgz", chartName, chartData.Metadata.Version)
+		dstpath := filepath.Join(defaults.HelmChartSubDir(), chartFile)
+
+		chartConfig := dig.Mapping{
+			"name":      chartName,
+			"namespace": c.namespace,
+			"version":   chartData.Metadata.Version,
+		}
+
+		chartConfig["chartName"] = dstpath
+
+		dst, err := os.Create(dstpath)
+		if err != nil {
+			logrus.Fatalf("could not write helm chart archive: %s", err)
+		}
+
+		_, err = io.Copy(dst, chart.ChartReader())
+		if err != nil {
+			logrus.Fatalf("could not write helm chart archive: %s", err)
+		}
+
+		chartConfigs = append(chartConfigs, chartConfig)
+
+	}
+	return chartConfigs, nil
+
 }
 
 func (c *Custom) Apply(ctx context.Context) error {
@@ -150,15 +209,8 @@ func (c *Custom) installedRelease(name string) (*release.Release, error) {
 }
 
 func New(namespace string, logger action.DebugLog, disabledAddons map[string]bool) (*Custom, error) {
-	env := cli.New()
-	env.SetNamespace(namespace)
-	config := &action.Configuration{}
-	if err := config.Init(env.RESTClientGetter(), namespace, "", logger); err != nil {
-		return nil, fmt.Errorf("unable to init configuration: %w", err)
-	}
 	return &Custom{
 		namespace:      namespace,
-		config:         config,
 		logger:         logger,
 		disabledAddons: disabledAddons,
 	}, nil
