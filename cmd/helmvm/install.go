@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
 	"github.com/k0sproject/rig/log"
@@ -144,8 +145,8 @@ func createK0sctlConfigBackup(ctx context.Context) error {
 // updates the files that need to be uploaded to the nodes). This function also
 // makes sure that the k0s version used in the configuration matches the version
 // we are planning to install.
-func updateConfigBundle(ctx context.Context, bundledir string) error {
-	if err := createK0sctlConfigBackup(ctx); err != nil {
+func updateConfigBundle(c *cli.Context, bundledir string) error {
+	if err := createK0sctlConfigBackup(c.Context); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
 	}
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
@@ -157,6 +158,27 @@ func updateConfigBundle(ctx context.Context, bundledir string) error {
 		return fmt.Errorf("unable to update hosts files: %w", err)
 	}
 	cfg.Spec.K0s.Version = defaults.K0sVersion
+
+	opts := []addons.Option{}
+	if c.Bool("no-prompt") {
+		opts = append(opts, addons.WithoutPrompt())
+	}
+
+	for _, addon := range c.StringSlice("disable-addon") {
+		opts = append(opts, addons.WithoutAddon(addon))
+	}
+
+	helmConfigs, err := addons.NewApplier(opts...).GenerateHelmConfigs(c)
+	if err != nil {
+		return fmt.Errorf("unable to apply addons: %w", err)
+	}
+
+	currentSpec := cfg.Spec.K0s.Config["spec"].(dig.Mapping)
+	extensions := dig.Mapping{
+		"helm": helmConfigs,
+	}
+	currentSpec["extensions"] = extensions
+
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -223,10 +245,10 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 	if _, err := os.Stat(cfgpath); err == nil {
 		if len(nodes) == 0 {
 			if !useprompt {
-				return updateConfigBundle(c.Context, bundledir)
+				return updateConfigBundle(c, bundledir)
 			}
 			if !overwriteExistingConfig() {
-				return updateConfigBundle(c.Context, bundledir)
+				return updateConfigBundle(c, bundledir)
 			}
 		}
 		if err := createK0sctlConfigBackup(c.Context); err != nil {

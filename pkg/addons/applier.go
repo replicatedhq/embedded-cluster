@@ -60,7 +60,6 @@ func (a *Applier) GenerateHelmConfigs(ctx *cli.Context) (dig.Mapping, error) {
 	charts := []dig.Mapping{}
 
 	addons, err := a.load()
-	fmt.Printf("addons: %v", addons)
 
 	if err != nil {
 		return helmConfig, fmt.Errorf("unable to load addons: %w", err)
