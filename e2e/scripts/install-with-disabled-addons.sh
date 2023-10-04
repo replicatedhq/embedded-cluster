@@ -18,8 +18,8 @@ wait_for_healthy_node() {
 }
 
 install_helm() {
-    apt update -y
-    if ! apt install -y curl ; then
+    apt-get update -y
+    if ! apt-get install -y curl ; then
         return 1
     fi
     if ! curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 ; then

@@ -19,8 +19,8 @@ func TestEmbedAndInstall(t *testing.T) {
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")
 	commands := [][]string{
-		{"apt", "update", "-y"},
-		{"apt", "install", "openssh-server", "-y"},
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "openssh-server", "-y"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
@@ -45,8 +45,8 @@ func TestEmbedAddonsOnly(t *testing.T) {
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")
 	commands := [][]string{
-		{"apt", "update", "-y"},
-		{"apt", "install", "openssh-server", "-y"},
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "openssh-server", "-y"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
