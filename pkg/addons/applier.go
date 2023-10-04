@@ -40,7 +40,7 @@ func getLogger(addon string, verbose bool) action.DebugLog {
 type AddOn interface {
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error)
+	GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error)
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -48,6 +48,7 @@ type Applier struct {
 	disabledAddons map[string]bool
 	prompt         bool
 	verbose        bool
+	isUpgrade      bool
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
@@ -66,7 +67,7 @@ func (a *Applier) GenerateHelmConfigs(ctx *cli.Context) (dig.Mapping, error) {
 	}
 	for _, addon := range addons {
 
-		addonChartConfig, err := addon.GenerateHelmConfig(ctx)
+		addonChartConfig, err := addon.GenerateHelmConfig(ctx, a.isUpgrade)
 		if err != nil {
 			return helmConfig, fmt.Errorf("Could not add chart: %w", err)
 		}
@@ -200,6 +201,7 @@ func NewApplier(opts ...Option) *Applier {
 		prompt:         true,
 		verbose:        true,
 		disabledAddons: map[string]bool{},
+		isUpgrade:      false,
 	}
 	for _, fn := range opts {
 		fn(applier)

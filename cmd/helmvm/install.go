@@ -168,6 +168,8 @@ func updateConfigBundle(c *cli.Context, bundledir string) error {
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
 
+	opts = append(opts, addons.IsUpgrade())
+
 	helmConfigs, err := addons.NewApplier(opts...).GenerateHelmConfigs(c)
 	if err != nil {
 		return fmt.Errorf("unable to apply addons: %w", err)

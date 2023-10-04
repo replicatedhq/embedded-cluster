@@ -61,7 +61,7 @@ func (o *OpenEBS) GetChartFileName() string {
 	return fmt.Sprintf("openebs-%s.tgz", appVersion)
 }
 
-func (o *OpenEBS) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
+func (o *OpenEBS) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error) {
 
 	chartConfigs := []dig.Mapping{}
 

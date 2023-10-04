@@ -13,6 +13,12 @@ func WithoutAddon(addon string) Option {
 	}
 }
 
+func IsUpgrade() Option {
+	return func(a *Applier) {
+		a.isUpgrade = true
+	}
+}
+
 // WithoutPrompt disables the prompt before applying addons.
 func WithoutPrompt() Option {
 	return func(a *Applier) {

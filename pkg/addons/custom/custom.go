@@ -56,7 +56,7 @@ func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for all the embedded charts.
 // and writes the charts to the disk.
-func (c *Custom) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
+func (c *Custom) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error) {
 
 	chartConfigs := []dig.Mapping{}
 

@@ -89,7 +89,7 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 
 // GenerateHelmConfig generates the helm config for the adminconsole
 // and writes the charts to the disk.
-func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
+func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error) {
 
 	chartConfig := dig.Mapping{
 		"name":      releaseName,
@@ -105,12 +105,13 @@ func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, erro
 		return chartConfigs, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 
-	pass, err := a.askPassword()
-	if err != nil {
-		return chartConfigs, fmt.Errorf("unable to ask for password: %w", err)
+	if !isUpgrade {
+		pass, err := a.askPassword()
+		if err != nil {
+			return chartConfigs, fmt.Errorf("unable to ask for password: %w", err)
+		}
+		helmValues["password"] = pass
 	}
-
-	helmValues["password"] = pass
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
