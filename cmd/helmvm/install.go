@@ -448,15 +448,15 @@ var installCommand = &cli.Command{
 			return fmt.Errorf("unable to materialize binaries: %w", err)
 		}
 
-		//var err error
+		var err error
 		var nodes []infra.Node
 
-		// if dir := c.String("infra"); dir != "" {
-		// 	logrus.Infof("Processing infrastructure manifests")
-		// 	if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
-		// 		return fmt.Errorf("unable to create infra: %w", err)
-		// 	}
-		// }
+		if dir := c.String("infra"); dir != "" {
+			logrus.Infof("Processing infrastructure manifests")
+			if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
+				return fmt.Errorf("unable to create infra: %w", err)
+			}
+		}
 
 		if err := applyK0sctl(c, useprompt, nodes); err != nil {
 			return fmt.Errorf("unable update cluster: %w", err)
