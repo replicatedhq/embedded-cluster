@@ -13,7 +13,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
 )
 
-// Sender is a helper function that sends an event to the metrics endpoint.
+// Send is a helper function that sends an event to the metrics endpoint.
 // Metrics endpoint can be overwritten by the license.spec.endpoint field
 // or by the HELMVM_METRICS_BASEURL environment variable, the latter has
 // precedence over the former.

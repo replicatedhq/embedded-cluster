@@ -11,7 +11,7 @@ import (
 
 var blocks = []string{"◐", "◓", "◑", "◒"}
 
-// WriterFn is a function that writes a formatted string.
+// WriteFn is a function that writes a formatted string.
 type WriteFn func(string, ...any) (int, error)
 
 // MaskFn is a function that masks a message. Receives a string and
