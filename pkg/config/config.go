@@ -20,7 +20,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/replicatedhq/helmvm/pkg/addons"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/infra"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
@@ -54,11 +53,11 @@ func SetUploadBinary(config *v1beta1.Cluster) {
 }
 
 // RenderClusterConfig renders a cluster configuration interactively.
-func RenderClusterConfig(ctx *cli.Context, nodes []infra.Node, multi bool) (*v1beta1.Cluster, error) {
+func RenderClusterConfig(ctx *cli.Context, nodes []infra.Node, multi bool, helmConfigs dig.Mapping) (*v1beta1.Cluster, error) {
 	if multi {
-		return renderMultiNodeConfig(ctx, nodes)
+		return renderMultiNodeConfig(ctx, nodes, helmConfigs)
 	}
-	return renderSingleNodeConfig(ctx)
+	return renderSingleNodeConfig(ctx, helmConfigs)
 }
 
 // listUserSSHKeys returns a list of private SSH keys in the user's ~/.ssh directory.
@@ -218,7 +217,7 @@ func askForLoadBalancer() (string, error) {
 
 // renderMultiNodeConfig renders a configuration to allow k0sctl to install in a multi-node
 // configuration.
-func renderMultiNodeConfig(ctx *cli.Context, nodes []infra.Node) (*v1beta1.Cluster, error) {
+func renderMultiNodeConfig(ctx *cli.Context, nodes []infra.Node, helmConfigs dig.Mapping) (*v1beta1.Cluster, error) {
 	var err error
 	var hosts []*cluster.Host
 	fmt.Println("You are about to configure a new cluster.")
@@ -242,25 +241,11 @@ func renderMultiNodeConfig(ctx *cli.Context, nodes []infra.Node) (*v1beta1.Clust
 			return nil, fmt.Errorf("unable to ask for load balancer: %w", err)
 		}
 	}
-	return generateConfigForHosts(ctx, lb, hosts...)
+	return generateConfigForHosts(ctx, lb, helmConfigs, hosts...)
 }
 
 // generateConfigForHosts generates a v1beta1.Cluster object for a given list of hosts.
-func generateConfigForHosts(c *cli.Context, lb string, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
-
-	opts := []addons.Option{}
-	if c.Bool("no-prompt") {
-		opts = append(opts, addons.WithoutPrompt())
-	}
-
-	for _, addon := range c.StringSlice("disable-addon") {
-		opts = append(opts, addons.WithoutAddon(addon))
-	}
-
-	helmConfigs, err := addons.NewApplier(opts...).GenerateHelmConfigs(c)
-	if err != nil {
-		return nil, fmt.Errorf("unable to apply addons: %w", err)
-	}
+func generateConfigForHosts(c *cli.Context, lb string, helmConfigs dig.Mapping, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
 
 	var configSpec = dig.Mapping{
 		"network": dig.Mapping{
@@ -300,7 +285,7 @@ func generateConfigForHosts(c *cli.Context, lb string, hosts ...*cluster.Host) (
 
 // renderSingleNodeConfig renders a configuration to allow k0sctl to install in the localhost
 // in a single-node configuration.
-func renderSingleNodeConfig(ctx *cli.Context) (*v1beta1.Cluster, error) {
+func renderSingleNodeConfig(ctx *cli.Context, helmConfigs dig.Mapping) (*v1beta1.Cluster, error) {
 	usr, err := user.Current()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get current user: %w", err)
@@ -323,7 +308,7 @@ func renderSingleNodeConfig(ctx *cli.Context) (*v1beta1.Cluster, error) {
 		return nil, fmt.Errorf("unable to connect to %s: %w", ipaddr, err)
 	}
 	rhost := host.render()
-	return generateConfigForHosts(ctx, "", rhost)
+	return generateConfigForHosts(ctx, "", helmConfigs, rhost)
 }
 
 // UpdateHostsFiles passes through all hosts in the provided configuration and makes sure

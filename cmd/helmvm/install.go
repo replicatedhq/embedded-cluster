@@ -149,6 +149,7 @@ func updateConfigBundle(c *cli.Context, bundledir string) error {
 	if err := createK0sctlConfigBackup(c.Context); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
 	}
+
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	cfg, err := config.ReadConfigFile(cfgpath)
 	if err != nil {
@@ -259,7 +260,22 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("unable to open config: %w", err)
 	}
-	cfg, err := config.RenderClusterConfig(c, nodes, multi)
+
+	opts := []addons.Option{}
+	if c.Bool("no-prompt") {
+		opts = append(opts, addons.WithoutPrompt())
+	}
+
+	for _, addon := range c.StringSlice("disable-addon") {
+		opts = append(opts, addons.WithoutAddon(addon))
+	}
+
+	helmConfigs, err := addons.NewApplier(opts...).GenerateHelmConfigs(c)
+	if err != nil {
+		return fmt.Errorf("generate helm configs: %w", err)
+	}
+
+	cfg, err := config.RenderClusterConfig(c, nodes, multi, helmConfigs)
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}

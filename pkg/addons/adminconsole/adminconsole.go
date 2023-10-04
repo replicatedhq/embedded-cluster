@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
+	"github.com/replicatedhq/helmvm/pkg/config"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
@@ -87,6 +88,36 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	return nil
 }
 
+func (a *AdminConsole) DefaultValues() map[string]interface{} {
+	return helmValues
+}
+
+func getcurrentPassword() (string, error) {
+	cfgpath := defaults.PathToConfig("k0sctl.yaml")
+	cfg, err := config.ReadConfigFile(cfgpath)
+	if err != nil {
+		return "", fmt.Errorf("unable to read cluster config: %w", err)
+	}
+
+	currentCharts := cfg.Spec.K0s.Config.Dig("spec", "extensions", "helm", "charts").([]interface{})
+
+	fmt.Printf("%+v\n", currentCharts)
+
+	for _, chart := range currentCharts {
+		chartMapping := chart.(dig.Mapping)
+		if chartMapping["name"] == "adminconsole" {
+			values := dig.Mapping{}
+			err := yaml.Unmarshal([]byte(chartMapping["values"].(string)), &values)
+			if err != nil {
+				return "", fmt.Errorf("unable to unmarshal values: %w", err)
+			}
+			return values["password"].(string), nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to find adminconsole chart in cluster config")
+}
+
 // GenerateHelmConfig generates the helm config for the adminconsole
 // and writes the charts to the disk.
 func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error) {
@@ -105,7 +136,13 @@ func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]d
 		return chartConfigs, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 
-	if !isUpgrade {
+	if isUpgrade {
+		currentPassword, err := getcurrentPassword()
+		if err != nil {
+			return chartConfigs, fmt.Errorf("unable to get current password: %w", err)
+		}
+		helmValues["password"] = currentPassword
+	} else {
 		pass, err := a.askPassword()
 		if err != nil {
 			return chartConfigs, fmt.Errorf("unable to ask for password: %w", err)

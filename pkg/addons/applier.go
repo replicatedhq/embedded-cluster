@@ -20,10 +20,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
 	"github.com/replicatedhq/helmvm/pkg/addons/custom"
 
 	//"github.com/replicatedhq/helmvm/pkg/addons/custom"
+	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
