@@ -73,7 +73,7 @@ func ReportInstallationStarted(ctx context.Context) {
 }
 
 // ReportInstallationSucceeded reports that the installation has succeeded.
-func ReportInstallationSuceeded(ctx context.Context) {
+func ReportInstallationSucceeded(ctx context.Context) {
 	Send(ctx, InstallationSucceeded{ClusterID: ClusterID()})
 }
 
@@ -84,22 +84,18 @@ func ReportInstallationFailed(ctx context.Context, err error) {
 
 // ReportUpgradeStarted reports that the upgrade has started.
 func ReportUpgradeStarted(ctx context.Context) {
-	itype := "centralized"
-	if defaults.DecentralizedInstall() {
-		itype = "decentralized"
-	}
 	Send(ctx, UpgradeStarted{
 		ClusterID:  ClusterID(),
 		Version:    defaults.Version,
 		Flags:      strings.Join(os.Args[1:], " "),
 		BinaryName: defaults.BinaryName(),
-		Type:       itype,
+		Type:       "centralized",
 		LicenseID:  LicenseID(),
 	})
 }
 
 // ReportUpgradeSucceeded reports that the upgrade has succeeded.
-func ReportUpgradeSuceeded(ctx context.Context) {
+func ReportUpgradeSucceeded(ctx context.Context) {
 	Send(ctx, UpgradeSucceeded{ClusterID: ClusterID()})
 }
 
@@ -173,10 +169,10 @@ func ReportApplyFinished(c *cli.Context, err error) {
 		return
 	}
 	if isUpgrade {
-		ReportUpgradeSuceeded(ctx)
+		ReportUpgradeSucceeded(ctx)
 		return
 	}
-	ReportInstallationSuceeded(ctx)
+	ReportInstallationSucceeded(ctx)
 }
 
 // ReportNodeUpgradeStarted reports that a node upgrade has started.

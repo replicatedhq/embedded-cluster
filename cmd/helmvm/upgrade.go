@@ -134,7 +134,7 @@ var upgradeCommand = &cli.Command{
 		}
 		logrus.Infof("Starting service")
 		if err := startK0sService(); err != nil {
-			err := fmt.Errorf("unable to start k0s service: %w", err)
+			err := fmt.Errorf("unable to start service: %w", err)
 			metrics.ReportNodeUpgradeFailed(c.Context, err)
 			return err
 		}
@@ -144,7 +144,7 @@ var upgradeCommand = &cli.Command{
 				metrics.ReportNodeUpgradeSucceeded(c.Context)
 				return nil
 			}
-			err := fmt.Errorf("unable to read kubeconfig: %w", err)
+			err := fmt.Errorf("unable to stat kubeconfig: %w", err)
 			metrics.ReportNodeUpgradeFailed(c.Context, err)
 			return err
 		}
