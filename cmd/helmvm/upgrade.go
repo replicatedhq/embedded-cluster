@@ -132,12 +132,12 @@ var upgradeCommand = &cli.Command{
 			}
 			return fmt.Errorf("unable to stat kubeconfig: %w", err)
 		}
-		os.Setenv("KUBECONFIG", kcfg)
-		logrus.Infof("Upgrading addons")
-		opts := []addons.Option{}
-		if c.Bool("no-prompt") {
-			opts = append(opts, addons.WithoutPrompt())
-		}
+		// os.Setenv("KUBECONFIG", kcfg)
+		// logrus.Infof("Upgrading addons")
+		// opts := []addons.Option{}
+		// if c.Bool("no-prompt") {
+		// 	opts = append(opts, addons.WithoutPrompt())
+		// }
 		// for _, addon := range c.StringSlice("disable-addon") {
 		// 	opts = append(opts, addons.WithoutAddon(addon))
 		// }
