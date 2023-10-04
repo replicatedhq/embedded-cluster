@@ -18,12 +18,15 @@ func TestEmbedAndInstall(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")
-	line := []string{"apt", "install", "openssh-server", "-y"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	commands := [][]string{
+		{"apt", "update", "-y"},
+		{"apt", "install", "openssh-server", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("pulling helm chart, embedding, and installing on node 0")
-	line = []string{"embed-and-install.sh"}
+	line := []string{"embed-and-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded ssh in node 0: %v", err)
 	}
@@ -41,12 +44,15 @@ func TestEmbedAddonsOnly(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")
-	line := []string{"apt", "install", "openssh-server", "-y"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	commands := [][]string{
+		{"apt", "update", "-y"},
+		{"apt", "install", "openssh-server", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("installing helmvm on node 0")
-	line = []string{"single-node-install.sh"}
+	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
 	}

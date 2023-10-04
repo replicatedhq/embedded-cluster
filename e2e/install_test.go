@@ -20,12 +20,15 @@ func TestTokenBasedMultiNodeInstallation(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
-	line := []string{"apt", "install", "openssh-server", "-y"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	commands := [][]string{
+		{"apt", "update", "-y"},
+		{"apt", "install", "openssh-server", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("installing helmvm on node 0")
-	line = []string{"single-node-install.sh"}
+	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
 	}
@@ -78,12 +81,15 @@ func TestSingleNodeInstallation(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
-	line := []string{"apt", "install", "openssh-server", "-y"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	commands := [][]string{
+		{"apt", "update", "-y"},
+		{"apt", "install", "openssh-server", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("installing helmvm on node 0")
-	line = []string{"single-node-install.sh"}
+	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
 	}
@@ -103,8 +109,11 @@ func TestMultiNodeInstallation(t *testing.T) {
 	defer tc.Destroy()
 	for i := range tc.Nodes {
 		t.Logf("installing ssh on node %d", i)
-		line := []string{"apt", "install", "openssh-server", "-y"}
-		if _, _, err := RunCommandOnNode(t, tc, i, line); err != nil {
+		commands := [][]string{
+			{"apt", "update", "-y"},
+			{"apt", "install", "openssh-server", "-y"},
+		}
+		if err := RunCommandsOnNode(t, tc, i, commands); err != nil {
 			t.Fatalf("fail to install ssh on node %d: %v", i, err)
 		}
 	}
@@ -154,12 +163,15 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
-	line := []string{"apt", "install", "openssh-server", "-y"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	commands := [][]string{
+		{"apt", "update", "-y"},
+		{"apt", "install", "openssh-server", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node 0: %v", err)
 	}
 	t.Log("installing helmvm on node 0")
-	line = []string{"single-node-install.sh"}
+	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
 	}
@@ -207,8 +219,11 @@ func TestMultiNodeInteractiveInstallation(t *testing.T) {
 	defer tc.Destroy()
 	for i := range tc.Nodes {
 		t.Logf("installing ssh on node %d", i)
-		line := []string{"apt", "install", "openssh-server", "-y"}
-		if _, _, err := RunCommandOnNode(t, tc, i, line); err != nil {
+		commands := [][]string{
+			{"apt", "update", "-y"},
+			{"apt", "install", "openssh-server", "-y"},
+		}
+		if err := RunCommandsOnNode(t, tc, i, commands); err != nil {
 			t.Fatalf("fail to install ssh on node %d: %v", i, err)
 		}
 	}
@@ -241,12 +256,15 @@ func TestInstallWithDisabledAddons(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")
-	line := []string{"apt", "install", "openssh-server", "-y"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	commands := [][]string{
+		{"apt", "update", "-y"},
+		{"apt", "install", "openssh-server", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("installling with disabled addons on node 0")
-	line = []string{"install-with-disabled-addons.sh"}
+	line := []string{"install-with-disabled-addons.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded ssh in node 0: %v", err)
 	}

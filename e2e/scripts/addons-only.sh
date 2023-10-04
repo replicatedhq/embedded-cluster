@@ -37,7 +37,10 @@ install_helm() {
 
 pull_helm_chart() {
     mkdir chart
-    if ! helm pull oci://registry-1.docker.io/bitnamicharts/memcached --destination chart; then
+    if ! helm repo add bitnami https://charts.bitnami.com/bitnami ; then
+        return 1
+    fi
+    if ! helm pull bitnami/memcached --version 6.6.2 --destination chart; then
         return 1
     fi
     return 0
