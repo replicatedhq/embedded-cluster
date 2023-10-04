@@ -101,8 +101,6 @@ func getcurrentPassword() (string, error) {
 
 	currentCharts := cfg.Spec.K0s.Config.Dig("spec", "extensions", "helm", "charts").([]interface{})
 
-	fmt.Printf("%+v\n", currentCharts)
-
 	for _, chart := range currentCharts {
 		chartMapping := chart.(dig.Mapping)
 		if chartMapping["name"] == "adminconsole" {
