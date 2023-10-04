@@ -138,6 +138,11 @@ func (a *AdminConsole) WriteChartFile() error {
 
 	dstpath := filepath.Join(defaults.HelmChartSubDir(), chartfile)
 	dst, err := os.Create(dstpath)
+	defer func() {
+		if err := dst.Close(); err != nil {
+			logrus.Errorf("error closing file %s: %s", dstpath, err)
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("could not write helm chart archive: %w", err)
 	}

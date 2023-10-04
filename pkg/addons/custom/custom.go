@@ -94,6 +94,13 @@ func (c *Custom) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
 		chartConfig["values"] = chart.Values
 
 		dst, err := os.Create(dstpath)
+
+		defer func() {
+			if err := dst.Close(); err != nil {
+				logrus.Errorf("error closing file %s: %s", dstpath, err)
+			}
+		}()
+
 		if err != nil {
 			logrus.Fatalf("could not write helm chart archive: %s", err)
 		}
