@@ -60,10 +60,13 @@ func (a *Applier) GenerateHelmConfigs(ctx *cli.Context) (dig.Mapping, error) {
 	charts := []dig.Mapping{}
 
 	addons, err := a.load()
+	fmt.Printf("addons: %v", addons)
+
 	if err != nil {
 		return helmConfig, fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
+
 		addonChartConfig, err := addon.GenerateHelmConfig(ctx)
 		if err != nil {
 			return helmConfig, fmt.Errorf("Could not add chart: %w", err)
@@ -100,6 +103,7 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // load instantiates all enabled addons.
 func (a *Applier) load() (map[string]AddOn, error) {
+
 	addons := map[string]AddOn{}
 	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
 		obs, err := openebs.New("helmvm")
@@ -108,6 +112,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		}
 		addons["openebs"] = obs
 	}
+
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
 		aconsole, err := adminconsole.New("helmvm", a.prompt)
 		if err != nil {

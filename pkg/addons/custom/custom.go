@@ -79,6 +79,11 @@ func (c *Custom) GenerateHelmConfig(ctx *cli.Context) ([]dig.Mapping, error) {
 			return chartConfigs, fmt.Errorf("unable to load chart archive: %w", err)
 		}
 
+		if c.chartHasBeenDisabled(chartData) {
+			logrus.Infof("skipping disabled chart %s", chartData.Name())
+			continue
+		}
+
 		chartName := strings.ToLower(chartData.Name())
 		chartFile := fmt.Sprintf("%s-%s.tgz", chartName, chartData.Metadata.Version)
 		dstpath := filepath.Join(defaults.HelmChartSubDir(), chartFile)
