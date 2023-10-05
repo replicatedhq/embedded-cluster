@@ -18,6 +18,7 @@ import (
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/sirupsen/logrus"
+	yamlv2 "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/addons"
@@ -312,15 +313,13 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 
 	currentSpec := cfg.Spec.K0s.Config
-	configString, err := yaml.Marshal(currentSpec)
+	configString, err := yamlv2.Marshal(currentSpec)
 
 	k0s := k0sconfig.ClusterConfig{}
 
-	if err := yaml.Unmarshal(configString, &k0s); err != nil {
+	if err := yamlv2.Unmarshal(configString, &k0s); err != nil {
 		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
-
-	fmt.Printf("k0s: %+v\n", k0s)
 
 	opts = append(opts, addons.Config(k0s))
 
@@ -329,25 +328,29 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		return fmt.Errorf("unable to apply addons: %w", err)
 	}
 
-	newHelmExtension := k0sconfig.HelmExtensions{
+	newHelmExtension := &k0sconfig.HelmExtensions{
 		Charts: newHelmConfig,
 	}
 
-	newClusterExtensions := k0sconfig.ClusterExtensions{
-		Helm: &newHelmExtension,
+	newClusterExtensions := &k0sconfig.ClusterExtensions{
+		Helm: newHelmExtension,
 	}
 
-	k0s.Spec.Extensions = &newClusterExtensions
+	spec := k0s.Spec
 
-	newConfigString, err := yaml.Marshal(k0s)
+	spec.Extensions = newClusterExtensions
 
+	newSpecString, err := yamlv2.Marshal(spec)
 	if err != nil {
-		return fmt.Errorf("unable to marshal k0s config: %w", err)
+		return fmt.Errorf("unable to marshal k0s spec: %w", err)
 	}
 
-	if err := yaml.Unmarshal(newConfigString, &cfg.Spec.K0s.Config); err != nil {
-		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
+	specMapping := dig.Mapping{}
+	if err := yamlv2.Unmarshal(newSpecString, &specMapping); err != nil {
+		return fmt.Errorf("unable to unmarshal k0s spec: %w", err)
 	}
+
+	cfg.Spec.K0s.Config["spec"] = specMapping
 
 	return nil
 }

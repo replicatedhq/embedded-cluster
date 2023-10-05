@@ -475,10 +475,6 @@ var installCommand = &cli.Command{
 
 		}
 
-		if err := applyK0sctl(c, nodes); err != nil {
-			return fmt.Errorf("unable update cluster: %w", err)
-		}
-
 		logrus.Infof("Reading cluster access configuration")
 		if err := runK0sctlKubeconfig(c.Context); err != nil {
 			err := fmt.Errorf("unable to get kubeconfig: %w", err)
