@@ -2,14 +2,11 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -23,10 +20,12 @@ var joinCommand = &cli.Command{
 	Name:  "join",
 	Usage: "Join the current node to an existing cluster",
 	Action: func(c *cli.Context) error {
-		rawtoken := c.Args().First()
-		decoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(rawtoken))
+		binname := defaults.BinaryName()
+		if c.Args().Len() != 1 {
+			return fmt.Errorf("usage: %s node join <token>", binname)
+		}
 		var hvmtoken JoinToken
-		if err := json.NewDecoder(decoder).Decode(&hvmtoken); err != nil {
+		if err := hvmtoken.Decode(c.Args().First()); err != nil {
 			return fmt.Errorf("unable to decode join token: %w", err)
 		}
 		metrics.ReportJoinStarted(c.Context, hvmtoken.ClusterID)
@@ -141,9 +140,6 @@ func canRunJoin(c *cli.Context) error {
 	}
 	if os.Getuid() != 0 {
 		return fmt.Errorf("join command must be run as root")
-	}
-	if c.Args().Len() != 1 {
-		return fmt.Errorf("usage: %s node join <token>", defaults.BinaryName())
 	}
 	return nil
 }

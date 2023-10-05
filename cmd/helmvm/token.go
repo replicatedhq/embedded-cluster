@@ -34,6 +34,24 @@ type JoinToken struct {
 	Role      string    `json:"role"`
 }
 
+// Decode decodes a base64 encoded JoinToken.
+func (j *JoinToken) Decode(b64 string) error {
+	decoded, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(decoded, j)
+}
+
+// Encode encodes a JoinToken to base64.
+func (j *JoinToken) Encode() (string, error) {
+	b, err := json.Marshal(j)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(b), nil
+}
+
 var tokenCreateCommand = &cli.Command{
 	Name:  "create",
 	Usage: "Creates a new node join token",
@@ -98,19 +116,16 @@ var tokenCreateCommand = &cli.Command{
 				return fmt.Errorf("unable to set decentralized install: %w", err)
 			}
 		}
-		token := JoinToken{ClusterID: metrics.ClusterID(), Token: buf.String(), Role: role}
-		encodedToken := bytes.NewBuffer(nil)
-		encoder := base64.NewEncoder(base64.StdEncoding, encodedToken)
-		marshaler := json.NewEncoder(encoder)
-		if err := marshaler.Encode(token); err != nil {
+		token := JoinToken{metrics.ClusterID(), buf.String(), role}
+		b64token, err := token.Encode()
+		if err != nil {
 			return fmt.Errorf("unable to encode token: %w", err)
 		}
-		encoder.Close()
 		fmt.Println("Token created successfully.")
 		fmt.Printf("This token is valid for %s hours.\n", dur)
 		fmt.Println("You can now run the following command in a remote node to add it")
 		fmt.Printf("to the cluster as a %q node:\n", role)
-		fmt.Printf("%s node join %s\n", defaults.BinaryName(), encodedToken.String())
+		fmt.Printf("%s node join %s\n", defaults.BinaryName(), b64token)
 		return nil
 	},
 }
