@@ -18,17 +18,22 @@ func (b *buffer) Close() error {
 	return nil
 }
 
+// RunCommandsOnNode runs a series of commands on a node.
 func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]string) error {
 	for _, cmd := range cmds {
 		cmdstr := strings.Join(cmd, " ")
 		t.Logf("running `%s` node %d", cmdstr, node)
-		if _, _, err := RunCommandOnNode(t, cl, node, cmd); err != nil {
+		stdout, stderr, err := RunCommandOnNode(t, cl, node, cmd)
+		if err != nil {
+			t.Logf("stdout:\n%s", stdout)
+			t.Logf("stderr:\n%s", stderr)
 			return err
 		}
 	}
 	return nil
 }
 
+// RunCommandOnNode runs a command on a node with a timeout.
 func RunCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string) (string, string, error) {
 	stdout := &buffer{bytes.NewBuffer(nil)}
 	stderr := &buffer{bytes.NewBuffer(nil)}

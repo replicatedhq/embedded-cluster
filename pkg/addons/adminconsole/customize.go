@@ -196,7 +196,7 @@ func (a *AdminConsoleCustomization) hostPreflights() (*v1beta2.HostPreflightSpec
 
 // license reads the kots license from the embedded Kots Application Release. If no license is found,
 // returns nil and no error.
-func (a *AdminConsoleCustomization) license() (*v1beta1.License, error) {
+func (a *AdminConsoleCustomization) License() (*v1beta1.License, error) {
 	if runtime.GOOS != "linux" {
 		return nil, nil
 	}

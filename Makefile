@@ -10,7 +10,7 @@ TERRAFORM_VERSION = 1.5.4
 OPENEBS_VERSION = 3.7.0
 K0S_VERSION = v1.27.5+k0s.0
 TROUBLESHOOT_VERSION = v0.72.0
-LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) -X main.Version=$(VERSION)
+LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) -X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION)
 
 default: helmvm-linux-amd64
 
