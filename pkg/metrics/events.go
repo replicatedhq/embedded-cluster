@@ -25,7 +25,7 @@ func (e InstallationStarted) Title() string {
 	return "InstallationStarted"
 }
 
-// InstallationFinished event is send back home when the installation finishes.
+// InstallationSucceeded event is send back home when the installation finishes.
 type InstallationSucceeded struct {
 	ClusterID uuid.UUID `json:"clusterID"`
 }

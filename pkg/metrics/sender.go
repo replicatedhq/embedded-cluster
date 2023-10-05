@@ -43,7 +43,7 @@ func (s *Sender) Send(ctx context.Context, ev Event) {
 	url := fmt.Sprintf("%s/helmbin_metrics/%s", s.baseURL, ev.Title())
 	payload, err := s.payload(ev)
 	if err != nil {
-		logrus.Infof("unable to get payload for event %s: %s", ev.Title(), err)
+		logrus.Debugf("unable to get payload for event %s: %s", ev.Title(), err)
 		return
 	}
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(payload))
