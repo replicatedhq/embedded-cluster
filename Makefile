@@ -1,4 +1,6 @@
 VERSION ?= $(shell git describe --tags --dirty)
+UNAME := $(shell uname)
+ARCH := $(shell uname -m)
 BUILDER_NAME = builder
 APP_NAME = helmvm
 ADMIN_CONSOLE_CHART_VERSION = 1.100.1
@@ -8,12 +10,21 @@ TERRAFORM_VERSION = 1.5.4
 OPENEBS_VERSION = 3.7.0
 K0S_VERSION = v1.27.5+k0s.0
 TROUBLESHOOT_VERSION = v0.72.0
-LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) -X main.Version=$(VERSION)
+LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) -X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION)
 
 default: helmvm-linux-amd64
 
 output/bin/yq:
+ifeq ($(UNAME), Darwin)
+ifeq ($(ARCH), arm64)
+	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_darwin_arm64
+else
+	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_darwin_amd64
+endif
+endif
+ifeq ($(UNAME), Linux)
 	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64
+endif
 	chmod +x output/bin/yq
 
 output/bin/helm:

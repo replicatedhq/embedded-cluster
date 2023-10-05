@@ -37,8 +37,8 @@ jobs:
         sudo lxd waitready
     - name: Install and configure OVN
       run: |
-        sudo apt update -y
-        sudo apt install ovn-host ovn-central -y
+        sudo apt-get update -y
+        sudo apt-get install ovn-host ovn-central -y
         sudo ovs-vsctl set open_vswitch .                            \
              external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
              external_ids:ovn-encap-type=geneve                      \

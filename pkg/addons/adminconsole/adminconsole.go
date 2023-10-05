@@ -65,7 +65,7 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // addLicenseToHelmValues adds the embedded license to the helm values.
 func (a *AdminConsole) addLicenseToHelmValues() error {
-	license, err := a.customization.license()
+	license, err := a.customization.License()
 	if err != nil {
 		return fmt.Errorf("unable to get license: %w", err)
 	}

@@ -4,6 +4,8 @@
 package defaults
 
 var (
+	// Version holds the HelmVM version.
+	Version = "v0.0.0"
 	// K0sVersion holds the version of k0s binary we are embedding. this is
 	// set at compile time via ldflags.
 	K0sVersion = "0.0.0"
@@ -105,6 +107,7 @@ func SetInstallAsDecentralized() error {
 	return def().SetInstallAsDecentralized()
 }
 
+
 // HelmChartSubDir calls HelmChartSubDir on the default provider.
 func HelmChartSubDir() string {
 	return def().HelmChartSubDir()
@@ -113,4 +116,10 @@ func HelmChartSubDir() string {
 // PathToHelmChart calls PathToHelmChart on the default provider.
 func PathToHelmChart(name string, version string) string {
 	return def().PathToHelmChart(name, version)
+
+// IsUpgrade determines if we are upgrading a cluster judging by the existence
+// or not of a kubeconfig file in the configuration directory.
+func IsUpgrade() bool {
+	return def().IsUpgrade()
+
 }

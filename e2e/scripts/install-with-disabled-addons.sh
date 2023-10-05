@@ -18,8 +18,8 @@ wait_for_healthy_node() {
 }
 
 install_helm() {
-    apt update -y
-    if ! apt install -y curl ; then
+    apt-get update -y
+    if ! apt-get install -y curl ; then
         return 1
     fi
     if ! curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 ; then
@@ -93,6 +93,7 @@ main() {
     fi
 }
 
+export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.helmvm/etc/kubeconfig
 export PATH=$PATH:/root/.helmvm/bin
 main

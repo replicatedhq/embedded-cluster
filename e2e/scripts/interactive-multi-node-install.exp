@@ -9,6 +9,7 @@ proc configure_node {address} {
         expect "Type one of the options above:" { send "/root/.ssh/id_rsa\r" }
 }
 
+set env(HELMVM_METRICS_BASEURL) "https://staging.replicated.app"
 set env(HELMVM_PLAIN_PROMPTS) "true"
 spawn helmvm install --multi-node
 expect "Enter a new Admin Console password:" { send "password\r" }

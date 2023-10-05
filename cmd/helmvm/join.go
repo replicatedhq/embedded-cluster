@@ -13,49 +13,75 @@ import (
 
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
+	"github.com/replicatedhq/helmvm/pkg/metrics"
 )
 
 var joinCommand = &cli.Command{
 	Name:  "join",
 	Usage: "Join the current node to an existing cluster",
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "role",
-			Usage: "The role of the node (can be controller or worker)",
-			Value: "worker",
-		},
-	},
 	Action: func(c *cli.Context) error {
+		binname := defaults.BinaryName()
+		if c.Args().Len() != 1 {
+			return fmt.Errorf("usage: %s node join <token>", binname)
+		}
+		var hvmtoken JoinToken
+		if err := hvmtoken.Decode(c.Args().First()); err != nil {
+			return fmt.Errorf("unable to decode join token: %w", err)
+		}
+		metrics.ReportJoinStarted(c.Context, hvmtoken.ClusterID)
 		if err := canRunJoin(c); err != nil {
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
 			return err
 		}
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
-			return fmt.Errorf("unable to materialize binaries: %w", err)
+			err := fmt.Errorf("unable to materialize binaries: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
 		}
 		if err := runHostPreflightsLocally(c); err != nil {
-			return fmt.Errorf("unable to run host preflights locally: %w", err)
+			err := fmt.Errorf("unable to run host preflights locally: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
 		}
 		logrus.Infof("Saving token to disk")
-		if err := saveTokenToDisk(c.Args().First()); err != nil {
-			return fmt.Errorf("unable to save token to disk: %w", err)
+		if err := saveTokenToDisk(hvmtoken.Token); err != nil {
+			err := fmt.Errorf("unable to save token to disk: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
 		}
 		logrus.Infof("Installing binary")
 		if err := installK0sBinary(); err != nil {
-			return fmt.Errorf("unable to install k0s binary: %w", err)
+			err := fmt.Errorf("unable to install k0s binary: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
 		}
 		logrus.Infof("Joining node to cluster")
-		if err := runK0sInstallCommand(c.String("role")); err != nil {
-			return fmt.Errorf("unable to join node to cluster: %w", err)
+		if err := runK0sInstallCommand(hvmtoken.Role); err != nil {
+			err := fmt.Errorf("unable to join node to cluster: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
 		}
 		logrus.Infof("Creating systemd unit file")
-		if err := createSystemdUnitFile(c.String("role")); err != nil {
-			return fmt.Errorf("unable to create systemd unit file: %w", err)
+		if err := createSystemdUnitFile(hvmtoken.Role); err != nil {
+			err := fmt.Errorf("unable to create systemd unit file: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
 		}
 		logrus.Infof("Starting service")
 		if err := startK0sService(); err != nil {
-			return fmt.Errorf("unable to start service: %w", err)
+			err := fmt.Errorf("unable to start service: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
 		}
+		fpath := defaults.PathToConfig(".cluster-id")
+		cid := hvmtoken.ClusterID.String()
+		if err := os.WriteFile(fpath, []byte(cid), 0644); err != nil {
+			err := fmt.Errorf("unable to write cluster id to disk: %w", err)
+			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			return err
+		}
+		metrics.ReportJoinSucceeded(c.Context, hvmtoken.ClusterID)
 		return nil
 	},
 }
@@ -114,12 +140,6 @@ func canRunJoin(c *cli.Context) error {
 	}
 	if os.Getuid() != 0 {
 		return fmt.Errorf("join command must be run as root")
-	}
-	if c.Args().Len() != 1 {
-		return fmt.Errorf("usage: %s node join <token>", defaults.BinaryName())
-	}
-	if role := c.String("role"); role != "controller" && role != "worker" {
-		return fmt.Errorf("role must be either controller or worker")
 	}
 	return nil
 }

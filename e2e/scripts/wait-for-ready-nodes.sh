@@ -21,6 +21,7 @@ main() {
     exit 0
 }
 
+export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.helmvm/etc/kubeconfig
 export PATH=$PATH:/root/.helmvm/bin
 main "$@"

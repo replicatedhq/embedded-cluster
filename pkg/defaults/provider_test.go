@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestIsUpgrade(t *testing.T) {
+	tmpdir, err := os.MkdirTemp("", "helmvm")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+	provider := NewProvider(tmpdir)
+	assert.False(t, provider.IsUpgrade(), "default should be not upgrade")
+	dstfile := provider.PathToConfig("kubeconfig")
+	err = os.WriteFile(dstfile, []byte("test"), 0600)
+	assert.NoError(t, err)
+	assert.True(t, provider.IsUpgrade(), "should be upgrade")
+}
+
 func TestInit(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helmvm")
 	assert.NoError(t, err)

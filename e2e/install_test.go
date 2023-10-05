@@ -21,8 +21,8 @@ func TestTokenBasedMultiNodeInstallation(t *testing.T) {
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
 	commands := [][]string{
-		{"apt", "update", "-y"},
-		{"apt", "install", "openssh-server", "-y"},
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "openssh-server", "-y"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
@@ -82,8 +82,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
 	commands := [][]string{
-		{"apt", "update", "-y"},
-		{"apt", "install", "openssh-server", "-y"},
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "openssh-server", "-y"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
@@ -110,8 +110,8 @@ func TestMultiNodeInstallation(t *testing.T) {
 	for i := range tc.Nodes {
 		t.Logf("installing ssh on node %d", i)
 		commands := [][]string{
-			{"apt", "update", "-y"},
-			{"apt", "install", "openssh-server", "-y"},
+			{"apt-get", "update", "-y"},
+			{"apt-get", "install", "openssh-server", "-y"},
 		}
 		if err := RunCommandsOnNode(t, tc, i, commands); err != nil {
 			t.Fatalf("fail to install ssh on node %d: %v", i, err)
@@ -164,8 +164,8 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
 	commands := [][]string{
-		{"apt", "update", "-y"},
-		{"apt", "install", "openssh-server", "-y"},
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "openssh-server", "-y"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node 0: %v", err)
@@ -220,15 +220,15 @@ func TestMultiNodeInteractiveInstallation(t *testing.T) {
 	for i := range tc.Nodes {
 		t.Logf("installing ssh on node %d", i)
 		commands := [][]string{
-			{"apt", "update", "-y"},
-			{"apt", "install", "openssh-server", "-y"},
+			{"apt-get", "update", "-y"},
+			{"apt-get", "install", "openssh-server", "-y"},
 		}
 		if err := RunCommandsOnNode(t, tc, i, commands); err != nil {
 			t.Fatalf("fail to install ssh on node %d: %v", i, err)
 		}
 	}
 	t.Logf("installing expect on node 0")
-	line := []string{"apt", "install", "expect", "-y"}
+	line := []string{"apt-get", "install", "expect", "-y"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install expect on node 0: %v", err)
 	}
@@ -257,8 +257,8 @@ func TestInstallWithDisabledAddons(t *testing.T) {
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")
 	commands := [][]string{
-		{"apt", "update", "-y"},
-		{"apt", "install", "openssh-server", "-y"},
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "openssh-server", "-y"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
@@ -283,7 +283,7 @@ func TestHostPreflight(t *testing.T) {
 	defer tc.Destroy()
 	t.Log("installing ssh and binutils on node 0")
 	commands := [][]string{
-		{"dnf", "install", "-y", "openssh-server", "binutils", "tar"},
+		{"dnf", "--setopt=metadata_expire=120", "install", "-y", "openssh-server", "binutils", "tar"},
 		{"systemctl", "enable", "sshd"},
 		{"systemctl", "start", "sshd"},
 	}

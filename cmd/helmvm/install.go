@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
 	"github.com/replicatedhq/helmvm/pkg/infra"
+	"github.com/replicatedhq/helmvm/pkg/metrics"
 	"github.com/replicatedhq/helmvm/pkg/preflights"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
@@ -441,25 +442,37 @@ var installCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		metrics.ReportApplyStarted(c)
 		if defaults.DecentralizedInstall() {
 			fmt.Println("Decentralized install was detected. To manage the cluster")
 			fmt.Printf("you have to use the '%s node' commands instead.\n", defaults.BinaryName())
 			fmt.Printf("Run '%s node --help' for more information.\n", defaults.BinaryName())
+			metrics.ReportApplyFinished(c, fmt.Errorf("wrong upgrade on decentralized install"))
 			return fmt.Errorf("decentralized install detected")
 		}
 		useprompt := !c.Bool("no-prompt")
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
-			return fmt.Errorf("unable to materialize binaries: %w", err)
+			err := fmt.Errorf("unable to materialize binaries: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
 		}
+		if !c.Bool("addons-only") {
+			var err error
+			var nodes []infra.Node
+			if dir := c.String("infra"); dir != "" {
+				logrus.Infof("Processing infrastructure manifests")
+				if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
+					err := fmt.Errorf("unable to create infra: %w", err)
+					metrics.ReportApplyFinished(c, err)
+					return err
+				}
+			}
+			if err := applyK0sctl(c, useprompt, nodes); err != nil {
+				err := fmt.Errorf("unable update cluster: %w", err)
+				metrics.ReportApplyFinished(c, err)
+				return err
 
-		var err error
-		var nodes []infra.Node
-
-		if dir := c.String("infra"); dir != "" {
-			logrus.Infof("Processing infrastructure manifests")
-			if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
-				return fmt.Errorf("unable to create infra: %w", err)
 			}
 		}
 
@@ -469,7 +482,9 @@ var installCommand = &cli.Command{
 
 		logrus.Infof("Reading cluster access configuration")
 		if err := runK0sctlKubeconfig(c.Context); err != nil {
-			return fmt.Errorf("unable to get kubeconfig: %w", err)
+			err := fmt.Errorf("unable to get kubeconfig: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
 		}
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
@@ -479,6 +494,7 @@ var installCommand = &cli.Command{
 		fmt.Printf("Cluster configuration file has been placed at %s\n", ccfg)
 		fmt.Println("You can now access your cluster with kubectl by running:")
 		fmt.Printf("  %s shell\n", os.Args[0])
+		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},
 }

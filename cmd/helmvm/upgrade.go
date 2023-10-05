@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/addons"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
+	"github.com/replicatedhq/helmvm/pkg/metrics"
 	"github.com/replicatedhq/helmvm/pkg/preflights"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
@@ -103,47 +104,53 @@ var upgradeCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		metrics.ReportNodeUpgradeStarted(c.Context)
 		if err := canRunUpgrade(c); err != nil {
+			metrics.ReportNodeUpgradeFailed(c.Context, err)
 			return err
 		}
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
-			return fmt.Errorf("unable to materialize binaries: %w", err)
+			err := fmt.Errorf("unable to materialize binaries: %w", err)
+			metrics.ReportNodeUpgradeFailed(c.Context, err)
+			return err
 		}
 		if err := runHostPreflightsLocally(c); err != nil {
-			return fmt.Errorf("unable to run host preflights locally: %w", err)
+			err := fmt.Errorf("unable to run host preflights locally: %w", err)
+			metrics.ReportNodeUpgradeFailed(c.Context, err)
+			return err
 		}
 		logrus.Infof("Stopping %s", defaults.BinaryName())
 		if err := stopHelmVM(); err != nil {
-			return fmt.Errorf("unable to stop: %w", err)
+			err := fmt.Errorf("unable to stop: %w", err)
+			metrics.ReportNodeUpgradeFailed(c.Context, err)
+			return err
 		}
 		logrus.Infof("Installing binary")
 		if err := installK0sBinary(); err != nil {
-			return fmt.Errorf("unable to install k0s binary: %w", err)
+			err := fmt.Errorf("unable to install k0s binary: %w", err)
+			metrics.ReportNodeUpgradeFailed(c.Context, err)
+			return err
 		}
 		logrus.Infof("Starting service")
 		if err := startK0sService(); err != nil {
-			return fmt.Errorf("unable to start service: %w", err)
+			err := fmt.Errorf("unable to start service: %w", err)
+			metrics.ReportNodeUpgradeFailed(c.Context, err)
+			return err
 		}
 		kcfg := defaults.PathToConfig("kubeconfig")
 		if _, err := os.Stat(kcfg); err != nil {
 			if os.IsNotExist(err) {
+				metrics.ReportNodeUpgradeSucceeded(c.Context)
 				return nil
 			}
-			return fmt.Errorf("unable to stat kubeconfig: %w", err)
+			err := fmt.Errorf("unable to stat kubeconfig: %w", err)
+			metrics.ReportNodeUpgradeFailed(c.Context, err)
+			return err
 		}
-		// os.Setenv("KUBECONFIG", kcfg)
-		// logrus.Infof("Upgrading addons")
-		// opts := []addons.Option{}
-		// if c.Bool("no-prompt") {
-		// 	opts = append(opts, addons.WithoutPrompt())
-		// }
-		// for _, addon := range c.StringSlice("disable-addon") {
-		// 	opts = append(opts, addons.WithoutAddon(addon))
-		// }
-		// if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
-		// 	return fmt.Errorf("unable to apply addons: %w", err)
-		// }
+
+		metrics.ReportNodeUpgradeSucceeded(c.Context)
+
 		logrus.Infof("Upgrade complete")
 		return nil
 	},
