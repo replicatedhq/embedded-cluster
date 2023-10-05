@@ -457,23 +457,22 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		if !c.Bool("addons-only") {
-			var err error
-			var nodes []infra.Node
-			if dir := c.String("infra"); dir != "" {
-				logrus.Infof("Processing infrastructure manifests")
-				if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
-					err := fmt.Errorf("unable to create infra: %w", err)
-					metrics.ReportApplyFinished(c, err)
-					return err
-				}
-			}
-			if err := applyK0sctl(c, useprompt, nodes); err != nil {
-				err := fmt.Errorf("unable update cluster: %w", err)
+
+		var err error
+		var nodes []infra.Node
+		if dir := c.String("infra"); dir != "" {
+			logrus.Infof("Processing infrastructure manifests")
+			if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
+				err := fmt.Errorf("unable to create infra: %w", err)
 				metrics.ReportApplyFinished(c, err)
 				return err
-
 			}
+		}
+		if err := applyK0sctl(c, nodes); err != nil {
+			err := fmt.Errorf("unable update cluster: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+
 		}
 
 		if err := applyK0sctl(c, nodes); err != nil {
