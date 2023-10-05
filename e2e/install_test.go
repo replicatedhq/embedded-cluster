@@ -283,7 +283,7 @@ func TestHostPreflight(t *testing.T) {
 	defer tc.Destroy()
 	t.Log("installing ssh and binutils on node 0")
 	commands := [][]string{
-		{"dnf", "install", "-y", "openssh-server", "binutils", "tar"},
+		{"dnf", "--setopt=metadata_expire=120", "install", "-y", "openssh-server", "binutils", "tar"},
 		{"systemctl", "enable", "sshd"},
 		{"systemctl", "start", "sshd"},
 	}
