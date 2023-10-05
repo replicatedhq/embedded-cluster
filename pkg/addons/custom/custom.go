@@ -9,10 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/k0sproject/dig"
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 
@@ -56,27 +55,27 @@ func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for all the embedded charts.
 // and writes the charts to the disk.
-func (c *Custom) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error) {
+func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 
-	chartConfigs := []dig.Mapping{}
+	chartConfigs := []v1beta1.Chart{}
 
 	exe, err := os.Executable()
 	if err != nil {
-		return chartConfigs, fmt.Errorf("unable to get executable path: %w", err)
+		return nil, fmt.Errorf("unable to get executable path: %w", err)
 	}
 	opts, err := hembed.ReadEmbedOptionsFromBinary(exe)
 	if err != nil {
-		return chartConfigs, fmt.Errorf("unable to read embed options: %w", err)
+		return nil, fmt.Errorf("unable to read embed options: %w", err)
 	} else if opts == nil {
 		logrus.Warn("No embed charts found, skipping custom addons.")
-		return chartConfigs, nil
+		return nil, nil
 	}
 
 	for _, chart := range opts.Charts {
 
 		chartData, err := loader.LoadArchive(chart.ChartReader())
 		if err != nil {
-			return chartConfigs, fmt.Errorf("unable to load chart archive: %w", err)
+			return nil, fmt.Errorf("unable to load chart archive: %w", err)
 		}
 
 		if c.chartHasBeenDisabled(chartData) {
@@ -88,15 +87,15 @@ func (c *Custom) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Map
 		chartFile := fmt.Sprintf("%s-%s.tgz", chartName, chartData.Metadata.Version)
 		dstpath := filepath.Join(defaults.HelmChartSubDir(), chartFile)
 
-		chartConfig := dig.Mapping{
-			"name":      chartName,
-			"namespace": c.namespace,
-			"version":   chartData.Metadata.Version,
+		chartConfig := v1beta1.Chart{
+			Name:     chartName,
+			Version:  chartData.Metadata.Version,
+			TargetNS: c.namespace,
 		}
 
-		chartConfig["chartName"] = dstpath
+		chartConfig.ChartName = dstpath
 
-		chartConfig["values"] = chart.Values
+		chartConfig.Values = chart.Values
 
 		dst, err := os.Create(dstpath)
 
@@ -112,7 +111,7 @@ func (c *Custom) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Map
 
 		_, err = io.Copy(dst, chart.ChartReader())
 		if err != nil {
-			logrus.Fatalf("could not write helm chart archive: %s", err)
+			return nil, fmt.Errorf("Unable to copy chart: %w", err)
 		}
 
 		chartConfigs = append(chartConfigs, chartConfig)

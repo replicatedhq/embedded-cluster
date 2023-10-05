@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/k0sproject/dig"
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v2"
 
@@ -22,7 +20,6 @@ import (
 
 const (
 	releaseName = "openebs"
-	appVersion  = "3.7.0"
 )
 
 var helmValues = map[string]interface{}{
@@ -48,7 +45,7 @@ func (o *OpenEBS) Version() (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
-	return map[string]string{"OpenEBS": latest}, nil
+	return map[string]string{"OpenEBS": "v" + latest}, nil
 }
 
 // HostPreflight returns the host preflight objects found inside the OpenEBS
@@ -57,47 +54,45 @@ func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
-func (o *OpenEBS) GetChartFileName() string {
-	return fmt.Sprintf("openebs-%s.tgz", appVersion)
-}
+func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 
-func (o *OpenEBS) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error) {
-
-	chartConfigs := []dig.Mapping{}
-
-	chartConfig := dig.Mapping{
-		"name":      releaseName,
-		"namespace": o.namespace,
-		"version":   appVersion,
+	latest, err := o.latest()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
 
-	chartConfig["chartName"] = filepath.Join(defaults.HelmChartSubDir(), o.GetChartFileName())
+	chartConfig := v1beta1.Chart{
+		Name:     releaseName,
+		TargetNS: o.namespace,
+		Version:  latest,
+	}
+
+	chartConfig.ChartName = defaults.PathToHelmChart(releaseName, latest)
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
-		return chartConfigs, err
+		return nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig["values"] = string(valuesStringData)
+	chartConfig.Values = string(valuesStringData)
 
-	chartConfigs = append(chartConfigs, chartConfig)
-
-	err = o.WriteChartFile()
+	err = o.WriteChartFile(latest)
 	if err != nil {
 		logrus.Fatalf("could not write chart file: %s", err)
 	}
 
-	return chartConfigs, nil
+	return []v1beta1.Chart{chartConfig}, nil
 }
 
-func (o *OpenEBS) WriteChartFile() error {
-	chartfile := o.GetChartFileName()
+func (o *OpenEBS) WriteChartFile(version string) error {
+
+	chartfile := fmt.Sprintf("%s-%s.tgz", releaseName, version)
 
 	src, err := charts.FS.Open(chartfile)
 	if err != nil {
 		return fmt.Errorf("could not load chart file: %w", err)
 	}
 
-	dstpath := filepath.Join(defaults.HelmChartSubDir(), chartfile)
+	dstpath := defaults.PathToHelmChart(releaseName, version)
 	dst, err := os.Create(dstpath)
 
 	defer func() {
@@ -130,7 +125,7 @@ func (o *OpenEBS) latest() (string, error) {
 		if len(slices) != 2 {
 			return "", fmt.Errorf("invalid file name found: %s", file.Name())
 		}
-		currentV := fmt.Sprintf("v%s", slices[1])
+		currentV := fmt.Sprintf("%s", slices[1])
 		if latest == "" {
 			latest = currentV
 			continue

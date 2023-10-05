@@ -159,7 +159,7 @@ func (d *DefaultsProvider) PathToHelmVMBinary(name string) string {
 	return filepath.Join(d.HelmVMBinsSubDir(), name)
 }
 
-// PathToHelmChart returns the directory helm chart archives are meterialized in.
+// PathToHelmChart returns the path to a materialized helm chart.
 func (d *DefaultsProvider) PathToHelmChart(name string, version string) string {
 	return filepath.Join(d.HelmChartSubDir(), name+"-"+version+".tgz")
 }

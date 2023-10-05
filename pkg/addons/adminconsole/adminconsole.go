@@ -6,25 +6,21 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/k0sproject/dig"
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v3"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
-	"github.com/replicatedhq/helmvm/pkg/config"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
 const (
 	releaseName = "adminconsole"
-	appVersion  = "1.100.1"
 )
 
 var helmValues = map[string]interface{}{
@@ -41,6 +37,7 @@ type AdminConsole struct {
 	customization AdminConsoleCustomization
 	namespace     string
 	useprompt     bool
+	config        v1beta1.ClusterConfig
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -56,7 +53,7 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
-	return map[string]string{"AdminConsole": latest}, nil
+	return map[string]string{"AdminConsole": "v" + latest}, nil
 
 }
 
@@ -92,92 +89,97 @@ func (a *AdminConsole) DefaultValues() map[string]interface{} {
 	return helmValues
 }
 
-func getcurrentPassword() (string, error) {
-	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	cfg, err := config.ReadConfigFile(cfgpath)
-	if err != nil {
-		return "", fmt.Errorf("unable to read cluster config: %w", err)
-	}
+// func getcurrentPassword() (string, error) {
+// 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
+// 	cfg, err := config.ReadConfigFile(cfgpath)
+// 	if err != nil {
+// 		return "", fmt.Errorf("unable to read cluster config: %w", err)
+// 	}
 
-	currentCharts := cfg.Spec.K0s.Config.Dig("spec", "extensions", "helm", "charts").([]interface{})
+// 	currentCharts := cfg.Spec.K0s.Config.Dig("spec", "extensions", "helm", "charts").([]interface{})
 
-	for _, chart := range currentCharts {
-		chartMapping := chart.(dig.Mapping)
-		if chartMapping["name"] == "adminconsole" {
-			values := dig.Mapping{}
-			err := yaml.Unmarshal([]byte(chartMapping["values"].(string)), &values)
-			if err != nil {
-				return "", fmt.Errorf("unable to unmarshal values: %w", err)
-			}
-			return values["password"].(string), nil
-		}
-	}
+// 	for _, chart := range currentCharts {
+// 		chartMapping := chart.(dig.Mapping)
+// 		if chartMapping["name"] == "adminconsole" {
+// 			values := dig.Mapping{}
+// 			err := yaml.Unmarshal([]byte(chartMapping["values"].(string)), &values)
+// 			if err != nil {
+// 				return "", fmt.Errorf("unable to unmarshal values: %w", err)
+// 			}
+// 			return values["password"].(string), nil
+// 		}
+// 	}
 
-	return "", fmt.Errorf("unable to find adminconsole chart in cluster config")
-}
+// 	return "", fmt.Errorf("unable to find adminconsole chart in cluster config")
+// }
 
 // GenerateHelmConfig generates the helm config for the adminconsole
 // and writes the charts to the disk.
-func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error) {
+func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 
-	chartConfig := dig.Mapping{
-		"name":      releaseName,
-		"namespace": a.namespace,
-		"version":   appVersion,
+	latest, err := a.Latest()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
 
-	chartConfigs := []dig.Mapping{}
+	chartConfig := v1beta1.Chart{
+		Name:      releaseName,
+		ChartName: "",
+		Version:   latest,
+		Values:    "",
+		TargetNS:  a.namespace,
+	}
 
-	chartConfig["chartName"] = filepath.Join(defaults.HelmChartSubDir(), a.GetChartFileName())
+	chartConfig.ChartName = defaults.PathToHelmChart("adminconsole", latest)
 
 	if err := a.addLicenseToHelmValues(); err != nil {
-		return chartConfigs, fmt.Errorf("unable to add license to helm values: %w", err)
+		return nil, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 
-	if isUpgrade {
-		currentPassword, err := getcurrentPassword()
-		if err != nil {
-			logrus.Warn("Could not get existing password from config")
-			pass, err := a.askPassword()
-			if err != nil {
-				return chartConfigs, fmt.Errorf("unable to ask for password: %w", err)
-			}
-			helmValues["password"] = pass
-		}
-		helmValues["password"] = currentPassword
-	} else {
-		pass, err := a.askPassword()
-		if err != nil {
-			return chartConfigs, fmt.Errorf("unable to ask for password: %w", err)
-		}
-		helmValues["password"] = pass
-	}
+	// if isUpgrade {
+	// 	currentPassword, err := getcurrentPassword()
+	// 	if err != nil {
+	// 		logrus.Warn("Could not get existing password from config")
+	// 		pass, err := a.askPassword()
+	// 		if err != nil {
+	// 			return nil, fmt.Errorf("unable to ask for password: %w", err)
+	// 		}
+	// 		helmValues["password"] = pass
+	// 	}
+	// 	helmValues["password"] = currentPassword
+	// } else {
+	// 	pass, err := a.askPassword()
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("unable to ask for password: %w", err)
+	// 	}
+	// 	helmValues["password"] = pass
+	// }
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
-		return chartConfigs, err
+		return nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig["values"] = string(valuesStringData)
+	chartConfig.Values = string(valuesStringData)
 
-	chartConfigs = append(chartConfigs, chartConfig)
-
-	err = a.WriteChartFile()
+	err = a.WriteChartFile(latest)
 	if err != nil {
 		logrus.Fatalf("could not write chart file: %s", err)
 	}
 
-	return chartConfigs, nil
+	return []v1beta1.Chart{chartConfig}, nil
 
 }
 
-func (a *AdminConsole) WriteChartFile() error {
-	chartfile := a.GetChartFileName()
+func (a *AdminConsole) WriteChartFile(version string) error {
+
+	chartfile := fmt.Sprintf("adminconsole-%s.tgz", version)
+
 	src, err := charts.FS.Open(chartfile)
 	if err != nil {
-		return fmt.Errorf("could not load chart file: %w", err)
+		return fmt.Errorf("unable to open helm chart archive: %w", err)
 	}
 
-	dstpath := filepath.Join(defaults.HelmChartSubDir(), chartfile)
+	dstpath := defaults.PathToHelmChart("adminconsole", version)
 	dst, err := os.Create(dstpath)
 	defer func() {
 		if err := dst.Close(); err != nil {
@@ -185,16 +187,22 @@ func (a *AdminConsole) WriteChartFile() error {
 		}
 	}()
 	if err != nil {
-		return fmt.Errorf("could not write helm chart archive: %w", err)
+		return fmt.Errorf("Unable to create helm chart archive: %w", err)
 	}
 
 	_, err = io.Copy(dst, src)
-
-	return err
+	if err != nil {
+		return fmt.Errorf("unable to copy helm chart archive: %w", err)
+	}
+	return nil
 }
 
-func (a *AdminConsole) GetChartFileName() string {
-	return fmt.Sprintf("adminconsole-%s.tgz", appVersion)
+func (a *AdminConsole) GetChartFileName() (string, error) {
+	latest, err := a.Latest()
+	if err != nil {
+		return "", fmt.Errorf("unable to get latest version: %w", err)
+	}
+	return fmt.Sprintf("adminconsole-%s.tgz", latest), nil
 }
 
 func (a *AdminConsole) Latest() (string, error) {
@@ -213,7 +221,7 @@ func (a *AdminConsole) Latest() (string, error) {
 		if len(slices) != 2 {
 			return "", fmt.Errorf("invalid file name found: %s", file.Name())
 		}
-		currentV := fmt.Sprintf("v%s", slices[1])
+		currentV := fmt.Sprintf("%s", slices[1])
 		if latest == "" {
 			latest = currentV
 			continue
@@ -226,10 +234,11 @@ func (a *AdminConsole) Latest() (string, error) {
 	return latest, nil
 }
 
-func New(ns string, useprompt bool) (*AdminConsole, error) {
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:     ns,
 		useprompt:     useprompt,
 		customization: AdminConsoleCustomization{},
+		config:        config,
 	}, nil
 }

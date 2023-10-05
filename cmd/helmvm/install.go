@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
 	"github.com/k0sproject/rig/log"
@@ -169,18 +168,9 @@ func updateConfigBundle(c *cli.Context, bundledir string) error {
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
 
-	opts = append(opts, addons.IsUpgrade())
-
-	helmConfigs, err := addons.NewApplier(opts...).GenerateHelmConfigs(c)
-	if err != nil {
-		return fmt.Errorf("unable to apply addons: %w", err)
+	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
+		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
-
-	currentSpec := cfg.Spec.K0s.Config["spec"].(dig.Mapping)
-	extensions := dig.Mapping{
-		"helm": helmConfigs,
-	}
-	currentSpec["extensions"] = extensions
 
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
@@ -261,6 +251,25 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 		return fmt.Errorf("unable to open config: %w", err)
 	}
 
+	// opts := []addons.Option{}
+	// if c.Bool("no-prompt") {
+	// 	opts = append(opts, addons.WithoutPrompt())
+	// }
+
+	// for _, addon := range c.StringSlice("disable-addon") {
+	// 	opts = append(opts, addons.WithoutAddon(addon))
+	// }
+
+	// helmConfigs, err := addons.NewApplier(opts...).GenerateHelmConfigs()
+	// if err != nil {
+	// 	return fmt.Errorf("generate helm configs: %w", err)
+	// }
+
+	cfg, err := config.RenderClusterConfig(c.Context, nodes, multi)
+	if err != nil {
+		return fmt.Errorf("unable to render config: %w", err)
+	}
+
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -270,15 +279,10 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
 
-	helmConfigs, err := addons.NewApplier(opts...).GenerateHelmConfigs(c)
-	if err != nil {
-		return fmt.Errorf("generate helm configs: %w", err)
+	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
+		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
 
-	cfg, err := config.RenderClusterConfig(c, nodes, multi, helmConfigs)
-	if err != nil {
-		return fmt.Errorf("unable to render config: %w", err)
-	}
 	if bundledir != "" {
 		config.SetUploadBinary(cfg)
 	}
@@ -369,7 +373,8 @@ func dumpApplyLogs() {
 
 // applyK0sctl runs the k0sctl apply command and waits for it to finish. If
 // no configuration is found one is generated.
-func applyK0sctl(c *cli.Context, useprompt bool, nodes []infra.Node) error {
+func applyK0sctl(c *cli.Context, nodes []infra.Node) error {
+	useprompt := !c.Bool("no-prompt")
 	fmt.Println("Processing cluster configuration")
 	if err := ensureK0sctlConfig(c, nodes, useprompt); err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -458,7 +463,7 @@ var installCommand = &cli.Command{
 			}
 		}
 
-		if err := applyK0sctl(c, useprompt, nodes); err != nil {
+		if err := applyK0sctl(c, nodes); err != nil {
 			return fmt.Errorf("unable update cluster: %w", err)
 		}
 
@@ -466,27 +471,8 @@ var installCommand = &cli.Command{
 		if err := runK0sctlKubeconfig(c.Context); err != nil {
 			return fmt.Errorf("unable to get kubeconfig: %w", err)
 		}
-
-		// logrus.Infof("Applying add-ons")
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
-		// os.Setenv("KUBECONFIG", kcfg)
-		// opts := []addons.Option{}
-		// if c.Bool("no-prompt") {
-		// 	opts = append(opts, addons.WithoutPrompt())
-		// }
-
-		// for _, addon := range c.StringSlice("disable-addon") {
-		// 	opts = append(opts, addons.WithoutAddon(addon))
-		// }
-
-		// if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
-		// 	return fmt.Errorf("unable to apply addons: %w", err)
-		// }
-
-		// if err := runPostApply(c.Context); err != nil {
-		// 	return fmt.Errorf("unable to run post apply: %w", err)
-		// }
 
 		fmt.Println("Cluster configuration has been applied")
 		fmt.Printf("Kubeconfig file has been placed at at %s\n", kcfg)

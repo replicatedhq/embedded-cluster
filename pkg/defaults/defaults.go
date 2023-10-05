@@ -109,3 +109,8 @@ func SetInstallAsDecentralized() error {
 func HelmChartSubDir() string {
 	return def().HelmChartSubDir()
 }
+
+// PathToHelmChart calls PathToHelmChart on the default provider.
+func PathToHelmChart(name string, version string) string {
+	return def().PathToHelmChart(name, version)
+}

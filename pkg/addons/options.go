@@ -1,6 +1,10 @@
 package addons
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
+)
 
 // Option sets and option on an Applier reference.
 type Option func(*Applier)
@@ -20,16 +24,16 @@ func WithoutPrompt() Option {
 	}
 }
 
-// IsUpgrade sets the applier to upgrade addons.
-func IsUpgrade() Option {
-	return func(a *Applier) {
-		a.isUpgrade = true
-	}
-}
-
 // Quiet disables logging for addons.
 func Quiet() Option {
 	return func(a *Applier) {
 		a.verbose = false
+	}
+}
+
+// Config sets the helm config for the addons.
+func Config(config v1beta1.ClusterConfig) Option {
+	return func(a *Applier) {
+		a.config = config
 	}
 }

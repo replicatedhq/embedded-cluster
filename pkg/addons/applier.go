@@ -9,10 +9,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/k0sproject/dig"
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 	"helm.sh/helm/v3/pkg/action"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,7 +39,7 @@ func getLogger(addon string, verbose bool) action.DebugLog {
 type AddOn interface {
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]dig.Mapping, error)
+	GenerateHelmConfig() ([]v1beta1.Chart, error)
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -48,36 +47,30 @@ type Applier struct {
 	disabledAddons map[string]bool
 	prompt         bool
 	verbose        bool
-	isUpgrade      bool
+	config         v1beta1.ClusterConfig
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs(ctx *cli.Context) (dig.Mapping, error) {
+func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, error) {
 
-	helmConfig := dig.Mapping{
-		"concurrencyLevel": 5,
-	}
-
-	charts := []dig.Mapping{}
+	charts := []v1beta1.Chart{}
 
 	addons, err := a.load()
 
 	if err != nil {
-		return helmConfig, fmt.Errorf("unable to load addons: %w", err)
+		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
 
-		addonChartConfig, err := addon.GenerateHelmConfig(ctx, a.isUpgrade)
+		addonChartConfig, err := addon.GenerateHelmConfig()
 		if err != nil {
-			return helmConfig, fmt.Errorf("Could not add chart: %w", err)
+			return nil, fmt.Errorf("Could not add chart: %w", err)
 		}
 		charts = append(charts, addonChartConfig...)
 
 	}
 
-	helmConfig["charts"] = charts
-
-	return helmConfig, nil
+	return charts, nil
 }
 
 // HostPreflights reads all embedded host preflights from all add-ons and returns them
@@ -114,7 +107,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 	}
 
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("helmvm", a.prompt)
+		aconsole, err := adminconsole.New("helmvm", a.prompt, a.config)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 		}
@@ -201,7 +194,7 @@ func NewApplier(opts ...Option) *Applier {
 		prompt:         true,
 		verbose:        true,
 		disabledAddons: map[string]bool{},
-		isUpgrade:      false,
+		config:         v1beta1.ClusterConfig{},
 	}
 	for _, fn := range opts {
 		fn(applier)
