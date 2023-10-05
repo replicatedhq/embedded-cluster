@@ -137,7 +137,11 @@ func (a *AdminConsole) GenerateHelmConfig(ctx *cli.Context, isUpgrade bool) ([]d
 	if isUpgrade {
 		currentPassword, err := getcurrentPassword()
 		if err != nil {
-			return chartConfigs, fmt.Errorf("unable to get current password: %w", err)
+			pass, err := a.askPassword()
+			if err != nil {
+				return chartConfigs, fmt.Errorf("unable to ask for password: %w", err)
+			}
+			helmValues["password"] = pass
 		}
 		helmValues["password"] = currentPassword
 	} else {
