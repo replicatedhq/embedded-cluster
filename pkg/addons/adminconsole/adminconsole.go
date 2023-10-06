@@ -62,7 +62,8 @@ func (a *AdminConsole) askPassword() (string, error) {
 		}
 	}
 
-	return defaultPass, fmt.Errorf("unable to set password after %d tries", maxTries)
+	logrus.Fatalf("Unable to set Admin Console password after %d tries", maxTries)
+	return "", nil
 
 }
 
