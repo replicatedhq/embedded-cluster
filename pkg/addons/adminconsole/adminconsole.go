@@ -207,7 +207,7 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 
 	err = a.WriteChartFile(latest)
 	if err != nil {
-		logrus.Fatalf("could not write chart file: %s", err)
+		logrus.Fatalf("Unable to write chart file to disk: %s", err)
 	}
 
 	return []v1beta1.Chart{chartConfig}, nil
@@ -216,28 +216,25 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 
 func (a *AdminConsole) WriteChartFile(version string) error {
 
-	chartfile := fmt.Sprintf("adminconsole-%s.tgz", version)
+	chartfile := fmt.Sprintf("%s-%s.tgz", releaseName, version)
 
 	src, err := charts.FS.Open(chartfile)
 	if err != nil {
 		return fmt.Errorf("unable to open helm chart archive: %w", err)
 	}
 
-	dstpath := defaults.PathToHelmChart("adminconsole", version)
-	dst, err := os.Create(dstpath)
-	defer func() {
-		if err := dst.Close(); err != nil {
-			logrus.Errorf("error closing file %s: %s", dstpath, err)
-		}
-	}()
+	dstpath := defaults.PathToHelmChart(releaseName, version)
+
+	sourceFileByte, err := io.ReadAll(src)
 	if err != nil {
-		return fmt.Errorf("Unable to create helm chart archive: %w", err)
+		return fmt.Errorf("unable to read helm chart archive: %w", err)
 	}
 
-	_, err = io.Copy(dst, src)
+	err = os.WriteFile(dstpath, sourceFileByte, 0644)
 	if err != nil {
-		return fmt.Errorf("unable to copy helm chart archive: %w", err)
+		return fmt.Errorf("unable to write helm chart archive: %w", err)
 	}
+
 	return nil
 }
 

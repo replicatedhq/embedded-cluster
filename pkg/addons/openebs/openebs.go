@@ -89,23 +89,21 @@ func (o *OpenEBS) WriteChartFile(version string) error {
 
 	src, err := charts.FS.Open(chartfile)
 	if err != nil {
-		return fmt.Errorf("could not load chart file: %w", err)
+		return fmt.Errorf("unable to open helm chart archive: %w", err)
 	}
 
 	dstpath := defaults.PathToHelmChart(releaseName, version)
-	dst, err := os.Create(dstpath)
 
-	defer func() {
-		if err := dst.Close(); err != nil {
-			logrus.Errorf("error closing file %s: %s", dstpath, err)
-		}
-	}()
-
+	sourceFileByte, err := io.ReadAll(src)
 	if err != nil {
-		return fmt.Errorf("could not write helm chart archive: %w", err)
+		return fmt.Errorf("unable to read helm chart archive: %w", err)
 	}
 
-	io.Copy(dst, src)
+	err = os.WriteFile(dstpath, sourceFileByte, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to write helm chart archive: %w", err)
+	}
+
 	return nil
 }
 
