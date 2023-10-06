@@ -336,7 +336,7 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		Helm: newHelmExtension,
 	}
 
-	spec := cfg.Spec.K0s.Config["spec"].(dig.Mapping)
+	spec := cfg.Spec.K0s.Config["spec"].(map[string]interface{})
 	spec["extensions"] = newClusterExtensions
 
 	cfg.Spec.K0s.Config["spec"] = spec
