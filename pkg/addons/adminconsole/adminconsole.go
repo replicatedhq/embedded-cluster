@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
@@ -41,11 +42,28 @@ type AdminConsole struct {
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
+
+	defaultPass := "password"
+
 	if !a.useprompt {
 		fmt.Println("Admin Console password set to: password")
-		return "password", nil
+		return defaultPass, nil
 	}
-	return prompts.New().Password("Enter a new Admin Console password:"), nil
+
+	maxTries := 3
+	for i := 0; i < maxTries; i++ {
+		promptA := prompts.New().Password("Enter a new Admin Console password:")
+		promptB := prompts.New().Password("Confirm password:")
+
+		if promptA == promptB {
+			return promptA, nil
+		} else {
+			fmt.Println("Passwords don't match, please try again.")
+		}
+	}
+
+	return defaultPass, fmt.Errorf("unable to set password after %d tries", maxTries)
+
 }
 
 func (a *AdminConsole) Version() (map[string]string, error) {
@@ -85,33 +103,53 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	return nil
 }
 
-func (a *AdminConsole) DefaultValues() map[string]interface{} {
-	return helmValues
+// GetPasswordFromConfig returns the adminconsole password from the cluster config.
+func (a *AdminConsole) GetPasswordFromConfig() (string, error) {
+
+	chartList := a.config.Spec.Extensions.Helm.Charts
+
+	pass := ""
+
+	for _, chart := range chartList {
+		if chart.Name == "adminconsole" {
+			values := dig.Mapping{}
+			err := yaml.Unmarshal([]byte(chart.Values), &values)
+			if err != nil {
+				return "", fmt.Errorf("unable to unmarshal values: %w", err)
+			}
+			pass = values["password"].(string)
+			break
+		}
+	}
+
+	if pass == "" {
+		return "", fmt.Errorf("unable to find adminconsole chart in cluster config")
+	} else {
+		return pass, nil
+	}
+
 }
 
-// func getcurrentPassword() (string, error) {
-// 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-// 	cfg, err := config.ReadConfigFile(cfgpath)
-// 	if err != nil {
-// 		return "", fmt.Errorf("unable to read cluster config: %w", err)
-// 	}
+func (a *AdminConsole) CheckForExistingConfig() bool {
 
-// 	currentCharts := cfg.Spec.K0s.Config.Dig("spec", "extensions", "helm", "charts").([]interface{})
+	spec := a.config.Spec
+	if spec.Extensions == nil {
+		return false
+	}
 
-// 	for _, chart := range currentCharts {
-// 		chartMapping := chart.(dig.Mapping)
-// 		if chartMapping["name"] == "adminconsole" {
-// 			values := dig.Mapping{}
-// 			err := yaml.Unmarshal([]byte(chartMapping["values"].(string)), &values)
-// 			if err != nil {
-// 				return "", fmt.Errorf("unable to unmarshal values: %w", err)
-// 			}
-// 			return values["password"].(string), nil
-// 		}
-// 	}
+	extensions := spec.Extensions
+	if extensions.Helm == nil {
+		return false
+	}
 
-// 	return "", fmt.Errorf("unable to find adminconsole chart in cluster config")
-// }
+	chartList := a.config.Spec.Extensions.Helm.Charts
+	for _, chart := range chartList {
+		if chart.Name == "adminconsole" {
+			return true
+		}
+	}
+	return false
+}
 
 // GenerateHelmConfig generates the helm config for the adminconsole
 // and writes the charts to the disk.
@@ -136,24 +174,30 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		return nil, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 
-	// if isUpgrade {
-	// 	currentPassword, err := getcurrentPassword()
-	// 	if err != nil {
-	// 		logrus.Warn("Could not get existing password from config")
-	// 		pass, err := a.askPassword()
-	// 		if err != nil {
-	// 			return nil, fmt.Errorf("unable to ask for password: %w", err)
-	// 		}
-	// 		helmValues["password"] = pass
-	// 	}
-	// 	helmValues["password"] = currentPassword
-	// } else {
-	// 	pass, err := a.askPassword()
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("unable to ask for password: %w", err)
-	// 	}
-	// 	helmValues["password"] = pass
-	// }
+	if a.CheckForExistingConfig() {
+		currentPassword, err := a.GetPasswordFromConfig()
+		if err != nil {
+			pass, err := a.askPassword()
+			if err != nil {
+				return nil, fmt.Errorf("unable to ask for password: %w", err)
+			}
+			helmValues["password"] = pass
+		} else if currentPassword != "" {
+			helmValues["password"] = currentPassword
+		} else {
+			pass, err := a.askPassword()
+			if err != nil {
+				return nil, fmt.Errorf("unable to ask for password: %w", err)
+			}
+			helmValues["password"] = pass
+		}
+	} else {
+		pass, err := a.askPassword()
+		if err != nil {
+			return nil, fmt.Errorf("unable to ask for password: %w", err)
+		}
+		helmValues["password"] = pass
+	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
