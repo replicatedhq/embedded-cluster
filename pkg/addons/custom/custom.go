@@ -96,7 +96,13 @@ func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		chartConfig.ChartName = dstpath
 		chartConfig.Values = chart.Values
 
-		err = writeChartFile(chartName, chartData.Metadata.Version)
+		reader := chart.ChartReader()
+		data, err := io.ReadAll(reader)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read helm chart archive: %w", err)
+		}
+
+		err = os.WriteFile(dstpath, data, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("unable to write helm chart archive: %w", err)
 		}
@@ -106,30 +112,6 @@ func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 	}
 	return chartConfigs, nil
 
-}
-
-func writeChartFile(name string, version string) error {
-
-	chartfile := fmt.Sprintf("%s-%s.tgz", name, version)
-
-	src, err := os.Open(chartfile)
-	if err != nil {
-		return fmt.Errorf("unable to open helm chart archive: %w", err)
-	}
-
-	dstpath := defaults.PathToHelmChart(name, version)
-
-	sourceFileByte, err := io.ReadAll(src)
-	if err != nil {
-		return fmt.Errorf("unable to read helm chart archive: %w", err)
-	}
-
-	err = os.WriteFile(dstpath, sourceFileByte, 0644)
-	if err != nil {
-		return fmt.Errorf("unable to write helm chart archive: %w", err)
-	}
-
-	return nil
 }
 
 func (c *Custom) chartHasBeenDisabled(chart *chart.Chart) bool {
