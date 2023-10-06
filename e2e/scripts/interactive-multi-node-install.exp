@@ -13,6 +13,7 @@ set env(HELMVM_METRICS_BASEURL) "https://staging.replicated.app"
 set env(HELMVM_PLAIN_PROMPTS) "true"
 spawn helmvm install --multi-node
 expect "Enter a new Admin Console password:" { send "password\r" }
+expect "Confirm password:" { send "password\r" }
 configure_node "10.0.0.2"
 expect -re "Add another node?.*:" { send "y\r" }
 configure_node "10.0.0.3"
