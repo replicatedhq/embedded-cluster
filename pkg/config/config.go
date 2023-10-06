@@ -336,21 +336,10 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		Helm: newHelmExtension,
 	}
 
-	spec := k0s.Spec
+	spec := cfg.Spec.K0s.Config["spec"].(dig.Mapping)
+	spec["extensions"] = newClusterExtensions
 
-	spec.Extensions = newClusterExtensions
-
-	newSpecString, err := yamlv2.Marshal(spec)
-	if err != nil {
-		return fmt.Errorf("unable to marshal k0s spec: %w", err)
-	}
-
-	specMapping := dig.Mapping{}
-	if err := yamlv2.Unmarshal(newSpecString, &specMapping); err != nil {
-		return fmt.Errorf("unable to unmarshal k0s spec: %w", err)
-	}
-
-	cfg.Spec.K0s.Config["spec"] = specMapping
+	cfg.Spec.K0s.Config["spec"] = spec
 
 	return nil
 }
