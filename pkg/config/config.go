@@ -310,6 +310,7 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 	return generateConfigForHosts(ctx, "", rhost)
 }
 
+// UpdateHelmConfigs updates the helm config in the provided cluster configuration.
 func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 
 	currentSpec := cfg.Spec.K0s.Config
@@ -321,7 +322,7 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
 
-	opts = append(opts, addons.Config(k0s))
+	opts = append(opts, addons.WithConfig(k0s))
 
 	newHelmConfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
 	if err != nil {
@@ -340,9 +341,13 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		spec["extensions"] = newClusterExtensions
 		cfg.Spec.K0s.Config["spec"] = spec
 	} else {
-		spec := cfg.Spec.K0s.Config["spec"].(dig.Mapping)
-		spec["extensions"] = newClusterExtensions
-		cfg.Spec.K0s.Config["spec"] = spec
+
+		if spec, ok := cfg.Spec.K0s.Config["spec"].(dig.Mapping); ok {
+			spec["extensions"] = newClusterExtensions
+			cfg.Spec.K0s.Config["spec"] = spec
+		} else {
+			return fmt.Errorf("unable to update cluster config")
+		}
 	}
 
 	return nil

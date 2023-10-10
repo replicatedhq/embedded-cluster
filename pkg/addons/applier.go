@@ -19,10 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/replicatedhq/helmvm/pkg/addons/custom"
-
-	//"github.com/replicatedhq/helmvm/pkg/addons/custom"
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
+	"github.com/replicatedhq/helmvm/pkg/addons/custom"
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
@@ -64,7 +62,7 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, error) {
 
 		addonChartConfig, err := addon.GenerateHelmConfig()
 		if err != nil {
-			return nil, fmt.Errorf("Could not add chart: %w", err)
+			return nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
 		charts = append(charts, addonChartConfig...)
 

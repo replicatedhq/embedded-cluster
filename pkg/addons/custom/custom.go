@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
@@ -67,7 +66,6 @@ func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read embed options: %w", err)
 	} else if opts == nil {
-		logrus.Warn("No embed charts found, skipping custom addons.")
 		return nil, nil
 	}
 
@@ -84,17 +82,15 @@ func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		}
 
 		chartName := strings.ToLower(chartData.Name())
-		chartFile := fmt.Sprintf("%s-%s.tgz", chartName, chartData.Metadata.Version)
-		dstpath := filepath.Join(defaults.HelmChartSubDir(), chartFile)
+		dstpath := defaults.PathToHelmChart(chartName, chartData.Metadata.Version)
 
 		chartConfig := v1beta1.Chart{
-			Name:     chartName,
-			Version:  chartData.Metadata.Version,
-			TargetNS: c.namespace,
+			Name:      chartName,
+			Version:   chartData.Metadata.Version,
+			TargetNS:  c.namespace,
+			ChartName: dstpath,
+			Values:    chart.Values,
 		}
-
-		chartConfig.ChartName = dstpath
-		chartConfig.Values = chart.Values
 
 		reader := chart.ChartReader()
 		data, err := io.ReadAll(reader)

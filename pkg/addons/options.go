@@ -31,8 +31,8 @@ func Quiet() Option {
 	}
 }
 
-// Config sets the helm config for the addons.
-func Config(config v1beta1.ClusterConfig) Option {
+// WithConfig sets the helm config for the addons.
+func WithConfig(config v1beta1.ClusterConfig) Option {
 	return func(a *Applier) {
 		a.config = config
 	}

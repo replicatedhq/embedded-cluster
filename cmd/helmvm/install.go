@@ -140,12 +140,12 @@ func createK0sctlConfigBackup(ctx context.Context) error {
 	return nil
 }
 
-// updateConfigBundle updates the k0sctl.yaml file in the configuration directory
-// to use the bundle in the specified directory (reads the bundle directory and
-// updates the files that need to be uploaded to the nodes). This function also
-// makes sure that the k0s version used in the configuration matches the version
-// we are planning to install.
-func updateConfigBundle(c *cli.Context, bundledir string) error {
+// updateConfig updates the k0sctl.yaml file with the latest configuration
+// options.
+func updateConfig(c *cli.Context) error {
+
+	bundledir := c.String("bundle")
+
 	if err := createK0sctlConfigBackup(c.Context); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
 	}
@@ -239,10 +239,10 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 	if _, err := os.Stat(cfgpath); err == nil {
 		if len(nodes) == 0 {
 			if !useprompt {
-				return updateConfigBundle(c, bundledir)
+				return updateConfig(c)
 			}
 			if !overwriteExistingConfig() {
-				return updateConfigBundle(c, bundledir)
+				return updateConfig(c)
 			}
 		}
 		if err := createK0sctlConfigBackup(c.Context); err != nil {
@@ -387,9 +387,8 @@ func applyK0sctl(c *cli.Context, nodes []infra.Node) error {
 
 // installCommands executes the "install" command. This will ensure that a
 // k0sctl.yaml file exists and then run `k0sctl apply` to apply the cluster.
-// Once this is finished then a "kubeconfig" file is created and the addons
-// are applied. Resulting k0sctl.yaml and kubeconfig are stored in the
-// configuration dir.
+// Once this is finished then a "kubeconfig" file is created.
+// Resulting k0sctl.yaml and kubeconfig are stored in the configuration dir.
 var installCommand = &cli.Command{
 	Name:    "install",
 	Aliases: []string{"apply"},
@@ -410,11 +409,6 @@ var installCommand = &cli.Command{
 		&cli.BoolFlag{
 			Name:  "multi-node",
 			Usage: "Installs or upgrades a multi node deployment",
-			Value: false,
-		},
-		&cli.BoolFlag{
-			Name:  "addons-only",
-			Usage: "Only apply addons. Skips cluster install",
 			Value: false,
 		},
 		&cli.BoolFlag{

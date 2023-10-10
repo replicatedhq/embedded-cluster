@@ -62,12 +62,11 @@ func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 	}
 
 	chartConfig := v1beta1.Chart{
-		Name:     releaseName,
-		TargetNS: o.namespace,
-		Version:  latest,
+		Name:      releaseName,
+		TargetNS:  o.namespace,
+		Version:   latest,
+		ChartName: defaults.PathToHelmChart(releaseName, latest),
 	}
-
-	chartConfig.ChartName = defaults.PathToHelmChart(releaseName, latest)
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
