@@ -1,0 +1,75 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.1
+  creationTimestamp: null
+  name: installations.cluster.kurl.sh
+spec:
+  group: cluster.kurl.sh
+  names:
+    kind: Installation
+    listKind: InstallationList
+    plural: installations
+    singular: installation
+  scope: Cluster
+  versions:
+  - name: v2alpha1
+    schema:
+      openAPIV3Schema:
+        description: Installation is the Schema for the installations API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: InstallationSpec defines the desired state of Installation.
+            properties:
+              airGap:
+                description: AirGap indicates if the installation is airgapped.
+                type: boolean
+              clusterID:
+                description: ClusterID holds the cluster, generated during the installation.
+                type: string
+              metricsBaseURL:
+                description: MetricsBaseURL holds the base URL for the metrics server.
+                type: string
+            required:
+            - airGap
+            type: object
+          status:
+            description: InstallationStatus defines the observed state of Installation
+            properties:
+              nodesStatus:
+                description: NodesStatus is a list of nodes and their status.
+                items:
+                  description: NodeStatus is used to keep track of the status of a
+                    cluster node, we only hold its name and a hash of the node's status.
+                    Whenever the node status change we will be able to capture it
+                    and update the hash.
+                  properties:
+                    hash:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - hash
+                  - name
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

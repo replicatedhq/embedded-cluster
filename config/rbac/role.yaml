@@ -1,0 +1,41 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cluster.kurl.sh
+  resources:
+  - installations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cluster.kurl.sh
+  resources:
+  - installations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cluster.kurl.sh
+  resources:
+  - installations/status
+  verbs:
+  - get
+  - patch
+  - update
