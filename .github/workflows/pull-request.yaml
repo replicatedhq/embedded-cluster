@@ -15,6 +15,10 @@ jobs:
     - name: Go vet
       run: |
         make vet
+    - name: Lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: v1.54
   tests:
     name: Unit tests
     runs-on: ubuntu-latest
