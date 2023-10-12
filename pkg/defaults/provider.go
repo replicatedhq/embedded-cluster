@@ -60,6 +60,26 @@ func (d *DefaultsProvider) home() string {
 	return home
 }
 
+// config returns the user's config dir.
+func (d *DefaultsProvider) config() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		logrus.Fatalf("unable to get user home dir: %s", err)
+	}
+
+	// use the XDG_CONFIG_HOME environment variable if set
+	if config := os.Getenv("XDG_CONFIG_HOME"); config != "" {
+		return config
+	}
+
+	// otherwise, default to $HOME/.config on linux
+	if runtime.GOOS == "linux" {
+		return filepath.Join(home, ".config")
+	}
+
+	return home
+}
+
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if
 // the binary is renamed). We make sure the name does not contain invalid
@@ -77,7 +97,7 @@ func (d *DefaultsProvider) BinaryName() string {
 // stored. This is a subdirectory of the user's home directory.
 func (d *DefaultsProvider) HelmVMLogsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, d.home(), hidden, "logs")
+	return filepath.Join(d.Base, d.config(), hidden, "logs")
 }
 
 // PathToLog returns the full path to a log file. This function does not check
@@ -100,7 +120,7 @@ func (d *DefaultsProvider) K0sctlBinsSubDir() string {
 // are stored. This is a subdirectory of the user's home directory.
 func (d *DefaultsProvider) HelmVMBinsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, d.home(), hidden, "bin")
+	return filepath.Join(d.Base, d.config(), hidden, "bin")
 }
 
 // K0sctlApplyLogPath returns the path to the k0sctl apply log file.
@@ -126,9 +146,10 @@ func (d *DefaultsProvider) SSHConfigSubDir() string {
 
 // ConfigSubDir returns the path to the directory where k0sctl configuration
 // files are stored. This is a subdirectory of the user's home directory.
+// TODO update
 func (d *DefaultsProvider) ConfigSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, d.home(), hidden, "etc")
+	return filepath.Join(d.Base, d.config(), hidden, "etc")
 }
 
 // K0sBinaryPath returns the path to the k0s binary.
