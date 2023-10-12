@@ -99,6 +99,9 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 		if err := r.UpdateNodeStatus(in, event); err != nil {
 			return fmt.Errorf("failed to update node status: %w", err)
 		}
+		if in.Spec.AirGap {
+			continue
+		}
 		if isnew {
 			if err := metrics.NotifyNodeAdded(ctx, in.Spec.MetricsBaseURL, event); err != nil {
 				return fmt.Errorf("failed to notify node added: %w", err)
@@ -117,6 +120,9 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 		}
 		needsUpdate = true
 		rmevent := metrics.NodeRemovedEvent{ClusterID: in.Spec.ClusterID, NodeName: nodeStatus.Name}
+		if in.Spec.AirGap {
+			continue
+		}
 		if err := metrics.NotifyNodeRemoved(ctx, in.Spec.MetricsBaseURL, rmevent); err != nil {
 			return fmt.Errorf("failed to notify node removed: %w", err)
 		}
@@ -154,10 +160,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if len(installs.Items) > 1 {
 		log.Error(fmt.Errorf("multiple installations found"), "Multiple installations found")
 		return ctrl.Result{RequeueAfter: requeueAfter}, nil
-	}
-	if installs.Items[0].Spec.AirGap {
-		log.Info("Airgap installation, reconciliation ended")
-		return ctrl.Result{}, nil
 	}
 	if installs.Items[0].Spec.ClusterID == "" {
 		log.Info("No cluster ID, reconciliation ended")
