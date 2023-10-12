@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -128,6 +129,7 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 		}
 	}
 	log := ctrl.LoggerFrom(ctx)
+	sort.Sort(v2alpha1.ByName(trimmed))
 	in.Status.NodesStatus = trimmed
 	if !needsUpdate {
 		log.Info("No node changes detected")
