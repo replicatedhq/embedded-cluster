@@ -1,0 +1,14 @@
+apiVersion: cluster.kurl.sh/v2alpha1
+kind: Installation
+metadata:
+  labels:
+    app.kubernetes.io/name: installation
+    app.kubernetes.io/instance: installation-sample
+    app.kubernetes.io/part-of: helmvm-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: helmvm-operator
+  name: cluster
+spec:
+  clusterID: 4023E9A9-096D-47B6-BFEF-BA9041F74B94
+  metricsBaseURL: https://replicated-app-ricardomaraschini.okteto.repldev.com
+  airGap: false
