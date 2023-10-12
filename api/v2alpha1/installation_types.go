@@ -20,13 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ByName is a sort.Interface implementation that sorts node status by name.
-type ByName []NodeStatus
-
-func (a ByName) Len() int           { return len(a) }
-func (a ByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
-
 // NodeStatus is used to keep track of the status of a cluster node, we
 // only hold its name and a hash of the node's status. Whenever the node
 // status change we will be able to capture it and update the hash.

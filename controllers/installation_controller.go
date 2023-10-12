@@ -129,8 +129,7 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 		}
 	}
 	log := ctrl.LoggerFrom(ctx)
-	sort.Sort(v2alpha1.ByName(trimmed))
-        sort.SliceStable(trimmed, func(i, j int) bool { return trimmed[i].Name < trimmed[j].Name })
+	sort.SliceStable(trimmed, func(i, j int) bool { return trimmed[i].Name < trimmed[j].Name })
 	in.Status.NodesStatus = trimmed
 	if !needsUpdate {
 		log.Info("No node changes detected")
