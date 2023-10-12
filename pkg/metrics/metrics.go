@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -53,12 +52,17 @@ type NodeRemovedEvent struct {
 	NodeName  string `json:"nodeName"`
 }
 
-// sendEvent sends the received buf to the provided url through a post request. Buffer
-// is expected to be a json encoded object.
-func sendEvent(ctx context.Context, url string, body io.Reader) error {
+// sendEvent sends the received event to the metrics server through a post request.
+func sendEvent(ctx context.Context, evname, baseURL string, ev interface{}) error {
+	url := fmt.Sprintf("%s/helmbin_metrics/%s", baseURL, evname)
+	body := map[string]interface{}{"event": ev}
+	buf := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(buf).Encode(body); err != nil {
+		return err
+	}
 	ictx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ictx, http.MethodPost, url, body)
+	req, err := http.NewRequestWithContext(ictx, http.MethodPost, url, buf)
 	if err != nil {
 		return err
 	}
@@ -76,33 +80,15 @@ func sendEvent(ctx context.Context, url string, body io.Reader) error {
 
 // NotifyNodeUpdated notifies the metrics server that a node has been updated.
 func NotifyNodeUpdated(ctx context.Context, baseURL string, ev NodeEvent) error {
-	url := fmt.Sprintf("%s/helmbin_metrics/NodeUpdated", baseURL)
-	body := map[string]interface{}{"event": ev}
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(buf).Encode(body); err != nil {
-		return err
-	}
-	return sendEvent(ctx, url, buf)
+	return sendEvent(ctx, "NodeUpdated", baseURL, ev)
 }
 
 // NotifyNodeAdded notifies the metrics server that a node has been added.
 func NotifyNodeAdded(ctx context.Context, baseURL string, ev NodeEvent) error {
-	url := fmt.Sprintf("%s/helmbin_metrics/NodeAdded", baseURL)
-	body := map[string]interface{}{"event": ev}
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(buf).Encode(body); err != nil {
-		return err
-	}
-	return sendEvent(ctx, url, buf)
+	return sendEvent(ctx, "NodeAdded", baseURL, ev)
 }
 
 // NotifyNodeRemoved notifies the metrics server that a node has been removed.
 func NotifyNodeRemoved(ctx context.Context, baseURL string, ev NodeRemovedEvent) error {
-	url := fmt.Sprintf("%s/helmbin_metrics/NodeRemoved", baseURL)
-	body := map[string]interface{}{"event": ev}
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(buf).Encode(body); err != nil {
-		return err
-	}
-	return sendEvent(ctx, url, buf)
+	return sendEvent(ctx, "NodeRemoved", baseURL, ev)
 }
