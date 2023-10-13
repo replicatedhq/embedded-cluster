@@ -35,6 +35,18 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+    - name: Check system storage
+      run: |
+        sudo df -h
+    - name: Remove unnecessary files
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+    - name: Check system storage
+      run: |
+        sudo df -h
     - name: Checkout
       uses: actions/checkout@v4
     - name: Get short commit hash
@@ -43,15 +55,27 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: "1.21.0"
+    - name: Check system storage
+      run: |
+        sudo df -h
     - name: Build Linux AMD64
       run: |
         make helmvm-linux-amd64 VERSION=dev-$SHORT_SHA
+    - name: Check system storage
+      run: |
+        sudo df -h
     - name: Build Darwin AMD64
       run: |
         make helmvm-darwin-amd64
+    - name: Check system storage
+      run: |
+        sudo df -h
     - name: Build Darwin ARM64 VERSION=dev-$SHORT_SHA
       run: |
         make helmvm-darwin-arm64 VERSION=dev-$SHORT_SHA
+    - name: Check system storage
+      run: |
+        sudo df -h
     - name: Build HelmVM Builder Server Image
       uses: docker/build-push-action@v5
       with:
