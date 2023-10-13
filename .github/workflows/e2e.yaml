@@ -47,11 +47,26 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: "1.21.0"
-    - name: Free up runner disk space
+    - name: Remove unnecessary files
       run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
         sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/hostedtoolcache/CodeQL
-        sudo rm -rf /opt/hostedtoolcache/Python
+        sudo rm -rf /opt/ghc
     - name: E2E
       run: |
         make e2e-test TEST_NAME=${{ matrix.tests }}
+    - name: install troubleshoot
+      run: curl -L https://github.com/replicatedhq/troubleshoot/releases/latest/download/support-bundle_linux_amd64.tar.gz | tar xzvf -
+      if: success() || failure()
+
+    - name: collect bundle
+      run: sudo -E ./support-bundle --interactive=false -o ci-bundle https://raw.githubusercontent.com/replicatedhq/troubleshoot-specs/main/host/cluster-down.yaml https://raw.githubusercontent.com/replicatedhq/troubleshoot-specs/main/in-cluster/default.yaml 
+      if: success() || failure()
+
+    - name: Upload support bundle artifact
+      uses: actions/upload-artifact@v3
+      if: success() || failure()
+      with:
+        name: support-bundle
+        path: 'ci-bundle.tar.gz'
