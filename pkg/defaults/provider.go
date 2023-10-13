@@ -68,13 +68,33 @@ func (d *DefaultsProvider) config() string {
 	}
 
 	// use the XDG_CONFIG_HOME environment variable if set
-	if config := os.Getenv("XDG_CONFIG_HOME"); config != "" {
-		return config
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		return xdgConfigHome
 	}
 
 	// otherwise, default to $HOME/.config on linux
 	if runtime.GOOS == "linux" {
 		return filepath.Join(home, ".config")
+	}
+
+	return home
+}
+
+// state returns the user's state dir.
+func (d *DefaultsProvider) state() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		logrus.Fatalf("unable to get user home dir: %s", err)
+	}
+
+	// use the XDG_STATE_HOME environment variable if set
+	if xdgStateHome := os.Getenv("XDG_STATE_HOME"); xdgStateHome != "" {
+		return xdgStateHome
+	}
+
+	// otherwise, default to $HOME/.local/state on linux
+	if runtime.GOOS == "linux" {
+		return filepath.Join(home, ".local", "state")
 	}
 
 	return home
@@ -97,7 +117,7 @@ func (d *DefaultsProvider) BinaryName() string {
 // stored. This is a subdirectory of the user's home directory.
 func (d *DefaultsProvider) HelmVMLogsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, d.config(), hidden, "logs")
+	return filepath.Join(d.Base, d.state(), hidden, "logs")
 }
 
 // PathToLog returns the full path to a log file. This function does not check
