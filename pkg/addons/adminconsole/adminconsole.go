@@ -132,18 +132,18 @@ func (a *AdminConsole) GetCurrentConfig() (v1beta1.Chart, error) {
 	if a.config.Spec == nil {
 		return nilChart, fmt.Errorf("unable to find spec in cluster config")
 	}
-
 	spec := a.config.Spec
+
 	if spec.Extensions == nil {
 		return nilChart, fmt.Errorf("unable to find extensions in cluster config")
 	}
-
 	extensions := spec.Extensions
+
 	if extensions.Helm == nil {
 		return nilChart, fmt.Errorf("unable to find helm extensions in cluster config")
 	}
-
 	chartList := a.config.Spec.Extensions.Helm.Charts
+
 	for _, chart := range chartList {
 		if chart.Name == "adminconsole" {
 			return chart, nil
