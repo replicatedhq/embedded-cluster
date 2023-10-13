@@ -313,6 +313,10 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
 func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 
+	if cfg.Spec == nil || cfg.Spec.K0s == nil || cfg.Spec.K0s.Config == nil {
+		return fmt.Errorf("invalid cluster configuration")
+	}
+
 	currentSpec := cfg.Spec.K0s.Config
 	configString, err := yamlv2.Marshal(currentSpec)
 
