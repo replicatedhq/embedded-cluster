@@ -30,6 +30,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	clusterv2alpha1 "github.com/replicatedhq/helmvm-operator/api/v2alpha1"
 	"github.com/replicatedhq/helmvm-operator/controllers"
@@ -66,9 +68,11 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                        scheme,
-		MetricsBindAddress:            metricsAddr,
-		Port:                          9443,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
+		WebhookServer:                 webhook.NewServer(webhook.Options{Port: 9443}),
 		HealthProbeBindAddress:        probeAddr,
 		LeaderElection:                enableLeaderElection,
 		LeaderElectionID:              "3f2343ef.kurl.sh",
