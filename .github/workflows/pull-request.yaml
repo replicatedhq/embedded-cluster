@@ -1,0 +1,39 @@
+name: Pull request
+on:
+- pull_request
+jobs:
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: "1.21.0"
+    - name: Go vet
+      run: |
+       make vet
+    - name: Unit tests
+      run: |
+        make test
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Get short commit hash
+      run: echo "SHORT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: "1.21.0"
+    - name: Build
+      run: |
+        make build VERSION=dev-$SHORT_SHA
+    - name: Docker Image
+      uses: docker/build-push-action@v5
+      with:
+        push: false
