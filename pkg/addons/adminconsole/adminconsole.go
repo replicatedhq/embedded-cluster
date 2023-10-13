@@ -176,19 +176,17 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 	}
 
 	currentConfig, err := a.GetCurrentConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get current config: %w", err)
-	}
-
-	currentPassword, err := getPasswordFromConfig(currentConfig)
-	if err != nil {
-		pass, err := a.askPassword()
+	if err == nil {
+		currentPassword, err := getPasswordFromConfig(currentConfig)
 		if err != nil {
-			return nil, fmt.Errorf("unable to ask for password: %w", err)
+			pass, err := a.askPassword()
+			if err != nil {
+				return nil, fmt.Errorf("unable to ask for password: %w", err)
+			}
+			helmValues["password"] = pass
+		} else if currentPassword != "" {
+			helmValues["password"] = currentPassword
 		}
-		helmValues["password"] = pass
-	} else if currentPassword != "" {
-		helmValues["password"] = currentPassword
 	} else {
 		pass, err := a.askPassword()
 		if err != nil {
