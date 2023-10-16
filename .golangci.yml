@@ -1,0 +1,43 @@
+run:
+  timeout: 10m
+
+output:
+  # Make output more digestible with quickfix in vim/emacs/etc.
+  sort-results: true
+  print-issued-lines: false
+
+linters:
+  # We'll track the golangci-lint default linters manually
+  # instead of letting them change without our control.
+  disable-all: true
+  enable:
+    # golangci-lint defaults:
+    # - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    # - unused
+
+    # Our own extras:
+    - gofmt
+    - nolintlint # lints nolint directives
+    # - revive
+
+linters-settings:
+  govet:
+    # These govet checks are disabled by default, but they're useful.
+    enable:
+    - nilness
+    - reflectvaluecompare
+    - sortslice
+    - unusedwrite
+
+issues:
+  # Print all issues reported by all linters.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  # Don't ignore some of the issues that golangci-lint considers okay.
+  # This includes documenting all exported entities.
+  exclude-use-default: false
