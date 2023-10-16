@@ -59,9 +59,23 @@ func SetUploadBinary(config *v1beta1.Cluster) {
 
 // RenderClusterConfig renders a cluster configuration interactively.
 func RenderClusterConfig(ctx context.Context, nodes []infra.Node, multi bool) (*v1beta1.Cluster, error) {
-	if multi {
-		return renderMultiNodeConfig(ctx, nodes)
+	embconfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
 	}
+	if multi {
+		cfg, err := renderMultiNodeConfig(ctx, nodes)
+		if err != nil {
+			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
+		}
+		applyEmbeddedUnsupportedOverrides(cfg, embconfig)
+		return cfg, nil
+	}
+	cfg, err := renderSingleNodeConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to render single-node config: %w", err)
+	}
+	applyEmbeddedUnsupportedOverrides(cfg, embconfig)
 	return renderSingleNodeConfig(ctx)
 }
 
@@ -411,11 +425,8 @@ type UnsupportedConfigOverrides struct {
 }
 
 // applyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
-func applyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster) error {
-	embconfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
-	if err != nil {
-		return fmt.Errorf("unable to get embedded cluster config: %w", err)
-	} else if embconfig == nil {
+func applyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte) error {
+	if embconfig == nil {
 		return nil
 	}
 	var overrides UnsupportedConfigOverrides
