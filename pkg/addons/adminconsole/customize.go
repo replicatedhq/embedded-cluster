@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/preflights"
 )
 
@@ -190,6 +191,10 @@ func (a *AdminConsoleCustomization) clusterConfig(ctx context.Context, version s
 	if err != nil {
 		return fmt.Errorf("unable to create kubernetes client: %w", err)
 	}
+	content := map[string]string{
+		"AdminConsoleVersion": version,
+		"InstallerVersion":    defaults.Version,
+	}
 	nsn := client.ObjectKey{Namespace: clusterConfigMapNS, Name: clusterConfigMapName}
 	var cm corev1.ConfigMap
 	if err := kubeclient.Get(ctx, nsn, &cm); err != nil {
@@ -199,7 +204,7 @@ func (a *AdminConsoleCustomization) clusterConfig(ctx context.Context, version s
 		logrus.Infof("Creating cluster config configmap")
 		cm = corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Namespace: nsn.Namespace, Name: nsn.Name},
-			Data:       map[string]string{"version": version},
+			Data:       content,
 		}
 		if err := kubeclient.Create(ctx, &cm); err != nil {
 			return fmt.Errorf("unable to create cluster config configmap: %w", err)
@@ -207,7 +212,7 @@ func (a *AdminConsoleCustomization) clusterConfig(ctx context.Context, version s
 		return nil
 	}
 	logrus.Infof("Updating cluster config configmap")
-	cm.Data["version"] = version
+	cm.Data = content
 	if err := kubeclient.Update(ctx, &cm); err != nil {
 		return fmt.Errorf("unable to update cluster config configmap: %w", err)
 	}
