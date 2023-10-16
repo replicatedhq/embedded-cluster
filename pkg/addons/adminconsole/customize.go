@@ -26,6 +26,11 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/preflights"
 )
 
+const (
+	clusterConfigMapName = "embedded-cluster-config"
+	clusterConfigMapNS   = "kube-system"
+)
+
 // ParsedSection holds the parsed section from the binary. We only care about the
 // application object, whatever HostPreflight we can find, and the app License.
 type ParsedSection struct {
@@ -122,7 +127,7 @@ func (a *AdminConsoleCustomization) kubeClient() (client.Client, error) {
 
 // apply will attempt to read the helmvm binary and extract the kotsadm portal customization
 // from it. If it finds one, it will apply it to the cluster.
-func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
+func (a *AdminConsoleCustomization) apply(ctx context.Context, version string) error {
 	logrus.Infof("Applying admin console customization")
 	if runtime.GOOS != "linux" {
 		logrus.Infof("Skipping admin console customization on %s", runtime.GOOS)
@@ -131,7 +136,7 @@ func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
 	if err := a.kotsConfig(ctx); err != nil {
 		return err
 	}
-	return a.clusterConfig(ctx)
+	return a.clusterConfig(ctx, version)
 }
 
 // kotsConfig reads the embedded kots config and creates it in the cluster.
@@ -180,22 +185,31 @@ func (a *AdminConsoleCustomization) kotsConfig(ctx context.Context) error {
 
 // clusterConfig makes sure a config map named "embedded-cluster-config" exists in the cluster.
 // XXX this will eventually be customizable by the user through the app release.
-func (a *AdminConsoleCustomization) clusterConfig(ctx context.Context) error {
+func (a *AdminConsoleCustomization) clusterConfig(ctx context.Context, version string) error {
 	kubeclient, err := a.kubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kubernetes client: %w", err)
 	}
-	nsn := client.ObjectKey{Namespace: "kube-system", Name: "embedded-cluster-config"}
+	nsn := client.ObjectKey{Namespace: clusterConfigMapNS, Name: clusterConfigMapName}
 	var cm corev1.ConfigMap
-	if err := kubeclient.Get(ctx, nsn, &cm); err == nil {
+	if err := kubeclient.Get(ctx, nsn, &cm); err != nil {
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("unable to get cluster config configmap: %w", err)
+		}
+		logrus.Infof("Creating cluster config configmap")
+		cm = corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Namespace: nsn.Namespace, Name: nsn.Name},
+			Data:       map[string]string{"version": version},
+		}
+		if err := kubeclient.Create(ctx, &cm); err != nil {
+			return fmt.Errorf("unable to create cluster config configmap: %w", err)
+		}
 		return nil
 	}
-	cm = corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Namespace: nsn.Namespace, Name: nsn.Name},
-		Data:       map[string]string{},
-	}
-	if err := kubeclient.Create(ctx, &cm); err != nil {
-		return fmt.Errorf("unable to create kotsadm-application configmap: %w", err)
+	logrus.Infof("Updating cluster config configmap")
+	cm.Data["version"] = version
+	if err := kubeclient.Update(ctx, &cm); err != nil {
+		return fmt.Errorf("unable to update cluster config configmap: %w", err)
 	}
 	return nil
 }
