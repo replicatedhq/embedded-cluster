@@ -3,27 +3,22 @@
 package custom
 
 import (
-	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"golang.org/x/mod/semver"
-	"helm.sh/helm/v3/pkg/action"
+	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/release"
-	"sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/hembed"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
 type Custom struct {
-	config         *action.Configuration
-	logger         action.DebugLog
 	namespace      string
 	disabledAddons map[string]bool
 }
@@ -57,43 +52,62 @@ func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
-func (c *Custom) Apply(ctx context.Context) error {
+// GenerateHelmConfig generates the helm config for all the embedded charts.
+// and writes the charts to the disk.
+func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, error) {
+
+	chartConfigs := []v1beta1.Chart{}
+
 	exe, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("unable to get executable path: %w", err)
+		return nil, fmt.Errorf("unable to get executable path: %w", err)
 	}
 	opts, err := hembed.ReadEmbedOptionsFromBinary(exe)
 	if err != nil {
-		return fmt.Errorf("unable to read embed options: %w", err)
+		return nil, fmt.Errorf("unable to read embed options: %w", err)
 	} else if opts == nil {
-		c.logger("No embed charts found, skipping custom addons.")
-		return nil
+		return nil, nil
 	}
-	for _, chart := range opts.Charts {
-		if err := c.applyOne(ctx, chart); err != nil {
-			return fmt.Errorf("unable to apply chart: %w", err)
-		}
-	}
-	return nil
-}
 
-func (c *Custom) applyOne(ctx context.Context, ochart hembed.HelmChart) error {
-	chart, err := loader.LoadArchive(ochart.ChartReader())
-	if err != nil {
-		return fmt.Errorf("unable to load chart archive: %w", err)
-	}
-	if c.chartHasBeenDisabled(chart) {
-		c.logger("Skipping disabled addon %s", chart.Name())
-		return nil
-	}
-	var values map[string]interface{}
-	if len(ochart.Values) > 0 {
-		values = make(map[string]interface{})
-		if err := yaml.Unmarshal([]byte(ochart.Values), &values); err != nil {
-			return fmt.Errorf("unable to unmarshal values: %w", err)
+	for _, chart := range opts.Charts {
+
+		chartData, err := loader.LoadArchive(chart.ChartReader())
+		if err != nil {
+			return nil, fmt.Errorf("unable to load chart archive: %w", err)
 		}
+
+		if c.chartHasBeenDisabled(chartData) {
+			logrus.Infof("skipping disabled chart %s", chartData.Name())
+			continue
+		}
+
+		chartName := strings.ToLower(chartData.Name())
+		dstpath := defaults.PathToHelmChart(chartName, chartData.Metadata.Version)
+
+		chartConfig := v1beta1.Chart{
+			Name:      chartName,
+			Version:   chartData.Metadata.Version,
+			TargetNS:  c.namespace,
+			ChartName: dstpath,
+			Values:    chart.Values,
+		}
+
+		reader := chart.ChartReader()
+		data, err := io.ReadAll(reader)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read helm chart archive: %w", err)
+		}
+
+		err = os.WriteFile(dstpath, data, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("unable to write helm chart archive: %w", err)
+		}
+
+		chartConfigs = append(chartConfigs, chartConfig)
+
 	}
-	return c.applyChart(ctx, chart, values)
+	return chartConfigs, nil
+
 }
 
 func (c *Custom) chartHasBeenDisabled(chart *chart.Chart) bool {
@@ -102,64 +116,9 @@ func (c *Custom) chartHasBeenDisabled(chart *chart.Chart) bool {
 	return disabledAddons
 }
 
-func (c *Custom) applyChart(ctx context.Context, chart *chart.Chart, values map[string]interface{}) error {
-	loading := pb.Start()
-	loading.Infof("Applying %s addon", chart.Name())
-	defer loading.Close()
-	installed, err := c.installedRelease(chart.Name())
-	if err != nil {
-		return fmt.Errorf("unable to check if release %s is installed: %w", chart.Name(), err)
-	}
-	if installed == nil {
-		c.logger("Custom %s hasn't been installed yet, installing it.", chart.Name())
-		act := action.NewInstall(c.config)
-		act.Namespace = "helmvm"
-		act.ReleaseName = chart.Name()
-		act.CreateNamespace = true
-		if _, err := act.RunWithContext(ctx, chart, values); err != nil {
-			return fmt.Errorf("unable to install chart %s: %w", chart.Name(), err)
-		}
-		return nil
-	}
-	c.logger("Custom %s is already installed, applying changes.", chart.Name())
-	curver := fmt.Sprintf("v%s", installed.Chart.Metadata.Version)
-	newver := fmt.Sprintf("v%s", chart.Metadata.Version)
-	if out := semver.Compare(curver, newver); out > 0 {
-		return fmt.Errorf("%s %s installed, unable to downgrade to %s", chart.Name(), curver, newver)
-	}
-	act := action.NewUpgrade(c.config)
-	act.Namespace = "helmvm"
-	if _, err := act.RunWithContext(ctx, chart.Name(), chart, values); err != nil {
-		return fmt.Errorf("unable to upgrade chart %s: %w", chart.Name(), err)
-	}
-	return nil
-}
-
-func (c *Custom) installedRelease(name string) (*release.Release, error) {
-	list := action.NewList(c.config)
-	list.StateMask = action.ListDeployed
-	list.Filter = name
-	releases, err := list.Run()
-	if err != nil {
-		return nil, fmt.Errorf("unable to list installed releases: %w", err)
-	}
-	if len(releases) == 0 {
-		return nil, nil
-	}
-	return releases[0], nil
-}
-
-func New(namespace string, logger action.DebugLog, disabledAddons map[string]bool) (*Custom, error) {
-	env := cli.New()
-	env.SetNamespace(namespace)
-	config := &action.Configuration{}
-	if err := config.Init(env.RESTClientGetter(), namespace, "", logger); err != nil {
-		return nil, fmt.Errorf("unable to init configuration: %w", err)
-	}
+func New(namespace string, disabledAddons map[string]bool) (*Custom, error) {
 	return &Custom{
 		namespace:      namespace,
-		config:         config,
-		logger:         logger,
 		disabledAddons: disabledAddons,
 	}, nil
 }

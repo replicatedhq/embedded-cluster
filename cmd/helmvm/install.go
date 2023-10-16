@@ -140,15 +140,16 @@ func createK0sctlConfigBackup(ctx context.Context) error {
 	return nil
 }
 
-// updateConfigBundle updates the k0sctl.yaml file in the configuration directory
-// to use the bundle in the specified directory (reads the bundle directory and
-// updates the files that need to be uploaded to the nodes). This function also
-// makes sure that the k0s version used in the configuration matches the version
-// we are planning to install.
-func updateConfigBundle(ctx context.Context, bundledir string) error {
-	if err := createK0sctlConfigBackup(ctx); err != nil {
+// updateConfig updates the k0sctl.yaml file with the latest configuration
+// options.
+func updateConfig(c *cli.Context) error {
+
+	bundledir := c.String("bundle")
+
+	if err := createK0sctlConfigBackup(c.Context); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
 	}
+
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	cfg, err := config.ReadConfigFile(cfgpath)
 	if err != nil {
@@ -158,6 +159,20 @@ func updateConfigBundle(ctx context.Context, bundledir string) error {
 		return fmt.Errorf("unable to update hosts files: %w", err)
 	}
 	cfg.Spec.K0s.Version = defaults.K0sVersion
+
+	opts := []addons.Option{}
+	if c.Bool("no-prompt") {
+		opts = append(opts, addons.WithoutPrompt())
+	}
+
+	for _, addon := range c.StringSlice("disable-addon") {
+		opts = append(opts, addons.WithoutAddon(addon))
+	}
+
+	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
+		return fmt.Errorf("unable to update helm configs: %w", err)
+	}
+
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -224,10 +239,10 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 	if _, err := os.Stat(cfgpath); err == nil {
 		if len(nodes) == 0 {
 			if !useprompt {
-				return updateConfigBundle(c.Context, bundledir)
+				return updateConfig(c)
 			}
 			if !overwriteExistingConfig() {
-				return updateConfigBundle(c.Context, bundledir)
+				return updateConfig(c)
 			}
 		}
 		if err := createK0sctlConfigBackup(c.Context); err != nil {
@@ -236,10 +251,25 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("unable to open config: %w", err)
 	}
+
 	cfg, err := config.RenderClusterConfig(c.Context, nodes, multi)
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}
+
+	opts := []addons.Option{}
+	if c.Bool("no-prompt") {
+		opts = append(opts, addons.WithoutPrompt())
+	}
+
+	for _, addon := range c.StringSlice("disable-addon") {
+		opts = append(opts, addons.WithoutAddon(addon))
+	}
+
+	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
+		return fmt.Errorf("unable to update helm configs: %w", err)
+	}
+
 	if bundledir != "" {
 		config.SetUploadBinary(cfg)
 	}
@@ -330,7 +360,8 @@ func dumpApplyLogs() {
 
 // applyK0sctl runs the k0sctl apply command and waits for it to finish. If
 // no configuration is found one is generated.
-func applyK0sctl(c *cli.Context, useprompt bool, nodes []infra.Node) error {
+func applyK0sctl(c *cli.Context, nodes []infra.Node) error {
+	useprompt := !c.Bool("no-prompt")
 	fmt.Println("Processing cluster configuration")
 	if err := ensureK0sctlConfig(c, nodes, useprompt); err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -356,9 +387,8 @@ func applyK0sctl(c *cli.Context, useprompt bool, nodes []infra.Node) error {
 
 // installCommands executes the "install" command. This will ensure that a
 // k0sctl.yaml file exists and then run `k0sctl apply` to apply the cluster.
-// Once this is finished then a "kubeconfig" file is created and the addons
-// are applied. Resulting k0sctl.yaml and kubeconfig are stored in the
-// configuration dir.
+// Once this is finished then a "kubeconfig" file is created.
+// Resulting k0sctl.yaml and kubeconfig are stored in the configuration dir.
 var installCommand = &cli.Command{
 	Name:    "install",
 	Aliases: []string{"apply"},
@@ -379,11 +409,6 @@ var installCommand = &cli.Command{
 		&cli.BoolFlag{
 			Name:  "multi-node",
 			Usage: "Installs or upgrades a multi node deployment",
-			Value: false,
-		},
-		&cli.BoolFlag{
-			Name:  "addons-only",
-			Usage: "Only apply addons. Skips cluster install",
 			Value: false,
 		},
 		&cli.BoolFlag{
@@ -412,50 +437,33 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		if !c.Bool("addons-only") {
-			var err error
-			var nodes []infra.Node
-			if dir := c.String("infra"); dir != "" {
-				logrus.Infof("Processing infrastructure manifests")
-				if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
-					err := fmt.Errorf("unable to create infra: %w", err)
-					metrics.ReportApplyFinished(c, err)
-					return err
-				}
-			}
-			if err := applyK0sctl(c, useprompt, nodes); err != nil {
-				err := fmt.Errorf("unable update cluster: %w", err)
+
+		var err error
+		var nodes []infra.Node
+		if dir := c.String("infra"); dir != "" {
+			logrus.Infof("Processing infrastructure manifests")
+			if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
+				err := fmt.Errorf("unable to create infra: %w", err)
 				metrics.ReportApplyFinished(c, err)
 				return err
 			}
 		}
+		if err := applyK0sctl(c, nodes); err != nil {
+			err := fmt.Errorf("unable update cluster: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+
+		}
+
 		logrus.Infof("Reading cluster access configuration")
 		if err := runK0sctlKubeconfig(c.Context); err != nil {
 			err := fmt.Errorf("unable to get kubeconfig: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Infof("Applying add-ons")
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
-		os.Setenv("KUBECONFIG", kcfg)
-		opts := []addons.Option{}
-		if c.Bool("no-prompt") {
-			opts = append(opts, addons.WithoutPrompt())
-		}
-		for _, addon := range c.StringSlice("disable-addon") {
-			opts = append(opts, addons.WithoutAddon(addon))
-		}
-		if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
-			err := fmt.Errorf("unable to apply addons: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		if err := runPostApply(c.Context); err != nil {
-			err := fmt.Errorf("unable to run post apply: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
+
 		fmt.Println("Cluster configuration has been applied")
 		fmt.Printf("Kubeconfig file has been placed at at %s\n", kcfg)
 		fmt.Printf("Cluster configuration file has been placed at %s\n", ccfg)

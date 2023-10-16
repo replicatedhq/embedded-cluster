@@ -14,11 +14,14 @@ import (
 	"strings"
 
 	"github.com/k0sproject/dig"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	yamlv2 "gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/helmvm/pkg/addons"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/infra"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
@@ -240,11 +243,12 @@ func renderMultiNodeConfig(ctx context.Context, nodes []infra.Node) (*v1beta1.Cl
 			return nil, fmt.Errorf("unable to ask for load balancer: %w", err)
 		}
 	}
-	return generateConfigForHosts(lb, hosts...)
+	return generateConfigForHosts(ctx, lb, hosts...)
 }
 
 // generateConfigForHosts generates a v1beta1.Cluster object for a given list of hosts.
-func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
+func generateConfigForHosts(ctx context.Context, lb string, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
+
 	var configSpec = dig.Mapping{
 		"network": dig.Mapping{
 			"provider": "calico",
@@ -253,6 +257,7 @@ func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster
 			"enabled": false,
 		},
 	}
+
 	if lb != "" {
 		configSpec["api"] = dig.Mapping{"externalAddress": lb, "sans": []string{lb}}
 	}
@@ -262,6 +267,7 @@ func generateConfigForHosts(lb string, hosts ...*cluster.Host) (*v1beta1.Cluster
 		"metadata":   dig.Mapping{"name": defaults.BinaryName()},
 		"spec":       configSpec,
 	}
+
 	return &v1beta1.Cluster{
 		APIVersion: "k0sctl.k0sproject.io/v1beta1",
 		Kind:       "Cluster",
@@ -301,7 +307,57 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 		return nil, fmt.Errorf("unable to connect to %s: %w", ipaddr, err)
 	}
 	rhost := host.render()
-	return generateConfigForHosts("", rhost)
+	return generateConfigForHosts(ctx, "", rhost)
+}
+
+// UpdateHelmConfigs updates the helm config in the provided cluster configuration.
+func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
+
+	if cfg.Spec == nil || cfg.Spec.K0s == nil || cfg.Spec.K0s.Config == nil {
+		return fmt.Errorf("invalid cluster configuration")
+	}
+
+	currentSpec := cfg.Spec.K0s.Config
+	configString, err := yamlv2.Marshal(currentSpec)
+	if err != nil {
+		return fmt.Errorf("failed to marshal helm config: %w", err)
+	}
+
+	k0s := k0sconfig.ClusterConfig{}
+
+	if err := yamlv2.Unmarshal(configString, &k0s); err != nil {
+		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
+	}
+
+	opts = append(opts, addons.WithConfig(k0s))
+
+	newHelmConfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
+	if err != nil {
+		return fmt.Errorf("unable to apply addons: %w", err)
+	}
+
+	newHelmExtension := &k0sconfig.HelmExtensions{
+		Charts: newHelmConfig,
+	}
+
+	newClusterExtensions := &k0sconfig.ClusterExtensions{
+		Helm: newHelmExtension,
+	}
+
+	if spec, ok := cfg.Spec.K0s.Config["spec"].(map[string]interface{}); ok {
+		spec["extensions"] = newClusterExtensions
+		cfg.Spec.K0s.Config["spec"] = spec
+	} else {
+
+		if spec, ok := cfg.Spec.K0s.Config["spec"].(dig.Mapping); ok {
+			spec["extensions"] = newClusterExtensions
+			cfg.Spec.K0s.Config["spec"] = spec
+		} else {
+			return fmt.Errorf("unable to update cluster config")
+		}
+	}
+
+	return nil
 }
 
 // UpdateHostsFiles passes through all hosts in the provided configuration and makes sure

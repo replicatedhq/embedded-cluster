@@ -3,20 +3,20 @@
 package adminconsole
 
 import (
-	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
+	"github.com/k0sproject/dig"
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/mod/semver"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/release"
-	"sigs.k8s.io/yaml"
+	"gopkg.in/yaml.v3"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
 
@@ -36,18 +36,33 @@ var helmValues = map[string]interface{}{
 
 type AdminConsole struct {
 	customization AdminConsoleCustomization
-	config        *action.Configuration
-	logger        action.DebugLog
 	namespace     string
 	useprompt     bool
+	config        v1beta1.ClusterConfig
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
+
+	defaultPass := "password"
+
 	if !a.useprompt {
 		fmt.Println("Admin Console password set to: password")
-		return "password", nil
+		return defaultPass, nil
 	}
-	return prompts.New().Password("Enter a new Admin Console password:"), nil
+
+	maxTries := 3
+	for i := 0; i < maxTries; i++ {
+		promptA := prompts.New().Password("Enter a new Admin Console password:")
+		promptB := prompts.New().Password("Confirm password:")
+
+		if promptA == promptB {
+			return promptA, nil
+		}
+		fmt.Println("Passwords don't match, please try again.")
+	}
+
+	return "", fmt.Errorf("Unable to set Admin Console password after %d tries", maxTries)
+
 }
 
 func (a *AdminConsole) Version() (map[string]string, error) {
@@ -55,7 +70,8 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
-	return map[string]string{"AdminConsole": latest}, nil
+	return map[string]string{"AdminConsole": "v" + latest}, nil
+
 }
 
 // HostPreflight returns the host preflight objects found inside the adminconsole
@@ -86,81 +102,153 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	return nil
 }
 
-func (a *AdminConsole) Apply(ctx context.Context) error {
-	version, err := a.Latest()
-	if err != nil {
-		return fmt.Errorf("unable to get latest Admin Console version: %w", err)
-	}
-	if !semver.IsValid(version) {
-		return fmt.Errorf("unable to parse version %s", version)
+// GetPasswordFromConfig returns the adminconsole password from the provided chart config.
+func getPasswordFromConfig(chart v1beta1.Chart) (string, error) {
+
+	values := dig.Mapping{}
+
+	if chart.Values == "" {
+		return "", fmt.Errorf("unable to find adminconsole chart values in cluster config")
 	}
 
-	fname := fmt.Sprintf("adminconsole-%s.tgz", strings.TrimPrefix(version, "v"))
-	hfp, err := charts.FS.Open(fname)
+	err := yaml.Unmarshal([]byte(chart.Values), &values)
 	if err != nil {
-		return fmt.Errorf("unable to find version %s: %w", version, err)
+		return "", fmt.Errorf("unable to unmarshal values: %w", err)
 	}
-	defer hfp.Close()
+
+	if password, ok := values["password"].(string); ok {
+		return password, nil
+	}
+
+	return "", fmt.Errorf("unable to find password in cluster config")
+
+}
+
+// GetCurrentConfig returns the current adminconsole chart config from the cluster config.
+func (a *AdminConsole) GetCurrentConfig() (v1beta1.Chart, error) {
+
+	nilChart := v1beta1.Chart{}
+
+	if a.config.Spec == nil {
+		return nilChart, fmt.Errorf("unable to find spec in cluster config")
+	}
+	spec := a.config.Spec
+
+	if spec.Extensions == nil {
+		return nilChart, fmt.Errorf("unable to find extensions in cluster config")
+	}
+	extensions := spec.Extensions
+
+	if extensions.Helm == nil {
+		return nilChart, fmt.Errorf("unable to find helm extensions in cluster config")
+	}
+	chartList := a.config.Spec.Extensions.Helm.Charts
+
+	for _, chart := range chartList {
+		if chart.Name == "adminconsole" {
+			return chart, nil
+		}
+	}
+
+	return nilChart, fmt.Errorf("unable to find adminconsole chart in cluster config")
+
+}
+
+// GenerateHelmConfig generates the helm config for the adminconsole
+// and writes the charts to the disk.
+func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
+
+	latest, err := a.Latest()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get latest version: %w", err)
+	}
+
+	chartConfig := v1beta1.Chart{
+		Name:      releaseName,
+		ChartName: defaults.PathToHelmChart("adminconsole", latest),
+		Version:   latest,
+		Values:    "",
+		TargetNS:  a.namespace,
+	}
 
 	if err := a.addLicenseToHelmValues(); err != nil {
-		return fmt.Errorf("unable to add license to helm values: %w", err)
+		return nil, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 
-	hchart, err := loader.LoadArchive(hfp)
-	if err != nil {
-		return fmt.Errorf("unable to load chart: %w", err)
-	}
-
-	release, err := a.installedRelease(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to list adminconsole releases: %w", err)
-	}
-
-	if release == nil {
-		a.logger("Admin Console hasn't been installed yet, installing it.")
+	currentConfig, err := a.GetCurrentConfig()
+	if err == nil {
+		currentPassword, err := getPasswordFromConfig(currentConfig)
+		if err != nil {
+			pass, err := a.askPassword()
+			if err != nil {
+				return nil, fmt.Errorf("unable to ask for password: %w", err)
+			}
+			helmValues["password"] = pass
+		} else if currentPassword != "" {
+			helmValues["password"] = currentPassword
+		}
+	} else {
 		pass, err := a.askPassword()
 		if err != nil {
-			return fmt.Errorf("unable to ask for password: %w", err)
+			return nil, fmt.Errorf("unable to ask for password: %w", err)
 		}
-		loading := pb.Start()
-		loading.Infof("Applying AdminConsole addon")
-		defer loading.Close()
 		helmValues["password"] = pass
-		act := action.NewInstall(a.config)
-		act.Namespace = a.namespace
-		act.ReleaseName = releaseName
-		act.CreateNamespace = true
-		if _, err := act.RunWithContext(ctx, hchart, helmValues); err != nil {
-			return fmt.Errorf("unable to install chart: %w", err)
-		}
-		return a.customization.apply(ctx, version)
 	}
 
-	a.logger("Admin Console already installed on the cluster, checking version.")
-	installedVersion := fmt.Sprintf("v%s", release.Chart.Metadata.Version)
-	if out := semver.Compare(installedVersion, version); out > 0 {
-		return fmt.Errorf("unable to downgrade from %s to %s", installedVersion, version)
+	valuesStringData, err := yaml.Marshal(helmValues)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal helm values: %w", err)
+	}
+	chartConfig.Values = string(valuesStringData)
+
+	err = a.WriteChartFile(latest)
+	if err != nil {
+		logrus.Fatalf("Unable to write chart file to disk: %s", err)
 	}
 
-	loading := pb.Start()
-	loading.Infof("Applying AdminConsole addon")
-	defer loading.Close()
-	a.logger("Updating Admin Console from %s to %s", installedVersion, version)
-	act := action.NewUpgrade(a.config)
-	act.Namespace = a.namespace
-	if _, err := act.RunWithContext(ctx, releaseName, hchart, helmValues); err != nil {
-		return fmt.Errorf("unable to upgrade chart: %w", err)
+	return []v1beta1.Chart{chartConfig}, nil
+
+}
+
+func (a *AdminConsole) WriteChartFile(version string) error {
+
+	chartfile := fmt.Sprintf("%s-%s.tgz", releaseName, version)
+
+	src, err := charts.FS.Open(chartfile)
+	if err != nil {
+		return fmt.Errorf("unable to open helm chart archive: %w", err)
 	}
-	return a.customization.apply(ctx, version)
+
+	dstpath := defaults.PathToHelmChart(releaseName, version)
+
+	sourceFileByte, err := io.ReadAll(src)
+	if err != nil {
+		return fmt.Errorf("unable to read helm chart archive: %w", err)
+	}
+
+	err = os.WriteFile(dstpath, sourceFileByte, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to write helm chart archive: %w", err)
+	}
+
+	return nil
+}
+
+func (a *AdminConsole) GetChartFileName() (string, error) {
+	latest, err := a.Latest()
+	if err != nil {
+		return "", fmt.Errorf("unable to get latest version: %w", err)
+	}
+	return fmt.Sprintf("adminconsole-%s.tgz", latest), nil
 }
 
 func (a *AdminConsole) Latest() (string, error) {
-	a.logger("Finding Latest Admin Console addon version")
+	logrus.Infof("Finding latest Admin Console addon version")
 	files, err := charts.FS.ReadDir(".")
 	if err != nil {
 		return "", fmt.Errorf("unable to read charts directory: %w", err)
 	}
-	var latest string
+	latest := ""
 	for _, file := range files {
 		if !strings.HasSuffix(file.Name(), ".tgz") {
 			continue
@@ -170,7 +258,7 @@ func (a *AdminConsole) Latest() (string, error) {
 		if len(slices) != 2 {
 			return "", fmt.Errorf("invalid file name found: %s", file.Name())
 		}
-		currentV := fmt.Sprintf("v%s", slices[1])
+		currentV := slices[1]
 		if latest == "" {
 			latest = currentV
 			continue
@@ -179,36 +267,15 @@ func (a *AdminConsole) Latest() (string, error) {
 			latest = currentV
 		}
 	}
-	a.logger("Latest Admin Console version found: %s", latest)
+	logrus.Infof("Latest Admin Console version found: %s", latest)
 	return latest, nil
 }
 
-func (a *AdminConsole) installedRelease(ctx context.Context) (*release.Release, error) {
-	list := action.NewList(a.config)
-	list.StateMask = action.ListDeployed
-	list.Filter = releaseName
-	releases, err := list.Run()
-	if err != nil {
-		return nil, fmt.Errorf("unable to list installed releases: %w", err)
-	}
-	if len(releases) == 0 {
-		return nil, nil
-	}
-	return releases[0], nil
-}
-
-func New(ns string, useprompt bool, log action.DebugLog) (*AdminConsole, error) {
-	env := cli.New()
-	env.SetNamespace(ns)
-	config := &action.Configuration{}
-	if err := config.Init(env.RESTClientGetter(), ns, "", log); err != nil {
-		return nil, fmt.Errorf("unable to init configuration: %w", err)
-	}
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:     ns,
-		config:        config,
-		logger:        log,
 		useprompt:     useprompt,
 		customization: AdminConsoleCustomization{},
+		config:        config,
 	}, nil
 }

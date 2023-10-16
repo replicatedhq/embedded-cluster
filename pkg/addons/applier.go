@@ -9,6 +9,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
@@ -34,9 +35,9 @@ func getLogger(addon string, verbose bool) action.DebugLog {
 
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
-	Apply(ctx context.Context) error
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
+	GenerateHelmConfig() ([]v1beta1.Chart, error)
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -44,24 +45,30 @@ type Applier struct {
 	disabledAddons map[string]bool
 	prompt         bool
 	verbose        bool
+	config         v1beta1.ClusterConfig
 }
 
-// Apply applies all registered addons to the cluster. Simply calls Apply on
-// each addon.
-func (a *Applier) Apply(ctx context.Context) error {
-	if err := a.waitForKubernetes(ctx); err != nil {
-		return fmt.Errorf("unable to wait for kubernetes: %w", err)
-	}
+// GenerateHelmConfigs generates the helm config for all the embedded charts.
+func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, error) {
+
+	charts := []v1beta1.Chart{}
+
 	addons, err := a.load()
+
 	if err != nil {
-		return fmt.Errorf("unable to load addons: %w", err)
+		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
-		if err := addon.Apply(ctx); err != nil {
-			return err
+
+		addonChartConfig, err := addon.GenerateHelmConfig()
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
+		charts = append(charts, addonChartConfig...)
+
 	}
-	return nil
+
+	return charts, nil
 }
 
 // HostPreflights reads all embedded host preflights from all add-ons and returns them
@@ -87,26 +94,30 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // load instantiates all enabled addons.
 func (a *Applier) load() (map[string]AddOn, error) {
+
 	addons := map[string]AddOn{}
 	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
-		obs, err := openebs.New("helmvm", getLogger("openebs", a.verbose))
+		obs, err := openebs.New("helmvm")
 		if err != nil {
 			return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 		}
 		addons["openebs"] = obs
 	}
+
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("helmvm", a.prompt, getLogger("adminconsole", a.verbose))
+		aconsole, err := adminconsole.New("helmvm", a.prompt, a.config)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 		}
 		addons["adminconsole"] = aconsole
 	}
-	custom, err := custom.New("helmvm", getLogger("custom", a.verbose), a.disabledAddons)
+
+	custom, err := custom.New("helmvm", a.disabledAddons)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create custom addon: %w", err)
 	}
 	addons["custom"] = custom
+
 	return addons, nil
 }
 
@@ -181,6 +192,7 @@ func NewApplier(opts ...Option) *Applier {
 		prompt:         true,
 		verbose:        true,
 		disabledAddons: map[string]bool{},
+		config:         v1beta1.ClusterConfig{},
 	}
 	for _, fn := range opts {
 		fn(applier)

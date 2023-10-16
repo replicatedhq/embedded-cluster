@@ -1,6 +1,10 @@
 package addons
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
+)
 
 // Option sets and option on an Applier reference.
 type Option func(*Applier)
@@ -24,5 +28,12 @@ func WithoutPrompt() Option {
 func Quiet() Option {
 	return func(a *Applier) {
 		a.verbose = false
+	}
+}
+
+// WithConfig sets the helm config for the addons.
+func WithConfig(config v1beta1.ClusterConfig) Option {
+	return func(a *Applier) {
+		a.config = config
 	}
 }

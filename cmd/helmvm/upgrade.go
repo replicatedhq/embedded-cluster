@@ -148,21 +148,9 @@ var upgradeCommand = &cli.Command{
 			metrics.ReportNodeUpgradeFailed(c.Context, err)
 			return err
 		}
-		os.Setenv("KUBECONFIG", kcfg)
-		logrus.Infof("Upgrading addons")
-		opts := []addons.Option{}
-		if c.Bool("no-prompt") {
-			opts = append(opts, addons.WithoutPrompt())
-		}
-		for _, addon := range c.StringSlice("disable-addon") {
-			opts = append(opts, addons.WithoutAddon(addon))
-		}
-		if err := addons.NewApplier(opts...).Apply(c.Context); err != nil {
-			err := fmt.Errorf("unable to apply addons: %w", err)
-			metrics.ReportNodeUpgradeFailed(c.Context, err)
-			return err
-		}
+
 		metrics.ReportNodeUpgradeSucceeded(c.Context)
+
 		logrus.Infof("Upgrade complete")
 		return nil
 	},
