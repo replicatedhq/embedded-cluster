@@ -20,9 +20,10 @@ import (
 // ParsedSection holds the parsed section from the binary. We only care about the
 // application object, whatever HostPreflight we can find, and the app License.
 type ParsedSection struct {
-	Application    []byte
-	HostPreflights [][]byte
-	License        []byte
+	Application           []byte
+	HostPreflights        [][]byte
+	License               []byte
+	EmbeddedClusterConfig []byte
 }
 
 // AdminConsole is a struct that contains the actions to create and update the admin
@@ -95,6 +96,12 @@ func (a AdminConsole) processSection(section *elf.Section) (*ParsedSection, erro
 			}
 			result.HostPreflights = append(result.HostPreflights, content.Bytes())
 		}
+		if bytes.Contains(content.Bytes(), []byte("apiVersion: embeddedcluster.replicated.com/v1beta1")) {
+			if bytes.Contains(content.Bytes(), []byte("kind: Config")) {
+				continue
+			}
+			result.EmbeddedClusterConfig = content.Bytes()
+		}
 	}
 }
 
@@ -139,4 +146,18 @@ func (a AdminConsole) License() (*v1beta1.License, error) {
 		return nil, fmt.Errorf("failed to unmarshal license: %w", err)
 	}
 	return &license, nil
+}
+
+// EmbeddedClusterConfig reads the embedded cluster config from the embedded Kots Application Release.
+func (a AdminConsole) EmbeddedClusterConfig() ([]byte, error) {
+	if runtime.GOOS != "linux" {
+		return nil, nil
+	}
+	section, err := a.ExtractCustomization()
+	if err != nil {
+		return nil, err
+	} else if section == nil {
+		return nil, nil
+	}
+	return section.EmbeddedClusterConfig, nil
 }

@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/addons"
+	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/infra"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
@@ -410,9 +411,15 @@ type UnsupportedConfigOverrides struct {
 }
 
 // applyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
-func applyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, override []byte) error {
+func applyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster) error {
+	embconfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	if err != nil {
+		return fmt.Errorf("unable to get embedded cluster config: %w", err)
+	} else if embconfig == nil {
+		return nil
+	}
 	var overrides UnsupportedConfigOverrides
-	if err := yaml.Unmarshal(override, &overrides); err != nil {
+	if err := yaml.Unmarshal(embconfig, &overrides); err != nil {
 		return fmt.Errorf("unable to parse cluster config overrides: %w", err)
 	}
 	if overrides.Spec.UnsupportedOverrides.K0s == nil {
