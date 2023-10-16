@@ -133,7 +133,7 @@ func (a *AdminConsole) Apply(ctx context.Context) error {
 		if _, err := act.RunWithContext(ctx, hchart, helmValues); err != nil {
 			return fmt.Errorf("unable to install chart: %w", err)
 		}
-		return a.customization.apply(ctx)
+		return a.customization.apply(ctx, version)
 	}
 
 	a.logger("Admin Console already installed on the cluster, checking version.")
@@ -151,7 +151,7 @@ func (a *AdminConsole) Apply(ctx context.Context) error {
 	if _, err := act.RunWithContext(ctx, releaseName, hchart, helmValues); err != nil {
 		return fmt.Errorf("unable to upgrade chart: %w", err)
 	}
-	return a.customization.apply(ctx)
+	return a.customization.apply(ctx, version)
 }
 
 func (a *AdminConsole) Latest() (string, error) {
