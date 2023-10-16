@@ -298,7 +298,6 @@ func (a *AdminConsole) Latest() (string, error) {
 		}
 		if semver.Compare("v"+latest, "v"+currentV) < 0 {
 			latest = currentV
-		} else {
 		}
 	}
 	logrus.Infof("Latest Admin Console version found: %s", latest)
