@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
+	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 )
 
@@ -26,7 +26,7 @@ func init() {
 // LicenseID returns the embedded license id. If something goes wrong, it returns
 // an empty string.
 func LicenseID() string {
-	var custom adminconsole.AdminConsoleCustomization
+	var custom customization.AdminConsoleCustomization
 	if license, err := custom.License(); err == nil && license != nil {
 		return license.Spec.LicenseID
 	}

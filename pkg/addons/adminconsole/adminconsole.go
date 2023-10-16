@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/k0sproject/dig"
@@ -16,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole/charts"
+	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
@@ -35,7 +37,7 @@ var helmValues = map[string]interface{}{
 }
 
 type AdminConsole struct {
-	customization AdminConsoleCustomization
+	customization customization.AdminConsoleCustomization
 	namespace     string
 	useprompt     bool
 	config        v1beta1.ClusterConfig
@@ -77,7 +79,7 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 // HostPreflight returns the host preflight objects found inside the adminconsole
 // or as part of the embedded kots release (customization).
 func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
-	return a.customization.hostPreflights()
+	return a.customization.HostPreflights()
 }
 
 // addLicenseToHelmValues adds the embedded license to the helm values.
@@ -163,9 +165,14 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		return nil, fmt.Errorf("unable to get latest version: %w", err)
 	}
 
+	chartFile, err := a.GetChartFileName()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get chart file name: %w", err)
+	}
+
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: defaults.PathToHelmChart("adminconsole", latest),
+		ChartName: filepath.Join(defaults.HelmChartSubDir(), chartFile),
 		Version:   latest,
 		Values:    "",
 		TargetNS:  a.namespace,
@@ -195,6 +202,17 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		helmValues["password"] = pass
 	}
 
+	cust, err := customization.AdminConsoleCustomization{}.ExtractCustomization()
+	if err == nil {
+		if cust != nil && cust.Application != nil {
+			helmValues["kotsApplication"] = string(cust.Application)
+		} else {
+			helmValues["kotsApplication"] = "default value"
+		}
+	} else {
+		helmValues["kotsApplication"] = "error value"
+	}
+
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal helm values: %w", err)
@@ -212,7 +230,10 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 
 func (a *AdminConsole) WriteChartFile(version string) error {
 
-	chartfile := fmt.Sprintf("%s-%s.tgz", releaseName, version)
+	chartfile, err := a.GetChartFileName()
+	if err != nil {
+		return fmt.Errorf("unable to get chart file name: %w", err)
+	}
 
 	src, err := charts.FS.Open(chartfile)
 	if err != nil {
@@ -239,7 +260,19 @@ func (a *AdminConsole) GetChartFileName() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to get latest version: %w", err)
 	}
-	return fmt.Sprintf("adminconsole-%s.tgz", latest), nil
+
+	files, err := charts.FS.ReadDir(".")
+	if err != nil {
+		return "", fmt.Errorf("unable to read charts directory: %w", err)
+	}
+
+	for _, file := range files {
+		if strings.HasPrefix(file.Name(), fmt.Sprintf("adminconsole-%s", latest)) {
+			return file.Name(), nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to find adminconsole chart file")
 }
 
 func (a *AdminConsole) Latest() (string, error) {
@@ -255,7 +288,7 @@ func (a *AdminConsole) Latest() (string, error) {
 		}
 		trimmed := strings.TrimSuffix(file.Name(), ".tgz")
 		slices := strings.Split(trimmed, "-")
-		if len(slices) != 2 {
+		if len(slices) != 2 && len(slices) != 3 {
 			return "", fmt.Errorf("invalid file name found: %s", file.Name())
 		}
 		currentV := slices[1]
@@ -263,7 +296,7 @@ func (a *AdminConsole) Latest() (string, error) {
 			latest = currentV
 			continue
 		}
-		if semver.Compare(latest, currentV) < 0 {
+		if semver.Compare("v"+latest, "v"+currentV) < 0 {
 			latest = currentV
 		}
 	}
@@ -275,7 +308,7 @@ func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole
 	return &AdminConsole{
 		namespace:     ns,
 		useprompt:     useprompt,
-		customization: AdminConsoleCustomization{},
+		customization: customization.AdminConsoleCustomization{},
 		config:        config,
 	}, nil
 }

@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
+	"github.com/replicatedhq/helmvm/pkg/customization"
 )
 
 // Send is a helper function that sends an event to the metrics endpoint.
@@ -19,7 +19,7 @@ import (
 // precedence over the former.
 func Send(ctx context.Context, ev Event) {
 	var baseURL = "https://replicated.app"
-	var custom adminconsole.AdminConsoleCustomization
+	var custom customization.AdminConsoleCustomization
 	if license, err := custom.License(); err != nil {
 		logrus.Warnf("unable to read license: %s", err)
 		return
