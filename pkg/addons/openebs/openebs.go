@@ -122,7 +122,7 @@ func (o *OpenEBS) latest() (string, error) {
 		if len(slices) != 2 {
 			return "", fmt.Errorf("invalid file name found: %s", file.Name())
 		}
-		currentV := fmt.Sprintf("%s", slices[1])
+		currentV := slices[1]
 		if latest == "" {
 			latest = currentV
 			continue

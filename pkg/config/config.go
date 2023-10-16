@@ -319,6 +319,9 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 
 	currentSpec := cfg.Spec.K0s.Config
 	configString, err := yamlv2.Marshal(currentSpec)
+	if err != nil {
+		return fmt.Errorf("failed to marshal helm config: %w", err)
+	}
 
 	k0s := k0sconfig.ClusterConfig{}
 
