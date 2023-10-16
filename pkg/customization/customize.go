@@ -1,4 +1,4 @@
-package adminconsole
+package customization
 
 import (
 	"archive/tar"
@@ -30,9 +30,9 @@ type ParsedSection struct {
 // backwards compatibility with older versions of helmvm.
 type AdminConsoleCustomization struct{}
 
-// extractCustomization will extract the customization from the binary if it exists.
+// ExtractCustomization will extract the customization from the binary if it exists.
 // The customization is expected to be found in the sec_bundle section of the binary.
-func (a AdminConsoleCustomization) extractCustomization() (*ParsedSection, error) {
+func (a AdminConsoleCustomization) ExtractCustomization() (*ParsedSection, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -98,13 +98,13 @@ func (a AdminConsoleCustomization) processSection(section *elf.Section) (*Parsed
 	}
 }
 
-// hostPreflights returns a list of HostPreflight specs that are found in the binary.
+// HostPreflights returns a list of HostPreflight specs that are found in the binary.
 // These are part of the embedded Kots Application Release.
-func (a AdminConsoleCustomization) hostPreflights() (*v1beta2.HostPreflightSpec, error) {
+func (a AdminConsoleCustomization) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	if runtime.GOOS != "linux" {
 		return &v1beta2.HostPreflightSpec{}, nil
 	}
-	section, err := a.extractCustomization()
+	section, err := a.ExtractCustomization()
 	if err != nil {
 		return nil, err
 	} else if section == nil {
@@ -128,7 +128,7 @@ func (a AdminConsoleCustomization) License() (*v1beta1.License, error) {
 	if runtime.GOOS != "linux" {
 		return nil, nil
 	}
-	section, err := a.extractCustomization()
+	section, err := a.ExtractCustomization()
 	if err != nil {
 		return nil, err
 	} else if section == nil {
