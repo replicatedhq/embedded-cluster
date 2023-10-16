@@ -32,6 +32,8 @@ var helmValues = map[string]interface{}{
 		"type":     "NodePort",
 		"nodePort": 30000,
 	},
+	"embeddedClusterVersion":    defaults.Version,
+	"embeddedClusterK0sVersion": defaults.K0sVersion,
 }
 
 type AdminConsole struct {
@@ -194,6 +196,9 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		}
 		helmValues["password"] = pass
 	}
+
+	helmValues["embeddedClusterVersion"] = defaults.Version
+	helmValues["embeddedClusterK0sVersion"] = defaults.K0sVersion
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
