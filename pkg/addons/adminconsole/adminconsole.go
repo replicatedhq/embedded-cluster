@@ -36,8 +36,9 @@ var helmValues = map[string]interface{}{
 	},
 }
 
+// AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
-	customization customization.AdminConsoleCustomization
+	customization customization.AdminConsole
 	namespace     string
 	useprompt     bool
 	config        v1beta1.ClusterConfig
@@ -67,6 +68,7 @@ func (a *AdminConsole) askPassword() (string, error) {
 
 }
 
+// Version returns the embedded admin console version.
 func (a *AdminConsole) Version() (map[string]string, error) {
 	latest, err := a.Latest()
 	if err != nil {
@@ -76,7 +78,7 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 
 }
 
-// HostPreflight returns the host preflight objects found inside the adminconsole
+// HostPreflights returns the host preflight objects found inside the adminconsole
 // or as part of the embedded kots release (customization).
 func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return a.customization.HostPreflights()
@@ -202,7 +204,7 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		helmValues["password"] = pass
 	}
 
-	cust, err := customization.AdminConsoleCustomization{}.ExtractCustomization()
+	cust, err := customization.AdminConsole{}.ExtractCustomization()
 	if err == nil {
 		if cust != nil && cust.Application != nil {
 			helmValues["kotsApplication"] = string(cust.Application)
@@ -228,6 +230,7 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 
 }
 
+// WriteChartFile writes the adminconsole chart to the disk.
 func (a *AdminConsole) WriteChartFile(version string) error {
 
 	chartfile, err := a.GetChartFileName()
@@ -255,6 +258,7 @@ func (a *AdminConsole) WriteChartFile(version string) error {
 	return nil
 }
 
+// GetChartFileName returns the name of the adminconsole chart.
 func (a *AdminConsole) GetChartFileName() (string, error) {
 	latest, err := a.Latest()
 	if err != nil {
@@ -275,6 +279,7 @@ func (a *AdminConsole) GetChartFileName() (string, error) {
 	return "", fmt.Errorf("unable to find adminconsole chart file")
 }
 
+// Latest returns the latest version of the adminconsole chart.
 func (a *AdminConsole) Latest() (string, error) {
 	logrus.Infof("Finding latest Admin Console addon version")
 	files, err := charts.FS.ReadDir(".")
@@ -304,11 +309,12 @@ func (a *AdminConsole) Latest() (string, error) {
 	return latest, nil
 }
 
+// New creates a new AdminConsole object.
 func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:     ns,
 		useprompt:     useprompt,
-		customization: customization.AdminConsoleCustomization{},
+		customization: customization.AdminConsole{},
 		config:        config,
 	}, nil
 }
