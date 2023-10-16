@@ -32,7 +32,7 @@ type AdminConsoleCustomization struct{}
 
 // extractCustomization will extract the customization from the binary if it exists.
 // The customization is expected to be found in the sec_bundle section of the binary.
-func (a *AdminConsoleCustomization) extractCustomization() (*ParsedSection, error) {
+func (a AdminConsoleCustomization) extractCustomization() (*ParsedSection, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (a *AdminConsoleCustomization) extractCustomization() (*ParsedSection, erro
 // processSection searches the provided elf section for a gzip compressed tar archive.
 // If it finds one, it will extract the contents and return the kots.io Application
 // and any HostPrefligth objects as a byte slice.
-func (a *AdminConsoleCustomization) processSection(section *elf.Section) (*ParsedSection, error) {
+func (a AdminConsoleCustomization) processSection(section *elf.Section) (*ParsedSection, error) {
 	gzr, err := gzip.NewReader(section.Open())
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (a *AdminConsoleCustomization) processSection(section *elf.Section) (*Parse
 
 // hostPreflights returns a list of HostPreflight specs that are found in the binary.
 // These are part of the embedded Kots Application Release.
-func (a *AdminConsoleCustomization) hostPreflights() (*v1beta2.HostPreflightSpec, error) {
+func (a AdminConsoleCustomization) hostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	if runtime.GOOS != "linux" {
 		return &v1beta2.HostPreflightSpec{}, nil
 	}
@@ -124,7 +124,7 @@ func (a *AdminConsoleCustomization) hostPreflights() (*v1beta2.HostPreflightSpec
 
 // license reads the kots license from the embedded Kots Application Release. If no license is found,
 // returns nil and no error.
-func (a *AdminConsoleCustomization) License() (*v1beta1.License, error) {
+func (a AdminConsoleCustomization) License() (*v1beta1.License, error) {
 	if runtime.GOOS != "linux" {
 		return nil, nil
 	}
