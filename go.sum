@@ -778,8 +778,8 @@ github.com/k0sproject/k0s v0.13.1 h1:zAD7AUlTW1QMu7DB2MkIVcutCHyMCwbW1lHERNcjdbc
 github.com/k0sproject/k0s v0.13.1/go.mod h1:0nJxC8qvJQ+D92VnCVt035i6asdJ7ZauZ2K2ZcBvGIA=
 github.com/k0sproject/k0sctl v0.15.5 h1:6RNi+9wK6JokRhiptiw0qdY6vKcjU3vr+Y/Ciw1uXVY=
 github.com/k0sproject/k0sctl v0.15.5/go.mod h1:MQqbcG0G0AAs0RhzyqhZLBbgKuUYE85po3enPZnchjg=
-github.com/k0sproject/rig v0.14.0 h1:DqmSZTuv9Ae6WQEQwLscxcvn6EnCrwWz5/azgP7Km1c=
-github.com/k0sproject/rig v0.14.0/go.mod h1:1niIomLJnggPcnduA1HfmdWYvxe+N5xABQ+1DjX+nsA=
+github.com/k0sproject/rig v0.15.1 h1:QjEBSgDDMk24NB6vLozIilUGPn0nOGEz/AFkPOZkYWw=
+github.com/k0sproject/rig v0.15.1/go.mod h1:EQQjrgGbRY6MpbuZRpzMaymJJ86RJVxIuGsPGsVNfZg=
 github.com/k0sproject/version v0.3.0 h1:6HAn8C29+WVksGCzbQvQ9feEJpUZ0iHD8GebIQMiftQ=
 github.com/k0sproject/version v0.3.0/go.mod h1:oEjuz2ItQQtAnGyRgwEV9m5R6/9rjoFC6EiEEzbkFdI=
 github.com/kardianos/service v1.2.1-0.20201211143537-ef35c563203c/go.mod h1:CIMRFEJVL+0DS1a3Nx06NaMn4Dz63Ng6O7dl0qH0zVM=
