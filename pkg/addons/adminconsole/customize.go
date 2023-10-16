@@ -128,6 +128,14 @@ func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
 		logrus.Infof("Skipping admin console customization on %s", runtime.GOOS)
 		return nil
 	}
+	if err := a.kotsConfig(ctx); err != nil {
+		return err
+	}
+	return a.clusterConfig(ctx)
+}
+
+// kotsConfig reads the embedded kots config and creates it in the cluster.
+func (a *AdminConsoleCustomization) kotsConfig(ctx context.Context) error {
 	cust, err := a.extractCustomization()
 	if err != nil {
 		return fmt.Errorf("unable to extract customization from binary: %w", err)
@@ -166,6 +174,28 @@ func (a *AdminConsoleCustomization) apply(ctx context.Context) error {
 	cm.Data["application.yaml"] = string(cust.Application)
 	if err := kubeclient.Update(ctx, &cm); err != nil {
 		return fmt.Errorf("unable to update kotsadm-application configmap: %w", err)
+	}
+	return nil
+}
+
+// clusterConfig makes sure a config map named "embedded-cluster-config" exists in the cluster.
+// XXX this will eventually be customizable by the user through the app release.
+func (a *AdminConsoleCustomization) clusterConfig(ctx context.Context) error {
+	kubeclient, err := a.kubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
+	nsn := client.ObjectKey{Namespace: "kube-system", Name: "embedded-cluster-config"}
+	var cm corev1.ConfigMap
+	if err := kubeclient.Get(ctx, nsn, &cm); err == nil {
+		return nil
+	}
+	cm = corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Namespace: nsn.Namespace, Name: nsn.Name},
+		Data:       map[string]string{},
+	}
+	if err := kubeclient.Create(ctx, &cm); err != nil {
+		return fmt.Errorf("unable to create kotsadm-application configmap: %w", err)
 	}
 	return nil
 }
