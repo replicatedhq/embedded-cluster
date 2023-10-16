@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/sirupsen/logrus"
+
+	"github.com/replicatedhq/helmvm/pkg/customization"
 )
 
 // Send is a helper function that sends an event to the metrics endpoint.
