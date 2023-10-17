@@ -68,14 +68,14 @@ func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, err
 		if err != nil {
 			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
 		}
-		applyEmbeddedUnsupportedOverrides(cfg, embconfig)
+		ApplyEmbeddedUnsupportedOverrides(cfg, embconfig)
 		return cfg, nil
 	}
 	cfg, err := renderSingleNodeConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render single-node config: %w", err)
 	}
-	applyEmbeddedUnsupportedOverrides(cfg, embconfig)
+	ApplyEmbeddedUnsupportedOverrides(cfg, embconfig)
 	return renderSingleNodeConfig(ctx)
 }
 
@@ -373,8 +373,8 @@ type UnsupportedConfigOverrides struct {
 	} `yaml:"spec"`
 }
 
-// applyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
-func applyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte) error {
+// ApplyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
+func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte) error {
 	if embconfig == nil {
 		return nil
 	}
