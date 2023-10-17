@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	k0sversion "github.com/k0sproject/version"
 	"io"
 	"os"
 	"os/exec"
@@ -157,7 +158,7 @@ func updateConfig(c *cli.Context) error {
 	if err := config.UpdateHostsFiles(cfg, bundledir); err != nil {
 		return fmt.Errorf("unable to update hosts files: %w", err)
 	}
-	cfg.Spec.K0s.Version = defaults.K0sVersion
+	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
 
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
