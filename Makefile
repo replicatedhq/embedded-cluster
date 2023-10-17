@@ -1,7 +1,6 @@
 VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
-BUILDER_NAME = builder
 APP_NAME = helmvm
 ADMIN_CONSOLE_CHART_VERSION = 1.103.2
 KUBECTL_VERSION = v1.28.2
@@ -142,10 +141,6 @@ helmvm-darwin-amd64: static static-darwin-amd64
 .PHONY: helmvm-darwin-arm64
 helmvm-darwin-arm64: static static-darwin-arm64
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/helmvm
-
-.PHONY: builder
-builder: static static-linux-amd64
-	CGO_ENABLED=0 go build -o ./output/bin/$(BUILDER_NAME) ./cmd/builder
 
 .PHONY: unit-tests
 unit-tests:
