@@ -209,14 +209,6 @@ func interactiveHosts(ctx context.Context) ([]*cluster.Host, error) {
 	return hosts, nil
 }
 
-func askForLoadBalancer() (string, error) {
-	fmt.Println("You have configured more than one controller. To ensure a highly available")
-	fmt.Println("cluster with multiple controllers, configure a load balancer address that")
-	fmt.Println("forwards traffic to the controllers on TCP ports 6443, 8132, and 9443.")
-	fmt.Println("Optionally, you can press enter to skip load balancer configuration.")
-	return quiz.Input("Load balancer address:", "", false), nil
-}
-
 // renderMultiNodeConfig renders a configuration to allow k0sctl to install in a multi-node
 // configuration.
 func renderMultiNodeConfig(ctx context.Context, nodes []infra.Node) (*v1beta1.Cluster, error) {
@@ -233,21 +225,11 @@ func renderMultiNodeConfig(ctx context.Context, nodes []infra.Node) (*v1beta1.Cl
 			hosts = append(hosts, hostcfg.render())
 		}
 	}
-	controllers, _, err := validateHosts(hosts)
-	if err != nil {
-		return nil, fmt.Errorf("invalid hosts configuration: %w", err)
-	}
-	var lb string
-	if controllers > 1 {
-		if lb, err = askForLoadBalancer(); err != nil {
-			return nil, fmt.Errorf("unable to ask for load balancer: %w", err)
-		}
-	}
-	return generateConfigForHosts(ctx, lb, hosts...)
+	return generateConfigForHosts(ctx, hosts...)
 }
 
 // generateConfigForHosts generates a v1beta1.Cluster object for a given list of hosts.
-func generateConfigForHosts(ctx context.Context, lb string, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
+func generateConfigForHosts(ctx context.Context, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
 
 	var configSpec = dig.Mapping{
 		"network": dig.Mapping{
@@ -258,9 +240,6 @@ func generateConfigForHosts(ctx context.Context, lb string, hosts ...*cluster.Ho
 		},
 	}
 
-	if lb != "" {
-		configSpec["api"] = dig.Mapping{"externalAddress": lb, "sans": []string{lb}}
-	}
 	var k0sconfig = dig.Mapping{
 		"apiVersion": "k0s.k0sproject.io/v1beta1",
 		"kind":       "ClusterConfig",
@@ -307,7 +286,7 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 		return nil, fmt.Errorf("unable to connect to %s: %w", ipaddr, err)
 	}
 	rhost := host.render()
-	return generateConfigForHosts(ctx, "", rhost)
+	return generateConfigForHosts(ctx, rhost)
 }
 
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
