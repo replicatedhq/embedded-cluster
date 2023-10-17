@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/k0sproject/dig"
@@ -292,11 +293,15 @@ func (a *AdminConsole) Latest() (string, error) {
 			continue
 		}
 		trimmed := strings.TrimSuffix(file.Name(), ".tgz")
-		slices := strings.Split(trimmed, "-")
+		/*slices := strings.Split(trimmed, "-")
 		if len(slices) != 2 && len(slices) != 3 {
 			return "", fmt.Errorf("invalid file name found: %s", file.Name())
 		}
-		currentV := slices[1]
+		currentV := slices[1]*/
+		currentV, err := parseSemverFromString(trimmed)
+		if err != nil {
+			return "", fmt.Errorf("invalid file name found: %s", file.Name())
+		}
 		if latest == "" {
 			latest = currentV
 			continue
@@ -307,6 +312,28 @@ func (a *AdminConsole) Latest() (string, error) {
 	}
 	logrus.Infof("Latest Admin Console version found: %s", latest)
 	return latest, nil
+}
+
+func parseSemverFromString(input string) (string, error) {
+	// Define a regular expression pattern to match the full Semver specification.
+	// The pattern allows optional pre-release and build metadata.
+	pattern := `(\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?)`
+
+	// Compile the regular expression pattern.
+	re := regexp.MustCompile(pattern)
+
+	// Find the first match in the input string.
+	match := re.FindStringSubmatch(input)
+
+	// Check if a match was found.
+	if len(match) < 2 {
+		return "", fmt.Errorf("No Semver version found in the input string")
+	}
+
+	// Extract the version from the match.
+	version := match[1]
+
+	return version, nil
 }
 
 // New creates a new AdminConsole object.
