@@ -54,26 +54,26 @@ func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for all the embedded charts.
 // and writes the charts to the disk.
-func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, error) {
+func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 
 	chartConfigs := []v1beta1.Chart{}
 
 	exe, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get executable path: %w", err)
+		return nil, nil, fmt.Errorf("unable to get executable path: %w", err)
 	}
 	opts, err := hembed.ReadEmbedOptionsFromBinary(exe)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read embed options: %w", err)
+		return nil, nil, fmt.Errorf("unable to read embed options: %w", err)
 	} else if opts == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	for _, chart := range opts.Charts {
 
 		chartData, err := loader.LoadArchive(chart.ChartReader())
 		if err != nil {
-			return nil, fmt.Errorf("unable to load chart archive: %w", err)
+			return nil, nil, fmt.Errorf("unable to load chart archive: %w", err)
 		}
 
 		if c.chartHasBeenDisabled(chartData) {
@@ -95,18 +95,18 @@ func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		reader := chart.ChartReader()
 		data, err := io.ReadAll(reader)
 		if err != nil {
-			return nil, fmt.Errorf("unable to read helm chart archive: %w", err)
+			return nil, nil, fmt.Errorf("unable to read helm chart archive: %w", err)
 		}
 
 		err = os.WriteFile(dstpath, data, 0644)
 		if err != nil {
-			return nil, fmt.Errorf("unable to write helm chart archive: %w", err)
+			return nil, nil, fmt.Errorf("unable to write helm chart archive: %w", err)
 		}
 
 		chartConfigs = append(chartConfigs, chartConfig)
 
 	}
-	return chartConfigs, nil
+	return chartConfigs, nil, nil
 
 }
 

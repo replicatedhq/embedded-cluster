@@ -2,13 +2,24 @@ VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 APP_NAME = helmvm
+ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
+ADMIN_CONSOLE_CHART_NAME = admin-console
 ADMIN_CONSOLE_CHART_VERSION = 1.103.2
+OPENEBS_CHART_URL = https://openebs.github.io/charts
+OPENEBS_CHART_NAME = openebs/openebs
+OPENEBS_CHART_VERSION = 3.9.0
 KUBECTL_VERSION = v1.28.2
 K0SCTL_VERSION = v0.16.0
-OPENEBS_VERSION = 3.9.0
 K0S_VERSION = v1.28.2+k0s.0
 TROUBLESHOOT_VERSION = v0.76.1
-LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) -X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION)
+LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) \
+-X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION) \
+-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
+-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
+-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
+-X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
+-X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
+-X github.com/replicatedhq/helmvm/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
 
 default: helmvm-linux-amd64
 
@@ -21,13 +32,6 @@ pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
 	mkdir -p pkg/goods/bins/k0sctl
 	curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64"
 	chmod +x pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
-
-pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz: output/bin/helm
-	output/bin/helm pull oci://registry.replicated.com/library/admin-console --version=$(ADMIN_CONSOLE_CHART_VERSION)
-	mv admin-console-$(ADMIN_CONSOLE_CHART_VERSION).tgz pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz
-
-pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz: output/bin/helm
-	curl -L -o pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz https://github.com/openebs/charts/releases/download/openebs-$(OPENEBS_VERSION)/openebs-$(OPENEBS_VERSION).tgz
 
 pkg/goods/bins/helmvm/kubectl-linux-amd64:
 	mkdir -p pkg/goods/bins/helmvm
@@ -88,9 +92,7 @@ pkg/goods/bins/helmvm/kubectl-preflight:
 	mv output/tmp/preflight/preflight pkg/goods/bins/helmvm/kubectl-preflight
 
 .PHONY: static
-static: pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz \
-	pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz \
-	pkg/goods/bins/helmvm/kubectl-preflight \
+static: pkg/goods/bins/helmvm/kubectl-preflight \
 	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
 .PHONY: static-darwin-arm64
