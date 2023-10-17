@@ -1,0 +1,36 @@
+name: publish-staging
+on:
+  push:
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+'
+    - 'v[0-9]+.[0-9]+.[0-9]+\-alpha\.[0-9]+'
+
+jobs:
+  package-and-publish:
+    runs-on: 'ubuntu-20.04'
+    steps:
+    - name: Get tag
+      id: tag
+      uses: dawidd6/action-get-tag@v1
+      with:
+        strip_v: true
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Helm
+      uses: azure/setup-helm@v1
+      with:
+        version: v3.8.1
+    - name: Run Package and Publish
+      working-directory: charts/embedded-cluster-operator
+      env: 
+        HELM_USER: ${{secrets.KOTS_HELM_USER_STAGING}}
+        HELM_PASS: ${{secrets.KOTS_HELM_PASS_STAGING}}
+        CHART_VERSION: ${{steps.tag.outputs.tag}}
+      run: |
+        envsubst < Chart.yaml.tmpl > Chart.yaml
+        rm -f *.tmpl
+
+        export CHART_NAME=`helm package . | rev | cut -d/ -f1 | rev`
+        echo pushing ${CHART_NAME} to staging
+        helm registry login registry.replicated.com  --username $HELM_USER --password $HELM_PASS
+        helm push $CHART_NAME oci://registry.staging.replicated.com/library
