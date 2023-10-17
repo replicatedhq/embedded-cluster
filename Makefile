@@ -92,10 +92,6 @@ pkg/goods/bins/helmvm/kubectl-preflight:
 	mv output/tmp/preflight/preflight pkg/goods/bins/helmvm/kubectl-preflight
 
 .PHONY: static
-static: output/bin/yq \
-	pkg/goods/bins/helmvm/kubectl-preflight \
-	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) \
-	pkg/goods/images/list.txt
 static: pkg/goods/bins/helmvm/kubectl-preflight \
 	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
