@@ -163,18 +163,12 @@ func (a *AdminConsole) GetCurrentConfig() (v1beta1.Chart, error) {
 // GenerateHelmConfig generates the helm config for the adminconsole
 // and writes the charts to the disk.
 func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: "replicated/admin-console",
+		ChartName: "oci://registry.replicated.com/library/admin-console",
 		Version:   Version,
 		Values:    "",
 		TargetNS:  a.namespace,
-	}
-
-	repositoryConfig := v1beta1.Repository{
-		Name: "replicated",
-		URL:  "oci://registry.replicated.com/library",
 	}
 
 	if err := a.addLicenseToHelmValues(); err != nil {
@@ -223,7 +217,7 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Reposito
 		logrus.Fatalf("Unable to write chart file to disk: %s", err)
 	}*/
 
-	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
 // WriteChartFile writes the adminconsole chart to the disk.

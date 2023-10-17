@@ -19,6 +19,7 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
+	k0sversion "github.com/k0sproject/version"
 	"github.com/sirupsen/logrus"
 	yamlv2 "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
@@ -67,14 +68,14 @@ func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, err
 		if err != nil {
 			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
 		}
-		applyEmbeddedUnsupportedOverrides(cfg, embconfig)
+		ApplyEmbeddedUnsupportedOverrides(cfg, embconfig)
 		return cfg, nil
 	}
 	cfg, err := renderSingleNodeConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render single-node config: %w", err)
 	}
-	applyEmbeddedUnsupportedOverrides(cfg, embconfig)
+	ApplyEmbeddedUnsupportedOverrides(cfg, embconfig)
 	return renderSingleNodeConfig(ctx)
 }
 
@@ -240,7 +241,7 @@ func generateConfigForHosts(ctx context.Context, hosts ...*cluster.Host) (*v1bet
 		Spec: &cluster.Spec{
 			Hosts: hosts,
 			K0s: &cluster.K0s{
-				Version: defaults.K0sVersion,
+				Version: k0sversion.MustParse(defaults.K0sVersion),
 				Config:  k0sconfig,
 			},
 		},
@@ -373,8 +374,8 @@ type UnsupportedConfigOverrides struct {
 	} `yaml:"spec"`
 }
 
-// applyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
-func applyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte) error {
+// ApplyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
+func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte) error {
 	if embconfig == nil {
 		return nil
 	}

@@ -58,8 +58,6 @@ func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, er
 
 	chartConfigs := []v1beta1.Chart{}
 
-	repositoryConfigs := []v1beta1.Repository{}
-
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to get executable path: %w", err)
@@ -108,7 +106,7 @@ func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, er
 		chartConfigs = append(chartConfigs, chartConfig)
 
 	}
-	return chartConfigs, repositoryConfigs, nil
+	return chartConfigs, nil, nil
 
 }
 

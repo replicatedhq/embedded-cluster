@@ -7,12 +7,12 @@ require (
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/creack/pty v1.1.18
 	github.com/ghodss/yaml v1.0.0
-	github.com/google/go-containerregistry v0.14.0
+	github.com/google/go-containerregistry v0.16.1
 	github.com/google/uuid v1.3.1
 	github.com/gosimple/slug v1.13.1
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0sctl v0.15.5
+	github.com/k0sproject/k0sctl v0.16.0
 	github.com/k0sproject/rig v0.15.1
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.76.1
@@ -50,7 +50,6 @@ require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/alessio/shellescape v1.4.2 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/carlmjohnson/versioninfo v0.22.5 // indirect
@@ -94,7 +93,7 @@ require (
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.15.0 // indirect
+	github.com/go-playground/validator/v10 v10.15.5 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -130,7 +129,7 @@ require (
 	github.com/juju/webbrowser v1.0.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/k0sproject/k0s v0.13.1
-	github.com/k0sproject/version v0.3.0 // indirect
+	github.com/k0sproject/version v0.4.2
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.17.0 // indirect

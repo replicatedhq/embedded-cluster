@@ -41,7 +41,3 @@ jobs:
           title: Development Release Build
           files: |
             *.tgz
-      - name: Build HelmVM Builder Server image
-        uses: docker/build-push-action@v5
-        with:
-          tags: replicatedhq/helmvm-builder:latest

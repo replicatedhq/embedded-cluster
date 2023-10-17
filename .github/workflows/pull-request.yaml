@@ -80,10 +80,3 @@ jobs:
     - name: Build Darwin ARM64 VERSION=dev-$SHORT_SHA
       run: |
         make helmvm-darwin-arm64 VERSION=dev-$SHORT_SHA
-    - name: Check system storage
-      run: |
-        sudo df -h
-    - name: Build HelmVM Builder Server Image
-      uses: docker/build-push-action@v5
-      with:
-        push: false
