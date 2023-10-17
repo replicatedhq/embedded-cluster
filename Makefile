@@ -11,7 +11,7 @@ K0S_VERSION = v1.27.5+k0s.0
 TROUBLESHOOT_VERSION = v0.72.0
 LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 -X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION) \
--X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION)
+-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
 -X github.com/replicatedhq/helmvm/pkg/addons/openebs.Version=$(OPENEBS_VERSION)
 
 default: helmvm-linux-amd64

@@ -38,8 +38,6 @@ var helmValues = map[string]interface{}{
 	},
 }
 
-var Version = "v0.0.0"
-
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
 	customization customization.AdminConsole
