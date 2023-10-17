@@ -3,12 +3,12 @@ UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 BUILDER_NAME = builder
 APP_NAME = helmvm
-ADMIN_CONSOLE_CHART_VERSION = 1.100.1
-KUBECTL_VERSION = v1.27.5
-K0SCTL_VERSION = v0.15.5
-OPENEBS_VERSION = 3.7.0
-K0S_VERSION = v1.27.5+k0s.0
-TROUBLESHOOT_VERSION = v0.72.0
+ADMIN_CONSOLE_CHART_VERSION = 1.103.2
+KUBECTL_VERSION = v1.28.2
+K0SCTL_VERSION = v0.16.0
+OPENEBS_VERSION = 3.9.0
+K0S_VERSION = v1.28.2+k0s.0
+TROUBLESHOOT_VERSION = v0.76.1
 LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) -X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION)
 
 default: helmvm-linux-amd64
