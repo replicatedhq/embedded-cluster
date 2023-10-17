@@ -19,6 +19,7 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
+	k0sversion "github.com/k0sproject/version"
 	"github.com/sirupsen/logrus"
 	yamlv2 "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
@@ -240,7 +241,7 @@ func generateConfigForHosts(ctx context.Context, hosts ...*cluster.Host) (*v1bet
 		Spec: &cluster.Spec{
 			Hosts: hosts,
 			K0s: &cluster.K0s{
-				Version: defaults.K0sVersion,
+				Version: k0sversion.MustParse(defaults.K0sVersion),
 				Config:  k0sconfig,
 			},
 		},
