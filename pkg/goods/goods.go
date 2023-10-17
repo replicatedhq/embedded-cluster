@@ -20,9 +20,6 @@ var binfs embed.FS
 //go:embed images/*
 var imgfs embed.FS
 
-//go:embed web/*
-var webfs embed.FS
-
 // Materialize writes to disk embed assets.
 func Materialize() error {
 	entries, err := binfs.ReadDir("bins/k0sctl")
@@ -68,11 +65,6 @@ func Materialize() error {
 		}
 	}
 	return nil
-}
-
-// WebFile returns the content of a file from within the goods/web directory.
-func WebFile(name string) ([]byte, error) {
-	return webfs.ReadFile(fmt.Sprintf("web/%s", name))
 }
 
 // ListImages returns all the images found on embed images/list.txt file.
