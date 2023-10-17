@@ -61,7 +61,7 @@ func (h *hostcfg) testConnection() error {
 
 // HostConfigFromInfraNode returns a new hostcfg object with properties copied
 // from the given infra.Node.
-func HostConfigFromInfraNode(node infra.Node) hostcfg {
+func hostConfigFromInfraNode(node infra.Node) hostcfg {
 	return hostcfg{
 		Address: node.Address,
 		Role:    node.Role,

@@ -26,7 +26,7 @@ func init() {
 // LicenseID returns the embedded license id. If something goes wrong, it returns
 // an empty string.
 func LicenseID() string {
-	var custom customization.AdminConsoleCustomization
+	var custom customization.AdminConsole
 	if license, err := custom.License(); err == nil && license != nil {
 		return license.Spec.LicenseID
 	}

@@ -20,19 +20,20 @@ import (
 // ParsedSection holds the parsed section from the binary. We only care about the
 // application object, whatever HostPreflight we can find, and the app License.
 type ParsedSection struct {
-	Application    []byte
-	HostPreflights [][]byte
-	License        []byte
+	Application           []byte
+	HostPreflights        [][]byte
+	License               []byte
+	EmbeddedClusterConfig []byte
 }
 
-// AdminConsoleCustomization is a struct that contains the actions to create and update
-// the admin console customization found inside the binary. This is necessary for
-// backwards compatibility with older versions of helmvm.
-type AdminConsoleCustomization struct{}
+// AdminConsole is a struct that contains the actions to create and update the admin
+// console customization found inside the binary. This is necessary for backwards
+// compatibility with older versions of helmvm.
+type AdminConsole struct{}
 
 // ExtractCustomization will extract the customization from the binary if it exists.
 // The customization is expected to be found in the sec_bundle section of the binary.
-func (a AdminConsoleCustomization) ExtractCustomization() (*ParsedSection, error) {
+func (a AdminConsole) ExtractCustomization() (*ParsedSection, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -52,7 +53,7 @@ func (a AdminConsoleCustomization) ExtractCustomization() (*ParsedSection, error
 // processSection searches the provided elf section for a gzip compressed tar archive.
 // If it finds one, it will extract the contents and return the kots.io Application
 // and any HostPrefligth objects as a byte slice.
-func (a AdminConsoleCustomization) processSection(section *elf.Section) (*ParsedSection, error) {
+func (a AdminConsole) processSection(section *elf.Section) (*ParsedSection, error) {
 	gzr, err := gzip.NewReader(section.Open())
 	if err != nil {
 		return nil, err
@@ -95,12 +96,18 @@ func (a AdminConsoleCustomization) processSection(section *elf.Section) (*Parsed
 			}
 			result.HostPreflights = append(result.HostPreflights, content.Bytes())
 		}
+		if bytes.Contains(content.Bytes(), []byte("apiVersion: embeddedcluster.replicated.com/v1beta1")) {
+			if bytes.Contains(content.Bytes(), []byte("kind: Config")) {
+				continue
+			}
+			result.EmbeddedClusterConfig = content.Bytes()
+		}
 	}
 }
 
 // HostPreflights returns a list of HostPreflight specs that are found in the binary.
 // These are part of the embedded Kots Application Release.
-func (a AdminConsoleCustomization) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
+func (a AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	if runtime.GOOS != "linux" {
 		return &v1beta2.HostPreflightSpec{}, nil
 	}
@@ -122,9 +129,9 @@ func (a AdminConsoleCustomization) HostPreflights() (*v1beta2.HostPreflightSpec,
 	return all, nil
 }
 
-// license reads the kots license from the embedded Kots Application Release. If no license is found,
+// License reads the kots license from the embedded Kots Application Release. If no license is found,
 // returns nil and no error.
-func (a AdminConsoleCustomization) License() (*v1beta1.License, error) {
+func (a AdminConsole) License() (*v1beta1.License, error) {
 	if runtime.GOOS != "linux" {
 		return nil, nil
 	}
@@ -139,4 +146,18 @@ func (a AdminConsoleCustomization) License() (*v1beta1.License, error) {
 		return nil, fmt.Errorf("failed to unmarshal license: %w", err)
 	}
 	return &license, nil
+}
+
+// EmbeddedClusterConfig reads the embedded cluster config from the embedded Kots Application Release.
+func (a AdminConsole) EmbeddedClusterConfig() ([]byte, error) {
+	if runtime.GOOS != "linux" {
+		return nil, nil
+	}
+	section, err := a.ExtractCustomization()
+	if err != nil {
+		return nil, err
+	} else if section == nil {
+		return nil, nil
+	}
+	return section.EmbeddedClusterConfig, nil
 }

@@ -6,6 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/creack/pty v1.1.18
+	github.com/ghodss/yaml v1.0.0
 	github.com/google/go-containerregistry v0.14.0
 	github.com/google/uuid v1.3.1
 	github.com/gosimple/slug v1.13.1
@@ -72,7 +73,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
-	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
+	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/evanphx/json-patch/v5 v5.7.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/color v1.15.0 // indirect
