@@ -14,7 +14,7 @@ import (
 //go:embed testdata/*yaml
 var testData embed.FS
 
-func Test_applyUnsupportedOverrides(t *testing.T) {
+func TestApplyUnsupportedOverrides(t *testing.T) {
 	type test struct {
 		Name     string
 		Config   string `yaml:"config"`
@@ -42,7 +42,7 @@ func Test_applyUnsupportedOverrides(t *testing.T) {
 			var config v1beta1.Cluster
 			err := yaml.Unmarshal([]byte(tt.Config), &config)
 			assert.NoError(t, err)
-			err = applyEmbeddedUnsupportedOverrides(&config, []byte(tt.Override))
+			err = ApplyEmbeddedUnsupportedOverrides(&config, []byte(tt.Override))
 			assert.NoError(t, err)
 			result, err := yaml.Marshal(config)
 			assert.NoError(t, err)

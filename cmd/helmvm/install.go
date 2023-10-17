@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	k0sversion "github.com/k0sproject/version"
 	"io"
 	"os"
 	"os/exec"
@@ -12,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	k0sversion "github.com/k0sproject/version"
 
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
@@ -160,6 +161,14 @@ func updateConfig(c *cli.Context) error {
 	}
 	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
 
+	if c.String("overrides") != "" {
+		data, err := os.ReadFile(c.String("overrides"))
+		if err != nil {
+			return fmt.Errorf("unable to read overrides file: %w", err)
+		}
+		config.ApplyEmbeddedUnsupportedOverrides(cfg, data)
+	}
+
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -253,6 +262,14 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 	cfg, err := config.RenderClusterConfig(c.Context, multi)
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
+	}
+
+	if c.String("overrides") != "" {
+		data, err := os.ReadFile(c.String("overrides"))
+		if err != nil {
+			return fmt.Errorf("unable to read overrides file: %w", err)
+		}
+		config.ApplyEmbeddedUnsupportedOverrides(cfg, data)
 	}
 
 	opts := []addons.Option{}
@@ -413,6 +430,10 @@ var installCommand = &cli.Command{
 		&cli.StringSliceFlag{
 			Name:  "disable-addon",
 			Usage: "Disable addon during install/upgrade",
+		},
+		&cli.StringFlag{
+			Name:  "overrides",
+			Usage: "File with an EmbeddedClusterConfig object to override the default configuration",
 		},
 	},
 	Action: func(c *cli.Context) error {
