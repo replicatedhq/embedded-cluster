@@ -8,7 +8,6 @@ jobs:
       fail-fast: false
       matrix:
         tests:
-        - TestBuildBundle
         - TestEmbedAndInstall
         - TestMultiNodeInstallation
         - TestSingleNodeInstallation

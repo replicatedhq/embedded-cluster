@@ -5,8 +5,6 @@ package goods
 import (
 	"embed"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -16,9 +14,6 @@ import (
 
 //go:embed bins/*
 var binfs embed.FS
-
-//go:embed images/*
-var imgfs embed.FS
 
 // Materialize writes to disk embed assets.
 func Materialize() error {
@@ -65,38 +60,4 @@ func Materialize() error {
 		}
 	}
 	return nil
-}
-
-// ListImages returns all the images found on embed images/list.txt file.
-func ListImages() ([]string, error) {
-	content, err := imgfs.ReadFile("images/list.txt")
-	if err != nil {
-		return nil, fmt.Errorf("unable to read list.txt: %w", err)
-	}
-	contentstr := string(content)
-	lines := strings.Split(contentstr, "\n")
-	var images []string
-	for _, line := range lines {
-		if line = strings.TrimSpace(line); line != "" {
-			images = append(images, line)
-		}
-	}
-	return images, nil
-}
-
-// DownloadImagesBundle starts a download and returns a reader from where the
-// bundle can be read. To close the resturn value is a caller responsibility.
-func DownloadImagesBundle(version string) (io.ReadCloser, error) {
-	baseurl := "https://github.com/k0sproject/k0s/releases"
-	urlpath := "download/%[1]s/k0s-airgap-bundle-%[1]s-amd64"
-	urltpl := fmt.Sprintf("%s/%s", baseurl, urlpath)
-	bundleURL := fmt.Sprintf(urltpl, version)
-	response, err := http.Get(bundleURL)
-	if err != nil {
-		return nil, fmt.Errorf("unable to download bundle: %w", err)
-	}
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unable to download bundle: %s", response.Status)
-	}
-	return response.Body, nil
 }

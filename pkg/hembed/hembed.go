@@ -75,7 +75,6 @@ func ValidateTarget(opts EmbedOptions) error {
 type EmbedOptions struct {
 	OS     string
 	Arch   string
-	Images []string
 	Charts []HelmChart
 }
 
@@ -149,21 +148,6 @@ func ReadEmbeddedData(fpath string) ([]byte, error) {
 func PathToPrebuiltBinary(opts EmbedOptions) string {
 	fname := fmt.Sprintf("helmvm-%s-%s", opts.OS, opts.Arch)
 	return path.Join(BaseDir, fname)
-}
-
-// ReadEmbedImages reads images from the binary EmbedOptions.
-func ReadEmbedImages() ([]string, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get executable path: %w", err)
-	}
-	opts, err := ReadEmbedOptionsFromBinary(exe)
-	if err != nil {
-		return nil, err
-	} else if opts == nil {
-		return []string{}, nil
-	}
-	return opts.Images, nil
 }
 
 // ReadEmbedOptionsFromBinary reads the embedded charts from the binary. It reads the
