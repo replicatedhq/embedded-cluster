@@ -98,13 +98,15 @@ func askUserForHostSSHKey(keys []string, host *hostcfg) error {
 		host.KeyPath = quiz.Input("SSH key path:", "", true)
 		return nil
 	}
-	keys = append(keys, "other")
+	keys = append(keys, "use existing agent", "other")
 	if host.KeyPath == "" {
 		host.KeyPath = keys[0]
 	}
 	host.KeyPath = quiz.Select("SSH key path:", keys, host.KeyPath)
 	if host.KeyPath == "other" {
 		host.KeyPath = quiz.Input("SSH key path:", "", true)
+	} else if host.KeyPath == "use existing agent" {
+		host.KeyPath = ""
 	}
 	return nil
 }
