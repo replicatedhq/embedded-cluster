@@ -145,8 +145,6 @@ func createK0sctlConfigBackup(ctx context.Context) error {
 // options.
 func updateConfig(c *cli.Context) error {
 
-	bundledir := c.String("bundle")
-
 	if err := createK0sctlConfigBackup(c.Context); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
 	}
@@ -155,9 +153,6 @@ func updateConfig(c *cli.Context) error {
 	cfg, err := config.ReadConfigFile(cfgpath)
 	if err != nil {
 		return fmt.Errorf("unable to read cluster config: %w", err)
-	}
-	if err := config.UpdateHostsFiles(cfg, bundledir); err != nil {
-		return fmt.Errorf("unable to update hosts files: %w", err)
 	}
 	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
 
@@ -200,10 +195,6 @@ func copyUserProvidedConfig(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to read cluster config: %w", err)
 	}
-	bundledir := c.String("bundle")
-	if err := config.UpdateHostsFiles(cfg, bundledir); err != nil {
-		return fmt.Errorf("unable to update hosts files: %w", err)
-	}
 	if err := createK0sctlConfigBackup(c.Context); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
 	}
@@ -238,8 +229,6 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 	if !multi && runtime.GOOS != "linux" {
 		return fmt.Errorf("single node clusters only supported on linux")
 	}
-	bundledir := c.String("bundle-dir")
-	bundledir = strings.TrimRight(bundledir, "/")
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	if usercfg := c.String("config"); usercfg != "" {
 		logrus.Infof("Using %s config file", usercfg)
@@ -285,12 +274,6 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
 
-	if bundledir != "" {
-		config.SetUploadBinary(cfg)
-	}
-	if err := config.UpdateHostsFiles(cfg, bundledir); err != nil {
-		return fmt.Errorf("unable to update hosts files: %w", err)
-	}
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -409,10 +392,6 @@ var installCommand = &cli.Command{
 	Aliases: []string{"apply"},
 	Usage:   "Installs a new or upgrades an existing cluster",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "bundle-dir",
-			Usage: "Disconnected environment bundle path",
-		},
 		&cli.StringFlag{
 			Name:  "config",
 			Usage: "Path to the configuration to be applied",

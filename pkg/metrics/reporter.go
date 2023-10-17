@@ -135,13 +135,8 @@ func ReportJoinFailed(ctx context.Context, clusterID uuid.UUID, exterr error) {
 }
 
 // ReportApplyStarted decides if we are going to report an InstallationStarted
-// or an UpgradeStarted event and calls the appropriate function. If there has
-// been provided a bundle directory through the command line it assumes this is
-// a disconnected install and returns.
+// or an UpgradeStarted event and calls the appropriate function.
 func ReportApplyStarted(c *cli.Context) {
-	if c.String("bundle-dir") != "" {
-		return
-	}
 	ctx, cancel := context.WithTimeout(c.Context, 5*time.Second)
 	defer cancel()
 	if isUpgrade {
@@ -155,9 +150,6 @@ func ReportApplyStarted(c *cli.Context) {
 // an InstallationFailed, an UpgradeSucceeded, or an UpgradeFailed event and calls
 // the appropriate function.
 func ReportApplyFinished(c *cli.Context, err error) {
-	if c.String("bundle-dir") != "" {
-		return
-	}
 	ctx, cancel := context.WithTimeout(c.Context, 5*time.Second)
 	defer cancel()
 	if err != nil {

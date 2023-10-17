@@ -15,37 +15,10 @@ LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSI
 
 default: helmvm-linux-amd64
 
-output/bin/yq:
-ifeq ($(UNAME), Darwin)
-ifeq ($(ARCH), arm64)
-	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_darwin_arm64
-else
-	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_darwin_amd64
-endif
-endif
-ifeq ($(UNAME), Linux)
-	curl -L -o output/bin/yq https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64
-endif
-	chmod +x output/bin/yq
-
 output/bin/helm:
 	mkdir -p output/bin
 	curl -fsSL "https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3" | \
 		PATH=$(PATH):output/bin HELM_INSTALL_DIR=output/bin USE_SUDO=false bash
-
-pkg/goods/images/list.txt: pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz
-	mkdir -p pkg/goods/images
-	mkdir -p output/tmp/adminconsole
-	tar -zxf "pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz" -C output/tmp/adminconsole
-	output/bin/yq -r ".images[]" output/tmp/adminconsole/admin-console/values.yaml > pkg/goods/images/list.txt
-	rm -rf output/tmp/adminconsole
-	mkdir -p output/tmp/openebs
-	tar -zxf "pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz" -C output/tmp/openebs
-	output/bin/yq -r '(.localprovisioner.image + ":" + .localprovisioner.imageTag)' output/tmp/openebs/openebs/values.yaml >> pkg/goods/images/list.txt
-	output/bin/yq -r '(.ndm.image + ":" + .ndm.imageTag)' output/tmp/openebs/openebs/values.yaml >> pkg/goods/images/list.txt
-	output/bin/yq -r '(.ndmOperator.image + ":" + .ndmOperator.imageTag)' output/tmp/openebs/openebs/values.yaml >> pkg/goods/images/list.txt
-	output/bin/yq -r '(.helper.image + ":" + .helper.imageTag)' output/tmp/openebs/openebs/values.yaml >> pkg/goods/images/list.txt
-	rm -rf output/tmp/openebs
 
 pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
 	mkdir -p pkg/goods/bins/k0sctl
@@ -123,10 +96,9 @@ static: output/bin/yq \
 	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) \
 	pkg/goods/images/list.txt
 static: pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz \
-	output/bin/yq \
+	pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz \
 	pkg/goods/bins/helmvm/kubectl-preflight \
-	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) \
-	pkg/goods/images/list.txt
+	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
 .PHONY: static-darwin-arm64
 static-darwin-arm64: pkg/goods/bins/helmvm/kubectl-darwin-arm64 pkg/goods/bins/helmvm/k0sctl-darwin-arm64 pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-arm64
@@ -181,5 +153,3 @@ clean:
 	rm -rf pkg/addons/adminconsole/charts/*.tgz
 	rm -rf pkg/addons/openebs/charts/*.tgz
 	rm -rf pkg/goods/bins
-	rm -rf pkg/goods/images
-	rm -rf bundle

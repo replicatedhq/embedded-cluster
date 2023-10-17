@@ -11,7 +11,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	fmtconvert "github.com/ghodss/yaml"
@@ -48,13 +47,6 @@ func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 		return nil, fmt.Errorf("unable to unmarshal current config: %w", err)
 	}
 	return &cfg, nil
-}
-
-// SetUploadBinary sets the upload binary config to true in all hosts in the provided configuration.
-func SetUploadBinary(config *v1beta1.Cluster) {
-	for i := range config.Spec.Hosts {
-		config.Spec.Hosts[i].UploadBinary = true
-	}
 }
 
 // RenderClusterConfig renders a cluster configuration interactively.
@@ -324,43 +316,6 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		}
 	}
 
-	return nil
-}
-
-// UpdateHostsFiles passes through all hosts in the provided configuration and makes sure
-// they all have their "Files" property properly set. The Files property is a list of files
-// that need to be uploaded to the remote host.
-func UpdateHostsFiles(cfg *v1beta1.Cluster, bundleDir string) error {
-	for _, host := range cfg.Spec.Hosts {
-		if err := updateHostFiles(host, bundleDir); err != nil {
-			return fmt.Errorf("unable to update host file: %w", err)
-		}
-	}
-	return nil
-}
-
-// updateHostFiles reads the provided bundle dir and sets up the host "Files" property.
-func updateHostFiles(host *cluster.Host, bundleDir string) error {
-	if len(bundleDir) == 0 || !strings.Contains(host.Role, "worker") {
-		host.Files = nil
-		return nil
-	}
-	entries, err := os.ReadDir(bundleDir)
-	if err != nil {
-		return fmt.Errorf("unable to read bundle directory: %w", err)
-	}
-	for _, entry := range entries {
-		if !strings.Contains(entry.Name(), ".tar") {
-			continue
-		}
-		fpath := fmt.Sprintf("%s/%s", bundleDir, entry.Name())
-		file := &cluster.UploadFile{
-			Source:         fpath,
-			DestinationDir: "/var/lib/k0s/images",
-			PermMode:       "0755",
-		}
-		host.Files = append(host.Files, file)
-	}
 	return nil
 }
 
