@@ -8,7 +8,6 @@ import (
 	"github.com/k0sproject/rig/log"
 	"github.com/sirupsen/logrus"
 
-	"github.com/replicatedhq/helmvm/pkg/infra"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
@@ -57,16 +56,4 @@ func (h *hostcfg) testConnection() error {
 	}()
 	rig.SetLogger(loading)
 	return h.render().Connection.Connect()
-}
-
-// HostConfigFromInfraNode returns a new hostcfg object with properties copied
-// from the given infra.Node.
-func hostConfigFromInfraNode(node infra.Node) hostcfg {
-	return hostcfg{
-		Address: node.Address,
-		Role:    node.Role,
-		Port:    node.Port,
-		User:    node.User,
-		KeyPath: node.KeyPath,
-	}
 }

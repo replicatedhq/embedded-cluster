@@ -23,7 +23,6 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/config"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
-	"github.com/replicatedhq/helmvm/pkg/infra"
 	"github.com/replicatedhq/helmvm/pkg/metrics"
 	"github.com/replicatedhq/helmvm/pkg/preflights"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
@@ -224,8 +223,8 @@ func overwriteExistingConfig() bool {
 
 // ensureK0sctlConfig ensures that a k0sctl.yaml file exists in the configuration
 // directory. If none exists then this directs the user to a wizard to create one.
-func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) error {
-	multi := c.Bool("multi-node") || len(nodes) > 0
+func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
+	multi := c.Bool("multi-node")
 	if !multi && runtime.GOOS != "linux" {
 		return fmt.Errorf("single node clusters only supported on linux")
 	}
@@ -237,13 +236,11 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 		return copyUserProvidedConfig(c)
 	}
 	if _, err := os.Stat(cfgpath); err == nil {
-		if len(nodes) == 0 {
-			if !useprompt {
-				return updateConfig(c)
-			}
-			if !overwriteExistingConfig() {
-				return updateConfig(c)
-			}
+		if !useprompt {
+			return updateConfig(c)
+		}
+		if !overwriteExistingConfig() {
+			return updateConfig(c)
 		}
 		if err := createK0sctlConfigBackup(c.Context); err != nil {
 			return fmt.Errorf("unable to create config backup: %w", err)
@@ -252,7 +249,7 @@ func ensureK0sctlConfig(c *cli.Context, nodes []infra.Node, useprompt bool) erro
 		return fmt.Errorf("unable to open config: %w", err)
 	}
 
-	cfg, err := config.RenderClusterConfig(c.Context, nodes, multi)
+	cfg, err := config.RenderClusterConfig(c.Context, multi)
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}
@@ -360,10 +357,10 @@ func dumpApplyLogs() {
 
 // applyK0sctl runs the k0sctl apply command and waits for it to finish. If
 // no configuration is found one is generated.
-func applyK0sctl(c *cli.Context, nodes []infra.Node) error {
+func applyK0sctl(c *cli.Context) error {
 	useprompt := !c.Bool("no-prompt")
 	fmt.Println("Processing cluster configuration")
-	if err := ensureK0sctlConfig(c, nodes, useprompt); err != nil {
+	if err := ensureK0sctlConfig(c, useprompt); err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
 	}
 	if err := runHostPreflights(c); err != nil {
@@ -402,10 +399,6 @@ var installCommand = &cli.Command{
 			Name:  "config",
 			Usage: "Path to the configuration to be applied",
 		},
-		&cli.StringFlag{
-			Name:  "infra",
-			Usage: "Path to a directory with terraform infra manifests",
-		},
 		&cli.BoolFlag{
 			Name:  "multi-node",
 			Usage: "Installs or upgrades a multi node deployment",
@@ -430,7 +423,6 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, fmt.Errorf("wrong upgrade on decentralized install"))
 			return fmt.Errorf("decentralized install detected")
 		}
-		useprompt := !c.Bool("no-prompt")
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
@@ -438,17 +430,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 
-		var err error
-		var nodes []infra.Node
-		if dir := c.String("infra"); dir != "" {
-			logrus.Infof("Processing infrastructure manifests")
-			if nodes, err = infra.Apply(c.Context, dir, useprompt); err != nil {
-				err := fmt.Errorf("unable to create infra: %w", err)
-				metrics.ReportApplyFinished(c, err)
-				return err
-			}
-		}
-		if err := applyK0sctl(c, nodes); err != nil {
+		if err := applyK0sctl(c); err != nil {
 			err := fmt.Errorf("unable update cluster: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err

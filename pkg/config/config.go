@@ -26,7 +26,6 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/addons"
 	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/infra"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 	"github.com/replicatedhq/helmvm/pkg/ssh"
 )
@@ -58,13 +57,13 @@ func SetUploadBinary(config *v1beta1.Cluster) {
 }
 
 // RenderClusterConfig renders a cluster configuration interactively.
-func RenderClusterConfig(ctx context.Context, nodes []infra.Node, multi bool) (*v1beta1.Cluster, error) {
+func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, error) {
 	embconfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
 	}
 	if multi {
-		cfg, err := renderMultiNodeConfig(ctx, nodes)
+		cfg, err := renderMultiNodeConfig(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
 		}
@@ -205,19 +204,12 @@ func interactiveHosts(ctx context.Context) ([]*cluster.Host, error) {
 
 // renderMultiNodeConfig renders a configuration to allow k0sctl to install in a multi-node
 // configuration.
-func renderMultiNodeConfig(ctx context.Context, nodes []infra.Node) (*v1beta1.Cluster, error) {
+func renderMultiNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 	var err error
 	var hosts []*cluster.Host
 	fmt.Println("You are about to configure a new cluster.")
-	if len(nodes) == 0 {
-		if hosts, err = interactiveHosts(ctx); err != nil {
-			return nil, fmt.Errorf("unable to collect hosts: %w", err)
-		}
-	} else {
-		for _, node := range nodes {
-			hostcfg := hostConfigFromInfraNode(node)
-			hosts = append(hosts, hostcfg.render())
-		}
+	if hosts, err = interactiveHosts(ctx); err != nil {
+		return nil, fmt.Errorf("unable to collect hosts: %w", err)
 	}
 	return generateConfigForHosts(ctx, hosts...)
 }
