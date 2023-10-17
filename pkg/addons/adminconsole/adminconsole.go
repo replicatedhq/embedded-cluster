@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	releaseName = "adminconsole"
+	releaseName = "admin-console"
 )
 
 var Version = "v0.0.0"
@@ -218,10 +218,10 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Reposito
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	err = a.WriteChartFile(Version)
+	/*err = a.WriteChartFile(Version)
 	if err != nil {
 		logrus.Fatalf("Unable to write chart file to disk: %s", err)
-	}
+	}*/
 
 	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
 }

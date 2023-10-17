@@ -75,10 +75,10 @@ func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, e
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	err = o.WriteChartFile(Version)
+	/*err = o.WriteChartFile(Version)
 	if err != nil {
 		logrus.Fatalf("could not write chart file: %s", err)
-	}
+	}*/
 
 	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
 }
