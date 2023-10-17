@@ -114,20 +114,6 @@ ubuntu@ip-172-16-10-242:~/.helmvm/etc$ export PATH="$PATH:/home/ubuntu/.helmvm/b
 ubuntu@ip-172-16-10-242:~/.helmvm/etc$
 ```
 
-## Disconnected intalls
-
-To install in a disconnected environment you need to first acquire the Image Bundle. To download the Image Bundle, in a machine with internet access, you can run the following command:
-
-```
-$ ./helmvm build-bundle
-```
-
-This will download all necessary images in a directory called `bundle` in the current directory. Once you have the Image Bundle you must upload it together with the binary to a server that can reach the nodes where you plan to execute the installation through SSH and then run:
-
-```
-$ ./helmvm install --multi-node --bundle ./bundle
-```
-
 ## Embedding your own Helm Chart
 
 HelmVM allows you to embed your own Helm Charts so they are installed by default when the cluster is installed or updated. For sake of documenting this let's create a hypothetical scenario: you have a software called `rocks` that is packaged as a Helm Chart and is ready to be installed in any Kubernetes Cluster.
@@ -147,17 +133,9 @@ $ helmvm embed \
         --values values.yaml \
         --output rocks
 ```
-Now every time someone installs or upgrades a cluster using the `rocks` binary the Helm Chart will be installed with the custom values. At this stage `rocks` is prepared to create installations in environments with access to the internet, if you want to make it capable of installing in disconnected environments you must embed a list of the images necessary to get `rocks-1.0.0.tgz` running too, you can do it by running the following command:
+Now every time someone installs or upgrades a cluster using the `rocks` binary the Helm Chart will be installed with the custom values.
 
-```
-$ helmvm embed \
-        --chart rocks-1.0.0.tgz \
-        --values values.yaml \
-        --images nginx:latest,node:latest \
-        --output rocks
-```
-
-From now on every time an user runs `./rocks build-bundle` your images will be also pulled. You can embed as many Helm Charts and `values.yaml` as you want:
+You can embed as many Helm Charts and `values.yaml` as you want:
 
 ```
 $ helmvm embed \
@@ -165,7 +143,6 @@ $ helmvm embed \
         --values values.yaml \
         --chart mongodb-13.16.1.tgz \
         --values mongo-values.yaml `
-        --images nginx:latest,node:latest,mongo:latest \
         --output rocks
 ```
 

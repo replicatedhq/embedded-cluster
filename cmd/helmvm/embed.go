@@ -67,10 +67,6 @@ var embedCommand = &cli.Command{
 			Name:  "values",
 			Usage: "The values file for the helm chart",
 		},
-		&cli.StringSliceFlag{
-			Name:  "images",
-			Usage: "A list of comma separated images to be added",
-		},
 	},
 	Action: func(c *cli.Context) error {
 		exe, err := os.Executable()
@@ -88,7 +84,6 @@ var embedCommand = &cli.Command{
 				return fmt.Errorf("unable to process chart: %w", err)
 			}
 		}
-		opts.Images = append(opts.Images, c.StringSlice("images")...)
 		from, err := hembed.Embed(c.Context, exe, opts)
 		if err != nil {
 			return fmt.Errorf("unable to embed helm charts: %w", err)
