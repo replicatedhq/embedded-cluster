@@ -13,7 +13,12 @@ const (
 	releaseName = "openebs"
 )
 
-var Version = "v0.0.0"
+// Overwritten by -ldflags in Makefile
+var (
+	ChartURL  = "https://url"
+	ChartName = "name"
+	Version   = "v0.0.0"
+)
 
 var helmValues = map[string]interface{}{
 	"ndmOperator": map[string]interface{}{
@@ -46,14 +51,14 @@ func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: "openebs/openebs",
+		ChartName: ChartName,
 		Version:   Version,
 		TargetNS:  o.namespace,
 	}
 
 	repositoryConfig := v1beta1.Repository{
 		Name: "openebs",
-		URL:  "https://openebs.github.io/charts",
+		URL:  ChartURL,
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)

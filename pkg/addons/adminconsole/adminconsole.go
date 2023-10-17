@@ -18,7 +18,12 @@ const (
 	releaseName = "admin-console"
 )
 
-var Version = "v0.0.0"
+// Overwritten by -ldflags in Makefile
+var (
+	ChartURL  = "https://url"
+	ChartName = "name"
+	Version   = "v0.0.0"
+)
 
 var helmValues = map[string]interface{}{
 	"password":      "password",
@@ -152,7 +157,7 @@ func (a *AdminConsole) GetCurrentConfig() (v1beta1.Chart, error) {
 func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: "oci://registry.replicated.com/library/admin-console",
+		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
 		Values:    "",
 		TargetNS:  a.namespace,
