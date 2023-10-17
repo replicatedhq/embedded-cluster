@@ -21,6 +21,7 @@ import (
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
 	"github.com/replicatedhq/helmvm/pkg/addons/custom"
+	"github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/helmvm/pkg/addons/openebs"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
@@ -112,6 +113,14 @@ func (a *Applier) load() (map[string]AddOn, error) {
 			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 		}
 		addons["adminconsole"] = aconsole
+	}
+
+	if _, disabledAddons := a.disabledAddons["embedded-cluster-operator"]; !disabledAddons {
+		embedoperator, err := embeddedclusteroperator.New("helmvm", a.prompt, a.config)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
+		}
+		addons["embeddedclusteroperator"] = embedoperator
 	}
 
 	custom, err := custom.New("helmvm", a.disabledAddons)
