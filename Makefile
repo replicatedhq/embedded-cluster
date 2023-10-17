@@ -12,6 +12,7 @@ TROUBLESHOOT_VERSION = v0.72.0
 LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 -X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION) \
 -X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION)
+-X github.com/replicatedhq/helmvm/pkg/addons/openebs.Version=$(OPENEBS_VERSION)
 
 default: helmvm-linux-amd64
 
@@ -56,8 +57,8 @@ pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
 #	output/bin/helm pull oci://registry.replicated.com/library/admin-console --version=$(ADMIN_CONSOLE_CHART_VERSION)
 #	mv admin-console-$(ADMIN_CONSOLE_CHART_VERSION).tgz pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz
 
-pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz: output/bin/helm
-	curl -L -o pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz https://github.com/openebs/charts/releases/download/openebs-$(OPENEBS_VERSION)/openebs-$(OPENEBS_VERSION).tgz
+#pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz: output/bin/helm
+#	curl -L -o pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz https://github.com/openebs/charts/releases/download/openebs-$(OPENEBS_VERSION)/openebs-$(OPENEBS_VERSION).tgz
 
 pkg/goods/bins/helmvm/kubectl-linux-amd64:
 	mkdir -p pkg/goods/bins/helmvm

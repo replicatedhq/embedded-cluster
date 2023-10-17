@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -26,6 +25,8 @@ import (
 const (
 	releaseName = "adminconsole"
 )
+
+var Version = "v0.0.0"
 
 var helmValues = map[string]interface{}{
 	"password":      "password",
@@ -163,28 +164,23 @@ func (a *AdminConsole) GetCurrentConfig() (v1beta1.Chart, error) {
 
 // GenerateHelmConfig generates the helm config for the adminconsole
 // and writes the charts to the disk.
-func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
-
-	latest, err := a.Latest()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get latest version: %w", err)
-	}
-
-	chartFile, err := a.GetChartFileName()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get chart file name: %w", err)
-	}
+func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: filepath.Join(defaults.HelmChartSubDir(), chartFile),
-		Version:   latest,
+		ChartName: "replicated/admin-console",
+		Version:   Version,
 		Values:    "",
 		TargetNS:  a.namespace,
 	}
 
+	repositoryConfig := v1beta1.Repository{
+		Name: "replicated",
+		URL:  "oci://registry.replicated.com/library",
+	}
+
 	if err := a.addLicenseToHelmValues(); err != nil {
-		return nil, fmt.Errorf("unable to add license to helm values: %w", err)
+		return nil, nil, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 
 	currentConfig, err := a.GetCurrentConfig()
@@ -193,7 +189,7 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 		if err != nil {
 			pass, err := a.askPassword()
 			if err != nil {
-				return nil, fmt.Errorf("unable to ask for password: %w", err)
+				return nil, nil, fmt.Errorf("unable to ask for password: %w", err)
 			}
 			helmValues["password"] = pass
 		} else if currentPassword != "" {
@@ -202,7 +198,7 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 	} else {
 		pass, err := a.askPassword()
 		if err != nil {
-			return nil, fmt.Errorf("unable to ask for password: %w", err)
+			return nil, nil, fmt.Errorf("unable to ask for password: %w", err)
 		}
 		helmValues["password"] = pass
 	}
@@ -220,17 +216,16 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, error) {
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal helm values: %w", err)
+		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	err = a.WriteChartFile(latest)
+	err = a.WriteChartFile(Version)
 	if err != nil {
 		logrus.Fatalf("Unable to write chart file to disk: %s", err)
 	}
 
-	return []v1beta1.Chart{chartConfig}, nil
-
+	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
 }
 
 // WriteChartFile writes the adminconsole chart to the disk.

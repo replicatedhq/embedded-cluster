@@ -37,7 +37,7 @@ func getLogger(addon string, verbose bool) action.DebugLog {
 type AddOn interface {
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig() ([]v1beta1.Chart, error)
+	GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error)
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -49,26 +49,28 @@ type Applier struct {
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, error) {
+func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 
 	charts := []v1beta1.Chart{}
+
+	repositories := []v1beta1.Repository{}
 
 	addons, err := a.load()
 
 	if err != nil {
-		return nil, fmt.Errorf("unable to load addons: %w", err)
+		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
 
-		addonChartConfig, err := addon.GenerateHelmConfig()
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig()
 		if err != nil {
-			return nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
+			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
 		charts = append(charts, addonChartConfig...)
-
+		repositories = append(repositories, addonRepositoryConfig...)
 	}
 
-	return charts, nil
+	return charts, repositories, nil
 }
 
 // HostPreflights reads all embedded host preflights from all add-ons and returns them
