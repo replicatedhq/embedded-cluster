@@ -32,5 +32,5 @@ jobs:
 
         export CHART_NAME=`helm package . | rev | cut -d/ -f1 | rev`
         echo pushing ${CHART_NAME} to staging
-        helm registry login registry.replicated.com  --username $HELM_USER --password $HELM_PASS
+        helm registry login registry.staging.replicated.com  --username $HELM_USER --password $HELM_PASS
         helm push $CHART_NAME oci://registry.staging.replicated.com/library
