@@ -1,0 +1,68 @@
+config: |-
+  apiVersion: k0sctl.k0sproject.io/v1beta1
+  kind: Cluster
+  metadata:
+    name: helmvm
+  spec:
+    hosts:
+    - ssh:
+        address: 18.235.234.142
+        user: ubuntu
+        port: 22
+        keyPath: /home/user/.ssh/key.pem
+      role: controller+worker
+      installFlags:
+      - --disable-components konnectivity-server
+      noTaints: true
+    k0s:
+      version: v1.27.5+k0s.0
+      dynamicConfig: false
+      config:
+        apiVersion: k0s.k0sproject.io/v1beta1
+        kind: ClusterConfig
+        metadata:
+          name: helmvm
+        spec:
+          network:
+            provider: calico
+          telemetry:
+            enabled: false
+override: |-
+  apiVersion: embeddedcluster.replicated.com/v1beta1
+  kind: Config
+  spec:
+    unsupportedOverrides:
+      k0s:
+        config:
+          spec:
+            telemetry:
+              enabled: true
+expected: |-
+  apiVersion: k0sctl.k0sproject.io/v1beta1
+  kind: Cluster
+  metadata:
+    name: helmvm
+  spec:
+    hosts:
+    - ssh:
+        address: 18.235.234.142
+        user: ubuntu
+        port: 22
+        keyPath: /home/user/.ssh/key.pem
+      role: controller+worker
+      installFlags:
+      - --disable-components konnectivity-server
+      noTaints: true
+    k0s:
+      version: v1.27.5+k0s.0
+      dynamicConfig: false
+      config:
+        apiVersion: k0s.k0sproject.io/v1beta1
+        kind: ClusterConfig
+        metadata:
+          name: helmvm
+        spec:
+          network:
+            provider: calico
+          telemetry:
+            enabled: true

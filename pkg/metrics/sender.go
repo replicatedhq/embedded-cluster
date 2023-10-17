@@ -19,7 +19,7 @@ import (
 // precedence over the former.
 func Send(ctx context.Context, ev Event) {
 	var baseURL = "https://replicated.app"
-	var custom customization.AdminConsoleCustomization
+	var custom customization.AdminConsole
 	if license, err := custom.License(); err != nil {
 		logrus.Warnf("unable to read license: %s", err)
 		return

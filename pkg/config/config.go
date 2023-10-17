@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch"
+	fmtconvert "github.com/ghodss/yaml"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
@@ -89,13 +91,15 @@ func askUserForHostSSHKey(keys []string, host *hostcfg) error {
 		host.KeyPath = quiz.Input("SSH key path:", "", true)
 		return nil
 	}
-	keys = append(keys, "other")
+	keys = append(keys, "use existing agent", "other")
 	if host.KeyPath == "" {
 		host.KeyPath = keys[0]
 	}
 	host.KeyPath = quiz.Select("SSH key path:", keys, host.KeyPath)
 	if host.KeyPath == "other" {
 		host.KeyPath = quiz.Input("SSH key path:", "", true)
+	} else if host.KeyPath == "use existing agent" {
+		host.KeyPath = ""
 	}
 	return nil
 }
@@ -356,5 +360,59 @@ func updateHostFiles(host *cluster.Host, bundleDir string) error {
 		}
 		host.Files = append(host.Files, file)
 	}
+	return nil
+}
+
+// UnsupportedConfigOverrides is a auxiliary struct for parsing the unsupported overrides
+// as provided in the Kots release. XXX This should eventually become a CRD.
+type UnsupportedConfigOverrides struct {
+	Spec struct {
+		UnsupportedOverrides struct {
+			K0s *cluster.K0s `yaml:"k0s"`
+		} `yaml:"unsupportedOverrides"`
+	} `yaml:"spec"`
+}
+
+// applyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
+func applyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte) error {
+	if embconfig == nil {
+		return nil
+	}
+	var overrides UnsupportedConfigOverrides
+	if err := yaml.Unmarshal(embconfig, &overrides); err != nil {
+		return fmt.Errorf("unable to parse cluster config overrides: %w", err)
+	}
+	if overrides.Spec.UnsupportedOverrides.K0s == nil {
+		return nil
+	}
+	origConfigBytes, err := yaml.Marshal(overrides.Spec.UnsupportedOverrides.K0s.Config)
+	if err != nil {
+		return fmt.Errorf("unable to marshal cluster config overrides: %w", err)
+	}
+	newConfigBytes, err := yaml.Marshal(config.Spec.K0s.Config)
+	if err != nil {
+		return fmt.Errorf("unable to marshal original cluster config: %w", err)
+	}
+	original, err := fmtconvert.YAMLToJSON(newConfigBytes)
+	if err != nil {
+		return fmt.Errorf("unable to convert cluster config overrides to json: %w", err)
+	}
+	target, err := fmtconvert.YAMLToJSON(origConfigBytes)
+	if err != nil {
+		return fmt.Errorf("unable to convert original cluster config to json: %w", err)
+	}
+	result, err := jsonpatch.MergePatch(original, target)
+	if err != nil {
+		return fmt.Errorf("unable to create patch configuration: %w", err)
+	}
+	newConfigBytes, err = fmtconvert.JSONToYAML(result)
+	if err != nil {
+		return fmt.Errorf("unable to convert patched configuration to json: %w", err)
+	}
+	var newK0sConfig dig.Mapping
+	if err := yaml.Unmarshal(newConfigBytes, &newK0sConfig); err != nil {
+		return fmt.Errorf("unable to unmarshal patched cluster config: %w", err)
+	}
+	config.Spec.K0s.Config = newK0sConfig
 	return nil
 }
