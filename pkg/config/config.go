@@ -153,31 +153,6 @@ func collectHostConfig(host hostcfg) (*cluster.Host, error) {
 	return host.render(), nil
 }
 
-// validateHostConfig validates if the list of hosts represents a valid cluster.
-// returns the number of controllers and workers in the configuration.
-func validateHosts(hosts []*cluster.Host) (int, int, error) {
-	if len(hosts) == 0 {
-		return 0, 0, fmt.Errorf("no hosts configured")
-	}
-	var workers int
-	var controllers int
-	for _, host := range hosts {
-		if strings.Contains(host.Role, "worker") {
-			workers++
-		}
-		if strings.Contains(host.Role, "controller") {
-			controllers++
-		}
-	}
-	if controllers == 0 {
-		return 0, 0, fmt.Errorf("at least one controller is required")
-	}
-	if workers == 0 {
-		return 0, 0, fmt.Errorf("at least one worker is required")
-	}
-	return controllers, workers, nil
-}
-
 // interactiveHosts asks the user for host configuration interactively.
 func interactiveHosts(ctx context.Context) ([]*cluster.Host, error) {
 	hosts := []*cluster.Host{}
