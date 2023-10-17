@@ -6,7 +6,6 @@ APP_NAME = helmvm
 ADMIN_CONSOLE_CHART_VERSION = 1.100.1
 KUBECTL_VERSION = v1.27.5
 K0SCTL_VERSION = v0.15.5
-TERRAFORM_VERSION = 1.5.4
 OPENEBS_VERSION = 3.7.0
 K0S_VERSION = v1.27.5+k0s.0
 TROUBLESHOOT_VERSION = v0.72.0
@@ -57,24 +56,6 @@ pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz: 
 
 pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz: output/bin/helm
 	curl -L -o pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz https://github.com/openebs/charts/releases/download/openebs-$(OPENEBS_VERSION)/openebs-$(OPENEBS_VERSION).tgz
-
-pkg/goods/bins/helmvm/terraform-linux-amd64:
-	mkdir -p output/tmp/terraform
-	curl -L -o output/tmp/terraform/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
-	unzip -o output/tmp/terraform/terraform.zip -d output/tmp/terraform
-	mv output/tmp/terraform/terraform pkg/goods/bins/helmvm/terraform-linux-amd64
-
-pkg/goods/bins/helmvm/terraform-darwin-amd64:
-	mkdir -p output/tmp/terraform
-	curl -L -o output/tmp/terraform/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_amd64.zip
-	unzip -o output/tmp/terraform/terraform.zip -d output/tmp/terraform
-	mv output/tmp/terraform/terraform pkg/goods/bins/helmvm/terraform-darwin-amd64
-
-pkg/goods/bins/helmvm/terraform-darwin-arm64:
-	mkdir -p output/tmp/terraform
-	curl -L -o output/tmp/terraform/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_darwin_arm64.zip
-	unzip -o output/tmp/terraform/terraform.zip -d output/tmp/terraform
-	mv output/tmp/terraform/terraform pkg/goods/bins/helmvm/terraform-darwin-arm64
 
 pkg/goods/bins/helmvm/kubectl-linux-amd64:
 	mkdir -p pkg/goods/bins/helmvm
@@ -142,13 +123,13 @@ static: pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSIO
 	pkg/goods/images/list.txt
 
 .PHONY: static-darwin-arm64
-static-darwin-arm64: pkg/goods/bins/helmvm/kubectl-darwin-arm64 pkg/goods/bins/helmvm/k0sctl-darwin-arm64 pkg/goods/bins/helmvm/terraform-darwin-arm64 pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-arm64
+static-darwin-arm64: pkg/goods/bins/helmvm/kubectl-darwin-arm64 pkg/goods/bins/helmvm/k0sctl-darwin-arm64 pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-arm64
 
 .PHONY: static-darwin-amd64
-static-darwin-amd64: pkg/goods/bins/helmvm/kubectl-darwin-amd64 pkg/goods/bins/helmvm/k0sctl-darwin-amd64 pkg/goods/bins/helmvm/terraform-darwin-amd64 pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-amd64
+static-darwin-amd64: pkg/goods/bins/helmvm/kubectl-darwin-amd64 pkg/goods/bins/helmvm/k0sctl-darwin-amd64 pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-amd64
 
 .PHONY: static-linux-amd64
-static-linux-amd64: pkg/goods/bins/helmvm/kubectl-linux-amd64 pkg/goods/bins/helmvm/k0sctl-linux-amd64 pkg/goods/bins/helmvm/terraform-linux-amd64 pkg/goods/bins/helmvm/kubectl-support_bundle-linux-amd64
+static-linux-amd64: pkg/goods/bins/helmvm/kubectl-linux-amd64 pkg/goods/bins/helmvm/k0sctl-linux-amd64 pkg/goods/bins/helmvm/kubectl-support_bundle-linux-amd64
 
 .PHONY: helmvm-linux-amd64
 helmvm-linux-amd64: static static-linux-amd64
