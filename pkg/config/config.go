@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/addons"
+	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 	"github.com/replicatedhq/helmvm/pkg/ssh"
@@ -53,6 +54,28 @@ func SetUploadBinary(config *v1beta1.Cluster) {
 	for i := range config.Spec.Hosts {
 		config.Spec.Hosts[i].UploadBinary = true
 	}
+}
+
+// RenderClusterConfig renders a cluster configuration interactively.
+func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, error) {
+	embconfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
+	}
+	if multi {
+		cfg, err := renderMultiNodeConfig(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
+		}
+		applyEmbeddedUnsupportedOverrides(cfg, embconfig)
+		return cfg, nil
+	}
+	cfg, err := renderSingleNodeConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to render single-node config: %w", err)
+	}
+	applyEmbeddedUnsupportedOverrides(cfg, embconfig)
+	return renderSingleNodeConfig(ctx)
 }
 
 // listUserSSHKeys returns a list of private SSH keys in the user's ~/.ssh directory.
@@ -210,6 +233,28 @@ func askForLoadBalancer() (string, error) {
 	fmt.Println("forwards traffic to the controllers on TCP ports 6443, 8132, and 9443.")
 	fmt.Println("Optionally, you can press enter to skip load balancer configuration.")
 	return quiz.Input("Load balancer address:", "", false), nil
+}
+
+// renderMultiNodeConfig renders a configuration to allow k0sctl to install in a multi-node
+// configuration.
+func renderMultiNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
+	var err error
+	var hosts []*cluster.Host
+	fmt.Println("You are about to configure a new cluster.")
+	if hosts, err = interactiveHosts(ctx); err != nil {
+		return nil, fmt.Errorf("unable to collect hosts: %w", err)
+	}
+	controllers, _, err := validateHosts(hosts)
+	if err != nil {
+		return nil, fmt.Errorf("invalid hosts configuration: %w", err)
+	}
+	var lb string
+	if controllers > 1 {
+		if lb, err = askForLoadBalancer(); err != nil {
+			return nil, fmt.Errorf("unable to ask for load balancer: %w", err)
+		}
+	}
+	return generateConfigForHosts(ctx, lb, hosts...)
 }
 
 // generateConfigForHosts generates a v1beta1.Cluster object for a given list of hosts.

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 
@@ -220,6 +221,69 @@ func overwriteExistingConfig() bool {
 	)
 }
 
+// ensureK0sctlConfig ensures that a k0sctl.yaml file exists in the configuration
+// directory. If none exists then this directs the user to a wizard to create one.
+func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
+	multi := c.Bool("multi-node")
+	if !multi && runtime.GOOS != "linux" {
+		return fmt.Errorf("single node clusters only supported on linux")
+	}
+	bundledir := c.String("bundle-dir")
+	bundledir = strings.TrimRight(bundledir, "/")
+	cfgpath := defaults.PathToConfig("k0sctl.yaml")
+	if usercfg := c.String("config"); usercfg != "" {
+		logrus.Infof("Using %s config file", usercfg)
+		return copyUserProvidedConfig(c)
+	}
+	if _, err := os.Stat(cfgpath); err == nil {
+		if !useprompt {
+			return updateConfig(c)
+		}
+		if !overwriteExistingConfig() {
+			return updateConfig(c)
+		}
+		if err := createK0sctlConfigBackup(c.Context); err != nil {
+			return fmt.Errorf("unable to create config backup: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("unable to open config: %w", err)
+	}
+
+	cfg, err := config.RenderClusterConfig(c.Context, multi)
+	if err != nil {
+		return fmt.Errorf("unable to render config: %w", err)
+	}
+
+	opts := []addons.Option{}
+	if c.Bool("no-prompt") {
+		opts = append(opts, addons.WithoutPrompt())
+	}
+
+	for _, addon := range c.StringSlice("disable-addon") {
+		opts = append(opts, addons.WithoutAddon(addon))
+	}
+
+	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
+		return fmt.Errorf("unable to update helm configs: %w", err)
+	}
+
+	if bundledir != "" {
+		config.SetUploadBinary(cfg)
+	}
+	if err := config.UpdateHostsFiles(cfg, bundledir); err != nil {
+		return fmt.Errorf("unable to update hosts files: %w", err)
+	}
+	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("unable to create config file: %w", err)
+	}
+	defer fp.Close()
+	if err := yaml.NewEncoder(fp).Encode(cfg); err != nil {
+		return fmt.Errorf("unable to write config file: %w", err)
+	}
+	return nil
+}
+
 // runK0sctlApply runs `k0sctl apply` refering to the k0sctl.yaml file found on
 // the configuration directory. Returns when the command is finished.
 func runK0sctlApply(ctx context.Context) error {
@@ -279,6 +343,45 @@ func runK0sctlKubeconfig(ctx context.Context) error {
 	return nil
 }
 
+// dumpApplyLogs dumps all k0sctl apply command output to the stdout.
+func dumpApplyLogs() {
+	logs := defaults.K0sctlApplyLogPath()
+	fp, err := os.Open(logs)
+	if err != nil {
+		logrus.Errorf("Unable to read logs: %s", err.Error())
+		return
+	}
+	defer fp.Close()
+	_, _ = io.Copy(os.Stdout, fp)
+}
+
+// applyK0sctl runs the k0sctl apply command and waits for it to finish. If
+// no configuration is found one is generated.
+func applyK0sctl(c *cli.Context) error {
+	useprompt := !c.Bool("no-prompt")
+	fmt.Println("Processing cluster configuration")
+	if err := ensureK0sctlConfig(c, useprompt); err != nil {
+		return fmt.Errorf("unable to create config file: %w", err)
+	}
+	if err := runHostPreflights(c); err != nil {
+		return fmt.Errorf("unable to finish preflight checks: %w", err)
+	}
+	fmt.Println("Applying cluster configuration")
+	if err := runK0sctlApply(c.Context); err != nil {
+		logrus.Errorf("Installation or upgrade failed.")
+		if !useprompt {
+			dumpApplyLogs()
+			return fmt.Errorf("unable to apply cluster: %w", err)
+		}
+		msg := "Do you wish to visualize the logs?"
+		if prompts.New().Confirm(msg, true) {
+			dumpApplyLogs()
+		}
+		return fmt.Errorf("unable to apply cluster: %w", err)
+	}
+	return nil
+}
+
 // installCommands executes the "install" command. This will ensure that a
 // k0sctl.yaml file exists and then run `k0sctl apply` to apply the cluster.
 // Once this is finished then a "kubeconfig" file is created.
@@ -325,6 +428,13 @@ var installCommand = &cli.Command{
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
+		}
+
+		if err := applyK0sctl(c); err != nil {
+			err := fmt.Errorf("unable update cluster: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+
 		}
 
 		logrus.Infof("Reading cluster access configuration")
