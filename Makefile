@@ -25,13 +25,6 @@ pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
 	curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64"
 	chmod +x pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
-pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz: output/bin/helm
-	output/bin/helm pull oci://registry.replicated.com/library/admin-console --version=$(ADMIN_CONSOLE_CHART_VERSION)
-	mv admin-console-$(ADMIN_CONSOLE_CHART_VERSION).tgz pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz
-
-pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz: output/bin/helm
-	curl -L -o pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz https://github.com/openebs/charts/releases/download/openebs-$(OPENEBS_VERSION)/openebs-$(OPENEBS_VERSION).tgz
-
 pkg/goods/bins/helmvm/kubectl-linux-amd64:
 	mkdir -p pkg/goods/bins/helmvm
 	curl -L -o pkg/goods/bins/helmvm/kubectl-linux-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
@@ -95,9 +88,7 @@ static: output/bin/yq \
 	pkg/goods/bins/helmvm/kubectl-preflight \
 	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) \
 	pkg/goods/images/list.txt
-static: pkg/addons/adminconsole/charts/adminconsole-$(ADMIN_CONSOLE_CHART_VERSION).tgz \
-	pkg/addons/openebs/charts/openebs-$(OPENEBS_VERSION).tgz \
-	pkg/goods/bins/helmvm/kubectl-preflight \
+static: pkg/goods/bins/helmvm/kubectl-preflight \
 	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
 .PHONY: static-darwin-arm64
