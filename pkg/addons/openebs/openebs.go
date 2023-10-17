@@ -22,6 +22,8 @@ const (
 	releaseName = "openebs"
 )
 
+var Version = "v0.0.0"
+
 var helmValues = map[string]interface{}{
 	"ndmOperator": map[string]interface{}{
 		"enabled": false,
@@ -54,32 +56,31 @@ func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
-func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, error) {
-
-	latest, err := o.latest()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get latest version: %w", err)
-	}
-
+func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
+		ChartName: "openebs/openebs",
+		Version:   Version,
 		TargetNS:  o.namespace,
-		Version:   latest,
-		ChartName: defaults.PathToHelmChart(releaseName, latest),
+	}
+
+	repositoryConfig := v1beta1.Repository{
+		Name: "openebs",
+		URL:  "https://openebs.github.io/charts",
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal helm values: %w", err)
+		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	err = o.WriteChartFile(latest)
+	err = o.WriteChartFile(Version)
 	if err != nil {
 		logrus.Fatalf("could not write chart file: %s", err)
 	}
 
-	return []v1beta1.Chart{chartConfig}, nil
+	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
 }
 
 func (o *OpenEBS) WriteChartFile(version string) error {

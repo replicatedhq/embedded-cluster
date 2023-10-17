@@ -296,13 +296,14 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 
 	opts = append(opts, addons.WithConfig(k0s))
 
-	newHelmConfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
+	newChartConfig, newRepositoryConfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
 	if err != nil {
 		return fmt.Errorf("unable to apply addons: %w", err)
 	}
 
 	newHelmExtension := &k0sconfig.HelmExtensions{
-		Charts: newHelmConfig,
+		Charts:       newChartConfig,
+		Repositories: newRepositoryConfig,
 	}
 
 	newClusterExtensions := &k0sconfig.ClusterExtensions{
