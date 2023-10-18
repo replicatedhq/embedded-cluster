@@ -32,9 +32,7 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterID":         metrics.ClusterID().String(),
 }
 
-type EmbeddedClusterOperator struct {
-	namespace string
-}
+type EmbeddedClusterOperator struct{}
 
 func (e *EmbeddedClusterOperator) Version() (map[string]string, error) {
 	return map[string]string{"EmbeddedClusterOperator": "v" + Version}, nil
@@ -51,7 +49,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 		Name:      releaseName,
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
-		TargetNS:  e.namespace,
+		TargetNS:  "kube-system",
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
@@ -63,6 +61,6 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
-func New(namespace string) (*EmbeddedClusterOperator, error) {
-	return &EmbeddedClusterOperator{namespace: namespace}, nil
+func New() (*EmbeddedClusterOperator, error) {
+	return &EmbeddedClusterOperator{}, nil
 }
