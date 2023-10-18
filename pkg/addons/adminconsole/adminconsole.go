@@ -9,6 +9,7 @@ import (
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v3"
+	yamlFoo "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
@@ -162,6 +163,12 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Reposito
 		Values:    "",
 		TargetNS:  a.namespace,
 	}
+
+	result, err := yamlFoo.Marshal(chartConfig)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(result))
 
 	if err := a.addLicenseToHelmValues(); err != nil {
 		return nil, nil, fmt.Errorf("unable to add license to helm values: %w", err)
