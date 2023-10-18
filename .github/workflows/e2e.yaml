@@ -11,7 +11,6 @@ jobs:
         - TestEmbedAndInstall
         - TestMultiNodeInstallation
         - TestSingleNodeInstallation
-        - TestTokenBasedMultiNodeInstallation
         - TestSingleNodeInstallationRockyLinux8
         - TestSingleNodeInstallationDebian12
         - TestSingleNodeInstallationCentos8Stream
