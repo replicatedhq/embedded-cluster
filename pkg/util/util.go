@@ -46,7 +46,6 @@ func WaitForAdminConsoleReady(configPath, namespace, deploymentName, displayName
 	// Fetch the custom resource using the dynamic client
 	cr, err := dynamicClient.Resource(K0sChartsGVR).Namespace(k0sChartsNamespace).Get(context.TODO(), k0sChartsCustomResourceName, v1.GetOptions{})
 	//cr, err := dynamicClient.Resource(K0sChartsGVR).Namespace(k0sChartsNamespace).List(context.TODO(), metav1.ListOptions{})
-	fmt.Println(cr)
 	if err != nil {
 		return err
 	}
