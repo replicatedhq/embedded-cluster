@@ -26,9 +26,9 @@ var (
 var helmValues = map[string]interface{}{
 	"kotsVersion":               adminconsole.Version,
 	"embeddedClusterVersion":    defaults.Version,
-	"embeddedClusterK0sVersion": defaults.K0s,
+	"embeddedClusterK0sVersion": defaults.K0sVersion,
 	"embeddedBinaryName":        defaults.BinaryName,
-	"embeddedClusterID":         metrics.ClusterID.String(),
+	"embeddedClusterID":         metrics.ClusterID().String(),
 }
 
 type EmbeddedClusterOperator struct {

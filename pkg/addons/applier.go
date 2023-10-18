@@ -116,7 +116,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 	}
 
 	if _, disabledAddons := a.disabledAddons["embedded-cluster-operator"]; !disabledAddons {
-		embedoperator, err := embeddedclusteroperator.New("helmvm", a.prompt, a.config)
+		embedoperator, err := embeddedclusteroperator.New("helmvm")
 		if err != nil {
 			return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 		}
