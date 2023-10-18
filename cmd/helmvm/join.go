@@ -2,12 +2,18 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
@@ -16,72 +22,105 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/metrics"
 )
 
+// JoinCommandResponse is the response from the kots api we use to fetch the k0s join
+// token. It returns the actual command we need to run and also the cluster ID.
+type JoinCommandResponse struct {
+	K0sJoinCommand string    `json:"k0sJoinCommand"`
+	K0sToken       string    `json:"k0sToken"`
+	ClusterID      uuid.UUID `json:"clusterID"`
+}
+
+// getJoinToken issues a request to the kots api to get the actual join command
+// based on the short token provided by the user.
+func getJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommandResponse, error) {
+	url := fmt.Sprintf("%s/helmvm/join?token=%s", baseURL, shortToken)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get join token: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+	var command JoinCommandResponse
+	if err := json.NewDecoder(resp.Body).Decode(&command); err != nil {
+		return nil, fmt.Errorf("unable to decode response: %w", err)
+	}
+	return &command, nil
+}
+
 var joinCommand = &cli.Command{
 	Name:  "join",
 	Usage: "Join the current node to an existing cluster",
 	Action: func(c *cli.Context) error {
 		binname := defaults.BinaryName()
-		if c.Args().Len() != 1 {
-			return fmt.Errorf("usage: %s node join <token>", binname)
+		if c.Args().Len() != 2 {
+			return fmt.Errorf("usage: %s node join <url> <token>", binname)
 		}
-		var hvmtoken JoinToken
-		if err := hvmtoken.Decode(c.Args().First()); err != nil {
-			return fmt.Errorf("unable to decode join token: %w", err)
+		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
+		if err != nil {
+			return err
 		}
-		metrics.ReportJoinStarted(c.Context, hvmtoken.ClusterID)
+		metrics.ReportJoinStarted(c.Context, jcmd.ClusterID)
 		if err := canRunJoin(c); err != nil {
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
 		if err := runHostPreflightsLocally(c); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
 		logrus.Infof("Saving token to disk")
-		if err := saveTokenToDisk(hvmtoken.Token); err != nil {
+		if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 			err := fmt.Errorf("unable to save token to disk: %w", err)
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
 		logrus.Infof("Installing binary")
 		if err := installK0sBinary(); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
 		logrus.Infof("Joining node to cluster")
-		if err := runK0sInstallCommand(hvmtoken.Role); err != nil {
+		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
 		logrus.Infof("Creating systemd unit file")
-		if err := createSystemdUnitFile(hvmtoken.Role); err != nil {
+		if err := createSystemdUnitFile(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to create systemd unit file: %w", err)
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
 		logrus.Infof("Starting service")
 		if err := startK0sService(); err != nil {
 			err := fmt.Errorf("unable to start service: %w", err)
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
 		fpath := defaults.PathToConfig(".cluster-id")
-		cid := hvmtoken.ClusterID.String()
+		cid := jcmd.ClusterID.String()
 		if err := os.WriteFile(fpath, []byte(cid), 0644); err != nil {
 			err := fmt.Errorf("unable to write cluster id to disk: %w", err)
-			metrics.ReportJoinFailed(c.Context, hvmtoken.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
-		metrics.ReportJoinSucceeded(c.Context, hvmtoken.ClusterID)
+		metrics.ReportJoinSucceeded(c.Context, jcmd.ClusterID)
 		return nil
 	},
 }
@@ -145,7 +184,7 @@ func canRunJoin(c *cli.Context) error {
 }
 
 // createSystemdUnitFile links the k0s systemd unit file.
-func createSystemdUnitFile(role string) error {
+func createSystemdUnitFile(fullcmd string) error {
 	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
 	if _, err := os.Stat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -153,7 +192,7 @@ func createSystemdUnitFile(role string) error {
 		}
 	}
 	src := "/etc/systemd/system/k0scontroller.service"
-	if role == "worker" {
+	if strings.Contains(fullcmd, "worker") {
 		src = "/etc/systemd/system/k0sworker.service"
 	}
 	if err := os.Symlink(src, dst); err != nil {
@@ -173,13 +212,14 @@ func createSystemdUnitFile(role string) error {
 	return nil
 }
 
-// runK0sInstallCommand runs the 'k0s install' command using the provided role.
-func runK0sInstallCommand(role string) error {
-	a := []string{"install", role, "--token-file", "/etc/k0s/join-token", "--force"}
-	if role == "controller" {
-		a = append(a, "--enable-worker")
+// runK0sInstallCommand runs the k0s install command as provided by the kots
+// adm api.
+func runK0sInstallCommand(fullcmd string) error {
+	args := strings.Split(fullcmd, " ")
+	if len(args) < 2 {
+		return fmt.Errorf("unable to run install command: invalid command")
 	}
-	cmd := exec.Command("/usr/local/bin/k0s", a...)
+	cmd := exec.Command("/usr/local/bin/k0s", args[1:]...)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
 	cmd.Stdout = stdout
