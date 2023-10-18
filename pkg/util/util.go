@@ -20,7 +20,7 @@ func WaitForAdminConsoleReady(configPath, namespace, deploymentName, displayName
 		return err
 	}
 
-	k0sChartsNamespace := "kube-system"                            // replace with the namespace of your CR
+	/*k0sChartsNamespace := "kube-system"                            // replace with the namespace of your CR
 	k0sChartsCustomResourceName := "k0s-addon-chart-admin-console" // replace with the name of your CR
 
 	var chartInstance v1beta1.Chart
@@ -29,7 +29,7 @@ func WaitForAdminConsoleReady(configPath, namespace, deploymentName, displayName
 		return err
 	}
 
-	fmt.Println(chartInstance.Status)
+	fmt.Println(chartInstance.Status)*/
 
 	// Function to check if all replicas of the Deployment are ready.
 	isDeploymentReady := func() (bool, error) {
