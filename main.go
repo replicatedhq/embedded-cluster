@@ -33,7 +33,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	clusterv2alpha1 "github.com/replicatedhq/helmvm-operator/api/v2alpha1"
+	clusterv1beta1 "github.com/replicatedhq/helmvm-operator/api/v1beta1"
 	"github.com/replicatedhq/helmvm-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -46,7 +46,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(clusterv2alpha1.AddToScheme(scheme))
+	utilruntime.Must(clusterv1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -75,7 +75,7 @@ func main() {
 		WebhookServer:                 webhook.NewServer(webhook.Options{Port: 9443}),
 		HealthProbeBindAddress:        probeAddr,
 		LeaderElection:                enableLeaderElection,
-		LeaderElectionID:              "3f2343ef.kurl.sh",
+		LeaderElectionID:              "3f2343ef.replicated.com",
 		LeaderElectionReleaseOnCancel: true,
 	})
 	if err != nil {

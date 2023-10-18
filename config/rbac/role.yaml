@@ -14,7 +14,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - cluster.kurl.sh
+  - embeddedcluster.replicated.com
   resources:
   - installations
   verbs:
@@ -26,13 +26,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - cluster.kurl.sh
+  - embeddedcluster.replicated.com
   resources:
   - installations/finalizers
   verbs:
   - update
 - apiGroups:
-  - cluster.kurl.sh
+  - embeddedcluster.replicated.com
   resources:
   - installations/status
   verbs:

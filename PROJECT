@@ -2,7 +2,7 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: kurl.sh
+domain: replicated.com
 layout:
 - go.kubebuilder.io/v3
 plugins:
@@ -14,9 +14,9 @@ resources:
 - api:
     crdVersion: v1
   controller: true
-  domain: kurl.sh
-  group: cluster
+  domain: replicated.com
+  group: embeddedcluster
   kind: Installation
-  path: github.com/replicatedhq/helmvm-operator/api/v2alpha1
-  version: v2alpha1
+  path: github.com/replicatedhq/helmvm-operator/api/v1beta1
+  version: v1beta1
 version: "3"

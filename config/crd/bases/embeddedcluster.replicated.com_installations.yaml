@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.1
   creationTimestamp: null
-  name: installations.cluster.kurl.sh
+  name: installations.embeddedcluster.replicated.com
 spec:
-  group: cluster.kurl.sh
+  group: embeddedcluster.replicated.com
   names:
     kind: Installation
     listKind: InstallationList
@@ -15,7 +15,7 @@ spec:
     singular: installation
   scope: Cluster
   versions:
-  - name: v2alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: Installation is the Schema for the installations API

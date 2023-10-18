@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
-	"github.com/replicatedhq/helmvm-operator/api/v2alpha1"
+	"github.com/replicatedhq/helmvm-operator/api/v1beta1"
 	"github.com/replicatedhq/helmvm-operator/pkg/metrics"
 )
 
@@ -46,7 +46,7 @@ type InstallationReconciler struct {
 // NodeHasChanged returns true if the node configuration has changed when compared to
 // the node information we keep in the installation status. Returns a bool indicating
 // if a change was detected and a bool indicating if the node is new (not seen yet).
-func (r *InstallationReconciler) NodeHasChanged(in *v2alpha1.Installation, ev metrics.NodeEvent) (bool, bool, error) {
+func (r *InstallationReconciler) NodeHasChanged(in *v1beta1.Installation, ev metrics.NodeEvent) (bool, bool, error) {
 	for _, nodeStatus := range in.Status.NodesStatus {
 		if nodeStatus.Name != ev.NodeName {
 			continue
@@ -61,7 +61,7 @@ func (r *InstallationReconciler) NodeHasChanged(in *v2alpha1.Installation, ev me
 }
 
 // UpdateNodeStatus updates the node status in the Installation object status.
-func (r *InstallationReconciler) UpdateNodeStatus(in *v2alpha1.Installation, ev metrics.NodeEvent) error {
+func (r *InstallationReconciler) UpdateNodeStatus(in *v1beta1.Installation, ev metrics.NodeEvent) error {
 	hash, err := ev.Hash()
 	if err != nil {
 		return err
@@ -73,13 +73,13 @@ func (r *InstallationReconciler) UpdateNodeStatus(in *v2alpha1.Installation, ev 
 		in.Status.NodesStatus[i].Hash = hash
 		return nil
 	}
-	in.Status.NodesStatus = append(in.Status.NodesStatus, v2alpha1.NodeStatus{Name: ev.NodeName, Hash: hash})
+	in.Status.NodesStatus = append(in.Status.NodesStatus, v1beta1.NodeStatus{Name: ev.NodeName, Hash: hash})
 	return nil
 }
 
 // ReconcileInstallation is the function that actually reconciles the Installation object.
 // Metrics events (call back home) are generated here.
-func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *v2alpha1.Installation) error {
+func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *v1beta1.Installation) error {
 	var nodes corev1.NodeList
 	if err := r.List(ctx, &nodes); err != nil {
 		return fmt.Errorf("failed to list nodes: %w", err)
@@ -112,7 +112,7 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 			return fmt.Errorf("failed to notify node updated: %w", err)
 		}
 	}
-	trimmed := []v2alpha1.NodeStatus{}
+	trimmed := []v1beta1.NodeStatus{}
 	for _, nodeStatus := range in.Status.NodesStatus {
 		if _, ok := seen[nodeStatus.Name]; ok {
 			trimmed = append(trimmed, nodeStatus)
@@ -142,14 +142,14 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 }
 
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
-//+kubebuilder:rbac:groups=cluster.kurl.sh,resources=installations,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=cluster.kurl.sh,resources=installations/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=cluster.kurl.sh,resources=installations/finalizers,verbs=update
+//+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations/finalizers,verbs=update
 
 // Reconcile reconcile the installation object.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
-	var installs v2alpha1.InstallationList
+	var installs v1beta1.InstallationList
 	if err := r.List(ctx, &installs); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -176,7 +176,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 // SetupWithManager sets up the controller with the Manager.
 func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v2alpha1.Installation{}).
+		For(&v1beta1.Installation{}).
 		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
