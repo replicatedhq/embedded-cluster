@@ -10,12 +10,12 @@ var (
 	// set at compile time via ldflags.
 	K0sVersion = "0.0.0"
 	// provider holds a global reference to the default provider.
-	provider *DefaultsProvider
+	provider *Provider
 )
 
 // def returns a global reference to the default provider. creates one if not
 // already created.
-func def() *DefaultsProvider {
+func def() *Provider {
 	if provider == nil {
 		provider = NewProvider("")
 	}
@@ -115,12 +115,10 @@ func HelmChartSubDir() string {
 // PathToHelmChart calls PathToHelmChart on the default provider.
 func PathToHelmChart(name string, version string) string {
 	return def().PathToHelmChart(name, version)
-
 }
 
 // IsUpgrade determines if we are upgrading a cluster judging by the existence
 // or not of a kubeconfig file in the configuration directory.
 func IsUpgrade() bool {
 	return def().IsUpgrade()
-
 }

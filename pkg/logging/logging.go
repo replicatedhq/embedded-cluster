@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// LogrusFileHook is a hook to handle writing to a file.
 type LogrusFileHook struct {
 	file      *os.File
 	flag      int
@@ -19,8 +20,10 @@ type LogrusFileHook struct {
 	formatter *logrus.TextFormatter
 }
 
+// Debug is a flag that indicates whether debug logging is enabled.
 var Debug bool
 
+// NewLogrusFileHook creates a new hook to write to a file.
 func NewLogrusFileHook(file string, flag int, chmod os.FileMode) (*LogrusFileHook, error) {
 	plainFormatter := &logrus.TextFormatter{DisableColors: true}
 	logFile, err := os.OpenFile(file, flag, chmod)
@@ -32,6 +35,7 @@ func NewLogrusFileHook(file string, flag int, chmod os.FileMode) (*LogrusFileHoo
 	return &LogrusFileHook{logFile, flag, chmod, plainFormatter}, err
 }
 
+// Fire is called when a log event is fired.
 func (hook *LogrusFileHook) Fire(entry *logrus.Entry) error {
 
 	plainformat, err := hook.formatter.Format(entry)
@@ -49,16 +53,19 @@ func (hook *LogrusFileHook) Fire(entry *logrus.Entry) error {
 	return nil
 }
 
+// Levels returns the levels that this hook should be enabled for.
 func (hook *LogrusFileHook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
+// StandardHook is a hook to handle writing to a file.
 type StandardHook struct {
 	Writer    io.Writer
 	LogLevels []logrus.Level
 	Formatter *logrus.TextFormatter
 }
 
+// Fire is called when a log event is fired.
 func (hook *StandardHook) Fire(entry *logrus.Entry) error {
 	text, err := hook.Formatter.Format(entry)
 	if err != nil {
@@ -73,10 +80,12 @@ func (hook *StandardHook) Fire(entry *logrus.Entry) error {
 	return err
 }
 
+// Levels returns the levels that this hook should be enabled for.
 func (hook *StandardHook) Levels() []logrus.Level {
 	return hook.LogLevels
 }
 
+// SetupLogging sets up the logging for the application.
 func SetupLogging() {
 	logrus.SetOutput(io.Discard)
 

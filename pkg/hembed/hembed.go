@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 
@@ -20,7 +19,7 @@ import (
 )
 
 const (
-	BaseDir = "/helmvm"
+	// EndMark is a string that is used to mark the end of the binary.
 	EndMark = "HELMVMCHARTS"
 )
 
@@ -59,16 +58,6 @@ type HelmChart struct {
 // Content is decoded from base64.
 func (c *HelmChart) ChartReader() io.Reader {
 	return base64.NewDecoder(base64.StdEncoding, strings.NewReader(c.Content))
-}
-
-// ValidateTarget checks we have a binary for the target OS and Arch on the disk, under
-// the BaseDir directory.
-func ValidateTarget(opts EmbedOptions) error {
-	fpath := PathToPrebuiltBinary(opts)
-	if _, err := os.Stat(fpath); err == nil {
-		return nil
-	}
-	return fmt.Errorf("target %s/%s is not supported", opts.OS, opts.Arch)
 }
 
 // EmbedOptions are the options for embedding helmcharts into helmvm.
@@ -141,13 +130,6 @@ func ReadEmbeddedData(fpath string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to read embedded data: %w", err)
 	}
 	return out.Bytes(), nil
-}
-
-// PathToPrebuiltBinary return the path fo the helmvm binary for the given OS and Arch.
-// This function is meant to be used inside the "builder" container.
-func PathToPrebuiltBinary(opts EmbedOptions) string {
-	fname := fmt.Sprintf("helmvm-%s-%s", opts.OS, opts.Arch)
-	return path.Join(BaseDir, fname)
 }
 
 // ReadEmbedOptionsFromBinary reads the embedded charts from the binary. It reads the
