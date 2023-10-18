@@ -2,9 +2,11 @@ package util
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +50,19 @@ func WaitForAdminConsoleReady(configPath, namespace, deploymentName, displayName
 	if err != nil {
 		return err
 	}
+
+	data, err := json.Marshal(cr)
+	if err != nil {
+		panic(err)
+	}
+
+	var testVar v1beta1.Chart
+	err = json.Unmarshal(data, &testVar)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(testVar)
 
 	// Function to check if all replicas of the Deployment are ready.
 	isDeploymentReady := func() (bool, error) {
