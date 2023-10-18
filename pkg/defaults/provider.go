@@ -140,7 +140,7 @@ func (d *Provider) K0sctlBinsSubDir() string {
 
 // HelmChartSubDir returns the path to the directory where helm charts are stored
 func (d *Provider) HelmChartSubDir() string {
-	return filepath.Join(d.Base, d.home(), d.BinaryName() , "charts")
+	return filepath.Join(d.Base, d.home(), d.BinaryName(), "charts")
 }
 
 // HelmVMBinsSubDir returns the path to the directory where helmvm binaries
