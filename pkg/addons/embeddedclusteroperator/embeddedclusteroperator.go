@@ -25,11 +25,11 @@ var (
 )
 
 var helmValues = map[string]interface{}{
-	"admin-console-version":        adminconsole.Version,
-	"embedded-cluster-version":     defaults.Version,
-	"embedded-cluster-k0s-version": defaults.K0sVersion,
-	"embedded-binary-name":         defaults.BinaryName(),
-	"embedded-cluster-id":          metrics.ClusterID().String(),
+	"kotsVersion":               adminconsole.Version,
+	"embeddedClusterVersion":    defaults.Version,
+	"embeddedClusterK0sVersion": defaults.K0sVersion,
+	"embeddedBinaryName":        defaults.BinaryName(),
+	"embeddedClusterID":         metrics.ClusterID().String(),
 }
 
 type EmbeddedClusterOperator struct {
@@ -49,7 +49,7 @@ func (e *EmbeddedClusterOperator) HostPreflights() (*v1beta2.HostPreflightSpec, 
 func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: ChartName,
+		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
 		TargetNS:  e.namespace,
 	}
