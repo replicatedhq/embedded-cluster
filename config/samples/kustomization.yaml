@@ -1,4 +1,5 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
 - embeddedcluster_v1beta1_installation.yaml
+- embeddedcluster_v1beta1_config.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

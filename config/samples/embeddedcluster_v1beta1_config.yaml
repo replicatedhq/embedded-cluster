@@ -1,0 +1,12 @@
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  labels:
+    app.kubernetes.io/name: config
+    app.kubernetes.io/instance: config-sample
+    app.kubernetes.io/part-of: helmvm-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: helmvm-operator
+  name: config-sample
+spec:
+  # TODO(user): Add fields here

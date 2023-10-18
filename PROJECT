@@ -19,4 +19,11 @@ resources:
   kind: Installation
   path: github.com/replicatedhq/helmvm-operator/api/v1beta1
   version: v1beta1
+- api:
+    crdVersion: v1
+  domain: replicated.com
+  group: embeddedcluster
+  kind: Config
+  path: github.com/replicatedhq/helmvm-operator/api/v1beta1
+  version: v1beta1
 version: "3"
