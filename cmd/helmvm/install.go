@@ -13,6 +13,7 @@ import (
 	"time"
 
 	k0sversion "github.com/k0sproject/version"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
@@ -446,20 +447,36 @@ var installCommand = &cli.Command{
 			return err
 		}
 
-		err := util.WaitForDeploymentReady("helmvm", "kotsadm")
-		if err != nil {
-			err := fmt.Errorf("unable to wait for kotsadm to be ready: %w", err)
-			metrics.ReportApplyFinished(c, err)
-		}
-
-		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
 
-		fmt.Println("Cluster configuration has been applied")
-		fmt.Printf("Kubeconfig file has been placed at at %s\n", kcfg)
-		fmt.Printf("Cluster configuration file has been placed at %s\n", ccfg)
-		fmt.Println("You can now access your cluster with kubectl by running:")
-		fmt.Printf("  %s shell\n", os.Args[0])
+		// Define the backoff and timeout settings for retries.
+		backoff := wait.Backoff{
+			Steps:    30,
+			Duration: 10 * time.Second,
+			Factor:   1.0,
+			Jitter:   0.1,
+		}
+
+		err := util.WaitForAdminConsoleReady(kcfg, "helmvm", "kotsadm", "Admin Console", backoff)
+		if err != nil {
+			err := fmt.Errorf("unable to wait for Admin Console to be ready: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+
+		successColor := "\033[32m"
+		colorReset := "\033[0m"
+
+		ipaddr, err := defaults.PreferredNodeIPAddress()
+		if err != nil {
+			fmt.Println(fmt.Errorf("unable to get preferred node IP address: %w", err))
+			ipaddr = "NODE-IP-ADDRESS"
+		}
+		successMessage := fmt.Sprintf("Admin Console accessible at: %shttps://%s:%v%s", successColor, ipaddr, "8800", colorReset)
+		fmt.Println(successMessage)
+
+		fmt.Println("Installation Complete!")
+
 		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},

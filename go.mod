@@ -29,6 +29,7 @@ require (
 )
 
 require (
+	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	golang.org/x/mod v0.13.0 // indirect
 )
