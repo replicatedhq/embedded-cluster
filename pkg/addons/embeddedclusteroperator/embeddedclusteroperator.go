@@ -1,5 +1,5 @@
-// Package openebs manages the OpenEBS storage provisioner helm chart
-// installation or upgrade in the cluster.
+// Package embeddedclusteroperator manages the installation of the embedded cluster
+// operator chart.
 package embeddedclusteroperator
 
 import (
@@ -32,18 +32,22 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterID":         metrics.ClusterID().String(),
 }
 
+// EmbeddedClusterOperator manages the installation of the embedded cluster operator
+// helm chart.
 type EmbeddedClusterOperator struct{}
 
+// Version returns the version of the embedded cluster operator chart.
 func (e *EmbeddedClusterOperator) Version() (map[string]string, error) {
 	return map[string]string{"EmbeddedClusterOperator": "v" + Version}, nil
 }
 
-// HostPreflight returns the host preflight objects found inside the EmbeddedClusterOperator
+// HostPreflights returns the host preflight objects found inside the EmbeddedClusterOperator
 // Helm Chart, this is empty as there is no host preflight on there.
 func (e *EmbeddedClusterOperator) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
+// GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
 func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
@@ -61,6 +65,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
+// New creates a new EmbeddedClusterOperator addon.
 func New() (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{}, nil
 }

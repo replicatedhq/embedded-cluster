@@ -28,7 +28,7 @@ import (
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
-// UnserlizeSpec unserializes an HostPreflightSpec from a raw slice of bytes.
+// UnserializeSpec unserializes an HostPreflightSpec from a raw slice of bytes.
 func UnserializeSpec(data []byte) (*v1beta2.HostPreflightSpec, error) {
 	scheme := kruntime.NewScheme()
 	if err := v1beta2.AddToScheme(scheme); err != nil {

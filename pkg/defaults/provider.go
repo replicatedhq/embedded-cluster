@@ -17,23 +17,23 @@ const (
 	k0sBinsSubDirLinux  = ".cache/k0sctl/k0s/linux/amd64"
 )
 
-// NewProvider returns a new DefaultsProvider using the provided base dir.
+// NewProvider returns a new Provider using the provided base dir.
 // Base is the base directory inside which all the other directories are
 // created.
-func NewProvider(base string) *DefaultsProvider {
-	obj := &DefaultsProvider{Base: base}
+func NewProvider(base string) *Provider {
+	obj := &Provider{Base: base}
 	obj.Init()
 	return obj
 }
 
-// DefaultsProvider is an entity that provides default values used during
+// Provider is an entity that provides default values used during
 // HelmVM installation.
-type DefaultsProvider struct {
+type Provider struct {
 	Base string
 }
 
 // Init makes sure all the necessary directory exists on the system.
-func (d *DefaultsProvider) Init() {
+func (d *Provider) Init() {
 	if err := os.MkdirAll(d.K0sctlBinsSubDir(), 0755); err != nil {
 		logrus.Fatalf("unable to create basedir: %s", err)
 	}
@@ -55,7 +55,7 @@ func (d *DefaultsProvider) Init() {
 }
 
 // home returns the user's home dir.
-func (d *DefaultsProvider) home() string {
+func (d *Provider) home() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		logrus.Fatalf("unable to get user home dir: %s", err)
@@ -64,7 +64,7 @@ func (d *DefaultsProvider) home() string {
 }
 
 // config returns the user's config dir.
-func (d *DefaultsProvider) config() string {
+func (d *Provider) config() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		logrus.Fatalf("unable to get user home dir: %s", err)
@@ -84,7 +84,7 @@ func (d *DefaultsProvider) config() string {
 }
 
 // state returns the user's state dir.
-func (d *DefaultsProvider) state() string {
+func (d *Provider) state() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		logrus.Fatalf("unable to get user home dir: %s", err)
@@ -107,7 +107,7 @@ func (d *DefaultsProvider) state() string {
 // need to present the name of the binary to the user (the name may vary if
 // the binary is renamed). We make sure the name does not contain invalid
 // characters for a filename.
-func (d *DefaultsProvider) BinaryName() string {
+func (d *Provider) BinaryName() string {
 	exe, err := os.Executable()
 	if err != nil {
 		logrus.Fatalf("unable to get executable path: %s", err)
@@ -118,21 +118,21 @@ func (d *DefaultsProvider) BinaryName() string {
 
 // HelmVMLogsSubDir returns the path to the directory where helmvm logs are
 // stored. This is a subdirectory of the user's home directory.
-func (d *DefaultsProvider) HelmVMLogsSubDir() string {
+func (d *Provider) HelmVMLogsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
 	return filepath.Join(d.Base, d.state(), hidden, "logs")
 }
 
 // PathToLog returns the full path to a log file. This function does not check
 // if the file exists.
-func (d *DefaultsProvider) PathToLog(name string) string {
+func (d *Provider) PathToLog(name string) string {
 	return filepath.Join(d.HelmVMLogsSubDir(), name)
 }
 
 // K0sctlBinsSubDir returns the path to the directory where k0sctl binaries
 // are stored. This is a subdirectory of the user's home directory. Follows
 // the k0sctl directory convention.
-func (d *DefaultsProvider) K0sctlBinsSubDir() string {
+func (d *Provider) K0sctlBinsSubDir() string {
 	if runtime.GOOS == "darwin" {
 		return filepath.Join(d.Base, d.home(), k0sBinsSubDirDarwin)
 	}
@@ -140,80 +140,80 @@ func (d *DefaultsProvider) K0sctlBinsSubDir() string {
 }
 
 // HelmChartSubDir returns the path to the directory where helm charts are stored
-func (d *DefaultsProvider) HelmChartSubDir() string {
+func (d *Provider) HelmChartSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
 	return filepath.Join(d.Base, d.home(), hidden, "charts")
 }
 
 // HelmVMBinsSubDir returns the path to the directory where helmvm binaries
 // are stored. This is a subdirectory of the user's home directory.
-func (d *DefaultsProvider) HelmVMBinsSubDir() string {
+func (d *Provider) HelmVMBinsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
 	return filepath.Join(d.Base, d.config(), hidden, "bin")
 }
 
 // K0sctlApplyLogPath returns the path to the k0sctl apply log file.
-func (d *DefaultsProvider) K0sctlApplyLogPath() string {
+func (d *Provider) K0sctlApplyLogPath() string {
 	return filepath.Join(d.Base, d.home(), ".cache", "k0sctl", "k0sctl.log")
 }
 
 // SSHKeyPath returns the path to the SSH managed by helmvm installation.
-func (d *DefaultsProvider) SSHKeyPath() string {
+func (d *Provider) SSHKeyPath() string {
 	return filepath.Join(d.Base, d.home(), ".ssh", "helmvm_rsa")
 }
 
 // SSHAuthorizedKeysPath returns the path to the authorized_hosts file.
-func (d *DefaultsProvider) SSHAuthorizedKeysPath() string {
+func (d *Provider) SSHAuthorizedKeysPath() string {
 	return filepath.Join(d.SSHConfigSubDir(), "authorized_keys")
 }
 
 // SSHConfigSubDir returns the path to the directory where SSH configuration
 // files are stored. This is a subdirectory of the user's home directory.
-func (d *DefaultsProvider) SSHConfigSubDir() string {
+func (d *Provider) SSHConfigSubDir() string {
 	return filepath.Join(d.Base, d.home(), ".ssh")
 }
 
 // ConfigSubDir returns the path to the directory where k0sctl configuration
 // files are stored. This is a subdirectory of the user's home directory.
 // TODO update
-func (d *DefaultsProvider) ConfigSubDir() string {
+func (d *Provider) ConfigSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
 	return filepath.Join(d.Base, d.config(), hidden, "etc")
 }
 
 // K0sBinaryPath returns the path to the k0s binary.
-func (d *DefaultsProvider) K0sBinaryPath() string {
+func (d *Provider) K0sBinaryPath() string {
 	return d.PathToK0sctlBinary(fmt.Sprintf("k0s-%s", K0sVersion))
 }
 
 // PathToK0sctlBinary is an utility function that returns the full path to
 // a materialized binary that belongs to k0sctl. This function does not check
 // if the file exists.
-func (d *DefaultsProvider) PathToK0sctlBinary(name string) string {
+func (d *Provider) PathToK0sctlBinary(name string) string {
 	return filepath.Join(d.K0sctlBinsSubDir(), name)
 }
 
 // PathToHelmVMBinary is an utility function that returns the full path to a
 // materialized binary that belongs to helmvm (do not confuse with binaries
 // belonging to k0sctl). This function does not check if the file exists.
-func (d *DefaultsProvider) PathToHelmVMBinary(name string) string {
+func (d *Provider) PathToHelmVMBinary(name string) string {
 	return filepath.Join(d.HelmVMBinsSubDir(), name)
 }
 
 // PathToHelmChart returns the path to a materialized helm chart.
-func (d *DefaultsProvider) PathToHelmChart(name string, version string) string {
+func (d *Provider) PathToHelmChart(name string, version string) string {
 	return filepath.Join(d.HelmChartSubDir(), name+"-"+version+".tgz")
 }
 
 // PathToConfig returns the full path to a configuration file. This function
 // does not check if the file exists.
-func (d *DefaultsProvider) PathToConfig(name string) string {
+func (d *Provider) PathToConfig(name string) string {
 	return filepath.Join(d.ConfigSubDir(), name)
 }
 
 // FileNameForImage returns an appropriate .tar name for a given image.
 // e.g. quay.io/test/test:v1 would return quay.io-test-test-v1.tar.
-func (d *DefaultsProvider) FileNameForImage(img string) string {
+func (d *Provider) FileNameForImage(img string) string {
 	prefix := strings.ReplaceAll(img, "/", "-")
 	prefix = strings.ReplaceAll(prefix, ":", "-")
 	prefix = strings.ReplaceAll(prefix, "@", "-")
@@ -223,7 +223,7 @@ func (d *DefaultsProvider) FileNameForImage(img string) string {
 // PreferredNodeIPAddress returns the ip address the node uses when reaching
 // the internet. This is useful when the node has multiple interfaces and we
 // want to bind to one of the interfaces.
-func (d *DefaultsProvider) PreferredNodeIPAddress() (string, error) {
+func (d *Provider) PreferredNodeIPAddress() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:53")
 	if err != nil {
 		return "", fmt.Errorf("unable to get local IP: %w", err)
@@ -236,7 +236,7 @@ func (d *DefaultsProvider) PreferredNodeIPAddress() (string, error) {
 // DecentralizedInstall returns true if the cluster installation has been
 // executed in a decentralized way (installing the first node then generating
 // a join token and installing the others).
-func (d *DefaultsProvider) DecentralizedInstall() bool {
+func (d *Provider) DecentralizedInstall() bool {
 	fpath := d.PathToConfig(".decentralized")
 	_, err := os.Stat(fpath)
 	return err == nil
@@ -244,7 +244,7 @@ func (d *DefaultsProvider) DecentralizedInstall() bool {
 
 // SetInstallAsDecentralized sets the decentralized install flag inside the
 // configuration directory.
-func (d *DefaultsProvider) SetInstallAsDecentralized() error {
+func (d *Provider) SetInstallAsDecentralized() error {
 	fpath := d.PathToConfig(".decentralized")
 	fp, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
@@ -256,7 +256,7 @@ func (d *DefaultsProvider) SetInstallAsDecentralized() error {
 
 // IsUpgrade determines if we are upgrading a cluster judging by the existence
 // or not of a kubeconfig file in the configuration directory.
-func (d *DefaultsProvider) IsUpgrade() bool {
+func (d *Provider) IsUpgrade() bool {
 	fpath := d.PathToConfig("kubeconfig")
 	_, err := os.Stat(fpath)
 	return err == nil

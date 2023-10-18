@@ -18,11 +18,14 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/hembed"
 )
 
+// Custom manages the installation of custom helm charts that have been
+// embedded at the end of the helmvm binary.
 type Custom struct {
 	namespace      string
 	disabledAddons map[string]bool
 }
 
+// Version returns the version of the embedded charts.
 func (c *Custom) Version() (map[string]string, error) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -45,7 +48,7 @@ func (c *Custom) Version() (map[string]string, error) {
 	return infos, nil
 }
 
-// HostPreflight returns the host preflight objects found inside all the embedded
+// HostPreflights returns the host preflight objects found inside all the embedded
 // Helm Charts. These host preflights must be merged into a single one. XXX We have
 // to implement this yet.
 func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
@@ -116,6 +119,7 @@ func (c *Custom) chartHasBeenDisabled(chart *chart.Chart) bool {
 	return disabledAddons
 }
 
+// New creates a new Custom instance.
 func New(namespace string, disabledAddons map[string]bool) (*Custom, error) {
 	return &Custom{
 		namespace:      namespace,

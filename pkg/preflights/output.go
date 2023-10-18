@@ -32,7 +32,6 @@ func (o Outputs) HaveWarns() bool {
 	return false
 }
 
-// Add adds the provided output to the current outputs object.
 // PrintTable prints the preflight output in a table format.
 func (o Outputs) PrintTable() {
 	tb := table.NewWriter()
@@ -53,7 +52,7 @@ func (o Outputs) PrintTable() {
 	fmt.Printf("%s\n", tb.Render())
 }
 
-// NewOutput creates a new Outputs object.
+// NewOutputs creates a new Outputs object.
 func NewOutputs() Outputs {
 	return make(map[string]*Output)
 }
@@ -105,7 +104,7 @@ func OutputFromReader(from io.Reader) (*Output, error) {
 	return result, nil
 }
 
-// TroubleshotRecord is a single record of a troubleshoot preflight check.
+// Record is a single record of a troubleshoot preflight check.
 type Record struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`

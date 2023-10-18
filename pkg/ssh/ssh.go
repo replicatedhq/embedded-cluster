@@ -18,7 +18,7 @@ import (
 
 // SSH is a struct that helps setting up SSH related configurations.
 type SSH struct {
-	def *defaults.DefaultsProvider
+	def *defaults.Provider
 }
 
 // AllowLocalSSH configures the local machine to allow SSH access to the
