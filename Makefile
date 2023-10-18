@@ -16,23 +16,18 @@ K0SCTL_VERSION = v0.16.0
 K0S_VERSION = v1.28.2+k0s.0
 TROUBLESHOOT_VERSION = v0.76.1
 LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) \
--X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION) \
--X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
--X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
--X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
--X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
--X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
--X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
--X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
--X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
--X github.com/replicatedhq/helmvm/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
+	-X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
+	-X github.com/replicatedhq/helmvm/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
 
 default: helmvm-linux-amd64
-
-output/bin/helm:
-	mkdir -p output/bin
-	curl -fsSL "https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3" | \
-		PATH=$(PATH):output/bin HELM_INSTALL_DIR=output/bin USE_SUDO=false bash
 
 pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
 	mkdir -p pkg/goods/bins/k0sctl
@@ -143,10 +138,6 @@ e2e-test: helmvm-linux-amd64
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
 	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
-
-.PHONY: create-e2e-workflows
-create-e2e-workflows:
-	./e2e/hack/create-e2e-workflows.sh
 
 .PHONY: clean
 clean:
