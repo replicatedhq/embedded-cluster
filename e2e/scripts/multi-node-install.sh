@@ -86,6 +86,6 @@ main() {
 }
 
 export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/root/.config/.helmvm/etc/kubeconfig
-export PATH=$PATH:/root/.config/.helmvm/bin
+export KUBECONFIG=/root/.config/helmvm/etc/kubeconfig
+export PATH=$PATH:/root/.config/helmvm/bin
 main

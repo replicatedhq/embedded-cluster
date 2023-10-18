@@ -109,9 +109,9 @@ ubuntu@ip-172-16-10-242:~$ ./helmvm shell
  ((____!___/) Type 'exit' (or CTRL+d) to exit.
   \0\0\0\0\/  Happy hacking.
  ~~~~~~~~~~~
-ubuntu@ip-172-16-10-242:~/.helmvm/etc$ export KUBECONFIG="/home/ubuntu/.helmvm/etc/kubeconfig"
-ubuntu@ip-172-16-10-242:~/.helmvm/etc$ export PATH="$PATH:/home/ubuntu/.helmvm/bin"
-ubuntu@ip-172-16-10-242:~/.helmvm/etc$
+ubuntu@ip-172-16-10-242:~/helmvm/etc$ export KUBECONFIG="/home/ubuntu/helmvm/etc/kubeconfig"
+ubuntu@ip-172-16-10-242:~/helmvm/etc$ export PATH="$PATH:/home/ubuntu/helmvm/bin"
+ubuntu@ip-172-16-10-242:~/helmvm/etc$
 ```
 
 ## Embedding your own Helm Chart
@@ -148,11 +148,11 @@ $ helmvm embed \
 
 ## Miscellaneous
 
-HelmVM stores its data under `$HOME/.helmvm` directory, you may want to create a backup of the directory, specially the `$HOME/.helmvm/etc` directory.  Inside the `$HOME/.helmvm/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/.helmvm/bin` directory and you may want to include it into your PATH).
+HelmVM stores its data under `$HOME/helmvm` directory, you may want to create a backup of the directory, specially the `$HOME/helmvm/etc` directory.  Inside the `$HOME/helmvm/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/helmvm/bin` directory and you may want to include it into your PATH).
 
 If you want to use an already existing `k0sctl.yaml` configuration during the `install` command you can do so by using the `--config` flag.
 
-Inside `$HOME/.helmvm/bin` you will find a copy of `k0sctl` binary used to bootstrap the cluster, you can use it to manage the cluster as well (e.g. `$HOME/.helmvm/bin/k0sctl kubeconfig --config $HOME/.helmvm/etc/k0sctl.yaml`).
+Inside `$HOME/helmvm/bin` you will find a copy of `k0sctl` binary used to bootstrap the cluster, you can use it to manage the cluster as well (e.g. `$HOME/helmvm/bin/k0sctl kubeconfig --config $HOME/helmvm/etc/k0sctl.yaml`).
 
 ## Experimental features
 

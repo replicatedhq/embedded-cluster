@@ -119,7 +119,7 @@ func (d *Provider) BinaryName() string {
 // HelmVMLogsSubDir returns the path to the directory where helmvm logs are
 // stored. This is a subdirectory of the user's home directory.
 func (d *Provider) HelmVMLogsSubDir() string {
-	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	hidden := fmt.Sprintf("%s", d.BinaryName())
 	return filepath.Join(d.Base, d.state(), hidden, "logs")
 }
 
@@ -141,14 +141,14 @@ func (d *Provider) K0sctlBinsSubDir() string {
 
 // HelmChartSubDir returns the path to the directory where helm charts are stored
 func (d *Provider) HelmChartSubDir() string {
-	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	hidden := fmt.Sprintf("%s", d.BinaryName())
 	return filepath.Join(d.Base, d.home(), hidden, "charts")
 }
 
 // HelmVMBinsSubDir returns the path to the directory where helmvm binaries
 // are stored. This is a subdirectory of the user's home directory.
 func (d *Provider) HelmVMBinsSubDir() string {
-	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	hidden := fmt.Sprintf("%s", d.BinaryName())
 	return filepath.Join(d.Base, d.config(), hidden, "bin")
 }
 
@@ -177,7 +177,7 @@ func (d *Provider) SSHConfigSubDir() string {
 // files are stored. This is a subdirectory of the user's home directory.
 // TODO update
 func (d *Provider) ConfigSubDir() string {
-	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	hidden := fmt.Sprintf("%s", d.BinaryName())
 	return filepath.Join(d.Base, d.config(), hidden, "etc")
 }
 
