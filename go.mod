@@ -1,6 +1,6 @@
 module github.com/replicatedhq/helmvm
 
-go 1.21.0
+go 1.21
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -19,7 +19,6 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.25.7
 	golang.org/x/crypto v0.14.0
-	golang.org/x/mod v0.13.0
 	golang.org/x/term v0.13.0
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.13.1
@@ -29,7 +28,10 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-require github.com/sergi/go-diff v1.2.0 // indirect
+require (
+	github.com/sergi/go-diff v1.2.0 // indirect
+	golang.org/x/mod v0.13.0 // indirect
+)
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect

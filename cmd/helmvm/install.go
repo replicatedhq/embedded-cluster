@@ -29,6 +29,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/preflights"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
+	"github.com/replicatedhq/helmvm/pkg/util"
 )
 
 // runPostApply is meant to run things that can't be run automatically with
@@ -444,6 +445,13 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+
+		err := util.WaitForDeploymentReady("helmvm", "kotsadm")
+		if err != nil {
+			err := fmt.Errorf("unable to wait for kotsadm to be ready: %w", err)
+			metrics.ReportApplyFinished(c, err)
+		}
+
 		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
 
