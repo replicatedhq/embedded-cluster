@@ -20,8 +20,8 @@ import (
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	k0sversion "github.com/k0sproject/version"
 	"github.com/sirupsen/logrus"
-	yamlv2 "gopkg.in/yaml.v2"
-	"sigs.k8s.io/yaml"
+	"gopkg.in/yaml.v2"
+	kyaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/helmvm/pkg/addons"
 	"github.com/replicatedhq/helmvm/pkg/customization"
@@ -43,7 +43,7 @@ func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 		return nil, fmt.Errorf("unable to read current config: %w", err)
 	}
 	var cfg v1beta1.Cluster
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := kyaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal current config: %w", err)
 	}
 	return &cfg, nil
@@ -270,52 +270,37 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
 func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
-
 	if cfg.Spec == nil || cfg.Spec.K0s == nil || cfg.Spec.K0s.Config == nil {
 		return fmt.Errorf("invalid cluster configuration")
 	}
-
-	currentSpec := cfg.Spec.K0s.Config
-	configString, err := yamlv2.Marshal(currentSpec)
+	configString, err := yaml.Marshal(cfg.Spec.K0s.Config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal helm config: %w", err)
 	}
-
 	k0s := k0sconfig.ClusterConfig{}
-
-	if err := yamlv2.Unmarshal(configString, &k0s); err != nil {
+	if err := yaml.Unmarshal(configString, &k0s); err != nil {
 		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
-
 	opts = append(opts, addons.WithConfig(k0s))
-
 	newChartConfig, newRepositoryConfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
 	if err != nil {
 		return fmt.Errorf("unable to apply addons: %w", err)
 	}
-
-	newHelmExtension := &k0sconfig.HelmExtensions{
-		Charts:       newChartConfig,
-		Repositories: newRepositoryConfig,
-	}
-
 	newClusterExtensions := &k0sconfig.ClusterExtensions{
-		Helm: newHelmExtension,
+		Helm: &k0sconfig.HelmExtensions{
+			Charts:       newChartConfig,
+			Repositories: newRepositoryConfig,
+		},
 	}
-
-	if spec, ok := cfg.Spec.K0s.Config["spec"].(map[string]interface{}); ok {
-		spec["extensions"] = newClusterExtensions
-		cfg.Spec.K0s.Config["spec"] = spec
-	} else {
-
-		if spec, ok := cfg.Spec.K0s.Config["spec"].(dig.Mapping); ok {
-			spec["extensions"] = newClusterExtensions
-			cfg.Spec.K0s.Config["spec"] = spec
-		} else {
-			return fmt.Errorf("unable to update cluster config")
-		}
+	data, err := kyaml.Marshal(newClusterExtensions)
+	if err != nil {
+		return fmt.Errorf("unable to marshal cluster extensions: %w", err)
 	}
-
+	var newConfig dig.Mapping
+	if err := yaml.Unmarshal(data, &newConfig); err != nil {
+		return fmt.Errorf("unable to unmarshal cluster extensions: %w", err)
+	}
+	cfg.Spec.K0s.Config["spec"] = newConfig
 	return nil
 }
 

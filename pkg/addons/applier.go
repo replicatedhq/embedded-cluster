@@ -51,18 +51,13 @@ type Applier struct {
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
 func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-
 	charts := []v1beta1.Chart{}
-
 	repositories := []v1beta1.Repository{}
-
 	addons, err := a.load()
-
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
-
 		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig()
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
@@ -70,7 +65,6 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, 
 		charts = append(charts, addonChartConfig...)
 		repositories = append(repositories, addonRepositoryConfig...)
 	}
-
 	return charts, repositories, nil
 }
 
