@@ -411,8 +411,9 @@ var installCommand = &cli.Command{
 			Usage: "Disable addon during install/upgrade",
 		},
 		&cli.StringFlag{
-			Name:  "overrides",
-			Usage: "File with an EmbeddedClusterConfig object to override the default configuration",
+			Name:   "overrides",
+			Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
+			Hidden: true,
 		},
 	},
 	Action: func(c *cli.Context) error {
