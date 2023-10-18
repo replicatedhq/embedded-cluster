@@ -300,7 +300,12 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 	if err := yaml.Unmarshal(data, &newConfig); err != nil {
 		return fmt.Errorf("unable to unmarshal cluster extensions: %w", err)
 	}
-	cfg.Spec.K0s.Config["spec"] = newConfig
+	spec, ok := cfg.Spec.K0s.Config["spec"].(dig.Mapping)
+	if !ok {
+		return fmt.Errorf("unable to get spec from cluster config")
+	}
+	spec["extensions"] = newConfig
+	cfg.Spec.K0s.Config["spec"] = spec
 	return nil
 }
 
