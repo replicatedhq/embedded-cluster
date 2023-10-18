@@ -2,70 +2,39 @@ package util
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
+	"github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/kubectl/pkg/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func WaitForAdminConsoleReady(configPath, namespace, deploymentName, displayName string, backoff wait.Backoff) error {
-	config, err := clientcmd.BuildConfigFromFlags("", configPath)
+	clientset, err := kubeClient(configPath)
 	if err != nil {
 		return err
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	// Create a dynamic client
-	dynamicClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// Define the GVK (Group-Version-Kind) for the custom resource
-	K0sChartsGVR := schema.GroupVersionResource{
-		Group:    "helm.k0sproject.io", // replace with your CR's group
-		Version:  "v1beta1",            // replace with your CR's version
-		Resource: "charts",             // replace with your CR's plural resource name
 	}
 
 	k0sChartsNamespace := "kube-system"                            // replace with the namespace of your CR
 	k0sChartsCustomResourceName := "k0s-addon-chart-admin-console" // replace with the name of your CR
 
-	// Fetch the custom resource using the dynamic client
-	cr, err := dynamicClient.Resource(K0sChartsGVR).Namespace(k0sChartsNamespace).Get(context.TODO(), k0sChartsCustomResourceName, v1.GetOptions{})
-	//cr, err := dynamicClient.Resource(K0sChartsGVR).Namespace(k0sChartsNamespace).List(context.TODO(), metav1.ListOptions{})
+	var chartInstance v1beta1.Chart
+	err = clientset.Get(context.TODO(), client.ObjectKey{Name: k0sChartsCustomResourceName, Namespace: k0sChartsNamespace}, &chartInstance)
 	if err != nil {
 		return err
 	}
 
-	data, err := json.Marshal(cr)
-	if err != nil {
-		panic(err)
-	}
-
-	var testVar v1beta1.Chart
-	err = json.Unmarshal(data, &testVar)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(testVar)
+	fmt.Println(chartInstance.Status)
 
 	// Function to check if all replicas of the Deployment are ready.
 	isDeploymentReady := func() (bool, error) {
-		deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+		deployment := &appsv1.Deployment{}
+		err := clientset.Get(context.TODO(), client.ObjectKey{Name: deploymentName, Namespace: namespace}, deployment)
 		if err != nil {
 			return false, err
 		}
@@ -128,4 +97,28 @@ func totalTimeoutDuration(backoff wait.Backoff) time.Duration {
 		duration = time.Duration(float64(duration) * backoff.Factor)
 	}
 	return total
+}
+
+func kubeClient(configPath string) (client.Client, error) {
+	/*k8slogger := zap.New(func(o *zap.Options) {
+		o.DestWriter = io.Discard
+	})
+	log.SetLogger(k8slogger)*/
+
+	// Add appsv1 scheme to the default client-go scheme
+	if err := appsv1.AddToScheme(scheme.Scheme); err != nil {
+		return nil, err
+	}
+
+	if err := v1beta1.AddToScheme(scheme.Scheme); err != nil {
+		return nil, err
+	}
+
+	cfg, err := clientcmd.BuildConfigFromFlags("", configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// When constructing the client, use the scheme that includes appsv1
+	return client.New(cfg, client.Options{Scheme: scheme.Scheme})
 }
