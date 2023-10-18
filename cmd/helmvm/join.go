@@ -34,7 +34,7 @@ type JoinCommandResponse struct {
 // getJoinToken issues a request to the kots api to get the actual join command
 // based on the short token provided by the user.
 func getJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommandResponse, error) {
-	url := fmt.Sprintf("%s/helmvm/join?token=%s", baseURL, shortToken)
+	url := fmt.Sprintf("%s/api/v1/embedded-cluster/join?token=%s", baseURL, shortToken)
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
