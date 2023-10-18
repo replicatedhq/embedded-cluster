@@ -20,9 +20,9 @@ LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSI
 -X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
 -X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
 -X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
--X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
--X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
--X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
+-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
+-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
+-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
 -X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
 -X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
 -X github.com/replicatedhq/helmvm/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)

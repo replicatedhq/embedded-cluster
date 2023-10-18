@@ -4,6 +4,7 @@ package embeddedclusteroperator
 
 import (
 	"fmt"
+
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
@@ -24,11 +25,11 @@ var (
 )
 
 var helmValues = map[string]interface{}{
-	"kotsVersion":               adminconsole.Version,
-	"embeddedClusterVersion":    defaults.Version,
-	"embeddedClusterK0sVersion": defaults.K0sVersion,
-	"embeddedBinaryName":        defaults.BinaryName,
-	"embeddedClusterID":         metrics.ClusterID().String(),
+	"admin-console-version":        adminconsole.Version,
+	"embedded-cluster-version":     defaults.Version,
+	"embedded-cluster-k0s-version": defaults.K0sVersion,
+	"embedded-binary-name":         defaults.BinaryName(),
+	"embedded-cluster-id":          metrics.ClusterID().String(),
 }
 
 type EmbeddedClusterOperator struct {
