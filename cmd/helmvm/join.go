@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
 	"github.com/replicatedhq/helmvm/pkg/metrics"
+	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 )
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join
@@ -34,7 +35,7 @@ type JoinCommandResponse struct {
 // based on the short token provided by the user.
 func getJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommandResponse, error) {
 	url := fmt.Sprintf("%s/helmvm/join?token=%s", baseURL, shortToken)
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -63,51 +64,54 @@ var joinCommand = &cli.Command{
 		if c.Args().Len() != 2 {
 			return fmt.Errorf("usage: %s node join <url> <token>", binname)
 		}
+		if err := canRunJoin(c); err != nil {
+			return err
+		}
+		loading := pb.Start()
+		defer loading.Close()
+		loading.Infof("Fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
 			return err
 		}
 		metrics.ReportJoinStarted(c.Context, jcmd.ClusterID)
-		if err := canRunJoin(c); err != nil {
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
-			return err
-		}
-		logrus.Infof("Materializing binaries")
+		loading.Infof("Materializing %s binaries", binname)
 		if err := goods.Materialize(); err != nil {
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
+		loading.Infof("Executing host preflights")
 		if err := runHostPreflightsLocally(c); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
-		logrus.Infof("Saving token to disk")
+		loading.Infof("Saving token to disk")
 		if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 			err := fmt.Errorf("unable to save token to disk: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
-		logrus.Infof("Installing binary")
+		loading.Infof("Installing %s binaries", binname)
 		if err := installK0sBinary(); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
-		logrus.Infof("Joining node to cluster")
+		loading.Infof("Joining node to cluster")
 		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
-		logrus.Infof("Creating systemd unit file")
+		loading.Infof("Creating systemd unit file")
 		if err := createSystemdUnitFile(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to create systemd unit file: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
 			return err
 		}
-		logrus.Infof("Starting service")
+		loading.Infof("Starting %s service", binname)
 		if err := startK0sService(); err != nil {
 			err := fmt.Errorf("unable to start service: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
@@ -121,6 +125,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 		metrics.ReportJoinSucceeded(c.Context, jcmd.ClusterID)
+		loading.Infof("Join finished")
 		return nil
 	},
 }
