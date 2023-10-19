@@ -253,7 +253,7 @@ func WaitFor(configPath string) error {
 	timeoutDuration := totalTimeoutDuration(backoff)
 	fmt.Printf("Waiting for %s to be ready. This may take up to %v\n", displayName, timeoutDuration)
 
-	progressBar.Infof("Waiting for %s to be ready: 0/2 resources ready", displayName)
+	progressBar.Infof("Waiting for %s to be ready: 0/3 resources ready", displayName)
 
 	// Use the wait.ExponentialBackoff function to wait for the Deployment to be ready.
 	err = wait.ExponentialBackoff(backoff, func() (bool, error) {
@@ -286,12 +286,12 @@ func WaitFor(configPath string) error {
 			readyCount++
 		}
 
-		if readyCount == 2 {
+		if readyCount == 3 {
 			return true, nil
 		}
 
 		progressBar.Infof(
-			"Waiting for %s to be ready: %d/2 resources ready",
+			"Waiting for %s to be ready: %d/3 resources ready",
 			displayName,
 			readyCount,
 		)
