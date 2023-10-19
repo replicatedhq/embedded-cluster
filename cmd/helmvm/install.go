@@ -455,8 +455,6 @@ var installCommand = &cli.Command{
 			return err
 		}
 
-		fmt.Println("Installation Complete!")
-
 		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},
