@@ -100,7 +100,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 
 	addons := map[string]AddOn{}
 	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
-		obs, err := openebs.New("helmvm")
+		obs, err := openebs.New()
 		if err != nil {
 			return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 		}
