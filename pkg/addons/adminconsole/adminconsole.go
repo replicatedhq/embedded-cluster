@@ -3,15 +3,22 @@
 package adminconsole
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/replicatedhq/helmvm/pkg/customization"
+	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -215,4 +222,115 @@ func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole
 		customization: customization.AdminConsole{},
 		config:        config,
 	}, nil
+}
+
+func WaitFor(configPath string) error {
+	displayName := "Admin Console"
+	namespace := "helmvm"
+	//deploymentName := "kotsadm"
+
+	config, err := clientcmd.BuildConfigFromFlags("", configPath)
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	progressBar := pb.Start()
+	defer func() {
+		progressBar.Closef("%s is ready!", displayName)
+	}()
+
+	backoff := wait.Backoff{
+		Steps:    60,
+		Duration: 5 * time.Second,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}
+
+	timeoutDuration := totalTimeoutDuration(backoff)
+	fmt.Printf("Waiting for %s to be ready. This may take up to %v\n", displayName, timeoutDuration)
+
+	progressBar.Infof("Waiting for %s to be ready: 0/2 resources ready", displayName)
+
+	// Use the wait.ExponentialBackoff function to wait for the Deployment to be ready.
+	err = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		readyCount := 0
+
+		kotsadmReady, err := isDeploymentReady(clientset, namespace, "kotsadm")
+		if err != nil {
+			progressBar.Errorf("Error checking status of %s", displayName)
+			return false, nil
+		}
+		if kotsadmReady {
+			readyCount++
+		}
+
+		rqliteReady, err := isStatefulSetReady(clientset, namespace, "kotsadm-rqlite")
+		if err != nil {
+			progressBar.Errorf("Error checking status of %s", displayName)
+			return false, nil
+		}
+		if rqliteReady {
+			readyCount++
+		}
+
+		minioReady, err := isStatefulSetReady(clientset, namespace, "kotsadm-minio")
+		if err != nil {
+			progressBar.Errorf("Error checking status of %s", displayName)
+			return false, nil
+		}
+		if minioReady {
+			readyCount++
+		}
+
+		if readyCount == 2 {
+			return true, nil
+		}
+
+		progressBar.Infof(
+			"Waiting for %s to be ready: %d/2 resources ready",
+			displayName,
+			readyCount,
+		)
+
+		return false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("Timed out waiting for %s to be ready", displayName)
+	}
+
+	return nil
+}
+
+func totalTimeoutDuration(backoff wait.Backoff) time.Duration {
+	total := time.Duration(0)
+	duration := backoff.Duration
+	for i := 0; i < backoff.Steps; i++ {
+		total += duration
+		duration = time.Duration(float64(duration) * backoff.Factor)
+	}
+	return total
+}
+
+func isDeploymentReady(clientset *kubernetes.Clientset, namespace, deploymentName string) (bool, error) {
+	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// Check if all replicas are ready.
+	return deployment.Status.ReadyReplicas == *deployment.Spec.Replicas, nil
+}
+
+func isStatefulSetReady(clientset *kubernetes.Clientset, namespace, statefulSetName string) (bool, error) {
+	statefulset, err := clientset.AppsV1().StatefulSets(namespace).Get(context.TODO(), statefulSetName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// Check if all replicas are ready.
+	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
 }

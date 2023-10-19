@@ -22,6 +22,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/replicatedhq/helmvm/pkg/addons"
+	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
 	"github.com/replicatedhq/helmvm/pkg/config"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
@@ -445,14 +446,28 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		ccfg := defaults.PathToConfig("k0sctl.yaml")
 		kcfg := defaults.PathToConfig("kubeconfig")
 
-		fmt.Println("Cluster configuration has been applied")
-		fmt.Printf("Kubeconfig file has been placed at at %s\n", kcfg)
-		fmt.Printf("Cluster configuration file has been placed at %s\n", ccfg)
-		fmt.Println("You can now access your cluster with kubectl by running:")
-		fmt.Printf("  %s shell\n", os.Args[0])
+		err := adminconsole.WaitFor(kcfg)
+		if err != nil {
+			err := fmt.Errorf("unable to wait for Admin Console to be ready: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+
+		successColor := "\033[32m"
+		colorReset := "\033[0m"
+
+		ipaddr, err := defaults.PreferredNodeIPAddress()
+		if err != nil {
+			fmt.Println(fmt.Errorf("unable to get preferred node IP address: %w", err))
+			ipaddr = "NODE-IP-ADDRESS"
+		}
+		successMessage := fmt.Sprintf("Admin Console accessible at: %shttps://%s:%v%s", successColor, ipaddr, "8800", colorReset)
+		fmt.Println(successMessage)
+
+		fmt.Println("Installation Complete!")
+
 		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},
