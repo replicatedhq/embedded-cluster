@@ -223,10 +223,6 @@ func (d *Provider) FileNameForImage(img string) string {
 // the internet. This is useful when the node has multiple interfaces and we
 // want to bind to one of the interfaces.
 func (d *Provider) PreferredNodeIPAddress() (string, error) {
-	publicAddr := tryDiscoverPublicIP()
-	if publicAddr != "" {
-		return publicAddr, nil
-	}
 	conn, err := net.Dial("udp", "8.8.8.8:53")
 	if err != nil {
 		return "", fmt.Errorf("unable to get local IP: %w", err)
@@ -265,7 +261,10 @@ func (d *Provider) IsUpgrade() bool {
 	return err == nil
 }
 
-func tryDiscoverPublicIP() string {
+// TryDiscoverPublicIP tries to discover the public IP of the node by querying
+// a list of known providers. If the public IP cannot be discovered, an empty
+// string is returned.
+func (d *Provider) TryDiscoverPublicIP() string {
 	// List of providers and their respective metadata URLs
 	providers := []struct {
 		name    string

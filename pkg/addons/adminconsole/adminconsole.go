@@ -341,14 +341,16 @@ func printSuccessMessage() {
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 
-	ipaddr, err := defaults.PreferredNodeIPAddress()
-	if err != nil {
-		fmt.Println(fmt.Errorf("unable to determine node IP address: %w", err))
-		ipaddr = "NODE-IP-ADDRESS"
+	ipaddr := defaults.TryDiscoverPublicIP()
+	if ipaddr == "" {
+		var err error
+		ipaddr, err = defaults.PreferredNodeIPAddress()
+		if err != nil {
+			fmt.Println(fmt.Errorf("unable to determine node IP address: %w", err))
+			ipaddr = "NODE-IP-ADDRESS"
+		}
 	}
-
 	nodePort := helmValues["service"].(map[string]interface{})["nodePort"]
-
 	successMessage := fmt.Sprintf("Admin Console accessible at: %shttps://%s:%v%s", successColor, ipaddr, nodePort, colorReset)
 	fmt.Println(successMessage)
 }

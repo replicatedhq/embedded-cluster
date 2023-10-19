@@ -97,6 +97,11 @@ func PreferredNodeIPAddress() (string, error) {
 	return def().PreferredNodeIPAddress()
 }
 
+// TryDiscoverPublicIP calls TryDiscoverPublicIP on the default provider.
+func TryDiscoverPublicIP() string {
+	return def().TryDiscoverPublicIP()
+}
+
 // DecentralizedInstall calls DecentralizedInstall on the default provider.
 func DecentralizedInstall() bool {
 	return def().DecentralizedInstall()
