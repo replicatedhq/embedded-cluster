@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/replicatedhq/helmvm/pkg/customization"
+	"github.com/replicatedhq/helmvm/pkg/defaults"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -241,6 +242,7 @@ func WaitFor(configPath string) error {
 	progressBar := pb.Start()
 	defer func() {
 		progressBar.Closef("%s is ready!", displayName)
+		printSuccessMessage()
 	}()
 
 	backoff := wait.Backoff{
@@ -333,4 +335,20 @@ func isStatefulSetReady(clientset *kubernetes.Clientset, namespace, statefulSetN
 
 	// Check if all replicas are ready.
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
+}
+
+func printSuccessMessage() {
+	successColor := "\033[32m"
+	colorReset := "\033[0m"
+
+	ipaddr, err := defaults.PreferredNodeIPAddress()
+	if err != nil {
+		fmt.Println(fmt.Errorf("unable to determine node IP address: %w", err))
+		ipaddr = "NODE-IP-ADDRESS"
+	}
+
+	nodePort := helmValues["service"].(map[string]interface{})["nodePort"]
+
+	successMessage := fmt.Sprintf("Admin Console accessible at: %shttps://%s:%v%s", successColor, ipaddr, nodePort, colorReset)
+	fmt.Println(successMessage)
 }

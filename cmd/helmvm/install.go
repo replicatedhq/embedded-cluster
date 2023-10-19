@@ -455,17 +455,6 @@ var installCommand = &cli.Command{
 			return err
 		}
 
-		successColor := "\033[32m"
-		colorReset := "\033[0m"
-
-		ipaddr, err := defaults.PreferredNodeIPAddress()
-		if err != nil {
-			fmt.Println(fmt.Errorf("unable to get preferred node IP address: %w", err))
-			ipaddr = "NODE-IP-ADDRESS"
-		}
-		successMessage := fmt.Sprintf("Admin Console accessible at: %shttps://%s:%v%s", successColor, ipaddr, "8800", colorReset)
-		fmt.Println(successMessage)
-
 		fmt.Println("Installation Complete!")
 
 		metrics.ReportApplyFinished(c, nil)

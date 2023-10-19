@@ -2,11 +2,14 @@ package defaults
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/gosimple/slug"
 	"github.com/sirupsen/logrus"
@@ -220,6 +223,10 @@ func (d *Provider) FileNameForImage(img string) string {
 // the internet. This is useful when the node has multiple interfaces and we
 // want to bind to one of the interfaces.
 func (d *Provider) PreferredNodeIPAddress() (string, error) {
+	publicAddr := tryDiscoverPublicIP()
+	if publicAddr != "" {
+		return publicAddr, nil
+	}
 	conn, err := net.Dial("udp", "8.8.8.8:53")
 	if err != nil {
 		return "", fmt.Errorf("unable to get local IP: %w", err)
@@ -256,4 +263,47 @@ func (d *Provider) IsUpgrade() bool {
 	fpath := d.PathToConfig("kubeconfig")
 	_, err := os.Stat(fpath)
 	return err == nil
+}
+
+func tryDiscoverPublicIP() string {
+	// List of providers and their respective metadata URLs
+	providers := []struct {
+		name    string
+		url     string
+		headers map[string]string
+	}{
+		{"gce", "http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip", map[string]string{"Metadata-Flavor": "Google"}},
+		{"ec2", "http://169.254.169.254/latest/meta-data/public-ipv4", nil},
+		{"azure", "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text", map[string]string{"Metadata": "true"}},
+	}
+
+	for _, provider := range providers {
+		client := &http.Client{
+			Timeout: 5 * time.Second,
+		}
+		req, _ := http.NewRequest("GET", provider.url, nil)
+		for k, v := range provider.headers {
+			req.Header.Add(k, v)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return ""
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			publicIP := string(bodyBytes)
+			if isValidIPv4(publicIP) {
+				return publicIP
+			} else {
+				return ""
+			}
+		}
+	}
+	return ""
+}
+
+func isValidIPv4(ip string) bool {
+	return net.ParseIP(ip).To4() != nil
 }
