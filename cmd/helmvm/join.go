@@ -34,7 +34,7 @@ type JoinCommandResponse struct {
 // getJoinToken issues a request to the kots api to get the actual join command
 // based on the short token provided by the user.
 func getJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommandResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/embedded-cluster/join?token=%s", baseURL, shortToken)
+	url := fmt.Sprintf("http://%s/api/v1/embedded-cluster/join?token=%s", baseURL, shortToken)
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -221,10 +221,8 @@ func createSystemdUnitFile(fullcmd string) error {
 // adm api.
 func runK0sInstallCommand(fullcmd string) error {
 	args := strings.Split(fullcmd, " ")
-	if len(args) < 2 {
-		return fmt.Errorf("unable to run install command: invalid command")
-	}
-	cmd := exec.Command("/usr/local/bin/k0s", args[1:]...)
+	args = append(args, "--token-file", "/etc/k0s/join-token")
+	cmd := exec.Command(args[0], args[1:]...)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
 	cmd.Stdout = stdout
