@@ -30,8 +30,35 @@ type UnsupportedOverrides struct {
 	K0s string `json:"k0s,omitempty"`
 }
 
+// NodeRange contains a min and max or only one of them.
+type NodeRange struct {
+	// Min is the minimum number of nodes.
+	Min *int `json:"min,omitempty"`
+	// Max is the maximum number of nodes.
+	Max *int `json:"max,omitempty"`
+}
+
+// NodeCount holds a series of rules for a given node role.
+type NodeCount struct {
+	// Values holds a list of allowed node counts.
+	Values []int `json:"values,omitempty"`
+	// NodeRange contains a min and max or only one of them (conflicts
+	// with Values).
+	Range *NodeRange `json:"range,omitempty"`
+}
+
+// NodeRole is the role of a node in the cluster.
+type NodeRole struct {
+	Name        string            `json:"name,omitempty"`
+	Description string            `json:"description,omitempty"`
+	NodeCount   *NodeCount        `json:"nodeCount,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+}
+
 // ConfigSpec defines the desired state of Config
 type ConfigSpec struct {
+	ControlPlane         NodeRole             `json:"controlPlane,omitempty"`
+	Custom               []NodeRole           `json:"custom,omitempty"`
 	UnsupportedOverrides UnsupportedOverrides `json:"unsupportedOverrides,omitempty"`
 }
 

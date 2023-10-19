@@ -36,6 +36,8 @@ type InstallationSpec struct {
 	MetricsBaseURL string `json:"metricsBaseURL,omitempty"`
 	// AirGap indicates if the installation is airgapped.
 	AirGap bool `json:"airGap"`
+	// Config holds the configuration used at installation time.
+	Config *Config `json:"config,omitempty"`
 }
 
 // InstallationStatus defines the observed state of Installation
