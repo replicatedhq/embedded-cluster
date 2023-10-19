@@ -12,6 +12,8 @@ jobs:
     - name: Get tag
       id: tag
       uses: dawidd6/action-get-tag@v1
+      with:
+        strip_v: true
     - name: Checkout
       uses: actions/checkout@v4
     - name: Setup Go
@@ -31,7 +33,7 @@ jobs:
       with:
         push: true
         tags: |
-          registry.staging.replicated.com/library/embedded-cluster-operator-image:${{steps.tag.outputs.tag}}
+          registry.staging.replicated.com/embedded-cluster-operator-image:${{steps.tag.outputs.tag}}
   package-and-publish-helmchart:
     runs-on: 'ubuntu-20.04'
     needs: package-and-publish-operator
