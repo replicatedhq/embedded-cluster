@@ -2,7 +2,7 @@ package defaults
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -291,7 +291,7 @@ func (d *Provider) TryDiscoverPublicIP() string {
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusOK {
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			bodyBytes, _ := io.ReadAll(resp.Body)
 			publicIP := string(bodyBytes)
 			if isValidIPv4(publicIP) {
 				return publicIP
