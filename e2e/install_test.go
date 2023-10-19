@@ -32,35 +32,6 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 }
 
-func TestMultiNodeInstallation(t *testing.T) {
-	t.Parallel()
-	t.Log("creating cluster")
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         3,
-		Image:         "ubuntu/jammy",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
-	})
-	defer tc.Destroy()
-	for i := range tc.Nodes {
-		t.Logf("installing ssh on node %d", i)
-		commands := [][]string{
-			{"apt-get", "update", "-y"},
-			{"apt-get", "install", "openssh-server", "-y"},
-		}
-		if err := RunCommandsOnNode(t, tc, i, commands); err != nil {
-			t.Fatalf("fail to install ssh on node %d: %v", i, err)
-		}
-	}
-	t.Log("running multi node helmvm install from node 0")
-	line := []string{"multi-node-install.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install helmvm from node 00: %v", err)
-	}
-}
-
 func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{

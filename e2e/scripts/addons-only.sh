@@ -89,7 +89,7 @@ main() {
         echo "Failed to install addons"
         exit 1
     fi
-    if ! grep -q "You can now access your cluster" /tmp/log; then
+    if ! grep -q "Admin Console is ready!" /tmp/log; then
         echo "Failed to install helmvm"
         exit 1
     fi

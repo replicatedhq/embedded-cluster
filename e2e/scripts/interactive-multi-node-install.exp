@@ -21,4 +21,4 @@ expect -re "Add another node?.*:" { send "n\r" }
 set timeout 600
 expect "Enter a new Admin Console password:" { send "password\r" }
 expect "Confirm password:" { send "password\r" }
-expect "You can now access your cluster with kubectl"
+expect "Admin Console is ready!"
