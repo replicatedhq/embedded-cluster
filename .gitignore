@@ -3,3 +3,4 @@ bundle
 pkg/goods/bins
 pkg/goods/images
 *tgz
+license.yaml
