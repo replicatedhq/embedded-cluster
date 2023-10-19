@@ -36,9 +36,7 @@ var helmValues = map[string]interface{}{
 }
 
 // OpenEBS manages the installation of the OpenEBS helm chart.
-type OpenEBS struct {
-	namespace string
-}
+type OpenEBS struct{}
 
 // Version returns the version of the OpenEBS chart.
 func (o *OpenEBS) Version() (map[string]string, error) {
@@ -57,7 +55,7 @@ func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, e
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
-		TargetNS:  o.namespace,
+		TargetNS:  "openebs",
 	}
 
 	repositoryConfig := v1beta1.Repository{
@@ -75,6 +73,6 @@ func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, e
 }
 
 // New creates a new OpenEBS addon.
-func New(namespace string) (*OpenEBS, error) {
-	return &OpenEBS{namespace: namespace}, nil
+func New() (*OpenEBS, error) {
+	return &OpenEBS{}, nil
 }
