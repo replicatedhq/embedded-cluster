@@ -45,10 +45,10 @@ pull_helm_chart() {
 
 embed_helm_chart() {
     fpath=$(ls -d chart/*)
-    if ! helmvm embed --chart "$fpath" --output helmvm; then
+    if ! helmvm embed --chart "$fpath" --output helmvmBin; then
         return 1
     fi
-    mv helmvm /usr/local/bin
+    mv helmvmBin /usr/local/bin/helmvm
     return 0
 }
 
