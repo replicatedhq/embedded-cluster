@@ -228,7 +228,6 @@ func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole
 func WaitFor(configPath string) error {
 	displayName := "Admin Console"
 	namespace := "helmvm"
-	//deploymentName := "kotsadm"
 
 	config, err := clientcmd.BuildConfigFromFlags("", configPath)
 	if err != nil {
@@ -241,6 +240,9 @@ func WaitFor(configPath string) error {
 
 	progressBar := pb.Start()
 	defer func() {
+		if err != nil {
+			return
+		}
 		progressBar.Closef("%s is ready!", displayName)
 		printSuccessMessage()
 	}()
@@ -263,7 +265,7 @@ func WaitFor(configPath string) error {
 
 		kotsadmReady, err := isDeploymentReady(clientset, namespace, "kotsadm")
 		if err != nil {
-			progressBar.Errorf("Error checking status of %s", displayName)
+			progressBar.Errorf("Error checking status of kotsadm: %v", err)
 			return false, nil
 		}
 		if kotsadmReady {
@@ -272,7 +274,7 @@ func WaitFor(configPath string) error {
 
 		rqliteReady, err := isStatefulSetReady(clientset, namespace, "kotsadm-rqlite")
 		if err != nil {
-			progressBar.Errorf("Error checking status of %s", displayName)
+			progressBar.Errorf("Error checking status of kotsadm-rqlite: %v", err)
 			return false, nil
 		}
 		if rqliteReady {
@@ -281,7 +283,7 @@ func WaitFor(configPath string) error {
 
 		minioReady, err := isStatefulSetReady(clientset, namespace, "kotsadm-minio")
 		if err != nil {
-			progressBar.Errorf("Error checking status of %s", displayName)
+			progressBar.Errorf("Error checking status of kotsadm-minio: %v", err)
 			return false, nil
 		}
 		if minioReady {
