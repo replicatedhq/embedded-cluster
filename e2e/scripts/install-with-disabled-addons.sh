@@ -77,10 +77,6 @@ main() {
         echo "Failed to install helmvm"
         exit 1
     fi
-    if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to install helmvm"
-        exit 1
-    fi
     echo "waiting for nodes" >> /tmp/log
     if ! wait_for_healthy_node; then
         echo "Nodes not reporting healthy"
