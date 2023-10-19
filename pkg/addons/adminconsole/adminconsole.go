@@ -11,6 +11,7 @@ import (
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -19,7 +20,6 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -225,6 +225,7 @@ func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole
 	}, nil
 }
 
+// WaitFor waits for the admin console to be ready.
 func WaitFor(configPath string) error {
 	displayName := "Admin Console"
 	namespace := "helmvm"
@@ -290,20 +291,20 @@ func WaitFor(configPath string) error {
 			readyCount++
 		}
 
-		if readyCount == 3 {
-			return true, nil
-		}
-
 		progressBar.Infof(
 			"Waiting for %s to be ready: %d/3 resources ready",
 			displayName,
 			readyCount,
 		)
 
+		if readyCount == 3 {
+			return true, nil
+		}
+
 		return false, nil
 	})
 	if err != nil {
-		return fmt.Errorf("Timed out waiting for %s to be ready", displayName)
+		return fmt.Errorf("timed out waiting for %s to be ready", displayName)
 	}
 
 	return nil

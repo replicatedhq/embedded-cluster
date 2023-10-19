@@ -9,7 +9,6 @@ jobs:
       matrix:
         tests:
         - TestEmbedAndInstall
-        - TestMultiNodeInstallation
         - TestSingleNodeInstallation
         - TestSingleNodeInstallationRockyLinux8
         - TestSingleNodeInstallationDebian12

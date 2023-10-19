@@ -448,11 +448,19 @@ var installCommand = &cli.Command{
 		}
 		kcfg := defaults.PathToConfig("kubeconfig")
 
-		err := adminconsole.WaitFor(kcfg)
-		if err != nil {
-			err := fmt.Errorf("unable to wait for Admin Console to be ready: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
+		shouldWaitForAdminConsole := true
+		for _, addon := range c.StringSlice("disable-addon") {
+			if addon == "adminconsole" {
+				shouldWaitForAdminConsole = false
+			}
+		}
+		if shouldWaitForAdminConsole {
+			err := adminconsole.WaitFor(kcfg)
+			if err != nil {
+				err := fmt.Errorf("unable to wait for Admin Console to be ready: %w", err)
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
 		}
 
 		metrics.ReportApplyFinished(c, nil)
