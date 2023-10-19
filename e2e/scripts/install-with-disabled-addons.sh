@@ -45,10 +45,10 @@ pull_helm_chart() {
 
 embed_helm_chart() {
     fpath=$(ls -d chart/*)
-    if ! helmvm embed --chart "$fpath" --output helmvmBin; then
+    if ! helmvm embed --chart "$fpath" --output helmvm; then
         return 1
     fi
-    mv helmvmBin /usr/local/bin/helmvm
+    mv helmvm /usr/local/bin
     return 0
 }
 
@@ -94,6 +94,6 @@ main() {
 }
 
 export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/root/.config/helmvm/etc/kubeconfig
-export PATH=$PATH:/root/.config/helmvm/bin
+export KUBECONFIG=/root/.config/.helmvm/etc/kubeconfig
+export PATH=$PATH:/root/.config/.helmvm/bin
 main

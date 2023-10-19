@@ -55,14 +55,18 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 		Version:   Version,
 		TargetNS:  "kube-system",
 	}
-
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
-
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	crds := v1beta1.Chart{
+		Name:      fmt.Sprintf("%s-crds", releaseName),
+		ChartName: fmt.Sprintf("%s/%s-crds", ChartURL, ChartName),
+		Version:   Version,
+		TargetNS:  "kube-system",
+	}
+	return []v1beta1.Chart{chartConfig, crds}, nil, nil
 }
 
 // New creates a new EmbeddedClusterOperator addon.

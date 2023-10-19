@@ -122,7 +122,8 @@ func (d *Provider) BinaryName() string {
 // HelmVMLogsSubDir returns the path to the directory where helmvm logs are
 // stored. This is a subdirectory of the user's home directory.
 func (d *Provider) HelmVMLogsSubDir() string {
-	return filepath.Join(d.Base, d.state(), d.BinaryName(), "logs")
+	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	return filepath.Join(d.Base, d.state(), hidden, "logs")
 }
 
 // PathToLog returns the full path to a log file. This function does not check
@@ -143,13 +144,15 @@ func (d *Provider) K0sctlBinsSubDir() string {
 
 // HelmChartSubDir returns the path to the directory where helm charts are stored
 func (d *Provider) HelmChartSubDir() string {
-	return filepath.Join(d.Base, d.home(), d.BinaryName(), "charts")
+	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	return filepath.Join(d.Base, d.home(), hidden, "charts")
 }
 
 // HelmVMBinsSubDir returns the path to the directory where helmvm binaries
 // are stored. This is a subdirectory of the user's home directory.
 func (d *Provider) HelmVMBinsSubDir() string {
-	return filepath.Join(d.Base, d.config(), d.BinaryName(), "bin")
+	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	return filepath.Join(d.Base, d.config(), hidden, "bin")
 }
 
 // K0sctlApplyLogPath returns the path to the k0sctl apply log file.
@@ -177,7 +180,8 @@ func (d *Provider) SSHConfigSubDir() string {
 // files are stored. This is a subdirectory of the user's home directory.
 // TODO update
 func (d *Provider) ConfigSubDir() string {
-	return filepath.Join(d.Base, d.config(), d.BinaryName(), "etc")
+	hidden := fmt.Sprintf(".%s", d.BinaryName())
+	return filepath.Join(d.Base, d.config(), hidden, "etc")
 }
 
 // K0sBinaryPath returns the path to the k0s binary.

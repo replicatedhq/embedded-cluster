@@ -7,7 +7,7 @@ ADMIN_CONSOLE_CHART_NAME = admin-console
 ADMIN_CONSOLE_CHART_VERSION = 1.103.2
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.0.2
+EMBEDDED_OPERATOR_CHART_VERSION = 0.0.3
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.9.0
@@ -91,6 +91,13 @@ pkg/goods/bins/helmvm/kubectl-preflight:
 	curl -L -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/helmvm/kubectl-preflight
+
+.PHONY: embed-license
+embed-license: helmvm-linux-amd64
+	mkdir -p output/tmp
+	tar -czvf output/tmp/license.tar.gz license.yaml
+	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle output/tmp/license.tar.gz output/tmp/license.tar.gz.o
+	objcopy --add-section sec_bundle=output/tmp/license.tar.gz.o output/bin/helmvm
 
 .PHONY: static
 static: pkg/goods/bins/helmvm/kubectl-preflight \
