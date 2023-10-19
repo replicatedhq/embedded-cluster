@@ -22,7 +22,21 @@ jobs:
         version: v3.8.1
     - name: Run Package and Publish
       working-directory: charts/embedded-cluster-operator
-      env: 
+      env:
+        HELM_USER: ${{secrets.KOTS_HELM_USER_STAGING}}
+        HELM_PASS: ${{secrets.KOTS_HELM_PASS_STAGING}}
+        CHART_VERSION: ${{steps.tag.outputs.tag}}
+      run: |
+        envsubst < Chart.yaml.tmpl > Chart.yaml
+        rm -f *.tmpl
+
+        export CHART_NAME=`helm package . | rev | cut -d/ -f1 | rev`
+        echo pushing ${CHART_NAME} to staging
+        helm registry login registry.staging.replicated.com  --username $HELM_USER --password $HELM_PASS
+        helm push $CHART_NAME oci://registry.staging.replicated.com/library
+    - name: Run Package and Publish (CRDS)
+      working-directory: charts/embedded-cluster-operator-crds
+      env:
         HELM_USER: ${{secrets.KOTS_HELM_USER_STAGING}}
         HELM_PASS: ${{secrets.KOTS_HELM_PASS_STAGING}}
         CHART_VERSION: ${{steps.tag.outputs.tag}}
