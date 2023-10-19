@@ -221,7 +221,13 @@ func createSystemdUnitFile(fullcmd string) error {
 // adm api.
 func runK0sInstallCommand(fullcmd string) error {
 	args := strings.Split(fullcmd, " ")
-	args = append(args, "--token-file", "/etc/k0s/join-token")
+	args = append(
+		args,
+		"--disable-components",
+		"konnectivity-server",
+		"--token-file",
+		"/etc/k0s/join-token",
+	)
 	cmd := exec.Command(args[0], args[1:]...)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
