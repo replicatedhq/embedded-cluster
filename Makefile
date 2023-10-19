@@ -92,6 +92,13 @@ pkg/goods/bins/helmvm/kubectl-preflight:
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/helmvm/kubectl-preflight
 
+.PHONY: embed-license
+embed-license: helmvm-linux-amd64
+	mkdir -p output/tmp
+	tar -czvf output/tmp/license.tar.gz license.yaml
+	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle output/tmp/license.tar.gz output/tmp/license.tar.gz.o
+	objcopy --add-section sec_bundle=output/tmp/license.tar.gz.o output/bin/helmvm
+
 .PHONY: static
 static: pkg/goods/bins/helmvm/kubectl-preflight \
 	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
