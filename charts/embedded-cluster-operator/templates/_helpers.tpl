@@ -35,12 +35,20 @@ Common labels
 */}}
 {{- define "embedded-cluster-operator.labels" -}}
 helm.sh/chart: {{ include "embedded-cluster-operator.chart" . }}
-{{ include "embedded-cluster-operator.selectorLabels" . }}
+app.kubernetes.io/name: {{ include "embedded-cluster-operator.name" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+  {{- with .Values.global.labels }}
+    {{- range $k, $v := . }}
+      {{- $name := $k }}
+      {{- $value := tpl $v $ }}
+{{ $name }}: {{ quote $value }}
+    {{- end }}
+  {{- end }}
+{{- end -}}
 
 {{/*
 Selector labels

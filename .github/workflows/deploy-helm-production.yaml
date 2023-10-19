@@ -54,21 +54,12 @@ jobs:
         HELM_PASS: ${{secrets.KOTS_HELM_PASS_PROD}}
         CHART_VERSION: ${{steps.tag.outputs.tag}}
       run: |
-        envsubst < Chart.yaml.tmpl > Chart.yaml
-        rm -f *.tmpl
+        export OPERATOR_VERSION=${CHART_VERSION%-*}
+        export OPERATOR_TAG=v${OPERATOR_VERSION}
+        export OPERATOR_REGISTRY=registry.replicated.com
 
-        export CHART_NAME=`helm package . | rev | cut -d/ -f1 | rev`
-        echo pushing ${CHART_NAME} to production
-        helm registry login registry.replicated.com  --username $HELM_USER --password $HELM_PASS
-        helm push $CHART_NAME oci://registry.replicated.com/library
-    - name: Run Package and Publish (CRDS)
-      working-directory: charts/embedded-cluster-operator-crds
-      env:
-        HELM_USER: ${{secrets.KOTS_HELM_USER_PROD}}
-        HELM_PASS: ${{secrets.KOTS_HELM_PASS_PROD}}
-        CHART_VERSION: ${{steps.tag.outputs.tag}}
-      run: |
         envsubst < Chart.yaml.tmpl > Chart.yaml
+        envsubst < values.yaml.tmpl > values.yaml
         rm -f *.tmpl
 
         export CHART_NAME=`helm package . | rev | cut -d/ -f1 | rev`

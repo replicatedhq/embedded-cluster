@@ -1,4 +1,3 @@
-# DEVELOPMENT USE ONLY! THIE FILE IS NOT USED FOR DEPLOYS!
 global:
   labels: {}
 
@@ -9,8 +8,8 @@ embeddedBinaryName: v0.0.0
 embeddedClusterID: 123456789
 
 image:
-  repository: registry.staging.replicated.com/library/embedded-cluster-operator-image
-  tag: v0.0.0
+  repository: ${OPERATOR_REGISTRY}/library/embedded-cluster-operator-image
+  tag: ${OPERATOR_TAG}
   pullPolicy: IfNotPresent
 
 kubeProxyImage: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
