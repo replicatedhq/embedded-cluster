@@ -12,17 +12,15 @@ import (
 	"strings"
 	"time"
 
-	k0sversion "github.com/k0sproject/version"
-
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
 	"github.com/k0sproject/rig/log"
+	k0sversion "github.com/k0sproject/version"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/replicatedhq/helmvm/pkg/addons"
-	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
 	"github.com/replicatedhq/helmvm/pkg/config"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/goods"
@@ -384,6 +382,16 @@ func applyK0sctl(c *cli.Context) error {
 	return nil
 }
 
+// runOutro calls Outro() in all enabled addons by means of Applier.
+func runOutro(c *cli.Context) error {
+	os.Setenv("KUBECONFIG", defaults.PathToConfig("kubeconfig"))
+	opts := []addons.Option{}
+	for _, addon := range c.StringSlice("disable-addon") {
+		opts = append(opts, addons.WithoutAddon(addon))
+	}
+	return addons.NewApplier(opts...).Outro(c.Context)
+}
+
 // installCommands executes the "install" command. This will ensure that a
 // k0sctl.yaml file exists and then run `k0sctl apply` to apply the cluster.
 // Once this is finished then a "kubeconfig" file is created.
@@ -432,38 +440,21 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-
 		if err := applyK0sctl(c); err != nil {
 			err := fmt.Errorf("unable update cluster: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
-
 		}
-
 		logrus.Infof("Reading cluster access configuration")
 		if err := runK0sctlKubeconfig(c.Context); err != nil {
 			err := fmt.Errorf("unable to get kubeconfig: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		kcfg := defaults.PathToConfig("kubeconfig")
-
-		shouldWaitForAdminConsole := true
-		for _, addon := range c.StringSlice("disable-addon") {
-			if addon == "adminconsole" {
-				shouldWaitForAdminConsole = false
-			}
+		if err := runOutro(c); err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
 		}
-		if shouldWaitForAdminConsole {
-			err := adminconsole.WaitFor(kcfg)
-			if err != nil {
-				err := fmt.Errorf("unable to wait for Admin Console to be ready: %w", err)
-				metrics.ReportApplyFinished(c, err)
-				return err
-			}
-		}
-
-		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},
 }

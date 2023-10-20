@@ -3,6 +3,7 @@
 package custom
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/hembed"
@@ -117,6 +119,11 @@ func (c *Custom) chartHasBeenDisabled(chart *chart.Chart) bool {
 	cname := strings.ToLower(chart.Name())
 	_, disabledAddons := c.disabledAddons[cname]
 	return disabledAddons
+}
+
+// Outro is executed after the cluster deployment.
+func (c *Custom) Outro(_ context.Context, _ client.Client) error {
+	return nil
 }
 
 // New creates a new Custom instance.

@@ -3,6 +3,7 @@
 package embeddedclusteroperator
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
@@ -11,6 +12,7 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/metrics"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -61,6 +63,11 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 	}
 	chartConfig.Values = string(valuesStringData)
 	return []v1beta1.Chart{chartConfig}, nil, nil
+}
+
+// Outro is executed after the cluster deployment.
+func (e *EmbeddedClusterOperator) Outro(_ context.Context, _ client.Client) error {
+	return nil
 }
 
 // New creates a new EmbeddedClusterOperator addon.
