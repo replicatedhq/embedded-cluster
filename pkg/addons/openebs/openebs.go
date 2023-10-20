@@ -3,11 +3,13 @@
 package openebs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -70,6 +72,11 @@ func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, e
 	chartConfig.Values = string(valuesStringData)
 
 	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+}
+
+// Outro is executed after the cluster deployment.
+func (o *OpenEBS) Outro(_ context.Context, _ client.Client) error {
+	return nil
 }
 
 // New creates a new OpenEBS addon.

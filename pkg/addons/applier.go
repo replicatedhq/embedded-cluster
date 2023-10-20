@@ -39,6 +39,7 @@ type AddOn interface {
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
 	GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error)
+	Outro(context.Context, client.Client) error
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -49,20 +50,33 @@ type Applier struct {
 	config         v1beta1.ClusterConfig
 }
 
+// Outro runs the outro in all enabled add-ons.
+func (a *Applier) Outro(ctx context.Context) error {
+	kcli, err := a.kubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	addons, err := a.load()
+	if err != nil {
+		return fmt.Errorf("unable to load addons: %w", err)
+	}
+	for _, addon := range addons {
+		if err := addon.Outro(ctx, kcli); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
 func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-
 	charts := []v1beta1.Chart{}
-
 	repositories := []v1beta1.Repository{}
-
 	addons, err := a.load()
-
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
-
 		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig()
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
@@ -70,7 +84,6 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, 
 		charts = append(charts, addonChartConfig...)
 		repositories = append(repositories, addonRepositoryConfig...)
 	}
-
 	return charts, repositories, nil
 }
 
@@ -97,7 +110,6 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // load instantiates all enabled addons.
 func (a *Applier) load() (map[string]AddOn, error) {
-
 	addons := map[string]AddOn{}
 	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
 		obs, err := openebs.New()
@@ -106,7 +118,6 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		}
 		addons["openebs"] = obs
 	}
-
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
 		aconsole, err := adminconsole.New("helmvm", a.prompt, a.config)
 		if err != nil {
@@ -114,7 +125,6 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		}
 		addons["adminconsole"] = aconsole
 	}
-
 	if _, disabledAddons := a.disabledAddons["embeddedclusteroperator"]; !disabledAddons {
 		embedoperator, err := embeddedclusteroperator.New()
 		if err != nil {
@@ -122,13 +132,11 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		}
 		addons["embeddedclusteroperator"] = embedoperator
 	}
-
 	custom, err := custom.New("helmvm", a.disabledAddons)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create custom addon: %w", err)
 	}
 	addons["custom"] = custom
-
 	return addons, nil
 }
 
