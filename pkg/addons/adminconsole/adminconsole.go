@@ -102,92 +102,94 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	return nil
 }
 
-// GetPasswordFromConfig returns the adminconsole password from the provided chart config.
-func getPasswordFromConfig(chart v1beta1.Chart) (string, error) {
-	values := dig.Mapping{}
+// getPasswordFromConfig returns the adminconsole password from the provided chart config.
+func getPasswordFromConfig(chart *v1beta1.Chart) (string, error) {
 	if chart.Values == "" {
-		return "", fmt.Errorf("unable to find adminconsole chart values in cluster config")
+		return "", nil
 	}
-	err := yaml.Unmarshal([]byte(chart.Values), &values)
-	if err != nil {
+	values := dig.Mapping{}
+	if err := yaml.Unmarshal([]byte(chart.Values), &values); err != nil {
 		return "", fmt.Errorf("unable to unmarshal values: %w", err)
 	}
 	if password, ok := values["password"].(string); ok {
 		return password, nil
 	}
-	return "", fmt.Errorf("unable to find password in cluster config")
+	return "", nil
 }
 
-// GetCurrentConfig returns the current adminconsole chart config from the cluster config.
-func (a *AdminConsole) GetCurrentConfig() (v1beta1.Chart, error) {
-	nilChart := v1beta1.Chart{}
-	if a.config.Spec == nil {
-		return nilChart, fmt.Errorf("unable to find spec in cluster config")
+// GetCurrentChartConfig returns the current adminconsole chart config from the cluster config.
+func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
+	if a.config.Spec == nil || a.config.Spec.Extensions == nil {
+		return nil
 	}
-	spec := a.config.Spec
-	if spec.Extensions == nil {
-		return nilChart, fmt.Errorf("unable to find extensions in cluster config")
+	if a.config.Spec.Extensions.Helm == nil {
+		return nil
 	}
-	extensions := spec.Extensions
-	if extensions.Helm == nil {
-		return nilChart, fmt.Errorf("unable to find helm extensions in cluster config")
-	}
-	chartList := a.config.Spec.Extensions.Helm.Charts
-	for _, chart := range chartList {
-		if chart.Name == "adminconsole" {
-			return chart, nil
+	chtlist := a.config.Spec.Extensions.Helm.Charts
+	for _, chart := range chtlist {
+		if chart.Name == releaseName {
+			return &chart
 		}
 	}
-	return nilChart, fmt.Errorf("unable to find adminconsole chart in cluster config")
+	return nil
 }
 
-// GenerateHelmConfig generates the helm config for the adminconsole
-// and writes the charts to the disk.
+// addPasswordToHelmValues adds the adminconsole password to the helm values.
+func (a *AdminConsole) addPasswordToHelmValues() error {
+	curconfig := a.GetCurrentChartConfig()
+	if curconfig == nil {
+		pass, err := a.askPassword()
+		if err != nil {
+			return fmt.Errorf("unable to ask password: %w", err)
+		}
+		helmValues["password"] = pass
+		return nil
+	}
+	pass, err := getPasswordFromConfig(curconfig)
+	if err != nil {
+		return fmt.Errorf("unable to get password from current config: %w", err)
+	}
+	helmValues["password"] = pass
+	return nil
+}
+
+// addKotsApplicationToHelmValues extracts the embed application struct found in this binary
+// and adds it to the helm values.
+func (a *AdminConsole) addKotsApplicationToHelmValues() error {
+	app, err := customization.AdminConsole{}.Application()
+	if err != nil {
+		return fmt.Errorf("unable to get application: %w", err)
+	} else if app == nil {
+		helmValues["kotsApplication"] = "default value"
+		return nil
+	}
+	helmValues["kotsApplication"] = string(app)
+	return nil
+}
+
+// GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
+// the disk.
 func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	chartConfig := v1beta1.Chart{
-		Name:      releaseName,
-		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
-		Version:   Version,
-		Values:    "",
-		TargetNS:  a.namespace,
+	if err := a.addPasswordToHelmValues(); err != nil {
+		return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
+	}
+	if err := a.addKotsApplicationToHelmValues(); err != nil {
+		return nil, nil, fmt.Errorf("unable to add kots app to helm values: %w", err)
 	}
 	if err := a.addLicenseToHelmValues(); err != nil {
 		return nil, nil, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
-	currentConfig, err := a.GetCurrentConfig()
-	if err == nil {
-		currentPassword, err := getPasswordFromConfig(currentConfig)
-		if err != nil {
-			pass, err := a.askPassword()
-			if err != nil {
-				return nil, nil, fmt.Errorf("unable to ask for password: %w", err)
-			}
-			helmValues["password"] = pass
-		} else if currentPassword != "" {
-			helmValues["password"] = currentPassword
-		}
-	} else {
-		pass, err := a.askPassword()
-		if err != nil {
-			return nil, nil, fmt.Errorf("unable to ask for password: %w", err)
-		}
-		helmValues["password"] = pass
-	}
-	cust, err := customization.AdminConsole{}.ExtractCustomization()
-	if err == nil {
-		if cust != nil && cust.Application != nil {
-			helmValues["kotsApplication"] = string(cust.Application)
-		} else {
-			helmValues["kotsApplication"] = "default value"
-		}
-	} else {
-		helmValues["kotsApplication"] = "error value"
-	}
-	valuesStringData, err := yaml.Marshal(helmValues)
+	values, err := yaml.Marshal(helmValues)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig.Values = string(valuesStringData)
+	chartConfig := v1beta1.Chart{
+		Name:      releaseName,
+		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
+		Version:   Version,
+		Values:    string(values),
+		TargetNS:  a.namespace,
+	}
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 

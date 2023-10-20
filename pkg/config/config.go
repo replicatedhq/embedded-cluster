@@ -209,7 +209,6 @@ func renderMultiNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 
 // generateConfigForHosts generates a v1beta1.Cluster object for a given list of hosts.
 func generateConfigForHosts(ctx context.Context, hosts ...*cluster.Host) (*v1beta1.Cluster, error) {
-
 	var configSpec = dig.Mapping{
 		"network": dig.Mapping{
 			"provider": "calico",
@@ -218,14 +217,12 @@ func generateConfigForHosts(ctx context.Context, hosts ...*cluster.Host) (*v1bet
 			"enabled": false,
 		},
 	}
-
 	var k0sconfig = dig.Mapping{
 		"apiVersion": "k0s.k0sproject.io/v1beta1",
 		"kind":       "ClusterConfig",
 		"metadata":   dig.Mapping{"name": defaults.BinaryName()},
 		"spec":       configSpec,
 	}
-
 	return &v1beta1.Cluster{
 		APIVersion: "k0sctl.k0sproject.io/v1beta1",
 		Kind:       "Cluster",
@@ -274,44 +271,34 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
 func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
-
 	if cfg.Spec == nil || cfg.Spec.K0s == nil || cfg.Spec.K0s.Config == nil {
 		return fmt.Errorf("invalid cluster configuration")
 	}
-
 	currentSpec := cfg.Spec.K0s.Config
 	configString, err := yamlv2.Marshal(currentSpec)
 	if err != nil {
-		return fmt.Errorf("failed to marshal helm config: %w", err)
+		return fmt.Errorf("unable to marshal helm config: %w", err)
 	}
-
 	k0s := k0sconfig.ClusterConfig{}
-
 	if err := yamlv2.Unmarshal(configString, &k0s); err != nil {
 		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
-
 	opts = append(opts, addons.WithConfig(k0s))
-
-	newChartConfig, newRepositoryConfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
+	chtconfig, repconfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
 	if err != nil {
 		return fmt.Errorf("unable to apply addons: %w", err)
 	}
-
 	newHelmExtension := &k0sconfig.HelmExtensions{
-		Charts:       newChartConfig,
-		Repositories: newRepositoryConfig,
+		Charts:       chtconfig,
+		Repositories: repconfig,
 	}
-
 	newClusterExtensions := &k0sconfig.ClusterExtensions{
 		Helm: newHelmExtension,
 	}
-
 	if spec, ok := cfg.Spec.K0s.Config["spec"].(map[string]interface{}); ok {
 		spec["extensions"] = newClusterExtensions
 		cfg.Spec.K0s.Config["spec"] = spec
 	} else {
-
 		if spec, ok := cfg.Spec.K0s.Config["spec"].(dig.Mapping); ok {
 			spec["extensions"] = newClusterExtensions
 			cfg.Spec.K0s.Config["spec"] = spec
@@ -319,7 +306,6 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 			return fmt.Errorf("unable to update cluster config")
 		}
 	}
-
 	return nil
 }
 
