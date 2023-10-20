@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
@@ -18,6 +19,7 @@ type hostcfg struct {
 	Port    int
 	User    string
 	KeyPath string
+	Labels  map[string]string
 }
 
 // render returns a cluster.Host from the given config.
@@ -26,6 +28,7 @@ func (h *hostcfg) render() *cluster.Host {
 	if h.Role != "worker" {
 		ifls = []string{"--disable-components konnectivity-server"}
 	}
+	ifls = append(ifls, labelsToArg(h.Labels)...)
 	return &cluster.Host{
 		Role:         h.Role,
 		UploadBinary: false,
@@ -56,4 +59,16 @@ func (h *hostcfg) testConnection() error {
 	}()
 	rig.SetLogger(loading)
 	return h.render().Connection.Connect()
+}
+
+func labelsToArg(labels map[string]string) []string {
+	entries := []string{}
+	for k, v := range labels {
+		entries = append(entries, fmt.Sprintf("%s=%s", k, v))
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	return []string{fmt.Sprintf("--labels %s", strings.Join(entries, ","))}
 }
