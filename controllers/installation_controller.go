@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -158,12 +159,19 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.Info("No installation found, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
-	if len(installs.Items) > 1 {
-		log.Error(fmt.Errorf("multiple installations found"), "Multiple installations found")
-		return ctrl.Result{RequeueAfter: requeueAfter}, nil
+	// we may have multiple installations, but we only care about the last one.
+	// installations are named with a date in the format YYYYMMDDHHMMSS.
+	var last, pos int
+	for i, in := range installs.Items {
+		if when, err := strconv.Atoi(in.Name); err != nil {
+			log.Error(err, "invalid installation name", "name", in.Name)
+		} else if when >= last {
+			last = when
+			pos = i
+		}
 	}
-	if installs.Items[0].Spec.ClusterID == "" {
-		log.Info("No cluster ID, reconciliation ended")
+	if installs.Items[pos].Spec.ClusterID == "" {
+		log.Info("No cluster ID found, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileInstallation(ctx, &installs.Items[0]); err != nil {
