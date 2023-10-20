@@ -5,7 +5,6 @@ package embeddedclusteroperator
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
@@ -16,7 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
-	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
 	"github.com/replicatedhq/helmvm/pkg/kubeutils"
 	"github.com/replicatedhq/helmvm/pkg/metrics"
@@ -76,18 +74,6 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
-// metricsEndpoint finds the metric endpoint
-func (e *EmbeddedClusterOperator) metricsBaseURL() string {
-	if os.Getenv("HELMVM_METRICS_ENDPOINT") != "" {
-		return os.Getenv("HELMVM_METRICS_ENDPOINT")
-	}
-	license, _ := customization.AdminConsole{}.License()
-	if license == nil || license.Spec.Endpoint == "" {
-		return metrics.BaseURL
-	}
-	return license.Spec.Endpoint
-}
-
 // Outro is executed after the cluster deployment.
 func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) error {
 	loading := pb.Start()
@@ -103,7 +89,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		},
 		Spec: helmvmv1beta1.InstallationSpec{
 			ClusterID:      metrics.ClusterID().String(),
-			MetricsBaseURL: e.metricsBaseURL(),
+			MetricsBaseURL: metrics.BaseURL(),
 			AirGap:         false,
 		},
 	}
