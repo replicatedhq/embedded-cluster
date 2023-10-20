@@ -148,6 +148,22 @@ func (a AdminConsole) License() (*v1beta1.License, error) {
 	return &license, nil
 }
 
+// Application reads and returns the kots application embedded as part of the release. If no
+// application is found, returns nil and no error. This function does not unmarshal the
+// application yaml.
+func (a AdminConsole) Application() ([]byte, error) {
+	if runtime.GOOS != "linux" {
+		return nil, nil
+	}
+	section, err := a.ExtractCustomization()
+	if err != nil {
+		return nil, err
+	} else if section == nil {
+		return nil, nil
+	}
+	return section.Application, nil
+}
+
 // EmbeddedClusterConfig reads the embedded cluster config from the embedded Kots Application Release.
 func (a AdminConsole) EmbeddedClusterConfig() ([]byte, error) {
 	if runtime.GOOS != "linux" {

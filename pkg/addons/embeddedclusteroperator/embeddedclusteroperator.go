@@ -95,12 +95,12 @@ func (e *EmbeddedClusterOperator) readEmbeddedClusterConfig() (*helmvmv1beta1.Co
 // Outro is executed after the cluster deployment.
 func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) error {
 	loading := pb.Start()
-	loading.Infof("Waiting for embedded cluster operator to be ready")
+	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
 	if err := kubeutils.WaitForDeployment(ctx, cli, e.namespace, e.deployName); err != nil {
 		loading.Close()
 		return err
 	}
-	loading.Close()
+	loading.Closef("Embedded Cluster Operator is ready!")
 	cfg, err := e.readEmbeddedClusterConfig()
 	if err != nil {
 		return err
