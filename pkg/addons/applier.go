@@ -118,19 +118,19 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		}
 		addons["openebs"] = obs
 	}
-	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("helmvm", a.prompt, a.config)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
-		}
-		addons["adminconsole"] = aconsole
-	}
 	if _, disabledAddons := a.disabledAddons["embeddedclusteroperator"]; !disabledAddons {
 		embedoperator, err := embeddedclusteroperator.New()
 		if err != nil {
 			return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 		}
 		addons["embeddedclusteroperator"] = embedoperator
+	}
+	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
+		aconsole, err := adminconsole.New("helmvm", a.prompt, a.config)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
+		}
+		addons["adminconsole"] = aconsole
 	}
 	custom, err := custom.New("helmvm", a.disabledAddons)
 	if err != nil {

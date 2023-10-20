@@ -13,12 +13,17 @@ import (
 	"github.com/replicatedhq/helmvm/pkg/customization"
 )
 
+var (
+	// BaseURL is the default base url used when sending metrics.
+	BaseURL = "https://replicated.app"
+)
+
 // Send is a helper function that sends an event to the metrics endpoint.
 // Metrics endpoint can be overwritten by the license.spec.endpoint field
 // or by the HELMVM_METRICS_BASEURL environment variable, the latter has
 // precedence over the former.
 func Send(ctx context.Context, ev Event) {
-	var baseURL = "https://replicated.app"
+	var baseURL = BaseURL
 	var custom customization.AdminConsole
 	if license, err := custom.License(); err != nil {
 		logrus.Warnf("unable to read license: %s", err)

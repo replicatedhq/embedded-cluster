@@ -13,13 +13,13 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.16.0
 	github.com/k0sproject/rig v0.15.1
+	github.com/replicatedhq/helmvm-operator v0.0.10
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.76.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.25.7
 	golang.org/x/crypto v0.14.0
-	golang.org/x/mod v0.13.0
 	golang.org/x/term v0.13.0
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.13.1
@@ -29,7 +29,10 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-require github.com/sergi/go-diff v1.2.0 // indirect
+require (
+	github.com/sergi/go-diff v1.2.0 // indirect
+	golang.org/x/mod v0.13.0 // indirect
+)
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect

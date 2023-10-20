@@ -11,13 +11,12 @@ import (
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v3"
-	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/helmvm/pkg/customization"
 	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/helmvm/pkg/kubeutils"
 	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
 	"github.com/replicatedhq/helmvm/pkg/prompts"
 )
@@ -194,15 +193,14 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Reposito
 
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
-	progressBar := pb.Start()
+	loading := pb.Start()
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-	duration := a.totalTimeoutDuration(backoff)
-	fmt.Printf("Waiting for Admin Console to be ready. This may take up to %v\n", duration)
-	progressBar.Infof("Waiting for Admin Console to be ready: 0/3 resources ready")
+	duration := kubeutils.BackOffToDuration(backoff)
+	loading.Infof("Waiting %v for Admin Console to deploy: 0/3 ready", duration)
 	var lasterr error
 	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
 		var count int
-		ready, err := a.isDeploymentReady(ctx, cli)
+		ready, err := kubeutils.IsDeploymentReady(ctx, cli, a.namespace, "kotsadm")
 		if err != nil {
 			lasterr = fmt.Errorf("error checking status of kotsadm: %v", err)
 			return false, nil
@@ -211,7 +209,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 			count++
 		}
 		for _, name := range []string{"kotsadm-rqlite", "kotsadm-minio"} {
-			ready, err := a.isStatefulSetReady(ctx, cli, name)
+			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, a.namespace, name)
 			if err != nil {
 				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
 				return false, nil
@@ -220,52 +218,15 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 				count++
 			}
 		}
-		progressBar.Infof("Waiting for Admin Console to be ready: %d/3 resources ready", count)
+		loading.Infof("Waiting %v for Admin Console to deploy: %d/3 ready", duration, count)
 		return count == 3, nil
 	}); err != nil {
-		progressBar.Close()
+		loading.Close()
 		return fmt.Errorf("timed out waiting for admin console: %v", lasterr)
 	}
-	progressBar.Closef("Admin Console is ready!")
+	loading.Closef("Admin Console is ready!")
 	a.printSuccessMessage()
 	return nil
-}
-
-// totalTimeoutDuration calculates the total time represented by the given backoff.
-func (a *AdminConsole) totalTimeoutDuration(backoff wait.Backoff) time.Duration {
-	var total time.Duration
-	duration := backoff.Duration
-	for i := 0; i < backoff.Steps; i++ {
-		total += duration
-		duration = time.Duration(float64(duration) * backoff.Factor)
-	}
-	return total
-}
-
-// isDeploymentReady checks if the admin console deployment is ready.
-func (a *AdminConsole) isDeploymentReady(ctx context.Context, cli client.Client) (bool, error) {
-	var deploy appsv1.Deployment
-	nsn := types.NamespacedName{Namespace: a.namespace, Name: "kotsadm"}
-	if err := cli.Get(ctx, nsn, &deploy); err != nil {
-		return false, err
-	}
-	if deploy.Spec.Replicas == nil {
-		return false, nil
-	}
-	return deploy.Status.ReadyReplicas == *deploy.Spec.Replicas, nil
-}
-
-// isStatefulSetReady checks if the provided statefulset is ready.
-func (a *AdminConsole) isStatefulSetReady(ctx context.Context, cli client.Client, name string) (bool, error) {
-	var statefulset appsv1.StatefulSet
-	nsn := types.NamespacedName{Namespace: a.namespace, Name: name}
-	if err := cli.Get(ctx, nsn, &statefulset); err != nil {
-		return false, err
-	}
-	if statefulset.Spec.Replicas == nil {
-		return false, nil
-	}
-	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
 }
 
 // printSuccessMessage prints the success message when the admin console is online.
