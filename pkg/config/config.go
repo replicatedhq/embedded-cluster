@@ -260,6 +260,10 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 		Port:    22,
 		User:    usr.Username,
 		KeyPath: defaults.SSHKeyPath(),
+		Labels: map[string]string{
+			"kots.io/embedded-cluster-role-0": "controller",
+			"kots.io/embedded-cluster-role":   "total-1",
+		},
 	}
 	if err := host.testConnection(); err != nil {
 		return nil, fmt.Errorf("unable to connect to %s: %w", ipaddr, err)
