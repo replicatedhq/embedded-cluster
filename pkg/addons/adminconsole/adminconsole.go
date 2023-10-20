@@ -260,13 +260,14 @@ func WaitFor(configPath string) error {
 
 	progressBar.Infof("Waiting for %s to be ready: 0/3 resources ready", displayName)
 
+	var lastErr error
 	// Use the wait.ExponentialBackoff function to wait for the Deployment to be ready.
 	err = wait.ExponentialBackoff(backoff, func() (bool, error) {
 		readyCount := 0
 
 		kotsadmReady, err := isDeploymentReady(clientset, namespace, "kotsadm")
 		if err != nil {
-			progressBar.Errorf("Error checking status of kotsadm: %v", err)
+			lastErr = fmt.Errorf("Error checking status of kotsadm: %v", err)
 			return false, nil
 		}
 		if kotsadmReady {
@@ -275,7 +276,7 @@ func WaitFor(configPath string) error {
 
 		rqliteReady, err := isStatefulSetReady(clientset, namespace, "kotsadm-rqlite")
 		if err != nil {
-			progressBar.Errorf("Error checking status of kotsadm-rqlite: %v", err)
+			lastErr = fmt.Errorf("Error checking status of kotsadm-rqlite: %v", err)
 			return false, nil
 		}
 		if rqliteReady {
@@ -284,7 +285,7 @@ func WaitFor(configPath string) error {
 
 		minioReady, err := isStatefulSetReady(clientset, namespace, "kotsadm-minio")
 		if err != nil {
-			progressBar.Errorf("Error checking status of kotsadm-minio: %v", err)
+			lastErr = fmt.Errorf("Error checking status of kotsadm-minio: %v", err)
 			return false, nil
 		}
 		if minioReady {
@@ -304,7 +305,7 @@ func WaitFor(configPath string) error {
 		return false, nil
 	})
 	if err != nil {
-		return fmt.Errorf("timed out waiting for %s to be ready", displayName)
+		return fmt.Errorf("timed out waiting for %s to be ready: %v", displayName, lastErr)
 	}
 
 	return nil
