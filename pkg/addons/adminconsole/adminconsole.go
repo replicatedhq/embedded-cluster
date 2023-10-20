@@ -226,7 +226,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		progressBar.Close()
 		return fmt.Errorf("timed out waiting for admin console: %v", lasterr)
 	}
-	progressBar.Close()
+	progressBar.Closef("Admin Console is ready!")
 	a.printSuccessMessage()
 	return nil
 }
