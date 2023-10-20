@@ -55,7 +55,7 @@ jobs:
         CHART_VERSION: ${{steps.tag.outputs.tag}}
       run: |
         export OPERATOR_VERSION=${CHART_VERSION%-*}
-        export OPERATOR_TAG=v${OPERATOR_VERSION}
+        export OPERATOR_TAG=${OPERATOR_VERSION}
         export OPERATOR_REGISTRY=registry.replicated.com
 
         envsubst < Chart.yaml.tmpl > Chart.yaml
