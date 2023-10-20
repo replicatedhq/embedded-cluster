@@ -10,7 +10,7 @@ embeddedClusterID: 123456789
 
 image:
   repository: registry.staging.replicated.com/library/embedded-cluster-operator-image
-  tag: v0.0.0
+  tag: 0.0.8
   pullPolicy: IfNotPresent
 
 kubeProxyImage: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1

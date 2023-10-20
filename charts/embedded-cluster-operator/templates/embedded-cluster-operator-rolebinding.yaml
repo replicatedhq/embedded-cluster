@@ -8,7 +8,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: embedded-cluster-operator
+  name: {{ (include "embedded-cluster-operator.fullname" $) | trunc 63 | trimAll "-" }}
 subjects:
 - kind: ServiceAccount
   name: {{ include "embedded-cluster-operator.serviceAccountName" $ | trunc 63 | trimAll "-"}}

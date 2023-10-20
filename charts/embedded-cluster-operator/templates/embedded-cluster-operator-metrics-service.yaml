@@ -11,7 +11,4 @@ spec:
     port: 8443
     protocol: TCP
     targetPort: https
-  selector:
-    {{- with (include "embedded-cluster-operator.selectorLabels" $) }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+  selector: {{- include "embedded-cluster-operator.selectorLabels" $ | nindent 4 }}
