@@ -9,7 +9,7 @@ import (
 )
 
 func TestIsUpgrade(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	provider := NewProvider(tmpdir)
@@ -21,17 +21,17 @@ func TestIsUpgrade(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
 	assert.DirExists(t, def.K0sctlBinsSubDir(), "k0s binary dir should exist")
 	assert.DirExists(t, def.ConfigSubDir(), "config dir should exist")
-	assert.DirExists(t, def.HelmVMBinsSubDir(), "helmvm binary dir should exist")
+	assert.DirExists(t, def.HelmVMBinsSubDir(), "embedded-cluster binary dir should exist")
 }
 
 func TestDecentralizedInstall(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
@@ -42,7 +42,7 @@ func TestDecentralizedInstall(t *testing.T) {
 }
 
 func TestFileNameForImage(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
@@ -60,7 +60,7 @@ func TestFileNameForImage(t *testing.T) {
 }
 
 func TestPreferredNodeIPAddress(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
@@ -70,7 +70,7 @@ func TestPreferredNodeIPAddress(t *testing.T) {
 }
 
 func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)

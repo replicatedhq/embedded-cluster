@@ -1,5 +1,5 @@
 // Package custom manages the installation of custom helm charts that have been
-// embedded at the end of the helmvm binary.
+// embedded at the end of the embedded-cluster binary.
 package custom
 
 import (
@@ -21,7 +21,7 @@ import (
 )
 
 // Custom manages the installation of custom helm charts that have been
-// embedded at the end of the helmvm binary.
+// embedded at the end of the embedded-cluster binary.
 type Custom struct {
 	namespace      string
 	disabledAddons map[string]bool

@@ -98,7 +98,7 @@ func SetupLogging() {
 	now := time.Now().Format("20060102150405")
 
 	dir := defaults.HelmVMLogsSubDir()
-	path := filepath.Join(dir, "helmvm-"+now+".log")
+	path := filepath.Join(dir, "embedded-cluster-"+now+".log")
 
 	fileHook, err := NewLogrusFileHook(path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err == nil {

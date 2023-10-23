@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This script is used to test the embed capability of helmvm. It will pull the memcached helm chart and
+# This script is used to test the embed capability of embedded-cluster. It will pull the memcached helm chart and
 # embed it into the binary, issuing then a single node install. This script waits for the memcached pod
 # to be ready.
 set -euo pipefail
@@ -48,15 +48,15 @@ pull_helm_chart() {
 
 embed_helm_chart() {
     fpath=$(ls -d chart/*)
-    if ! helmvm embed --chart "$fpath" --output helmvm; then
+    if ! embedded-cluster embed --chart "$fpath" --output embedded-cluster; then
         return 1
     fi
-    mv helmvm /usr/local/bin
+    mv embedded-cluster /usr/local/bin
     return 0
 }
 
 wait_for_memcached_pods() {
-    ready=$(kubectl get pods -n helmvm | grep -c memcached || true)
+    ready=$(kubectl get pods -n embedded-cluster | grep -c memcached || true)
     counter=0
     while [ -z "$ready" ] || [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -65,8 +65,8 @@ wait_for_memcached_pods() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for memcached pods"
-        ready=$(kubectl get pods -n helmvm | grep -c memcached || true)
-        kubectl get pods -n helmvm 2>&1 || true
+        ready=$(kubectl get pods -n embedded-cluster | grep -c memcached || true)
+        kubectl get pods -n embedded-cluster 2>&1 || true
         echo "$ready"
     done
     return 0
@@ -85,12 +85,12 @@ main() {
         echo "Failed to embed helm chart"
         exit 1
     fi
-    if ! helmvm install --no-prompt --addons-only 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt --addons-only 2>&1 | tee /tmp/log ; then
         echo "Failed to install addons"
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to install helmvm"
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
     echo "waiting for nodes" >> /tmp/log
@@ -106,6 +106,6 @@ main() {
 }
 
 export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/root/.config/.helmvm/etc/kubeconfig
-export PATH=$PATH:/root/.config/.helmvm/bin
+export KUBECONFIG=/root/.config/.embedded-cluster/etc/kubeconfig
+export PATH=$PATH:/root/.config/.embedded-cluster/bin
 main

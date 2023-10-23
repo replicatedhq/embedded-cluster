@@ -126,13 +126,13 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		addons["embeddedclusteroperator"] = embedoperator
 	}
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("helmvm", a.prompt, a.config)
+		aconsole, err := adminconsole.New("embedded-cluster", a.prompt, a.config)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 		}
 		addons["adminconsole"] = aconsole
 	}
-	custom, err := custom.New("helmvm", a.disabledAddons)
+	custom, err := custom.New("embedded-cluster", a.disabledAddons)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create custom addon: %w", err)
 	}

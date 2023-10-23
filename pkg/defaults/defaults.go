@@ -1,4 +1,4 @@
-// Package defaults holds default values for the helmvm binary. For sake of
+// Package defaults holds default values for the embedded-cluster binary. For sake of
 // keeping everything simple this packages exits(1) if some error occurs as
 // these should not happen in the first place.
 package defaults

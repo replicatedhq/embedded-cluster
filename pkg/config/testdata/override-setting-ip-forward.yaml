@@ -2,7 +2,7 @@ config: |-
   apiVersion: k0sctl.k0sproject.io/v1beta1
   kind: Cluster
   metadata:
-    name: helmvm
+    name: embedded-cluster
   spec:
     hosts:
     - ssh:
@@ -21,7 +21,7 @@ config: |-
         apiVersion: k0s.k0sproject.io/v1beta1
         kind: ClusterConfig
         metadata:
-          name: helmvm
+          name: embedded-cluster
         spec:
           network:
             provider: calico
@@ -44,7 +44,7 @@ expected: |-
   apiVersion: k0sctl.k0sproject.io/v1beta1
   kind: Cluster
   metadata:
-    name: helmvm
+    name: embedded-cluster
   spec:
     hosts:
     - ssh:
@@ -63,7 +63,7 @@ expected: |-
         apiVersion: k0s.k0sproject.io/v1beta1
         kind: ClusterConfig
         metadata:
-          name: helmvm
+          name: embedded-cluster
         spec:
           network:
             provider: calico

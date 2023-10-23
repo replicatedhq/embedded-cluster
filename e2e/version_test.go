@@ -16,11 +16,11 @@ func TestVersion(t *testing.T) {
 		Image:         "ubuntu/jammy",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("validating helmvm version in node 0")
-	line := []string{"helmvm", "version"}
+	t.Log("validating embedded-cluster version in node 0")
+	line := []string{"embedded-cluster", "version"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)

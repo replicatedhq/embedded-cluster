@@ -21,18 +21,18 @@ jobs:
           go-version: "1.21"
       - name: Build linux-amd64
         run: |
-          make helmvm-linux-amd64 VERSION=$TAG_NAME
-          tar -C output/bin -czvf helmvm-linux-amd64.tgz helmvm
+          make embedded-cluster-linux-amd64 VERSION=$TAG_NAME
+          tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           make clean
       - name: Build darwin-amd64
         run: |
-          make helmvm-darwin-amd64 VERSION=$TAG_NAME
-          tar -C output/bin -czvf helmvm-darwin-amd64.tgz helmvm
+          make embedded-cluster-darwin-amd64 VERSION=$TAG_NAME
+          tar -C output/bin -czvf embedded-cluster-darwin-amd64.tgz embedded-cluster
           make clean
       - name: Build darwin-arm64
         run: |
-          make helmvm-darwin-arm64 VERSION=$TAG_NAME
-          tar -C output/bin -czvf helmvm-darwin-arm64.tgz helmvm
+          make embedded-cluster-darwin-arm64 VERSION=$TAG_NAME
+          tar -C output/bin -czvf embedded-cluster-darwin-arm64.tgz embedded-cluster
           make clean
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest

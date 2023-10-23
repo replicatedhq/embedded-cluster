@@ -28,7 +28,7 @@ type ParsedSection struct {
 
 // AdminConsole is a struct that contains the actions to create and update the admin
 // console customization found inside the binary. This is necessary for backwards
-// compatibility with older versions of helmvm.
+// compatibility with older versions of embedded-cluster.
 type AdminConsole struct{}
 
 // ExtractCustomization will extract the customization from the binary if it exists.

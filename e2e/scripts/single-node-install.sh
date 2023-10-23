@@ -46,26 +46,26 @@ wait_for_pods_running() {
 }
 
 main() {
-    if ! helmvm install --no-prompt 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
-        echo "Failed to install helmvm"
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to install helmvm"
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
     if ! wait_for_healthy_node; then
-        echo "Failed to install helmvm"
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
     if ! wait_for_pods_running 900; then
-        echo "Failed to install helmvm"
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
 }
 
 export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/root/.config/.helmvm/etc/kubeconfig
-export PATH=$PATH:/root/.config/.helmvm/bin
+export KUBECONFIG=/root/.config/.embedded-cluster/etc/kubeconfig
+export PATH=$PATH:/root/.config/.embedded-cluster/bin
 main
