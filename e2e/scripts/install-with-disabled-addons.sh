@@ -52,8 +52,8 @@ embed_helm_chart() {
     return 0
 }
 
-check_empty_embedded-cluster_namespace() {
-    pods=$(kubectl get pods -n embedded-cluster | wc -l)
+check_empty_embedded_cluster_namespace() {
+    pods=$(kubectl get pods -n embedded-cluster | grep -v 'embedded-cluster-operator' | wc -l)
     if [ "$pods" -gt 0 ]; then
         kubectl get pods -n embedded-cluster
         return 1
@@ -82,8 +82,8 @@ main() {
         echo "Nodes not reporting healthy"
         exit 1
     fi
-    echo "check nothing exists on embedded-cluster namespace " >> /tmp/log
-    if ! check_empty_embedded-cluster_namespace; then
+    echo "check nothing (besides the operator) exists on embedded-cluster namespace " >> /tmp/log
+    if ! check_empty_embedded_cluster_namespace; then
         echo "Pods found on embedded-cluster namespace"
         exit 1
     fi
