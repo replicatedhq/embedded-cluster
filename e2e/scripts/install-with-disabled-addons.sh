@@ -53,7 +53,7 @@ embed_helm_chart() {
 }
 
 check_empty_embedded_cluster_namespace() {
-    pods=$(kubectl get pods -n embedded-cluster | grep -v 'embedded-cluster-operator' | wc -l)
+    pods=$(kubectl get pods -n embedded-cluster --no-headers | grep -v 'embedded-cluster-operator' | wc -l)
     if [ "$pods" -gt 0 ]; then
         kubectl get pods -n embedded-cluster
         return 1
