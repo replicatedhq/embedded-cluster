@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 //go:embed bins/*

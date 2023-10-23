@@ -3,7 +3,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/replicatedhq/helmvm/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {

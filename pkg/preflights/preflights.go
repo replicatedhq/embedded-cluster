@@ -24,8 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 	"sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 // UnserializeSpec unserializes an HostPreflightSpec from a raw slice of bytes.

@@ -14,11 +14,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/helmvm/pkg/customization"
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/kubeutils"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
-	"github.com/replicatedhq/helmvm/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/customization"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 const (

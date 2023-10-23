@@ -15,12 +15,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kyaml "sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
-	"github.com/replicatedhq/helmvm/pkg/customization"
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/kubeutils"
-	"github.com/replicatedhq/helmvm/pkg/metrics"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/customization"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 const (

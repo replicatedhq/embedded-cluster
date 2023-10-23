@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/replicatedhq/helmvm/pkg/customization"
+	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 )
 
 // BaseURL determines the base url to be used when sending metrics over.

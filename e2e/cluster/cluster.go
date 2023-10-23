@@ -13,7 +13,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/google/uuid"
 
-	"github.com/replicatedhq/helmvm/e2e/scripts"
+	"github.com/replicatedhq/embedded-cluster/e2e/scripts"
 )
 
 var networkaddr chan string

@@ -5,7 +5,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -7,8 +7,8 @@ package prompts
 import (
 	"os"
 
-	"github.com/replicatedhq/helmvm/pkg/prompts/decorative"
-	"github.com/replicatedhq/helmvm/pkg/prompts/plain"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts/decorative"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 )
 
 // Prompt is the interface implemented by 'decorative' and 'plain' prompts.

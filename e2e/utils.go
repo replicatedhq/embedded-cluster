@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/helmvm/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
 type buffer struct {

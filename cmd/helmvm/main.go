@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/helmvm/pkg/logging"
+	"github.com/replicatedhq/embedded-cluster/pkg/logging"
 )
 
 func main() {

@@ -14,7 +14,7 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/helmvm/pkg/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 )
 
 // ParsedSection holds the parsed section from the binary. We only care about the

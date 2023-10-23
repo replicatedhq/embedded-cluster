@@ -9,18 +9,18 @@ HelmVM includes by default the Kots Admin Console and the OpenEBS Storage provis
 With the repository checked out locally, to compile you just need to run:
 
 ```
-$ make helmvm-linux-amd64
+$ make embedded-cluster-linux-amd64
 ```
 
-The binary will be located on `output/bin/helmvm`.
-You can also build binaries for other architectures with the following targets: `helmvm-darwin-amd64` and  `helmvm-darwin-arm64` are available.
+The binary will be located on `output/bin/embedded-cluster`.
+You can also build binaries for other architectures with the following targets: `embedded-cluster-darwin-amd64` and  `embedded-cluster-darwin-arm64` are available.
 
 ## Single node deployment
 
 To create a single node deployment you can upload the HelmVM binary to a Linux x86_64 machine and run:
 
 ```
-$ ./helmvm install
+$ ./embedded-cluster install
 ```
 
 ## Multi node deployment
@@ -28,7 +28,7 @@ $ ./helmvm install
 To create a multi node deployment you can run the following command and then follow the instructions:
 
 ```
-$ ./helmvm install --multi-node
+$ ./embedded-cluster install --multi-node
 ```
 
 In this case, it's not necessary to execute this command exclusively on a Linux x86_64 machine. You have the flexibility to use any architecture for the process.
@@ -44,13 +44,13 @@ All operations should be executed directly on the Linux servers and require root
 Begin by deploying the first node:
 
 ```
-server-0# helmvm install
+server-0# embedded-cluster install
 ```
 
 After the cluster is online, you can generate a token to enable the addition of other nodes:
 
 ```
-server-0# helmvm node token create --role controller
+server-0# embedded-cluster node token create --role controller
 INFO[0000] Creating node join token for role controller
 WARN[0000] You are opting out of the centralized cluster management.
 WARN[0000] Through the centralized management you can manage all your
@@ -61,7 +61,7 @@ INFO[0002] Token created successfully.
 INFO[0002] This token is valid for 24h0m0s hours.
 INFO[0002] You can now run the following command in a remote node to add it
 INFO[0002] to the cluster as a "controller" node:
-helmvm node join --role "controller" "<token redacted>"
+embedded-cluster node join --role "controller" "<token redacted>"
 server-0# 
 ```
 
@@ -70,7 +70,7 @@ The role in the command above can be either "controller" or "worker", with the g
 Copy the command provided and run it on the server you wish to join to the cluster:
 
 ```
-server-1# helmvm node join --role "controller" "<token redacted>"
+server-1# embedded-cluster node join --role "controller" "<token redacted>"
 ```
 
 For this to function, you must ensure that the HelmVM binary is present on all nodes within the cluster.
@@ -81,13 +81,13 @@ For this to function, you must ensure that the HelmVM binary is present on all n
 If your installation employs centralized management, simply download the newer version of HelmVM and execute:
 
 ```
-$ helmvm apply
+$ embedded-cluster apply
 ```
 
 For installations without centralized management, download HelmVM, upload it to each server in your cluster, and execute the following command as **root** on each server:
 
 ```
-# helmvm node upgrade
+# embedded-cluster node upgrade
 ```
 
 ## Interacting with the cluster
@@ -95,23 +95,23 @@ For installations without centralized management, download HelmVM, upload it to 
 Once the cluster has been deployed you can open a new terminal to interact with it using `kubectl`:
 
 ```
-$ ./helmvm shell
+$ ./embedded-cluster shell
 ```
 
 This will drop you in a new shell, this shell is configured to reach the cluster:
 
 ```
-ubuntu@ip-172-16-10-242:~$ ./helmvm shell
+ubuntu@ip-172-16-10-242:~$ ./embedded-cluster shell
 
     __4___
- _  \ \ \ \   Welcome to helmvm debug shell.
+ _  \ \ \ \   Welcome to embedded-cluster debug shell.
 <'\ /_/_/_/   This terminal is now configured to access your cluster.
  ((____!___/) Type 'exit' (or CTRL+d) to exit.
   \0\0\0\0\/  Happy hacking.
  ~~~~~~~~~~~
-ubuntu@ip-172-16-10-242:~/.helmvm/etc$ export KUBECONFIG="/home/ubuntu/.helmvm/etc/kubeconfig"
-ubuntu@ip-172-16-10-242:~/.helmvm/etc$ export PATH="$PATH:/home/ubuntu/.helmvm/bin"
-ubuntu@ip-172-16-10-242:~/.helmvm/etc$
+ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$ export KUBECONFIG="/home/ubuntu/.embedded-cluster/etc/kubeconfig"
+ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$ export PATH="$PATH:/home/ubuntu/.embedded-cluster/bin"
+ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$
 ```
 
 ## Embedding your own Helm Chart
@@ -121,14 +121,14 @@ HelmVM allows you to embed your own Helm Charts so they are installed by default
 Your Helm Chart is in a file called `rocks-1.0.0.tgz` and you already have a copy of HelmVM binary in your $PATH. To embed your Chart you can run:
 
 ```
-$ helmvm embed --chart rocks-1.0.0.tgz --output rocks
+$ embedded-cluster embed --chart rocks-1.0.0.tgz --output rocks
 ```
 This command will create a binary called `rocks` in the current directory, this command is a copy of HelmVM binary with your Helm Chart embedded into it. You can then use the `rocks` binary to install a cluster that automatically deploys your `rocks-1.0.0.tgz` Helm Chart.
 
 If you want to provide a customised `values.yaml` during the Helm Chart installation you can also embed it into the binary. You can do that with the following command:
 
 ```
-$ helmvm embed \
+$ embedded-cluster embed \
         --chart rocks-1.0.0.tgz \
         --values values.yaml \
         --output rocks
@@ -138,7 +138,7 @@ Now every time someone installs or upgrades a cluster using the `rocks` binary t
 You can embed as many Helm Charts and `values.yaml` as you want:
 
 ```
-$ helmvm embed \
+$ embedded-cluster embed \
         --chart rocks-1.0.0.tgz \
         --values values.yaml \
         --chart mongodb-13.16.1.tgz \
@@ -148,11 +148,11 @@ $ helmvm embed \
 
 ## Miscellaneous
 
-HelmVM stores its data under `$HOME/.helmvm` directory, you may want to create a backup of the directory, specially the `$HOME/.helmvm/etc` directory.  Inside the `$HOME/.helmvm/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/.helmvm/bin` directory and you may want to include it into your PATH).
+HelmVM stores its data under `$HOME/.embedded-cluster` directory, you may want to create a backup of the directory, specially the `$HOME/.embedded-cluster/etc` directory.  Inside the `$HOME/.embedded-cluster/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/.embedded-cluster/bin` directory and you may want to include it into your PATH).
 
 If you want to use an already existing `k0sctl.yaml` configuration during the `install` command you can do so by using the `--config` flag.
 
-Inside `$HOME/.helmvm/bin` you will find a copy of `k0sctl` binary used to bootstrap the cluster, you can use it to manage the cluster as well (e.g. `$HOME/.helmvm/bin/k0sctl kubeconfig --config $HOME/.helmvm/etc/k0sctl.yaml`).
+Inside `$HOME/.embedded-cluster/bin` you will find a copy of `k0sctl` binary used to bootstrap the cluster, you can use it to manage the cluster as well (e.g. `$HOME/.embedded-cluster/bin/k0sctl kubeconfig --config $HOME/.embedded-cluster/etc/k0sctl.yaml`).
 
 ## Experimental features
 
@@ -161,7 +161,7 @@ Inside `$HOME/.helmvm/bin` you will find a copy of `k0sctl` binary used to boots
 Once the cluster is deployed you can easily stop and start nodes using the following:
 
 ```
-~: helmvm node list
-~: helmvm node stop node-0
-~: helmvm node start node-0
+~: embedded-cluster node list
+~: embedded-cluster node stop node-0
+~: embedded-cluster node start node-0
 ```

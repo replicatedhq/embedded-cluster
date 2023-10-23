@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/replicatedhq/helmvm/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
 func TestVersion(t *testing.T) {

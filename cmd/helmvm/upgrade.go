@@ -10,12 +10,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/helmvm/pkg/addons"
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/goods"
-	"github.com/replicatedhq/helmvm/pkg/metrics"
-	"github.com/replicatedhq/helmvm/pkg/preflights"
-	"github.com/replicatedhq/helmvm/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 func stopHelmVM() error {

@@ -16,8 +16,8 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/hembed"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/hembed"
 )
 
 // Custom manages the installation of custom helm charts that have been

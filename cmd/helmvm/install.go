@@ -20,14 +20,14 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/replicatedhq/helmvm/pkg/addons"
-	"github.com/replicatedhq/helmvm/pkg/config"
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/goods"
-	"github.com/replicatedhq/helmvm/pkg/metrics"
-	"github.com/replicatedhq/helmvm/pkg/preflights"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
-	"github.com/replicatedhq/helmvm/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 // runPostApply is meant to run things that can't be run automatically with
