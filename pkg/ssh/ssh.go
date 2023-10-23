@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 // SSH is a struct that helps setting up SSH related configurations.

@@ -44,10 +44,10 @@ func (d *Provider) Init() {
 		logrus.Fatalf("unable to create config dir: %s", err)
 	}
 	if err := os.MkdirAll(d.HelmVMBinsSubDir(), 0755); err != nil {
-		logrus.Fatalf("unable to create helmvm bin dir: %s", err)
+		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
 	}
 	if err := os.MkdirAll(d.HelmVMLogsSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create helmvm logs dir: %w", err))
+		panic(fmt.Errorf("unable to create embedded-cluster logs dir: %w", err))
 	}
 	if err := os.MkdirAll(d.SSHConfigSubDir(), 0700); err != nil {
 		logrus.Fatalf("unable to create ssh config dir: %s", err)
@@ -119,7 +119,7 @@ func (d *Provider) BinaryName() string {
 	return slug.Make(base)
 }
 
-// HelmVMLogsSubDir returns the path to the directory where helmvm logs are
+// HelmVMLogsSubDir returns the path to the directory where embedded-cluster logs are
 // stored. This is a subdirectory of the user's home directory.
 func (d *Provider) HelmVMLogsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
@@ -148,7 +148,7 @@ func (d *Provider) HelmChartSubDir() string {
 	return filepath.Join(d.Base, d.home(), hidden, "charts")
 }
 
-// HelmVMBinsSubDir returns the path to the directory where helmvm binaries
+// HelmVMBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored. This is a subdirectory of the user's home directory.
 func (d *Provider) HelmVMBinsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
@@ -160,9 +160,9 @@ func (d *Provider) K0sctlApplyLogPath() string {
 	return filepath.Join(d.Base, d.home(), ".cache", "k0sctl", "k0sctl.log")
 }
 
-// SSHKeyPath returns the path to the SSH managed by helmvm installation.
+// SSHKeyPath returns the path to the SSH managed by embedded-cluster installation.
 func (d *Provider) SSHKeyPath() string {
-	return filepath.Join(d.Base, d.home(), ".ssh", "helmvm_rsa")
+	return filepath.Join(d.Base, d.home(), ".ssh", "embedded-cluster_rsa")
 }
 
 // SSHAuthorizedKeysPath returns the path to the authorized_hosts file.
@@ -197,7 +197,7 @@ func (d *Provider) PathToK0sctlBinary(name string) string {
 }
 
 // PathToHelmVMBinary is an utility function that returns the full path to a
-// materialized binary that belongs to helmvm (do not confuse with binaries
+// materialized binary that belongs to embedded-cluster (do not confuse with binaries
 // belonging to k0sctl). This function does not check if the file exists.
 func (d *Provider) PathToHelmVMBinary(name string) string {
 	return filepath.Join(d.HelmVMBinsSubDir(), name)

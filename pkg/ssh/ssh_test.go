@@ -5,35 +5,35 @@ import (
 	"path"
 	"testing"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAllowLocalSSH(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := defaults.NewProvider(tmpdir)
 	ssh := SSH{def}
 	err = ssh.AllowLocalSSH()
 	assert.NoError(t, err)
-	private := path.Join(def.SSHConfigSubDir(), "helmvm_rsa")
+	private := path.Join(def.SSHConfigSubDir(), "embedded-cluster_rsa")
 	assert.FileExists(t, private, "private key should exist")
-	public := path.Join(def.SSHConfigSubDir(), "helmvm_rsa.pub")
+	public := path.Join(def.SSHConfigSubDir(), "embedded-cluster_rsa.pub")
 	assert.FileExists(t, public, "public key should exist")
 	authkeys := path.Join(def.SSHConfigSubDir(), "authorized_keys")
 	assert.FileExists(t, authkeys, "authorized keys file should exist")
 }
 
 func TestKeysCreatedOnlyOnce(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := defaults.NewProvider(tmpdir)
 	ssh := SSH{def}
 	err = ssh.AllowLocalSSH()
 	assert.NoError(t, err)
-	private := path.Join(def.SSHConfigSubDir(), "helmvm_rsa")
+	private := path.Join(def.SSHConfigSubDir(), "embedded-cluster_rsa")
 	oldfinfo, err := os.Stat(private)
 	assert.NoError(t, err)
 	err = ssh.AllowLocalSSH()
@@ -44,7 +44,7 @@ func TestKeysCreatedOnlyOnce(t *testing.T) {
 }
 
 func TestAppendToAuthorized(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "helmvm")
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := defaults.NewProvider(tmpdir)

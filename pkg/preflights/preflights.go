@@ -24,8 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 	"sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 // UnserializeSpec unserializes an HostPreflightSpec from a raw slice of bytes.
@@ -48,7 +48,7 @@ func SerializeSpec(spec *v1beta2.HostPreflightSpec) ([]byte, error) {
 	hpf := map[string]interface{}{
 		"apiVersion": "troubleshoot.sh/v1beta2",
 		"kind":       "HostPreflight",
-		"metadata":   map[string]interface{}{"name": "helmvm"},
+		"metadata":   map[string]interface{}{"name": "embedded-cluster"},
 		"spec":       spec,
 	}
 	return yaml.Marshal(hpf)
@@ -96,7 +96,7 @@ func Run(ctx context.Context, host *cluster.Host, spec *v1beta2.HostPreflightSpe
 		return nil, err
 	}
 	defer os.Remove(fpath)
-	if err := uploadFile(host, fpath, "/tmp/helmvm-preflight.yaml", 0600); err != nil {
+	if err := uploadFile(host, fpath, "/tmp/embedded-cluster-preflight.yaml", 0600); err != nil {
 		return nil, err
 	}
 	src := defaults.PathToHelmVMBinary("kubectl-preflight")
@@ -110,7 +110,7 @@ func Run(ctx context.Context, host *cluster.Host, spec *v1beta2.HostPreflightSpe
 // startProgressbar starts a progress bar for the provided host. Returns a function that
 // must be called stop the progress bar. Redirects rig's logger to a log file.
 func startProgressbar(addr string) (func(), error) {
-	fpath := defaults.PathToLog(fmt.Sprintf("helmvm-preflight-%s.log", addr))
+	fpath := defaults.PathToLog(fmt.Sprintf("embedded-cluster-preflight-%s.log", addr))
 	fp, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open log file: %w", err)
@@ -137,7 +137,7 @@ func execute(host *cluster.Host) (*Output, error) {
 	}
 	defer host.Disconnect()
 	arg := "--interactive=false --format=json"
-	cmd := fmt.Sprintf("/tmp/kubectl-preflight %s /tmp/helmvm-preflight.yaml 2>/dev/null", arg)
+	cmd := fmt.Sprintf("/tmp/kubectl-preflight %s /tmp/embedded-cluster-preflight.yaml 2>/dev/null", arg)
 	var err error
 	out := bytes.NewBuffer(nil)
 	opts := []rexec.Option{rexec.Sudo(host), rexec.Writer(out)}

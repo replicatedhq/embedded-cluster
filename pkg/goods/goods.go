@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 //go:embed bins/*
@@ -35,9 +35,9 @@ func Materialize() error {
 			return fmt.Errorf("unable to write file: %w", err)
 		}
 	}
-	entries, err = binfs.ReadDir("bins/helmvm")
+	entries, err = binfs.ReadDir("bins/embedded-cluster")
 	if err != nil {
-		return fmt.Errorf("unable to read helmvm bins dir: %w", err)
+		return fmt.Errorf("unable to read embedded-cluster bins dir: %w", err)
 	}
 	suffix := fmt.Sprintf("-%s-%s", runtime.GOOS, runtime.GOARCH)
 	for _, entry := range entries {
@@ -48,7 +48,7 @@ func Materialize() error {
 				continue
 			}
 		}
-		srcpath := fmt.Sprintf("bins/helmvm/%s", entry.Name())
+		srcpath := fmt.Sprintf("bins/embedded-cluster/%s", entry.Name())
 		srcfile, err := binfs.ReadFile(srcpath)
 		if err != nil {
 			return fmt.Errorf("unable to read asset: %w", err)

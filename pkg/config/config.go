@@ -23,11 +23,11 @@ import (
 	yamlv2 "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/helmvm/pkg/addons"
-	"github.com/replicatedhq/helmvm/pkg/customization"
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/prompts"
-	"github.com/replicatedhq/helmvm/pkg/ssh"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/customization"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/ssh"
 )
 
 // roles holds a list of valid roles.

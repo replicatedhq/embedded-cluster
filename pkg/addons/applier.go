@@ -19,11 +19,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/replicatedhq/helmvm/pkg/addons/adminconsole"
-	"github.com/replicatedhq/helmvm/pkg/addons/custom"
-	"github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator"
-	"github.com/replicatedhq/helmvm/pkg/addons/openebs"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/custom"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 // getLogger creates a logger to be used in an addon.
@@ -126,13 +126,13 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		addons["embeddedclusteroperator"] = embedoperator
 	}
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("helmvm", a.prompt, a.config)
+		aconsole, err := adminconsole.New("embedded-cluster", a.prompt, a.config)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 		}
 		addons["adminconsole"] = aconsole
 	}
-	custom, err := custom.New("helmvm", a.disabledAddons)
+	custom, err := custom.New("embedded-cluster", a.disabledAddons)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create custom addon: %w", err)
 	}

@@ -1,4 +1,4 @@
-module github.com/replicatedhq/helmvm
+module github.com/replicatedhq/embedded-cluster
 
 go 1.21.0
 

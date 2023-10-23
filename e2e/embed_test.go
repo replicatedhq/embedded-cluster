@@ -3,7 +3,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/replicatedhq/helmvm/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
 func AndInstall(t *testing.T) {
@@ -14,7 +14,7 @@ func AndInstall(t *testing.T) {
 		Image:         "ubuntu/jammy",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")

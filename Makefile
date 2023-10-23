@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
-APP_NAME = helmvm
+APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
 ADMIN_CONSOLE_CHART_VERSION = 1.103.2
@@ -15,114 +15,114 @@ KUBECTL_VERSION = v1.28.2
 K0SCTL_VERSION = v0.16.0
 K0S_VERSION = v1.28.2+k0s.0
 TROUBLESHOOT_VERSION = v0.76.1
-LD_FLAGS = -X github.com/replicatedhq/helmvm/pkg/defaults.K0sVersion=$(K0S_VERSION) \
-	-X github.com/replicatedhq/helmvm/pkg/defaults.Version=$(VERSION) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
-	-X github.com/replicatedhq/helmvm/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
+LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
 
-default: helmvm-linux-amd64
+default: embedded-cluster-linux-amd64
 
 pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
 	mkdir -p pkg/goods/bins/k0sctl
 	curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64"
 	chmod +x pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
-pkg/goods/bins/helmvm/kubectl-linux-amd64:
-	mkdir -p pkg/goods/bins/helmvm
-	curl -L -o pkg/goods/bins/helmvm/kubectl-linux-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
-	chmod +x pkg/goods/bins/helmvm/kubectl-linux-amd64
+pkg/goods/bins/embedded-cluster/kubectl-linux-amd64:
+	mkdir -p pkg/goods/bins/embedded-cluster
+	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+	chmod +x pkg/goods/bins/embedded-cluster/kubectl-linux-amd64
 
-pkg/goods/bins/helmvm/kubectl-darwin-amd64:
-	mkdir -p pkg/goods/bins/helmvm
-	curl -L -o pkg/goods/bins/helmvm/kubectl-darwin-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/darwin/amd64/kubectl"
-	chmod +x pkg/goods/bins/helmvm/kubectl-darwin-amd64
+pkg/goods/bins/embedded-cluster/kubectl-darwin-amd64:
+	mkdir -p pkg/goods/bins/embedded-cluster
+	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-darwin-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/darwin/amd64/kubectl"
+	chmod +x pkg/goods/bins/embedded-cluster/kubectl-darwin-amd64
 
-pkg/goods/bins/helmvm/kubectl-darwin-arm64:
-	mkdir -p pkg/goods/bins/helmvm
-	curl -L -o pkg/goods/bins/helmvm/kubectl-darwin-arm64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/darwin/arm64/kubectl"
-	chmod +x pkg/goods/bins/helmvm/kubectl-darwin-arm64
+pkg/goods/bins/embedded-cluster/kubectl-darwin-arm64:
+	mkdir -p pkg/goods/bins/embedded-cluster
+	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-darwin-arm64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/darwin/arm64/kubectl"
+	chmod +x pkg/goods/bins/embedded-cluster/kubectl-darwin-arm64
 
-pkg/goods/bins/helmvm/k0sctl-linux-amd64:
-	mkdir -p pkg/goods/bins/helmvm
-	curl -L -o pkg/goods/bins/helmvm/k0sctl-linux-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-linux-x64"
-	chmod +x pkg/goods/bins/helmvm/k0sctl-linux-amd64
+pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64:
+	mkdir -p pkg/goods/bins/embedded-cluster
+	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-linux-x64"
+	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64
 
-pkg/goods/bins/helmvm/k0sctl-darwin-amd64:
-	mkdir -p pkg/goods/bins/helmvm
-	curl -L -o pkg/goods/bins/helmvm/k0sctl-darwin-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-x64"
-	chmod +x pkg/goods/bins/helmvm/k0sctl-darwin-amd64
+pkg/goods/bins/embedded-cluster/k0sctl-darwin-amd64:
+	mkdir -p pkg/goods/bins/embedded-cluster
+	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-darwin-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-x64"
+	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-darwin-amd64
 
-pkg/goods/bins/helmvm/k0sctl-darwin-arm64:
-	mkdir -p pkg/goods/bins/helmvm
-	curl -L -o pkg/goods/bins/helmvm/k0sctl-darwin-arm64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-arm64"
-	chmod +x pkg/goods/bins/helmvm/k0sctl-darwin-arm64
+pkg/goods/bins/embedded-cluster/k0sctl-darwin-arm64:
+	mkdir -p pkg/goods/bins/embedded-cluster
+	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-darwin-arm64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-arm64"
+	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-darwin-arm64
 
-pkg/goods/bins/helmvm/kubectl-support_bundle-linux-amd64:
-	mkdir -p pkg/goods/bins/helmvm
+pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64:
+	mkdir -p pkg/goods/bins/embedded-cluster
 	mkdir -p output/tmp/support-bundle
 	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
-	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/helmvm/kubectl-support_bundle-linux-amd64
+	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
 
-pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-amd64:
-	mkdir -p pkg/goods/bins/helmvm
+pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-amd64:
+	mkdir -p pkg/goods/bins/embedded-cluster
 	mkdir -p output/tmp/support-bundle
 	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_darwin_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
-	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-amd64
+	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-amd64
 
-pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-arm64:
-	mkdir -p pkg/goods/bins/helmvm
+pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-arm64:
+	mkdir -p pkg/goods/bins/embedded-cluster
 	mkdir -p output/tmp/support-bundle
 	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_darwin_arm64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
-	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-arm64
+	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-arm64
 
-pkg/goods/bins/helmvm/kubectl-preflight:
-	mkdir -p pkg/goods/bins/helmvm
+pkg/goods/bins/embedded-cluster/kubectl-preflight:
+	mkdir -p pkg/goods/bins/embedded-cluster
 	mkdir -p output/tmp/preflight
 	curl -L -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
-	mv output/tmp/preflight/preflight pkg/goods/bins/helmvm/kubectl-preflight
+	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
 
 .PHONY: embed-license
-embed-license: helmvm-linux-amd64
+embed-license: embedded-cluster-linux-amd64
 	mkdir -p output/tmp
 	tar -czvf output/tmp/license.tar.gz license.yaml
 	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle output/tmp/license.tar.gz output/tmp/license.tar.gz.o
-	objcopy --add-section sec_bundle=output/tmp/license.tar.gz.o output/bin/helmvm
+	objcopy --add-section sec_bundle=output/tmp/license.tar.gz.o output/bin/embedded-cluster
 
 .PHONY: static
-static: pkg/goods/bins/helmvm/kubectl-preflight \
+static: pkg/goods/bins/embedded-cluster/kubectl-preflight \
 	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
 .PHONY: static-darwin-arm64
-static-darwin-arm64: pkg/goods/bins/helmvm/kubectl-darwin-arm64 pkg/goods/bins/helmvm/k0sctl-darwin-arm64 pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-arm64
+static-darwin-arm64: pkg/goods/bins/embedded-cluster/kubectl-darwin-arm64 pkg/goods/bins/embedded-cluster/k0sctl-darwin-arm64 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-arm64
 
 .PHONY: static-darwin-amd64
-static-darwin-amd64: pkg/goods/bins/helmvm/kubectl-darwin-amd64 pkg/goods/bins/helmvm/k0sctl-darwin-amd64 pkg/goods/bins/helmvm/kubectl-support_bundle-darwin-amd64
+static-darwin-amd64: pkg/goods/bins/embedded-cluster/kubectl-darwin-amd64 pkg/goods/bins/embedded-cluster/k0sctl-darwin-amd64 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-amd64
 
 .PHONY: static-linux-amd64
-static-linux-amd64: pkg/goods/bins/helmvm/kubectl-linux-amd64 pkg/goods/bins/helmvm/k0sctl-linux-amd64 pkg/goods/bins/helmvm/kubectl-support_bundle-linux-amd64
+static-linux-amd64: pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
 
-.PHONY: helmvm-linux-amd64
-helmvm-linux-amd64: static static-linux-amd64
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/helmvm
+.PHONY: embedded-cluster-linux-amd64
+embedded-cluster-linux-amd64: static static-linux-amd64
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
-.PHONY: helmvm-darwin-amd64
-helmvm-darwin-amd64: static static-darwin-amd64
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/helmvm
+.PHONY: embedded-cluster-darwin-amd64
+embedded-cluster-darwin-amd64: static static-darwin-amd64
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
-.PHONY: helmvm-darwin-arm64
-helmvm-darwin-arm64: static static-darwin-arm64
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/helmvm
+.PHONY: embedded-cluster-darwin-arm64
+embedded-cluster-darwin-arm64: static static-darwin-arm64
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 .PHONY: unit-tests
 unit-tests:
@@ -133,14 +133,14 @@ vet: static-linux-amd64 static
 	go vet ./...
 
 .PHONY: e2e-tests
-e2e-tests: helmvm-linux-amd64
+e2e-tests: embedded-cluster-linux-amd64
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
 	go test -timeout 45m -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
-e2e-test: helmvm-linux-amd64
+e2e-test: embedded-cluster-linux-amd64
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa

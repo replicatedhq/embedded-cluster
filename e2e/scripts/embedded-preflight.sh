@@ -119,9 +119,9 @@ embed_preflight() {
     echo "$content" > /root/preflight.yaml
     tar -czvf /root/preflight.tar.gz /root/preflight.yaml
     objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle /root/preflight.tar.gz /root/preflight.o
-    rm -rf /usr/local/bin/helmvm
-    cp -Rfp /usr/local/bin/helmvm-copy /usr/local/bin/helmvm
-    objcopy --add-section sec_bundle=/root/preflight.o /usr/local/bin/helmvm
+    rm -rf /usr/local/bin/embedded-cluster
+    cp -Rfp /usr/local/bin/embedded-cluster-copy /usr/local/bin/embedded-cluster
+    objcopy --add-section sec_bundle=/root/preflight.o /usr/local/bin/embedded-cluster
 }
 
 has_applied_host_preflight() {
@@ -150,9 +150,9 @@ wait_for_healthy_node() {
 }
 
 main() {
-    cp -Rfp /usr/local/bin/helmvm /usr/local/bin/helmvm-copy
+    cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"
-    if helmvm install --no-prompt 2>&1 | tee /tmp/log ; then
+    if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /tmp/log
         echo "Expected installation to fail"
         exit 1
@@ -164,13 +164,13 @@ main() {
     fi
     mv /tmp/log /tmp/log-failure
     embed_preflight "$preflight_with_warning"
-    if ! helmvm install --no-prompt 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
-        echo "Failed to install helmvm"
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to install helmvm"
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
     if ! has_applied_host_preflight; then
@@ -179,12 +179,12 @@ main() {
         exit 1
     fi
     if ! wait_for_healthy_node; then
-        echo "Failed to install helmvm"
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
 }
 
 export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/root/.config/.helmvm/etc/kubeconfig
-export PATH=$PATH:/root/.config/.helmvm/bin
+export KUBECONFIG=/root/.config/.embedded-cluster/etc/kubeconfig
+export PATH=$PATH:/root/.config/.embedded-cluster/bin
 main

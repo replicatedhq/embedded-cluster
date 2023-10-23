@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/urfave/cli/v2"
 )
 

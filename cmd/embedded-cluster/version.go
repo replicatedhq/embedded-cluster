@@ -7,8 +7,8 @@ import (
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/helmvm/pkg/addons"
-	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 var versionCommand = &cli.Command{

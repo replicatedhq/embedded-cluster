@@ -3,7 +3,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/replicatedhq/helmvm/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -14,7 +14,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		Image:         "ubuntu/jammy",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
@@ -25,10 +25,10 @@ func TestSingleNodeInstallation(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing helmvm on node 0")
+	t.Log("installing embedded-cluster on node 0")
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 }
 
@@ -40,7 +40,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		Image:         "rockylinux/8",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
@@ -52,10 +52,10 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing helmvm on node 0")
+	t.Log("installing embedded-cluster on node 0")
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 }
 
@@ -67,7 +67,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		Image:         "debian/12",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
@@ -78,10 +78,10 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node 0: %v", err)
 	}
-	t.Log("installing helmvm on node 0")
+	t.Log("installing embedded-cluster on node 0")
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("creating deployment mounting pvc")
 }
@@ -94,7 +94,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		Image:         "centos/8-Stream",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
@@ -106,10 +106,10 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing helmvm on node 0")
+	t.Log("installing embedded-cluster on node 0")
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 }
 
@@ -122,7 +122,7 @@ func TestMultiNodeInteractiveInstallation(t *testing.T) {
 		Image:         "ubuntu/jammy",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	for i := range tc.Nodes {
@@ -143,7 +143,7 @@ func TestMultiNodeInteractiveInstallation(t *testing.T) {
 	t.Log("running multi node interactive install from node 0")
 	line = []string{"interactive-multi-node-install.exp"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install helmvm from node 0: %v", err)
+		t.Fatalf("fail to install embedded-cluster from node 0: %v", err)
 	}
 	t.Log("waiting for cluster nodes to report ready")
 	line = []string{"wait-for-ready-nodes.sh", "3"}
@@ -160,7 +160,7 @@ func TestInstallWithDisabledAddons(t *testing.T) {
 		Image:         "ubuntu/jammy",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")
@@ -186,7 +186,7 @@ func TestHostPreflight(t *testing.T) {
 		Image:         "centos/8-Stream",
 		SSHPublicKey:  "../output/tmp/id_rsa.pub",
 		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/helmvm",
+		HelmVMPath:    "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh and binutils on node 0")
@@ -198,9 +198,9 @@ func TestHostPreflight(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing helmvm on node 0")
+	t.Log("installing embedded-cluster on node 0")
 	line := []string{"embedded-preflight.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install helmvm on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 }

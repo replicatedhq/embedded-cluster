@@ -45,17 +45,17 @@ pull_helm_chart() {
 
 embed_helm_chart() {
     fpath=$(ls -d chart/*)
-    if ! helmvm embed --chart "$fpath" --output helmvm; then
+    if ! embedded-cluster embed --chart "$fpath" --output embedded-cluster; then
         return 1
     fi
-    mv helmvm /usr/local/bin
+    mv embedded-cluster /usr/local/bin
     return 0
 }
 
-check_empty_helmvm_namespace() {
-    pods=$(kubectl get pods -n helmvm | wc -l)
+check_empty_embedded_cluster_namespace() {
+    pods=$(kubectl get pods -n embedded-cluster --no-headers | grep -v 'embedded-cluster-operator' | wc -l)
     if [ "$pods" -gt 0 ]; then
-        kubectl get pods -n helmvm
+        kubectl get pods -n embedded-cluster
         return 1
     fi
 }
@@ -73,8 +73,8 @@ main() {
         echo "Failed to embed helm chart"
         exit 1
     fi
-    if ! helmvm install --disable-addon openebs --disable-addon adminconsole --disable-addon memcached --no-prompt  2>&1 | tee /tmp/log ; then
-        echo "Failed to install helmvm"
+    if ! embedded-cluster install --disable-addon openebs --disable-addon adminconsole --disable-addon memcached --no-prompt  2>&1 | tee /tmp/log ; then
+        echo "Failed to install embedded-cluster"
         exit 1
     fi
     echo "waiting for nodes" >> /tmp/log
@@ -82,14 +82,14 @@ main() {
         echo "Nodes not reporting healthy"
         exit 1
     fi
-    echo "check nothing exists on helmvm namespace " >> /tmp/log
-    if ! check_empty_helmvm_namespace; then
-        echo "Pods found on helmvm namespace"
+    echo "check nothing (besides the operator) exists on embedded-cluster namespace " >> /tmp/log
+    if ! check_empty_embedded_cluster_namespace; then
+        echo "Pods found on embedded-cluster namespace"
         exit 1
     fi
 }
 
 export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/root/.config/.helmvm/etc/kubeconfig
-export PATH=$PATH:/root/.config/.helmvm/bin
+export KUBECONFIG=/root/.config/.embedded-cluster/etc/kubeconfig
+export PATH=$PATH:/root/.config/.embedded-cluster/bin
 main

@@ -13,7 +13,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/google/uuid"
 
-	"github.com/replicatedhq/helmvm/e2e/scripts"
+	"github.com/replicatedhq/embedded-cluster/e2e/scripts"
 )
 
 var networkaddr chan string
@@ -169,7 +169,7 @@ func NewTestCluster(in *Input) *Output {
 }
 
 // CopyFilesToNode copies the files needed for the cluster to the node. Copies
-// the provided ssh key, the helmvm binary and also all scripts from the
+// the provided ssh key, the embedded-cluster binary and also all scripts from the
 // scripts directory (they are all placed under /usr/local/bin inside the node).
 func CopyFilesToNode(in *Input, node string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
@@ -193,7 +193,7 @@ func CopyFilesToNode(in *Input, node string) {
 		},
 		{
 			SourcePath: in.HelmVMPath,
-			DestPath:   "/usr/local/bin/helmvm",
+			DestPath:   "/usr/local/bin/embedded-cluster",
 			Mode:       0755,
 		},
 	}

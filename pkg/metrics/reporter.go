@@ -10,8 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/helmvm/pkg/customization"
-	"github.com/replicatedhq/helmvm/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/customization"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 // isUpgrade holds globally if we are upgrading a cluster or installing a new one.

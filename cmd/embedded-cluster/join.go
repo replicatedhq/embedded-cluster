@@ -17,10 +17,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/goods"
-	"github.com/replicatedhq/helmvm/pkg/metrics"
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join

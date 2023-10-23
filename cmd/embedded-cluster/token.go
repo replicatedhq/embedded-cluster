@@ -15,9 +15,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/helmvm/pkg/defaults"
-	"github.com/replicatedhq/helmvm/pkg/metrics"
-	"github.com/replicatedhq/helmvm/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 var tokenCommands = &cli.Command{

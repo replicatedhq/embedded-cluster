@@ -14,7 +14,7 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/helmvm/pkg/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 )
 
 // ParsedSection holds the parsed section from the binary. We only care about the
@@ -28,7 +28,7 @@ type ParsedSection struct {
 
 // AdminConsole is a struct that contains the actions to create and update the admin
 // console customization found inside the binary. This is necessary for backwards
-// compatibility with older versions of helmvm.
+// compatibility with older versions of embedded-cluster.
 type AdminConsole struct{}
 
 // ExtractCustomization will extract the customization from the binary if it exists.

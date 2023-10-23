@@ -9,7 +9,7 @@ import (
 	"github.com/k0sproject/rig/log"
 	"github.com/sirupsen/logrus"
 
-	pb "github.com/replicatedhq/helmvm/pkg/progressbar"
+	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 // hostcfg is a helper struct for collecting a node's configuration.

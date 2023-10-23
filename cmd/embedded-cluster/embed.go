@@ -10,7 +10,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/helmvm/pkg/hembed"
+	"github.com/replicatedhq/embedded-cluster/pkg/hembed"
 )
 
 // addChartToOptions reads the helm chart pointed by path and adds it to the provided

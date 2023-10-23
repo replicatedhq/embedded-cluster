@@ -1,5 +1,5 @@
 // Package hembed manages the helm chart embedding mechanism. It is used when the user
-// wants to embed a custom helm chart into the helmvm binary. Writes the chart and adds
+// wants to embed a custom helm chart into the embedded-cluster binary. Writes the chart and adds
 // a mark to the end of the file. The mark is on the format HELMVMCHARTS0000000000 where
 // the number is the length of the embedded data.
 package hembed
@@ -60,7 +60,7 @@ func (c *HelmChart) ChartReader() io.Reader {
 	return base64.NewDecoder(base64.StdEncoding, strings.NewReader(c.Content))
 }
 
-// EmbedOptions are the options for embedding helmcharts into helmvm.
+// EmbedOptions are the options for embedding helmcharts into embedded-cluster.
 type EmbedOptions struct {
 	OS     string
 	Arch   string
@@ -148,7 +148,7 @@ func ReadEmbedOptionsFromBinary(fpath string) (*EmbedOptions, error) {
 	return opts, nil
 }
 
-// Embed embeds helmcharts into the helmvm binary.
+// Embed embeds helmcharts into the embedded-cluster binary.
 func Embed(ctx context.Context, fpath string, opts EmbedOptions) (*Binary, error) {
 	request := bytes.NewBuffer(nil)
 	gwriter := gzip.NewWriter(request)
