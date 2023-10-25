@@ -1065,8 +1065,8 @@ github.com/replicatedhq/helmvm-operator v0.0.11 h1:kT+pxnI68R6gqE/u3td3sDKu4fTpT
 github.com/replicatedhq/helmvm-operator v0.0.11/go.mod h1:0eaDjJ3/Josc8KSjoyCMV5DWQk+gTmYCSDrj0FOih+4=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
-github.com/replicatedhq/troubleshoot v0.76.1 h1:5ZUb2fjlvIAWFea9OsaBj/bfnePStKnvTecj//QiSRs=
-github.com/replicatedhq/troubleshoot v0.76.1/go.mod h1:jGg+AlY7bRRDoEFMpk6uJ8JwR1BXeYVW9YGQscP9d2E=
+github.com/replicatedhq/troubleshoot v0.76.2 h1:dHglks4l4qv97jfJp/T4cx4u+3hP1LCmOLv5W6O+T5A=
+github.com/replicatedhq/troubleshoot v0.76.2/go.mod h1:jGg+AlY7bRRDoEFMpk6uJ8JwR1BXeYVW9YGQscP9d2E=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.4 h1:8TfxU8dW6PdqD27gjM8MVNuicgxIjxpm4K7x4jp8sis=
 github.com/rivo/uniseg v0.4.4/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
