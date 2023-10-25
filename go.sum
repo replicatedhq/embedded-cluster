@@ -1061,8 +1061,8 @@ github.com/quasilyte/go-consistent v0.0.0-20190521200055-c6f3937de18c/go.mod h1:
 github.com/quasilyte/go-ruleguard v0.2.0/go.mod h1:2RT/tf0Ce0UDj5y243iWKosQogJd8+1G3Rs2fxmlYnw=
 github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95/go.mod h1:rlzQ04UMyJXu/aOvhd8qT+hvDrFpiwqp8MRXDY9szc0=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
-github.com/replicatedhq/helmvm-operator v0.0.10 h1:XeAXkWkeZ3vWhVa00cbufBTQWMrv8DOd5yi7Ztgio+g=
-github.com/replicatedhq/helmvm-operator v0.0.10/go.mod h1:0eaDjJ3/Josc8KSjoyCMV5DWQk+gTmYCSDrj0FOih+4=
+github.com/replicatedhq/helmvm-operator v0.0.11 h1:kT+pxnI68R6gqE/u3td3sDKu4fTpTRIOLHTh003qhb0=
+github.com/replicatedhq/helmvm-operator v0.0.11/go.mod h1:0eaDjJ3/Josc8KSjoyCMV5DWQk+gTmYCSDrj0FOih+4=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
 github.com/replicatedhq/troubleshoot v0.76.1 h1:5ZUb2fjlvIAWFea9OsaBj/bfnePStKnvTecj//QiSRs=
