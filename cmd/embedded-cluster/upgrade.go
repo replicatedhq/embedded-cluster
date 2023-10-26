@@ -18,7 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
-func stopHelmVM() error {
+func stopEmbeddedCluster() error {
 	cmd := exec.Command("k0s", "stop")
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
@@ -121,7 +121,7 @@ var upgradeCommand = &cli.Command{
 			return err
 		}
 		logrus.Infof("Stopping %s", defaults.BinaryName())
-		if err := stopHelmVM(); err != nil {
+		if err := stopEmbeddedCluster(); err != nil {
 			err := fmt.Errorf("unable to stop: %w", err)
 			metrics.ReportNodeUpgradeFailed(c.Context, err)
 			return err

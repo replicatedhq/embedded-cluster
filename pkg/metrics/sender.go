@@ -15,8 +15,8 @@ import (
 
 // BaseURL determines the base url to be used when sending metrics over.
 func BaseURL() string {
-	if os.Getenv("HELMVM_METRICS_BASEURL") != "" {
-		return os.Getenv("HELMVM_METRICS_BASEURL")
+	if os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL") != "" {
+		return os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL")
 	}
 	license, _ := customization.AdminConsole{}.License()
 	if license == nil || license.Spec.Endpoint == "" {
@@ -27,7 +27,7 @@ func BaseURL() string {
 
 // Send is a helper function that sends an event to the metrics endpoint.
 // Metrics endpoint can be overwritten by the license.spec.endpoint field
-// or by the HELMVM_METRICS_BASEURL environment variable, the latter has
+// or by the EMBEDDED_CLUSTER_METRICS_BASEURL environment variable, the latter has
 // precedence over the former.
 func Send(ctx context.Context, ev Event) {
 	sender := Sender{BaseURL()}

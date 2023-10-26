@@ -43,14 +43,14 @@ func init() {
 // Input are the options passed in to the cluster creation plus some data
 // for internal consumption only.
 type Input struct {
-	Nodes         int
-	SSHPublicKey  string
-	SSHPrivateKey string
-	HelmVMPath    string
-	Image         string
-	network       string
-	T             *testing.T
-	id            string
+	Nodes               int
+	SSHPublicKey        string
+	SSHPrivateKey       string
+	EmbeddedClusterPath string
+	Image               string
+	network             string
+	T                   *testing.T
+	id                  string
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -192,7 +192,7 @@ func CopyFilesToNode(in *Input, node string) {
 			Mode:       0600,
 		},
 		{
-			SourcePath: in.HelmVMPath,
+			SourcePath: in.EmbeddedClusterPath,
 			DestPath:   "/usr/local/bin/embedded-cluster",
 			Mode:       0755,
 		},
@@ -407,7 +407,7 @@ func CreateProfile(in *Input) {
 	request := api.ProfilesPost{
 		Name: fmt.Sprintf("profile-%s", in.id),
 		ProfilePut: api.ProfilePut{
-			Description: fmt.Sprintf("HelmVM test cluster (%s)", in.id),
+			Description: fmt.Sprintf("Embedded Cluster test cluster (%s)", in.id),
 			Config: map[string]string{
 				"raw.lxc": profileConfig,
 			},

@@ -27,7 +27,7 @@ func TestInit(t *testing.T) {
 	def := NewProvider(tmpdir)
 	assert.DirExists(t, def.K0sctlBinsSubDir(), "k0s binary dir should exist")
 	assert.DirExists(t, def.ConfigSubDir(), "config dir should exist")
-	assert.DirExists(t, def.HelmVMBinsSubDir(), "embedded-cluster binary dir should exist")
+	assert.DirExists(t, def.EmbeddedClusterBinsSubDir(), "embedded-cluster binary dir should exist")
 }
 
 func TestDecentralizedInstall(t *testing.T) {
@@ -76,8 +76,8 @@ func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
 	def := NewProvider(tmpdir)
 	for _, fn := range []func() string{
 		def.K0sctlBinsSubDir,
-		def.HelmVMBinsSubDir,
-		def.HelmVMLogsSubDir,
+		def.EmbeddedClusterBinsSubDir,
+		def.EmbeddedClusterLogsSubDir,
 		def.K0sctlApplyLogPath,
 		def.SSHKeyPath,
 		def.SSHAuthorizedKeysPath,

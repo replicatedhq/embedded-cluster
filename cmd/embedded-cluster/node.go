@@ -32,7 +32,7 @@ var nodeStopCommand = &cli.Command{
 		}
 		kcfg := defaults.PathToConfig("kubeconfig")
 		os.Setenv("KUBECONFIG", kcfg)
-		bin := defaults.PathToHelmVMBinary("kubectl")
+		bin := defaults.PathToEmbeddedClusterBinary("kubectl")
 		cmd := exec.Command(bin, "drain", "--ignore-daemonsets", node)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -51,7 +51,7 @@ var nodeStartCommand = &cli.Command{
 		}
 		kcfg := defaults.PathToConfig("kubeconfig")
 		os.Setenv("KUBECONFIG", kcfg)
-		bin := defaults.PathToHelmVMBinary("kubectl")
+		bin := defaults.PathToEmbeddedClusterBinary("kubectl")
 		cmd := exec.Command(bin, "uncordon", node)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -66,7 +66,7 @@ var nodeListCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		kcfg := defaults.PathToConfig("kubeconfig")
 		os.Setenv("KUBECONFIG", kcfg)
-		bin := defaults.PathToHelmVMBinary("kubectl")
+		bin := defaults.PathToEmbeddedClusterBinary("kubectl")
 		cmd := exec.Command(bin, "get", "nodes", "-o", "wide")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

@@ -1,8 +1,11 @@
-# HelmVM platform
+# Embedded Cluster platform
 
-This repository houses a cluster installation prototype that utilizes the k0s and k0sctl platforms. It showcases an alternative approach to deploying clusters and serves as a starting point for further exploration and advancement. In HelmVM, all components and functionalities are consolidated into a single binary, this binary facilitates a streamlined cluster installation process, removing the need for external dependencies (rpms, debs, etc). Remote hosts are managed using SSH.
+This repository houses a cluster installation prototype that utilizes the k0s and k0sctl platforms.
+It showcases an alternative approach to deploying clusters and serves as a starting point for further exploration and advancement.
+In Embedded Cluster, all components and functionalities are consolidated into a single binary, this binary facilitates a streamlined cluster installation process, removing the need for external dependencies (rpms, debs, etc).
+Remote hosts are managed using SSH.
 
-HelmVM includes by default the Kots Admin Console and the OpenEBS Storage provisioner, you can very easily embed your own Helm Chart to the binary.
+Embedded Cluster includes by default the Kots Admin Console and the OpenEBS Storage provisioner, you can very easily embed your own Helm Chart to the binary.
 
 ## Building and running
 
@@ -17,7 +20,7 @@ You can also build binaries for other architectures with the following targets: 
 
 ## Single node deployment
 
-To create a single node deployment you can upload the HelmVM binary to a Linux x86_64 machine and run:
+To create a single node deployment you can upload the Embedded Cluster binary to a Linux x86_64 machine and run:
 
 ```
 $ ./embedded-cluster install
@@ -35,7 +38,7 @@ In this case, it's not necessary to execute this command exclusively on a Linux 
 
 ## Deploying Individual Nodes
 
-HelmVM also facilitates deploying individual nodes through the use of tokens, deviating from the centralized approach.
+Embedded Cluster also facilitates deploying individual nodes through the use of tokens, deviating from the centralized approach.
 To follow this path, you need to exclude yourself from the centralized management facilitated via SSH.
 
 ### Installing a Multi-Node Setup using Token-Based Deployment
@@ -73,18 +76,18 @@ Copy the command provided and run it on the server you wish to join to the clust
 server-1# embedded-cluster node join --role "controller" "<token redacted>"
 ```
 
-For this to function, you must ensure that the HelmVM binary is present on all nodes within the cluster.
+For this to function, you must ensure that the Embedded Cluster binary is present on all nodes within the cluster.
 
 
 ### Upgrading clusters
 
-If your installation employs centralized management, simply download the newer version of HelmVM and execute:
+If your installation employs centralized management, simply download the newer version of Embedded Cluster and execute:
 
 ```
 $ embedded-cluster apply
 ```
 
-For installations without centralized management, download HelmVM, upload it to each server in your cluster, and execute the following command as **root** on each server:
+For installations without centralized management, download Embedded Cluster, upload it to each server in your cluster, and execute the following command as **root** on each server:
 
 ```
 # embedded-cluster node upgrade
@@ -116,14 +119,14 @@ ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$
 
 ## Embedding your own Helm Chart
 
-HelmVM allows you to embed your own Helm Charts so they are installed by default when the cluster is installed or updated. For sake of documenting this let's create a hypothetical scenario: you have a software called `rocks` that is packaged as a Helm Chart and is ready to be installed in any Kubernetes Cluster.
+Embedded Cluster allows you to embed your own Helm Charts so they are installed by default when the cluster is installed or updated. For sake of documenting this let's create a hypothetical scenario: you have a software called `rocks` that is packaged as a Helm Chart and is ready to be installed in any Kubernetes Cluster.
 
-Your Helm Chart is in a file called `rocks-1.0.0.tgz` and you already have a copy of HelmVM binary in your $PATH. To embed your Chart you can run:
+Your Helm Chart is in a file called `rocks-1.0.0.tgz` and you already have a copy of mbedded Cluster binary in your $PATH. To embed your Chart you can run:
 
 ```
 $ embedded-cluster embed --chart rocks-1.0.0.tgz --output rocks
 ```
-This command will create a binary called `rocks` in the current directory, this command is a copy of HelmVM binary with your Helm Chart embedded into it. You can then use the `rocks` binary to install a cluster that automatically deploys your `rocks-1.0.0.tgz` Helm Chart.
+This command will create a binary called `rocks` in the current directory, this command is a copy of mbedded Cluster binary with your Helm Chart embedded into it. You can then use the `rocks` binary to install a cluster that automatically deploys your `rocks-1.0.0.tgz` Helm Chart.
 
 If you want to provide a customised `values.yaml` during the Helm Chart installation you can also embed it into the binary. You can do that with the following command:
 
@@ -148,7 +151,7 @@ $ embedded-cluster embed \
 
 ## Miscellaneous
 
-HelmVM stores its data under `$HOME/.embedded-cluster` directory, you may want to create a backup of the directory, specially the `$HOME/.embedded-cluster/etc` directory.  Inside the `$HOME/.embedded-cluster/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/.embedded-cluster/bin` directory and you may want to include it into your PATH).
+mbedded Cluster stores its data under `$HOME/.embedded-cluster` directory, you may want to create a backup of the directory, specially the `$HOME/.embedded-cluster/etc` directory.  Inside the `$HOME/.embedded-cluster/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/.embedded-cluster/bin` directory and you may want to include it into your PATH).
 
 If you want to use an already existing `k0sctl.yaml` configuration during the `install` command you can do so by using the `--config` flag.
 

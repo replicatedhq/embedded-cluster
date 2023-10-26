@@ -1,6 +1,6 @@
 // Package prompts provides tooling around asking users for questions. This
 // package chooses between "decorative" or "plain" prompts based on the
-// environment variable HELMVM_PLAIN_PROMPTS. See 'decorative' and 'plain'
+// environment variable EMBEDDED_CLUSTER_PLAIN_PROMPTS. See 'decorative' and 'plain'
 // packages for more information.
 package prompts
 
@@ -22,7 +22,7 @@ type Prompt interface {
 
 // New returns a new Prompt.
 func New() Prompt {
-	if os.Getenv("HELMVM_PLAIN_PROMPTS") == "true" {
+	if os.Getenv("EMBEDDED_CLUSTER_PLAIN_PROMPTS") == "true" {
 		return plain.Plain{}
 	}
 	return decorative.Decorative{}
