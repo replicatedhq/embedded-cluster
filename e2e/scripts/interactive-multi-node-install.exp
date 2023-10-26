@@ -9,8 +9,8 @@ proc configure_node {address} {
         expect "Type one of the options above:" { send "/root/.ssh/id_rsa\r" }
 }
 
-set env(HELMVM_METRICS_BASEURL) "https://staging.replicated.app"
-set env(HELMVM_PLAIN_PROMPTS) "true"
+set env(EMBEDDED_CLUSTER_METRICS_BASEURL) "https://staging.replicated.app"
+set env(EMBEDDED_CLUSTER_PLAIN_PROMPTS) "true"
 spawn embedded-cluster install --multi-node
 configure_node "10.0.0.2"
 expect -re "Add another node?.*:" { send "y\r" }

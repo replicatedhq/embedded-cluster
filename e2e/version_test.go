@@ -11,12 +11,12 @@ import (
 func TestVersion(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         1,
-		Image:         "ubuntu/jammy",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               1,
+		Image:               "ubuntu/jammy",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("validating embedded-cluster version in node 0")

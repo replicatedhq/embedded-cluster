@@ -72,7 +72,7 @@ var shellCommand = &cli.Command{
 		config := fmt.Sprintf("export KUBECONFIG=%q\n", kcpath)
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
-		bindir := defaults.HelmVMBinsSubDir()
+		bindir := defaults.EmbeddedClusterBinsSubDir()
 		config = fmt.Sprintf("export PATH=\"$PATH:%s\"\n", bindir)
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))

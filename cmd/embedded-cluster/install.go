@@ -301,7 +301,7 @@ func runK0sctlApply(ctx context.Context) error {
 		message = fmt.Sprintf("Phase: %s", message)
 		return message
 	}
-	bin := defaults.PathToHelmVMBinary("k0sctl")
+	bin := defaults.PathToEmbeddedClusterBinary("k0sctl")
 	loading := pb.Start(pb.WithMask(mask))
 	defer func() {
 		loading.Closef("Finished applying cluster configuration")
@@ -317,7 +317,7 @@ func runK0sctlApply(ctx context.Context) error {
 // under a file called "kubeconfig" inside defaults.ConfigSubDir(). XXX File
 // is overwritten, no questions asked.
 func runK0sctlKubeconfig(ctx context.Context) error {
-	bin := defaults.PathToHelmVMBinary("k0sctl")
+	bin := defaults.PathToEmbeddedClusterBinary("k0sctl")
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	if _, err := os.Stat(cfgpath); err != nil {
 		return fmt.Errorf("cluster configuration not found")

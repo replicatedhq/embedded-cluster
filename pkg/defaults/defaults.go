@@ -4,7 +4,7 @@
 package defaults
 
 var (
-	// Version holds the HelmVM version.
+	// Version holds the EmbeddedCluster version.
 	Version = "v0.0.0"
 	// K0sVersion holds the version of k0s binary we are embedding. this is
 	// set at compile time via ldflags.
@@ -32,14 +32,14 @@ func K0sctlBinsSubDir() string {
 	return def().K0sctlBinsSubDir()
 }
 
-// HelmVMBinsSubDir calls HelmVMBinsSubDir on the default provider.
-func HelmVMBinsSubDir() string {
-	return def().HelmVMBinsSubDir()
+// EmbeddedClusterBinsSubDir calls EmbeddedClusterBinsSubDir on the default provider.
+func EmbeddedClusterBinsSubDir() string {
+	return def().EmbeddedClusterBinsSubDir()
 }
 
-// HelmVMLogsSubDir calls HelmVMLogsSubDir on the default provider.
-func HelmVMLogsSubDir() string {
-	return def().HelmVMLogsSubDir()
+// EmbeddedClusterLogsSubDir calls EmbeddedClusterLogsSubDir on the default provider.
+func EmbeddedClusterLogsSubDir() string {
+	return def().EmbeddedClusterLogsSubDir()
 }
 
 // K0sctlApplyLogPath calls K0sctlApplyLogPath on the default provider.
@@ -72,9 +72,9 @@ func PathToK0sctlBinary(name string) string {
 	return def().PathToK0sctlBinary(name)
 }
 
-// PathToHelmVMBinary calls PathToHelmVMBinary on the default provider.
-func PathToHelmVMBinary(name string) string {
-	return def().PathToHelmVMBinary(name)
+// PathToEmbeddedClusterBinary calls PathToEmbeddedClusterBinary on the default provider.
+func PathToEmbeddedClusterBinary(name string) string {
+	return def().PathToEmbeddedClusterBinary(name)
 }
 
 // PathToLog calls PathToLog on the default provider.

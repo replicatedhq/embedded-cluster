@@ -9,12 +9,12 @@ import (
 func TestSingleNodeInstallation(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         1,
-		Image:         "ubuntu/jammy",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               1,
+		Image:               "ubuntu/jammy",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
@@ -35,12 +35,12 @@ func TestSingleNodeInstallation(t *testing.T) {
 func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         1,
-		Image:         "rockylinux/8",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               1,
+		Image:               "rockylinux/8",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
@@ -62,12 +62,12 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 func TestSingleNodeInstallationDebian12(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         1,
-		Image:         "debian/12",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               1,
+		Image:               "debian/12",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
@@ -89,12 +89,12 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         1,
-		Image:         "centos/8-Stream",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               1,
+		Image:               "centos/8-Stream",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh on node 0")
@@ -117,12 +117,12 @@ func TestMultiNodeInteractiveInstallation(t *testing.T) {
 	t.Parallel()
 	t.Log("creating cluster")
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         3,
-		Image:         "ubuntu/jammy",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               3,
+		Image:               "ubuntu/jammy",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	for i := range tc.Nodes {
@@ -155,12 +155,12 @@ func TestMultiNodeInteractiveInstallation(t *testing.T) {
 func TestInstallWithDisabledAddons(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         1,
-		Image:         "ubuntu/jammy",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               1,
+		Image:               "ubuntu/jammy",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh in node 0")
@@ -181,12 +181,12 @@ func TestInstallWithDisabledAddons(t *testing.T) {
 func TestHostPreflight(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:             t,
-		Nodes:         1,
-		Image:         "centos/8-Stream",
-		SSHPublicKey:  "../output/tmp/id_rsa.pub",
-		SSHPrivateKey: "../output/tmp/id_rsa",
-		HelmVMPath:    "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               1,
+		Image:               "centos/8-Stream",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Log("installing ssh and binutils on node 0")

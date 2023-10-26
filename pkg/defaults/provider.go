@@ -30,7 +30,7 @@ func NewProvider(base string) *Provider {
 }
 
 // Provider is an entity that provides default values used during
-// HelmVM installation.
+// EmbeddedCluster installation.
 type Provider struct {
 	Base string
 }
@@ -43,10 +43,10 @@ func (d *Provider) Init() {
 	if err := os.MkdirAll(d.ConfigSubDir(), 0755); err != nil {
 		logrus.Fatalf("unable to create config dir: %s", err)
 	}
-	if err := os.MkdirAll(d.HelmVMBinsSubDir(), 0755); err != nil {
+	if err := os.MkdirAll(d.EmbeddedClusterBinsSubDir(), 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
 	}
-	if err := os.MkdirAll(d.HelmVMLogsSubDir(), 0755); err != nil {
+	if err := os.MkdirAll(d.EmbeddedClusterLogsSubDir(), 0755); err != nil {
 		panic(fmt.Errorf("unable to create embedded-cluster logs dir: %w", err))
 	}
 	if err := os.MkdirAll(d.SSHConfigSubDir(), 0700); err != nil {
@@ -119,9 +119,9 @@ func (d *Provider) BinaryName() string {
 	return slug.Make(base)
 }
 
-// HelmVMLogsSubDir returns the path to the directory where embedded-cluster logs are
+// EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs are
 // stored. This is a subdirectory of the user's home directory.
-func (d *Provider) HelmVMLogsSubDir() string {
+func (d *Provider) EmbeddedClusterLogsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
 	return filepath.Join(d.Base, d.state(), hidden, "logs")
 }
@@ -129,7 +129,7 @@ func (d *Provider) HelmVMLogsSubDir() string {
 // PathToLog returns the full path to a log file. This function does not check
 // if the file exists.
 func (d *Provider) PathToLog(name string) string {
-	return filepath.Join(d.HelmVMLogsSubDir(), name)
+	return filepath.Join(d.EmbeddedClusterLogsSubDir(), name)
 }
 
 // K0sctlBinsSubDir returns the path to the directory where k0sctl binaries
@@ -148,9 +148,9 @@ func (d *Provider) HelmChartSubDir() string {
 	return filepath.Join(d.Base, d.home(), hidden, "charts")
 }
 
-// HelmVMBinsSubDir returns the path to the directory where embedded-cluster binaries
+// EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored. This is a subdirectory of the user's home directory.
-func (d *Provider) HelmVMBinsSubDir() string {
+func (d *Provider) EmbeddedClusterBinsSubDir() string {
 	hidden := fmt.Sprintf(".%s", d.BinaryName())
 	return filepath.Join(d.Base, d.config(), hidden, "bin")
 }
@@ -196,11 +196,11 @@ func (d *Provider) PathToK0sctlBinary(name string) string {
 	return filepath.Join(d.K0sctlBinsSubDir(), name)
 }
 
-// PathToHelmVMBinary is an utility function that returns the full path to a
+// PathToEmbeddedClusterBinary is an utility function that returns the full path to a
 // materialized binary that belongs to embedded-cluster (do not confuse with binaries
 // belonging to k0sctl). This function does not check if the file exists.
-func (d *Provider) PathToHelmVMBinary(name string) string {
-	return filepath.Join(d.HelmVMBinsSubDir(), name)
+func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
+	return filepath.Join(d.EmbeddedClusterBinsSubDir(), name)
 }
 
 // PathToHelmChart returns the path to a materialized helm chart.

@@ -54,7 +54,7 @@ func Materialize() error {
 			return fmt.Errorf("unable to read asset: %w", err)
 		}
 		fname := strings.TrimSuffix(entry.Name(), suffix)
-		dstpath := fmt.Sprintf("%s/%s", defaults.HelmVMBinsSubDir(), fname)
+		dstpath := fmt.Sprintf("%s/%s", defaults.EmbeddedClusterBinsSubDir(), fname)
 		if err := os.WriteFile(dstpath, srcfile, 0755); err != nil {
 			return fmt.Errorf("unable to write file: %w", err)
 		}

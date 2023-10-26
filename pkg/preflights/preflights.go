@@ -70,7 +70,7 @@ func RunLocal(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, er
 		return nil, fmt.Errorf("unable to save preflight locally: %w", err)
 	}
 	defer os.Remove(fpath)
-	binpath := defaults.PathToHelmVMBinary("kubectl-preflight")
+	binpath := defaults.PathToEmbeddedClusterBinary("kubectl-preflight")
 	stdout := bytes.NewBuffer(nil)
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
 	cmd.Stdout, cmd.Stderr = stdout, io.Discard
@@ -99,7 +99,7 @@ func Run(ctx context.Context, host *cluster.Host, spec *v1beta2.HostPreflightSpe
 	if err := uploadFile(host, fpath, "/tmp/embedded-cluster-preflight.yaml", 0600); err != nil {
 		return nil, err
 	}
-	src := defaults.PathToHelmVMBinary("kubectl-preflight")
+	src := defaults.PathToEmbeddedClusterBinary("kubectl-preflight")
 	dst := path.Join("/tmp", filepath.Base(src))
 	if err := uploadFile(host, src, dst, 0755); err != nil {
 		return nil, err

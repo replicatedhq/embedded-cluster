@@ -1,6 +1,6 @@
 // Package hembed manages the helm chart embedding mechanism. It is used when the user
 // wants to embed a custom helm chart into the embedded-cluster binary. Writes the chart and adds
-// a mark to the end of the file. The mark is on the format HELMVMCHARTS0000000000 where
+// a mark to the end of the file. The mark is on the format EMBEDDEDCLUSTERCHARTS0000000000 where
 // the number is the length of the embedded data.
 package hembed
 
@@ -20,7 +20,7 @@ import (
 
 const (
 	// EndMark is a string that is used to mark the end of the binary.
-	EndMark = "HELMVMCHARTS"
+	EndMark = "EMBEDDEDCLUSTERCHARTS"
 )
 
 // Binary is a helpes struct that holds a closer and a reader separately. Reads happen
@@ -100,7 +100,7 @@ func CalculateRewind(fpath string) (int64, int64, error) {
 // ReadEmbeddedData reads the embedded data from the binary. It reads the binary from
 // the disk and looks for a mark at the end of the file. If the mark is found, it reads
 // the data that is embedded in the binary and returns it. The mark is on the format
-// HELMVMCHARTS0000000000 where the number is the length of the embedded data.
+// EMBEDDEDCLUSTERCHARTS0000000000 where the number is the length of the embedded data.
 func ReadEmbeddedData(fpath string) ([]byte, error) {
 	fp, err := os.Open(fpath)
 	if err != nil {

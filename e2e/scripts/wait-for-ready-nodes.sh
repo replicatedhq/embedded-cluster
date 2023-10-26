@@ -21,7 +21,7 @@ main() {
     exit 0
 }
 
-export HELMVM_METRICS_BASEURL="https://staging.replicated.app"
+export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/.embedded-cluster/etc/kubeconfig
 export PATH=$PATH:/root/.config/.embedded-cluster/bin
 main "$@"
