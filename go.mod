@@ -13,7 +13,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.16.0
 	github.com/k0sproject/rig v0.15.1
-	github.com/replicatedhq/helmvm-operator v0.0.11
+	github.com/replicatedhq/embedded-cluster-operator v0.1.0
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.76.2
 	github.com/sirupsen/logrus v1.9.3
@@ -101,7 +101,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
