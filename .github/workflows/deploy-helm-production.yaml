@@ -21,7 +21,7 @@ jobs:
       with:
         go-version: "1.21.0"
     - name: Login to registry
-      uses: docker/login-action@v1
+      uses: docker/login-action@v3
       with:
         registry: registry.replicated.com
         username: ${{secrets.KOTS_HELM_USER_PROD}}
