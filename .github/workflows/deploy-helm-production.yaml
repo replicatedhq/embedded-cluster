@@ -44,7 +44,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
     - name: Install Helm
-      uses: azure/setup-helm@v1
+      uses: azure/setup-helm@v3
       with:
         version: v3.8.1
     - name: Run Package and Publish
