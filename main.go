@@ -33,9 +33,9 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	clusterv1beta1 "github.com/replicatedhq/helmvm-operator/api/v1beta1"
-	embeddedclusterv1beta1 "github.com/replicatedhq/helmvm-operator/api/v1beta1"
-	"github.com/replicatedhq/helmvm-operator/controllers"
+	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
 

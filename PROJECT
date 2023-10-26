@@ -8,8 +8,8 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: helmvm-operator
-repo: github.com/replicatedhq/helmvm-operator
+projectName: embedded-cluster-operator
+repo: github.com/replicatedhq/embedded-cluster-operator
 resources:
 - api:
     crdVersion: v1
@@ -17,13 +17,13 @@ resources:
   domain: replicated.com
   group: embeddedcluster
   kind: Installation
-  path: github.com/replicatedhq/helmvm-operator/api/v1beta1
+  path: github.com/replicatedhq/embedded-cluster-operator/api/v1beta1
   version: v1beta1
 - api:
     crdVersion: v1
   domain: replicated.com
   group: embeddedcluster
   kind: Config
-  path: github.com/replicatedhq/helmvm-operator/api/v1beta1
+  path: github.com/replicatedhq/embedded-cluster-operator/api/v1beta1
   version: v1beta1
 version: "3"

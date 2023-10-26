@@ -6,8 +6,8 @@ metadata:
     app.kubernetes.io/name: clusterrole
     app.kubernetes.io/instance: installation-viewer-role
     app.kubernetes.io/component: rbac
-    app.kubernetes.io/created-by: helmvm-operator
-    app.kubernetes.io/part-of: helmvm-operator
+    app.kubernetes.io/created-by: embedded-cluster-operator
+    app.kubernetes.io/part-of: embedded-cluster-operator
     app.kubernetes.io/managed-by: kustomize
   name: installation-viewer-role
 rules:

@@ -1,4 +1,4 @@
-module github.com/replicatedhq/helmvm-operator
+module github.com/replicatedhq/embedded-cluster-operator
 
 go 1.21.0
 
