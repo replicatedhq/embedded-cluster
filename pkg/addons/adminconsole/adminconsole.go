@@ -11,6 +11,7 @@ import (
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v3"
+	k8syaml "sigs.k8s.io/yaml"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -89,7 +90,7 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	if license == nil {
 		return nil
 	}
-	raw, err := yaml.Marshal(license)
+	raw, err := k8syaml.Marshal(license)
 	if err != nil {
 		return fmt.Errorf("unable to marshal license: %w", err)
 	}
