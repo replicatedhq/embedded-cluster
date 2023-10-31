@@ -246,7 +246,7 @@ func (a *AdminConsole) printSuccessMessage() {
 		}
 	}
 	nodePort := helmValues["service"].(map[string]interface{})["nodePort"]
-	successMessage := fmt.Sprintf("Admin Console accessible at: %shttps://%s:%v%s", successColor, ipaddr, nodePort, colorReset)
+	successMessage := fmt.Sprintf("Admin Console accessible at: %shttp://%s:%v%s", successColor, ipaddr, nodePort, colorReset)
 	fmt.Println(successMessage)
 }
 
