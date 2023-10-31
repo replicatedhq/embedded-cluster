@@ -120,7 +120,7 @@ func TestSend(t *testing.T) {
 				http.HandlerFunc(
 					func(rw http.ResponseWriter, req *http.Request) {
 						evname := reflect.TypeOf(tt.event).Name()
-						path := fmt.Sprintf("/helmbin_metrics/%s", evname)
+						path := fmt.Sprintf("/embedded_cluster_metrics/%s", evname)
 						assert.Equal(t, req.URL.Path, path)
 						assert.Equal(t, "POST", req.Method)
 						received, err := io.ReadAll(req.Body)
