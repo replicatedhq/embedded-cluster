@@ -224,8 +224,11 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		loading.Infof("Waiting %v for Admin Console to deploy: %d/3 ready", duration, count)
 		return count == 3, nil
 	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
 		loading.Close()
-		return fmt.Errorf("timed out waiting for admin console: %v", lasterr)
+		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
 	loading.Closef("Admin Console is ready!")
 	a.printSuccessMessage()
