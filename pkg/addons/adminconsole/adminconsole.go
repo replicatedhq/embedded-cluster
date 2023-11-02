@@ -198,8 +198,7 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Reposito
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := pb.Start()
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-	duration := kubeutils.BackOffToDuration(backoff)
-	loading.Infof("Waiting %v for Admin Console to deploy: 0/3 ready", duration)
+	loading.Infof("Waiting for Admin Console to deploy: 0/3 ready")
 	var lasterr error
 	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
 		var count int
@@ -221,7 +220,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 				count++
 			}
 		}
-		loading.Infof("Waiting %v for Admin Console to deploy: %d/3 ready", duration, count)
+		loading.Infof("Waiting for Admin Console to deploy: %d/3 ready", count)
 		return count == 3, nil
 	}); err != nil {
 		if lasterr == nil {
