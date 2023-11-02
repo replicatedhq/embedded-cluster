@@ -54,7 +54,7 @@ type NodeRemovedEvent struct {
 
 // sendEvent sends the received event to the metrics server through a post request.
 func sendEvent(ctx context.Context, evname, baseURL string, ev interface{}) error {
-	url := fmt.Sprintf("%s/helmbin_metrics/%s", baseURL, evname)
+	url := fmt.Sprintf("%s/embedded_cluster_metrics/%s", baseURL, evname)
 	body := map[string]interface{}{"event": ev}
 	buf := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(buf).Encode(body); err != nil {
