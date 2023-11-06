@@ -1062,8 +1062,8 @@ github.com/quasilyte/go-consistent v0.0.0-20190521200055-c6f3937de18c/go.mod h1:
 github.com/quasilyte/go-ruleguard v0.2.0/go.mod h1:2RT/tf0Ce0UDj5y243iWKosQogJd8+1G3Rs2fxmlYnw=
 github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95/go.mod h1:rlzQ04UMyJXu/aOvhd8qT+hvDrFpiwqp8MRXDY9szc0=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
-github.com/replicatedhq/embedded-cluster-operator v0.1.0 h1:rt+1juFCNBXwKjuL/QDMjOwTZJ0xG3TuJWghGmu+RAg=
-github.com/replicatedhq/embedded-cluster-operator v0.1.0/go.mod h1:9DfU7ulB6+x9QNKg0cKeBk4a01uNw1rwvE07Axhvi38=
+github.com/replicatedhq/embedded-cluster-operator v0.2.0 h1:vNLdsBFng39GWTj7oUcIuE/nSCpgicn23x1SSACpXvY=
+github.com/replicatedhq/embedded-cluster-operator v0.2.0/go.mod h1:9DfU7ulB6+x9QNKg0cKeBk4a01uNw1rwvE07Axhvi38=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
 github.com/replicatedhq/troubleshoot v0.76.3 h1:wURAGQWwc9gUTz8/I+XXsUXMUWol/DZ7tIB9wuxhPPk=
