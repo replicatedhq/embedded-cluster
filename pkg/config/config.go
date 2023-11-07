@@ -15,7 +15,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	fmtconvert "github.com/ghodss/yaml"
 	"github.com/k0sproject/dig"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/v1beta1"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	k0sversion "github.com/k0sproject/version"
