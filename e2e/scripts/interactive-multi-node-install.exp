@@ -21,7 +21,6 @@ expect -re "Add another node?.*:" { send "n\r" }
 set timeout 600
 expect "Enter a new Admin Console password:" { send "password\r" }
 expect "Confirm password:" { send "password\r" }
-expect "Confirm password:" { send "password\r" }
 expect {
 	"Admin Console is ready!" { exit 0 }
 	eof { exit 1 }
