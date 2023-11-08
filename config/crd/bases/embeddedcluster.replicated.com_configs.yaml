@@ -35,7 +35,7 @@ spec:
           spec:
             description: ConfigSpec defines the desired state of Config
             properties:
-              controlPlane:
+              controller:
                 description: NodeRole is the role of a node in the cluster.
                 properties:
                   description:

@@ -57,7 +57,7 @@ type NodeRole struct {
 
 // ConfigSpec defines the desired state of Config
 type ConfigSpec struct {
-	ControlPlane         NodeRole             `json:"controlPlane,omitempty"`
+	Controller           NodeRole             `json:"controller,omitempty"`
 	Custom               []NodeRole           `json:"custom,omitempty"`
 	UnsupportedOverrides UnsupportedOverrides `json:"unsupportedOverrides,omitempty"`
 }
