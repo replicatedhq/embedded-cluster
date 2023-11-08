@@ -187,7 +187,12 @@ func (in *InstallationSpec) DeepCopyInto(out *InstallationSpec) {
 	*out = *in
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
-		*out = new(Config)
+		*out = new(ConfigSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ConfigOverrides != nil {
+		in, out := &in.ConfigOverrides, &out.ConfigOverrides
+		*out = new(ConfigSpec)
 		(*in).DeepCopyInto(*out)
 	}
 }
