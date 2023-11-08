@@ -93,7 +93,7 @@ pkg/goods/bins/embedded-cluster/kubectl-preflight:
 	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
 
 .PHONY: embed-license
-embed-license: embedded-cluster-linux-amd64
+embed-license: embedded-cluster-linux-amd64 license.yaml
 	mkdir -p output/tmp
 	tar -czvf output/tmp/license.tar.gz license.yaml
 	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle output/tmp/license.tar.gz output/tmp/license.tar.gz.o
