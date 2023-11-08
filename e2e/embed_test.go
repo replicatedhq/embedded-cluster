@@ -6,7 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
-func AndInstall(t *testing.T) {
+func TestEmbedAndInstall(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
