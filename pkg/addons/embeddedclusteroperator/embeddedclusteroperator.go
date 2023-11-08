@@ -105,6 +105,10 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	if err != nil {
 		return err
 	}
+	var cfgspec *embeddedclusterv1beta1.ConfigSpec
+	if cfg != nil {
+		cfgspec = &cfg.Spec
+	}
 	installation := embeddedclusterv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
@@ -113,7 +117,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			ClusterID:      metrics.ClusterID().String(),
 			MetricsBaseURL: metrics.BaseURL(),
 			AirGap:         false,
-			Config:         cfg,
+			Config:         cfgspec,
 		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
