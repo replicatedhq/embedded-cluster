@@ -1,0 +1,40 @@
+name: Custom Dependabot
+on:
+  schedule:
+  - cron: '0 0 * * *'
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repo
+      uses: actions/checkout@v4
+    - name: AdminConsole
+      run: |
+        export VERSION=`curl https://api.github.com/repos/replicatedhq/kots-helm/tags | jq -r .[].name | grep -v alpha | head -1 | tr -d v`
+        sed -i "/^ADMIN_CONSOLE_CHART_VERSION/c\ADMIN_CONSOLE_CHART_NAME = $VERSION" Makefile
+    - name: Embedded Cluster Operator
+      run: |
+        export VERSION=`curl https://api.github.com/repos/replicatedhq/embedded-cluster-operator/tags | jq -r .[].name | head -1 | tr -d v`
+        sed -i "/^EMBEDDED_OPERATOR_CHART_VERSION/c\EMBEDDED_OPERATOR_CHART_VERSION = $VERSION" Makefile
+    - name: OpenEBS
+      run: |
+        export VERSION=`curl https://api.github.com/repos/openebs/charts/releases/latest | jq -r .name | tr -d openebs-`
+        sed -i "/^OPENEBS_CHART_VERSION/c\OPENEBS_CHART_VERSION = $VERSION" Makefile
+    - name: Kubectl
+      run: |
+        export VERSION=`curl -L -s https://dl.k8s.io/release/stable.txt`
+        sed -i "/^KUBECTL_VERSION/c\KUBECTL_VERSION = $VERSION" Makefile
+    - name: K0sctl
+      run: |
+        export VERSION=`curl https://api.github.com/repos/k0sproject/k0sctl/releases/latest | jq -r .name`
+        sed -i "/^K0SCTL_VERSION/c\K0SCTL_VERSION = $VERSION" Makefile
+    - name: K0s
+      run: |
+        export VERSION=`curl https://api.github.com/repos/k0sproject/k0s/releases/latest | jq -r .name`
+        sed -i "/^K0S_VERSION/c\K0S_VERSION = $VERSION" Makefile
+    - name: Troubleshoot
+      run: |
+        export VERSION=`curl https://api.github.com/repos/replicatedhq/troubleshoot/releases/latest | jq -r .name`
+        sed -i "/^TROUBLESHOOT_VERSION/c\TROUBLESHOOT_VERSION = $VERSION" Makefile
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
