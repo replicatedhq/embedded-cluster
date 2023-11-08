@@ -54,3 +54,14 @@ TestSomething is the name of the test function you want to run.
 
 To add more tests you just need to create one inside this directory
 and then add it to the `.github/workflows/e2e.yaml` file.
+
+
+### Kots test application
+
+During end to end tests we embed a license for a smoke test kots app,
+this app can be found in:
+
+https://vendor.replicated.com/apps/embedded-cluster-smoke-test-app
+
+Make sure to update the application yaml files under kots-release
+directory if you create a new release of the remote application.

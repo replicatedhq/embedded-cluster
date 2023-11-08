@@ -92,12 +92,16 @@ pkg/goods/bins/embedded-cluster/kubectl-preflight:
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
 
-.PHONY: embed-license
-embed-license: embedded-cluster-linux-amd64 license.yaml
+release.tar.gz:
 	mkdir -p output/tmp
-	tar -czvf output/tmp/license.tar.gz license.yaml
-	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle output/tmp/license.tar.gz output/tmp/license.tar.gz.o
-	objcopy --add-section sec_bundle=output/tmp/license.tar.gz.o output/bin/embedded-cluster
+	tar -czf release.tar.gz -C e2e/kots-release .
+
+.PHONY: embedded-release
+embedded-release: embedded-cluster-linux-amd64 release.tar.gz
+	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle release.tar.gz release.o
+	@if ! objcopy --update-section sec_bundle=release.o output/bin/embedded-cluster ; then \
+		objcopy --add-section sec_bundle=release.o output/bin/embedded-cluster ; \
+	fi
 
 .PHONY: static
 static: pkg/goods/bins/embedded-cluster/kubectl-preflight \
@@ -133,14 +137,14 @@ vet: static-linux-amd64 static
 	go vet ./...
 
 .PHONY: e2e-tests
-e2e-tests: embedded-cluster-linux-amd64
+e2e-tests: embedded-release
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
 	go test -timeout 45m -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
-e2e-test: embedded-cluster-linux-amd64
+e2e-test: embedded-release
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa

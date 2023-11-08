@@ -29,12 +29,12 @@ func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) 
 	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
 		ready, err := IsDeploymentReady(ctx, cli, ns, name)
 		if err != nil {
-			lasterr = fmt.Errorf("error checking status of kotsadm: %v", err)
+			lasterr = fmt.Errorf("unable to get deploy %s status: %v", name, err)
 			return false, nil
 		}
 		return ready, nil
 	}); err != nil {
-		return fmt.Errorf("timed out waiting for admin console: %v", lasterr)
+		return fmt.Errorf("timed out waiting for deploy %s: %v", name, lasterr)
 	}
 	return nil
 }

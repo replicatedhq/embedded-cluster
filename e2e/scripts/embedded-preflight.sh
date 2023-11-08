@@ -121,7 +121,7 @@ embed_preflight() {
     objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle /root/preflight.tar.gz /root/preflight.o
     rm -rf /usr/local/bin/embedded-cluster
     cp -Rfp /usr/local/bin/embedded-cluster-copy /usr/local/bin/embedded-cluster
-    objcopy --add-section sec_bundle=/root/preflight.o /usr/local/bin/embedded-cluster
+    objcopy --update-section sec_bundle=/root/preflight.o /usr/local/bin/embedded-cluster
 }
 
 has_applied_host_preflight() {
