@@ -1,6 +1,7 @@
 name: Custom Dependabot
 on:
   schedule:
+  # everyday at midnight.
   - cron: '0 0 * * *'
 jobs:
   update-dependencies:
@@ -11,7 +12,7 @@ jobs:
     - name: AdminConsole
       run: |
         export VERSION=`curl https://api.github.com/repos/replicatedhq/kots-helm/tags | jq -r .[].name | grep -v alpha | head -1 | tr -d v`
-        sed -i "/^ADMIN_CONSOLE_CHART_VERSION/c\ADMIN_CONSOLE_CHART_NAME = $VERSION" Makefile
+        sed -i "/^ADMIN_CONSOLE_CHART_VERSION/c\ADMIN_CONSOLE_CHART_VERSION = $VERSION" Makefile
     - name: Embedded Cluster Operator
       run: |
         export VERSION=`curl https://api.github.com/repos/replicatedhq/embedded-cluster-operator/tags | jq -r .[].name | head -1 | tr -d v`
