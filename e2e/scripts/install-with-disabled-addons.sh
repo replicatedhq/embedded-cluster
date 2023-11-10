@@ -87,6 +87,10 @@ main() {
         echo "Pods found on embedded-cluster namespace"
         exit 1
     fi
+    if ! systemctl restart embedded-cluster; then
+        echo "Failed to restart embedded-cluster service"
+        exit 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
