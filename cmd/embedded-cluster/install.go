@@ -32,7 +32,7 @@ import (
 
 // runPostApply is meant to run things that can't be run automatically with
 // k0sctl. Iterates over all hosts and calls runPostApply on each.
-func runPostApply(ctx context.Context) error {
+func runPostApply() error {
 	mask := func(raw string) string {
 		logrus.StandardLogger().Writer().Write([]byte(raw))
 		return fmt.Sprintf("Creating systemd unit for %s", defaults.BinaryName())
@@ -49,7 +49,7 @@ func runPostApply(ctx context.Context) error {
 		return fmt.Errorf("unable to read cluster config: %w", err)
 	}
 	for _, host := range cfg.Spec.Hosts {
-		if err := runPostApplyOnHost(ctx, host); err != nil {
+		if err := runPostApplyOnHost(host); err != nil {
 			return err
 		}
 	}
@@ -99,7 +99,7 @@ func runHostPreflights(c *cli.Context) error {
 // runPostApply runs the post-apply script on a host. XXX I don't think this
 // belongs here and needs to be refactored in a more generic way. It's here
 // because I have other things to do and this is a prototype.
-func runPostApplyOnHost(ctx context.Context, host *cluster.Host) error {
+func runPostApplyOnHost(host *cluster.Host) error {
 	if err := host.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to host: %w", err)
 	}
@@ -442,6 +442,11 @@ var installCommand = &cli.Command{
 		}
 		if err := applyK0sctl(c); err != nil {
 			err := fmt.Errorf("unable update cluster: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+		if err := runPostApply(); err != nil {
+			err := fmt.Errorf("unable to run post apply: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

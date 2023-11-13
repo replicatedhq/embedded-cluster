@@ -150,6 +150,15 @@ func TestMultiNodeInteractiveInstallation(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("nodes not reporting ready: %v", err)
 	}
+	t.Log("restarting embedded-cluster service in all nodes")
+	for i := range tc.Nodes {
+		cmd := []string{"systemctl", "restart", "embedded-cluster"}
+		if stdout, stderr, err := RunCommandOnNode(t, tc, i, cmd); err != nil {
+			t.Logf("stdout: %s", stdout)
+			t.Logf("stderr: %s", stderr)
+			t.Fatalf("fail to restart service node %d: %v", i, err)
+		}
+	}
 }
 
 func TestInstallWithDisabledAddons(t *testing.T) {
