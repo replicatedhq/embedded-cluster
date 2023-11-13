@@ -11,8 +11,6 @@ import (
 
 	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"github.com/sirupsen/logrus"
-	"helm.sh/helm/v3/pkg/action"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -25,14 +23,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
-
-// getLogger creates a logger to be used in an addon.
-func getLogger(addon string, verbose bool) action.DebugLog {
-	if verbose {
-		return logrus.WithField("addon", addon).Infof
-	}
-	return func(string, ...interface{}) {}
-}
 
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
