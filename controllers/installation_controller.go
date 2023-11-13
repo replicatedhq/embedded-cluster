@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -86,7 +85,6 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 		return fmt.Errorf("failed to list nodes: %w", err)
 	}
 	seen := map[string]bool{}
-	needsUpdate := false
 	for _, node := range nodes.Items {
 		seen[node.Name] = true
 		event := metrics.NodeEventFromNode(in.Spec.ClusterID, node)
@@ -96,7 +94,6 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 		} else if !changed {
 			continue
 		}
-		needsUpdate = true
 		if err := r.UpdateNodeStatus(in, event); err != nil {
 			return fmt.Errorf("failed to update node status: %w", err)
 		}
@@ -119,25 +116,45 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 			trimmed = append(trimmed, nodeStatus)
 			continue
 		}
-		needsUpdate = true
-		rmevent := metrics.NodeRemovedEvent{ClusterID: in.Spec.ClusterID, NodeName: nodeStatus.Name}
 		if in.Spec.AirGap {
 			continue
+		}
+		rmevent := metrics.NodeRemovedEvent{
+			ClusterID: in.Spec.ClusterID,
+			NodeName:  nodeStatus.Name,
 		}
 		if err := metrics.NotifyNodeRemoved(ctx, in.Spec.MetricsBaseURL, rmevent); err != nil {
 			return fmt.Errorf("failed to notify node removed: %w", err)
 		}
 	}
-	log := ctrl.LoggerFrom(ctx)
 	sort.SliceStable(trimmed, func(i, j int) bool { return trimmed[i].Name < trimmed[j].Name })
 	in.Status.NodesStatus = trimmed
-	if !needsUpdate {
-		log.Info("No node changes detected")
-		return nil
-	}
-	log.Info("Node changes detected, updating installation status")
 	if err := r.Status().Update(ctx, in); err != nil {
 		return fmt.Errorf("failed to update installation status: %w", err)
+	}
+	return nil
+}
+
+// copyLastNodeStatus makes sure that we copied the last populated node status from the
+// previous installation objects. This is needed because we don't want to lose the last
+// node status when we create a new installation object. items is expected to be sorted
+// in descending order by creation timestamp.
+func (r *InstallationReconciler) copyLastNodeStatus(items []v1beta1.Installation) error {
+	sorted := sort.SliceIsSorted(items, func(i, j int) bool {
+		return items[j].CreationTimestamp.Before(&items[i].CreationTimestamp)
+	})
+	if !sorted {
+		return fmt.Errorf("installation not sorted")
+	}
+	if len(items) == 1 || len(items[0].Status.NodesStatus) > 0 {
+		return nil
+	}
+	for i := 1; i < len(items); i++ {
+		if len(items[i].Status.NodesStatus) == 0 {
+			continue
+		}
+		items[0].Status.NodesStatus = items[i].Status.NodesStatus
+		break
 	}
 	return nil
 }
@@ -154,27 +171,23 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err := r.List(ctx, &installs); err != nil {
 		return ctrl.Result{}, err
 	}
+	items := installs.Items
 	log.Info("Reconciling installation")
-	if len(installs.Items) == 0 {
+	if len(items) == 0 {
 		log.Info("No installation found, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
-	// we may have multiple installations, but we only care about the last one.
-	// installations are named with a date in the format YYYYMMDDHHMMSS.
-	var last, pos int
-	for i, in := range installs.Items {
-		if when, err := strconv.Atoi(in.Name); err != nil {
-			log.Error(err, "invalid installation name", "name", in.Name)
-		} else if when >= last {
-			last = when
-			pos = i
-		}
-	}
-	if installs.Items[pos].Spec.ClusterID == "" {
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[j].CreationTimestamp.Before(&items[i].CreationTimestamp)
+	})
+	if items[0].Spec.ClusterID == "" {
 		log.Info("No cluster ID found, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
-	if err := r.ReconcileInstallation(ctx, &installs.Items[0]); err != nil {
+	if err := r.copyLastNodeStatus(items); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := r.ReconcileInstallation(ctx, &items[0]); err != nil {
 		return ctrl.Result{}, err
 	}
 	log.Info("Installation reconciliation ended")
