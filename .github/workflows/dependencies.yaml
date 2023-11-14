@@ -1,4 +1,4 @@
-name: Custom Dependabot
+name: Makefile Dependencies
 on:
   schedule:
   # everyday at midnight.
@@ -39,3 +39,18 @@ jobs:
         sed -i "/^TROUBLESHOOT_VERSION/c\TROUBLESHOOT_VERSION = $VERSION" Makefile
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        commit-message: Update Makefile versions
+        title: 'Update Makefile versions'
+        branch: automation/update-makefile
+        delete-branch: true
+        labels: |
+          automated-pr
+          makefile
+          type::chore
+        draft: false
+        base: "main"
+        body: |
+          Automated changes by the [cron-makefile-dependencies](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/dependencies.yaml) GitHub action
+
