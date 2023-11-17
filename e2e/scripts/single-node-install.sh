@@ -15,7 +15,7 @@ wait_for_healthy_node() {
         kubectl get nodes || true
     done
 
-    kubectl describe node | grep "controller-test-label"
+    kubectl describe node | grep "controller-test-label-nomatch"
 
     return 0
 }
