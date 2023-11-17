@@ -96,12 +96,14 @@ func (a AdminConsole) processSection(section *elf.Section) (*ParsedSection, erro
 				continue
 			}
 			result.HostPreflights = append(result.HostPreflights, content.Bytes())
+			continue
 		}
 		if bytes.Contains(content.Bytes(), []byte("apiVersion: embeddedcluster.replicated.com/v1beta1")) {
-			if bytes.Contains(content.Bytes(), []byte("kind: Config")) {
+			if !bytes.Contains(content.Bytes(), []byte("kind: Config")) {
 				continue
 			}
 			result.EmbeddedClusterConfig = content.Bytes()
+			continue
 		}
 	}
 }
