@@ -16,9 +16,11 @@ import (
 	"github.com/k0sproject/rig"
 	"github.com/k0sproject/rig/log"
 	k0sversion "github.com/k0sproject/version"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
+	kyaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -160,7 +162,12 @@ func updateConfig(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("unable to read overrides file: %w", err)
 		}
-		config.ApplyEmbeddedUnsupportedOverrides(cfg, data)
+		var overrideCfg embeddedclusterv1beta1.Config
+		if err := kyaml.Unmarshal(data, &overrideCfg); err != nil {
+			return fmt.Errorf("unable to unmarshal overrides file: %w", err)
+		}
+
+		config.ApplyEmbeddedUnsupportedOverrides(cfg, overrideCfg.Spec.UnsupportedOverrides.K0s)
 	}
 
 	opts := []addons.Option{}
@@ -257,7 +264,12 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 		if err != nil {
 			return fmt.Errorf("unable to read overrides file: %w", err)
 		}
-		config.ApplyEmbeddedUnsupportedOverrides(cfg, data)
+		var overrideCfg embeddedclusterv1beta1.Config
+		if err := kyaml.Unmarshal(data, &overrideCfg); err != nil {
+			return fmt.Errorf("unable to unmarshal overrides file: %w", err)
+		}
+
+		config.ApplyEmbeddedUnsupportedOverrides(cfg, overrideCfg.Spec.UnsupportedOverrides.K0s)
 	}
 
 	opts := []addons.Option{}

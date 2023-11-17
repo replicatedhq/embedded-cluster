@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -52,7 +51,7 @@ func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 
 // RenderClusterConfig renders a cluster configuration interactively.
 func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, error) {
-	embconfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
 	}
@@ -61,14 +60,14 @@ func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, err
 		if err != nil {
 			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
 		}
-		ApplyEmbeddedUnsupportedOverrides(cfg, embconfig)
+		ApplyEmbeddedUnsupportedOverrides(cfg, clusterConfig.Spec.UnsupportedOverrides.K0s)
 		return cfg, nil
 	}
 	cfg, err := renderSingleNodeConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render single-node config: %w", err)
 	}
-	ApplyEmbeddedUnsupportedOverrides(cfg, embconfig)
+	ApplyEmbeddedUnsupportedOverrides(cfg, clusterConfig.Spec.UnsupportedOverrides.K0s)
 	return renderSingleNodeConfig(ctx)
 }
 
@@ -322,20 +321,9 @@ type UnsupportedConfigOverrides struct {
 }
 
 // ApplyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
-func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte) error {
-	if embconfig == nil {
+func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig string) error {
+	if embconfig == "" {
 		return nil
-	}
-	var overrides UnsupportedConfigOverrides
-	if err := yaml.Unmarshal(embconfig, &overrides); err != nil {
-		return fmt.Errorf("unable to parse cluster config overrides: %w", err)
-	}
-	if overrides.Spec.UnsupportedOverrides.K0s == nil {
-		return nil
-	}
-	origConfigBytes, err := yaml.Marshal(overrides.Spec.UnsupportedOverrides.K0s.Config)
-	if err != nil {
-		return fmt.Errorf("unable to marshal cluster config overrides: %w", err)
 	}
 	newConfigBytes, err := yaml.Marshal(config.Spec.K0s.Config)
 	if err != nil {
@@ -345,7 +333,7 @@ func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte
 	if err != nil {
 		return fmt.Errorf("unable to convert cluster config overrides to json: %w", err)
 	}
-	target, err := fmtconvert.YAMLToJSON(origConfigBytes)
+	target, err := fmtconvert.YAMLToJSON([]byte(embconfig))
 	if err != nil {
 		return fmt.Errorf("unable to convert original cluster config to json: %w", err)
 	}
@@ -366,8 +354,7 @@ func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte
 }
 
 func getControllerRoleName() string {
-	tmp := &embeddedclusteroperator.EmbeddedClusterOperator{}
-	clusterConfig, err := tmp.ReadEmbeddedClusterConfig()
+	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
 
 	controllerRoleName := "controller"
 	if err == nil {

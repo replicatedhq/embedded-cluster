@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
@@ -165,7 +166,7 @@ func (a AdminConsole) Application() ([]byte, error) {
 }
 
 // EmbeddedClusterConfig reads the embedded cluster config from the embedded Kots Application Release.
-func (a AdminConsole) EmbeddedClusterConfig() ([]byte, error) {
+func (a AdminConsole) EmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, error) {
 	if runtime.GOOS != "linux" {
 		return nil, nil
 	}
@@ -175,5 +176,14 @@ func (a AdminConsole) EmbeddedClusterConfig() ([]byte, error) {
 	} else if section == nil {
 		return nil, nil
 	}
-	return section.EmbeddedClusterConfig, nil
+
+	rawcfg := section.EmbeddedClusterConfig
+	if rawcfg == nil {
+		return nil, nil
+	}
+	var cfg embeddedclusterv1beta1.Config
+	if err := yaml.Unmarshal(rawcfg, &cfg); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal embedded cluster config: %w", err)
+	}
+	return &cfg, nil
 }
