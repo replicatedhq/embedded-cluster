@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -251,6 +252,7 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get preferred node IP address: %w", err)
 	}
+
 	host := &hostcfg{
 		Address: ipaddr,
 		Role:    "controller+worker",
@@ -258,7 +260,7 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 		User:    usr.Username,
 		KeyPath: defaults.SSHKeyPath(),
 		Labels: map[string]string{
-			"kots.io/embedded-cluster-role-0": "controller",
+			"kots.io/embedded-cluster-role-0": getControllerRoleName(),
 			"kots.io/embedded-cluster-role":   "total-1",
 		},
 	}
@@ -361,4 +363,19 @@ func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte
 	}
 	config.Spec.K0s.Config = newK0sConfig
 	return nil
+}
+
+func getControllerRoleName() string {
+	tmp := &embeddedclusteroperator.EmbeddedClusterOperator{}
+	clusterConfig, err := tmp.ReadEmbeddedClusterConfig()
+
+	controllerRoleName := "controller"
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Controller.Name != "" {
+				controllerRoleName = clusterConfig.Spec.Controller.Name
+			}
+		}
+	}
+	return controllerRoleName
 }

@@ -76,9 +76,9 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
-// readEmbeddedClusterConfig reads and unmarshal the Config object from the embedded cluster
+// ReadEmbeddedClusterConfig reads and unmarshal the Config object from the embedded cluster
 // that has been embedded into this binary through a release.
-func (e *EmbeddedClusterOperator) readEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, error) {
+func (e *EmbeddedClusterOperator) ReadEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, error) {
 	rawcfg, err := customization.AdminConsole{}.EmbeddedClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to read embeddec cluster config: %w", err)
@@ -101,7 +101,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		return err
 	}
 	loading.Closef("Embedded Cluster Operator is ready!")
-	cfg, err := e.readEmbeddedClusterConfig()
+	cfg, err := e.ReadEmbeddedClusterConfig()
 	if err != nil {
 		return err
 	}
