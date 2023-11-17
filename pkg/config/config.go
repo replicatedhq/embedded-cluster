@@ -255,16 +255,17 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 		return nil, fmt.Errorf("unable to get preferred node IP address: %w", err)
 	}
 
+	labels := additionalControllerLabels()
+	labels["kots.io/embedded-cluster-role-0"] = getControllerRoleName()
+	labels["kots.io/embedded-cluster-role"] = "total-1"
+
 	host := &hostcfg{
 		Address: ipaddr,
 		Role:    "controller+worker",
 		Port:    22,
 		User:    usr.Username,
 		KeyPath: defaults.SSHKeyPath(),
-		Labels: map[string]string{
-			"kots.io/embedded-cluster-role-0": getControllerRoleName(),
-			"kots.io/embedded-cluster-role":   "total-1",
-		},
+		Labels:  labels,
 	}
 	if err := host.testConnection(); err != nil {
 		return nil, fmt.Errorf("unable to connect to %s: %w", ipaddr, err)
@@ -368,4 +369,17 @@ func getControllerRoleName() string {
 		}
 	}
 	return controllerRoleName
+}
+
+func additionalControllerLabels() map[string]string {
+	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Controller.Labels != nil {
+				return clusterConfig.Spec.Controller.Labels
+			}
+		}
+	}
+	return map[string]string{}
 }

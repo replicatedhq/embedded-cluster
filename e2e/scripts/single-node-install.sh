@@ -14,6 +14,9 @@ wait_for_healthy_node() {
         ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
         kubectl get nodes || true
     done
+
+    kubectl describe node | grep "controller-test-label"
+
     return 0
 }
 
