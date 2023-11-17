@@ -19,6 +19,7 @@ import (
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	k0sversion "github.com/k0sproject/version"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/sirupsen/logrus"
 	yamlv2 "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
@@ -54,6 +55,8 @@ func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, err
 	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
+	} else if clusterConfig == nil {
+		clusterConfig = &embeddedclusterv1beta1.Config{}
 	}
 	if multi {
 		cfg, err := renderMultiNodeConfig(ctx)
