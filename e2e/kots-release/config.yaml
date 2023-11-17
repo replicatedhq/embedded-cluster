@@ -5,7 +5,7 @@ metadata:
 spec:
   controller:
     labels:
-      controller-test-label: controller-test-label-value
+      controller-label: controller-label-value
     name: controller-test
   custom:
     - labels:
