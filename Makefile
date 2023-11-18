@@ -11,10 +11,10 @@ EMBEDDED_OPERATOR_CHART_VERSION = 0.4.0
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.9.0
-KUBECTL_VERSION = v1.28.2
+KUBECTL_VERSION = v1.28.4
 K0SCTL_VERSION = v0.16.0
-K0S_VERSION = v1.28.2+k0s.0
-TROUBLESHOOT_VERSION = v0.77.0
+K0S_VERSION = v1.28.3+k0s.0
+TROUBLESHOOT_VERSION = v0.78.0
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
