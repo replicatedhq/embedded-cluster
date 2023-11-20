@@ -314,16 +314,6 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 	return nil
 }
 
-// UnsupportedConfigOverrides is a auxiliary struct for parsing the unsupported overrides
-// as provided in the Kots release. XXX This should eventually become a CRD.
-type UnsupportedConfigOverrides struct {
-	Spec struct {
-		UnsupportedOverrides struct {
-			K0s *cluster.K0s `yaml:"k0s"`
-		} `yaml:"unsupportedOverrides"`
-	} `yaml:"spec"`
-}
-
 // ApplyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
 func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig string) error {
 	if embconfig == "" {
