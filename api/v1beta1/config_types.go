@@ -55,10 +55,16 @@ type NodeRole struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 }
 
+// Roles is the various roles in the cluster.
+type Roles struct {
+	Controller NodeRole   `json:"controller,omitempty"`
+	Custom     []NodeRole `json:"custom,omitempty"`
+}
+
 // ConfigSpec defines the desired state of Config
 type ConfigSpec struct {
-	Controller           NodeRole             `json:"controller,omitempty"`
-	Custom               []NodeRole           `json:"custom,omitempty"`
+	Version              string               `json:"version,omitempty"`
+	Roles                Roles                `json:"roles,omitempty"`
 	UnsupportedOverrides UnsupportedOverrides `json:"unsupportedOverrides,omitempty"`
 }
 

@@ -35,74 +35,78 @@ spec:
           spec:
             description: ConfigSpec defines the desired state of Config
             properties:
-              controller:
-                description: NodeRole is the role of a node in the cluster.
+              roles:
+                description: Roles is the various roles in the cluster.
                 properties:
-                  description:
-                    type: string
-                  labels:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  name:
-                    type: string
-                  nodeCount:
-                    description: NodeCount holds a series of rules for a given node
-                      role.
+                  controller:
+                    description: NodeRole is the role of a node in the cluster.
                     properties:
-                      range:
-                        description: NodeRange contains a min and max or only one
-                          of them (conflicts with Values).
-                        properties:
-                          max:
-                            description: Max is the maximum number of nodes.
-                            type: integer
-                          min:
-                            description: Min is the minimum number of nodes.
-                            type: integer
-                        type: object
-                      values:
-                        description: Values holds a list of allowed node counts.
-                        items:
-                          type: integer
-                        type: array
-                    type: object
-                type: object
-              custom:
-                items:
-                  description: NodeRole is the role of a node in the cluster.
-                  properties:
-                    description:
-                      type: string
-                    labels:
-                      additionalProperties:
+                      description:
                         type: string
-                      type: object
-                    name:
-                      type: string
-                    nodeCount:
-                      description: NodeCount holds a series of rules for a given node
-                        role.
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      name:
+                        type: string
+                      nodeCount:
+                        description: NodeCount holds a series of rules for a given
+                          node role.
+                        properties:
+                          range:
+                            description: NodeRange contains a min and max or only
+                              one of them (conflicts with Values).
+                            properties:
+                              max:
+                                description: Max is the maximum number of nodes.
+                                type: integer
+                              min:
+                                description: Min is the minimum number of nodes.
+                                type: integer
+                            type: object
+                          values:
+                            description: Values holds a list of allowed node counts.
+                            items:
+                              type: integer
+                            type: array
+                        type: object
+                    type: object
+                  custom:
+                    items:
+                      description: NodeRole is the role of a node in the cluster.
                       properties:
-                        range:
-                          description: NodeRange contains a min and max or only one
-                            of them (conflicts with Values).
-                          properties:
-                            max:
-                              description: Max is the maximum number of nodes.
-                              type: integer
-                            min:
-                              description: Min is the minimum number of nodes.
-                              type: integer
+                        description:
+                          type: string
+                        labels:
+                          additionalProperties:
+                            type: string
                           type: object
-                        values:
-                          description: Values holds a list of allowed node counts.
-                          items:
-                            type: integer
-                          type: array
+                        name:
+                          type: string
+                        nodeCount:
+                          description: NodeCount holds a series of rules for a given
+                            node role.
+                          properties:
+                            range:
+                              description: NodeRange contains a min and max or only
+                                one of them (conflicts with Values).
+                              properties:
+                                max:
+                                  description: Max is the maximum number of nodes.
+                                  type: integer
+                                min:
+                                  description: Min is the minimum number of nodes.
+                                  type: integer
+                              type: object
+                            values:
+                              description: Values holds a list of allowed node counts.
+                              items:
+                                type: integer
+                              type: array
+                          type: object
                       type: object
-                  type: object
-                type: array
+                    type: array
+                type: object
               unsupportedOverrides:
                 description: UnsupportedOverrides holds the config overrides used
                   to configure the cluster.
@@ -114,6 +118,8 @@ spec:
                       we have chosen to use a string here.
                     type: string
                 type: object
+              version:
+                type: string
             type: object
           status:
             description: ConfigStatus defines the observed state of Config
