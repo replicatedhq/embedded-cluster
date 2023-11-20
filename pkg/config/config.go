@@ -19,6 +19,7 @@ import (
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	k0sversion "github.com/k0sproject/version"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/sirupsen/logrus"
 	yamlv2 "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
@@ -51,23 +52,25 @@ func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 
 // RenderClusterConfig renders a cluster configuration interactively.
 func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, error) {
-	embconfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
+	} else if clusterConfig == nil {
+		clusterConfig = &embeddedclusterv1beta1.Config{}
 	}
 	if multi {
 		cfg, err := renderMultiNodeConfig(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
 		}
-		ApplyEmbeddedUnsupportedOverrides(cfg, embconfig)
+		ApplyEmbeddedUnsupportedOverrides(cfg, clusterConfig.Spec.UnsupportedOverrides.K0s)
 		return cfg, nil
 	}
 	cfg, err := renderSingleNodeConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render single-node config: %w", err)
 	}
-	ApplyEmbeddedUnsupportedOverrides(cfg, embconfig)
+	ApplyEmbeddedUnsupportedOverrides(cfg, clusterConfig.Spec.UnsupportedOverrides.K0s)
 	return renderSingleNodeConfig(ctx)
 }
 
@@ -251,16 +254,18 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get preferred node IP address: %w", err)
 	}
+
+	labels := additionalControllerLabels()
+	labels["kots.io/embedded-cluster-role-0"] = getControllerRoleName()
+	labels["kots.io/embedded-cluster-role"] = "total-1"
+
 	host := &hostcfg{
 		Address: ipaddr,
 		Role:    "controller+worker",
 		Port:    22,
 		User:    usr.Username,
 		KeyPath: defaults.SSHKeyPath(),
-		Labels: map[string]string{
-			"kots.io/embedded-cluster-role-0": "controller",
-			"kots.io/embedded-cluster-role":   "total-1",
-		},
+		Labels:  labels,
 	}
 	if err := host.testConnection(); err != nil {
 		return nil, fmt.Errorf("unable to connect to %s: %w", ipaddr, err)
@@ -309,31 +314,10 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 	return nil
 }
 
-// UnsupportedConfigOverrides is a auxiliary struct for parsing the unsupported overrides
-// as provided in the Kots release. XXX This should eventually become a CRD.
-type UnsupportedConfigOverrides struct {
-	Spec struct {
-		UnsupportedOverrides struct {
-			K0s *cluster.K0s `yaml:"k0s"`
-		} `yaml:"unsupportedOverrides"`
-	} `yaml:"spec"`
-}
-
 // ApplyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
-func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte) error {
-	if embconfig == nil {
+func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig string) error {
+	if embconfig == "" {
 		return nil
-	}
-	var overrides UnsupportedConfigOverrides
-	if err := yaml.Unmarshal(embconfig, &overrides); err != nil {
-		return fmt.Errorf("unable to parse cluster config overrides: %w", err)
-	}
-	if overrides.Spec.UnsupportedOverrides.K0s == nil {
-		return nil
-	}
-	origConfigBytes, err := yaml.Marshal(overrides.Spec.UnsupportedOverrides.K0s.Config)
-	if err != nil {
-		return fmt.Errorf("unable to marshal cluster config overrides: %w", err)
 	}
 	newConfigBytes, err := yaml.Marshal(config.Spec.K0s.Config)
 	if err != nil {
@@ -343,7 +327,7 @@ func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte
 	if err != nil {
 		return fmt.Errorf("unable to convert cluster config overrides to json: %w", err)
 	}
-	target, err := fmtconvert.YAMLToJSON(origConfigBytes)
+	target, err := fmtconvert.YAMLToJSON([]byte(embconfig))
 	if err != nil {
 		return fmt.Errorf("unable to convert original cluster config to json: %w", err)
 	}
@@ -361,4 +345,31 @@ func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig []byte
 	}
 	config.Spec.K0s.Config = newK0sConfig
 	return nil
+}
+
+func getControllerRoleName() string {
+	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+
+	controllerRoleName := "controller"
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Controller.Name != "" {
+				controllerRoleName = clusterConfig.Spec.Controller.Name
+			}
+		}
+	}
+	return controllerRoleName
+}
+
+func additionalControllerLabels() map[string]string {
+	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Controller.Labels != nil {
+				return clusterConfig.Spec.Controller.Labels
+			}
+		}
+	}
+	return map[string]string{}
 }

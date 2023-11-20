@@ -32,14 +32,13 @@ override: |-
   kind: Config
   spec:
     unsupportedOverrides:
-      k0s:
-        config:
-          spec:
-            workerProfiles:
-            - name: ip-forward
-              values:
-                allowedUnsafeSysctls:
-                  - net.ipv4.ip_forward
+      k0s: |
+        spec:
+          workerProfiles:
+          - name: ip-forward
+            values:
+              allowedUnsafeSysctls:
+                - net.ipv4.ip_forward
 expected: |-
   apiVersion: k0sctl.k0sproject.io/v1beta1
   kind: Cluster

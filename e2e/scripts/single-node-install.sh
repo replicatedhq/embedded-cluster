@@ -14,6 +14,7 @@ wait_for_healthy_node() {
         ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
         kubectl get nodes || true
     done
+
     return 0
 }
 
@@ -45,6 +46,18 @@ wait_for_pods_running() {
     done
 }
 
+ensure_node_config() {
+    if ! kubectl describe node | grep "controller-label" ; then
+        echo "Failed to find controller-label"
+        return 1
+    fi
+
+    if ! kubectl describe node | grep "controller-test" ; then
+        echo "Failed to find controller-test"
+        return 1
+    fi
+}
+
 main() {
     if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
@@ -57,6 +70,10 @@ main() {
     fi
     if ! wait_for_healthy_node; then
         echo "Failed to install embedded-cluster"
+        exit 1
+    fi
+    if ! ensure_node_config; then
+        echo "Cluster did not respect node config"
         exit 1
     fi
     if ! wait_for_pods_running 900; then

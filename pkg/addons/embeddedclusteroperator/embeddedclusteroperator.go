@@ -13,7 +13,6 @@ import (
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	kyaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/customization"
@@ -76,22 +75,6 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
-// readEmbeddedClusterConfig reads and unmarshal the Config object from the embedded cluster
-// that has been embedded into this binary through a release.
-func (e *EmbeddedClusterOperator) readEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, error) {
-	rawcfg, err := customization.AdminConsole{}.EmbeddedClusterConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to read embeddec cluster config: %w", err)
-	} else if rawcfg == nil {
-		return nil, nil
-	}
-	var cfg embeddedclusterv1beta1.Config
-	if err := kyaml.Unmarshal(rawcfg, &cfg); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal embedded cluster config: %w", err)
-	}
-	return &cfg, nil
-}
-
 // Outro is executed after the cluster deployment.
 func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) error {
 	loading := pb.Start()
@@ -101,7 +84,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		return err
 	}
 	loading.Closef("Embedded Cluster Operator is ready!")
-	cfg, err := e.readEmbeddedClusterConfig()
+	cfg, err := customization.AdminConsole{}.EmbeddedClusterConfig()
 	if err != nil {
 		return err
 	}

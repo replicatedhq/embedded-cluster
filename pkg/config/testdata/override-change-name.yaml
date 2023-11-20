@@ -32,10 +32,9 @@ override: |-
   kind: Config
   spec:
     unsupportedOverrides:
-      k0s:
-        config:
-          metadata:
-            name: foo
+      k0s: |
+        metadata:
+          name: foo
 expected: |-
   apiVersion: k0sctl.k0sproject.io/v1beta1
   kind: Cluster

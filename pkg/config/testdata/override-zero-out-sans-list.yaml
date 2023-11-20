@@ -36,11 +36,10 @@ override: |-
   kind: Config
   spec:
     unsupportedOverrides:
-      k0s:
-        config:
-          spec:
-            api:
-              sans: null
+      k0s: |
+        spec:
+          api:
+            sans: null
 expected: |-
   apiVersion: k0sctl.k0sproject.io/v1beta1
   kind: Cluster

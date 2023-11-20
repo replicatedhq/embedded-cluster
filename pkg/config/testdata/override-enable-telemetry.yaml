@@ -32,11 +32,10 @@ override: |-
   kind: Config
   spec:
     unsupportedOverrides:
-      k0s:
-        config:
-          spec:
-            telemetry:
-              enabled: true
+      k0s: |
+        spec:
+          telemetry:
+            enabled: true
 expected: |-
   apiVersion: k0sctl.k0sproject.io/v1beta1
   kind: Cluster
