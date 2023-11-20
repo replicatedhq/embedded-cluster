@@ -3,18 +3,19 @@ kind: Config
 metadata:
   name: "testconfig"
 spec:
-  controller:
-    labels:
-      controller-label: controller-label-value
-    name: controller-test
-  custom:
-    - labels:
-        abc-test-label: abc-test-label-value
-        abc-test-label-two: abc-test-label-value-2
-      name: abc
-    - labels:
-        xyz-test-label: xyz-value
-      name: xyz
+  roles:
+    controller:
+      labels:
+        controller-label: controller-label-value
+      name: controller-test
+    custom:
+      - labels:
+          abc-test-label: abc-test-label-value
+          abc-test-label-two: abc-test-label-value-2
+        name: abc
+      - labels:
+          xyz-test-label: xyz-value
+        name: xyz
   unsupportedOverrides:
     k0s: |
       metadata:
