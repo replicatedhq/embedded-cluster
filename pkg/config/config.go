@@ -353,8 +353,8 @@ func getControllerRoleName() string {
 	controllerRoleName := "controller"
 	if err == nil {
 		if clusterConfig != nil {
-			if clusterConfig.Spec.Controller.Name != "" {
-				controllerRoleName = clusterConfig.Spec.Controller.Name
+			if clusterConfig.Spec.Roles.Controller.Name != "" {
+				controllerRoleName = clusterConfig.Spec.Roles.Controller.Name
 			}
 		}
 	}
@@ -366,8 +366,8 @@ func additionalControllerLabels() map[string]string {
 
 	if err == nil {
 		if clusterConfig != nil {
-			if clusterConfig.Spec.Controller.Labels != nil {
-				return clusterConfig.Spec.Controller.Labels
+			if clusterConfig.Spec.Roles.Controller.Labels != nil {
+				return clusterConfig.Spec.Roles.Controller.Labels
 			}
 		}
 	}
