@@ -18,6 +18,8 @@ K0SCTL_VERSION = v0.16.0
 K0S_VERSION = v1.28.4+k0s.0-ec.0
 K0S_BINARY_SOURCE_OVERRIDE = "https://tf-embedded-cluster-binaries.s3.amazonaws.com/k0s-v1.28.4%2Bk0s.0-ec.0"
 TROUBLESHOOT_VERSION = v0.79.0
+UUID := $(shell uuidgen | tr -d -)
+BUILDER_IMAGE ?= ttl.sh/$(UUID):2h
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sBinaryURL=$(K0S_BINARY_SOURCE_OVERRIDE) \
@@ -90,6 +92,15 @@ static-linux-amd64: pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 pkg/good
 embedded-cluster-linux-amd64: static static-linux-amd64
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
+.PHONY: builder
+builder:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/builder ./cmd/builder
+
+.PHONY: build-and-push-builder-image
+build-and-push-builder-image:
+	docker build --platform linux/amd64 -t $(BUILDER_IMAGE) -f Dockerfile .
+	docker push $(BUILDER_IMAGE)
+
 .PHONY: unit-tests
 unit-tests:
 	go test -v $(shell go list ./... | grep -v /e2e)
@@ -103,14 +114,14 @@ e2e-tests: embedded-release
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
-	go test -timeout 45m -parallel 1 -failfast -v ./e2e
+	BUILDER_IMAGE=$(BUILDER_IMAGE) go test -timeout 45m -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
 e2e-test: embedded-release
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
-	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
+	BUILDER_IMAGE=$(BUILDER_IMAGE) go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
 
 .PHONY: clean
 clean:
