@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
+	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
@@ -66,6 +66,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1bet
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
 		TargetNS:  "embedded-cluster",
+		Order:     2,
 	}
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {

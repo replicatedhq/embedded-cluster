@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/dig"
-	"github.com/k0sproject/k0s/pkg/apis/v1beta1"
+	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -190,6 +190,7 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Reposito
 		Version:   Version,
 		Values:    string(values),
 		TargetNS:  a.namespace,
+		Order:     3,
 	}
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
