@@ -15,7 +15,7 @@ require (
 	github.com/k0sproject/rig v0.15.1
 	github.com/replicatedhq/embedded-cluster-operator v0.4.1
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
-	github.com/replicatedhq/troubleshoot v0.78.0
+	github.com/replicatedhq/troubleshoot v0.78.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.25.7
