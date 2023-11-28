@@ -9,11 +9,13 @@ import (
 	"os"
 	"strings"
 
+	helmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -59,9 +61,9 @@ func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for all the embedded charts.
 // and writes the charts to the disk.
-func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (c *Custom) GenerateHelmConfig() ([]helmv1beta1.Chart, []v1beta1.Repository, error) {
 
-	chartConfigs := []v1beta1.Chart{}
+	chartConfigs := []helmv1beta1.Chart{}
 
 	exe, err := os.Executable()
 	if err != nil {
@@ -89,12 +91,24 @@ func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, er
 		chartName := strings.ToLower(chartData.Name())
 		dstpath := defaults.PathToHelmChart(chartName, chartData.Metadata.Version)
 
-		chartConfig := v1beta1.Chart{
-			Name:      chartName,
-			Version:   chartData.Metadata.Version,
-			TargetNS:  c.namespace,
-			ChartName: dstpath,
-			Values:    chart.Values,
+		chartConfig := helmv1beta1.Chart{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Chart",
+				APIVersion: "helm.k0sproject.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      chartName,
+				Namespace: "kube-system",
+			},
+			Spec: helmv1beta1.ChartSpec{
+				ReleaseName: chartName,
+				ChartName:   dstpath,
+				Version:     chartData.Metadata.Version,
+				Values:      chart.Values,
+				Namespace:   c.namespace,
+				Order:       5,
+			},
+			Status: helmv1beta1.ChartStatus{},
 		}
 
 		reader := chart.ChartReader()

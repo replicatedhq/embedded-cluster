@@ -7,11 +7,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
+	helmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	corev1 "k8s.io/api/core/v1"
+	extensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -21,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/custom"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
@@ -28,7 +32,7 @@ import (
 type AddOn interface {
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error)
+	GenerateHelmConfig() ([]helmv1beta1.Chart, []v1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
 }
 
@@ -58,9 +62,43 @@ func (a *Applier) Outro(ctx context.Context) error {
 	return nil
 }
 
+func (a *Applier) ApplyCharts(ctx context.Context, charts []helmv1beta1.Chart) error {
+
+	os.Setenv("KUBECONFIG", defaults.PathToConfig("kubeconfig"))
+	k8slogger := zap.New(func(o *zap.Options) {
+		o.DestWriter = io.Discard
+	})
+	log.SetLogger(k8slogger)
+
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return fmt.Errorf("unable to process kubernetes config: %w", err)
+	}
+
+	scheme := runtime.NewScheme()
+	helmv1beta1.AddToScheme(scheme)
+	kcli, err := client.New(cfg, client.Options{Scheme: scheme})
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	a.waitForKubernetes(ctx)
+
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	for _, chart := range charts {
+		err := kcli.Create(ctx, &chart)
+		if err != nil {
+			return fmt.Errorf("unable to create chart %s: %w", chart.Name, err)
+		}
+	}
+	return nil
+}
+
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	charts := []v1beta1.Chart{}
+func (a *Applier) GenerateHelmConfigs() ([]helmv1beta1.Chart, []v1beta1.Repository, error) {
+	charts := []helmv1beta1.Chart{}
 	repositories := []v1beta1.Repository{}
 	addons, err := a.load()
 	if err != nil {
@@ -184,7 +222,8 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 			return ctx.Err()
 		}
 		counter++
-		if err := kcli.List(ctx, &corev1.NamespaceList{}); err != nil {
+		crd := &extensionsv1.CustomResourceDefinition{}
+		if err := kcli.Get(ctx, client.ObjectKey{Name: "charts.helm.k0sproject.io"}, crd); err != nil {
 			loading.Infof(
 				"%d/n Waiting for Kubernetes API server to be ready.",
 				counter,

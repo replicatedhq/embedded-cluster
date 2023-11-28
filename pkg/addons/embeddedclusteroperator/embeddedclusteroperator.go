@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	helmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -60,20 +61,33 @@ func (e *EmbeddedClusterOperator) HostPreflights() (*v1beta2.HostPreflightSpec, 
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	chartConfig := v1beta1.Chart{
-		Name:      releaseName,
-		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
-		Version:   Version,
-		TargetNS:  "embedded-cluster",
-		Order:     2,
+func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]helmv1beta1.Chart, []v1beta1.Repository, error) {
+
+	chartConfig := helmv1beta1.Chart{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Chart",
+			APIVersion: "helm.k0sproject.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      releaseName,
+			Namespace: "kube-system",
+		},
+		Spec: helmv1beta1.ChartSpec{
+			ReleaseName: releaseName,
+			ChartName:   fmt.Sprintf("%s/%s", ChartURL, ChartName),
+			Version:     Version,
+			Namespace:   e.namespace,
+			Order:       3,
+		},
+		Status: helmv1beta1.ChartStatus{},
 	}
+
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig.Values = string(valuesStringData)
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	chartConfig.Spec.Values = string(valuesStringData)
+	return []helmv1beta1.Chart{chartConfig}, nil, nil
 }
 
 // Outro is executed after the cluster deployment.

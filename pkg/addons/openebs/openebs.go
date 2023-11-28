@@ -6,9 +6,11 @@ import (
 	"context"
 	"fmt"
 
+	helmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -52,13 +54,25 @@ func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 }
 
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
-func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	chartConfig := v1beta1.Chart{
-		Name:      releaseName,
-		ChartName: ChartName,
-		Version:   Version,
-		TargetNS:  "openebs",
-		Order:     1,
+func (o *OpenEBS) GenerateHelmConfig() ([]helmv1beta1.Chart, []v1beta1.Repository, error) {
+
+	chartConfig := helmv1beta1.Chart{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Chart",
+			APIVersion: "helm.k0sproject.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      releaseName,
+			Namespace: "kube-system",
+		},
+		Spec: helmv1beta1.ChartSpec{
+			ReleaseName: releaseName,
+			ChartName:   ChartName,
+			Version:     Version,
+			Namespace:   "openebs",
+			Order:       1,
+		},
+		Status: helmv1beta1.ChartStatus{},
 	}
 
 	repositoryConfig := v1beta1.Repository{
@@ -70,9 +84,9 @@ func (o *OpenEBS) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, e
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig.Values = string(valuesStringData)
+	chartConfig.Spec.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []helmv1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
 }
 
 // Outro is executed after the cluster deployment.

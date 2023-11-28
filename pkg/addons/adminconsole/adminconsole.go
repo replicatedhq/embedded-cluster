@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/k0sproject/dig"
+	helmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
@@ -170,7 +172,7 @@ func (a *AdminConsole) addKotsApplicationToHelmValues() error {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig() ([]helmv1beta1.Chart, []v1beta1.Repository, error) {
 	if err := a.addPasswordToHelmValues(); err != nil {
 		return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
 	}
@@ -184,15 +186,26 @@ func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Reposito
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig := v1beta1.Chart{
-		Name:      releaseName,
-		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
-		Version:   Version,
-		Values:    string(values),
-		TargetNS:  a.namespace,
-		Order:     3,
+	chartConfig := helmv1beta1.Chart{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Chart",
+			APIVersion: "helm.k0sproject.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      releaseName,
+			Namespace: "kube-system",
+		},
+		Spec: helmv1beta1.ChartSpec{
+			ReleaseName: releaseName,
+			ChartName:   fmt.Sprintf("%s/%s", ChartURL, ChartName),
+			Version:     Version,
+			Values:      string(values),
+			Namespace:   a.namespace,
+			Order:       4,
+		},
+		Status: helmv1beta1.ChartStatus{},
 	}
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return []helmv1beta1.Chart{chartConfig}, nil, nil
 }
 
 // Outro waits for the adminconsole to be ready.

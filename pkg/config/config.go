@@ -15,6 +15,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	fmtconvert "github.com/ghodss/yaml"
 	"github.com/k0sproject/dig"
+	helmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
@@ -274,26 +275,26 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 }
 
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
-func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
+func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) ([]helmv1beta1.Chart, error) {
 	if cfg.Spec == nil || cfg.Spec.K0s == nil || cfg.Spec.K0s.Config == nil {
-		return fmt.Errorf("invalid cluster configuration")
+		return nil, fmt.Errorf("invalid cluster configuration")
 	}
 	currentSpec := cfg.Spec.K0s.Config
 	configString, err := yaml.Marshal(currentSpec)
 	if err != nil {
-		return fmt.Errorf("unable to marshal helm config: %w", err)
+		return nil, fmt.Errorf("unable to marshal helm config: %w", err)
 	}
 	k0s := k0sconfig.ClusterConfig{}
 	if err := yaml.Unmarshal(configString, &k0s); err != nil {
-		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
+		return nil, fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
 	opts = append(opts, addons.WithConfig(k0s))
 	chtconfig, repconfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
 	if err != nil {
-		return fmt.Errorf("unable to apply addons: %w", err)
+		return nil, fmt.Errorf("unable to apply addons: %w", err)
 	}
+
 	newHelmExtension := &k0sconfig.HelmExtensions{
-		Charts:       chtconfig,
 		Repositories: repconfig,
 	}
 	newClusterExtensions := &k0sconfig.ClusterExtensions{
@@ -303,11 +304,11 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 	// marshal and unmarshal to convert key names from struct tags
 	newClusterExtensionsBytes, err := yaml.Marshal(newClusterExtensions)
 	if err != nil {
-		return fmt.Errorf("unable to marshal new cluster extensions: %w", err)
+		return nil, fmt.Errorf("unable to marshal new cluster extensions: %w", err)
 	}
 	newClusterExtensionsMap := dig.Mapping{}
 	if err := yaml.Unmarshal(newClusterExtensionsBytes, &newClusterExtensionsMap); err != nil {
-		return fmt.Errorf("unable to unmarshal new cluster extensions: %w", err)
+		return nil, fmt.Errorf("unable to unmarshal new cluster extensions: %w", err)
 	}
 
 	// workaround for no extensions.storage safety in k0s
@@ -321,10 +322,10 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 			spec["extensions"] = newClusterExtensionsMap
 			cfg.Spec.K0s.Config["spec"] = spec
 		} else {
-			return fmt.Errorf("unable to update cluster config")
+			return nil, fmt.Errorf("unable to update cluster config")
 		}
 	}
-	return nil
+	return chtconfig, nil
 }
 
 // ApplyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.

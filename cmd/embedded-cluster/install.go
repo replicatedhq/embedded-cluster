@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	helmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
 	"github.com/k0sproject/rig/log"
@@ -31,6 +32,8 @@ import (
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
+
+var chartList []helmv1beta1.Chart
 
 // runPostApply is meant to run things that can't be run automatically with
 // k0sctl. Iterates over all hosts and calls runPostApply on each.
@@ -179,7 +182,8 @@ func updateConfig(c *cli.Context) error {
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
 
-	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
+	chartList, err = config.UpdateHelmConfigs(cfg, opts...)
+	if err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
 
@@ -281,7 +285,8 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
 
-	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
+	chartList, err = config.UpdateHelmConfigs(cfg, opts...)
+	if err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
 
@@ -468,6 +473,13 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+
+		newApplier := addons.NewApplier()
+		err := newApplier.ApplyCharts(c.Context, chartList)
+		if err != nil {
+			panic(err)
+		}
+
 		if err := runOutro(c); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
