@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.25.7
 	golang.org/x/crypto v0.15.0
-	golang.org/x/term v0.14.0
+	golang.org/x/term v0.15.0
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.13.2
 	k8s.io/api v0.28.4
@@ -144,7 +144,7 @@ require (
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/oauth2 v0.14.0 // indirect
-	golang.org/x/sys v0.14.1-0.20231108175955-e4099bfacb8c // indirect
+	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.4.0 // indirect
 	golang.org/x/tools v0.15.0 // indirect
