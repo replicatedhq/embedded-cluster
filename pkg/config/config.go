@@ -15,13 +15,12 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	fmtconvert "github.com/ghodss/yaml"
 	"github.com/k0sproject/dig"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/v1beta1"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	k0sversion "github.com/k0sproject/version"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/sirupsen/logrus"
-	yamlv2 "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -280,12 +279,12 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		return fmt.Errorf("invalid cluster configuration")
 	}
 	currentSpec := cfg.Spec.K0s.Config
-	configString, err := yamlv2.Marshal(currentSpec)
+	configString, err := yaml.Marshal(currentSpec)
 	if err != nil {
 		return fmt.Errorf("unable to marshal helm config: %w", err)
 	}
 	k0s := k0sconfig.ClusterConfig{}
-	if err := yamlv2.Unmarshal(configString, &k0s); err != nil {
+	if err := yaml.Unmarshal(configString, &k0s); err != nil {
 		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
 	opts = append(opts, addons.WithConfig(k0s))
@@ -300,12 +299,26 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 	newClusterExtensions := &k0sconfig.ClusterExtensions{
 		Helm: newHelmExtension,
 	}
+
+	// marshal and unmarshal to convert key names from struct tags
+	newClusterExtensionsBytes, err := yaml.Marshal(newClusterExtensions)
+	if err != nil {
+		return fmt.Errorf("unable to marshal new cluster extensions: %w", err)
+	}
+	newClusterExtensionsMap := dig.Mapping{}
+	if err := yaml.Unmarshal(newClusterExtensionsBytes, &newClusterExtensionsMap); err != nil {
+		return fmt.Errorf("unable to unmarshal new cluster extensions: %w", err)
+	}
+
+	// workaround for no extensions.storage safety in k0s
+	delete(newClusterExtensionsMap, "storage")
+
 	if spec, ok := cfg.Spec.K0s.Config["spec"].(map[string]interface{}); ok {
-		spec["extensions"] = newClusterExtensions
+		spec["extensions"] = newClusterExtensionsMap
 		cfg.Spec.K0s.Config["spec"] = spec
 	} else {
 		if spec, ok := cfg.Spec.K0s.Config["spec"].(dig.Mapping); ok {
-			spec["extensions"] = newClusterExtensions
+			spec["extensions"] = newClusterExtensionsMap
 			cfg.Spec.K0s.Config["spec"] = spec
 		} else {
 			return fmt.Errorf("unable to update cluster config")

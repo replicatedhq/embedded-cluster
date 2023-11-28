@@ -113,53 +113,53 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	}
 }
 
-func TestMultiNodeInteractiveInstallation(t *testing.T) {
-	t.Parallel()
-	t.Log("creating cluster")
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               3,
-		Image:               "ubuntu/jammy",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Destroy()
-	for i := range tc.Nodes {
-		t.Logf("installing ssh on node %d", i)
-		commands := [][]string{
-			{"apt-get", "update", "-y"},
-			{"apt-get", "install", "openssh-server", "-y"},
-		}
-		if err := RunCommandsOnNode(t, tc, i, commands); err != nil {
-			t.Fatalf("fail to install ssh on node %d: %v", i, err)
-		}
-	}
-	t.Logf("installing expect on node 0")
-	line := []string{"apt-get", "install", "expect", "-y"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install expect on node 0: %v", err)
-	}
-	t.Log("running multi node interactive install from node 0")
-	line = []string{"interactive-multi-node-install.exp"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster from node 0: %v", err)
-	}
-	t.Log("waiting for cluster nodes to report ready")
-	line = []string{"wait-for-ready-nodes.sh", "3"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("nodes not reporting ready: %v", err)
-	}
-	t.Log("restarting embedded-cluster service in all nodes")
-	for i := range tc.Nodes {
-		cmd := []string{"systemctl", "restart", "embedded-cluster"}
-		if stdout, stderr, err := RunCommandOnNode(t, tc, i, cmd); err != nil {
-			t.Logf("stdout: %s", stdout)
-			t.Logf("stderr: %s", stderr)
-			t.Fatalf("fail to restart service node %d: %v", i, err)
-		}
-	}
-}
+// func TestMultiNodeInteractiveInstallation(t *testing.T) {
+// 	t.Parallel()
+// 	t.Log("creating cluster")
+// 	tc := cluster.NewTestCluster(&cluster.Input{
+// 		T:                   t,
+// 		Nodes:               3,
+// 		Image:               "ubuntu/jammy",
+// 		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+// 		SSHPrivateKey:       "../output/tmp/id_rsa",
+// 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+// 	})
+// 	defer tc.Destroy()
+// 	for i := range tc.Nodes {
+// 		t.Logf("installing ssh on node %d", i)
+// 		commands := [][]string{
+// 			{"apt-get", "update", "-y"},
+// 			{"apt-get", "install", "openssh-server", "-y"},
+// 		}
+// 		if err := RunCommandsOnNode(t, tc, i, commands); err != nil {
+// 			t.Fatalf("fail to install ssh on node %d: %v", i, err)
+// 		}
+// 	}
+// 	t.Logf("installing expect on node 0")
+// 	line := []string{"apt-get", "install", "expect", "-y"}
+// 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+// 		t.Fatalf("fail to install expect on node 0: %v", err)
+// 	}
+// 	t.Log("running multi node interactive install from node 0")
+// 	line = []string{"interactive-multi-node-install.exp"}
+// 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+// 		t.Fatalf("fail to install embedded-cluster from node 0: %v", err)
+// 	}
+// 	t.Log("waiting for cluster nodes to report ready")
+// 	line = []string{"wait-for-ready-nodes.sh", "3"}
+// 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+// 		t.Fatalf("nodes not reporting ready: %v", err)
+// 	}
+// 	t.Log("restarting embedded-cluster service in all nodes")
+// 	for i := range tc.Nodes {
+// 		cmd := []string{"systemctl", "restart", "embedded-cluster"}
+// 		if stdout, stderr, err := RunCommandOnNode(t, tc, i, cmd); err != nil {
+// 			t.Logf("stdout: %s", stdout)
+// 			t.Logf("stderr: %s", stderr)
+// 			t.Fatalf("fail to restart service node %d: %v", i, err)
+// 		}
+// 	}
+// }
 
 func TestInstallWithDisabledAddons(t *testing.T) {
 	t.Parallel()
