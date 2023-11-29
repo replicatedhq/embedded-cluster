@@ -309,8 +309,8 @@ github.com/replicatedhq/embedded-cluster-operator v0.4.1 h1:4LMbS5Z8adVe+nO4lFG0
 github.com/replicatedhq/embedded-cluster-operator v0.4.1/go.mod h1:Z9hN4T1105PiYVh2UcgkYLSLLQDhQiuP3aDB8KDBGZA=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
-github.com/replicatedhq/troubleshoot v0.78.0 h1:CHundb3s1PPU3bcAdOM0SHysV9L+XADsLHQmDfGe6/k=
-github.com/replicatedhq/troubleshoot v0.78.0/go.mod h1:twdVJdLkvR2VgosPL1aCKb/qKQRIJnjz3KkBzgI5In8=
+github.com/replicatedhq/troubleshoot v0.78.1 h1:b/Y3gR+xjVYWCSJN7sfLzJSXQ8hI2IQLg2KGie8pp94=
+github.com/replicatedhq/troubleshoot v0.78.1/go.mod h1:twdVJdLkvR2VgosPL1aCKb/qKQRIJnjz3KkBzgI5In8=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.4 h1:8TfxU8dW6PdqD27gjM8MVNuicgxIjxpm4K7x4jp8sis=
 github.com/rivo/uniseg v0.4.4/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
