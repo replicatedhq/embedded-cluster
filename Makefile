@@ -4,7 +4,7 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.104.2
+ADMIN_CONSOLE_CHART_VERSION = 1.104.3
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
 EMBEDDED_OPERATOR_CHART_VERSION = 0.4.1
@@ -14,7 +14,7 @@ OPENEBS_CHART_VERSION = 3.9.0
 KUBECTL_VERSION = v1.28.4
 K0SCTL_VERSION = v0.16.0
 K0S_VERSION = v1.28.4+k0s.0
-TROUBLESHOOT_VERSION = v0.77.0
+TROUBLESHOOT_VERSION = v0.78.1
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
