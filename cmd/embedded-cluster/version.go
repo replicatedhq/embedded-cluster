@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -9,11 +10,13 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 )
 
 var versionCommand = &cli.Command{
-	Name:  "version",
-	Usage: fmt.Sprintf("Shows the %s installer version", defaults.BinaryName()),
+	Name:        "version",
+	Usage:       fmt.Sprintf("Shows the %s installer version", defaults.BinaryName()),
+	Subcommands: []*cli.Command{metadataCommand},
 	Action: func(c *cli.Context) error {
 		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
 		versions, err := addons.NewApplier(opts...).Versions()
@@ -31,6 +34,39 @@ var versionCommand = &cli.Command{
 			writer.AppendRow(table.Row{name, version})
 		}
 		fmt.Printf("%s\n", writer.Render())
+		return nil
+	},
+}
+
+// ReleaseMetadata holds the metadata about a specific release, including addons and
+// their versions.
+type ReleaseMetadata struct {
+	Versions map[string]string
+	K0sSHA   string
+}
+
+var metadataCommand = &cli.Command{
+	Name:   "metadata",
+	Usage:  "Print metadata about this release",
+	Hidden: true,
+	Action: func(c *cli.Context) error {
+		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
+		versions, err := addons.NewApplier(opts...).Versions()
+		if err != nil {
+			return fmt.Errorf("unable to get versions: %w", err)
+		}
+		versions["Kubernetes"] = defaults.K0sVersion
+		versions["Installer"] = defaults.Version
+		sha, err := goods.K0sBinarySHA256()
+		if err != nil {
+			return fmt.Errorf("unable to get k0s binary sha256: %w", err)
+		}
+		meta := ReleaseMetadata{Versions: versions, K0sSHA: sha}
+		data, err := json.MarshalIndent(meta, "", "\t")
+		if err != nil {
+			return fmt.Errorf("unable to marshal versions: %w", err)
+		}
+		fmt.Println(string(data))
 		return nil
 	},
 }

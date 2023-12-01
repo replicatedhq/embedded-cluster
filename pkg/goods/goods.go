@@ -3,9 +3,13 @@
 package goods
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 
@@ -14,6 +18,22 @@ import (
 
 //go:embed bins/*
 var binfs embed.FS
+
+// K0sBinarySHA256 returns the SHA256 checksum of the embedded k0s binary.
+func K0sBinarySHA256() (string, error) {
+	fname := fmt.Sprintf("k0s-%s", defaults.K0sVersion)
+	binpath := path.Join("bins", "k0sctl", fname)
+	fp, err := binfs.Open(binpath)
+	if err != nil {
+		return "", fmt.Errorf("unable to open embedded k0s binary: %w", err)
+	}
+	defer fp.Close()
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, fp); err != nil {
+		return "", fmt.Errorf("unable to copy embedded k0s binary: %w", err)
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
 
 // Materialize writes to disk embed assets.
 func Materialize() error {
