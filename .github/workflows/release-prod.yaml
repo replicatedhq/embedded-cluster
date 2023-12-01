@@ -23,6 +23,7 @@ jobs:
         run: |
           make embedded-cluster-linux-amd64 VERSION=$TAG_NAME
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
+          ./output/bin/embedded-cluster version metadata > metadata.json
           make clean
       - name: Build darwin-amd64
         run: |
@@ -41,3 +42,4 @@ jobs:
           prerelease: false
           files: |
             *.tgz
+            metadata.json
