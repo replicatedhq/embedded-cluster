@@ -18,7 +18,7 @@ require (
 	github.com/replicatedhq/troubleshoot v0.78.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
-	github.com/urfave/cli/v2 v2.25.7
+	github.com/urfave/cli/v2 v2.26.0
 	golang.org/x/crypto v0.16.0
 	golang.org/x/term v0.15.0
 	gopkg.in/yaml.v2 v2.4.0
