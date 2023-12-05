@@ -14,6 +14,18 @@ rules:
   - list
   - watch
 - apiGroups:
+  - autopilot.k0sproject.io
+  resources:
+  - plans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - embeddedcluster.replicated.com
   resources:
   - installations

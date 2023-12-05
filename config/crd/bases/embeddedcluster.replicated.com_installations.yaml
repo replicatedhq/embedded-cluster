@@ -15,7 +15,24 @@ spec:
     singular: installation
   scope: Cluster
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - description: State of the installation
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: Installer version
+      jsonPath: .spec.config.version
+      name: InstallerVersion
+      type: string
+    - description: Creation time of the installation
+      jsonPath: .metadata.creationTimestamp
+      name: CreatedAt
+      type: string
+    - description: Age of the resource
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Installation is the Schema for the installations API
@@ -248,6 +265,12 @@ spec:
                   - name
                   type: object
                 type: array
+              reason:
+                description: Reason holds the reason for the current state.
+                type: string
+              state:
+                description: State holds the current state of the installation.
+                type: string
             type: object
         type: object
     served: true

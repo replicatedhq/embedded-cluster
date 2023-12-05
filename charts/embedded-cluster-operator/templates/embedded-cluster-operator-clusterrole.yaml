@@ -40,3 +40,15 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - autopilot.k0sproject.io
+  resources:
+  - plans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

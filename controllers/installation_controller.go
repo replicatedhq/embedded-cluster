@@ -22,14 +22,22 @@ import (
 	"sort"
 	"time"
 
+	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
+	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
+	"github.com/k0sproject/version"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
 	"github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
 )
 
 // requeueAfter is our default interval for requeueing. If nothing has changed with the
@@ -40,7 +48,8 @@ var requeueAfter = time.Hour
 // InstallationReconciler reconciles a Installation object
 type InstallationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Discovery discovery.DiscoveryInterface
+	Scheme    *runtime.Scheme
 }
 
 // NodeHasChanged returns true if the node configuration has changed when compared to
@@ -77,9 +86,10 @@ func (r *InstallationReconciler) UpdateNodeStatus(in *v1beta1.Installation, ev m
 	return nil
 }
 
-// ReconcileInstallation is the function that actually reconciles the Installation object.
-// Metrics events (call back home) are generated here.
-func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *v1beta1.Installation) error {
+// ReconcileNodeStatuses reconciles the node statuses in the Installation object status. Installation
+// is not updated remotely but only in the memory representation of the object (aka caller must save
+// the object after the call).
+func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *v1beta1.Installation) error {
 	var nodes corev1.NodeList
 	if err := r.List(ctx, &nodes); err != nil {
 		return fmt.Errorf("failed to list nodes: %w", err)
@@ -129,25 +139,183 @@ func (r *InstallationReconciler) ReconcileInstallation(ctx context.Context, in *
 	}
 	sort.SliceStable(trimmed, func(i, j int) bool { return trimmed[i].Name < trimmed[j].Name })
 	in.Status.NodesStatus = trimmed
-	if err := r.Status().Update(ctx, in); err != nil {
-		return fmt.Errorf("failed to update installation status: %w", err)
+	return nil
+}
+
+// ReconcileK0sVersion reconciles the k0s version in the Installation object status. If the
+// Installation spec.config points to a different version we start an upgrade Plan. If an
+// upgrade plan already exists we make sure the installation status is updated with the
+// latest plan status.
+func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1beta1.Installation) error {
+	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
+		in.Status.SetState(v1beta1.InstallationStateInstalled, "")
+		return nil
+	}
+	meta, err := release.MetadataFor(ctx, in.Spec.Config.Version)
+	if err != nil {
+		return fmt.Errorf("failed to get release metadata: %w", err)
+	}
+	vinfo, err := r.Discovery.ServerVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get server version: %w", err)
+	}
+	runningVersion := vinfo.GitVersion
+	if runningVersion == meta.Versions.Kubernetes {
+		in.Status.SetState(v1beta1.InstallationStateInstalled, "")
+		return nil
+	}
+	running, err := version.NewVersion(runningVersion)
+	if err != nil {
+		reason := fmt.Sprintf("Invalid running version %s", runningVersion)
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+		return nil
+	}
+	desired, err := version.NewVersion(meta.Versions.Kubernetes)
+	if err != nil {
+		reason := fmt.Sprintf("Invalid desired version %s", in.Spec.Config.Version)
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+		return nil
+	}
+	if running.GreaterThan(desired) {
+		in.Status.SetState(v1beta1.InstallationStateFailed, "Downgrades not supported")
+		return nil
+	}
+	var plan apv1b2.Plan
+	okey := client.ObjectKey{Name: "autopilot"}
+	if err := r.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get upgrade plan: %w", err)
+	} else if errors.IsNotFound(err) {
+		if err := r.StartUpgrade(ctx, in); err != nil {
+			return fmt.Errorf("failed to start upgrade: %w", err)
+		}
+		return nil
+	}
+	if plan.Spec.ID == in.Name {
+		r.SetStateBasedOnPlan(in, plan)
+		return nil
+	}
+	if !autopilot.HasThePlanEnded(plan) {
+		reason := fmt.Sprintf("Another upgrade is in progress (%s)", plan.Spec.ID)
+		in.Status.SetState(v1beta1.InstallationStateWaiting, reason)
+		return nil
+	}
+	if err := r.Delete(ctx, &plan); err != nil {
+		return fmt.Errorf("failed to delete previous upgrade plan: %w", err)
 	}
 	return nil
 }
 
-// copyLastNodeStatus makes sure that we copied the last populated node status from the
-// previous installation objects. This is needed because we don't want to lose the last
-// node status when we create a new installation object. items is expected to be sorted
-// in descending order by creation timestamp.
-func (r *InstallationReconciler) copyLastNodeStatus(items []v1beta1.Installation) error {
-	sorted := sort.SliceIsSorted(items, func(i, j int) bool {
+// SetStateBasedOnPlan sets the installation state based on the Plan state. For now we do not
+// report anything fancy but we should consider reporting here a summary of how many nodes
+// have been upgraded and how many are still pending.
+func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, plan apv1b2.Plan) {
+	reason := autopilot.ReasonForState(plan)
+	switch plan.Status.State {
+	case "":
+		in.Status.SetState(v1beta1.InstallationStateEnqueued, reason)
+	case apcore.PlanIncompleteTargets:
+		fallthrough
+	case apcore.PlanInconsistentTargets:
+		fallthrough
+	case apcore.PlanRestricted:
+		fallthrough
+	case apcore.PlanWarning:
+		fallthrough
+	case apcore.PlanMissingSignalNode:
+		fallthrough
+	case apcore.PlanApplyFailed:
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+	case apcore.PlanSchedulable:
+		fallthrough
+	case apcore.PlanSchedulableWait:
+		in.Status.SetState(v1beta1.InstallationStateInstalling, reason)
+	case apcore.PlanCompleted:
+		in.Status.SetState(v1beta1.InstallationStateInstalled, reason)
+	default:
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+	}
+}
+
+// DetermineUpgradeTargets makes sure that we are listing all the nodes in the autopilot plan.
+func (r *InstallationReconciler) DetermineUpgradeTargets(ctx context.Context) (apv1b2.PlanCommandTargets, error) {
+	var nodes corev1.NodeList
+	if err := r.List(ctx, &nodes); err != nil {
+		return apv1b2.PlanCommandTargets{}, fmt.Errorf("failed to list nodes: %w", err)
+	}
+	controllers := []string{}
+	workers := []string{}
+	for _, node := range nodes.Items {
+		if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
+			controllers = append(controllers, node.Name)
+			continue
+		}
+		workers = append(workers, node.Name)
+	}
+	return apv1b2.PlanCommandTargets{
+		Controllers: apv1b2.PlanCommandTarget{
+			Discovery: apv1b2.PlanCommandTargetDiscovery{
+				Static: &apv1b2.PlanCommandTargetDiscoveryStatic{Nodes: controllers},
+			},
+		},
+		Workers: apv1b2.PlanCommandTarget{
+			Discovery: apv1b2.PlanCommandTargetDiscovery{
+				Static: &apv1b2.PlanCommandTargetDiscoveryStatic{Nodes: workers},
+			},
+		},
+	}, nil
+}
+
+// StartUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
+func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.Installation) error {
+	targets, err := r.DetermineUpgradeTargets(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine upgrade targets: %w", err)
+	}
+	meta, err := release.MetadataFor(ctx, in.Spec.Config.Version)
+	if err != nil {
+		return fmt.Errorf("failed to get release bundle: %w", err)
+	}
+	// XXX we might want to store these somewhere else.
+	repo := "https://github.com/k0sproject/k0s"
+	k0surl := fmt.Sprintf("%[1]s/releases/download/%[2]s/k0s-%[2]s-amd64", repo, meta.Versions.Kubernetes)
+	plan := apv1b2.Plan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "autopilot",
+		},
+		Spec: apv1b2.PlanSpec{
+			Timestamp: "now",
+			ID:        in.Name,
+			Commands: []apv1b2.PlanCommand{
+				{
+					K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
+						Version: meta.Versions.Kubernetes,
+						Targets: targets,
+						Platforms: apv1b2.PlanPlatformResourceURLMap{
+							"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},
+						},
+					},
+				},
+			},
+		},
+	}
+	if err := r.Create(ctx, &plan); err != nil {
+		return fmt.Errorf("failed to create upgrade plan: %w", err)
+	}
+	in.Status.SetState(v1beta1.InstallationStateEnqueued, "")
+	return nil
+}
+
+// CoalesceInstallations goes through all the installation objects and make sure that the
+// status of the newest one is coherent with whole cluster status. Returns the newest
+// installation object.
+func (r *InstallationReconciler) CoalesceInstallations(
+	ctx context.Context, items []v1beta1.Installation,
+) *v1beta1.Installation {
+	sort.SliceStable(items, func(i, j int) bool {
 		return items[j].CreationTimestamp.Before(&items[i].CreationTimestamp)
 	})
-	if !sorted {
-		return fmt.Errorf("installation not sorted")
-	}
 	if len(items) == 1 || len(items[0].Status.NodesStatus) > 0 {
-		return nil
+		return &items[0]
 	}
 	for i := 1; i < len(items); i++ {
 		if len(items[i].Status.NodesStatus) == 0 {
@@ -156,13 +324,32 @@ func (r *InstallationReconciler) copyLastNodeStatus(items []v1beta1.Installation
 		items[0].Status.NodesStatus = items[i].Status.NodesStatus
 		break
 	}
-	return nil
+	return &items[0]
+}
+
+// DisableOldInstallations resets the old installation statuses keeping only the newest one with
+// proper status set. This set the state for all old installations as "obsolete". We do not report
+// errors back as this is not a critical operation, if we fail to update the status we will just
+// retry on the next reconcile.
+func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, items []v1beta1.Installation) {
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[j].CreationTimestamp.Before(&items[i].CreationTimestamp)
+	})
+	for _, in := range items[1:] {
+		in.Status.NodesStatus = nil
+		in.Status.SetState(
+			v1beta1.InstallationStateObsolete,
+			"This is not the most recent installation object",
+		)
+		r.Status().Update(ctx, &in)
+	}
 }
 
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations/finalizers,verbs=update
+//+kubebuilder:rbac:groups=autopilot.k0sproject.io,resources=plans,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile reconcile the installation object.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -171,25 +358,33 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err := r.List(ctx, &installs); err != nil {
 		return ctrl.Result{}, err
 	}
-	items := installs.Items
+	items := []v1beta1.Installation{}
+	for _, in := range installs.Items {
+		if in.Status.State == v1beta1.InstallationStateObsolete {
+			continue
+		}
+		items = append(items, in)
+	}
 	log.Info("Reconciling installation")
 	if len(items) == 0 {
-		log.Info("No installation found, reconciliation ended")
+		log.Info("No active installations found, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
-	sort.SliceStable(items, func(i, j int) bool {
-		return items[j].CreationTimestamp.Before(&items[i].CreationTimestamp)
-	})
-	if items[0].Spec.ClusterID == "" {
+	in := r.CoalesceInstallations(ctx, items)
+	if in.Spec.ClusterID == "" {
 		log.Info("No cluster ID found, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
-	if err := r.copyLastNodeStatus(items); err != nil {
+	if err := r.ReconcileNodeStatuses(ctx, in); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := r.ReconcileInstallation(ctx, &items[0]); err != nil {
+	if err := r.ReconcileK0sVersion(ctx, in); err != nil {
 		return ctrl.Result{}, err
 	}
+	if err := r.Status().Update(ctx, in); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
+	}
+	r.DisableOldInstallations(ctx, items)
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
@@ -199,5 +394,6 @@ func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.Installation{}).
 		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
+		Watches(&apv1b2.Plan{}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
