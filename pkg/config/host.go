@@ -9,6 +9,7 @@ import (
 	"github.com/k0sproject/rig/log"
 	"github.com/sirupsen/logrus"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
@@ -30,10 +31,11 @@ func (h *hostcfg) render() *cluster.Host {
 	}
 	ifls = append(ifls, labelsToArg(h.Labels)...)
 	return &cluster.Host{
-		Role:         h.Role,
-		UploadBinary: true,
-		NoTaints:     h.Role == "controller+worker",
-		InstallFlags: ifls,
+		Role:          h.Role,
+		UploadBinary:  true,
+		K0sBinaryPath: defaults.K0sBinaryPath(),
+		NoTaints:      h.Role == "controller+worker",
+		InstallFlags:  ifls,
 		Connection: rig.Connection{
 			SSH: &rig.SSH{
 				Address: h.Address,
