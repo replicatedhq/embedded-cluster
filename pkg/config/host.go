@@ -31,7 +31,7 @@ func (h *hostcfg) render() *cluster.Host {
 	ifls = append(ifls, labelsToArg(h.Labels)...)
 	return &cluster.Host{
 		Role:         h.Role,
-		UploadBinary: false,
+		UploadBinary: true,
 		NoTaints:     h.Role == "controller+worker",
 		InstallFlags: ifls,
 		Connection: rig.Connection{
