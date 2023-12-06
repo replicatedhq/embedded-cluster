@@ -5,6 +5,7 @@ APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
 ADMIN_CONSOLE_CHART_VERSION = 1.104.4
+ADMIN_CONSOLE_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
 EMBEDDED_OPERATOR_CHART_VERSION = 0.5.0
@@ -14,12 +15,14 @@ OPENEBS_CHART_VERSION = 3.9.0
 KUBECTL_VERSION = v1.28.4
 K0SCTL_VERSION = v0.16.0
 K0S_VERSION = v1.28.4+k0s.0
+K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.78.1
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
@@ -31,7 +34,11 @@ default: embedded-cluster-linux-amd64
 
 pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
 	mkdir -p pkg/goods/bins/k0sctl
-	curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64"
+	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
+	    curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
+	else \
+	    curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
+	fi
 	chmod +x pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
 pkg/goods/bins/embedded-cluster/kubectl-linux-amd64:
