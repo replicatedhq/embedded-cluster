@@ -28,9 +28,10 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL  = "https://url"
-	ChartName = "name"
-	Version   = "v0.0.0"
+	ChartURL      = "https://url"
+	ChartName     = "name"
+	Version       = "v0.0.0"
+	ImageOverride = ""
 )
 
 var helmValues = map[string]interface{}{
@@ -41,6 +42,14 @@ var helmValues = map[string]interface{}{
 		"type":     "NodePort",
 		"nodePort": 30000,
 	},
+}
+
+func init() {
+	if ImageOverride != "" {
+		helmValues["images"] = map[string]interface{}{
+			"kotsadm": ImageOverride,
+		}
+	}
 }
 
 // AdminConsole manages the admin console helm chart installation.
