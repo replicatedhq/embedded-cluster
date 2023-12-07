@@ -11,6 +11,11 @@ var (
 	K0sVersion = "0.0.0"
 	// provider holds a global reference to the default provider.
 	provider *Provider
+	// K0sBinaryURL holds an alternative URL from where to download the k0s
+	// binary that has been embedded in this version of the binary. If this
+	// is empty then it means we have shipped the official k0s binary. This
+	// is set at compile time via ldflags.
+	K0sBinaryURL = ""
 )
 
 // def returns a global reference to the default provider. creates one if not
