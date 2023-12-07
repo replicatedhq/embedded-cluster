@@ -275,9 +275,14 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	if err != nil {
 		return fmt.Errorf("failed to get release bundle: %w", err)
 	}
-	// XXX we might want to store these somewhere else.
 	repo := "https://github.com/k0sproject/k0s"
 	k0surl := fmt.Sprintf("%[1]s/releases/download/%[2]s/k0s-%[2]s-amd64", repo, meta.Versions.Kubernetes)
+	if meta.K0sBinaryURL != "" {
+		// A given release may indicate a different URL from where the upgrade must fetch
+		// the k0s binary. This is useful if we want to replace the original k0s binary in
+		// one of our releases.
+		k0surl = meta.K0sBinaryURL
+	}
 	plan := apv1b2.Plan{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "autopilot",

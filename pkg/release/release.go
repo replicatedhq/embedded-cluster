@@ -27,8 +27,9 @@ type Versions struct {
 // Meta represents the components of a given embedded cluster release. This
 // is read directly from GitHub releases page.
 type Meta struct {
-	Versions Versions
-	K0sSHA   string
+	Versions     Versions
+	K0sSHA       string
+	K0sBinaryURL string
 }
 
 // MetadataFor reads metadata for a given release. Goes to GitHub releases page
