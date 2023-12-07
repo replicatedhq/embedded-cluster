@@ -41,8 +41,9 @@ var versionCommand = &cli.Command{
 // ReleaseMetadata holds the metadata about a specific release, including addons and
 // their versions.
 type ReleaseMetadata struct {
-	Versions map[string]string
-	K0sSHA   string
+	Versions     map[string]string
+	K0sSHA       string
+	K0sBinaryURL string
 }
 
 var metadataCommand = &cli.Command{
@@ -61,7 +62,11 @@ var metadataCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("unable to get k0s binary sha256: %w", err)
 		}
-		meta := ReleaseMetadata{Versions: versions, K0sSHA: sha}
+		meta := ReleaseMetadata{
+			Versions:     versions,
+			K0sSHA:       sha,
+			K0sBinaryURL: defaults.K0sBinaryURL,
+		}
 		data, err := json.MarshalIndent(meta, "", "\t")
 		if err != nil {
 			return fmt.Errorf("unable to marshal versions: %w", err)
