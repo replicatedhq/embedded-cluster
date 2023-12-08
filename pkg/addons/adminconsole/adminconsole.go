@@ -28,10 +28,11 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL      = "https://url"
-	ChartName     = "name"
-	Version       = "v0.0.0"
-	ImageOverride = ""
+	ChartURL                = "https://url"
+	ChartName               = "name"
+	Version                 = "v0.0.0"
+	ImageOverride           = ""
+	MigrationsImageOverride = ""
 )
 
 var helmValues = map[string]interface{}{
@@ -49,6 +50,12 @@ func init() {
 		helmValues["images"] = map[string]interface{}{
 			"kotsadm": ImageOverride,
 		}
+	}
+	if MigrationsImageOverride != "" {
+		if helmValues["images"] == nil {
+			helmValues["images"] = map[string]interface{}{}
+		}
+		helmValues["images"].(map[string]interface{})["migrations"] = MigrationsImageOverride
 	}
 }
 
