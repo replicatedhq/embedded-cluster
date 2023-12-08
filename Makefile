@@ -15,8 +15,8 @@ OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.9.0
 KUBECTL_VERSION = v1.28.4
 K0SCTL_VERSION = v0.16.0
-K0S_VERSION = v1.28.4+k0s.0+ec.0
-K0S_BINARY_SOURCE_OVERRIDE = "https://tf-embedded-cluster-binaries.s3.amazonaws.com/v1.28.2%2Bk0s.0%2Bec.0"
+K0S_VERSION = v1.28.2+k0s.0-ec.0
+K0S_BINARY_SOURCE_OVERRIDE = "https://tf-embedded-cluster-binaries.s3.amazonaws.com/k0s-v1.28.2%2Bk0s.0-ec.0"
 TROUBLESHOOT_VERSION = v0.78.1
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
