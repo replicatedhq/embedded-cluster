@@ -49,30 +49,10 @@ pkg/goods/bins/embedded-cluster/kubectl-linux-amd64:
 	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
 	chmod +x pkg/goods/bins/embedded-cluster/kubectl-linux-amd64
 
-pkg/goods/bins/embedded-cluster/kubectl-darwin-amd64:
-	mkdir -p pkg/goods/bins/embedded-cluster
-	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-darwin-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/darwin/amd64/kubectl"
-	chmod +x pkg/goods/bins/embedded-cluster/kubectl-darwin-amd64
-
-pkg/goods/bins/embedded-cluster/kubectl-darwin-arm64:
-	mkdir -p pkg/goods/bins/embedded-cluster
-	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-darwin-arm64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/darwin/arm64/kubectl"
-	chmod +x pkg/goods/bins/embedded-cluster/kubectl-darwin-arm64
-
 pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64:
 	mkdir -p pkg/goods/bins/embedded-cluster
 	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-linux-x64"
 	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64
-
-pkg/goods/bins/embedded-cluster/k0sctl-darwin-amd64:
-	mkdir -p pkg/goods/bins/embedded-cluster
-	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-darwin-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-x64"
-	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-darwin-amd64
-
-pkg/goods/bins/embedded-cluster/k0sctl-darwin-arm64:
-	mkdir -p pkg/goods/bins/embedded-cluster
-	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-darwin-arm64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-darwin-arm64"
-	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-darwin-arm64
 
 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64:
 	mkdir -p pkg/goods/bins/embedded-cluster
@@ -80,20 +60,6 @@ pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64:
 	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
 	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
-
-pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-amd64:
-	mkdir -p pkg/goods/bins/embedded-cluster
-	mkdir -p output/tmp/support-bundle
-	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_darwin_amd64.tar.gz
-	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
-	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-amd64
-
-pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-arm64:
-	mkdir -p pkg/goods/bins/embedded-cluster
-	mkdir -p output/tmp/support-bundle
-	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_darwin_arm64.tar.gz
-	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
-	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-arm64
 
 pkg/goods/bins/embedded-cluster/kubectl-preflight:
 	mkdir -p pkg/goods/bins/embedded-cluster
@@ -117,26 +83,12 @@ embedded-release: embedded-cluster-linux-amd64 release.tar.gz
 static: pkg/goods/bins/embedded-cluster/kubectl-preflight \
 	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
-.PHONY: static-darwin-arm64
-static-darwin-arm64: pkg/goods/bins/embedded-cluster/kubectl-darwin-arm64 pkg/goods/bins/embedded-cluster/k0sctl-darwin-arm64 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-arm64
-
-.PHONY: static-darwin-amd64
-static-darwin-amd64: pkg/goods/bins/embedded-cluster/kubectl-darwin-amd64 pkg/goods/bins/embedded-cluster/k0sctl-darwin-amd64 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-darwin-amd64
-
 .PHONY: static-linux-amd64
 static-linux-amd64: pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
 
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: static static-linux-amd64
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
-
-.PHONY: embedded-cluster-darwin-amd64
-embedded-cluster-darwin-amd64: static static-darwin-amd64
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
-
-.PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: static static-darwin-arm64
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 .PHONY: unit-tests
 unit-tests:
