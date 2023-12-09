@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	k0sBinsSubDirDarwin = "Library/Caches/k0sctl/k0s/linux/amd64"
-	k0sBinsSubDirLinux  = ".cache/k0sctl/k0s/linux/amd64"
+	k0sBinsSubDirLinux = ".cache/k0sctl/k0s/linux/amd64"
 )
 
 // NewProvider returns a new Provider using the provided base dir.
@@ -136,9 +135,6 @@ func (d *Provider) PathToLog(name string) string {
 // are stored. This is a subdirectory of the user's home directory. Follows
 // the k0sctl directory convention.
 func (d *Provider) K0sctlBinsSubDir() string {
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(d.Base, d.home(), k0sBinsSubDirDarwin)
-	}
 	return filepath.Join(d.Base, d.home(), k0sBinsSubDirLinux)
 }
 

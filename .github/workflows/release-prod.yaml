@@ -24,17 +24,6 @@ jobs:
           make embedded-cluster-linux-amd64 VERSION=$TAG_NAME
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
-          make clean
-      - name: Build darwin-amd64
-        run: |
-          make embedded-cluster-darwin-amd64 VERSION=$TAG_NAME
-          tar -C output/bin -czvf embedded-cluster-darwin-amd64.tgz embedded-cluster
-          make clean
-      - name: Build darwin-arm64
-        run: |
-          make embedded-cluster-darwin-arm64 VERSION=$TAG_NAME
-          tar -C output/bin -czvf embedded-cluster-darwin-arm64.tgz embedded-cluster
-          make clean
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
         with:

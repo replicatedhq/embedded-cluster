@@ -39,9 +39,6 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-    - name: Check system storage
-      run: |
-        sudo df -h
     - name: Remove unnecessary files
       run: |
         sudo rm -rf /usr/share/dotnet
@@ -51,9 +48,6 @@ jobs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
         sudo rm -rf /opt/hostedtoolcache/Python
-    - name: Check system storage
-      run: |
-        sudo df -h
     - name: Checkout
       uses: actions/checkout@v4
     - name: Get short commit hash
@@ -62,21 +56,6 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: "1.21.0"
-    - name: Check system storage
-      run: |
-        sudo df -h
     - name: Build Linux AMD64
       run: |
         make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
-    - name: Check system storage
-      run: |
-        sudo df -h
-    - name: Build Darwin AMD64
-      run: |
-        make embedded-cluster-darwin-amd64
-    - name: Check system storage
-      run: |
-        sudo df -h
-    - name: Build Darwin ARM64 VERSION=dev-$SHORT_SHA
-      run: |
-        make embedded-cluster-darwin-arm64 VERSION=dev-$SHORT_SHA

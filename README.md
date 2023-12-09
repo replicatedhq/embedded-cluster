@@ -16,7 +16,6 @@ $ make embedded-cluster-linux-amd64
 ```
 
 The binary will be located on `output/bin/embedded-cluster`.
-You can also build binaries for other architectures with the following targets: `embedded-cluster-darwin-amd64` and  `embedded-cluster-darwin-arm64` are available.
 
 ## Single node deployment
 
