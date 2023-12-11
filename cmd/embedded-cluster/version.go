@@ -8,6 +8,7 @@ import (
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/urfave/cli/v2"
 
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
@@ -44,6 +45,7 @@ type ReleaseMetadata struct {
 	Versions     map[string]string
 	K0sSHA       string
 	K0sBinaryURL string
+	Configs      k0sconfig.HelmExtensions
 }
 
 var metadataCommand = &cli.Command{
@@ -51,7 +53,7 @@ var metadataCommand = &cli.Command{
 	Usage:  "Print metadata about this release",
 	Hidden: true,
 	Action: func(c *cli.Context) error {
-		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
+		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt(), addons.OnlyDefaults()}
 		versions, err := addons.NewApplier(opts...).Versions()
 		if err != nil {
 			return fmt.Errorf("unable to get versions: %w", err)
@@ -67,10 +69,23 @@ var metadataCommand = &cli.Command{
 			K0sSHA:       sha,
 			K0sBinaryURL: defaults.K0sBinaryURL,
 		}
+
+		chtconfig, repconfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
+		if err != nil {
+			return fmt.Errorf("unable to apply addons: %w", err)
+		}
+
+		meta.Configs = k0sconfig.HelmExtensions{
+			ConcurrencyLevel: 1,
+			Charts:           chtconfig,
+			Repositories:     repconfig,
+		}
+
 		data, err := json.MarshalIndent(meta, "", "\t")
 		if err != nil {
 			return fmt.Errorf("unable to marshal versions: %w", err)
 		}
+
 		fmt.Println(string(data))
 		return nil
 	},

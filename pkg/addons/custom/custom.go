@@ -59,7 +59,7 @@ func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for all the embedded charts.
 // and writes the charts to the disk.
-func (c *Custom) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (c *Custom) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 
 	chartConfigs := []v1beta1.Chart{}
 

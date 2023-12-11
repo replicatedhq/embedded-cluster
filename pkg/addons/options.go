@@ -37,3 +37,9 @@ func WithConfig(config v1beta1.ClusterConfig) Option {
 		a.config = config
 	}
 }
+
+func OnlyDefaults() Option {
+	return func(a *Applier) {
+		a.onlyDefaults = true
+	}
+}

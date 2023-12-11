@@ -36,7 +36,6 @@ var (
 )
 
 var helmValues = map[string]interface{}{
-	"password":      "password",
 	"minimalRBAC":   false,
 	"isHelmManaged": false,
 	"service": map[string]interface{}{
@@ -83,7 +82,7 @@ func (a *AdminConsole) askPassword() (string, error) {
 		}
 		fmt.Println("Passwords don't match, please try again.")
 	}
-	return "", fmt.Errorf("Unable to set Admin Console password after %d tries", maxTries)
+	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
 }
 
 // Version returns the embedded admin console version.
@@ -186,13 +185,18 @@ func (a *AdminConsole) addKotsApplicationToHelmValues() error {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	if err := a.addPasswordToHelmValues(); err != nil {
-		return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
+func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+
+	if !onlyDefaults {
+		if err := a.addPasswordToHelmValues(); err != nil {
+			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
+		}
+
+		if err := a.addKotsApplicationToHelmValues(); err != nil {
+			return nil, nil, fmt.Errorf("unable to add kots app to helm values: %w", err)
+		}
 	}
-	if err := a.addKotsApplicationToHelmValues(); err != nil {
-		return nil, nil, fmt.Errorf("unable to add kots app to helm values: %w", err)
-	}
+
 	if err := a.addLicenseToHelmValues(); err != nil {
 		return nil, nil, fmt.Errorf("unable to add license to helm values: %w", err)
 	}

@@ -28,7 +28,7 @@ import (
 type AddOn interface {
 	Version() (map[string]string, error)
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error)
+	GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
 }
 
@@ -38,6 +38,7 @@ type Applier struct {
 	prompt         bool
 	verbose        bool
 	config         v1beta1.ClusterConfig
+	onlyDefaults   bool
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -67,7 +68,7 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, 
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
-		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig()
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.onlyDefaults)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
