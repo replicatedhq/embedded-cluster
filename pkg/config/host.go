@@ -27,7 +27,7 @@ type hostcfg struct {
 func (h *hostcfg) render() *cluster.Host {
 	var ifls []string
 	if h.Role != "worker" {
-		ifls = []string{"--disable-components konnectivity-server"}
+		ifls = []string{"--disable-components konnectivity-server --enable-dynamic-config"}
 	}
 	ifls = append(ifls, labelsToArg(h.Labels)...)
 	return &cluster.Host{

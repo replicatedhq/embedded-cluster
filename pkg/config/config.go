@@ -232,8 +232,9 @@ func generateConfigForHosts(ctx context.Context, hosts ...*cluster.Host) (*v1bet
 		Spec: &cluster.Spec{
 			Hosts: hosts,
 			K0s: &cluster.K0s{
-				Version: k0sversion.MustParse(defaults.K0sVersion),
-				Config:  k0sconfig,
+				DynamicConfig: true,
+				Version:       k0sversion.MustParse(defaults.K0sVersion),
+				Config:        k0sconfig,
 			},
 		},
 	}, nil
