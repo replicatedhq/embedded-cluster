@@ -16,7 +16,7 @@ config: |-
       noTaints: true
     k0s:
       version: v1.27.5+k0s.0
-      dynamicConfig: false
+      dynamicConfig: true
       config:
         apiVersion: k0s.k0sproject.io/v1beta1
         kind: ClusterConfig
@@ -54,7 +54,7 @@ expected: |-
       noTaints: true
     k0s:
       version: v1.27.5+k0s.0
-      dynamicConfig: false
+      dynamicConfig: true
       config:
         apiVersion: k0s.k0sproject.io/v1beta1
         kind: ClusterConfig
