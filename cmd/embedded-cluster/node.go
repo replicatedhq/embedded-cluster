@@ -5,8 +5,9 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/urfave/cli/v2"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 var nodeCommands = &cli.Command{
@@ -17,7 +18,6 @@ var nodeCommands = &cli.Command{
 		nodeStartCommand,
 		nodeListCommand,
 		joinCommand,
-		upgradeCommand,
 	},
 }
 

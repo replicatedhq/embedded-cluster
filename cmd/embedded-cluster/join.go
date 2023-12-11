@@ -17,10 +17,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join
@@ -235,6 +238,36 @@ func runK0sInstallCommand(fullcmd string) error {
 		fmt.Fprintf(os.Stderr, "%s\n", stderr.String())
 		fmt.Fprintf(os.Stdout, "%s\n", stdout.String())
 		return err
+	}
+	return nil
+}
+
+// runHostPreflightsLocally runs the embedded host preflights in the local node prior to
+// node upgrade.
+func runHostPreflightsLocally(c *cli.Context) error {
+	logrus.Infof("Running host preflights locally")
+	hpf, err := addons.NewApplier().HostPreflights()
+	if err != nil {
+		return fmt.Errorf("unable to read host preflights: %w", err)
+	}
+	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
+		logrus.Info("No host preflights found")
+		return nil
+	}
+	out, err := preflights.RunLocal(c.Context, hpf)
+	if err != nil {
+		return fmt.Errorf("preflight failed: %w", err)
+	}
+	out.PrintTable()
+	if out.HasFail() {
+		return fmt.Errorf("preflights haven't passed on one or more hosts")
+	}
+	if !out.HasWarn() || c.Bool("no-prompt") {
+		return nil
+	}
+	fmt.Println("Host preflights have warnings on one or more hosts")
+	if !prompts.New().Confirm("Do you want to continue ?", false) {
+		return fmt.Errorf("user aborted")
 	}
 	return nil
 }

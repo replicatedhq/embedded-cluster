@@ -253,14 +253,6 @@ func (d *Provider) SetInstallAsDecentralized() error {
 	return nil
 }
 
-// IsUpgrade determines if we are upgrading a cluster judging by the existence
-// or not of a kubeconfig file in the configuration directory.
-func (d *Provider) IsUpgrade() bool {
-	fpath := d.PathToConfig("kubeconfig")
-	_, err := os.Stat(fpath)
-	return err == nil
-}
-
 // TryDiscoverPublicIP tries to discover the public IP of the node by querying
 // a list of known providers. If the public IP cannot be discovered, an empty
 // string is returned.

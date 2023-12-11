@@ -44,30 +44,6 @@ func TestSend(t *testing.T) {
 			},
 		},
 		{
-			name: "UpgradeStarted",
-			event: UpgradeStarted{
-				ClusterID:  uuid.New(),
-				Version:    "1.2.3",
-				Flags:      "foo",
-				BinaryName: "bar",
-				Type:       "baz",
-				LicenseID:  "qux",
-			},
-		},
-		{
-			name: "UpgradeSucceeded",
-			event: UpgradeSucceeded{
-				ClusterID: uuid.New(),
-			},
-		},
-		{
-			name: "UpgradeFailed",
-			event: InstallationFailed{
-				ClusterID: uuid.New(),
-				Reason:    "foo",
-			},
-		},
-		{
 			name: "JoinStarted",
 			event: JoinStarted{
 				ClusterID: uuid.New(),
@@ -84,28 +60,6 @@ func TestSend(t *testing.T) {
 		{
 			name: "JoinFailed",
 			event: JoinFailed{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
-				Reason:    "bar",
-			},
-		},
-		{
-			name: "NodeUpgradeStarted",
-			event: NodeUpgradeStarted{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
-			},
-		},
-		{
-			name: "NodeUpgradeSucceeded",
-			event: NodeUpgradeSucceeded{
-				ClusterID: uuid.New(),
-				NodeName:  "foo",
-			},
-		},
-		{
-			name: "NodeUpgradeFailed",
-			event: NodeUpgradeFailed{
 				ClusterID: uuid.New(),
 				NodeName:  "foo",
 				Reason:    "bar",
