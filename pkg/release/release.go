@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -35,6 +36,7 @@ type Meta struct {
 // MetadataFor reads metadata for a given release. Goes to GitHub releases page
 // and reads versions.json file.
 func MetadataFor(ctx context.Context, version string) (*Meta, error) {
+	version = strings.TrimPrefix(version, "v")
 	path := fmt.Sprintf(pathFmt, version)
 	url := fmt.Sprintf("%s/%s", baseURL, path)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -43,11 +45,11 @@ func MetadataFor(ctx context.Context, version string) (*Meta, error) {
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get bundle: %w", err)
+		return nil, fmt.Errorf("failed to get bundle from %q: %w", url, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get bundle: %s", resp.Status)
+		return nil, fmt.Errorf("failed to get bundle from %q: %s", url, resp.Status)
 	}
 	var meta Meta
 	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {

@@ -153,7 +153,8 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	}
 	meta, err := release.MetadataFor(ctx, in.Spec.Config.Version)
 	if err != nil {
-		return fmt.Errorf("failed to get release metadata: %w", err)
+		in.Status.SetState(v1beta1.InstallationStateFailed, err.Error())
+		return nil
 	}
 	vinfo, err := r.Discovery.ServerVersion()
 	if err != nil {
