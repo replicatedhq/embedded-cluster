@@ -38,6 +38,7 @@ func WithConfig(config v1beta1.ClusterConfig) Option {
 	}
 }
 
+// OnlyDefaults causes addons to only return default values
 func OnlyDefaults() Option {
 	return func(a *Applier) {
 		a.onlyDefaults = true
