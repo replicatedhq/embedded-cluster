@@ -71,17 +71,14 @@ func (d *Provider) config() string {
 	if err != nil {
 		logrus.Fatalf("unable to get user home dir: %s", err)
 	}
-
 	// use the XDG_CONFIG_HOME environment variable if set
 	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
 		return xdgConfigHome
 	}
-
 	// otherwise, default to $HOME/.config on linux
 	if runtime.GOOS == "linux" {
 		return filepath.Join(home, ".config")
 	}
-
 	return home
 }
 
@@ -119,10 +116,9 @@ func (d *Provider) BinaryName() string {
 }
 
 // EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs are
-// stored. This is a subdirectory of the user's home directory.
+// stored.
 func (d *Provider) EmbeddedClusterLogsSubDir() string {
-	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, d.state(), hidden, "logs")
+	return filepath.Join(d.Base, d.state(), d.BinaryName(), "logs")
 }
 
 // PathToLog returns the full path to a log file. This function does not check
@@ -140,15 +136,13 @@ func (d *Provider) K0sctlBinsSubDir() string {
 
 // HelmChartSubDir returns the path to the directory where helm charts are stored
 func (d *Provider) HelmChartSubDir() string {
-	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, d.home(), hidden, "charts")
+	return filepath.Join(d.Base, d.config(), d.BinaryName(), "charts")
 }
 
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
-// are stored. This is a subdirectory of the user's home directory.
+// are stored.
 func (d *Provider) EmbeddedClusterBinsSubDir() string {
-	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, d.config(), hidden, "bin")
+	return filepath.Join(d.Base, d.config(), d.BinaryName(), "bin")
 }
 
 // K0sctlApplyLogPath returns the path to the k0sctl apply log file.
@@ -173,11 +167,9 @@ func (d *Provider) SSHConfigSubDir() string {
 }
 
 // ConfigSubDir returns the path to the directory where k0sctl configuration
-// files are stored. This is a subdirectory of the user's home directory.
-// TODO update
+// files are stored.
 func (d *Provider) ConfigSubDir() string {
-	hidden := fmt.Sprintf(".%s", d.BinaryName())
-	return filepath.Join(d.Base, d.config(), hidden, "etc")
+	return filepath.Join(d.Base, d.config(), d.BinaryName(), "etc")
 }
 
 // K0sBinaryPath returns the path to the k0s binary.
