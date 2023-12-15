@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 )
 
-const (
-	baseURL = "https://github.com/replicatedhq/embedded-cluster"
-	pathFmt = "releases/download/v%s/metadata.json"
+var (
+	ghurl = "https://github.com/replicatedhq/embedded-cluster/releases/download/v%s/metadata.json"
+	cache = map[string]*Meta{}
+	mutex = sync.Mutex{}
 )
 
 // Versions holds a list of add-on versions.
@@ -34,11 +36,15 @@ type Meta struct {
 }
 
 // MetadataFor reads metadata for a given release. Goes to GitHub releases page
-// and reads versions.json file.
+// and reads metadata.json file.
 func MetadataFor(ctx context.Context, version string) (*Meta, error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	version = strings.TrimPrefix(version, "v")
-	path := fmt.Sprintf(pathFmt, version)
-	url := fmt.Sprintf("%s/%s", baseURL, path)
+	if meta, ok := cache[version]; ok {
+		return meta, nil
+	}
+	url := fmt.Sprintf(ghurl, version)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -55,5 +61,6 @@ func MetadataFor(ctx context.Context, version string) (*Meta, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
 		return nil, fmt.Errorf("failed to decode bundle: %w", err)
 	}
+	cache[version] = &meta
 	return &meta, nil
 }
