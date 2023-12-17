@@ -71,7 +71,7 @@ func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, err
 		return nil, fmt.Errorf("unable to render single-node config: %w", err)
 	}
 	ApplyEmbeddedUnsupportedOverrides(cfg, clusterConfig.Spec.UnsupportedOverrides.K0s)
-	return renderSingleNodeConfig(ctx)
+	return cfg, nil
 }
 
 // listUserSSHKeys returns a list of private SSH keys in the user's ~/.ssh directory.
