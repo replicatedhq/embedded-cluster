@@ -13,6 +13,11 @@ spec:
         spec:
           telemetry:
             enabled: true
+          workerProfiles:
+          - name: ip-forward
+            values:
+              allowedUnsafeSysctls:
+              - net.ipv4.ip_forward
 "
 
 embed_cluster_config() {
@@ -48,6 +53,11 @@ override_applied() {
     fi
     if ! grep "testing-overrides-k0s-name" "$K0SCTLCONFIG"; then
       echo "override not applied, expected name testing-overrides-k0s-name, actual config:"
+      cat "$K0SCTLCONFIG"
+      return 1
+    fi
+    if ! grep "net.ipv4.ip_forward" "$K0SCTLCONFIG"; then
+      echo "override not applied, expected worker profile not found, actual config:"
       cat "$K0SCTLCONFIG"
       return 1
     fi
