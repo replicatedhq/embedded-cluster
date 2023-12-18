@@ -18,8 +18,9 @@ spec:
         name: xyz
   unsupportedOverrides:
     k0s: |
-      metadata:
-        name: foo
-      spec:
-        telemetry:
-          enabled: false
+      config:
+        metadata:
+          name: foo
+        spec:
+          telemetry:
+            enabled: false

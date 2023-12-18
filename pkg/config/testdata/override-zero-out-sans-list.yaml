@@ -16,7 +16,7 @@ config: |-
       noTaints: true
     k0s:
       version: v1.27.5+k0s.0
-      dynamicConfig: false
+      dynamicConfig: true
       config:
         apiVersion: k0s.k0sproject.io/v1beta1
         kind: ClusterConfig
@@ -37,9 +37,10 @@ override: |-
   spec:
     unsupportedOverrides:
       k0s: |
-        spec:
-          api:
-            sans: null
+        config:
+          spec:
+            api:
+              sans: null
 expected: |-
   apiVersion: k0sctl.k0sproject.io/v1beta1
   kind: Cluster
@@ -58,7 +59,7 @@ expected: |-
       noTaints: true
     k0s:
       version: v1.27.5+k0s.0
-      dynamicConfig: false
+      dynamicConfig: true
       config:
         apiVersion: k0s.k0sproject.io/v1beta1
         kind: ClusterConfig

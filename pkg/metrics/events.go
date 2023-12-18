@@ -46,30 +46,6 @@ func (e InstallationFailed) Title() string {
 	return "InstallationFailed"
 }
 
-// UpgradeStarted event is send back home when the upgrade starts.
-type UpgradeStarted InstallationStarted
-
-// Title returns the name of the event.
-func (e UpgradeStarted) Title() string {
-	return "UpgradeStarted"
-}
-
-// UpgradeSucceeded event is send back home when the upgrade finishes.
-type UpgradeSucceeded InstallationSucceeded
-
-// Title returns the name of the event.
-func (e UpgradeSucceeded) Title() string {
-	return "UpgradeSucceeded"
-}
-
-// UpgradeFailed event is send back home when the upgrade fails.
-type UpgradeFailed InstallationFailed
-
-// Title returns the name of the event.
-func (e UpgradeFailed) Title() string {
-	return "UpgradeFailed"
-}
-
 // JoinStarted event is send back home when a node join starts.
 type JoinStarted struct {
 	ClusterID uuid.UUID `json:"clusterID"`
@@ -99,31 +75,4 @@ type JoinFailed struct {
 // Title returns the name of the event.
 func (e JoinFailed) Title() string {
 	return "JoinFailed"
-}
-
-// NodeUpgradeStarted event is send back home when a node upgrade
-// starts.
-type NodeUpgradeStarted JoinStarted
-
-// Title returns the name of the event.
-func (e NodeUpgradeStarted) Title() string {
-	return "NodeUpgradeStarted"
-}
-
-// NodeUpgradeSucceeded event is send back home when a node upgrade
-// succeeds.
-type NodeUpgradeSucceeded NodeUpgradeStarted
-
-// Title returns the name of the event.
-func (e NodeUpgradeSucceeded) Title() string {
-	return "NodeUpgradeSucceeded"
-}
-
-// NodeUpgradeFailed event is send back home when a node upgrade
-// fails.
-type NodeUpgradeFailed JoinFailed
-
-// Title returns the name of the event.
-func (e NodeUpgradeFailed) Title() string {
-	return "NodeUpgradeFailed"
 }

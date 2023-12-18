@@ -16,7 +16,7 @@ config: |-
       noTaints: true
     k0s:
       version: v1.27.5+k0s.0
-      dynamicConfig: false
+      dynamicConfig: true
       config:
         apiVersion: k0s.k0sproject.io/v1beta1
         kind: ClusterConfig
@@ -33,11 +33,12 @@ override: |-
   spec:
     unsupportedOverrides:
       k0s: |
-        spec:
-          workerProfiles:
-          - name: ip-forward
-            values:
-              allowedUnsafeSysctls:
+        config:
+          spec:
+            workerProfiles:
+            - name: ip-forward
+              values:
+                allowedUnsafeSysctls:
                 - net.ipv4.ip_forward
 expected: |-
   apiVersion: k0sctl.k0sproject.io/v1beta1
@@ -57,7 +58,7 @@ expected: |-
       noTaints: true
     k0s:
       version: v1.27.5+k0s.0
-      dynamicConfig: false
+      dynamicConfig: true
       config:
         apiVersion: k0s.k0sproject.io/v1beta1
         kind: ClusterConfig

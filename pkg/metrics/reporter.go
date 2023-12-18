@@ -14,15 +14,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
-// isUpgrade holds globally if we are upgrading a cluster or installing a new one.
-// This is used to decide which events to send and is determined only once at the
-// beginning of the execution (see init()).
-var isUpgrade bool
-
-func init() {
-	isUpgrade = defaults.IsUpgrade()
-}
-
 // LicenseID returns the embedded license id. If something goes wrong, it returns
 // an empty string.
 func LicenseID() string {
@@ -35,9 +26,7 @@ func LicenseID() string {
 
 // ClusterID returns the cluster id. It is read from from a local file (if this is
 // a second attempt at installation or an upgrade) or a new one is generated and
-// stored locally. TODO: this should be persisted in the cluster as part of a CRD
-// managed by our operator, as we don't have an operator yet, we are storing it
-// locally only.
+// stored locally.
 func ClusterID() uuid.UUID {
 	fpath := defaults.PathToConfig(".cluster-id")
 	if _, err := os.Stat(fpath); err == nil {
@@ -82,28 +71,6 @@ func ReportInstallationFailed(ctx context.Context, err error) {
 	Send(ctx, InstallationFailed{ClusterID(), err.Error()})
 }
 
-// ReportUpgradeStarted reports that the upgrade has started.
-func ReportUpgradeStarted(ctx context.Context) {
-	Send(ctx, UpgradeStarted{
-		ClusterID:  ClusterID(),
-		Version:    defaults.Version,
-		Flags:      strings.Join(os.Args[1:], " "),
-		BinaryName: defaults.BinaryName(),
-		Type:       "centralized",
-		LicenseID:  LicenseID(),
-	})
-}
-
-// ReportUpgradeSucceeded reports that the upgrade has succeeded.
-func ReportUpgradeSucceeded(ctx context.Context) {
-	Send(ctx, UpgradeSucceeded{ClusterID: ClusterID()})
-}
-
-// ReportUpgradeFailed reports that the upgrade has failed.
-func ReportUpgradeFailed(ctx context.Context, err error) {
-	Send(ctx, UpgradeFailed{ClusterID(), err.Error()})
-}
-
 // ReportJoinStarted reports that a join has started.
 func ReportJoinStarted(ctx context.Context, clusterID uuid.UUID) {
 	hostname, err := os.Hostname()
@@ -134,65 +101,20 @@ func ReportJoinFailed(ctx context.Context, clusterID uuid.UUID, exterr error) {
 	Send(ctx, JoinFailed{clusterID, hostname, exterr.Error()})
 }
 
-// ReportApplyStarted decides if we are going to report an InstallationStarted
-// or an UpgradeStarted event and calls the appropriate function.
+// ReportApplyStarted reports an InstallationStarted event.
 func ReportApplyStarted(c *cli.Context) {
 	ctx, cancel := context.WithTimeout(c.Context, 5*time.Second)
 	defer cancel()
-	if isUpgrade {
-		ReportUpgradeStarted(ctx)
-		return
-	}
 	ReportInstallationStarted(ctx)
 }
 
-// ReportApplyFinished decides if we are going to report an InstallationSucceeded,
-// an InstallationFailed, an UpgradeSucceeded, or an UpgradeFailed event and calls
-// the appropriate function.
+// ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
 func ReportApplyFinished(c *cli.Context, err error) {
 	ctx, cancel := context.WithTimeout(c.Context, 5*time.Second)
 	defer cancel()
 	if err != nil {
-		if isUpgrade {
-			ReportUpgradeFailed(ctx, err)
-			return
-		}
 		ReportInstallationFailed(ctx, err)
 		return
 	}
-	if isUpgrade {
-		ReportUpgradeSucceeded(ctx)
-		return
-	}
 	ReportInstallationSucceeded(ctx)
-}
-
-// ReportNodeUpgradeStarted reports that a node upgrade has started.
-func ReportNodeUpgradeStarted(ctx context.Context) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		logrus.Warnf("unable to get hostname: %s", err)
-		hostname = "unknown"
-	}
-	Send(ctx, NodeUpgradeStarted{ClusterID(), hostname})
-}
-
-// ReportNodeUpgradeSucceeded reports that a node upgrade has finished successfully.
-func ReportNodeUpgradeSucceeded(ctx context.Context) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		logrus.Warnf("unable to get hostname: %s", err)
-		hostname = "unknown"
-	}
-	Send(ctx, NodeUpgradeSucceeded{ClusterID(), hostname})
-}
-
-// ReportNodeUpgradeFailed reports that node upgrade has failed.
-func ReportNodeUpgradeFailed(ctx context.Context, exterr error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		logrus.Warnf("unable to get hostname: %s", err)
-		hostname = "unknown"
-	}
-	Send(ctx, NodeUpgradeFailed{ClusterID(), hostname, exterr.Error()})
 }

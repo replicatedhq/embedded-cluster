@@ -21,7 +21,8 @@ import (
 	k0sversion "github.com/k0sproject/version"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/sirupsen/logrus"
-	"sigs.k8s.io/yaml"
+	"gopkg.in/yaml.v2"
+	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/customization"
@@ -43,7 +44,7 @@ func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 		return nil, fmt.Errorf("unable to read current config: %w", err)
 	}
 	var cfg v1beta1.Cluster
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal current config: %w", err)
 	}
 	return &cfg, nil
@@ -70,7 +71,7 @@ func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, err
 		return nil, fmt.Errorf("unable to render single-node config: %w", err)
 	}
 	ApplyEmbeddedUnsupportedOverrides(cfg, clusterConfig.Spec.UnsupportedOverrides.K0s)
-	return renderSingleNodeConfig(ctx)
+	return cfg, nil
 }
 
 // listUserSSHKeys returns a list of private SSH keys in the user's ~/.ssh directory.
@@ -232,8 +233,9 @@ func generateConfigForHosts(ctx context.Context, hosts ...*cluster.Host) (*v1bet
 		Spec: &cluster.Spec{
 			Hosts: hosts,
 			K0s: &cluster.K0s{
-				Version: k0sversion.MustParse(defaults.K0sVersion),
-				Config:  k0sconfig,
+				DynamicConfig: true,
+				Version:       k0sversion.MustParse(defaults.K0sVersion),
+				Config:        k0sconfig,
 			},
 		},
 	}, nil
@@ -279,12 +281,12 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		return fmt.Errorf("invalid cluster configuration")
 	}
 	currentSpec := cfg.Spec.K0s.Config
-	configString, err := yaml.Marshal(currentSpec)
+	configString, err := k8syaml.Marshal(currentSpec)
 	if err != nil {
 		return fmt.Errorf("unable to marshal helm config: %w", err)
 	}
 	k0s := k0sconfig.ClusterConfig{}
-	if err := yaml.Unmarshal(configString, &k0s); err != nil {
+	if err := k8syaml.Unmarshal(configString, &k0s); err != nil {
 		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
 	opts = append(opts, addons.WithConfig(k0s))
@@ -301,12 +303,12 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 	}
 
 	// marshal and unmarshal to convert key names from struct tags
-	newClusterExtensionsBytes, err := yaml.Marshal(newClusterExtensions)
+	newClusterExtensionsBytes, err := k8syaml.Marshal(newClusterExtensions)
 	if err != nil {
 		return fmt.Errorf("unable to marshal new cluster extensions: %w", err)
 	}
 	newClusterExtensionsMap := dig.Mapping{}
-	if err := yaml.Unmarshal(newClusterExtensionsBytes, &newClusterExtensionsMap); err != nil {
+	if err := k8syaml.Unmarshal(newClusterExtensionsBytes, &newClusterExtensionsMap); err != nil {
 		return fmt.Errorf("unable to unmarshal new cluster extensions: %w", err)
 	}
 
@@ -332,7 +334,7 @@ func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig string
 	if embconfig == "" {
 		return nil
 	}
-	newConfigBytes, err := yaml.Marshal(config.Spec.K0s.Config)
+	newConfigBytes, err := yaml.Marshal(config.Spec.K0s)
 	if err != nil {
 		return fmt.Errorf("unable to marshal original cluster config: %w", err)
 	}
@@ -352,11 +354,11 @@ func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig string
 	if err != nil {
 		return fmt.Errorf("unable to convert patched configuration to json: %w", err)
 	}
-	var newK0sConfig dig.Mapping
-	if err := yaml.Unmarshal(newConfigBytes, &newK0sConfig); err != nil {
+	var newK0sConfig cluster.K0s
+	if err := k8syaml.Unmarshal(newConfigBytes, &newK0sConfig); err != nil {
 		return fmt.Errorf("unable to unmarshal patched cluster config: %w", err)
 	}
-	config.Spec.K0s.Config = newK0sConfig
+	config.Spec.K0s = &newK0sConfig
 	return nil
 }
 
