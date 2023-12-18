@@ -60,7 +60,7 @@ func (e *EmbeddedClusterOperator) HostPreflights() (*v1beta2.HostPreflightSpec, 
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
