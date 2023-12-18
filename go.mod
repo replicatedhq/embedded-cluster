@@ -7,7 +7,7 @@ require (
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/creack/pty v1.1.21
 	github.com/ghodss/yaml v1.0.0
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/gosimple/slug v1.13.1
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
