@@ -37,6 +37,23 @@ type NodeEvent struct {
 	Role        string                `json:"role"`
 }
 
+// UpgradeStartedEvent is send back home when the upgrade starts.
+type UpgradeStartedEvent struct {
+	ClusterID string `json:"clusterID"`
+	Version   string `json:"version"`
+}
+
+// UpgradeFailedEvent is send back home when the upgrade fails.
+type UpgradeFailedEvent struct {
+	ClusterID string `json:"clusterID"`
+	Reason    string `json:"reason"`
+}
+
+// UpgradeSucceededEvent event is send back home when the upgrade succeeds.
+type UpgradeSucceededEvent struct {
+	ClusterID string `json:"clusterID"`
+}
+
 // Hash returns the hash of the node.
 func (n NodeEvent) Hash() (string, error) {
 	hasher := sha256.New()
@@ -91,4 +108,19 @@ func NotifyNodeAdded(ctx context.Context, baseURL string, ev NodeEvent) error {
 // NotifyNodeRemoved notifies the metrics server that a node has been removed.
 func NotifyNodeRemoved(ctx context.Context, baseURL string, ev NodeRemovedEvent) error {
 	return sendEvent(ctx, "NodeRemoved", baseURL, ev)
+}
+
+// NotifyUpgradeStarted notifies the metrics server that an upgrade has started.
+func NotifyUpgradeStarted(ctx context.Context, baseURL string, ev UpgradeStartedEvent) error {
+	return sendEvent(ctx, "UpgradeStarted", baseURL, ev)
+}
+
+// NotifyUpgradeFailed notifies the metrics server that an upgrade has failed.
+func NotifyUpgradeFailed(ctx context.Context, baseURL string, ev UpgradeFailedEvent) error {
+	return sendEvent(ctx, "UpgradeFailed", baseURL, ev)
+}
+
+// NotifyUpgradeSucceeded notifies the metrics server that an upgrade has succeeded.
+func NotifyUpgradeSucceeded(ctx context.Context, baseURL string, ev UpgradeSucceededEvent) error {
+	return sendEvent(ctx, "UpgradeSucceeded", baseURL, ev)
 }

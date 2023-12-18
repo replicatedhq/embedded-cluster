@@ -142,6 +142,29 @@ func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *
 	return nil
 }
 
+// ReportInstallationChanges reports back to the metrics server if the installation status has changed.
+func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, before, after *v1beta1.Installation) {
+	if after.Spec.AirGap || before.Status.State == after.Status.State {
+		return
+	}
+	switch after.Status.State {
+	case v1beta1.InstallationStateInstalling:
+		metrics.NotifyUpgradeStarted(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
+			ClusterID: after.Spec.ClusterID,
+			Version:   after.Spec.Config.Version,
+		})
+	case v1beta1.InstallationStateInstalled:
+		metrics.NotifyUpgradeSucceeded(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeSucceededEvent{
+			ClusterID: after.Spec.ClusterID,
+		})
+	case v1beta1.InstallationStateFailed:
+		metrics.NotifyUpgradeFailed(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeFailedEvent{
+			ClusterID: after.Spec.ClusterID,
+			Reason:    after.Status.Reason,
+		})
+	}
+}
+
 // ReconcileK0sVersion reconciles the k0s version in the Installation object status. If the
 // Installation spec.config points to a different version we start an upgrade Plan. If an
 // upgrade plan already exists we make sure the installation status is updated with the
@@ -382,16 +405,18 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.Info("No cluster ID found, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
+	before := in.DeepCopy()
 	if err := r.ReconcileNodeStatuses(ctx, in); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to reconcile node status: %w", err)
 	}
 	if err := r.ReconcileK0sVersion(ctx, in); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to reconcile k0s version: %w", err)
 	}
 	if err := r.Status().Update(ctx, in); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
 	}
 	r.DisableOldInstallations(ctx, items)
+	r.ReportInstallationChanges(ctx, before, in)
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
