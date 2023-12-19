@@ -96,8 +96,8 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return a.customization.HostPreflights()
 }
 
-// addLicenseToHelmValues adds the embedded license to the helm values.
-func (a *AdminConsole) addLicenseToHelmValues() error {
+// addLicenseAndVersionToHelmValues adds the embedded license to the helm values.
+func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
 	license, err := a.customization.License()
 	if err != nil {
 		return fmt.Errorf("unable to get license: %w", err)
@@ -109,7 +109,14 @@ func (a *AdminConsole) addLicenseToHelmValues() error {
 	if err != nil {
 		return fmt.Errorf("unable to marshal license: %w", err)
 	}
+	var appVersion string
+	if release, err := a.customization.ChannelRelease(); err != nil {
+		return fmt.Errorf("unable to get channel release: %w", err)
+	} else if release != nil {
+		appVersion = release.VersionLabel
+	}
 	helmValues["automation"] = map[string]interface{}{
+		"appVersionLabel": appVersion,
 		"license": map[string]interface{}{
 			"slug": license.Spec.AppSlug,
 			"data": string(raw),
@@ -186,18 +193,15 @@ func (a *AdminConsole) addKotsApplicationToHelmValues() error {
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-
 	if !onlyDefaults {
 		if err := a.addPasswordToHelmValues(); err != nil {
 			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
 		}
-
 		if err := a.addKotsApplicationToHelmValues(); err != nil {
 			return nil, nil, fmt.Errorf("unable to add kots app to helm values: %w", err)
 		}
 	}
-
-	if err := a.addLicenseToHelmValues(); err != nil {
+	if err := a.addLicenseAndVersionToHelmValues(); err != nil {
 		return nil, nil, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 	values, err := yaml.Marshal(helmValues)

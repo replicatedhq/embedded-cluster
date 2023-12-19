@@ -13,10 +13,16 @@ import (
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"sigs.k8s.io/yaml"
+	"gopkg.in/yaml.v2"
+	kyaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 )
+
+// ChannelRelease contains information about a specific app release inside a channel.
+type ChannelRelease struct {
+	VersionLabel string `yaml:"versionLabel"`
+}
 
 // ParsedSection holds the parsed section from the binary. We only care about the
 // application object, whatever HostPreflight we can find, and the app License.
@@ -25,6 +31,7 @@ type ParsedSection struct {
 	HostPreflights        [][]byte
 	License               []byte
 	EmbeddedClusterConfig []byte
+	ChannelRelease        []byte
 }
 
 // AdminConsole is a struct that contains the actions to create and update the admin
@@ -105,6 +112,10 @@ func (a AdminConsole) processSection(section *elf.Section) (*ParsedSection, erro
 			result.EmbeddedClusterConfig = content.Bytes()
 			continue
 		}
+		if bytes.Contains(content.Bytes(), []byte("# channel release object")) {
+			result.ChannelRelease = content.Bytes()
+			continue
+		}
 	}
 }
 
@@ -145,7 +156,7 @@ func (a AdminConsole) License() (*v1beta1.License, error) {
 		return nil, nil
 	}
 	var license v1beta1.License
-	if err := yaml.Unmarshal(section.License, &license); err != nil {
+	if err := kyaml.Unmarshal(section.License, &license); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal license: %w", err)
 	}
 	return &license, nil
@@ -178,14 +189,36 @@ func (a AdminConsole) EmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, e
 	} else if section == nil {
 		return nil, nil
 	}
-
 	rawcfg := section.EmbeddedClusterConfig
 	if rawcfg == nil {
 		return nil, nil
 	}
 	var cfg embeddedclusterv1beta1.Config
-	if err := yaml.Unmarshal(rawcfg, &cfg); err != nil {
+	if err := kyaml.Unmarshal(rawcfg, &cfg); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal embedded cluster config: %w", err)
 	}
 	return &cfg, nil
+}
+
+// ChannelRelease reads the embedded channel release object. If no channel release is found,
+// returns nil and no error.
+func (a AdminConsole) ChannelRelease() (*ChannelRelease, error) {
+	if runtime.GOOS != "linux" {
+		return nil, nil
+	}
+	section, err := a.ExtractCustomization()
+	if err != nil {
+		return nil, err
+	} else if section == nil {
+		return nil, nil
+	}
+	raw := section.ChannelRelease
+	if raw == nil {
+		return nil, nil
+	}
+	var release ChannelRelease
+	if err := yaml.Unmarshal(raw, &release); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal channel release: %w", err)
+	}
+	return &release, nil
 }
