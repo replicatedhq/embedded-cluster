@@ -30,6 +30,7 @@ type AddOn interface {
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
 	GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
+	GetProtectedFields() map[string][]string
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -76,6 +77,21 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, 
 		repositories = append(repositories, addonRepositoryConfig...)
 	}
 	return charts, repositories, nil
+}
+
+// ProtectedFields returns the protected fields for all the embedded charts.
+func (a *Applier) ProtectedFields() (map[string][]string, error) {
+	protectedFields := map[string][]string{}
+	addons, err := a.load()
+	if err != nil {
+		return protectedFields, fmt.Errorf("unable to load addons: %w", err)
+	}
+	for _, addon := range addons {
+		for k, v := range addon.GetProtectedFields() {
+			protectedFields[k] = v
+		}
+	}
+	return protectedFields, nil
 }
 
 // HostPreflights reads all embedded host preflights from all add-ons and returns them

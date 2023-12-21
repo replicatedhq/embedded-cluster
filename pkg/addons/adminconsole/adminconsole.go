@@ -35,6 +35,12 @@ var (
 	MigrationsImageOverride = ""
 )
 
+// protectedFields are helm values that are not overwritten when upgrading the addon.
+var protectedFields = []string{
+	"password",
+	"license",
+}
+
 var helmValues = map[string]interface{}{
 	"minimalRBAC":   false,
 	"isHelmManaged": false,
@@ -88,6 +94,11 @@ func (a *AdminConsole) askPassword() (string, error) {
 // Version returns the embedded admin console version.
 func (a *AdminConsole) Version() (map[string]string, error) {
 	return map[string]string{"AdminConsole": "v" + Version}, nil
+}
+
+// GetProtectedFields returns the helm values that are not overwritten when upgrading
+func (a *AdminConsole) GetProtectedFields() map[string][]string {
+	return map[string][]string{releaseName: protectedFields}
 }
 
 // HostPreflights returns the host preflight objects found inside the adminconsole

@@ -46,6 +46,7 @@ type ReleaseMetadata struct {
 	K0sSHA       string
 	K0sBinaryURL string
 	Configs      k0sconfig.HelmExtensions
+	Protected    map[string][]string
 }
 
 var metadataCommand = &cli.Command{
@@ -80,6 +81,12 @@ var metadataCommand = &cli.Command{
 			Charts:           chtconfig,
 			Repositories:     repconfig,
 		}
+
+		protectedFields, err := addons.NewApplier(opts...).ProtectedFields()
+		if err != nil {
+			return fmt.Errorf("unable to get protected fields: %w", err)
+		}
+		meta.Protected = protectedFields
 
 		data, err := json.MarshalIndent(meta, "", "\t")
 		if err != nil {
