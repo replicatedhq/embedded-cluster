@@ -38,7 +38,7 @@ var (
 // protectedFields are helm values that are not overwritten when upgrading the addon.
 var protectedFields = []string{
 	"password",
-	"license",
+	"automation",
 }
 
 var helmValues = map[string]interface{}{
