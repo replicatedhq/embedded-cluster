@@ -15,7 +15,7 @@ require (
 	github.com/k0sproject/rig v0.15.1
 	github.com/replicatedhq/embedded-cluster-operator v0.7.1
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
-	github.com/replicatedhq/troubleshoot v0.78.1
+	github.com/replicatedhq/troubleshoot v0.79.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.26.0
@@ -30,7 +30,7 @@ require (
 )
 
 require (
-	github.com/containerd/containerd v1.7.9 // indirect
+	github.com/containerd/containerd v1.7.11 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/frankban/quicktest v1.14.5 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
