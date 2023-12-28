@@ -57,6 +57,13 @@ func (c *Custom) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
+// GetProtectedFields returns the protected fields for the embedded charts.
+// placeholder for now.
+func (c *Custom) GetProtectedFields() map[string][]string {
+	protectedFields := []string{}
+	return map[string][]string{"custom": protectedFields}
+}
+
 // GenerateHelmConfig generates the helm config for all the embedded charts.
 // and writes the charts to the disk.
 func (c *Custom) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {

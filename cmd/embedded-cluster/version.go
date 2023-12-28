@@ -46,6 +46,7 @@ type ReleaseMetadata struct {
 	K0sSHA       string
 	K0sBinaryURL string
 	Configs      k0sconfig.HelmExtensions
+	Protected    map[string][]string
 }
 
 var metadataCommand = &cli.Command{
@@ -69,23 +70,25 @@ var metadataCommand = &cli.Command{
 			K0sSHA:       sha,
 			K0sBinaryURL: defaults.K0sBinaryURL,
 		}
-
-		chtconfig, repconfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
+		applier := addons.NewApplier(opts...)
+		chtconfig, repconfig, err := applier.GenerateHelmConfigs()
 		if err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)
 		}
-
 		meta.Configs = k0sconfig.HelmExtensions{
 			ConcurrencyLevel: 1,
 			Charts:           chtconfig,
 			Repositories:     repconfig,
 		}
-
+		protectedFields, err := applier.ProtectedFields()
+		if err != nil {
+			return fmt.Errorf("unable to get protected fields: %w", err)
+		}
+		meta.Protected = protectedFields
 		data, err := json.MarshalIndent(meta, "", "\t")
 		if err != nil {
 			return fmt.Errorf("unable to marshal versions: %w", err)
 		}
-
 		fmt.Println(string(data))
 		return nil
 	},

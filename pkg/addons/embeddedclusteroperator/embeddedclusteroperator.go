@@ -59,6 +59,13 @@ func (e *EmbeddedClusterOperator) HostPreflights() (*v1beta2.HostPreflightSpec, 
 	return nil, nil
 }
 
+// GetProtectedFields returns the protected fields for the embedded charts.
+// placeholder for now.
+func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
+	protectedFields := []string{}
+	return map[string][]string{releaseName: protectedFields}
+}
+
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
 func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{

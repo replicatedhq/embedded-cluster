@@ -51,6 +51,13 @@ func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
+// GetProtectedFields returns the protected fields for the embedded charts.
+// placeholder for now.
+func (o *OpenEBS) GetProtectedFields() map[string][]string {
+	protectedFields := []string{}
+	return map[string][]string{releaseName: protectedFields}
+}
+
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
 func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
