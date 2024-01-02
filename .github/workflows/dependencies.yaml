@@ -33,8 +33,13 @@ jobs:
         sed -i "/^K0SCTL_VERSION/c\K0SCTL_VERSION = $VERSION" Makefile
     - name: K0s
       run: |
+        # Remove the '-ec.X' suffix and only update if the prefix (upstream k0s release) has changed.
+        export CURVERSION=$(awk '/^K0S_VERSION/{split($3,a,"-"); print a[1]}' Makefile)
         export VERSION=`curl https://api.github.com/repos/k0sproject/k0s/releases/latest | jq -r .name`
-        sed -i "/^K0S_VERSION/c\K0S_VERSION = $VERSION" Makefile
+        if [ "$CURVERSION" != "$VERSION" ]; then
+          sed -i "/^K0S_VERSION/c\K0S_VERSION = $VERSION" Makefile
+          sed -i "/^K0S_BINARY_SOURCE_OVERRIDE/c\K0S_BINARY_SOURCE_OVERRIDE =" Makefile
+        fi
     - name: Troubleshoot
       run: |
         export VERSION=`curl https://api.github.com/repos/replicatedhq/troubleshoot/releases/latest | jq -r .name`
