@@ -94,6 +94,6 @@ main() {
 
 export BUILDER_IMAGE=$1
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/root/.config/.embedded-cluster/etc/kubeconfig
-export PATH=$PATH:/root/.config/.embedded-cluster/bin
+export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
+export PATH=$PATH:/root/.config/embedded-cluster/bin
 main
