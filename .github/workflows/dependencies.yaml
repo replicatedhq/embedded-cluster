@@ -34,7 +34,7 @@ jobs:
     - name: K0s
       run: |
         # Remove the '-ec.X' suffix and only update if the prefix (upstream k0s release) has changed.
-        export CURVERSION=$(grep ^K0S_VERSION Makefile | cut -d= -f2 | tr -d " " | cut -d - -f1)
+        export CURVERSION=$(awk '/^K0S_VERSION/{split($3,a,"-"); print a[1]}' Makefile)
         export VERSION=`curl https://api.github.com/repos/k0sproject/k0s/releases/latest | jq -r .name`
         if [ "$CURVERSION" != "$VERSION" ]; then
           sed -i "/^K0S_VERSION/c\K0S_VERSION = $VERSION" Makefile
