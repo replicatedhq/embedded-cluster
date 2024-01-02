@@ -160,7 +160,7 @@ func (r *InstallationReconciler) ReportNodesChanges(ctx context.Context, in *v1b
 
 // ReportInstallationChanges reports back to the metrics server if the installation status has changed.
 func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, before, after *v1beta1.Installation) {
-	if before.Status.State == after.Status.State {
+	if len(before.Status.State) == 0 || before.Status.State == after.Status.State {
 		return
 	}
 	var err error
