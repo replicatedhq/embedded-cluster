@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,6 +40,14 @@ type NodeStatus struct {
 	Hash string `json:"hash"`
 }
 
+// NodesStaticK0sConfig holds the k0s configuration we deem static across
+// all nodes in a given installation. This field is used properly render
+// k0s config file (k0s.yaml).
+type NodesStaticK0sConfig struct {
+	API     k0sv1beta1.APISpec     `json:"api"`
+	Storage k0sv1beta1.StorageSpec `json:"storage"`
+}
+
 // InstallationSpec defines the desired state of Installation.
 type InstallationSpec struct {
 	// ClusterID holds the cluster, generated during the installation.
@@ -52,6 +61,9 @@ type InstallationSpec struct {
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
 	// used at installation time.
 	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
+	// NodesStaticK0sConfig holds the k0s configuration we deem static across
+	// all nodes in a given installation.
+	NodesStaticK0sConfig *NodesStaticK0sConfig `json:"nodesStaticK0sConfig,omitempty"`
 }
 
 // InstallationStatus defines the observed state of Installation
