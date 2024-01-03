@@ -1,0 +1,48 @@
+config: |-
+  version: v1.27.5+k0s.0
+  dynamicConfig: true
+  config:
+    spec:
+      extensions:
+        helm:
+          charts:
+          - chartname: openebs/openebs
+            version: 3.9.0
+            values: |-
+              overwritten: true
+override: |-
+  version: v1.27.5+k0s.0
+  dynamicConfig: true
+  config:
+    spec:
+      extensions:
+        helm:
+          charts:
+          - chartname: another/chart
+            version: 1.0.0
+            values: |-
+              test: 123
+              another-property: 123
+          - chartname: yet-another/chart
+            version: 2.0.0
+            values: |-
+              test: 321
+              another-property: 321
+expected: |-
+  version: v1.27.5+k0s.0
+  dynamicConfig: true
+  config:
+    spec:
+      extensions:
+        helm:
+          charts:
+          - chartname: another/chart
+            version: 1.0.0
+            values: |-
+              test: 123
+              another-property: 123
+          - chartname: yet-another/chart
+            version: 2.0.0
+            values: |-
+              test: 321
+              another-property: 321

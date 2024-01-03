@@ -65,10 +65,9 @@ func init() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
-	customization customization.AdminConsole
-	namespace     string
-	useprompt     bool
-	config        v1beta1.ClusterConfig
+	namespace string
+	useprompt bool
+	config    v1beta1.ClusterConfig
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -103,12 +102,12 @@ func (a *AdminConsole) GetProtectedFields() map[string][]string {
 // HostPreflights returns the host preflight objects found inside the adminconsole
 // or as part of the embedded kots release (customization).
 func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
-	return a.customization.HostPreflights()
+	return customization.GetHostPreflights()
 }
 
 // addLicenseAndVersionToHelmValues adds the embedded license to the helm values.
 func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
-	license, err := a.customization.License()
+	license, err := customization.GetLicense()
 	if err != nil {
 		return fmt.Errorf("unable to get license: %w", err)
 	}
@@ -120,7 +119,7 @@ func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
 		return fmt.Errorf("unable to marshal license: %w", err)
 	}
 	var appVersion string
-	if release, err := a.customization.ChannelRelease(); err != nil {
+	if release, err := customization.GetChannelRelease(); err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
 	} else if release != nil {
 		appVersion = release.VersionLabel
@@ -189,7 +188,7 @@ func (a *AdminConsole) addPasswordToHelmValues() error {
 // addKotsApplicationToHelmValues extracts the embed application struct found in this binary
 // and adds it to the helm values.
 func (a *AdminConsole) addKotsApplicationToHelmValues() error {
-	app, err := customization.AdminConsole{}.Application()
+	app, err := customization.GetApplication()
 	if err != nil {
 		return fmt.Errorf("unable to get application: %w", err)
 	} else if app == nil {
@@ -290,9 +289,8 @@ func (a *AdminConsole) printSuccessMessage() {
 // New creates a new AdminConsole object.
 func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole, error) {
 	return &AdminConsole{
-		namespace:     ns,
-		useprompt:     useprompt,
-		customization: customization.AdminConsole{},
-		config:        config,
+		namespace: ns,
+		useprompt: useprompt,
+		config:    config,
 	}, nil
 }

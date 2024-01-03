@@ -1,0 +1,16 @@
+endUserOverrides: |
+  config:
+    metadata:
+      name: foo
+    spec:
+      telemetry:
+        enabled: false
+embeddedOverrides: |
+  config:
+    metadata:
+      name: bar
+    spec:
+      telemetry:
+        enabled: true
+expectedUserOverrides: ""
+expectedEmbeddedOverrides: ""

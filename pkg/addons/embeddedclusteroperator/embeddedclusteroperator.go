@@ -93,7 +93,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		return err
 	}
 	loading.Closef("Embedded Cluster Operator is ready!")
-	cfg, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	cfg, err := customization.GetEmbeddedClusterConfig()
 	if err != nil {
 		return err
 	}

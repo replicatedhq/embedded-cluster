@@ -1,0 +1,48 @@
+endUserOverrides: |
+  config:
+    metadata:
+      name: foo
+    spec:
+      api:
+        externalAddress: my-lb-address.example.com
+        extraArgs:
+          service-node-port-range: 80-32767
+      storage:
+        type: unknown
+        etcd:
+          peerAddress: 1.1.1.1
+embeddedOverrides: |
+  config:
+    metadata:
+      name: foo
+    spec:
+      storage:
+        type: etcd
+        etcd:
+          peerAddress: 192.168.68.106
+      api:
+        externalAddress: my-another-lb-address.example.com
+        extraArgs:
+          service-node-port-range: 3000-32767
+expectedUserOverrides: |
+  config:
+    spec:
+      api:
+        externalAddress: my-lb-address.example.com
+        extraArgs:
+          service-node-port-range: 80-32767
+      storage:
+        type: unknown
+        etcd:
+          peerAddress: 1.1.1.1
+expectedEmbeddedOverrides: |
+  config:
+    spec:
+      api:
+        externalAddress: my-another-lb-address.example.com
+        extraArgs:
+          service-node-port-range: 3000-32767
+      storage:
+        type: etcd
+        etcd:
+          peerAddress: 192.168.68.106
