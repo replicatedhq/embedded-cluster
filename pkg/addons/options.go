@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 )
 
 // Option sets and option on an Applier reference.
@@ -42,5 +43,14 @@ func WithConfig(config v1beta1.ClusterConfig) Option {
 func OnlyDefaults() Option {
 	return func(a *Applier) {
 		a.onlyDefaults = true
+	}
+}
+
+// WithEndUserConfig sets the end user config passed in by the customer
+// at install time. This configuration is similar to the one embedded
+// in the cluster through a Kots Release.
+func WithEndUserConfig(config *embeddedclusterv1beta1.Config) Option {
+	return func(a *Applier) {
+		a.endUserConfig = config
 	}
 }

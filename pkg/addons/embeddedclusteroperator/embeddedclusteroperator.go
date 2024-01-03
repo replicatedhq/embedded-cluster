@@ -44,8 +44,9 @@ var helmValues = map[string]interface{}{
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
 // helm chart.
 type EmbeddedClusterOperator struct {
-	namespace  string
-	deployName string
+	namespace     string
+	deployName    string
+	endUserConfig *embeddedclusterv1beta1.Config
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -100,15 +101,20 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	if cfg != nil {
 		cfgspec = &cfg.Spec
 	}
+	var euOverrides string
+	if e.endUserConfig != nil {
+		euOverrides = e.endUserConfig.Spec.UnsupportedOverrides.K0s
+	}
 	installation := embeddedclusterv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: embeddedclusterv1beta1.InstallationSpec{
-			ClusterID:      metrics.ClusterID().String(),
-			MetricsBaseURL: metrics.BaseURL(),
-			AirGap:         false,
-			Config:         cfgspec,
+			ClusterID:                 metrics.ClusterID().String(),
+			MetricsBaseURL:            metrics.BaseURL(),
+			AirGap:                    false,
+			Config:                    cfgspec,
+			EndUserK0sConfigOverrides: euOverrides,
 		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
@@ -119,9 +125,10 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New() (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
-		namespace:  "embedded-cluster",
-		deployName: "embedded-cluster-operator",
+		namespace:     "embedded-cluster",
+		deployName:    "embedded-cluster-operator",
+		endUserConfig: endUserConfig,
 	}, nil
 }
