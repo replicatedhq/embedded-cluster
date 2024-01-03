@@ -158,23 +158,17 @@ func updateConfig(c *cli.Context) error {
 	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
 
 	if c.String("overrides") != "" {
-		data, err := os.ReadFile(c.String("overrides"))
+		eucfg, err := parseEndUserConfig(c.String("overrides"))
 		if err != nil {
-			return fmt.Errorf("unable to read overrides file: %w", err)
+			return fmt.Errorf("unable to process overrides file: %w", err)
 		}
-		var overrideCfg embeddedclusterv1beta1.Config
-		if err := kyaml.Unmarshal(data, &overrideCfg); err != nil {
-			return fmt.Errorf("unable to unmarshal overrides file: %w", err)
-		}
-
-		config.ApplyEmbeddedUnsupportedOverrides(cfg, overrideCfg.Spec.UnsupportedOverrides.K0s)
+		config.ApplyEmbeddedUnsupportedOverrides(cfg, eucfg.Spec.UnsupportedOverrides.K0s)
 	}
 
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
 	}
-
 	for _, addon := range c.StringSlice("disable-addon") {
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
@@ -260,16 +254,11 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 	}
 
 	if c.String("overrides") != "" {
-		data, err := os.ReadFile(c.String("overrides"))
+		eucfg, err := parseEndUserConfig(c.String("overrides"))
 		if err != nil {
-			return fmt.Errorf("unable to read overrides file: %w", err)
+			return fmt.Errorf("unable to process overrides file: %w", err)
 		}
-		var overrideCfg embeddedclusterv1beta1.Config
-		if err := kyaml.Unmarshal(data, &overrideCfg); err != nil {
-			return fmt.Errorf("unable to unmarshal overrides file: %w", err)
-		}
-
-		config.ApplyEmbeddedUnsupportedOverrides(cfg, overrideCfg.Spec.UnsupportedOverrides.K0s)
+		config.ApplyEmbeddedUnsupportedOverrides(cfg, eucfg.Spec.UnsupportedOverrides.K0s)
 	}
 
 	opts := []addons.Option{}
@@ -401,6 +390,14 @@ func runOutro(c *cli.Context) error {
 	for _, addon := range c.StringSlice("disable-addon") {
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
+	if c.String("overrides") == "" {
+		return addons.NewApplier(opts...).Outro(c.Context)
+	}
+	eucfg, err := parseEndUserConfig(c.String("overrides"))
+	if err != nil {
+		return fmt.Errorf("unable to load overrides: %w", err)
+	}
+	opts = append(opts, addons.WithEndUserConfig(eucfg))
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
@@ -475,4 +472,17 @@ var installCommand = &cli.Command{
 		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},
+}
+
+// parseEndUserConfig parses the end user configuration from the given file.
+func parseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
+	data, err := os.ReadFile(fpath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read overrides file: %w", err)
+	}
+	var cfg embeddedclusterv1beta1.Config
+	if err := kyaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal overrides file: %w", err)
+	}
+	return &cfg, nil
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,6 +41,7 @@ type Applier struct {
 	verbose        bool
 	config         v1beta1.ClusterConfig
 	onlyDefaults   bool
+	endUserConfig  *embeddedclusterv1beta1.Config
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -126,7 +128,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		addons["openebs"] = obs
 	}
 	if _, disabledAddons := a.disabledAddons["embeddedclusteroperator"]; !disabledAddons {
-		embedoperator, err := embeddedclusteroperator.New()
+		embedoperator, err := embeddedclusteroperator.New(a.endUserConfig)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 		}
