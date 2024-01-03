@@ -253,90 +253,12 @@ spec:
                   version:
                     type: string
                 type: object
+              endUserK0sConfigOverrides:
+                description: EndUserK0sConfigOverrides holds the end user k0s config overrides used at installation time.
+                type: string
               metricsBaseURL:
                 description: MetricsBaseURL holds the base URL for the metrics server.
                 type: string
-              overrides:
-                description: ConfigOverrides holds the configuration overrides used at installation time.
-                properties:
-                  roles:
-                    description: Roles is the various roles in the cluster.
-                    properties:
-                      controller:
-                        description: NodeRole is the role of a node in the cluster.
-                        properties:
-                          description:
-                            type: string
-                          labels:
-                            additionalProperties:
-                              type: string
-                            type: object
-                          name:
-                            type: string
-                          nodeCount:
-                            description: NodeCount holds a series of rules for a given node role.
-                            properties:
-                              range:
-                                description: NodeRange contains a min and max or only one of them (conflicts with Values).
-                                properties:
-                                  max:
-                                    description: Max is the maximum number of nodes.
-                                    type: integer
-                                  min:
-                                    description: Min is the minimum number of nodes.
-                                    type: integer
-                                type: object
-                              values:
-                                description: Values holds a list of allowed node counts.
-                                items:
-                                  type: integer
-                                type: array
-                            type: object
-                        type: object
-                      custom:
-                        items:
-                          description: NodeRole is the role of a node in the cluster.
-                          properties:
-                            description:
-                              type: string
-                            labels:
-                              additionalProperties:
-                                type: string
-                              type: object
-                            name:
-                              type: string
-                            nodeCount:
-                              description: NodeCount holds a series of rules for a given node role.
-                              properties:
-                                range:
-                                  description: NodeRange contains a min and max or only one of them (conflicts with Values).
-                                  properties:
-                                    max:
-                                      description: Max is the maximum number of nodes.
-                                      type: integer
-                                    min:
-                                      description: Min is the minimum number of nodes.
-                                      type: integer
-                                  type: object
-                                values:
-                                  description: Values holds a list of allowed node counts.
-                                  items:
-                                    type: integer
-                                  type: array
-                              type: object
-                          type: object
-                        type: array
-                    type: object
-                  unsupportedOverrides:
-                    description: UnsupportedOverrides holds the config overrides used to configure the cluster.
-                    properties:
-                      k0s:
-                        description: K0s holds the overrides used to configure k0s. These overrides are merged on top of the default k0s configuration. As the data layout inside this configuration is very dynamic we have chosen to use a string here.
-                        type: string
-                    type: object
-                  version:
-                    type: string
-                type: object
             required:
             - airGap
             type: object
