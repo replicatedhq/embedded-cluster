@@ -74,9 +74,9 @@ function metadata() {
     fi
 
     # check if a file 'metadata.json' exists in the directory
-    # if it does, upload it as metadata-${ec_version}.json
+    # if it does, upload it as metadata/${ec_version}.json
     if [ -f metadata.json ]; then
-        retry 3 aws s3 cp metadata.json "s3://${S3_BUCKET}/metadata-${EC_VERSION}.json"
+        retry 3 aws s3 cp metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
     else
         echo "metadata.json not found, skipping upload"
     fi

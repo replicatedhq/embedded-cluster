@@ -22,13 +22,16 @@ jobs:
           make embedded-cluster-linux-amd64
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
+      - name: Get short commit hash
+        run: echo "SHORT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
       - name: Cache files
+        env:
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+          EC_VERSION: "staging-$SHORT_SHA"
         run: |
-          export AWS_REGION=us-east-1
-          export AWS_ACCESS_KEY_ID=TODO
-          export AWS_SECRET_ACCESS_KEY=TODO
-          export S3_BUCKET=tf-staging-embedded-cluster-bin
-          export EC_VERSION=development
           ./scripts/cache-files.sh
       - name: Publish development release
         uses: marvinpinto/action-automatic-releases@latest
