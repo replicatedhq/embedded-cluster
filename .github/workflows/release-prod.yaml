@@ -24,6 +24,14 @@ jobs:
           make embedded-cluster-linux-amd64 VERSION=$TAG_NAME
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
+      - name: Cache files
+        run: |
+          export AWS_REGION=us-east-1
+          export AWS_ACCESS_KEY_ID=TODO
+          export AWS_SECRET_ACCESS_KEY=TODO
+          export S3_BUCKET=tf-embedded-cluster-binaries
+          export EC_VERSION=$TAG_NAME
+          ./scripts/cache-files.sh
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
         with:
