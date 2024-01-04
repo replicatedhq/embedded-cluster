@@ -52,7 +52,7 @@ function k0sbin() {
 
     # check if the binary already exists in the bucket
     local k0s_binary_exists=
-    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s/${k0s_version}" || true)
+    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${k0s_version}" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${k0s_binary_exists}" ]; then
@@ -64,7 +64,7 @@ function k0sbin() {
     curl -L -o "$(k0s_version)" "https://github.com/k0sproject/k0s/releases/download/$(k0s_version)/k0s-$(k0s_version)-amd64"
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp "$(k0s_version)" "s3://${S3_BUCKET}/k0s/${k0s_version}"
+    retry 3 aws s3 cp "$(k0s_version)" "s3://${S3_BUCKET}/k0s-binaries/${k0s_version}"
 }
 
 function metadata() {
