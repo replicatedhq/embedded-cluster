@@ -54,7 +54,7 @@ function k0sbin() {
     # if the override is set, the binary will have been added to the bucket through another process
     if [ -n "${k0s_override}" ] && [ "${k0s_override}" != "" ]; then
         echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
-        curl -L -o "$(k0s_version)" "$(k0s_override)"
+        curl -L -o "${k0s_version}" "${k0s_override}"
     else
         # download the k0s binary from official sources
         curl -L -o "$(k0s_version)" "https://github.com/k0sproject/k0s/releases/download/$(k0s_version)/k0s-$(k0s_version)-amd64"
