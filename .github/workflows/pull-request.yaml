@@ -68,5 +68,5 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.INFRA_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
         AWS_REGION: "us-east-1"
       run: |
-        export EC_VERSION="dev-$SHORT_SHA"
+        export EC_VERSION="dev-metadata"
         ./scripts/cache-files.sh

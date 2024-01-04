@@ -48,7 +48,7 @@ function k0sbin() {
     # if the binary already exists, we don't need to upload it again
     if [ -n "${k0s_binary_exists}" ]; then
         echo "k0s binary ${k0s_version} already exists in bucket ${S3_BUCKET}, skipping upload"
-        exit 0
+        return 0
     fi
 
     # if the override is set, the binary will have been added to the bucket through another process
