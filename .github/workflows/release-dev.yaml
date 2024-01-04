@@ -31,7 +31,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          export EC_VERSION="dev-$(SHORT_SHA)"
+          export EC_VERSION="dev-$SHORT_SHA"
           ./scripts/cache-files.sh
       - name: Publish development release
         uses: marvinpinto/action-automatic-releases@latest
