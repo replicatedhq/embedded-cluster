@@ -42,8 +42,8 @@ function k0sbin() {
     k0s_override=$(awk '/^K0S_BINARY_SOURCE_OVERRIDE/{print $3}' Makefile)
 
     # if the override is set, the binary will have been added to the bucket through another process
-    if [ -n "${k0s_override}" ]; then
-        echo "K0S_BINARY_SOURCE_OVERRIDE is set, skipping upload of k0s ${k0s_version}"
+    if [ -n "${k0s_override}" ] && [ "${k0s_override}" != "" ]; then
+        echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', skipping upload of k0s ${k0s_version}"
         return 0
     fi
 
