@@ -43,8 +43,8 @@ function k0sbin() {
 
     # if the override is set, the binary will have been added to the bucket through another process
     if [ -n "${k0s_override}" ]; then
-        echo "K0S_BINARY_SOURCE_OVERRIDE is set, skipping upload"
-        exit 0
+        echo "K0S_BINARY_SOURCE_OVERRIDE is set, skipping upload of k0s ${k0s_version}"
+        return 0
     fi
 
     # check if the binary already exists in the bucket
@@ -67,7 +67,7 @@ function k0sbin() {
 function metadata() {
     if [ -z "${EC_VERSION}" ]; then
         echo "EC_VERSION unset, not uploading metadata.json"
-        exit 0
+        return 0
     fi
 
     # check if a file 'metadata.json' exists in the directory
