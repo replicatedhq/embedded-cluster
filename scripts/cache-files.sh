@@ -68,7 +68,19 @@ function k0sbin() {
 }
 
 function metadata() {
-    echo ""
+    if [ -z "${EC_VERSION}" ]; then
+        echo "EC_VERSION unset, not uploading metadata.json"
+        exit 0
+    fi
+
+    # check if a file 'metadata.json' exists in the directory
+    # if it does, upload it as metadata-${ec_version}.json
+    if [ -f metadata.json ]; then
+        retry 3 aws s3 cp metadata.json "s3://${S3_BUCKET}/metadata-${EC_VERSION}.json"
+    else
+        echo "metadata.json not found, skipping upload"
+    fi
+
 }
 
 # there are two files to be uploaded for each release - the k0s binary and the metadata file
