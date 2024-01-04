@@ -39,7 +39,7 @@ function k0sbin() {
     local k0s_version=
     k0s_version=$(awk '/^K0S_VERSION/{print $3}' Makefile)
     local k0s_override=
-    k0s_override=$(awk '/^K0S_BINARY_SOURCE_OVERRIDE/{print $3}' Makefile)
+    k0s_override=$(awk '/^K0S_BINARY_SOURCE_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
 
     # check if the binary already exists in the bucket
     local k0s_binary_exists=
@@ -52,11 +52,11 @@ function k0sbin() {
     fi
 
     # if the override is set, the binary will have been added to the bucket through another process
-    if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '""' ]; then
+    if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
         echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
         # k0s_override includes quotes, wrapping it in quotes results in an error
-        echo "curl -L -o $k0s_version $k0s_override"
-        curl -L -o $k0s_version $k0s_override
+        echo "curl -L -o \"${k0s_version}\" \"${k0s_override}\""
+        curl -L -o "${k0s_version}" "${k0s_override}"
     else
         # download the k0s binary from official sources
         curl -L -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
