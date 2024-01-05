@@ -1,0 +1,22 @@
+original: |-
+  apiVersion: k0s.k0sproject.io/v1beta1
+  kind: Cluster
+  metadata:
+    name: k0s
+  spec:
+    api:
+      externalAddress: my-lb-address.example.com
+      address: 192.168.68.107
+      sans:
+      - 192.168.68.106
+expected: |-
+  apiVersion: k0s.k0sproject.io/v1beta1
+  kind: Cluster
+  metadata:
+    name: k0s
+  spec:
+    api:
+      externalAddress: my-lb-address.example.com
+      address: 192.168.68.107
+      sans:
+      - 192.168.68.106

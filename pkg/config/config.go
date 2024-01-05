@@ -52,7 +52,7 @@ func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 
 // RenderClusterConfig renders a cluster configuration interactively.
 func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, error) {
-	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	clusterConfig, err := customization.GetEmbeddedClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
 	} else if clusterConfig == nil {
@@ -63,14 +63,22 @@ func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, err
 		if err != nil {
 			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
 		}
-		ApplyEmbeddedUnsupportedOverrides(cfg, clusterConfig.Spec.UnsupportedOverrides.K0s)
+		if err := ApplyEmbeddedUnsupportedOverrides(
+			cfg, clusterConfig.Spec.UnsupportedOverrides.K0s,
+		); err != nil {
+			return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
+		}
 		return cfg, nil
 	}
 	cfg, err := renderSingleNodeConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render single-node config: %w", err)
 	}
-	ApplyEmbeddedUnsupportedOverrides(cfg, clusterConfig.Spec.UnsupportedOverrides.K0s)
+	if err := ApplyEmbeddedUnsupportedOverrides(
+		cfg, clusterConfig.Spec.UnsupportedOverrides.K0s,
+	); err != nil {
+		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
+	}
 	return cfg, nil
 }
 
@@ -329,41 +337,52 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 	return nil
 }
 
+// PatchK0sConfig patches a K0s config with the provided patch. Returns the patched config,
+// patch is expected to be a YAML encoded k0s configuration. We marshal the original config
+// and the patch into JSON and apply the latter as a merge patch to the former.
+func PatchK0sConfig(config *cluster.K0s, patch string) (*cluster.K0s, error) {
+	originalYAML, err := yaml.Marshal(config)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal original config: %w", err)
+	}
+	originalJSON, err := fmtconvert.YAMLToJSON(originalYAML)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert original config to json: %w", err)
+	}
+	patchJSON, err := fmtconvert.YAMLToJSON([]byte(patch))
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert patch to json: %w", err)
+	}
+	result, err := jsonpatch.MergePatch(originalJSON, patchJSON)
+	if err != nil {
+		return nil, fmt.Errorf("unable to patch configuration: %w", err)
+	}
+	resultYAML, err := fmtconvert.JSONToYAML(result)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert patched config to json: %w", err)
+	}
+	var newConfig cluster.K0s
+	if err := yaml.Unmarshal(resultYAML, &newConfig); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal patched config: %w", err)
+	}
+	return &newConfig, nil
+}
+
 // ApplyEmbeddedUnsupportedOverrides applies the custom configuration to the cluster config.
 func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig string) error {
 	if embconfig == "" {
 		return nil
 	}
-	newConfigBytes, err := yaml.Marshal(config.Spec.K0s)
+	result, err := PatchK0sConfig(config.Spec.K0s, embconfig)
 	if err != nil {
-		return fmt.Errorf("unable to marshal original cluster config: %w", err)
+		return fmt.Errorf("unable to patch cluster config: %w", err)
 	}
-	original, err := fmtconvert.YAMLToJSON(newConfigBytes)
-	if err != nil {
-		return fmt.Errorf("unable to convert cluster config overrides to json: %w", err)
-	}
-	target, err := fmtconvert.YAMLToJSON([]byte(embconfig))
-	if err != nil {
-		return fmt.Errorf("unable to convert original cluster config to json: %w", err)
-	}
-	result, err := jsonpatch.MergePatch(original, target)
-	if err != nil {
-		return fmt.Errorf("unable to create patch configuration: %w", err)
-	}
-	newConfigBytes, err = fmtconvert.JSONToYAML(result)
-	if err != nil {
-		return fmt.Errorf("unable to convert patched configuration to json: %w", err)
-	}
-	var newK0sConfig cluster.K0s
-	if err := k8syaml.Unmarshal(newConfigBytes, &newK0sConfig); err != nil {
-		return fmt.Errorf("unable to unmarshal patched cluster config: %w", err)
-	}
-	config.Spec.K0s = &newK0sConfig
+	config.Spec.K0s = result
 	return nil
 }
 
 func getControllerRoleName() string {
-	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	clusterConfig, err := customization.GetEmbeddedClusterConfig()
 
 	controllerRoleName := "controller"
 	if err == nil {
@@ -377,7 +396,7 @@ func getControllerRoleName() string {
 }
 
 func additionalControllerLabels() map[string]string {
-	clusterConfig, err := customization.AdminConsole{}.EmbeddedClusterConfig()
+	clusterConfig, err := customization.GetEmbeddedClusterConfig()
 
 	if err == nil {
 		if clusterConfig != nil {

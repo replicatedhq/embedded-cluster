@@ -1,0 +1,45 @@
+original: |-
+  apiVersion: k0s.k0sproject.io/v1beta1
+  kind: Cluster
+  metadata:
+    name: k0s
+  spec:
+    api:
+      externalAddress: my-lb-address.example.com
+      address: 192.168.68.107
+      sans:
+      - 192.168.68.107
+override: |-
+  apiVersion: embeddedcluster.replicated.com/v1beta1
+  kind: Config
+  spec:
+    unsupportedOverrides:
+      k0s: |
+        config:
+          spec:
+            api:
+              sans:
+              - 192.168.68.100
+              - 192.168.68.101
+              - 192.168.68.102
+              - 192.168.68.103
+              - 192.168.68.104
+              - 192.168.68.105
+              - 192.168.68.106
+expected: |-
+  apiVersion: k0s.k0sproject.io/v1beta1
+  kind: Cluster
+  metadata:
+    name: k0s
+  spec:
+    api:
+      externalAddress: my-lb-address.example.com
+      address: 192.168.68.107
+      sans:
+      - 192.168.68.100
+      - 192.168.68.101
+      - 192.168.68.102
+      - 192.168.68.103
+      - 192.168.68.104
+      - 192.168.68.105
+      - 192.168.68.106

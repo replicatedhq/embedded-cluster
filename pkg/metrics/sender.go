@@ -18,7 +18,7 @@ func BaseURL() string {
 	if os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL") != "" {
 		return os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL")
 	}
-	license, _ := customization.AdminConsole{}.License()
+	license, _ := customization.GetLicense()
 	if license == nil || license.Spec.Endpoint == "" {
 		return "https://replicated.app"
 	}

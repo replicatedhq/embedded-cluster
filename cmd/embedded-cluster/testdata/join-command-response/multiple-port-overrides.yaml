@@ -1,0 +1,28 @@
+endUserOverrides: |
+  config:
+    metadata:
+      name: foo
+    spec:
+      api:
+        extraArgs:
+          service-node-port-range: 80-32767
+embeddedOverrides: |
+  config:
+    metadata:
+      name: foo
+    spec:
+      api:
+        extraArgs:
+          service-node-port-range: 3000-32767
+expectedUserOverrides: |
+  config:
+    spec:
+      api:
+        extraArgs:
+          service-node-port-range: 80-32767
+expectedEmbeddedOverrides: |
+  config:
+    spec:
+      api:
+        extraArgs:
+          service-node-port-range: 3000-32767

@@ -145,26 +145,26 @@ func createK0sctlConfigBackup(ctx context.Context) error {
 // updateConfig updates the k0sctl.yaml file with the latest configuration
 // options.
 func updateConfig(c *cli.Context) error {
-
 	if err := createK0sctlConfigBackup(c.Context); err != nil {
 		return fmt.Errorf("unable to create config backup: %w", err)
 	}
-
 	cfgpath := defaults.PathToConfig("k0sctl.yaml")
 	cfg, err := config.ReadConfigFile(cfgpath)
 	if err != nil {
 		return fmt.Errorf("unable to read cluster config: %w", err)
 	}
 	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
-
 	if c.String("overrides") != "" {
 		eucfg, err := parseEndUserConfig(c.String("overrides"))
 		if err != nil {
 			return fmt.Errorf("unable to process overrides file: %w", err)
 		}
-		config.ApplyEmbeddedUnsupportedOverrides(cfg, eucfg.Spec.UnsupportedOverrides.K0s)
+		if err := config.ApplyEmbeddedUnsupportedOverrides(
+			cfg, eucfg.Spec.UnsupportedOverrides.K0s,
+		); err != nil {
+			return fmt.Errorf("unable to apply overrides: %w", err)
+		}
 	}
-
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -172,11 +172,9 @@ func updateConfig(c *cli.Context) error {
 	for _, addon := range c.StringSlice("disable-addon") {
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
-
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
-
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -247,33 +245,31 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("unable to open config: %w", err)
 	}
-
 	cfg, err := config.RenderClusterConfig(c.Context, multi)
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}
-
 	if c.String("overrides") != "" {
 		eucfg, err := parseEndUserConfig(c.String("overrides"))
 		if err != nil {
 			return fmt.Errorf("unable to process overrides file: %w", err)
 		}
-		config.ApplyEmbeddedUnsupportedOverrides(cfg, eucfg.Spec.UnsupportedOverrides.K0s)
+		if err := config.ApplyEmbeddedUnsupportedOverrides(
+			cfg, eucfg.Spec.UnsupportedOverrides.K0s,
+		); err != nil {
+			return fmt.Errorf("unable to apply overrides: %w", err)
+		}
 	}
-
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
 	}
-
 	for _, addon := range c.StringSlice("disable-addon") {
 		opts = append(opts, addons.WithoutAddon(addon))
 	}
-
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
-
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
