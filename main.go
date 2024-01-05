@@ -25,6 +25,8 @@ import (
 	"k8s.io/client-go/discovery"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -50,6 +52,8 @@ func init() {
 
 	utilruntime.Must(embeddedclusterv1beta1.AddToScheme(scheme))
 	utilruntime.Must(autopilotv1beta2.AddToScheme(scheme))
+	utilruntime.Must(k0sv1beta1.AddToScheme(scheme))
+	utilruntime.Must(k0shelm.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

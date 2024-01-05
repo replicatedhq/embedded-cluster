@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 )
 
 var (
@@ -33,6 +35,8 @@ type Meta struct {
 	Versions     Versions
 	K0sSHA       string
 	K0sBinaryURL string
+	Configs      *k0sv1beta1.HelmExtensions
+	Protected    map[string][]string
 }
 
 // MetadataFor reads metadata for a given release. Goes to GitHub releases page

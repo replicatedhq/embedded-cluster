@@ -22,13 +22,16 @@ import (
 
 // What follows is a list of all valid states for an Installation object.
 const (
-	InstallationStateWaiting    string = "Waiting"
-	InstallationStateEnqueued   string = "Enqueued"
-	InstallationStateInstalling string = "Installing"
-	InstallationStateInstalled  string = "Installed"
-	InstallationStateObsolete   string = "Obsolete"
-	InstallationStateFailed     string = "Failed"
-	InstallationStateUnknown    string = "Unknown"
+	InstallationStateWaiting                string = "Waiting"
+	InstallationStateEnqueued               string = "Enqueued"
+	InstallationStateInstalling             string = "Installing"
+	InstallationStateInstalled              string = "Installed"
+	InstallationStateKubernetesInstalled    string = "KubernetesInstalled"
+	InstallationStateAddonsInstalling       string = "AddonsInstalling"
+	InstallationStateHelmChartUpdateFailure string = "HelmChartUpdateFailure"
+	InstallationStateObsolete               string = "Obsolete"
+	InstallationStateFailed                 string = "Failed"
+	InstallationStateUnknown                string = "Unknown"
 )
 
 // NodeStatus is used to keep track of the status of a cluster node, we

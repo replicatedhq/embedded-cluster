@@ -51,3 +51,22 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - helm.k0sproject.io
+  resources:
+  - charts
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - k0s.k0sproject.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

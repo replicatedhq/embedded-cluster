@@ -52,3 +52,16 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - k0s.k0sproject.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+
