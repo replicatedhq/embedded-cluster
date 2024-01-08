@@ -25,7 +25,6 @@ jobs:
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
       - name: Cache files
-      - name: Cache files
         env:
           S3_BUCKET: "tf-embedded-cluster-binaries"
           AWS_ACCESS_KEY_ID: ${{ secrets.PROD_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
