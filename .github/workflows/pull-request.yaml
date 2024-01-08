@@ -62,6 +62,7 @@ jobs:
         ./output/bin/embedded-cluster version metadata > metadata.json
 
     - name: Cache files
+      if: github.actor != 'dependabot[bot]'
       env:
         S3_BUCKET: "tf-infra-staging-emb-cluster-bin"
         AWS_ACCESS_KEY_ID: ${{ secrets.INFRA_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
