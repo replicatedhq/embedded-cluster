@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	k0sv1beta1 "github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
 	"github.com/k0sproject/rig/log"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -153,18 +155,6 @@ func updateConfig(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to read cluster config: %w", err)
 	}
-	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
-	if c.String("overrides") != "" {
-		eucfg, err := parseEndUserConfig(c.String("overrides"))
-		if err != nil {
-			return fmt.Errorf("unable to process overrides file: %w", err)
-		}
-		if err := config.ApplyEmbeddedUnsupportedOverrides(
-			cfg, eucfg.Spec.UnsupportedOverrides.K0s,
-		); err != nil {
-			return fmt.Errorf("unable to apply overrides: %w", err)
-		}
-	}
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -175,6 +165,10 @@ func updateConfig(c *cli.Context) error {
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
+	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
+	if err := applyUnsupportedOverrides(c, cfg); err != nil {
+		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
+	}
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
@@ -182,6 +176,31 @@ func updateConfig(c *cli.Context) error {
 	defer fp.Close()
 	if err := yaml.NewEncoder(fp).Encode(cfg); err != nil {
 		return fmt.Errorf("unable to write config file: %w", err)
+	}
+	return nil
+}
+
+// applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
+// overrides embedded into the binary and after the ones provided by the user (--overrides).
+func applyUnsupportedOverrides(c *cli.Context, cfg *k0sv1beta1.Cluster) error {
+	if embcfg, err := customization.GetEmbeddedClusterConfig(); err != nil {
+		return fmt.Errorf("unable to get embedded cluster config: %w", err)
+	} else if embcfg != nil {
+		overrides := embcfg.Spec.UnsupportedOverrides.K0s
+		if err := config.ApplyEmbeddedUnsupportedOverrides(cfg, overrides); err != nil {
+			return fmt.Errorf("unable to apply embedded overrides: %w", err)
+		}
+	}
+	if c.String("overrides") == "" {
+		return nil
+	}
+	eucfg, err := parseEndUserConfig(c.String("overrides"))
+	if err != nil {
+		return fmt.Errorf("unable to process overrides file: %w", err)
+	}
+	overrides := eucfg.Spec.UnsupportedOverrides.K0s
+	if err := config.ApplyEmbeddedUnsupportedOverrides(cfg, overrides); err != nil {
+		return fmt.Errorf("unable to apply overrides: %w", err)
 	}
 	return nil
 }
@@ -249,17 +268,6 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}
-	if c.String("overrides") != "" {
-		eucfg, err := parseEndUserConfig(c.String("overrides"))
-		if err != nil {
-			return fmt.Errorf("unable to process overrides file: %w", err)
-		}
-		if err := config.ApplyEmbeddedUnsupportedOverrides(
-			cfg, eucfg.Spec.UnsupportedOverrides.K0s,
-		); err != nil {
-			return fmt.Errorf("unable to apply overrides: %w", err)
-		}
-	}
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -269,6 +277,9 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
+	}
+	if err := applyUnsupportedOverrides(c, cfg); err != nil {
+		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
