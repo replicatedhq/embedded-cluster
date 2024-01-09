@@ -37,7 +37,7 @@ func main() {
 			shellCommand,
 			nodeCommands,
 			versionCommand,
-      configCommand,
+			configCommand,
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
