@@ -19,7 +19,6 @@ import (
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
 	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	k0sversion "github.com/k0sproject/version"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -52,32 +51,16 @@ func ReadConfigFile(cfgPath string) (*v1beta1.Cluster, error) {
 
 // RenderClusterConfig renders a cluster configuration interactively.
 func RenderClusterConfig(ctx context.Context, multi bool) (*v1beta1.Cluster, error) {
-	clusterConfig, err := customization.GetEmbeddedClusterConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
-	} else if clusterConfig == nil {
-		clusterConfig = &embeddedclusterv1beta1.Config{}
-	}
 	if multi {
 		cfg, err := renderMultiNodeConfig(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to render multi-node config: %w", err)
-		}
-		if err := ApplyEmbeddedUnsupportedOverrides(
-			cfg, clusterConfig.Spec.UnsupportedOverrides.K0s,
-		); err != nil {
-			return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 		}
 		return cfg, nil
 	}
 	cfg, err := renderSingleNodeConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render single-node config: %w", err)
-	}
-	if err := ApplyEmbeddedUnsupportedOverrides(
-		cfg, clusterConfig.Spec.UnsupportedOverrides.K0s,
-	); err != nil {
-		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 	return cfg, nil
 }
