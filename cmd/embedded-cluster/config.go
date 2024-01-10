@@ -43,9 +43,9 @@ var configCommand = &cli.Command{
 		if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 			return fmt.Errorf("unable to update helm configs: %w", err)
 		}
-    if err := applyUnsupportedOverrides(c, cfg); err != nil {
-      return fmt.Errorf("unable to apply unsupported overrides: %w", err)
-    }
+		if err := applyUnsupportedOverrides(c, cfg); err != nil {
+			return fmt.Errorf("unable to apply unsupported overrides: %w", err)
+		}
 		if err := yaml.NewEncoder(os.Stdout).Encode(cfg); err != nil {
 			return fmt.Errorf("unable to write config file: %w", err)
 		}
