@@ -33,18 +33,6 @@ var configCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("unable to render config: %w", err)
 		}
-
-		if c.String("overrides") != "" {
-			eucfg, err := parseEndUserConfig(c.String("overrides"))
-			if err != nil {
-				return fmt.Errorf("unable to process overrides file: %w", err)
-			}
-			if err := config.ApplyEmbeddedUnsupportedOverrides(
-				cfg, eucfg.Spec.UnsupportedOverrides.K0s,
-			); err != nil {
-				return fmt.Errorf("unable to apply overrides: %w", err)
-			}
-		}
 		opts := []addons.Option{}
 		if c.Bool("no-prompt") {
 			opts = append(opts, addons.WithoutPrompt())
@@ -55,7 +43,9 @@ var configCommand = &cli.Command{
 		if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 			return fmt.Errorf("unable to update helm configs: %w", err)
 		}
-
+    if err := applyUnsupportedOverrides(c, cfg); err != nil {
+      return fmt.Errorf("unable to apply unsupported overrides: %w", err)
+    }
 		if err := yaml.NewEncoder(os.Stdout).Encode(cfg); err != nil {
 			return fmt.Errorf("unable to write config file: %w", err)
 		}
