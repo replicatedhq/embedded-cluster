@@ -9,14 +9,14 @@ ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.13.0
+EMBEDDED_OPERATOR_CHART_VERSION = 0.14.0
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
 KUBECTL_VERSION = v1.29.0
 K0SCTL_VERSION = v0.17.3
-K0S_VERSION = v1.28.4+k0s.0-ec.0
-K0S_BINARY_SOURCE_OVERRIDE = "https://tf-embedded-cluster-binaries.s3.amazonaws.com/k0s-v1.28.4%2Bk0s.0-ec.0"
+K0S_VERSION = v1.28.5+k0s.0
+K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.79.1
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
