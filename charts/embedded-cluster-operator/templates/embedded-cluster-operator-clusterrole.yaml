@@ -64,4 +64,11 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - helm.k0sproject.io
+  resources:
+  - charts
+  verbs:
+  - get
+  - list
 
