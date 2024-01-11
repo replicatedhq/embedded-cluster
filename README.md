@@ -64,7 +64,7 @@ INFO[0002] This token is valid for 24h0m0s hours.
 INFO[0002] You can now run the following command in a remote node to add it
 INFO[0002] to the cluster as a "controller" node:
 embedded-cluster node join --role "controller" "<token redacted>"
-server-0# 
+server-0#
 ```
 
 Upon generating the token, you will be prompted to continue; press Enter to proceed (you will be opting out of the centralized management).

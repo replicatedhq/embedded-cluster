@@ -40,12 +40,21 @@ var protectedFields = []string{
 	"automation",
 }
 
+const DEFAULT_ADMIN_CONSOLE_SVC_PORT = 30000
+
 var helmValues = map[string]interface{}{
 	"minimalRBAC":   false,
 	"isHelmManaged": false,
+	// To allow older versions of Admin Console to still work,
+	// we need to retain the "admin console service". It gets
+	// removed when kurlProxy is enabled.
 	"service": map[string]interface{}{
 		"type":     "NodePort",
-		"nodePort": 30000,
+		"nodePort": DEFAULT_ADMIN_CONSOLE_SVC_PORT,
+	},
+	"kurlProxy": map[string]interface{}{
+		"enabled":  true,
+		"nodePort": DEFAULT_ADMIN_CONSOLE_SVC_PORT,
 	},
 }
 
@@ -281,8 +290,9 @@ func (a *AdminConsole) printSuccessMessage() {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	nodePort := helmValues["service"].(map[string]interface{})["nodePort"]
-	successMessage := fmt.Sprintf("Admin Console accessible at: %shttp://%s:%v%s", successColor, ipaddr, nodePort, colorReset)
+	successMessage := fmt.Sprintf("Admin Console accessible at: %shttp://%s:%v%s",
+		successColor, ipaddr, DEFAULT_ADMIN_CONSOLE_SVC_PORT, colorReset,
+	)
 	fmt.Println(successMessage)
 }
 
