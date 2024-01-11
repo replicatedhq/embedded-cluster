@@ -78,6 +78,7 @@ expected: |
     hosts: []
     k0s:
       version: v1.28.4+k0s.0-ec.0
+      versionChannel: stable
       dynamicConfig: true
       config:
         apiVersion: k0s.k0sproject.io/v1beta1

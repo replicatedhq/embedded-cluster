@@ -20,6 +20,7 @@ override: |-
             version: 3.10.0
 expected: |-
   version: v1.27.5+k0s.0
+  versionChannel: stable
   dynamicConfig: true
   config:
     spec:
