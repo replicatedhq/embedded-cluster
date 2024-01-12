@@ -135,7 +135,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		addons["embeddedclusteroperator"] = embedoperator
 	}
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("embedded-cluster", a.prompt, a.config)
+		aconsole, err := adminconsole.New("default", a.prompt, a.config)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 		}
