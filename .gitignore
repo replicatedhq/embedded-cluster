@@ -5,3 +5,4 @@ pkg/goods/images
 *tgz
 release.tar.gz
 release.o
+.pre-commit-config.yaml

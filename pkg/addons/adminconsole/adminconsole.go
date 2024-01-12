@@ -46,7 +46,7 @@ var helmValues = map[string]interface{}{
 	"minimalRBAC":   false,
 	"isHelmManaged": false,
 	"service": map[string]interface{}{
-		"enabled": false,	// disable the admin console service
+		"enabled": false, // disable the admin console service
 	},
 	"kurlProxy": map[string]interface{}{
 		"enabled":  true,

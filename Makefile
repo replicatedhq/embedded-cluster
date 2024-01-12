@@ -119,3 +119,11 @@ clean:
 	rm -rf pkg/addons/adminconsole/charts/*.tgz
 	rm -rf pkg/addons/openebs/charts/*.tgz
 	rm -rf pkg/goods/bins
+
+.PHONY: lint
+lint:
+	golangci-lint run -c .golangci.yml ./...
+
+.PHONY: lint-and-fix
+lint-and-fix:
+	golangci-lint run --fix -c .golangci.yml ./...
