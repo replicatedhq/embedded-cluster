@@ -127,3 +127,12 @@ lint:
 .PHONY: lint-and-fix
 lint-and-fix:
 	golangci-lint run --fix -c .golangci.yml ./...
+
+.PHONY: scan
+scan:
+	trivy fs \
+		--scanners vuln \
+		--exit-code=1 \
+		--severity="HIGH,CRITICAL" \
+		--ignore-unfixed \
+		./
