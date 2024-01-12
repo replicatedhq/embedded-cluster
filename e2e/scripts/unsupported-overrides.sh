@@ -41,7 +41,7 @@ spec:
                 version: 0.13.0
               - chartname: oci://registry.replicated.com/library/admin-console
                 name: admin-console
-                namespace: embedded-cluster
+                namespace: default
                 order: 3
                 version: 1.105.1
                 values: |
