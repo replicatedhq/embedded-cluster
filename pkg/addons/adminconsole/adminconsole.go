@@ -45,12 +45,8 @@ const DEFAULT_ADMIN_CONSOLE_SVC_PORT = 30000
 var helmValues = map[string]interface{}{
 	"minimalRBAC":   false,
 	"isHelmManaged": false,
-	// To allow older versions of Admin Console to still work,
-	// we need to retain the "admin console service". It gets
-	// removed when kurlProxy is enabled.
 	"service": map[string]interface{}{
-		"type":     "NodePort",
-		"nodePort": DEFAULT_ADMIN_CONSOLE_SVC_PORT,
+		"enabled": false,	// disable the admin console service
 	},
 	"kurlProxy": map[string]interface{}{
 		"enabled":  true,
