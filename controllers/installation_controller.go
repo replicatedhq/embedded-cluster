@@ -305,16 +305,15 @@ func MergeValues(oldValues, newValues string, protectedValues []string) (string,
 
 // ReconcileHelmCharts reconciles the helm charts from the Installation metadata with the clusterconfig object.
 func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1beta1.Installation) error {
-	log := ctrl.LoggerFrom(ctx)
-	var clusterconfig k0sv1beta1.ClusterConfig
-	// skip if there's no config in the installer spec
-	if in.Spec.Config == nil {
-		log.Info("addons", "configcheck", "no config")
+	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
 		if in.Status.State == v1beta1.InstallationStateKubernetesInstalled {
 			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed")
 		}
 		return nil
 	}
+
+	log := ctrl.LoggerFrom(ctx)
+	var clusterconfig k0sv1beta1.ClusterConfig
 	meta, err := release.MetadataFor(ctx, in.Spec.Config.Version, in.Spec.MetricsBaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to get release bundle: %w", err)
