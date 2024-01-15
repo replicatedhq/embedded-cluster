@@ -12,7 +12,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.17.2
-	github.com/k0sproject/rig v0.17.1
+	github.com/k0sproject/rig v0.17.3
 	github.com/replicatedhq/embedded-cluster-operator v0.16.0
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.79.1
