@@ -105,7 +105,7 @@ require (
 	github.com/juju/webbrowser v1.0.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c
-	github.com/k0sproject/version v0.4.2
+	github.com/k0sproject/version v0.6.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
