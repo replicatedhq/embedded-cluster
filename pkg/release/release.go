@@ -46,7 +46,7 @@ func MetadataFor(ctx context.Context, version string, upstream string) (*Meta, e
 	if meta, ok := cache[version]; ok {
 		return meta, nil
 	}
-	url := fmt.Sprintf(metaURL, version, upstream)
+	url := fmt.Sprintf(metaURL, upstream, version)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

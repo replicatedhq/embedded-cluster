@@ -312,11 +312,16 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return nil
 	}
 
+	if in.Status.State == v1beta1.InstallationStateFailed {
+		return nil
+	}
+
 	log := ctrl.LoggerFrom(ctx)
 	var clusterconfig k0sv1beta1.ClusterConfig
 	meta, err := release.MetadataFor(ctx, in.Spec.Config.Version, in.Spec.MetricsBaseURL)
 	if err != nil {
-		return fmt.Errorf("failed to get release bundle: %w", err)
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, err.Error())
+		return nil
 	}
 	// skip if the new release has no addon configs
 	if meta.Configs == nil {
