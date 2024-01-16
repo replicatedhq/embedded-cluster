@@ -68,15 +68,15 @@ pkg/goods/bins/embedded-cluster/kubectl-preflight:
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
 
-release.tar.gz:
+output/tmp/release.tar.gz:
 	mkdir -p output/tmp
-	tar -czf release.tar.gz -C e2e/kots-release .
+	tar -czf output/tmp/release.tar.gz -C e2e/kots-release .
 
 .PHONY: embedded-release
-embedded-release: embedded-cluster-linux-amd64 release.tar.gz
-	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle release.tar.gz release.o
-	@if ! objcopy --update-section sec_bundle=release.o output/bin/embedded-cluster ; then \
-		objcopy --add-section sec_bundle=release.o output/bin/embedded-cluster ; \
+embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz
+	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle output/tmp/release.tar.gz output/tmp/release.o
+	@if ! objcopy --update-section sec_bundle=output/tmp/release.o output/bin/embedded-cluster 2>/dev/null; then \
+		objcopy --add-section sec_bundle=output/tmp/release.o output/bin/embedded-cluster ; \
 	fi
 
 .PHONY: static
