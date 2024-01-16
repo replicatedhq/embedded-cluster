@@ -33,6 +33,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
 
+.DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
 
 pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
@@ -118,3 +119,20 @@ clean:
 	rm -rf pkg/addons/adminconsole/charts/*.tgz
 	rm -rf pkg/addons/openebs/charts/*.tgz
 	rm -rf pkg/goods/bins
+
+.PHONY: lint
+lint:
+	golangci-lint run -c .golangci.yml ./...
+
+.PHONY: lint-and-fix
+lint-and-fix:
+	golangci-lint run --fix -c .golangci.yml ./...
+
+.PHONY: scan
+scan:
+	trivy fs \
+		--scanners vuln \
+		--exit-code=1 \
+		--severity="HIGH,CRITICAL" \
+		--ignore-unfixed \
+		./

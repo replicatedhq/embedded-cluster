@@ -41,12 +41,17 @@ var protectedFields = []string{
 	"automation",
 }
 
+const DEFAULT_ADMIN_CONSOLE_NODE_PORT = 30000
+
 var helmValues = map[string]interface{}{
 	"minimalRBAC":   false,
 	"isHelmManaged": false,
 	"service": map[string]interface{}{
-		"type":     "NodePort",
-		"nodePort": 30000,
+		"enabled": false, // disable the admin console service
+	},
+	"kurlProxy": map[string]interface{}{
+		"enabled":  true,
+		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
 	},
 	"embeddedClusterID": metrics.ClusterID().String(),
 }
@@ -283,8 +288,9 @@ func (a *AdminConsole) printSuccessMessage() {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	nodePort := helmValues["service"].(map[string]interface{})["nodePort"]
-	successMessage := fmt.Sprintf("Admin Console accessible at: %shttp://%s:%v%s", successColor, ipaddr, nodePort, colorReset)
+	successMessage := fmt.Sprintf("Admin Console accessible at: %shttp://%s:%v%s",
+		successColor, ipaddr, DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
+	)
 	fmt.Println(successMessage)
 }
 
