@@ -18,6 +18,7 @@ override: |-
           enabled: true
 expected: |-
   version: v1.27.5+k0s.0
+  versionChannel: stable
   dynamicConfig: true
   config:
     apiVersion: k0s.k0sproject.io/v1beta1

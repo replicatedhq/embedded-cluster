@@ -4,19 +4,19 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.105.2
+ADMIN_CONSOLE_CHART_VERSION = 1.105.3
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.13.0
+EMBEDDED_OPERATOR_CHART_VERSION = 0.19.0
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
 KUBECTL_VERSION = v1.29.0
-K0SCTL_VERSION = v0.17.3
-K0S_VERSION = v1.28.4+k0s.0-ec.0
-K0S_BINARY_SOURCE_OVERRIDE = "https://tf-embedded-cluster-binaries.s3.amazonaws.com/k0s-v1.28.4%2Bk0s.0-ec.0"
+K0SCTL_VERSION = v0.17.4
+K0S_VERSION = v1.28.5+k0s.0
+K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.79.1
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
@@ -69,15 +69,15 @@ pkg/goods/bins/embedded-cluster/kubectl-preflight:
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
 
-release.tar.gz:
+output/tmp/release.tar.gz:
 	mkdir -p output/tmp
-	tar -czf release.tar.gz -C e2e/kots-release .
+	tar -czf output/tmp/release.tar.gz -C e2e/kots-release .
 
 .PHONY: embedded-release
-embedded-release: embedded-cluster-linux-amd64 release.tar.gz
-	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle release.tar.gz release.o
-	@if ! objcopy --update-section sec_bundle=release.o output/bin/embedded-cluster ; then \
-		objcopy --add-section sec_bundle=release.o output/bin/embedded-cluster ; \
+embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz
+	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle output/tmp/release.tar.gz output/tmp/release.o
+	@if ! objcopy --update-section sec_bundle=output/tmp/release.o output/bin/embedded-cluster 2>/dev/null; then \
+		objcopy --add-section sec_bundle=output/tmp/release.o output/bin/embedded-cluster ; \
 	fi
 
 .PHONY: static

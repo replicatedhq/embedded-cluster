@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
+
+var clusterIDMut sync.Mutex
 
 // LicenseID returns the embedded license id. If something goes wrong, it returns
 // an empty string.
@@ -27,6 +30,8 @@ func LicenseID() string {
 // a second attempt at installation or an upgrade) or a new one is generated and
 // stored locally.
 func ClusterID() uuid.UUID {
+	clusterIDMut.Lock()
+	defer clusterIDMut.Unlock()
 	fpath := defaults.PathToConfig(".cluster-id")
 	if _, err := os.Stat(fpath); err == nil {
 		data, err := os.ReadFile(fpath)

@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
@@ -52,6 +53,7 @@ var helmValues = map[string]interface{}{
 		"enabled":  true,
 		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
 	},
+	"embeddedClusterID": metrics.ClusterID().String(),
 }
 
 func init() {
