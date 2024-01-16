@@ -11,7 +11,7 @@ require (
 	github.com/gosimple/slug v1.13.1
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0sctl v0.17.2
+	github.com/k0sproject/k0sctl v0.17.4
 	github.com/k0sproject/rig v0.17.3
 	github.com/replicatedhq/embedded-cluster-operator v0.16.0
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
@@ -142,7 +142,7 @@ require (
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.14.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
