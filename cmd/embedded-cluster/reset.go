@@ -103,8 +103,7 @@ var resetCommand = &cli.Command{
 
 		isControlPlane := false
 		labels := node.GetLabels()
-		_, ok := labels["node-role.kubernetes.io/control-plane"]
-		if ok && labels["node-role.kubernetes.io/control-plane"] == "true" {
+		if labels["node-role.kubernetes.io/control-plane"] == "true" {
 			isControlPlane = true
 		}
 
