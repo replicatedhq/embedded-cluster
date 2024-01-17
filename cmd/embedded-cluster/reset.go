@@ -108,24 +108,22 @@ var resetCommand = &cli.Command{
 			isControlPlane = true
 		}
 
-		// drain controller node
-		if isControlPlane {
-			drainArgList := []string{
-				"kubectl",
-				"drain",
-				"--ignore-daemonsets",
-				"--delete-emptydir-data",
-				hostname,
-			}
-			fmt.Println("draining node...")
-			_, err = exec.Command(k0s, drainArgList...).Output()
-			if err != nil {
-				fmt.Println(err)
-				return nil
-			}
+		// drain node
+		drainArgList := []string{
+			"kubectl",
+			"drain",
+			"--ignore-daemonsets",
+			"--delete-emptydir-data",
+			hostname,
+		}
+		fmt.Println("draining node...")
+		_, err = exec.Command(k0s, drainArgList...).Output()
+		if err != nil {
+			fmt.Println(err)
+			return nil
 		}
 
-		// common pre-reset commands
+		// remove node from cluster
 		fmt.Println("removing node from cluster...")
 		err = kcli.Delete(c.Context, &node)
 		if err != nil {
@@ -143,11 +141,11 @@ var resetCommand = &cli.Command{
 				return nil
 			}
 
-      err := kcli.Delete(c.Context,&controlNode)
-      if err !=nil {
-        fmt.Println(err)
-        return nil
-      }
+			err := kcli.Delete(c.Context, &controlNode)
+			if err != nil {
+				fmt.Println(err)
+				return nil
+			}
 
 			etcdPeerAddress, err := getEtcdMemberAddress(hostname)
 			if err != nil {
