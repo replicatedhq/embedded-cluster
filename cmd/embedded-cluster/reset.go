@@ -143,6 +143,12 @@ var resetCommand = &cli.Command{
 				return nil
 			}
 
+      err := kcli.Delete(c.Context,&controlNode)
+      if err !=nil {
+        fmt.Println(err)
+        return nil
+      }
+
 			etcdPeerAddress, err := getEtcdMemberAddress(hostname)
 			if err != nil {
 				fmt.Println(err)
