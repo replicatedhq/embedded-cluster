@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
@@ -29,6 +30,36 @@ func TestSingleNodeInstallation(t *testing.T) {
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("installing puppeteer on node 0")
+	line = []string{"install-puppeteer.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("accessing kotsadm interface and checking app and cluster state")
+	line = []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to access kotsadm interface and state: %v", err)
+	}
+	type response struct {
+		App     string `json:"app"`
+		Cluster string `json:"cluster"`
+	}
+	var r response
+	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to parse script response: %v", err)
+	}
+	if r.App != "Ready" || r.Cluster != "Up to date" {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("cluster or app not ready: %s", stdout)
 	}
 }
 
