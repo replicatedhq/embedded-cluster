@@ -70,8 +70,8 @@ var resetCommand = &cli.Command{
 			fmt.Println(err)
 			return nil
 		}
-		defer tempKubeConfig.Close()
 		defer os.Remove(tempKubeConfig.Name())
+		defer tempKubeConfig.Close()
 
 		err = os.WriteFile(tempKubeConfig.Name(), adminConfig, os.ModeAppend)
 		if err != nil {
