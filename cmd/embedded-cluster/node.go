@@ -18,7 +18,7 @@ var nodeCommands = &cli.Command{
 		nodeStartCommand,
 		nodeListCommand,
 		joinCommand,
-    resetCommand,
+		resetCommand,
 	},
 }
 
