@@ -10,7 +10,7 @@ import (
 
 	"github.com/k0sproject/dig"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/customization"
+	embedded "github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -76,7 +76,7 @@ func Test_patchK0sConfig(t *testing.T) {
 			req.NoError(err, "unable to unmarshal expected file")
 
 			assert.Equal(t, expected, original)
-			customization.DefaultProvider = &customization.AdminConsole{}
+			embedded.DefaultProvider = &embedded.AdminConsole{}
 		})
 	}
 }

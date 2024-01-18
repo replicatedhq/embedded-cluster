@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
@@ -107,14 +107,14 @@ func (a *AdminConsole) GetProtectedFields() map[string][]string {
 }
 
 // HostPreflights returns the host preflight objects found inside the adminconsole
-// or as part of the embedded kots release (customization).
+// or as part of the embedded kots release.
 func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
-	return customization.GetHostPreflights()
+	return embed.GetHostPreflights()
 }
 
 // addLicenseAndVersionToHelmValues adds the embedded license to the helm values.
 func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
-	license, err := customization.GetLicense()
+	license, err := embed.GetLicense()
 	if err != nil {
 		return fmt.Errorf("unable to get license: %w", err)
 	}
@@ -126,7 +126,7 @@ func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
 		return fmt.Errorf("unable to marshal license: %w", err)
 	}
 	var appVersion string
-	if release, err := customization.GetChannelRelease(); err != nil {
+	if release, err := embed.GetChannelRelease(); err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
 	} else if release != nil {
 		appVersion = release.VersionLabel
@@ -195,7 +195,7 @@ func (a *AdminConsole) addPasswordToHelmValues() error {
 // addKotsApplicationToHelmValues extracts the embed application struct found in this binary
 // and adds it to the helm values.
 func (a *AdminConsole) addKotsApplicationToHelmValues() error {
-	app, err := customization.GetApplication()
+	app, err := embed.GetApplication()
 	if err != nil {
 		return fmt.Errorf("unable to get application: %w", err)
 	} else if app == nil {

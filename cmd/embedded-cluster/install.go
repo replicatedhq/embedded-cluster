@@ -25,8 +25,8 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
-	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -183,7 +183,7 @@ func updateConfig(c *cli.Context) error {
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
 // overrides embedded into the binary and after the ones provided by the user (--overrides).
 func applyUnsupportedOverrides(c *cli.Context, cfg *k0sv1beta1.Cluster) error {
-	if embcfg, err := customization.GetEmbeddedClusterConfig(); err != nil {
+	if embcfg, err := embed.GetEmbeddedClusterConfig(); err != nil {
 		return fmt.Errorf("unable to get embedded cluster config: %w", err)
 	} else if embcfg != nil {
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s

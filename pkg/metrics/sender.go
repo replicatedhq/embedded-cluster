@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/customization"
+	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 )
 
 // BaseURL determines the base url to be used when sending metrics over.
@@ -18,7 +18,7 @@ func BaseURL() string {
 	if os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL") != "" {
 		return os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL")
 	}
-	license, _ := customization.GetLicense()
+	license, _ := embed.GetLicense()
 	if license == nil || license.Spec.Endpoint == "" {
 		return "https://replicated.app"
 	}

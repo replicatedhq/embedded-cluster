@@ -11,8 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 )
 
 var clusterIDMut sync.Mutex
@@ -20,7 +20,7 @@ var clusterIDMut sync.Mutex
 // LicenseID returns the embedded license id. If something goes wrong, it returns
 // an empty string.
 func LicenseID() string {
-	if license, err := customization.GetLicense(); err == nil && license != nil {
+	if license, err := embed.GetLicense(); err == nil && license != nil {
 		return license.Spec.LicenseID
 	}
 	return ""
