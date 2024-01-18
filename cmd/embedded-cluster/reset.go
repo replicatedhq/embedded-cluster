@@ -2,19 +2,16 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"os/exec"
-	"strings"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
@@ -24,41 +21,20 @@ type etcdMembers struct {
 }
 
 type hostInfo struct {
-	Hostname          string
-	Kclient           client.Client
-	Node              corev1.Node
-	ControlNode       autopilot.ControlNode
-	EtcdMemberAddress string
+	Hostname    string
+	Kclient     client.Client
+	Node        corev1.Node
+	ControlNode autopilot.ControlNode
 }
 
 var (
-	k0s     = defaults.K0sBinaryPath()
 	binName = defaults.BinaryName()
+	k0s     = defaults.K0sBinaryPath()
 )
-
-// getEtcdMemberAddress uses k0s to obtain the etcd member address for the given hostname
-func (h *hostInfo) getEtcdMemberAddress() error {
-	k0s := defaults.K0sBinaryPath()
-	out, err := exec.Command(k0s, "etcd", "member-list").Output()
-	if err != nil {
-		return err
-	}
-	members := etcdMembers{}
-	json.Unmarshal(out, &members)
-	if _, ok := members.Members[h.Hostname]; ok {
-		url, err := url.Parse(members.Members[h.Hostname])
-		if err != nil {
-			return err
-		}
-		h.EtcdMemberAddress = strings.SplitN(url.Host, ":", 2)[0]
-		return nil
-	} else {
-		return errors.New("unable to find host in etcd members list")
-	}
-}
 
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() error {
+	os.Unsetenv("KUBECONFIG")
 	drainArgList := []string{
 		"kubectl",
 		"drain",
@@ -66,7 +42,6 @@ func (h *hostInfo) drainNode() error {
 		"--delete-emptydir-data",
 		h.Hostname,
 	}
-	fmt.Println("draining node...")
 	out, err := exec.Command(k0s, drainArgList...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not drain node: %w, %s", err, out)
@@ -78,32 +53,16 @@ func (h *hostInfo) drainNode() error {
 func (h *hostInfo) configureKubernetesClient() error {
 	adminConfig, err := exec.Command(k0s, "kubeconfig", "admin").Output()
 	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	tempKubeConfig, err := os.CreateTemp("", "*")
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	defer os.Remove(tempKubeConfig.Name())
-	defer tempKubeConfig.Close()
-	err = os.WriteFile(tempKubeConfig.Name(), adminConfig, os.ModeAppend)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	os.Setenv("KUBECONFIG", tempKubeConfig.Name())
-	cfg, err := config.GetConfig()
-	if err != nil {
-		fmt.Println("couldn't get k8s config: ", err)
 		return err
 	}
-	h.Kclient, err = client.New(cfg, client.Options{})
+	restConfig, err := clientcmd.RESTConfigFromKubeConfig(adminConfig)
+	if err != nil {
+		return err
+	}
+	h.Kclient, err = client.New(restConfig, client.Options{})
 	autopilot.AddToScheme(h.Kclient.Scheme())
 	if err != nil {
-		fmt.Println("couldn't create k8s config: ", err)
-		return err
+		return fmt.Errorf("couldn't create k8s config: %w", err)
 	}
 	return nil
 }
@@ -118,13 +77,10 @@ func (h *hostInfo) getHostName() error {
 	return nil
 }
 
-// detectControlPlane attempts to determine if the node is a controlplane node
-func (h *hostInfo) isControlPlane() (bool, error) {
+// isControlPlane attempts to determine if the node is a controlplane node
+func (h *hostInfo) isControlPlane() bool {
 	labels := h.Node.GetLabels()
-	if labels["node-role.kubernetes.io/control-plane"] == "true" {
-		return true, nil
-	}
-	return false, nil
+	return labels["node-role.kubernetes.io/control-plane"] == "true"
 }
 
 // getNodeObject fetches the node object from the k8s api server
@@ -147,10 +103,7 @@ func (h *hostInfo) getControlNodeObject(ctx context.Context) error {
 
 // leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
 func (h *hostInfo) leaveEtcdcluster() error {
-	if h.EtcdMemberAddress == "" {
-		return errors.New("host has no etcd member address")
-	}
-	out, err := exec.Command(k0s, "etcd", "leave", "--peer-address", h.EtcdMemberAddress).CombinedOutput()
+	out, err := exec.Command(k0s, "etcd", "leave").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("unable to leave etcd cluster: %w, %s", err, string(out))
 	}
@@ -193,20 +146,13 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 	if err != nil {
 		return currentHost, err
 	}
-	// control plane only stuff
-	if ok, err := currentHost.isControlPlane(); err != nil && ok {
+	// control plane only stff
+	if currentHost.isControlPlane() {
 		// fetch controlNode
 		err := currentHost.getControlNodeObject(ctx)
 		if err != nil {
 			return currentHost, err
 		}
-		// fetch etcd member address
-		err = currentHost.getEtcdMemberAddress()
-		if err != nil {
-			return currentHost, err
-		}
-	} else if err != nil {
-		return currentHost, err
 	}
 	return currentHost, nil
 }
@@ -225,6 +171,7 @@ var resetCommand = &cli.Command{
 		}
 
 		// drain node
+		fmt.Println("draining node...")
 		err = currentHost.drainNode()
 		if err != nil {
 			fmt.Println(err)
@@ -240,13 +187,16 @@ var resetCommand = &cli.Command{
 		}
 
 		// controller pre-reset
-		if ok, err := currentHost.isControlPlane(); err != nil && ok {
+		if currentHost.isControlPlane() {
+
 			// delete controlNode object from cluster
+			fmt.Println("deleting controlNode...")
 			err := currentHost.Kclient.Delete(c.Context, &currentHost.ControlNode)
 			if err != nil {
 				fmt.Println(err)
 				return nil
 			}
+
 			// try and leave etcd cluster
 			fmt.Println("leaving etcd cluster...")
 			err = currentHost.leaveEtcdcluster()
@@ -254,6 +204,7 @@ var resetCommand = &cli.Command{
 				fmt.Println(err)
 				return nil
 			}
+
 		} else if err != nil {
 			fmt.Println(err)
 			return nil
@@ -275,6 +226,7 @@ var resetCommand = &cli.Command{
 			return nil
 		}
 
+		fmt.Println("Node has been reset, please reboot to ensure transient configuration is also reset")
 		return nil
 	},
 }
