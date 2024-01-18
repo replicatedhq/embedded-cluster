@@ -121,7 +121,7 @@ func (h *hostInfo) stopAndResetK0s() error {
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
-  fmt.Println("Node has been reset, please reboot to ensure transient configuration is also reset")
+	fmt.Println("Node has been reset, please reboot to ensure transient configuration is also reset")
 	return nil
 }
 
@@ -171,6 +171,12 @@ var resetCommand = &cli.Command{
 	Usage: "Reset the node this command is run from",
 	Action: func(c *cli.Context) error {
 
+		fmt.Println("This command will completely reset this node, removing it from the cluster")
+		if !prompts.New().Confirm("Do you want to continue?", false) {
+			fmt.Println("aborting.")
+			return nil
+		}
+
 		fmt.Println("gathering facts...")
 		// populate options struct with host information
 		currentHost, err := newHostInfo(c.Context)
@@ -195,7 +201,7 @@ var resetCommand = &cli.Command{
 			if !checkErrPrompt(err) {
 				return nil
 			}
-      return nil
+			return nil
 		}
 
 		// drain node
