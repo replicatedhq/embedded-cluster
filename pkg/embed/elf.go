@@ -1,6 +1,7 @@
 package embed
 
 import (
+	"debug/elf"
 	"fmt"
 	"io"
 	"os"
@@ -23,6 +24,17 @@ func NewElfBuilder(tmpdir string) (*ElfBuilder, error) {
 		return nil, fmt.Errorf("unable to create temp dir: %w", err)
 	}
 	return &ElfBuilder{tmp}, nil
+}
+
+// Here we look for the sec_bundle section.
+func (e *ElfBuilder) hasEmbeddedRelease() (bool, error) {
+	binary := path.Join(e.baseDir, "embedded-cluster")
+	bin, err := elf.Open(binary)
+	if err != nil {
+		return false, fmt.Errorf("unable to open binary: %v", err)
+	}
+	section := bin.Section("sec_bundle")
+	return section != nil, nil
 }
 
 // Build builds a new version of the Embedded Cluster binary pointed by bin with the release
@@ -64,7 +76,13 @@ func (e *ElfBuilder) embed() error {
 	binary := path.Join(e.baseDir, "embedded-cluster")
 	release := path.Join(e.baseDir, "release.o")
 	bundleArg := fmt.Sprintf("sec_bundle=%s", release)
-	command := exec.Command("objcopy", "--add-section", bundleArg, binary)
+	cmdflag := "--add-section"
+	if hasEmbedded, err := e.hasEmbeddedRelease(); err != nil {
+		return fmt.Errorf("unable to check if binary has embedded release: %v", err)
+	} else if hasEmbedded {
+		cmdflag = "--update-section"
+	}
+	command := exec.Command("objcopy", cmdflag, bundleArg, binary)
 	if out, err := command.CombinedOutput(); err != nil {
 		return fmt.Errorf("unable to embed release: %v: %s", err, string(out))
 	}
