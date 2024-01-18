@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 type etcdMembers struct {
@@ -157,6 +158,18 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 	return currentHost, nil
 }
 
+func checkErrPrompt(err error) bool {
+	if err == nil {
+		return true
+	}
+	fmt.Println("-----")
+	fmt.Println(err)
+	fmt.Println("-----")
+	fmt.Println("An error has occured while trying to reset this node.")
+	fmt.Println("Continuing may leave the cluster in an unexpected state")
+	return prompts.New().Confirm("Do you want to continue anyway?", false)
+}
+
 var resetCommand = &cli.Command{
 	Name:  "reset",
 	Usage: "Reset the node this command is run from",
@@ -173,16 +186,14 @@ var resetCommand = &cli.Command{
 		// drain node
 		fmt.Println("draining node...")
 		err = currentHost.drainNode()
-		if err != nil {
-			fmt.Println(err)
+		if !checkErrPrompt(err) {
 			return nil
 		}
 
 		// remove node from cluster
 		fmt.Println("removing node from cluster...")
 		err = currentHost.Kclient.Delete(c.Context, &currentHost.Node)
-		if err != nil {
-			fmt.Println(err)
+		if !checkErrPrompt(err) {
 			return nil
 		}
 
@@ -192,16 +203,14 @@ var resetCommand = &cli.Command{
 			// delete controlNode object from cluster
 			fmt.Println("deleting controlNode...")
 			err := currentHost.Kclient.Delete(c.Context, &currentHost.ControlNode)
-			if err != nil {
-				fmt.Println(err)
+			if !checkErrPrompt(err) {
 				return nil
 			}
 
 			// try and leave etcd cluster
 			fmt.Println("leaving etcd cluster...")
 			err = currentHost.leaveEtcdcluster()
-			if err != nil {
-				fmt.Println(err)
+			if !checkErrPrompt(err) {
 				return nil
 			}
 
@@ -213,16 +222,14 @@ var resetCommand = &cli.Command{
 		// stop k0s
 		fmt.Printf("stopping %s...\n", binName)
 		err = currentHost.stopK0s()
-		if err != nil {
-			fmt.Println(err)
+		if !checkErrPrompt(err) {
 			return nil
 		}
 
 		// reset local node
 		fmt.Printf("resetting %s...\n", binName)
 		err = currentHost.resetK0s()
-		if err != nil {
-			fmt.Println(err)
+		if !checkErrPrompt(err) {
 			return nil
 		}
 
