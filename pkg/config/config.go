@@ -24,8 +24,8 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
-	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/ssh"
 )
@@ -365,7 +365,7 @@ func ApplyEmbeddedUnsupportedOverrides(config *v1beta1.Cluster, embconfig string
 }
 
 func getControllerRoleName() string {
-	clusterConfig, err := customization.GetEmbeddedClusterConfig()
+	clusterConfig, err := embed.GetEmbeddedClusterConfig()
 
 	controllerRoleName := "controller"
 	if err == nil {
@@ -379,7 +379,7 @@ func getControllerRoleName() string {
 }
 
 func additionalControllerLabels() map[string]string {
-	clusterConfig, err := customization.GetEmbeddedClusterConfig()
+	clusterConfig, err := embed.GetEmbeddedClusterConfig()
 
 	if err == nil {
 		if clusterConfig != nil {

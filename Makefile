@@ -73,12 +73,13 @@ output/tmp/release.tar.gz:
 	mkdir -p output/tmp
 	tar -czf output/tmp/release.tar.gz -C e2e/kots-release .
 
+output/bin/embedded-cluster-release-builder:
+	mkdir -p output/bin
+	go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
+
 .PHONY: embedded-release
-embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz
-	objcopy --input-target binary --output-target binary --rename-section .data=sec_bundle output/tmp/release.tar.gz output/tmp/release.o
-	@if ! objcopy --update-section sec_bundle=output/tmp/release.o output/bin/embedded-cluster 2>/dev/null; then \
-		objcopy --add-section sec_bundle=output/tmp/release.o output/bin/embedded-cluster ; \
-	fi
+embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
+	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 .PHONY: static
 static: pkg/goods/bins/embedded-cluster/kubectl-preflight \

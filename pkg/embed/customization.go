@@ -1,4 +1,4 @@
-package customization
+package embed
 
 import (
 	"archive/tar"

@@ -1,4 +1,4 @@
-package customization
+package embed
 
 import (
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"

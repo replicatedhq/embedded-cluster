@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
-	"github.com/replicatedhq/embedded-cluster/pkg/customization"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
@@ -93,7 +93,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		return err
 	}
 	loading.Closef("Embedded Cluster Operator is ready!")
-	cfg, err := customization.GetEmbeddedClusterConfig()
+	cfg, err := embed.GetEmbeddedClusterConfig()
 	if err != nil {
 		return err
 	}
