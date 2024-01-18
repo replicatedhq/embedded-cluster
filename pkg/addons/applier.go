@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/custom"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
@@ -141,11 +140,6 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		}
 		addons["adminconsole"] = aconsole
 	}
-	custom, err := custom.New("embedded-cluster", a.disabledAddons)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create custom addon: %w", err)
-	}
-	addons["custom"] = custom
 	return addons, nil
 }
 

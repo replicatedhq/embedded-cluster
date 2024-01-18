@@ -8,7 +8,6 @@ jobs:
       fail-fast: false
       matrix:
         tests:
-        - TestEmbedAndInstall
         - TestSingleNodeInstallation
         - TestSingleNodeInstallationRockyLinux8
         - TestSingleNodeInstallationDebian12
