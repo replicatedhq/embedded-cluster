@@ -112,17 +112,12 @@ func (h *hostInfo) leaveEtcdcluster() error {
 }
 
 // stopK0s attempts to stop the k0s service
-func (h *hostInfo) stopK0s() error {
+func (h *hostInfo) stopAndResetK0s() error {
 	out, err := exec.Command(k0s, "stop").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not stop k0s service: %w, %s", err, string(out))
 	}
-	return nil
-}
-
-// resetK0s attempts to reset k0s
-func (h *hostInfo) resetK0s() error {
-	out, err := exec.Command(k0s, "reset").CombinedOutput()
+	out, err = exec.Command(k0s, "reset").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
@@ -183,6 +178,25 @@ var resetCommand = &cli.Command{
 			return nil
 		}
 
+		// determine if this is the only node in the cluster
+		// if this is a single node we can skip a lot of steps
+		nodeList := corev1.NodeList{}
+		currentHost.Kclient.List(c.Context, &nodeList)
+		if len(nodeList.Items) == 1 {
+			nodeName := nodeList.Items[0].Name
+			if nodeName != currentHost.Hostname {
+				fmt.Println("detected a single node cluster, but the node's name doesn't match our hostname")
+				return nil
+			}
+			// stop k0s
+			fmt.Printf("resetting %s...\n", binName)
+			err = currentHost.stopAndResetK0s()
+			if !checkErrPrompt(err) {
+				return nil
+			}
+      return nil
+		}
+
 		// drain node
 		fmt.Println("draining node...")
 		err = currentHost.drainNode()
@@ -219,16 +233,9 @@ var resetCommand = &cli.Command{
 			return nil
 		}
 
-		// stop k0s
-		fmt.Printf("stopping %s...\n", binName)
-		err = currentHost.stopK0s()
-		if !checkErrPrompt(err) {
-			return nil
-		}
-
-		// reset local node
+		// reset
 		fmt.Printf("resetting %s...\n", binName)
-		err = currentHost.resetK0s()
+		err = currentHost.stopAndResetK0s()
 		if !checkErrPrompt(err) {
 			return nil
 		}
