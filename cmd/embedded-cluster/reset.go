@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -102,6 +103,31 @@ func (h *hostInfo) getControlNodeObject(ctx context.Context) error {
 	return nil
 }
 
+func (h *hostInfo) checkQuorumSafety(c *cli.Context) (bool, string, error) {
+	if c.Bool("yes-really-reset") {
+		return true, "", nil
+	}
+	out, err := exec.Command(k0s, "etcd", "member-list").Output()
+	if err != nil {
+		return false, "", fmt.Errorf("unable to fetch etcd member list, %w, %s", err, out)
+	}
+	etcd := etcdMembers{}
+	err = json.Unmarshal(out, &etcd)
+	if err != nil {
+		return false, "", fmt.Errorf("unable to unmarshal etcd member list, %w, %s", err, out)
+	}
+	if len(etcd.Members) < 3 {
+		return true, "", nil
+	}
+	if len(etcd.Members) == 3 {
+		return false, "cluster has 3 nodes, removing this node will cause etcd to lose quorum", nil
+	}
+	if len(etcd.Members)%2 != 0 {
+		return false, "cluster would have even number of control-plane nodes after resetting this node, this could cause etcd to become unstable", nil
+	}
+	return true, "", nil
+}
+
 // leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
 func (h *hostInfo) leaveEtcdcluster() error {
 	out, err := exec.Command(k0s, "etcd", "leave").CombinedOutput()
@@ -167,7 +193,14 @@ func checkErrPrompt(err error) bool {
 }
 
 var resetCommand = &cli.Command{
-	Name:  "reset",
+	Name: "reset",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:   "yes-really-reset",
+			Hidden: true,
+			Value:  false,
+		},
+	},
 	Usage: "Reset the node this command is run from",
 	Action: func(c *cli.Context) error {
 
@@ -183,6 +216,20 @@ var resetCommand = &cli.Command{
 		if err != nil {
 			fmt.Println(err)
 			return nil
+		}
+
+		// basic check to see if it's safe to remove this node from the cluster
+		if currentHost.isControlPlane() {
+			safeToRemove, reason, err := currentHost.checkQuorumSafety(c)
+			if err != nil {
+				fmt.Println(err)
+				return nil
+			}
+			if !safeToRemove {
+				fmt.Println(reason)
+				fmt.Println("run reset command again with --yes-really-reset to ignore this")
+				return nil
+			}
 		}
 
 		// determine if this is the only node in the cluster
