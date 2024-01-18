@@ -121,6 +121,7 @@ func (h *hostInfo) stopAndResetK0s() error {
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
+  fmt.Println("Node has been reset, please reboot to ensure transient configuration is also reset")
 	return nil
 }
 
@@ -240,7 +241,6 @@ var resetCommand = &cli.Command{
 			return nil
 		}
 
-		fmt.Println("Node has been reset, please reboot to ensure transient configuration is also reset")
 		return nil
 	},
 }
