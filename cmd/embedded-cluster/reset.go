@@ -32,8 +32,8 @@ type hostInfo struct {
 }
 
 var (
-  k0s = defaults.K0sBinaryPath()
-  binName = defaults.BinaryName()
+	k0s     = defaults.K0sBinaryPath()
+	binName = defaults.BinaryName()
 )
 
 // getEtcdMemberAddress uses k0s to obtain the etcd member address for the given hostname
