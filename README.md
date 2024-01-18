@@ -116,41 +116,9 @@ ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$ export PATH="$PATH:/home/ubuntu
 ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$
 ```
 
-## Embedding your own Helm Chart
-
-Embedded Cluster allows you to embed your own Helm Charts so they are installed by default when the cluster is installed or updated. For sake of documenting this let's create a hypothetical scenario: you have a software called `rocks` that is packaged as a Helm Chart and is ready to be installed in any Kubernetes Cluster.
-
-Your Helm Chart is in a file called `rocks-1.0.0.tgz` and you already have a copy of mbedded Cluster binary in your $PATH. To embed your Chart you can run:
-
-```
-$ embedded-cluster embed --chart rocks-1.0.0.tgz --output rocks
-```
-This command will create a binary called `rocks` in the current directory, this command is a copy of mbedded Cluster binary with your Helm Chart embedded into it. You can then use the `rocks` binary to install a cluster that automatically deploys your `rocks-1.0.0.tgz` Helm Chart.
-
-If you want to provide a customised `values.yaml` during the Helm Chart installation you can also embed it into the binary. You can do that with the following command:
-
-```
-$ embedded-cluster embed \
-        --chart rocks-1.0.0.tgz \
-        --values values.yaml \
-        --output rocks
-```
-Now every time someone installs or upgrades a cluster using the `rocks` binary the Helm Chart will be installed with the custom values.
-
-You can embed as many Helm Charts and `values.yaml` as you want:
-
-```
-$ embedded-cluster embed \
-        --chart rocks-1.0.0.tgz \
-        --values values.yaml \
-        --chart mongodb-13.16.1.tgz \
-        --values mongo-values.yaml `
-        --output rocks
-```
-
 ## Miscellaneous
 
-mbedded Cluster stores its data under `$HOME/.embedded-cluster` directory, you may want to create a backup of the directory, specially the `$HOME/.embedded-cluster/etc` directory.  Inside the `$HOME/.embedded-cluster/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/.embedded-cluster/bin` directory and you may want to include it into your PATH).
+Embedded Cluster stores its data under `$HOME/.embedded-cluster` directory, you may want to create a backup of the directory, specially the `$HOME/.embedded-cluster/etc` directory.  Inside the `$HOME/.embedded-cluster/etc` directory you will find the `k0sctl.yaml` and the `kubeconfig` files, the first is used when installing or upgrading a cluster and the latter is used when accessing the cluster with `kubectl` (a copy of `kubectl` is also kept under `$HOME/.embedded-cluster/bin` directory and you may want to include it into your PATH).
 
 If you want to use an already existing `k0sctl.yaml` configuration during the `install` command you can do so by using the `--config` flag.
 

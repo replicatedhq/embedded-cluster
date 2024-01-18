@@ -51,9 +51,6 @@ func (d *Provider) Init() {
 	if err := os.MkdirAll(d.SSHConfigSubDir(), 0700); err != nil {
 		logrus.Fatalf("unable to create ssh config dir: %s", err)
 	}
-	if err := os.MkdirAll(d.HelmChartSubDir(), 0755); err != nil {
-		logrus.Fatalf("unable to create helm chart dir: %s", err)
-	}
 }
 
 // home returns the user's home dir.
@@ -134,11 +131,6 @@ func (d *Provider) K0sctlBinsSubDir() string {
 	return filepath.Join(d.Base, d.home(), k0sBinsSubDirLinux)
 }
 
-// HelmChartSubDir returns the path to the directory where helm charts are stored
-func (d *Provider) HelmChartSubDir() string {
-	return filepath.Join(d.Base, d.config(), d.BinaryName(), "charts")
-}
-
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
 func (d *Provider) EmbeddedClusterBinsSubDir() string {
@@ -189,11 +181,6 @@ func (d *Provider) PathToK0sctlBinary(name string) string {
 // belonging to k0sctl). This function does not check if the file exists.
 func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 	return filepath.Join(d.EmbeddedClusterBinsSubDir(), name)
-}
-
-// PathToHelmChart returns the path to a materialized helm chart.
-func (d *Provider) PathToHelmChart(name string, version string) string {
-	return filepath.Join(d.HelmChartSubDir(), name+"-"+version+".tgz")
 }
 
 // PathToConfig returns the full path to a configuration file. This function

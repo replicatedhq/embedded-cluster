@@ -17,41 +17,6 @@ wait_for_healthy_node() {
     return 0
 }
 
-install_helm() {
-    apt-get update -y
-    if ! apt-get install -y curl ; then
-        return 1
-    fi
-    if ! curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 ; then
-        return 1
-    fi
-    chmod 700 get_helm.sh
-    if ! ./get_helm.sh ; then
-        return 1
-    fi
-    return 0
-}
-
-pull_helm_chart() {
-    mkdir chart
-    if ! helm repo add bitnami https://charts.bitnami.com/bitnami ; then
-        return 1
-    fi
-    if ! helm pull bitnami/memcached --version 6.6.2 --destination chart; then
-        return 1
-    fi
-    return 0
-}
-
-embed_helm_chart() {
-    fpath=$(ls -d chart/*)
-    if ! embedded-cluster embed --chart "$fpath" --output embedded-cluster; then
-        return 1
-    fi
-    mv embedded-cluster /usr/local/bin
-    return 0
-}
-
 check_empty_embedded_cluster_namespace() {
     pods=$(kubectl get pods -n embedded-cluster --no-headers | grep -v 'embedded-cluster-operator' | wc -l)
     if [ "$pods" -gt 0 ]; then
@@ -60,20 +25,16 @@ check_empty_embedded_cluster_namespace() {
     fi
 }
 
+check_kotsadm_namespace() {
+    pods=$(kubectl get ns --no-headers | grep -c kotsadm)
+    if [ "$pods" -gt 0 ]; then
+        kubectl get ns
+        return 1
+    fi
+}
+
 main() {
-    if ! install_helm ; then
-        echo "Failed to install helm"
-        exit 1
-    fi
-    if ! pull_helm_chart ; then
-        echo "Failed to pull helm chart"
-        exit 1
-    fi
-    if ! embed_helm_chart ; then
-        echo "Failed to embed helm chart"
-        exit 1
-    fi
-    if ! embedded-cluster install --disable-addon openebs --disable-addon adminconsole --disable-addon memcached --no-prompt  2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --disable-addon openebs --disable-addon adminconsole --no-prompt  2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         exit 1
     fi
@@ -85,6 +46,11 @@ main() {
     echo "check nothing (besides the operator) exists on embedded-cluster namespace " >> /tmp/log
     if ! check_empty_embedded_cluster_namespace; then
         echo "Pods found on embedded-cluster namespace"
+        exit 1
+    fi
+    echo "checking if kotsadm namespace does not exist" >> /tmp/log
+    if ! check_kotsadm_namespace; then
+        echo "kotsadm namespace exists"
         exit 1
     fi
     if ! systemctl restart embedded-cluster; then

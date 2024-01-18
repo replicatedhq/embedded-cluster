@@ -33,7 +33,6 @@ func main() {
 		Usage: fmt.Sprintf("Installs or updates %s.", name),
 		Commands: []*cli.Command{
 			installCommand,
-			embedCommand,
 			shellCommand,
 			nodeCommands,
 			versionCommand,
