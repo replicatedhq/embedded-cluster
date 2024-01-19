@@ -24,3 +24,11 @@ spec:
         spec:
           telemetry:
             enabled: false
+  extensions:
+    helm:
+      charts:
+        - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
+          name: memcached
+          namespace: memcached
+          order: 4
+          version: 6.6.2
