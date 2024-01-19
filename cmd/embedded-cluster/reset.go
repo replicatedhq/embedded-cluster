@@ -45,7 +45,7 @@ var (
 
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() error {
-  os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
+	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
 	drainArgList := []string{
 		"kubectl",
 		"drain",
@@ -62,11 +62,11 @@ func (h *hostInfo) drainNode() error {
 
 // configureKubernetesClient sets up a client to use for kubernetes api calls
 func (h *hostInfo) configureKubernetesClient() error {
-  os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
-  config, err := controllerruntime.GetConfig()
-  if err != nil {
-    return err
-  }
+	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
+	config, err := controllerruntime.GetConfig()
+	if err != nil {
+		return err
+	}
 	h.Kclient, err = client.New(config, client.Options{})
 	autopilot.AddToScheme(h.Kclient.Scheme())
 	if err != nil {
@@ -87,10 +87,10 @@ func (h *hostInfo) getHostName() error {
 
 // isControlPlane attempts to determine if the node is a controlplane node
 func (h *hostInfo) isControlPlane() bool {
-  if h.Status.Role == "controller" {
-    return true
-  }
-  return false
+	if h.Status.Role == "controller" {
+		return true
+	}
+	return false
 }
 
 // getNodeObject fetches the node object from the k8s api server
@@ -124,6 +124,25 @@ func (h *hostInfo) checkQuorumSafety(c *cli.Context) (bool, string, error) {
 	if err != nil {
 		return false, "", fmt.Errorf("unable to unmarshal etcd member list, %w, %s", err, out)
 	}
+	// get a rough picture of the cluster topology
+	workers := []string{}
+	controllers := []string{}
+	nodeList := corev1.NodeList{}
+	err = h.Kclient.List(c.Context, &nodeList)
+	if err != nil {
+		return false, "", fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
+	for _, node := range nodeList.Items {
+		labels := node.GetLabels()
+		if labels["node-role.kubernetes.io/control-plane"] == "true" {
+			controllers = append(controllers, node.Name)
+		} else {
+			workers = append(workers, node.Name)
+		}
+	}
+	if len(workers) > 0 && len(controllers) == 1 {
+		return false, "cluster has a worker node joined and you are attempting to remove the only controller node.", nil
+	}
 	if len(etcd.Members) < 3 {
 		return true, "", nil
 	}
@@ -146,7 +165,7 @@ func (h *hostInfo) leaveEtcdcluster() error {
 }
 
 // stopK0s attempts to stop the k0s service
-func (h *hostInfo) stopAndResetK0s() error {
+func stopAndResetK0s() error {
 	out, err := exec.Command(k0s, "stop").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not stop k0s service: %w, %s", err, string(out))
@@ -167,14 +186,14 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 	if err != nil {
 		return currentHost, err
 	}
-  // get k0s status
+	// get k0s status
 	out, err := exec.Command(k0s, "status", "-o", "json").Output()
 	if err != nil {
-		return currentHost,fmt.Errorf("unable to fetch k0s status, %w, %s", err, out)
+		return currentHost, fmt.Errorf("unable to fetch k0s status, %w, %s", err, out)
 	}
 	err = json.Unmarshal(out, &currentHost.Status)
 	if err != nil {
-		return currentHost,fmt.Errorf("unable to unmarshal k0s status, %w, %s", err, out)
+		return currentHost, fmt.Errorf("unable to unmarshal k0s status, %w, %s", err, out)
 	}
 	// set up kube client
 	err = currentHost.configureKubernetesClient()
@@ -217,9 +236,23 @@ var resetCommand = &cli.Command{
 			Hidden: true,
 			Value:  false,
 		},
+		&cli.BoolFlag{
+			Name:   "force",
+			Hidden: true,
+			Value:  false,
+		},
 	},
 	Usage: "Reset the node this command is run from",
 	Action: func(c *cli.Context) error {
+
+    if c.Bool("force") {
+      err := stopAndResetK0s()
+      if err != nil {
+        fmt.Println(err)
+        return nil
+      }
+      return nil
+    }
 
 		fmt.Println("This command will completely reset this node, removing it from the cluster")
 		if !prompts.New().Confirm("Do you want to continue?", false) {
@@ -230,8 +263,7 @@ var resetCommand = &cli.Command{
 		fmt.Println("gathering facts...")
 		// populate options struct with host information
 		currentHost, err := newHostInfo(c.Context)
-		if err != nil {
-			fmt.Println(err)
+		if !checkErrPrompt(err) {
 			return nil
 		}
 
@@ -261,7 +293,7 @@ var resetCommand = &cli.Command{
 			}
 			// stop k0s
 			fmt.Printf("resetting %s...\n", binName)
-			err = currentHost.stopAndResetK0s()
+			err = stopAndResetK0s()
 			if !checkErrPrompt(err) {
 				return nil
 			}
@@ -306,7 +338,7 @@ var resetCommand = &cli.Command{
 
 		// reset
 		fmt.Printf("resetting %s...\n", binName)
-		err = currentHost.stopAndResetK0s()
+		err = stopAndResetK0s()
 		if !checkErrPrompt(err) {
 			return nil
 		}
