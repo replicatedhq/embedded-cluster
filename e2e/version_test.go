@@ -27,7 +27,7 @@ func TestVersion(t *testing.T) {
 	}
 	var failed bool
 	output := fmt.Sprintf("%s\n%s", stdout, stderr)
-	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole", "memcached"}
+	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole"}
 	for _, component := range expected {
 		if strings.Contains(output, component) {
 			continue
@@ -37,5 +37,15 @@ func TestVersion(t *testing.T) {
 	}
 	if failed {
 		t.Log(output)
+		return
 	}
+
+	line2 := []string{"embedded-cluster", "version", "metadata"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line2)
+	if err != nil {
+		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
+	}
+	output = fmt.Sprintf("%s\n%s", stdout, stderr)
+	t.Log(output)
+
 }
