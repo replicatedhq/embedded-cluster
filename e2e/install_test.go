@@ -28,26 +28,24 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 	t.Log("installing embedded-cluster on node 0")
 	line := []string{"single-node-install.sh"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	t.Log("install stdout:", stdout)
-	t.Log("install stderr:", stderr)
-	if err != nil {
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("install stdout:", stdout)
+		t.Log("install stderr:", stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("installing puppeteer on node 0")
 	line = []string{"install-puppeteer.sh"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Log("install-puppeteer stdout:", stdout)
-		t.Log("install-puppeteer stderr:", stderr)
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
 		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("accessing kotsadm interface and checking app and cluster state")
 	line = []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
-	t.Log("stdout:", stdout)
-	t.Log("stderr:", stderr)
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
 		t.Fatalf("fail to access kotsadm interface and state: %v", err)
 	}
 	type response struct {
@@ -56,9 +54,13 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 	var r response
 	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
 		t.Fatalf("fail to parse script response: %v", err)
 	}
 	if r.App != "Ready" || r.Cluster != "Up to date" {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
 		t.Fatalf("cluster or app not ready: %s", stdout)
 	}
 }
