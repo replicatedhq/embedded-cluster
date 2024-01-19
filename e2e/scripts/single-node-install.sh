@@ -100,6 +100,7 @@ main() {
         echo "Failed waiting for memcached pods"
         exit 1
     fi
+    embedded-cluster version
     if ! systemctl restart embedded-cluster; then
         echo "Failed to restart embedded-cluster service"
         exit 1
