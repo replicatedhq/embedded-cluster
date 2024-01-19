@@ -245,14 +245,14 @@ var resetCommand = &cli.Command{
 	Usage: "Reset the node this command is run from",
 	Action: func(c *cli.Context) error {
 
-    if c.Bool("force") {
-      err := stopAndResetK0s()
-      if err != nil {
-        fmt.Println(err)
-        return nil
-      }
-      return nil
-    }
+		if c.Bool("force") {
+			err := stopAndResetK0s()
+			if err != nil {
+				fmt.Println(err)
+				return nil
+			}
+			return nil
+		}
 
 		fmt.Println("This command will completely reset this node, removing it from the cluster")
 		if !prompts.New().Confirm("Do you want to continue?", false) {
