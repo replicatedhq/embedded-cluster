@@ -9,6 +9,7 @@
  * COMPLETED. YOU NEED TO RUN check-app-and-cluster-status.js BEFORE THIS.
  */
 
+
 const puppeteer = require('puppeteer'); // v20.7.4 or later
 
 (async () => {
@@ -26,7 +27,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
     page.setDefaultTimeout(timeout);
     const args = process.argv.slice(2);
     if (args.length !== 1) {
-        throw new Error('usage: generate-controller-join-token.js <kotsadm-ip>');
+        throw new Error('usage: generate-worker-join-token.js <kotsadm-ip>');
     }
 
     {
@@ -141,18 +142,19 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             });
     }
     {
-        process.stderr.write("waiting and clicking in the controller role\n");
+        process.stderr.write("waiting and clicking in the worker role\n");
         const targetPage = page;
         await puppeteer.Locator.race([
-            targetPage.locator('div:nth-of-type(1) > label'),
-            targetPage.locator('::-p-xpath(/html/body/div[5]/div/div/div/div[2]/div[1]/label)'),
-            targetPage.locator(':scope >>> div:nth-of-type(1) > label')
+            targetPage.locator('div:nth-of-type(2) > label'),
+            targetPage.locator('::-p-xpath(/html/body/div[5]/div/div/div/div[2]/div[2]/label)'),
+            targetPage.locator(':scope >>> div:nth-of-type(2) > label'),
+            targetPage.locator('::-p-text(abc)')
         ])
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 110,
-                y: 27.5,
+                x: 78,
+                y: 22.5,
               },
             });
     }
