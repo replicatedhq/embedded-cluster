@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"strings"
 	"testing"
 
@@ -27,7 +29,7 @@ func TestVersion(t *testing.T) {
 	}
 	var failed bool
 	output := fmt.Sprintf("%s\n%s", stdout, stderr)
-	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole"}
+	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole", "memcached"}
 	for _, component := range expected {
 		if strings.Contains(output, component) {
 			continue
@@ -45,7 +47,37 @@ func TestVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
 	}
-	output = fmt.Sprintf("%s\n%s", stdout, stderr)
-	t.Log(output)
 
+	output = fmt.Sprintf("%s\n%s", stdout, stderr)
+	parsed := struct {
+		Configs k0sconfig.HelmExtensions
+	}{}
+	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
+		t.Log(output)
+		t.Fatalf("fail to parse metadata output: %v", err)
+	}
+
+	if len(parsed.Configs.Charts) != len(expected) {
+		t.Log(output)
+		t.Fatalf("found %d charts in metadata, expected %d", len(parsed.Configs.Charts), len(expected))
+	}
+
+	for _, expectedName := range expected {
+		foundName := false
+		for _, foundChart := range parsed.Configs.Charts {
+			if foundChart.Name == expectedName {
+				foundName = true
+				break
+			}
+		}
+		if !foundName {
+			t.Errorf("failed to find chart %s in 'metadata' output", expectedName)
+			failed = true
+		}
+	}
+
+	if failed {
+		t.Log(output)
+		return
+	}
 }

@@ -151,7 +151,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 }
 
 // Versions returns a map with the version of each addon that will be applied.
-func (a *Applier) Versions() (map[string]string, error) {
+func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string, error) {
 	addons, err := a.load()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)
@@ -166,6 +166,10 @@ func (a *Applier) Versions() (map[string]string, error) {
 			versions[k] = v
 		}
 	}
+	for _, chart := range additionalCharts {
+		versions[chart.Name] = chart.Version
+	}
+
 	return versions, nil
 }
 
