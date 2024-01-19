@@ -85,14 +85,6 @@ func (h *hostInfo) getHostName() error {
 	return nil
 }
 
-// isControlPlane attempts to determine if the node is a controlplane node
-func (h *hostInfo) isControlPlane() bool {
-	if h.Status.Role == "controller" {
-		return true
-	}
-	return false
-}
-
 // getNodeObject fetches the node object from the k8s api server
 func (h *hostInfo) getNodeObject(ctx context.Context) error {
 	err := h.Kclient.Get(ctx, client.ObjectKey{Name: h.Hostname}, &h.Node)
@@ -206,7 +198,7 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 		return currentHost, err
 	}
 	// control plane only stff
-	if currentHost.isControlPlane() {
+	if currentHost.Status.Role == "controller" {
 		// fetch controlNode
 		err := currentHost.getControlNodeObject(ctx)
 		if err != nil {
@@ -268,7 +260,7 @@ var resetCommand = &cli.Command{
 		}
 
 		// basic check to see if it's safe to remove this node from the cluster
-		if currentHost.isControlPlane() {
+		if currentHost.Status.Role == "controller" {
 			safeToRemove, reason, err := currentHost.checkQuorumSafety(c)
 			if err != nil {
 				fmt.Println(err)
@@ -315,7 +307,7 @@ var resetCommand = &cli.Command{
 		}
 
 		// controller pre-reset
-		if currentHost.isControlPlane() {
+		if currentHost.Status.Role == "controller" {
 
 			// delete controlNode object from cluster
 			fmt.Println("deleting controlNode...")
