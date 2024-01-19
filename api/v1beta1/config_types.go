@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -61,11 +62,16 @@ type Roles struct {
 	Custom     []NodeRole `json:"custom,omitempty"`
 }
 
+type Extensions struct {
+	Helm *k0sv1beta1.HelmExtensions `json:"helm,omitempty"`
+}
+
 // ConfigSpec defines the desired state of Config
 type ConfigSpec struct {
 	Version              string               `json:"version,omitempty"`
 	Roles                Roles                `json:"roles,omitempty"`
 	UnsupportedOverrides UnsupportedOverrides `json:"unsupportedOverrides,omitempty"`
+	Extensions           Extensions           `json:"extensions,omitempty"`
 }
 
 // ConfigStatus defines the observed state of Config

@@ -73,6 +73,16 @@ func (s *InstallationStatus) SetState(state string, reason string) {
 	s.Reason = reason
 }
 
+func (s *InstallationStatus) GetKubernetesInstalled() bool {
+	if s.State == InstallationStateInstalled ||
+		s.State == InstallationStateKubernetesInstalled ||
+		s.State == InstallationStateAddonsInstalling ||
+		s.State == InstallationStateHelmChartUpdateFailure {
+		return true
+	}
+	return false
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster

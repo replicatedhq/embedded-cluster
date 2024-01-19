@@ -23,14 +23,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/k0sproject/dig"
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	"github.com/k0sproject/version"
-	"github.com/ohler55/ojg/jp"
-	"github.com/ohler55/ojg/oj"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +36,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/autopilot"
@@ -256,53 +252,6 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	return nil
 }
 
-// MergeValues takes two helm values in the form of dig.Mapping{} and a list of values (in jsonpath notation) to not override
-// and combines the values. it returns the resultant yaml string
-func MergeValues(oldValues, newValues string, protectedValues []string) (string, error) {
-
-	newValuesMap := dig.Mapping{}
-	if err := yaml.Unmarshal([]byte(newValues), &newValuesMap); err != nil {
-		return "", fmt.Errorf("failed to unmarshal new chart values: %w", err)
-	}
-
-	// merge the known fields from the current chart values to the new chart values
-	for _, path := range protectedValues {
-		x, err := jp.ParseString(path)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse json path: %w", err)
-		}
-
-		valuesJson, err := yaml.YAMLToJSON([]byte(oldValues))
-		if err != nil {
-			return "", fmt.Errorf("failed to convert yaml to json: %w", err)
-		}
-
-		obj, err := oj.ParseString(string(valuesJson))
-		if err != nil {
-			return "", fmt.Errorf("failed to parse json: %w", err)
-		}
-
-		value := x.Get(obj)
-
-		// if the value is empty, skip it
-		if len(value) < 1 {
-			continue
-		}
-
-		err = x.Set(newValuesMap, value[0])
-		if err != nil {
-			return "", fmt.Errorf("failed to set json path: %w", err)
-		}
-	}
-
-	newValuesYaml, err := yaml.Marshal(newValuesMap)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal new chart values: %w", err)
-	}
-	return string(newValuesYaml), nil
-
-}
-
 // ReconcileHelmCharts reconciles the helm charts from the Installation metadata with the clusterconfig object.
 func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1beta1.Installation) error {
 	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
@@ -312,102 +261,75 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return nil
 	}
 
-	if in.Status.State == v1beta1.InstallationStateFailed {
+	// skip if the installer has already completed, failed or if the k0s upgrade is still in progress
+	if in.Status.State == v1beta1.InstallationStateFailed ||
+		in.Status.State == v1beta1.InstallationStateInstalled ||
+		!in.Status.GetKubernetesInstalled() {
 		return nil
 	}
 
 	log := ctrl.LoggerFrom(ctx)
-	var clusterconfig k0sv1beta1.ClusterConfig
 	meta, err := release.MetadataFor(ctx, in.Spec.Config.Version, in.Spec.MetricsBaseURL)
 	if err != nil {
 		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, err.Error())
 		return nil
 	}
-	// skip if the new release has no addon configs
-	if meta.Configs == nil {
+
+	// skip if the new release has no addon configs - this should not happen in production
+	if meta.Configs == nil && in.Spec.Config.Extensions.Helm == nil {
 		log.Info("addons", "configcheck", "no addons")
 		if in.Status.State == v1beta1.InstallationStateKubernetesInstalled {
 			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed")
 		}
 		return nil
 	}
-	if in.Status.State == v1beta1.InstallationStateKubernetesInstalled || in.Status.State == v1beta1.InstallationStateHelmChartUpdateFailure {
-		var installedCharts k0shelm.ChartList
-		if err := r.List(ctx, &installedCharts); err != nil {
-			return fmt.Errorf("failed to list nodes: %w", err)
-		}
-		targetCharts := meta.Configs.Charts
-		chartErrors := []string{}
-		chartDrift := false
-		// grab the installed charts
-		for _, chart := range installedCharts.Items {
-			// extract any errors from installed charts
-			if chart.Status.Error != "" {
-				chartErrors = append(chartErrors, chart.Status.Error)
-			}
-			// check for version drift between installed charts and charts in the installer metadata
-			for _, targetChart := range targetCharts {
-				if targetChart.Name != chart.Status.ReleaseName {
-					continue
-				}
-				if targetChart.Version != chart.Spec.Version {
-					chartDrift = true
-				}
-			}
-		}
+
+	combinedConfigs := mergeHelmConfigs(meta, in)
+
+	// detect drift between the cluster config and the installer metadata
+	var installedCharts k0shelm.ChartList
+	if err := r.List(ctx, &installedCharts); err != nil {
+		return fmt.Errorf("failed to list installed charts: %w", err)
+	}
+	chartErrors, chartDrift := detectChartDrift(combinedConfigs, installedCharts)
+
+	// If all addons match their target version, mark installation as complete (or as failed, if there are errors)
+	if !chartDrift {
 		// If any chart has errors, update installer state and return
 		if len(chartErrors) > 0 {
 			chartErrorString := strings.Join(chartErrors, ",")
+			chartErrorString = "failed to update helm charts: " + chartErrorString
+			log.Info("chart errors", "errors", chartErrorString)
 			if len(chartErrorString) > 1024 {
 				chartErrorString = chartErrorString[:1024]
 			}
 			in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, chartErrorString)
 			return nil
 		}
-		// If all addons match their target version, mark installation as complete
-		if !chartDrift {
-			in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded")
-			return nil
-		}
-	}
-	// skip if installer is already complete
-	if in.Status.State == v1beta1.InstallationStateInstalled {
+		in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded")
 		return nil
 	}
-	// We want to skip and requeue if the k0s upgrade is still in progress
+
 	if in.Status.State != v1beta1.InstallationStateKubernetesInstalled {
+		// after the first time we apply new helm charts, this will be set to InstallationStateAddonsInstalling
+		// and we will not re-apply the charts to the k0s cluster config while waiting for those changes to propagate
 		return nil
 	}
+
 	// fetch the current clusterconfig
+	var clusterconfig k0sv1beta1.ClusterConfig
 	if err := r.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterconfig); err != nil {
 		return fmt.Errorf("failed to get cluster config: %w", err)
 	}
-	// get the protected values from the release metadata
-	protectedValues := map[string][]string{}
-	if meta.Protected != nil {
-		protectedValues = meta.Protected
+
+	finalChartList, err := generateDesiredCharts(meta, clusterconfig, combinedConfigs)
+	if err != nil {
+		return err
 	}
-	// TODO - apply unsupported override from installation config
-	finalConfigs := k0sv1beta1.ChartsSettings{}
-	for _, chart := range clusterconfig.Spec.Extensions.Helm.Charts {
-		for _, newChart := range meta.Configs.Charts {
-			// check if we can skip this chart
-			_, ok := protectedValues[chart.Name]
-			if chart.Name != newChart.Name || !ok {
-				continue
-			}
-			// if we have known fields, we need to merge them forward
-			newValuesYaml, err := MergeValues(chart.Values, newChart.Values, protectedValues[chart.Name])
-			if err != nil {
-				return fmt.Errorf("failed to merge chart values: %w", err)
-			}
-			newChart.Values = newValuesYaml
-			finalConfigs = append(finalConfigs, newChart)
-			break
-		}
-	}
+
 	// Replace the current chart configs with the new chart configs
-	clusterconfig.Spec.Extensions.Helm.Charts = finalConfigs
+	combinedConfigs.Charts = finalChartList
+	clusterconfig.Spec.Extensions.Helm = combinedConfigs
 	in.Status.SetState(v1beta1.InstallationStateAddonsInstalling, "Installing addons")
 	//Update the clusterconfig
 	if err := r.Update(ctx, &clusterconfig); err != nil {

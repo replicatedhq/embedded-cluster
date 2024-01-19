@@ -30,6 +30,61 @@ spec:
           spec:
             description: ConfigSpec defines the desired state of Config
             properties:
+              extensions:
+                properties:
+                  helm:
+                    description: HelmExtensions specifies settings for cluster helm based extensions
+                    properties:
+                      charts:
+                        description: ChartsSettings charts settings
+                        items:
+                          description: Chart single helm addon
+                          properties:
+                            chartname:
+                              type: string
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                            order:
+                              type: integer
+                            timeout:
+                              description: A Duration represents the elapsed time between two instants as an int64 nanosecond count. The representation limits the largest representable duration to approximately 290 years.
+                              format: int64
+                              type: integer
+                            values:
+                              type: string
+                            version:
+                              type: string
+                          type: object
+                        type: array
+                      concurrencyLevel:
+                        type: integer
+                      repositories:
+                        description: RepositoriesSettings repository settings
+                        items:
+                          description: Repository describes single repository entry. Fields map to the CLI flags for the "helm add" command
+                          properties:
+                            caFile:
+                              type: string
+                            certFile:
+                              type: string
+                            insecure:
+                              type: boolean
+                            keyfile:
+                              type: string
+                            name:
+                              type: string
+                            password:
+                              type: string
+                            url:
+                              type: string
+                            username:
+                              type: string
+                          type: object
+                        type: array
+                    type: object
+                type: object
               roles:
                 description: Roles is the various roles in the cluster.
                 properties:
@@ -175,6 +230,61 @@ spec:
               config:
                 description: Config holds the configuration used at installation time.
                 properties:
+                  extensions:
+                    properties:
+                      helm:
+                        description: HelmExtensions specifies settings for cluster helm based extensions
+                        properties:
+                          charts:
+                            description: ChartsSettings charts settings
+                            items:
+                              description: Chart single helm addon
+                              properties:
+                                chartname:
+                                  type: string
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                                order:
+                                  type: integer
+                                timeout:
+                                  description: A Duration represents the elapsed time between two instants as an int64 nanosecond count. The representation limits the largest representable duration to approximately 290 years.
+                                  format: int64
+                                  type: integer
+                                values:
+                                  type: string
+                                version:
+                                  type: string
+                              type: object
+                            type: array
+                          concurrencyLevel:
+                            type: integer
+                          repositories:
+                            description: RepositoriesSettings repository settings
+                            items:
+                              description: Repository describes single repository entry. Fields map to the CLI flags for the "helm add" command
+                              properties:
+                                caFile:
+                                  type: string
+                                certFile:
+                                  type: string
+                                insecure:
+                                  type: boolean
+                                keyfile:
+                                  type: string
+                                name:
+                                  type: string
+                                password:
+                                  type: string
+                                url:
+                                  type: string
+                                username:
+                                  type: string
+                              type: object
+                            type: array
+                        type: object
+                    type: object
                   roles:
                     description: Roles is the various roles in the cluster.
                     properties:
