@@ -10,9 +10,8 @@ import (
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -27,6 +26,16 @@ type hostInfo struct {
 	Kclient     client.Client
 	Node        corev1.Node
 	ControlNode autopilot.ControlNode
+	Status      k0sStatus
+}
+
+type k0sStatus struct {
+	Role string  `json:"Role"`
+	Vars k0sVars `json:"K0sVars"`
+}
+
+type k0sVars struct {
+	KubeletAuthConfigPath string `json:"KubeletAuthConfigPath"`
 }
 
 var (
@@ -36,7 +45,7 @@ var (
 
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() error {
-	os.Unsetenv("KUBECONFIG")
+  os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
 	drainArgList := []string{
 		"kubectl",
 		"drain",
@@ -53,15 +62,12 @@ func (h *hostInfo) drainNode() error {
 
 // configureKubernetesClient sets up a client to use for kubernetes api calls
 func (h *hostInfo) configureKubernetesClient() error {
-	adminConfig, err := exec.Command(k0s, "kubeconfig", "admin").Output()
-	if err != nil {
-		return err
-	}
-	restConfig, err := clientcmd.RESTConfigFromKubeConfig(adminConfig)
-	if err != nil {
-		return err
-	}
-	h.Kclient, err = client.New(restConfig, client.Options{})
+  os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
+  config, err := controllerruntime.GetConfig()
+  if err != nil {
+    return err
+  }
+	h.Kclient, err = client.New(config, client.Options{})
 	autopilot.AddToScheme(h.Kclient.Scheme())
 	if err != nil {
 		return fmt.Errorf("couldn't create k8s config: %w", err)
@@ -81,8 +87,10 @@ func (h *hostInfo) getHostName() error {
 
 // isControlPlane attempts to determine if the node is a controlplane node
 func (h *hostInfo) isControlPlane() bool {
-	labels := h.Node.GetLabels()
-	return labels["node-role.kubernetes.io/control-plane"] == "true"
+  if h.Status.Role == "controller" {
+    return true
+  }
+  return false
 }
 
 // getNodeObject fetches the node object from the k8s api server
@@ -158,6 +166,15 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 	err := currentHost.getHostName()
 	if err != nil {
 		return currentHost, err
+	}
+  // get k0s status
+	out, err := exec.Command(k0s, "status", "-o", "json").Output()
+	if err != nil {
+		return currentHost,fmt.Errorf("unable to fetch k0s status, %w, %s", err, out)
+	}
+	err = json.Unmarshal(out, &currentHost.Status)
+	if err != nil {
+		return currentHost,fmt.Errorf("unable to unmarshal k0s status, %w, %s", err, out)
 	}
 	// set up kube client
 	err = currentHost.configureKubernetesClient()
