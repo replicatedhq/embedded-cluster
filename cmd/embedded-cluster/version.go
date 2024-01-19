@@ -10,6 +10,7 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 )
@@ -71,7 +72,7 @@ var metadataCommand = &cli.Command{
 			K0sBinaryURL: defaults.K0sBinaryURL,
 		}
 		applier := addons.NewApplier(opts...)
-		chtconfig, repconfig, err := applier.GenerateHelmConfigs()
+		chtconfig, repconfig, err := applier.GenerateHelmConfigs(config.AdditionalCharts(), config.AdditionalRepositories())
 		if err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)
 		}

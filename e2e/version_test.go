@@ -27,7 +27,7 @@ func TestVersion(t *testing.T) {
 	}
 	var failed bool
 	output := fmt.Sprintf("%s\n%s", stdout, stderr)
-	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole"}
+	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole", "memcached"}
 	for _, component := range expected {
 		if strings.Contains(output, component) {
 			continue

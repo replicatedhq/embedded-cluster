@@ -21,7 +21,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
-	embeddedClusterConfig "github.com/replicatedhq/embedded-cluster/pkg/config"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
@@ -63,7 +62,7 @@ func (a *Applier) Outro(ctx context.Context) error {
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, additionalRepositories []v1beta1.Repository) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	charts := []v1beta1.Chart{}
 	repositories := []v1beta1.Repository{}
 	addons, err := a.load()
@@ -82,8 +81,8 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, 
 	}
 
 	// charts required by the application
-	charts = append(charts, embeddedClusterConfig.AdditionalCharts()...)
-	repositories = append(repositories, embeddedClusterConfig.AdditionalRepositories()...)
+	charts = append(charts, additionalCharts...)
+	repositories = append(repositories, additionalRepositories...)
 
 	return charts, repositories, nil
 }
