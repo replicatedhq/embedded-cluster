@@ -390,3 +390,29 @@ func additionalControllerLabels() map[string]string {
 	}
 	return map[string]string{}
 }
+
+func AdditionalCharts() []k0sconfig.Chart {
+	clusterConfig, err := embed.GetEmbeddedClusterConfig()
+
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Extensions.Helm != nil {
+				return clusterConfig.Spec.Extensions.Helm.Charts
+			}
+		}
+	}
+	return []k0sconfig.Chart{}
+}
+
+func AdditionalRepositories() []k0sconfig.Repository {
+	clusterConfig, err := embed.GetEmbeddedClusterConfig()
+
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Extensions.Helm != nil {
+				return clusterConfig.Spec.Extensions.Helm.Repositories
+			}
+		}
+	}
+	return []k0sconfig.Repository{}
+}

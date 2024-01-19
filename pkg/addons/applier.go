@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	embeddedClusterConfig "github.com/replicatedhq/embedded-cluster/pkg/config"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
@@ -69,6 +70,8 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
 	}
+
+	// charts required by embedded-cluster
 	for _, addon := range addons {
 		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.onlyDefaults)
 		if err != nil {
@@ -77,6 +80,11 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, 
 		charts = append(charts, addonChartConfig...)
 		repositories = append(repositories, addonRepositoryConfig...)
 	}
+
+	// charts required by the application
+	charts = append(charts, embeddedClusterConfig.AdditionalCharts()...)
+	repositories = append(repositories, embeddedClusterConfig.AdditionalRepositories()...)
+
 	return charts, repositories, nil
 }
 
