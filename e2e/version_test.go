@@ -3,10 +3,10 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"strings"
 	"testing"
 
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
