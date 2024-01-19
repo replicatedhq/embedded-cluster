@@ -22,14 +22,14 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
     page.setDefaultTimeout(timeout);
     const args = process.argv.slice(2);
     if (args.length !== 1) {
-        throw new Error('usage: check-app-and-cluster-status.js <kotsadm-ip>');
+        throw new Error('usage: generate-controller-join-token.js <kotsadm-ip>');
     }
 
     {
         const targetPage = page;
         await targetPage.setViewport({
-            width: 1920,
-            height: 934
+            width: 1512,
+            height: 761
         })
     }
     {
@@ -74,7 +74,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .click({
               offset: {
                 x: 44,
-                y: 15,
+                y: 7,
               },
             });
         await Promise.all(promises);
@@ -92,8 +92,8 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 77,
-                y: 21.2421875,
+                x: 31,
+                y: 18.4609375,
               },
             });
     }
@@ -111,8 +111,8 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 48,
-                y: 7.7421875,
+                x: 44,
+                y: 6.9609375,
               },
             });
     }
@@ -136,18 +136,18 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             promises.push(targetPage.waitForNavigation());
         }
         await puppeteer.Locator.race([
-            targetPage.locator('::-p-aria(Continue)'),
-            targetPage.locator('button'),
-            targetPage.locator('::-p-xpath(//*[@id=\\"upload-form\\"]/div[6]/button)'),
-            targetPage.locator(':scope >>> button'),
-            targetPage.locator('::-p-text(Continue\n   )')
+            targetPage.locator('::-p-aria(Continue) >>>> ::-p-aria([role=\\"generic\\"])'),
+            targetPage.locator('div.button-wrapper span.self-signed-visible'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"upload-form\\"]/div[6]/button/span[1])'),
+            targetPage.locator(':scope >>> div.button-wrapper span.self-signed-visible'),
+            targetPage.locator('::-p-text(Continue)')
         ])
             .setTimeout(timeout)
             .on('action', () => startWaitingForEvents())
             .click({
               offset: {
-                x: 45,
-                y: 6,
+                x: 39,
+                y: 8,
               },
             });
         await Promise.all(promises);
@@ -164,8 +164,8 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 35,
-                y: 17.5078125,
+                x: 27,
+                y: 21.0078125,
               },
             });
     }
@@ -193,33 +193,75 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 27,
-                y: 22.5078125,
+                x: 30,
+                y: 14.0078125,
               },
             });
     }
     {
-        // CUSTOM: finding the element with the app state and extracting its content.
-        let state = {app: "", cluster:""};
-        process.stderr.write("waiting and fetching the application and cluster state\n");
+        process.stderr.write("waiting and clicking in the Cluster Management tab\n");
         const targetPage = page;
-        await targetPage.waitForSelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(6)');
+        await puppeteer.Locator.race([
+            targetPage.locator('div:nth-of-type(3) > span'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"app\\"]/div/div[1]/div[1]/div[2]/div[3]/span)'),
+            targetPage.locator(':scope >>> div:nth-of-type(3) > span'),
+            targetPage.locator('::-p-text(Cluster Management)')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 87.734375,
+                y: 26,
+              },
+            });
+    }
+    {
+        process.stderr.write("waiting and clicking in the Add node button\n");
+        const targetPage = page;
+        await puppeteer.Locator.race([
+            targetPage.locator('::-p-aria(Add node)'),
+            targetPage.locator('div.tw-flex > button'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"app\\"]/div/div[2]/div/div/div[1]/button)'),
+            targetPage.locator(':scope >>> div.tw-flex > button'),
+            targetPage.locator('::-p-text(Add node)')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 24.328125,
+                y: 17,
+              },
+            });
+    }
+    {
+        process.stderr.write("waiting and clicking in the controller role\n");
+        const targetPage = page;
+        await puppeteer.Locator.race([
+            targetPage.locator('div:nth-of-type(1) > label'),
+            targetPage.locator('::-p-xpath(/html/body/div[5]/div/div/div/div[2]/div[1]/label)'),
+            targetPage.locator(':scope >>> div:nth-of-type(1) > label')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 110,
+                y: 27.5,
+              },
+            });
+    }
+    {
+        // CUSTOM: finding the element that contains the node join command.
+        process.stderr.write("waiting and fetching the node join command\n");
+        const targetPage = page;
+        await targetPage.waitForSelector('.react-prism.language-bash');
         let elementContent = await targetPage.evaluate(() => {
-            const element = document.querySelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(6)');
+            const element = document.querySelector('.react-prism.language-bash');
             return element ? element.textContent : null;
         });
-        if (elementContent) {
-            state.cluster = elementContent;
+        if (!elementContent) {
+            throw new Error("Could not find the node join command");
         }
-        await targetPage.waitForSelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(2)');
-        elementContent = await targetPage.evaluate(() => {
-            const element = document.querySelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(2)');
-            return element ? element.textContent : null;
-        });
-        if (elementContent) {
-            state.app = elementContent;
-        }
-        console.log(JSON.stringify(state));
+        console.log(elementContent);
     }
 
     await browser.close();
