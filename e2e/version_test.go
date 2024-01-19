@@ -29,7 +29,7 @@ func TestVersion(t *testing.T) {
 	}
 	var failed bool
 	output := fmt.Sprintf("%s\n%s", stdout, stderr)
-	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole", "memcached-vendor-chart"}
+	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole", "EmbeddedClusterOperator", "memcached-vendor-chart"}
 	for _, component := range expected {
 		if strings.Contains(output, component) {
 			continue
@@ -57,7 +57,7 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("fail to parse metadata output: %v", err)
 	}
 
-	expectedCharts := []string{"Kubernetes", "OpenEBS", "AdminConsole", "memcached-vendor-chart"}
+	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "memcached-vendor-chart"}
 	if len(parsed.Configs.Charts) != len(expectedCharts) {
 		t.Log(output)
 		t.Fatalf("found %d charts in metadata, expected %d", len(parsed.Configs.Charts), len(expectedCharts))
