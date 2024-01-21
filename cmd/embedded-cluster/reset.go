@@ -133,16 +133,16 @@ func (h *hostInfo) checkQuorumSafety(c *cli.Context) (bool, string, error) {
 		}
 	}
 	if len(workers) > 0 && len(controllers) == 1 {
-		return false, "cluster has a worker node joined and you are attempting to remove the only controller node.", nil
+		return false, "Cluster has a worker node joined and you are attempting to remove the only controller node.", nil
 	}
 	if len(etcd.Members) < 3 {
 		return true, "", nil
 	}
 	if len(etcd.Members) == 3 {
-		return false, "cluster has 3 control-plane nodes, removing this node will cause etcd to lose quorum", nil
+		return false, "Cluster has 3 control-plane nodes, removing this node will cause etcd to lose quorum.", nil
 	}
 	if len(etcd.Members)%2 != 0 {
-		return false, "cluster would have even number of control-plane nodes after resetting this node, this could cause etcd to become unstable", nil
+		return false, "Cluster would have even number of control-plane nodes after resetting this node, this could cause etcd to become unstable.", nil
 	}
 	return true, "", nil
 }
@@ -166,7 +166,7 @@ func stopAndResetK0s() error {
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
-	fmt.Println("Node has been reset, please reboot to ensure transient configuration is also reset")
+	fmt.Println("Node has been reset. Please reboot to ensure transient configuration is also reset.")
 	return nil
 }
 
@@ -215,8 +215,8 @@ func checkErrPrompt(err error) bool {
 	fmt.Println("-----")
 	fmt.Println(err)
 	fmt.Println("-----")
-	fmt.Println("An error has occured while trying to reset this node.")
-	fmt.Println("Continuing may leave the cluster in an unexpected state")
+	fmt.Println("An error occured while trying to reset this node")
+	fmt.Println("continuing may leave the cluster in an unexpected state.")
 	return prompts.New().Confirm("Do you want to continue anyway?", false)
 }
 
@@ -224,7 +224,7 @@ var resetCommand = &cli.Command{
 	Name: "reset",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
-			Name:   "yes-really-reset",
+			Name:   "confirm",
 			Hidden: true,
 			Value:  false,
 		},
@@ -234,7 +234,7 @@ var resetCommand = &cli.Command{
 			Value:  false,
 		},
 	},
-	Usage: "Reset the node this command is run from",
+	Usage: "Reset the current node",
 	Action: func(c *cli.Context) error {
 
 		if c.Bool("force") {
@@ -246,13 +246,12 @@ var resetCommand = &cli.Command{
 			return nil
 		}
 
-		fmt.Println("This command will completely reset this node, removing it from the cluster")
+		fmt.Println("This will remove this node from the cluster and completely reset it.")
 		if !prompts.New().Confirm("Do you want to continue?", false) {
-			fmt.Println("aborting.")
+			fmt.Println("Aborting.")
 			return nil
 		}
 
-		fmt.Println("gathering facts...")
 		// populate options struct with host information
 		currentHost, err := newHostInfo(c.Context)
 		if !checkErrPrompt(err) {
@@ -268,7 +267,7 @@ var resetCommand = &cli.Command{
 			}
 			if !safeToRemove {
 				fmt.Println(reason)
-				fmt.Println("run reset command again with --yes-really-reset to ignore this")
+				fmt.Println("run reset command again with --confirm to ignore this")
 				return nil
 			}
 		}
@@ -280,11 +279,11 @@ var resetCommand = &cli.Command{
 		if len(nodeList.Items) == 1 {
 			nodeName := nodeList.Items[0].Name
 			if nodeName != currentHost.Hostname {
-				fmt.Println("detected a single node cluster, but the node's name doesn't match our hostname")
+				fmt.Println("Detected a single-node cluster, but the node's name doesn't match our hostname.")
 				return nil
 			}
 			// stop k0s
-			fmt.Printf("resetting %s...\n", binName)
+			fmt.Printf("Resetting %s...\n", binName)
 			err = stopAndResetK0s()
 			if !checkErrPrompt(err) {
 				return nil
@@ -293,14 +292,14 @@ var resetCommand = &cli.Command{
 		}
 
 		// drain node
-		fmt.Println("draining node...")
+		fmt.Println("Draining node...")
 		err = currentHost.drainNode()
 		if !checkErrPrompt(err) {
 			return nil
 		}
 
 		// remove node from cluster
-		fmt.Println("removing node from cluster...")
+		fmt.Println("Removing node from cluster...")
 		err = currentHost.Kclient.Delete(c.Context, &currentHost.Node)
 		if !checkErrPrompt(err) {
 			return nil
@@ -310,14 +309,14 @@ var resetCommand = &cli.Command{
 		if currentHost.Status.Role == "controller" {
 
 			// delete controlNode object from cluster
-			fmt.Println("deleting controlNode...")
+			fmt.Println("Deleting ControlNode...")
 			err := currentHost.Kclient.Delete(c.Context, &currentHost.ControlNode)
 			if !checkErrPrompt(err) {
 				return nil
 			}
 
 			// try and leave etcd cluster
-			fmt.Println("leaving etcd cluster...")
+			fmt.Println("Leaving etcd cluster...")
 			err = currentHost.leaveEtcdcluster()
 			if !checkErrPrompt(err) {
 				return nil
@@ -329,7 +328,7 @@ var resetCommand = &cli.Command{
 		}
 
 		// reset
-		fmt.Printf("resetting %s...\n", binName)
+		fmt.Printf("Resetting %s...\n", binName)
 		err = stopAndResetK0s()
 		if !checkErrPrompt(err) {
 			return nil
