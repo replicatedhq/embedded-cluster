@@ -10,6 +10,7 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 )
@@ -20,7 +21,7 @@ var versionCommand = &cli.Command{
 	Subcommands: []*cli.Command{metadataCommand},
 	Action: func(c *cli.Context) error {
 		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
-		versions, err := addons.NewApplier(opts...).Versions()
+		versions, err := addons.NewApplier(opts...).Versions(config.AdditionalCharts())
 		if err != nil {
 			return fmt.Errorf("unable to get versions: %w", err)
 		}
@@ -55,7 +56,7 @@ var metadataCommand = &cli.Command{
 	Hidden: true,
 	Action: func(c *cli.Context) error {
 		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt(), addons.OnlyDefaults()}
-		versions, err := addons.NewApplier(opts...).Versions()
+		versions, err := addons.NewApplier(opts...).Versions(config.AdditionalCharts())
 		if err != nil {
 			return fmt.Errorf("unable to get versions: %w", err)
 		}
@@ -71,7 +72,7 @@ var metadataCommand = &cli.Command{
 			K0sBinaryURL: defaults.K0sBinaryURL,
 		}
 		applier := addons.NewApplier(opts...)
-		chtconfig, repconfig, err := applier.GenerateHelmConfigs()
+		chtconfig, repconfig, err := applier.GenerateHelmConfigs(config.AdditionalCharts(), config.AdditionalRepositories())
 		if err != nil {
 			return fmt.Errorf("unable to apply addons: %w", err)
 		}

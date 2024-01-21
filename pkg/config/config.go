@@ -281,7 +281,7 @@ func UpdateHelmConfigs(cfg *v1beta1.Cluster, opts ...addons.Option) error {
 		return fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
 	opts = append(opts, addons.WithConfig(k0s))
-	chtconfig, repconfig, err := addons.NewApplier(opts...).GenerateHelmConfigs()
+	chtconfig, repconfig, err := addons.NewApplier(opts...).GenerateHelmConfigs(AdditionalCharts(), AdditionalRepositories())
 	if err != nil {
 		return fmt.Errorf("unable to apply addons: %w", err)
 	}
@@ -389,4 +389,30 @@ func additionalControllerLabels() map[string]string {
 		}
 	}
 	return map[string]string{}
+}
+
+func AdditionalCharts() []k0sconfig.Chart {
+	clusterConfig, err := embed.GetEmbeddedClusterConfig()
+
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Extensions.Helm != nil {
+				return clusterConfig.Spec.Extensions.Helm.Charts
+			}
+		}
+	}
+	return []k0sconfig.Chart{}
+}
+
+func AdditionalRepositories() []k0sconfig.Repository {
+	clusterConfig, err := embed.GetEmbeddedClusterConfig()
+
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Extensions.Helm != nil {
+				return clusterConfig.Spec.Extensions.Helm.Repositories
+			}
+		}
+	}
+	return []k0sconfig.Repository{}
 }

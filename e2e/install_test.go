@@ -28,7 +28,9 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 	t.Log("installing embedded-cluster on node 0")
 	line := []string{"single-node-install.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("install stdout:", stdout)
+		t.Log("install stderr:", stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log("installing puppeteer on node 0")
