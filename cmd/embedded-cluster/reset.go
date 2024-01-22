@@ -267,7 +267,7 @@ var resetCommand = &cli.Command{
 			}
 			if !safeToRemove {
 				fmt.Println(reason)
-				fmt.Println("run reset command again with --confirm to ignore this")
+				fmt.Println("Run reset command with --confirm to ignore this.")
 				return nil
 			}
 		}
