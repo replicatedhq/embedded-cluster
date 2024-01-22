@@ -27,6 +27,7 @@ type hostInfo struct {
 	Node        corev1.Node
 	ControlNode autopilot.ControlNode
 	Status      k0sStatus
+	RoleName    string
 }
 
 type k0sStatus struct {
@@ -133,16 +134,19 @@ func (h *hostInfo) checkQuorumSafety(c *cli.Context) (bool, string, error) {
 		}
 	}
 	if len(workers) > 0 && len(controllers) == 1 {
-		return false, "Cannot reset the last controller node when there are other nodes in the cluster.", nil
+		message := fmt.Sprintf("Cannot reset the last %s node when there are other nodes in the cluster.", h.RoleName)
+		return false, message, nil
 	}
 	if len(etcd.Members) < 3 {
 		return true, "", nil
 	}
 	if len(etcd.Members) == 3 {
-		return false, "Cluster has 3 control plane nodes. Removing this node will cause etcd to lose quorum.", nil
+		message := fmt.Sprintf("Cluster has 3 %s nodes. Removing this node will cause etcd to lose quorum.", h.RoleName)
+		return false, message, nil
 	}
 	if len(etcd.Members)%2 != 0 {
-		return false, "This will leave the cluster with an even number of control plane nodes, which could make it unstable.", nil
+		message := fmt.Sprintf("This will leave the cluster with an even number of %s nodes, which could make it unstable.", h.RoleName)
+		return false, message, nil
 	}
 	return true, "", nil
 }
@@ -197,14 +201,21 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 	if err != nil {
 		return currentHost, err
 	}
+	currentHost.RoleName = "worker"
 	// control plane only stff
 	if currentHost.Status.Role == "controller" {
+		currentHost.RoleName = "controler"
 		// fetch controlNode
 		err := currentHost.getControlNodeObject(ctx)
 		if err != nil {
 			return currentHost, err
 		}
 	}
+  // try and get custom role name from the node labels
+  labels := currentHost.Node.GetLabels()
+  if value, ok := labels["kots.io/embedded-cluster-role-0"]; ok {
+    currentHost.RoleName = value
+  }
 	return currentHost, nil
 }
 
@@ -309,14 +320,12 @@ var resetCommand = &cli.Command{
 		if currentHost.Status.Role == "controller" {
 
 			// delete controlNode object from cluster
-			fmt.Println("Deleting ControlNode...")
 			err := currentHost.Kclient.Delete(c.Context, &currentHost.ControlNode)
 			if !checkErrPrompt(err) {
 				return nil
 			}
 
 			// try and leave etcd cluster
-			fmt.Println("Leaving etcd cluster...")
 			err = currentHost.leaveEtcdcluster()
 			if !checkErrPrompt(err) {
 				return nil
