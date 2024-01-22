@@ -82,3 +82,23 @@ func TestElfBuilderBuild(t *testing.T) {
 	assert.NoError(t, err, "expected no error when copying the built binary")
 	assert.NoError(t, builder.Close(), "expected no error when closing the builder")
 }
+
+func TestExtractFromBinary(t *testing.T) {
+	binpath, err := exec.LookPath("ls")
+	assert.NoError(t, err, "expected no error when looking for 'ls' in the PATH")
+	builder, err := NewElfBuilder("")
+	assert.NoError(t, err, "expected no error when creating a new builder")
+	newbin, err := builder.Build(binpath, "testdata/release.tar.gz")
+	assert.NoError(t, err, "expected no error when building a valid binary")
+	dstfile, err := os.CreateTemp("", "elfbuilder_test")
+	assert.NoError(t, err, "expected no error when creating a temp file")
+	defer os.Remove(dstfile.Name())
+	defer dstfile.Close()
+	_, err = io.Copy(dstfile, newbin)
+	assert.NoError(t, err, "expected no error when copying the built binary")
+	target, err := ExtractFromBinary(dstfile.Name())
+	assert.NoError(t, err, "expected no error when extracting the bundle from the binary")
+	source, err := os.ReadFile("testdata/release.tar.gz")
+	assert.NoError(t, err, "expected no error when reading the release file")
+	assert.Equal(t, source, target, "expected the extracted bundle to be the same as the source")
+}
