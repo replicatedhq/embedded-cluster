@@ -211,11 +211,11 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 			return currentHost, err
 		}
 	}
-  // try and get custom role name from the node labels
-  labels := currentHost.Node.GetLabels()
-  if value, ok := labels["kots.io/embedded-cluster-role-0"]; ok {
-    currentHost.RoleName = value
-  }
+	// try and get custom role name from the node labels
+	labels := currentHost.Node.GetLabels()
+	if value, ok := labels["kots.io/embedded-cluster-role-0"]; ok {
+		currentHost.RoleName = value
+	}
 	return currentHost, nil
 }
 
