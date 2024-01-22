@@ -17,6 +17,7 @@ jobs:
         - TestInstallWithDisabledAddons
         - TestHostPreflight
         - TestUnsupportedOverrides
+        - TestMultiNodeInstallation
     steps:
     - name: Move Docker aside
       run: |

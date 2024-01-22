@@ -62,13 +62,15 @@ func (a *Applier) Outro(ctx context.Context) error {
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, additionalRepositories []v1beta1.Repository) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	charts := []v1beta1.Chart{}
 	repositories := []v1beta1.Repository{}
 	addons, err := a.load()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
 	}
+
+	// charts required by embedded-cluster
 	for _, addon := range addons {
 		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.onlyDefaults)
 		if err != nil {
@@ -77,6 +79,11 @@ func (a *Applier) GenerateHelmConfigs() ([]v1beta1.Chart, []v1beta1.Repository, 
 		charts = append(charts, addonChartConfig...)
 		repositories = append(repositories, addonRepositoryConfig...)
 	}
+
+	// charts required by the application
+	charts = append(charts, additionalCharts...)
+	repositories = append(repositories, additionalRepositories...)
+
 	return charts, repositories, nil
 }
 
@@ -144,7 +151,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 }
 
 // Versions returns a map with the version of each addon that will be applied.
-func (a *Applier) Versions() (map[string]string, error) {
+func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string, error) {
 	addons, err := a.load()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)
@@ -159,6 +166,10 @@ func (a *Applier) Versions() (map[string]string, error) {
 			versions[k] = v
 		}
 	}
+	for _, chart := range additionalCharts {
+		versions[chart.Name] = chart.Version
+	}
+
 	return versions, nil
 }
 

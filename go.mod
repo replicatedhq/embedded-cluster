@@ -13,7 +13,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.17.4
 	github.com/k0sproject/rig v0.17.3
-	github.com/replicatedhq/embedded-cluster-operator v0.16.0
+	github.com/replicatedhq/embedded-cluster-operator v0.20.0
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.79.1
 	github.com/sirupsen/logrus v1.9.3
@@ -45,6 +45,7 @@ require (
 	github.com/jellydator/validation v1.1.0 // indirect
 	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
+	github.com/ohler55/ojg v1.21.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.17.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect

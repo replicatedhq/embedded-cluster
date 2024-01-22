@@ -203,9 +203,9 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         let state = {app: "", cluster:""};
         process.stderr.write("waiting and fetching the application and cluster state\n");
         const targetPage = page;
-        await targetPage.waitForSelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(5)');
+        await targetPage.waitForSelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(6)');
         let elementContent = await targetPage.evaluate(() => {
-            const element = document.querySelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(5)');
+            const element = document.querySelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(6)');
             return element ? element.textContent : null;
         });
         if (elementContent) {
