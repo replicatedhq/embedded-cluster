@@ -139,7 +139,7 @@ func (h *hostInfo) checkQuorumSafety(c *cli.Context) (bool, string, error) {
 		return true, "", nil
 	}
 	if len(etcd.Members) == 3 {
-		return false, "Cluster has 3 control-plane nodes, removing this node will cause etcd to lose quorum.", nil
+		return false, "Cluster has 3 control plane nodes. Removing this node will cause etcd to lose quorum.", nil
 	}
 	if len(etcd.Members)%2 != 0 {
 		return false, "Cluster would have even number of control-plane nodes after resetting this node, this could cause etcd to become unstable.", nil
