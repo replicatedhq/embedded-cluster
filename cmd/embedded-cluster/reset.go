@@ -133,7 +133,7 @@ func (h *hostInfo) checkQuorumSafety(c *cli.Context) (bool, string, error) {
 		}
 	}
 	if len(workers) > 0 && len(controllers) == 1 {
-		return false, "Cluster has a worker node joined and you are attempting to remove the only controller node.", nil
+		return false, "Cannot reset the last controller node when there are other nodes in the cluster.", nil
 	}
 	if len(etcd.Members) < 3 {
 		return true, "", nil
