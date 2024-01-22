@@ -215,8 +215,8 @@ func checkErrPrompt(err error) bool {
 	fmt.Println("-----")
 	fmt.Println(err)
 	fmt.Println("-----")
-	fmt.Println("An error occured while trying to reset this node")
-	fmt.Println("continuing may leave the cluster in an unexpected state.")
+	fmt.Println("An error occurred while trying to reset this node.")
+	fmt.Println("Continuing may leave the cluster in an unexpected state.")
 	return prompts.New().Confirm("Do you want to continue anyway?", false)
 }
 
