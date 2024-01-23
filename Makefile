@@ -15,9 +15,9 @@ OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
 KUBECTL_VERSION = v1.29.1
 K0SCTL_VERSION = v0.17.4
-K0S_VERSION = v1.28.5+k0s.0
+K0S_VERSION = v1.28.6+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.79.1
+TROUBLESHOOT_VERSION = v0.80.0
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sBinaryURL=$(K0S_BINARY_SOURCE_OVERRIDE) \
