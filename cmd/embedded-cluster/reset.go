@@ -105,7 +105,7 @@ func (h *hostInfo) getControlNodeObject(ctx context.Context) error {
 }
 
 func (h *hostInfo) checkQuorumSafety(c *cli.Context) (bool, string, error) {
-	if c.Bool("yes-really-reset") {
+	if c.Bool("confirm") {
 		return true, "", nil
 	}
 	out, err := exec.Command(k0s, "etcd", "member-list").Output()
