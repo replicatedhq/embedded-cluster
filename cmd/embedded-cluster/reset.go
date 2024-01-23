@@ -219,7 +219,7 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 	return currentHost, nil
 }
 
-func checkErrPrompt(err error) bool {
+func checkErrPrompt(c *cli.Context, err error) bool {
 	if err == nil {
 		return true
 	}
@@ -228,6 +228,9 @@ func checkErrPrompt(err error) bool {
 	fmt.Println("-----")
 	fmt.Println("An error occurred while trying to reset this node.")
 	fmt.Println("Continuing may leave the cluster in an unexpected state.")
+	if c.Bool("no-prompt") {
+		return true
+	}
 	return prompts.New().Confirm("Do you want to continue anyway?", false)
 }
 
@@ -238,6 +241,11 @@ var resetCommand = &cli.Command{
 			Name:   "confirm",
 			Hidden: true,
 			Value:  false,
+		},
+		&cli.BoolFlag{
+			Name:  "no-prompt",
+			Usage: "Do not prompt user when it is not necessary",
+			Value: false,
 		},
 		&cli.BoolFlag{
 			Name:   "force",
@@ -258,14 +266,14 @@ var resetCommand = &cli.Command{
 		}
 
 		fmt.Println("This will remove this node from the cluster and completely reset it.")
-		if !prompts.New().Confirm("Do you want to continue?", false) {
+		if !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
 			fmt.Println("Aborting.")
 			return nil
 		}
 
 		// populate options struct with host information
 		currentHost, err := newHostInfo(c.Context)
-		if !checkErrPrompt(err) {
+		if !checkErrPrompt(c, err) {
 			return nil
 		}
 
@@ -296,7 +304,7 @@ var resetCommand = &cli.Command{
 			// stop k0s
 			fmt.Printf("Resetting %s...\n", binName)
 			err = stopAndResetK0s()
-			if !checkErrPrompt(err) {
+			if !checkErrPrompt(c, err) {
 				return nil
 			}
 			return nil
@@ -305,14 +313,14 @@ var resetCommand = &cli.Command{
 		// drain node
 		fmt.Println("Draining node...")
 		err = currentHost.drainNode()
-		if !checkErrPrompt(err) {
+		if !checkErrPrompt(c, err) {
 			return nil
 		}
 
 		// remove node from cluster
 		fmt.Println("Removing node from cluster...")
 		err = currentHost.Kclient.Delete(c.Context, &currentHost.Node)
-		if !checkErrPrompt(err) {
+		if !checkErrPrompt(c, err) {
 			return nil
 		}
 
@@ -321,13 +329,13 @@ var resetCommand = &cli.Command{
 
 			// delete controlNode object from cluster
 			err := currentHost.Kclient.Delete(c.Context, &currentHost.ControlNode)
-			if !checkErrPrompt(err) {
+			if !checkErrPrompt(c, err) {
 				return nil
 			}
 
 			// try and leave etcd cluster
 			err = currentHost.leaveEtcdcluster()
-			if !checkErrPrompt(err) {
+			if !checkErrPrompt(c, err) {
 				return nil
 			}
 
@@ -339,7 +347,7 @@ var resetCommand = &cli.Command{
 		// reset
 		fmt.Printf("Resetting %s...\n", binName)
 		err = stopAndResetK0s()
-		if !checkErrPrompt(err) {
+		if !checkErrPrompt(c, err) {
 			return nil
 		}
 
