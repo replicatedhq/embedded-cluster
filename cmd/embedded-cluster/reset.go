@@ -100,7 +100,7 @@ func (h *hostInfo) configureKubernetesClient() {
 	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
-		h.KclientError = fmt.Errorf("unable to create cluster client: %w", err)
+		h.KclientError = fmt.Errorf("unable to create cluster client config: %w", err)
 		return
 	}
 	h.Kclient, err = client.New(config, client.Options{})
@@ -125,7 +125,7 @@ func (h *hostInfo) getHostName() error {
 // it stores any errors in h.NodeError
 func (h *hostInfo) getNodeObject(ctx context.Context) {
 	if h.KclientError != nil {
-		h.NodeError = fmt.Errorf("unable to get Node: %w", h.KclientError)
+		h.NodeError = fmt.Errorf("unable to load cluster client: %w", h.KclientError)
 		return
 	}
 	err := h.Kclient.Get(ctx, client.ObjectKey{Name: h.Hostname}, &h.Node)
@@ -139,7 +139,7 @@ func (h *hostInfo) getNodeObject(ctx context.Context) {
 // it stores any errors in h.ControlNodeError
 func (h *hostInfo) getControlNodeObject(ctx context.Context) {
 	if h.KclientError != nil {
-		h.ControlNodeError = fmt.Errorf("unable to get ControlNode: %w", h.KclientError)
+		h.ControlNodeError = fmt.Errorf("unable to load cluster client: %w", h.KclientError)
 		return
 	}
 	err := h.Kclient.Get(ctx, client.ObjectKey{Name: h.Hostname}, &h.ControlNode)
@@ -156,7 +156,7 @@ func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
 	}
 
 	if h.KclientError != nil {
-		return false, "", fmt.Errorf("unable to check reset safety: %w", h.KclientError)
+		return false, "", fmt.Errorf("unable to load cluster client: %w", h.KclientError)
 	}
 
 	// get a rough picture of the cluster topology
@@ -165,7 +165,7 @@ func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
 	nodeList := corev1.NodeList{}
 	err := h.Kclient.List(c.Context, &nodeList)
 	if err != nil {
-		return false, "", fmt.Errorf("unable to create kubernetes client: %w", err)
+		return false, "", fmt.Errorf("unable to list Nodes: %w", err)
 	}
 	for _, node := range nodeList.Items {
 		labels := node.GetLabels()
