@@ -97,7 +97,7 @@ func (h *hostInfo) drainNode() error {
 // configureKubernetesClient optimistically sets up a client to use for kubernetes api calls
 // it stores any errors in h.KclientError
 func (h *hostInfo) configureKubernetesClient() {
-	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath+"f")
+	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		h.KclientError = fmt.Errorf("unable to create cluster client: %w", err)
