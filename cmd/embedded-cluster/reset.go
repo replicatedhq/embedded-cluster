@@ -10,9 +10,8 @@ import (
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -23,10 +22,24 @@ type etcdMembers struct {
 }
 
 type hostInfo struct {
-	Hostname    string
-	Kclient     client.Client
-	Node        corev1.Node
-	ControlNode autopilot.ControlNode
+	Hostname         string
+	Kclient          client.Client
+	KclientError     error
+	Node             corev1.Node
+	NodeError        error
+	ControlNode      autopilot.ControlNode
+	ControlNodeError error
+	Status           k0sStatus
+	RoleName         string
+}
+
+type k0sStatus struct {
+	Role string  `json:"Role"`
+	Vars k0sVars `json:"K0sVars"`
+}
+
+type k0sVars struct {
+	KubeletAuthConfigPath string `json:"KubeletAuthConfigPath"`
 }
 
 var (
@@ -34,9 +47,39 @@ var (
 	k0s     = defaults.K0sBinaryPath()
 )
 
+// deleteNode removes the node from the cluster
+func (h *hostInfo) deleteNode(ctx context.Context) error {
+	if h.KclientError != nil {
+		return fmt.Errorf("unable to delete Node: %w", h.KclientError)
+	}
+	if h.NodeError != nil {
+		return fmt.Errorf("unable to delete Node: %w", h.NodeError)
+	}
+	err := h.Kclient.Delete(ctx, &h.Node)
+	if err != nil {
+		return fmt.Errorf("unable to delete Node: %w", err)
+	}
+	return nil
+}
+
+// deleteControlNode removes the controlNode object from the cluster
+func (h *hostInfo) deleteControlNode(ctx context.Context) error {
+	if h.KclientError != nil {
+		return fmt.Errorf("unable to delete ControlNode: %w", h.KclientError)
+	}
+	if h.ControlNodeError != nil {
+		return fmt.Errorf("unable to delete ControlNode: %w", h.ControlNodeError)
+	}
+	err := h.Kclient.Delete(ctx, &h.ControlNode)
+	if err != nil {
+		return fmt.Errorf("unable to delete ControlNode: %w", err)
+	}
+	return nil
+}
+
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() error {
-	os.Unsetenv("KUBECONFIG")
+	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
 	drainArgList := []string{
 		"kubectl",
 		"drain",
@@ -51,22 +94,21 @@ func (h *hostInfo) drainNode() error {
 	return nil
 }
 
-// configureKubernetesClient sets up a client to use for kubernetes api calls
-func (h *hostInfo) configureKubernetesClient() error {
-	adminConfig, err := exec.Command(k0s, "kubeconfig", "admin").Output()
+// configureKubernetesClient optimistically sets up a client to use for kubernetes api calls
+// it stores any errors in h.KclientError
+func (h *hostInfo) configureKubernetesClient() {
+	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
+	config, err := controllerruntime.GetConfig()
 	if err != nil {
-		return err
+		h.KclientError = fmt.Errorf("unable to create cluster client config: %w", err)
+		return
 	}
-	restConfig, err := clientcmd.RESTConfigFromKubeConfig(adminConfig)
+	h.Kclient, err = client.New(config, client.Options{})
 	if err != nil {
-		return err
+		h.KclientError = fmt.Errorf("unable to create cluster client: %w", err)
+		return
 	}
-	h.Kclient, err = client.New(restConfig, client.Options{})
 	autopilot.AddToScheme(h.Kclient.Scheme())
-	if err != nil {
-		return fmt.Errorf("couldn't create k8s config: %w", err)
-	}
-	return nil
 }
 
 // getHostName fetches the hostname for the node
@@ -79,58 +121,85 @@ func (h *hostInfo) getHostName() error {
 	return nil
 }
 
-// isControlPlane attempts to determine if the node is a controlplane node
-func (h *hostInfo) isControlPlane() bool {
-	labels := h.Node.GetLabels()
-	return labels["node-role.kubernetes.io/control-plane"] == "true"
-}
-
-// getNodeObject fetches the node object from the k8s api server
-func (h *hostInfo) getNodeObject(ctx context.Context) error {
+// getNodeObject optimistically fetches the node object from the k8s api server
+// it stores any errors in h.NodeError
+func (h *hostInfo) getNodeObject(ctx context.Context) {
+	if h.KclientError != nil {
+		h.NodeError = fmt.Errorf("unable to load cluster client: %w", h.KclientError)
+		return
+	}
 	err := h.Kclient.Get(ctx, client.ObjectKey{Name: h.Hostname}, &h.Node)
 	if err != nil {
-		return err
+		h.NodeError = fmt.Errorf("unable to get Node: %w", err)
+		return
 	}
-	return nil
 }
 
-// getControlNodeObject fetches the controlNode object from the k8s api server
-func (h *hostInfo) getControlNodeObject(ctx context.Context) error {
+// getControlNodeObject optimistically fetches the controlNode object from the k8s api server
+// it stores any errors in h.ControlNodeError
+func (h *hostInfo) getControlNodeObject(ctx context.Context) {
+	if h.KclientError != nil {
+		h.ControlNodeError = fmt.Errorf("unable to load cluster client: %w", h.KclientError)
+		return
+	}
 	err := h.Kclient.Get(ctx, client.ObjectKey{Name: h.Hostname}, &h.ControlNode)
 	if err != nil {
-		return err
+		h.ControlNodeError = fmt.Errorf("unable to get ControlNode: %w", err)
+		return
 	}
-	return nil
 }
 
-func (h *hostInfo) checkQuorumSafety(c *cli.Context) (bool, string, error) {
-	if c.Bool("yes-really-reset") {
+// checkResetSafety performs checks to see if the reset would cause an outage
+func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
+	if c.Bool("force") {
 		return true, "", nil
 	}
-	out, err := exec.Command(k0s, "etcd", "member-list").Output()
+
+	if h.KclientError != nil {
+		return false, "", fmt.Errorf("unable to load cluster client: %w", h.KclientError)
+	}
+
+	// get a rough picture of the cluster topology
+	workers := []string{}
+	controllers := []string{}
+	nodeList := corev1.NodeList{}
+	err := h.Kclient.List(c.Context, &nodeList)
 	if err != nil {
-		return false, "", fmt.Errorf("unable to fetch etcd member list, %w, %s", err, out)
+		return false, "", fmt.Errorf("unable to list Nodes: %w", err)
 	}
-	etcd := etcdMembers{}
-	err = json.Unmarshal(out, &etcd)
-	if err != nil {
-		return false, "", fmt.Errorf("unable to unmarshal etcd member list, %w, %s", err, out)
+	for _, node := range nodeList.Items {
+		labels := node.GetLabels()
+		if labels["node-role.kubernetes.io/control-plane"] == "true" {
+			controllers = append(controllers, node.Name)
+		} else {
+			workers = append(workers, node.Name)
+		}
 	}
-	if len(etcd.Members) < 3 {
-		return true, "", nil
-	}
-	if len(etcd.Members) == 3 {
-		return false, "cluster has 3 control-plane nodes, removing this node will cause etcd to lose quorum", nil
-	}
-	if len(etcd.Members)%2 != 0 {
-		return false, "cluster would have even number of control-plane nodes after resetting this node, this could cause etcd to become unstable", nil
+	if len(workers) > 0 && len(controllers) == 1 {
+		message := fmt.Sprintf("Cannot reset the last %s node when there are other nodes in the cluster.", h.RoleName)
+		return false, message, nil
 	}
 	return true, "", nil
 }
 
 // leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
 func (h *hostInfo) leaveEtcdcluster() error {
-	out, err := exec.Command(k0s, "etcd", "leave").CombinedOutput()
+
+	// if we're the only etcd member we don't need to leave the cluster
+	out, err := exec.Command(k0s, "etcd", "member-list").Output()
+	if err != nil {
+		return err
+	}
+	memberlist := etcdMembers{}
+	err = json.Unmarshal(out, &memberlist)
+	if err != nil {
+		return err
+	}
+	if len(memberlist.Members) == 1 && memberlist.Members[h.Hostname] != "" {
+		return nil
+	}
+
+	out, err = exec.Command(k0s, "etcd", "leave").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("unable to leave etcd cluster: %w, %s", err, string(out))
 	}
@@ -138,7 +207,7 @@ func (h *hostInfo) leaveEtcdcluster() error {
 }
 
 // stopK0s attempts to stop the k0s service
-func (h *hostInfo) stopAndResetK0s() error {
+func stopAndResetK0s() error {
 	out, err := exec.Command(k0s, "stop").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not stop k0s service: %w, %s", err, string(out))
@@ -147,48 +216,58 @@ func (h *hostInfo) stopAndResetK0s() error {
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
-	fmt.Println("Node has been reset, please reboot to ensure transient configuration is also reset")
+	fmt.Println("Node has been reset. Please reboot to ensure transient configuration is also reset.")
 	return nil
 }
 
 // newHostInfo returns a populated hostInfo struct
-func newHostInfo(ctx context.Context) (hostInfo, error) {
+func newHostInfo(c *cli.Context) (hostInfo, error) {
 	currentHost := hostInfo{}
 	// populate hostname
 	err := currentHost.getHostName()
 	if err != nil {
 		return currentHost, err
 	}
+	// get k0s status json
+	out, err := exec.Command(k0s, "status", "-o", "json").Output()
+	if err != nil {
+		return currentHost, err
+	}
+	err = json.Unmarshal(out, &currentHost.Status)
+	if err != nil {
+		return currentHost, err
+	}
+	currentHost.RoleName = currentHost.Status.Role
 	// set up kube client
-	err = currentHost.configureKubernetesClient()
-	if err != nil {
-		return currentHost, err
-	}
+	currentHost.configureKubernetesClient()
 	// fetch node object
-	err = currentHost.getNodeObject(ctx)
-	if err != nil {
-		return currentHost, err
-	}
+	currentHost.getNodeObject(c.Context)
 	// control plane only stff
-	if currentHost.isControlPlane() {
+	if currentHost.Status.Role == "controller" {
 		// fetch controlNode
-		err := currentHost.getControlNodeObject(ctx)
-		if err != nil {
-			return currentHost, err
-		}
+		currentHost.getControlNodeObject(c.Context)
+	}
+	// try and get custom role name from the node labels
+	labels := currentHost.Node.GetLabels()
+	if value, ok := labels["kots.io/embedded-cluster-role-0"]; ok {
+		currentHost.RoleName = value
 	}
 	return currentHost, nil
 }
 
-func checkErrPrompt(err error) bool {
+func checkErrPrompt(c *cli.Context, err error) bool {
 	if err == nil {
 		return true
 	}
-	fmt.Println("-----")
 	fmt.Println(err)
-	fmt.Println("-----")
-	fmt.Println("An error has occured while trying to reset this node.")
-	fmt.Println("Continuing may leave the cluster in an unexpected state")
+	if c.Bool("force") {
+		return true
+	}
+	fmt.Println("An error occurred while trying to reset this node.")
+	if c.Bool("no-prompt") {
+		return false
+	}
+	fmt.Println("Continuing may leave the cluster in an unexpected state.")
 	return prompts.New().Confirm("Do you want to continue anyway?", false)
 }
 
@@ -196,102 +275,78 @@ var resetCommand = &cli.Command{
 	Name: "reset",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
-			Name:   "yes-really-reset",
-			Hidden: true,
-			Value:  false,
+			Name:  "no-prompt",
+			Usage: "Disable interactive prompts",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  "force",
+			Usage: "Ignore errors encountered when resetting the node. Implies --no-prompt.",
+			Value: false,
 		},
 	},
-	Usage: "Reset the node this command is run from",
+	Usage: "Reset the current node",
 	Action: func(c *cli.Context) error {
 
-		fmt.Println("This command will completely reset this node, removing it from the cluster")
-		if !prompts.New().Confirm("Do you want to continue?", false) {
-			fmt.Println("aborting.")
-			return nil
+		fmt.Println("This will remove this node from the cluster and completely reset it.")
+		fmt.Println("Do not reset another node until this reset is complete.")
+		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
+			return fmt.Errorf("Aborting")
 		}
 
-		fmt.Println("gathering facts...")
 		// populate options struct with host information
-		currentHost, err := newHostInfo(c.Context)
-		if err != nil {
-			fmt.Println(err)
-			return nil
+		currentHost, err := newHostInfo(c)
+		if !checkErrPrompt(c, err) {
+			return err
 		}
 
 		// basic check to see if it's safe to remove this node from the cluster
-		if currentHost.isControlPlane() {
-			safeToRemove, reason, err := currentHost.checkQuorumSafety(c)
-			if err != nil {
-				fmt.Println(err)
-				return nil
+		if currentHost.Status.Role == "controller" {
+			safeToRemove, reason, err := currentHost.checkResetSafety(c)
+			if !checkErrPrompt(c, err) {
+				return err
 			}
 			if !safeToRemove {
-				fmt.Println(reason)
-				fmt.Println("run reset command again with --yes-really-reset to ignore this")
-				return nil
+				return fmt.Errorf("%s\nRun reset command with --force to ignore this", reason)
 			}
-		}
-
-		// determine if this is the only node in the cluster
-		// if this is a single node we can skip a lot of steps
-		nodeList := corev1.NodeList{}
-		currentHost.Kclient.List(c.Context, &nodeList)
-		if len(nodeList.Items) == 1 {
-			nodeName := nodeList.Items[0].Name
-			if nodeName != currentHost.Hostname {
-				fmt.Println("detected a single node cluster, but the node's name doesn't match our hostname")
-				return nil
-			}
-			// stop k0s
-			fmt.Printf("resetting %s...\n", binName)
-			err = currentHost.stopAndResetK0s()
-			if !checkErrPrompt(err) {
-				return nil
-			}
-			return nil
 		}
 
 		// drain node
-		fmt.Println("draining node...")
+		fmt.Println("Draining node...")
 		err = currentHost.drainNode()
-		if !checkErrPrompt(err) {
-			return nil
+		if !checkErrPrompt(c, err) {
+			return err
 		}
 
 		// remove node from cluster
-		fmt.Println("removing node from cluster...")
-		err = currentHost.Kclient.Delete(c.Context, &currentHost.Node)
-		if !checkErrPrompt(err) {
-			return nil
+		fmt.Println("Removing node from cluster...")
+		err = currentHost.deleteNode(c.Context)
+		if !checkErrPrompt(c, err) {
+			return err
 		}
 
 		// controller pre-reset
-		if currentHost.isControlPlane() {
+		if currentHost.Status.Role == "controller" {
 
 			// delete controlNode object from cluster
-			fmt.Println("deleting controlNode...")
-			err := currentHost.Kclient.Delete(c.Context, &currentHost.ControlNode)
-			if !checkErrPrompt(err) {
-				return nil
+			err := currentHost.deleteControlNode(c.Context)
+			if !checkErrPrompt(c, err) {
+				return err
 			}
 
 			// try and leave etcd cluster
-			fmt.Println("leaving etcd cluster...")
 			err = currentHost.leaveEtcdcluster()
-			if !checkErrPrompt(err) {
-				return nil
+			if !checkErrPrompt(c, err) {
+				return err
 			}
 
-		} else if err != nil {
-			fmt.Println(err)
-			return nil
 		}
 
 		// reset
-		fmt.Printf("resetting %s...\n", binName)
-		err = currentHost.stopAndResetK0s()
-		if !checkErrPrompt(err) {
-			return nil
+		fmt.Printf("Resetting %s...\n", binName)
+		err = stopAndResetK0s()
+		if !checkErrPrompt(c, err) {
+			return err
 		}
 
 		return nil

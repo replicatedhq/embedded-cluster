@@ -18,6 +18,7 @@ jobs:
         - TestHostPreflight
         - TestUnsupportedOverrides
         - TestMultiNodeInstallation
+        - TestMultiNodeReset
     steps:
     - name: Move Docker aside
       run: |
