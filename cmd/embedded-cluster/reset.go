@@ -278,7 +278,7 @@ var resetCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "force",
-			Usage: "Ignore errors encountered when resetting the node, implies --no-prompt",
+			Usage: "Ignore errors encountered when resetting the node. Implies --no-prompt.",
 			Value: false,
 		},
 	},
