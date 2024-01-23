@@ -107,9 +107,9 @@ func (e *ElfBuilder) withBinary(bin string) error {
 	return err
 }
 
-// WithRelease adds the given release to the builder. Turns the release into an object file.
-func (c *ElfBuilder) withRelease(release string) error {
-	dstpath := path.Join(c.baseDir, "release.o")
+// withRelease adds the given release to the builder. Turns the release into an object file.
+func (e *ElfBuilder) withRelease(release string) error {
+	dstpath := path.Join(e.baseDir, "release.o")
 	command := exec.Command(
 		"objcopy",
 		"--input-target", "binary",
@@ -121,4 +121,19 @@ func (c *ElfBuilder) withRelease(release string) error {
 		return fmt.Errorf("unable to create release object: %v: %s", err, string(out))
 	}
 	return nil
+}
+
+// ExtractFromBinary extracts the embedded data from the given binary. If no embedded data is
+// found, returns nil.
+func ExtractFromBinary(binary string) ([]byte, error) {
+	fpbin, err := elf.Open(binary)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open binary: %w", err)
+	}
+	defer fpbin.Close()
+	section := fpbin.Section("sec_bundle")
+	if section == nil {
+		return nil, nil
+	}
+	return section.Data()
 }
