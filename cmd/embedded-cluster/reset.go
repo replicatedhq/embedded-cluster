@@ -258,36 +258,28 @@ var resetCommand = &cli.Command{
 
 		if c.Bool("force") {
 			err := stopAndResetK0s()
-			if err != nil {
-				fmt.Println(err)
-				return nil
-			}
-			return nil
+			return err
 		}
 
 		fmt.Println("This will remove this node from the cluster and completely reset it.")
 		if !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
-			fmt.Println("Aborting.")
-			return nil
+			return fmt.Errorf("Aborting.")
 		}
 
 		// populate options struct with host information
 		currentHost, err := newHostInfo(c.Context)
 		if !checkErrPrompt(c, err) {
-			return nil
+			return err
 		}
 
 		// basic check to see if it's safe to remove this node from the cluster
 		if currentHost.Status.Role == "controller" {
 			safeToRemove, reason, err := currentHost.checkQuorumSafety(c)
 			if err != nil {
-				fmt.Println(err)
-				return nil
+				return err
 			}
 			if !safeToRemove {
-				fmt.Println(reason)
-				fmt.Println("Run reset command with --confirm to ignore this.")
-				return nil
+				return fmt.Errorf("%s\nRun reset command with --confirm to ignore this.", reason)
 			}
 		}
 
@@ -298,14 +290,13 @@ var resetCommand = &cli.Command{
 		if len(nodeList.Items) == 1 {
 			nodeName := nodeList.Items[0].Name
 			if nodeName != currentHost.Hostname {
-				fmt.Println("Detected a single-node cluster, but the node's name doesn't match our hostname.")
-				return nil
+				return fmt.Errorf("Detected a single-node cluster, but the node's name doesn't match our hostname.")
 			}
 			// stop k0s
 			fmt.Printf("Resetting %s...\n", binName)
 			err = stopAndResetK0s()
 			if !checkErrPrompt(c, err) {
-				return nil
+				return err
 			}
 			return nil
 		}
@@ -314,14 +305,14 @@ var resetCommand = &cli.Command{
 		fmt.Println("Draining node...")
 		err = currentHost.drainNode()
 		if !checkErrPrompt(c, err) {
-			return nil
+			return err
 		}
 
 		// remove node from cluster
 		fmt.Println("Removing node from cluster...")
 		err = currentHost.Kclient.Delete(c.Context, &currentHost.Node)
 		if !checkErrPrompt(c, err) {
-			return nil
+			return err
 		}
 
 		// controller pre-reset
@@ -330,25 +321,22 @@ var resetCommand = &cli.Command{
 			// delete controlNode object from cluster
 			err := currentHost.Kclient.Delete(c.Context, &currentHost.ControlNode)
 			if !checkErrPrompt(c, err) {
-				return nil
+				return err
 			}
 
 			// try and leave etcd cluster
 			err = currentHost.leaveEtcdcluster()
 			if !checkErrPrompt(c, err) {
-				return nil
+				return err
 			}
 
-		} else if err != nil {
-			fmt.Println(err)
-			return nil
 		}
 
 		// reset
 		fmt.Printf("Resetting %s...\n", binName)
 		err = stopAndResetK0s()
 		if !checkErrPrompt(c, err) {
-			return nil
+			return err
 		}
 
 		return nil
