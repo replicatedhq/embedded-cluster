@@ -156,7 +156,7 @@ func TestMultiNodeReset(t *testing.T) {
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, []string{"check-nodes-removed.sh", "2"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to remove nodes %w:", err)
+		t.Fatalf("fail to remove nodes %s:", err)
 	}
 	t.Log(stdout)
 
