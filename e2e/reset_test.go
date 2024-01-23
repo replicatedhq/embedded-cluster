@@ -146,7 +146,7 @@ func TestMultiNodeReset(t *testing.T) {
 	}
 	t.Log(stdout)
 
-	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "node", "reset", "--confirm", "--no-prompt"})
+	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "node", "reset", "--force"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to reset controller node")
