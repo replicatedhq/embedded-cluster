@@ -273,7 +273,7 @@ var resetCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "no-prompt",
-			Usage: "Do not prompt user when it is not necessary",
+			Usage: "Disable interactive prompts",
 			Value: false,
 		},
 		&cli.BoolFlag{
