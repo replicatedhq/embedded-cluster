@@ -97,7 +97,7 @@ func (h *hostInfo) drainNode() error {
 // configureKubernetesClient optimistically sets up a client to use for kubernetes api calls
 // it stores any errors in h.KclientError
 func (h *hostInfo) configureKubernetesClient() {
-	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
+	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath+"f")
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		h.KclientError = fmt.Errorf("unable to create cluster client: %w", err)
@@ -260,10 +260,13 @@ func checkErrPrompt(c *cli.Context, err error) bool {
 		return true
 	}
 	fmt.Println(err)
-	if c.Bool("force") || c.Bool("no-prompt") {
+	if c.Bool("force") {
 		return true
 	}
 	fmt.Println("An error occurred while trying to reset this node.")
+	if c.Bool("no-prompt") {
+		return false
+	}
 	fmt.Println("Continuing may leave the cluster in an unexpected state.")
 	return prompts.New().Confirm("Do you want to continue anyway?", false)
 }
@@ -300,7 +303,7 @@ var resetCommand = &cli.Command{
 		// basic check to see if it's safe to remove this node from the cluster
 		if currentHost.Status.Role == "controller" {
 			safeToRemove, reason, err := currentHost.checkResetSafety(c)
-			if err != nil {
+			if !checkErrPrompt(c, err) {
 				return err
 			}
 			if !safeToRemove {
