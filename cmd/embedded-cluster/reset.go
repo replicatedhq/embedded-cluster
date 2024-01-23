@@ -248,9 +248,9 @@ var resetCommand = &cli.Command{
 			Value: false,
 		},
 		&cli.BoolFlag{
-			Name:   "force",
-			Hidden: true,
-			Value:  false,
+			Name:  "force",
+			Usage: "Skip all checks and force reset the node",
+			Value: false,
 		},
 	},
 	Usage: "Reset the current node",
