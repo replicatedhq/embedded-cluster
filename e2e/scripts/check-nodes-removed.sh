@@ -8,7 +8,7 @@ main() {
 
     total_nodes=$(kubectl get nodes --no-headers | wc -l)
 
-    if [ "$total_nodes" -ne "$expected_nodes" ]
+    if [ "$total_nodes" -ne "$expected_nodes" ]; then
       echo "Cluster size didn't match expected nodes"
       exit 1
     fi
