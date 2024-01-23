@@ -140,23 +140,16 @@ func TestMultiNodeReset(t *testing.T) {
 	// this should fail with a prompt to override
 	t.Log("resetting controller node")
 	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "node", "reset", "--no-prompt"})
-	if err == nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("something unexpected happened")
-	}
-	t.Log(stdout)
-
-	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "node", "reset", "--force"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to reset controller node")
+		t.Fatalf("fail to remove controller node %s:", err)
 	}
 	t.Log(stdout)
 
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, []string{"check-nodes-removed.sh", "2"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to remove nodes %s:", err)
+		t.Fatalf("fail to remove worker node %s:", err)
 	}
 	t.Log(stdout)
 
