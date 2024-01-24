@@ -103,7 +103,12 @@ func detectChartDrift(combinedConfigs *k0sv1beta1.HelmExtensions, installedChart
 				continue
 			}
 			chartSeen = true
-			if targetChart.Version != chart.Status.Version {
+
+			checkVersion := chart.Status.Version
+			if checkVersion == "" { // status will not contain the version if there is an error
+				checkVersion = chart.Spec.Version
+			}
+			if targetChart.Version != checkVersion {
 				chartDrift = true
 			}
 		}

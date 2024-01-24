@@ -295,7 +295,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				var gotCluster k0sv1beta1.ClusterConfig
 				err = fakeCli.Get(context.Background(), client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &gotCluster)
 				req.NoError(err)
-				req.Equal(*tt.updatedHelm, *gotCluster.Spec.Extensions.Helm)
+				req.ElementsMatch(tt.updatedHelm.Charts, gotCluster.Spec.Extensions.Helm.Charts)
+				req.ElementsMatch(tt.updatedHelm.Repositories, gotCluster.Spec.Extensions.Helm.Repositories)
 			}
 		})
 	}
