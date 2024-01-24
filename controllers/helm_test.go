@@ -251,18 +251,18 @@ func Test_detectChartDrift(t *testing.T) {
 					Items: []k0shelm.Chart{
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test",
+								Version: "1.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "1.0.0",
+								ChartName: "test",
 							},
 						},
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test2",
+								Version: "2.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "2.0.0",
+								ChartName: "test2",
 							},
 						},
 					},
@@ -290,10 +290,10 @@ func Test_detectChartDrift(t *testing.T) {
 					Items: []k0shelm.Chart{
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test",
+								Version: "1.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "1.0.0",
+								ChartName: "test",
 							},
 						},
 					},
@@ -317,18 +317,18 @@ func Test_detectChartDrift(t *testing.T) {
 					Items: []k0shelm.Chart{
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test",
+								Version: "1.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "1.0.0",
+								ChartName: "test",
 							},
 						},
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test2",
+								Version: "2.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "2.0.0",
+								ChartName: "test2",
 							},
 						},
 					},
@@ -352,10 +352,10 @@ func Test_detectChartDrift(t *testing.T) {
 					Items: []k0shelm.Chart{
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test",
+								Version: "1.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "1.0.0",
+								ChartName: "test",
 							},
 						},
 					},
@@ -383,20 +383,20 @@ func Test_detectChartDrift(t *testing.T) {
 					Items: []k0shelm.Chart{
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test",
-								Error:       "test chart error",
+								Error:   "test chart error",
+								Version: "1.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "1.0.0",
+								ChartName: "test",
 							},
 						},
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test2",
-								Error:       "test chart two error",
+								Error:   "test chart two error",
+								Version: "2.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "2.0.0",
+								ChartName: "test2",
 							},
 						},
 					},
@@ -424,20 +424,20 @@ func Test_detectChartDrift(t *testing.T) {
 					Items: []k0shelm.Chart{
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test",
-								Error:       "test chart error",
+								Error:   "test chart error",
+								Version: "1.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "1.0.0",
+								ChartName: "test",
 							},
 						},
 						{
 							Status: k0shelm.ChartStatus{
-								ReleaseName: "test2",
-								Error:       "test chart two error",
+								Error:   "test chart two error",
+								Version: "2.0.0",
 							},
 							Spec: k0shelm.ChartSpec{
-								Version: "2.0.0",
+								ChartName: "test2",
 							},
 						},
 					},

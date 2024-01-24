@@ -66,3 +66,10 @@ func MetadataFor(ctx context.Context, version string, upstream string) (*Meta, e
 	cache[version] = &meta
 	return &meta, nil
 }
+
+// CacheMeta caches a given meta for a given version. It is intended for unit testing.
+func CacheMeta(version string, meta Meta) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	cache[version] = &meta
+}
