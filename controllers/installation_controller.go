@@ -485,7 +485,7 @@ func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, it
 //+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations/finalizers,verbs=update
 //+kubebuilder:rbac:groups=autopilot.k0sproject.io,resources=plans,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=k0s.k0sproject.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=helm.k0sproject.io,resources=charts,verbs=get;list
+//+kubebuilder:rbac:groups=helm.k0sproject.io,resources=charts,verbs=get;list;watch
 
 // Reconcile reconcile the installation object.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
