@@ -80,10 +80,25 @@ function metadata() {
 
 }
 
+function embeddedcluster() {
+    if [ -z "${EC_VERSION}" ]; then
+        echo "EC_VERSION unset, not uploading embedded cluster release"
+        return 0
+    fi
+    # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
+    # if it does, upload it as releases/${ec_version}.tgz
+    if [ -f embedded-cluster-linux-amd64.tgz ]; then
+        retry 3 aws s3 cp embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${EC_VERSION}.tgz"
+    else
+        echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
+    fi
+}
+
 # there are two files to be uploaded for each release - the k0s binary and the metadata file
 function main() {
     k0sbin
     metadata
+    embeddedcluster
 }
 
 main "$@"
