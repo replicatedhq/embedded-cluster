@@ -293,19 +293,20 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 	}
 	chartErrors, chartDrift := detectChartDrift(combinedConfigs, installedCharts)
 
+	// If any chart has errors, update installer state and return
+	if len(chartErrors) > 0 {
+		chartErrorString := strings.Join(chartErrors, ",")
+		chartErrorString = "failed to update helm charts: " + chartErrorString
+		log.Info("chart errors", "errors", chartErrorString)
+		if len(chartErrorString) > 1024 {
+			chartErrorString = chartErrorString[:1024]
+		}
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, chartErrorString)
+		return nil
+	}
+
 	// If all addons match their target version, mark installation as complete (or as failed, if there are errors)
 	if !chartDrift {
-		// If any chart has errors, update installer state and return
-		if len(chartErrors) > 0 {
-			chartErrorString := strings.Join(chartErrors, ",")
-			chartErrorString = "failed to update helm charts: " + chartErrorString
-			log.Info("chart errors", "errors", chartErrorString)
-			if len(chartErrorString) > 1024 {
-				chartErrorString = chartErrorString[:1024]
-			}
-			in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, chartErrorString)
-			return nil
-		}
 		in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded")
 		return nil
 	}

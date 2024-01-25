@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"testing"
+
 	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
@@ -12,7 +14,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
 func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
@@ -104,14 +105,14 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "metachart",
 						},
-						Spec:   k0shelmv1beta1.ChartSpec{ChartName: "metachart"},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "metachart"},
 						Status: k0shelmv1beta1.ChartStatus{Version: "1"},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "extchart",
 						},
-						Spec:   k0shelmv1beta1.ChartSpec{ChartName: "extchart"},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "extchart"},
 						Status: k0shelmv1beta1.ChartStatus{Version: "2"},
 					},
 				},
@@ -157,14 +158,14 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "metachart",
 						},
-						Spec:   k0shelmv1beta1.ChartSpec{ChartName: "metachart"},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "metachart"},
 						Status: k0shelmv1beta1.ChartStatus{Version: "1", Error: "metaerror"},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "extchart",
 						},
-						Spec:   k0shelmv1beta1.ChartSpec{ChartName: "extchart"},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "extchart"},
 						Status: k0shelmv1beta1.ChartStatus{Version: "2", Error: "exterror"},
 					},
 				},

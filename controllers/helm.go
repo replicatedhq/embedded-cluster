@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+
 	"github.com/k0sproject/dig"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -86,10 +87,7 @@ func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.
 func detectChartDrift(combinedConfigs *k0sv1beta1.HelmExtensions, installedCharts k0shelm.ChartList) ([]string, bool) {
 	targetCharts := combinedConfigs.Charts
 	chartErrors := []string{}
-	chartDrift := false
-	if len(installedCharts.Items) != len(targetCharts) { // if the desired numbers of charts are different, there is drift
-		chartDrift = true
-	}
+	chartDrift := len(installedCharts.Items) != len(targetCharts)
 	// grab the installed charts
 	for _, chart := range installedCharts.Items {
 		// extract any errors from installed charts
@@ -99,7 +97,7 @@ func detectChartDrift(combinedConfigs *k0sv1beta1.HelmExtensions, installedChart
 		// check for version drift between installed charts and charts in the installer metadata
 		chartSeen := false
 		for _, targetChart := range targetCharts {
-			if targetChart.Name != chart.Spec.ChartName {
+			if targetChart.Name != chart.Spec.ReleaseName {
 				continue
 			}
 			chartSeen = true
