@@ -7,10 +7,9 @@ require (
 	github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c
 	github.com/k0sproject/version v0.6.0
 	github.com/ohler55/ojg v1.21.0
-	github.com/onsi/ginkgo/v2 v2.14.0
+	github.com/onsi/ginkgo/v2 v2.15.0
 	github.com/onsi/gomega v1.30.0
 	github.com/stretchr/testify v1.8.4
-	gotest.tools/v3 v3.5.1
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
