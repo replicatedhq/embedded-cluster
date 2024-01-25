@@ -63,7 +63,9 @@ func (e *EmbeddedClusterOperator) HostPreflights() (*v1beta2.HostPreflightSpec, 
 // GetProtectedFields returns the protected fields for the embedded charts.
 // placeholder for now.
 func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
-	protectedFields := []string{}
+	protectedFields := []string{
+		"embeddedBinaryName",
+	}
 	return map[string][]string{releaseName: protectedFields}
 }
 
