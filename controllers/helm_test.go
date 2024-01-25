@@ -446,12 +446,46 @@ func Test_detectChartDrift(t *testing.T) {
 			wantDrift:       true,
 			wantChartErrors: []string{"test chart error", "test chart two error"},
 		},
+		{
+			name: "drift values",
+			args: args{
+				combinedConfigs: &k0sv1beta1.HelmExtensions{
+					Charts: []k0sv1beta1.Chart{
+						{
+							Name:    "test",
+							Version: "1.0.0",
+							Values: `
+                foo: bar
+              `,
+						},
+					},
+				},
+				installedCharts: k0shelm.ChartList{
+					Items: []k0shelm.Chart{
+						{
+							Status: k0shelm.ChartStatus{
+								Version: "1.0.0",
+							},
+							Spec: k0shelm.ChartSpec{
+								ReleaseName: "test",
+								Values: `
+                  foo: asdf
+                `,
+							},
+						},
+					},
+				},
+			},
+			wantDrift:       true,
+			wantChartErrors: []string{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			gotErrors, gotDrift := detectChartDrift(tt.args.combinedConfigs, tt.args.installedCharts)
+			gotErrors, gotDrift, err := detectChartDrift(tt.args.combinedConfigs, tt.args.installedCharts)
+			req.NoError(err)
 			req.Equal(tt.wantChartErrors, gotErrors)
 			req.Equal(tt.wantDrift, gotDrift)
 		})

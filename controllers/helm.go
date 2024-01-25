@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/k0sproject/dig"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
@@ -84,7 +85,7 @@ func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.
 
 // detect if the charts currently installed in the cluster (installedCharts) match the desired charts (combinedConfigs)
 // also detect if any of the charts installed in the cluster contain error messages
-func detectChartDrift(combinedConfigs *k0sv1beta1.HelmExtensions, installedCharts k0shelm.ChartList) ([]string, bool) {
+func detectChartDrift(combinedConfigs *k0sv1beta1.HelmExtensions, installedCharts k0shelm.ChartList) ([]string, bool, error) {
 	targetCharts := combinedConfigs.Charts
 	chartErrors := []string{}
 	chartDrift := len(installedCharts.Items) != len(targetCharts)
@@ -94,7 +95,7 @@ func detectChartDrift(combinedConfigs *k0sv1beta1.HelmExtensions, installedChart
 		if chart.Status.Error != "" {
 			chartErrors = append(chartErrors, chart.Status.Error)
 		}
-		// check for version drift between installed charts and charts in the installer metadata
+		// check for version and values drift between installed charts and charts in the installer metadata
 		chartSeen := false
 		for _, targetChart := range targetCharts {
 			if targetChart.Name != chart.Spec.ReleaseName {
@@ -109,12 +110,28 @@ func detectChartDrift(combinedConfigs *k0sv1beta1.HelmExtensions, installedChart
 			if targetChart.Version != checkVersion {
 				chartDrift = true
 			}
+			targetValuesMap := map[string]interface{}{}
+			err := yaml.Unmarshal([]byte(targetChart.Values), &targetValuesMap)
+			if err != nil {
+				return nil, false, fmt.Errorf("target chart %s values error: %w", targetChart.Name, err)
+			}
+
+			currentValuesMap := map[string]interface{}{}
+			err = yaml.Unmarshal([]byte(chart.Spec.Values), &currentValuesMap)
+			if err != nil {
+				return nil, false, fmt.Errorf("existing chart %s values error: %w", chart.Spec.ReleaseName, err)
+			}
+
+			if !reflect.DeepEqual(targetValuesMap, currentValuesMap) {
+				chartDrift = true
+			}
+
 		}
 		if !chartSeen { // if this chart in the cluster is not in the target spec, there is drift
 			chartDrift = true
 		}
 	}
-	return chartErrors, chartDrift
+	return chartErrors, chartDrift, nil
 }
 
 // merge the helmcharts in the cluster with the charts we desire to be in the cluster
