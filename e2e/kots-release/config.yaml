@@ -4,6 +4,7 @@ metadata:
   name: "testconfig"
 spec:
   roles:
+    version: "dev-metadata"
     controller:
       labels:
         controller-label: controller-label-value
