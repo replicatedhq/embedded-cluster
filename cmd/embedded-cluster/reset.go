@@ -8,6 +8,8 @@ import (
 	"os/exec"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
+	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/k0sproject/k0s/pkg/etcd"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -34,12 +36,15 @@ type hostInfo struct {
 }
 
 type k0sStatus struct {
-	Role string  `json:"Role"`
-	Vars k0sVars `json:"K0sVars"`
+	Role          string                `json:"Role"`
+	Vars          k0sVars               `json:"K0sVars"`
+	ClusterConfig v1beta1.ClusterConfig `json:"ClusterConfig"`
 }
 
 type k0sVars struct {
 	KubeletAuthConfigPath string `json:"KubeletAuthConfigPath"`
+	CertRootDir           string `json:"CertRootDir"`
+	EtcdCertDir           string `json:"EtcdCertDir"`
 }
 
 var (
@@ -109,6 +114,7 @@ func (h *hostInfo) configureKubernetesClient() {
 		return
 	}
 	autopilot.AddToScheme(h.Kclient.Scheme())
+	v1beta1.AddToScheme(h.Kclient.Scheme())
 }
 
 // getHostName fetches the hostname for the node
@@ -159,11 +165,19 @@ func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
 		return false, "", fmt.Errorf("unable to load cluster client: %w", h.KclientError)
 	}
 
+	etcdClient, err := etcd.NewClient(h.Status.Vars.CertRootDir, h.Status.Vars.EtcdCertDir, h.Status.ClusterConfig.Spec.Storage.Etcd)
+	if err != nil {
+		return false, "", fmt.Errorf("unable to create etcd client: %w", err)
+	}
+	if etcdClient.Health(c.Context) != nil {
+		return false, "Etcd is not ready. Please wait up to 5 minutes and try again.", nil
+	}
+
 	// get a rough picture of the cluster topology
 	workers := []string{}
 	controllers := []string{}
 	nodeList := corev1.NodeList{}
-	err := h.Kclient.List(c.Context, &nodeList)
+	err = h.Kclient.List(c.Context, &nodeList)
 	if err != nil {
 		return false, "", fmt.Errorf("unable to list Nodes: %w", err)
 	}
