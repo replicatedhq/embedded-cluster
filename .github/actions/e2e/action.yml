@@ -1,5 +1,5 @@
 name: End to End
-
+description: e2e tests for embedded-cluster
 inputs:
   test-env:
     description: 'test environment - onpr or onmerge'
