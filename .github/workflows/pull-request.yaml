@@ -72,12 +72,12 @@ jobs:
         export EC_VERSION="dev-metadata"
         ./scripts/cache-files.sh
 
-    - name: Cache files
+    - name: Cache files for integration test
       if: github.actor != 'dependabot[bot]'
       env:
-        S3_BUCKET: "tf-embedded-cluster-binaries"
-        AWS_ACCESS_KEY_ID: ${{ secrets.PROD_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+        S3_BUCKET: "tf-staging-embedded-cluster-bin"
+        AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
         AWS_REGION: "us-east-1"
       run: |
         export EC_VERSION="dev-metadata"

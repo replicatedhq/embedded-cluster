@@ -1,0 +1,35 @@
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: "testconfig"
+spec:
+  roles:
+    version: "dev-metadata"
+    controller:
+      labels:
+        controller-label: controller-label-value
+      name: controller-test
+    custom:
+      - labels:
+          abc-test-label: abc-test-label-value
+          abc-test-label-two: abc-test-label-value-2
+        name: abc
+      - labels:
+          xyz-test-label: xyz-value
+        name: xyz
+  unsupportedOverrides:
+    k0s: |
+      config:
+        metadata:
+          name: foo
+        spec:
+          telemetry:
+            enabled: false
+  extensions:
+    helm:
+      charts:
+        - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
+          name: memcached-vendor-chart
+          namespace: memcached
+          order: 4
+          version: 6.6.2

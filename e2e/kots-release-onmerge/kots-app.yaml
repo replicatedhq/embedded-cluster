@@ -4,7 +4,7 @@ kind: Application
 metadata:
   name: nginx
 spec:
-  title: Embedded Cluster Smoke Test App
+  title: Embedded Cluster Smoke Test Staging App
   icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
   statusInformers:
     - deployment/nginx
