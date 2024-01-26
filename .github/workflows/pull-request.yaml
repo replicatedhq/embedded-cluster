@@ -82,3 +82,11 @@ jobs:
       run: |
         export EC_VERSION="dev-metadata"
         ./scripts/cache-files.sh
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - uses: ./.github/actions/e2e
+      with:
+        test-env: 'onpr'
