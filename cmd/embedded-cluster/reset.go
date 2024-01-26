@@ -167,7 +167,7 @@ func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
 
 	etcdClient, err := etcd.NewClient(h.Status.Vars.CertRootDir, h.Status.Vars.EtcdCertDir, h.Status.ClusterConfig.Spec.Storage.Etcd)
 	if err != nil {
-		return false, "", fmt.Errorf("unable to create etcd client: %v", err)
+		return false, "", fmt.Errorf("unable to create etcd client: %w", err)
 	}
 	if etcdClient.Health(c.Context) != nil {
 		return false, "Etcd is not ready. Please wait up to 5 minutes and try again.", nil
