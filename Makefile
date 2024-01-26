@@ -122,6 +122,13 @@ e2e-test-onpr: embedded-release-onpr
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
 	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
 
+.PHONY: e2e-test-onmerge
+e2e-test-onmerge: embedded-release-onmerge
+	mkdir -p output/tmp
+	rm -rf output/tmp/id_rsa*
+	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
+	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
+
 .PHONY: clean
 clean:
 	rm -rf output

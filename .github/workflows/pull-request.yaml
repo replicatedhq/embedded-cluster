@@ -84,9 +84,25 @@ jobs:
         ./scripts/cache-files.sh
   e2e:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tests:
+          - TestSingleNodeInstallation
+          - TestSingleNodeInstallationRockyLinux8
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos8Stream
+          - TestVersion
+          - TestMultiNodeInteractiveInstallation
+          - TestInstallWithDisabledAddons
+          - TestHostPreflight
+          - TestUnsupportedOverrides
+          - TestMultiNodeInstallation
+          - TestMultiNodeReset
     steps:
     - name: Checkout
       uses: actions/checkout@v4
     - uses: ./.github/actions/e2e
       with:
         test-env: 'onpr'
+        test-name: '${{ matrix.tests }}'
