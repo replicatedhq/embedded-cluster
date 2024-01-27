@@ -39,15 +39,6 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-    - name: Remove unnecessary files
-      run: |
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/hostedtoolcache/CodeQL
-        sudo rm -rf /opt/hostedtoolcache/Python
     - name: Checkout
       uses: actions/checkout@v4
     - name: Get short commit hash

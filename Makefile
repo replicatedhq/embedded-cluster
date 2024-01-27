@@ -71,11 +71,11 @@ pkg/goods/bins/embedded-cluster/kubectl-preflight:
 
 output/tmp/release-onmerge.tar.gz:
 	mkdir -p output/tmp
-	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-onmerge .
+	tar -czf output/tmp/release-onmerge.tar.gz -C e2e/kots-release-onmerge .
 
 output/tmp/release-onpr.tar.gz:
 	mkdir -p output/tmp
-	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-onpr .
+	tar -czf output/tmp/release-onpr.tar.gz -C e2e/kots-release-onpr .
 
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
