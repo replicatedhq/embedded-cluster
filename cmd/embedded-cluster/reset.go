@@ -240,15 +240,18 @@ func newHostInfo(c *cli.Context) (hostInfo, error) {
 	// populate hostname
 	err := currentHost.getHostName()
 	if err != nil {
+		currentHost.KclientError = fmt.Errorf("client not initialized")
 		return currentHost, err
 	}
 	// get k0s status json
 	out, err := exec.Command(k0s, "status", "-o", "json").Output()
 	if err != nil {
+		currentHost.KclientError = fmt.Errorf("client not initialized")
 		return currentHost, err
 	}
 	err = json.Unmarshal(out, &currentHost.Status)
 	if err != nil {
+		currentHost.KclientError = fmt.Errorf("client not initialized")
 		return currentHost, err
 	}
 	currentHost.RoleName = currentHost.Status.Role
