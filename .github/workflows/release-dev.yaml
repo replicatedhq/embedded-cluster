@@ -58,6 +58,7 @@ jobs:
           - TestUnsupportedOverrides
           - TestMultiNodeInstallation
           - TestMultiNodeReset
+          - TestCommandsRequireSudo
     steps:
       - name: Checkout
         uses: actions/checkout@v4
