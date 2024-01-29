@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -40,10 +41,21 @@ func init() {
 	}
 }
 
+// NoopCloser adds a Close to a bytes.Buffer.
+type NoopCloser struct {
+	*bytes.Buffer
+}
+
+// Close is the no-op of the NoopCloser.
+func (n *NoopCloser) Close() error {
+	return nil
+}
+
 // Input are the options passed in to the cluster creation plus some data
 // for internal consumption only.
 type Input struct {
 	Nodes               int
+	CreateRegularUser   bool
 	SSHPublicKey        string
 	SSHPrivateKey       string
 	EmbeddedClusterPath string
@@ -106,10 +118,11 @@ func (o *Output) Destroy() {
 
 // Command is a command to be run in a node.
 type Command struct {
-	Node   string
-	Line   []string
-	Stdout io.WriteCloser
-	Stderr io.WriteCloser
+	Node        string
+	Line        []string
+	Stdout      io.WriteCloser
+	Stderr      io.WriteCloser
+	RegularUser bool
 }
 
 // Run runs a command in a node.
@@ -118,10 +131,18 @@ func Run(ctx context.Context, t *testing.T, cmd Command) error {
 	if err != nil {
 		t.Fatalf("Failed to connect to LXD: %v", err)
 	}
+	var env map[string]string
+	var uid uint32
+	if cmd.RegularUser {
+		uid = 9999
+		env = map[string]string{"HOME": "/home/user"}
+	}
 	req := api.InstanceExecPost{
 		Command:     cmd.Line,
 		WaitForWS:   true,
 		Interactive: false,
+		User:        uid,
+		Environment: env,
 	}
 	done := make(chan bool)
 	args := lxd.InstanceExecArgs{
@@ -159,12 +180,43 @@ func NewTestCluster(in *Input) *Output {
 	nodes := CreateNodes(in)
 	for _, node := range nodes {
 		CopyFilesToNode(in, node)
+		if in.CreateRegularUser {
+			CreateRegularUser(in, node)
+		}
 	}
 	return &Output{
 		T:       in.T,
 		Nodes:   nodes,
 		network: in.network,
 		id:      in.id,
+	}
+}
+
+// CreateRegularUser adds an unprivileged user to the node. The username is
+// "user" and there is no password. Creates the user with UID 9999.
+func CreateRegularUser(in *Input, node string) {
+	in.T.Logf("Creating regular user `user(9999)` on node %s", node)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
+	cmd := Command{
+		Node:   node,
+		Stdout: &NoopCloser{stdout},
+		Stderr: &NoopCloser{stderr},
+		Line: []string{
+			"useradd",
+			"-d", "/home/user",
+			"-s", "/bin/bash",
+			"-u", "9999",
+			"-m",
+			"user",
+		},
+	}
+	if err := Run(ctx, in.T, cmd); err != nil {
+		in.T.Logf("stdout: %s", stdout.String())
+		in.T.Logf("stderr: %s", stderr.String())
+		in.T.Fatalf("Unable to create regular user: %s", err)
 	}
 }
 

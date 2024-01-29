@@ -304,9 +304,6 @@ var resetCommand = &cli.Command{
 	},
 	Usage: "Reset the current node",
 	Action: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("reset command must be run as root")
-		}
 		fmt.Println("This will remove this node from the cluster and completely reset it.")
 		fmt.Println("Do not reset another node until this reset is complete.")
 		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {

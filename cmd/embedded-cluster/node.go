@@ -13,6 +13,12 @@ import (
 var nodeCommands = &cli.Command{
 	Name:  "node",
 	Usage: "Manage cluster nodes",
+	Before: func(c *cli.Context) error {
+		if os.Getuid() != 0 {
+			return fmt.Errorf("node command must be run as root")
+		}
+		return nil
+	},
 	Subcommands: []*cli.Command{
 		nodeStopCommand,
 		nodeStartCommand,
