@@ -74,6 +74,22 @@ wait_for_memcached_pods() {
     done
 }
 
+wait_for_nginx_pods() {
+    ready=$(kubectl get pods -n kotsadm | grep -c nginx || true)
+    counter=0
+    while [ "$ready" -lt "1" ]; do
+        if [ "$counter" -gt 36 ]; then
+            return 1
+        fi
+        sleep 5
+        counter=$((counter+1))
+        echo "Waiting for nginx pods"
+        ready=$(kubectl get pods -n kotsadm | grep -c nginx || true)
+        kubectl get pods -n kotsadm 2>&1 || true
+        echo "$ready"
+    done
+}
+
 main() {
     if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
@@ -98,6 +114,10 @@ main() {
     fi
     if ! wait_for_memcached_pods; then
         echo "Failed waiting for memcached pods"
+        exit 1
+    fi
+    if ! wait_for_nginx_pods; then
+        echo "Failed waiting for the application's nginx pods"
         exit 1
     fi
     if ! systemctl restart embedded-cluster; then

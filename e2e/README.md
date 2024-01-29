@@ -59,9 +59,10 @@ and then add it to the `.github/workflows/e2e.yaml` file.
 ### Kots test application
 
 During end to end tests we embed a license for a smoke test kots app,
-this app can be found in:
+this app can be found under the 'Replicated, Inc.' team on staging:
 
-https://vendor.replicated.com/apps/embedded-cluster-smoke-test-app
+https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app
 
-Make sure to update the application yaml files under kots-release
-directory if you create a new release of the remote application.
+Make sure to update the application yaml files under kots-release-onmerge
+and kots-release-onpr directories if you create a new release of the remote
+application.

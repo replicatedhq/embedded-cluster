@@ -70,6 +70,15 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Log("stderr:", stderr)
 		t.Fatalf("cluster or app not ready: %s", stdout)
 	}
+	t.Log("checking installation state")
+	line = []string{"check-installation-state.sh"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+	t.Log("installation state:", stdout)
 }
 
 func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
