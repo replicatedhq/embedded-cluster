@@ -59,6 +59,7 @@ type Input struct {
 	SSHPublicKey        string
 	SSHPrivateKey       string
 	EmbeddedClusterPath string
+	WithProxy           bool
 	Image               string
 	network             string
 	T                   *testing.T
@@ -76,6 +77,7 @@ type File struct {
 // names and the cluster id.
 type Output struct {
 	Nodes   []string
+	Proxy   string
 	network string
 	id      string
 	T       *testing.T
@@ -87,7 +89,11 @@ func (o *Output) Destroy() {
 	if err != nil {
 		o.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	for _, node := range o.Nodes {
+	nodes := o.Nodes
+	if o.Proxy != "" {
+		nodes = append(nodes, o.Proxy)
+	}
+	for _, node := range nodes {
 		reqstate := api.InstanceStatePut{
 			Action:  "stop",
 			Timeout: -1,
@@ -184,6 +190,9 @@ func NewTestCluster(in *Input) *Output {
 			CreateRegularUser(in, node)
 		}
 	}
+	if in.WithProxy {
+		CreateProxy(in)
+	}
 	return &Output{
 		T:       in.T,
 		Nodes:   nodes,
@@ -192,32 +201,155 @@ func NewTestCluster(in *Input) *Output {
 	}
 }
 
+// CreateProxy creates a node that attaches to both networks (external and internal),
+// once this is done we install squid and configure it to be a proxy. We also make
+// sure that all nodes are configured to use the proxy as default gateway. Internet
+// won't work on them by design (exception made for DNS requests and http requests
+// using the proxy). Proxy is accessible from the cluster nodes on 10.0.0.254:3128.
+func CreateProxy(in *Input) {
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		in.T.Fatalf("Failed to connect to LXD: %v", err)
+	}
+	name := fmt.Sprintf("node-%s-proxy", in.id)
+	profile := fmt.Sprintf("profile-%s", in.id)
+	innet := fmt.Sprintf("external-%s", in.id)
+	exnet := fmt.Sprintf("internal-%s", in.id)
+	request := api.InstancesPost{
+		Name: name,
+		Type: api.InstanceTypeContainer,
+		Source: api.InstanceSource{
+			Type:  "image",
+			Alias: "ubuntu/jammy",
+		},
+		InstancePut: api.InstancePut{
+			Profiles:     []string{profile},
+			Architecture: "x86_64",
+			Config: map[string]string{
+				"security.privileged": "true",
+			},
+			Devices: map[string]map[string]string{
+				"eth0": {
+					"name":    "eth0",
+					"network": innet,
+					"type":    "nic",
+				},
+				"eth1": {
+					"name":    "eth1",
+					"network": exnet,
+					"type":    "nic",
+				},
+				"kmsg": {
+					"path":   "/dev/kmsg",
+					"source": "/dev/kmsg",
+					"type":   "unix-char",
+				},
+			},
+			Ephemeral: true,
+		},
+	}
+	in.T.Logf("Creating proxy %s", name)
+	if op, err := client.CreateInstance(request); err != nil {
+		in.T.Fatalf("Failed to create proxy %s: %v", name, err)
+	} else if err := op.Wait(); err != nil {
+		in.T.Fatalf("Failed to wait for proxy %s: %v", name, err)
+	}
+	in.T.Logf("Starting proxy %s", name)
+	reqstate := api.InstanceStatePut{Action: "start", Timeout: -1}
+	if op, err := client.UpdateInstanceState(name, reqstate, ""); err != nil {
+		in.T.Fatalf("Failed to start proxy %s: %v", name, err)
+	} else if err := op.Wait(); err != nil {
+		in.T.Fatalf("Failed to wait for proxy start %s: %v", name, err)
+	}
+	state := &api.InstanceState{}
+	for state.Status != "Running" {
+		time.Sleep(5 * time.Second)
+		in.T.Logf("Waiting for proxy %s to start (running)", name)
+		if state, _, err = client.GetInstanceState(name); err != nil {
+			in.T.Fatalf("Failed to get proxy state %s: %v", name, err)
+		}
+	}
+	ConfigureProxy(in)
+}
+
+// RunCommand runs the provided command on the provided node (name). Implements a
+// timeout of 2 minutes for the command to run and if it fails calls T.Failf().
+func RunCommandOnNode(in *Input, cmdline []string, name string) {
+	in.T.Logf("Running `%s` on proxy %s", strings.Join(cmdline, " "), name)
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
+	cmd := Command{
+		Node:   name,
+		Line:   cmdline,
+		Stdout: &NoopCloser{stdout},
+		Stderr: &NoopCloser{stderr},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if err := Run(ctx, in.T, cmd); err != nil {
+		in.T.Logf("stdout: %s", stdout.String())
+		in.T.Logf("stderr: %s", stderr.String())
+		in.T.Fatalf("Failed to run command: %v", err)
+	}
+}
+
+// ConfigureProxy installs squid and iptables on the target node. Configures the needed
+// ip addresses and sets up iptables to allow nat for requests coming out on eth0 using
+// port 53(UDP). Configures squid to accept requests coming from 10.0.0.0/24 network.
+// Proxy will be listening on http://10.0.0.254:3128.
+func ConfigureProxy(in *Input) {
+	// starts by installing dependencies, setting up the second network interface ip
+	// address and configuring iptables to allow dns requests forwarding (nat).
+	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
+	for _, cmd := range [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "-y", "iptables", "squid"},
+		{"ip", "addr", "add", "10.0.0.254/24", "dev", "eth1"},
+		{"ip", "link", "set", "eth1", "up"},
+		{"sysctl", "-w", "net.ipv4.ip_forward=1"},
+		{"iptables", "-t", "nat", "-o", "eth0", "-A", "POSTROUTING", "-p", "udp", "--dport", "53", "-j", "MASQUERADE"},
+	} {
+		RunCommandOnNode(in, cmd, proxyName)
+	}
+
+	// create a simple squid configuration that allows for localnet access. upload it
+	// to the proxy in the right location. restart squid to apply the configuration.
+	tmpfile, err := os.CreateTemp("", "squid-config-*.conf")
+	if err != nil {
+		in.T.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+	if _, err = tmpfile.WriteString("http_access allow localnet\n"); err != nil {
+		in.T.Fatalf("Failed to write to temp file: %v", err)
+	}
+	file := File{SourcePath: tmpfile.Name(), DestPath: "/etc/squid/conf.d/ec.conf", Mode: 0644}
+	tmpfile.Close()
+	CopyFileToNode(in, proxyName, file)
+	RunCommandOnNode(in, []string{"systemctl", "restart", "squid"}, proxyName)
+
+	// set the default route on all other nodes to point to the proxy we just created.
+	// this makes it easier to ensure no internet will work on them other than dns and
+	// http requests using the proxy.
+	for i := 0; i < in.Nodes; i++ {
+		name := fmt.Sprintf("node-%s-%02d", in.id, i)
+		for _, cmd := range [][]string{
+			{"ip", "route", "del", "default"},
+			{"ip", "route", "add", "default", "via", "10.0.0.254"},
+		} {
+			RunCommandOnNode(in, cmd, name)
+		}
+	}
+}
+
 // CreateRegularUser adds an unprivileged user to the node. The username is
 // "user" and there is no password. Creates the user with UID 9999.
 func CreateRegularUser(in *Input, node string) {
 	in.T.Logf("Creating regular user `user(9999)` on node %s", node)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
-	cmd := Command{
-		Node:   node,
-		Stdout: &NoopCloser{stdout},
-		Stderr: &NoopCloser{stderr},
-		Line: []string{
-			"useradd",
-			"-d", "/home/user",
-			"-s", "/bin/bash",
-			"-u", "9999",
-			"-m",
-			"user",
-		},
-	}
-	if err := Run(ctx, in.T, cmd); err != nil {
-		in.T.Logf("stdout: %s", stdout.String())
-		in.T.Logf("stderr: %s", stderr.String())
-		in.T.Fatalf("Unable to create regular user: %s", err)
-	}
+	RunCommandOnNode(
+		in,
+		[]string{"useradd", "-d", "/home/user", "-s", "/bin/bash", "-u", "9999", "-m", "user"},
+		node,
+	)
 }
 
 // CopyFilesToNode copies the files needed for the cluster to the node. Copies
@@ -305,7 +437,9 @@ func CreateNodes(in *Input) []string {
 	nodes := []string{}
 	for i := 0; i < in.Nodes; i++ {
 		node := CreateNode(in, i)
-		NodeHasInternet(in, node)
+		if !in.WithProxy {
+			NodeHasInternet(in, node)
+		}
 		nodes = append(nodes, node)
 	}
 	return nodes
@@ -438,8 +572,15 @@ func CreateNetworks(in *Input) {
 			},
 		},
 	}
+	if in.WithProxy {
+		request.NetworkPut.Config["ipv4.routes"] = "10.0.0.0/24"
+	}
 	if err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create external network: %v", err)
+	}
+	open := "true"
+	if in.WithProxy {
+		open = "false"
 	}
 	request = api.NetworksPost{
 		Name: fmt.Sprintf("internal-%s", in.id),
@@ -448,7 +589,7 @@ func CreateNetworks(in *Input) {
 			Config: map[string]string{
 				"bridge.mtu":   "1500",
 				"ipv4.address": "10.0.0.1/24",
-				"ipv4.nat":     "true",
+				"ipv4.nat":     open,
 				"network":      fmt.Sprintf("external-%s", in.id),
 			},
 		},

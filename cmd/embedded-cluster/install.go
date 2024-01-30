@@ -165,6 +165,12 @@ func updateConfig(c *cli.Context) error {
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
+	config.SetHostsProxyConfig(
+		cfg,
+		c.String("http-proxy"),
+		c.String("https-proxy"),
+		c.StringSlice("no-proxy"),
+	)
 	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
 	if err := applyUnsupportedOverrides(c, cfg); err != nil {
 		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
@@ -268,6 +274,12 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}
+	config.SetHostsProxyConfig(
+		cfg,
+		c.String("http-proxy"),
+		c.String("https-proxy"),
+		c.StringSlice("no-proxy"),
+	)
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -445,9 +457,22 @@ var installCommand = &cli.Command{
 			Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:  "http-proxy",
+			Usage: "HTTP proxy to use for the cluster",
+		},
+		&cli.StringFlag{
+			Name:  "https-proxy",
+			Usage: "HTTPS proxy to use for the cluster",
+		},
+		&cli.StringSliceFlag{
+			Name:  "no-proxy",
+			Usage: "List of no proxy to use for the cluster",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		metrics.ReportApplyStarted(c)
+		setupProxy(c)
 		if defaults.DecentralizedInstall() {
 			fmt.Println("Decentralized install was detected. To manage the cluster")
 			fmt.Printf("you have to use the '%s node' commands instead.\n", defaults.BinaryName())
@@ -461,6 +486,7 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+		logrus.Infof("Configuring proxy settings")
 		if err := applyK0sctl(c); err != nil {
 			err := fmt.Errorf("unable update cluster: %w", err)
 			metrics.ReportApplyFinished(c, err)
@@ -484,6 +510,22 @@ var installCommand = &cli.Command{
 		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},
+}
+
+// setupProxy makes sure the installer is using the provided proxy settings.
+func setupProxy(c *cli.Context) {
+	if c.String("http-proxy") != "" {
+		os.Setenv("http_proxy", c.String("http-proxy"))
+		os.Setenv("HTTP_PROXY", c.String("http-proxy"))
+	}
+	if c.String("https-proxy") != "" {
+		os.Setenv("https_proxy", c.String("https-proxy"))
+		os.Setenv("HTTPS_PROXY", c.String("https-proxy"))
+	}
+	if len(c.StringSlice("no-proxy")) > 0 {
+		os.Setenv("no_proxy", strings.Join(c.StringSlice("no-proxy"), ","))
+		os.Setenv("NO_PROXY", strings.Join(c.StringSlice("no-proxy"), ","))
+	}
 }
 
 // parseEndUserConfig parses the end user configuration from the given file.

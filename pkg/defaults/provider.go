@@ -203,12 +203,38 @@ func (d *Provider) FileNameForImage(img string) string {
 // want to bind to one of the interfaces.
 func (d *Provider) PreferredNodeIPAddress() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:53")
-	if err != nil {
-		return "", fmt.Errorf("unable to get local IP: %w", err)
+	if err == nil {
+		defer conn.Close()
+		addr := conn.LocalAddr().(*net.UDPAddr)
+		return addr.IP.String(), nil
 	}
-	defer conn.Close()
-	addr := conn.LocalAddr().(*net.UDPAddr)
-	return addr.IP.String(), nil
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", fmt.Errorf("failed to list interfaces: %w", err)
+	}
+	for _, iface := range interfaces {
+		isLoopback := iface.Flags & net.FlagLoopback
+		if iface.Flags&net.FlagUp == 0 || isLoopback != 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip != nil && ip.To4() != nil {
+				return ip.String(), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no suitable IP address found")
 }
 
 // DecentralizedInstall returns true if the cluster installation has been

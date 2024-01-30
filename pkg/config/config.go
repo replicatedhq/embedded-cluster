@@ -11,6 +11,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	fmtconvert "github.com/ghodss/yaml"
@@ -264,6 +265,23 @@ func renderSingleNodeConfig(ctx context.Context) (*v1beta1.Cluster, error) {
 	}
 	rhost := host.render()
 	return generateConfigForHosts(ctx, rhost)
+}
+
+// SetHostsProxyConfig sets the proxy configuration for all hosts in the provided config.
+func SetHostsProxyConfig(cfg *v1beta1.Cluster, http, https string, noproxy []string) {
+	if http == "" && https == "" && len(noproxy) == 0 {
+		return
+	}
+	for i := range cfg.Spec.Hosts {
+		cfg.Spec.Hosts[i].Environment = map[string]string{
+			"http_proxy":  http,
+			"https_proxy": https,
+			"no_proxy":    strings.Join(noproxy, ","),
+			"HTTP_PROXY":  http,
+			"HTTPS_PROXY": https,
+			"NO_PROXY":    strings.Join(noproxy, ","),
+		}
+	}
 }
 
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
