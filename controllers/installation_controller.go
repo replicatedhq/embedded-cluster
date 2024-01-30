@@ -286,11 +286,24 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 
 	combinedConfigs := mergeHelmConfigs(meta, in)
 
+	// fetch the current clusterconfig
+	var clusterconfig k0sv1beta1.ClusterConfig
+	if err := r.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterconfig); err != nil {
+		return fmt.Errorf("failed to get cluster config: %w", err)
+	}
+
+	finalChartList, err := generateDesiredCharts(meta, clusterconfig, combinedConfigs)
+	if err != nil {
+		return err
+	}
+	combinedConfigs.Charts = finalChartList
+
 	// detect drift between the cluster config and the installer metadata
 	var installedCharts k0shelm.ChartList
 	if err := r.List(ctx, &installedCharts); err != nil {
 		return fmt.Errorf("failed to list installed charts: %w", err)
 	}
+
 	chartErrors, chartDrift, err := detectChartDrift(combinedConfigs, installedCharts)
 	if err != nil {
 		return fmt.Errorf("failed to check chart drift: %w", err)
@@ -320,19 +333,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return nil
 	}
 
-	// fetch the current clusterconfig
-	var clusterconfig k0sv1beta1.ClusterConfig
-	if err := r.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterconfig); err != nil {
-		return fmt.Errorf("failed to get cluster config: %w", err)
-	}
-
-	finalChartList, err := generateDesiredCharts(meta, clusterconfig, combinedConfigs)
-	if err != nil {
-		return err
-	}
-
 	// Replace the current chart configs with the new chart configs
-	combinedConfigs.Charts = finalChartList
 	clusterconfig.Spec.Extensions.Helm = combinedConfigs
 	in.Status.SetState(v1beta1.InstallationStateAddonsInstalling, "Installing addons")
 	//Update the clusterconfig

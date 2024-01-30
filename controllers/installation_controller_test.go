@@ -115,6 +115,17 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "extchart"},
 						Status: k0shelmv1beta1.ChartStatus{Version: "2"},
 					},
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{
+							Extensions: &k0sv1beta1.ClusterExtensions{
+								Helm: &k0sv1beta1.HelmExtensions{},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -168,6 +179,17 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "extchart"},
 						Status: k0shelmv1beta1.ChartStatus{Version: "2", Error: "exterror"},
 					},
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{
+							Extensions: &k0sv1beta1.ClusterExtensions{
+								Helm: &k0sv1beta1.HelmExtensions{},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -205,7 +227,19 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				},
 			},
 			fields: fields{
-				State: []runtime.Object{},
+				State: []runtime.Object{
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{
+							Extensions: &k0sv1beta1.ClusterExtensions{
+								Helm: &k0sv1beta1.HelmExtensions{},
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -266,6 +300,182 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 					{
 						Name:    "extchart",
 						Version: "2",
+					},
+				},
+			},
+		},
+		{
+			name: "k8s install completed, good version, overridden values, both types of charts, no drift",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+						Extensions: v1beta1.Extensions{
+							Helm: &k0sv1beta1.HelmExtensions{
+								Charts: []k0sv1beta1.Chart{
+									{
+										Name:    "extchart",
+										Version: "2",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			out: v1beta1.InstallationStatus{
+				State:  v1beta1.InstallationStateInstalled,
+				Reason: "Addons upgraded",
+			},
+			releaseMeta: release.Meta{
+				Configs: &k0sv1beta1.HelmExtensions{
+					Charts: []k0sv1beta1.Chart{
+						{
+							Name:    "metachart",
+							Version: "1",
+							Values: `
+abc: xyz
+password: overridden`,
+						},
+					},
+				},
+				Protected: map[string][]string{
+					"metachart": {"password"},
+				},
+			},
+			fields: fields{
+				State: []runtime.Object{
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "metachart",
+						},
+						Spec: k0shelmv1beta1.ChartSpec{
+							ReleaseName: "metachart",
+							Values: `abc: xyz
+password: original`,
+						},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1"},
+					},
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "extchart",
+						},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "extchart"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "2"},
+					},
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{
+							Extensions: &k0sv1beta1.ClusterExtensions{
+								Helm: &k0sv1beta1.HelmExtensions{
+									Charts: []k0sv1beta1.Chart{
+										{
+											Name:    "metachart",
+											Version: "1",
+											Values: `
+abc: xyz
+password: original`,
+										},
+										{
+											Name:    "extchart",
+											Version: "2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "k8s install completed, good version, overridden values, both types of charts, values drift",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+						Extensions: v1beta1.Extensions{
+							Helm: &k0sv1beta1.HelmExtensions{
+								Charts: []k0sv1beta1.Chart{
+									{
+										Name:    "extchart",
+										Version: "2",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			out: v1beta1.InstallationStatus{
+				State:  v1beta1.InstallationStateAddonsInstalling,
+				Reason: "Installing addons",
+			},
+			releaseMeta: release.Meta{
+				Configs: &k0sv1beta1.HelmExtensions{
+					Charts: []k0sv1beta1.Chart{
+						{
+							Name:    "metachart",
+							Version: "1",
+							Values: `
+abc: xyz
+password: overridden`,
+						},
+					},
+				},
+				Protected: map[string][]string{
+					"metachart": {"password"},
+				},
+			},
+			fields: fields{
+				State: []runtime.Object{
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "metachart",
+						},
+						Spec: k0shelmv1beta1.ChartSpec{
+							ReleaseName: "metachart",
+							Values: `abc: original
+password: original`,
+						},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1"},
+					},
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "extchart",
+						},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "extchart"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "2"},
+					},
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{
+							Extensions: &k0sv1beta1.ClusterExtensions{
+								Helm: &k0sv1beta1.HelmExtensions{
+									Charts: []k0sv1beta1.Chart{
+										{
+											Name:    "metachart",
+											Version: "1",
+											Values: `
+abc: original
+password: original`,
+										},
+										{
+											Name:    "extchart",
+											Version: "2",
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
