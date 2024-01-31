@@ -267,6 +267,9 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	time.Sleep(time.Minute)
+
 	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	// generate all node join commands (2 for controllers and 1 for worker).
