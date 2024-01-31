@@ -39,10 +39,10 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
 	"embeddedBinaryName":        defaults.BinaryName(),
 	"embeddedClusterID":         metrics.ClusterID().String(),
-	"image": map[string]string{
-		"repository": "ttl.sh/embedded-cluster-operator-image",
-		"tag":        "dev-7ae0a4a",
-	},
+	//"image": map[string]string{
+	//	"repository": "ttl.sh/embedded-cluster-operator-image",
+	//	"tag":        "dev-7ae0a4a",
+	//},
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
@@ -80,7 +80,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
 		TargetNS:  "embedded-cluster",
-		Order:     2,
+		Order:     5,
 	}
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
