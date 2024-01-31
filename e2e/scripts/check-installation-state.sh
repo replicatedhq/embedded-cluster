@@ -8,6 +8,8 @@ main() {
     echo "charts"
     kubectl get charts -A
     kubectl describe charts -A
+    echo "pods"
+    kubectl get pods -A
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

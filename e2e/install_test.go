@@ -45,7 +45,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc)
+	time.Sleep(time.Minute)
 
 	t.Log("checking installation state")
 	line = []string{"check-installation-state.sh"}
@@ -56,6 +56,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 	t.Log("installation state:", stdout)
+
+	runPuppeteerAppStatusCheck(t, 0, tc)
 }
 
 func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
