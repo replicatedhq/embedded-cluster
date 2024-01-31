@@ -45,7 +45,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, line, 0, tc)
+	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	t.Log("checking installation state")
 	line = []string{"check-installation-state.sh"}
@@ -84,7 +84,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, line, 0, tc)
+	runPuppeteerAppStatusCheck(t, 0, tc)
 }
 
 func TestSingleNodeInstallationDebian12(t *testing.T) {
@@ -112,7 +112,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, line, 0, tc)
+	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	t.Log("creating deployment mounting pvc")
 }
@@ -143,7 +143,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, line, 0, tc)
+	runPuppeteerAppStatusCheck(t, 0, tc)
 }
 
 // func TestMultiNodeInteractiveInstallation(t *testing.T) {
@@ -273,7 +273,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	runPuppeteerAppStatusCheck(t, []string{}, 0, tc)
+	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Log("generating two new controller token commands")
@@ -346,9 +346,9 @@ func TestMultiNodeInstallation(t *testing.T) {
 	t.Log(stdout)
 }
 
-func runPuppeteerAppStatusCheck(t *testing.T, line []string, node int, tc *cluster.Output) {
+func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 	t.Logf("installing puppeteer on node %d", node)
-	line = []string{"install-puppeteer.sh"}
+	line := []string{"install-puppeteer.sh"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
@@ -373,5 +373,4 @@ func runPuppeteerAppStatusCheck(t *testing.T, line []string, node int, tc *clust
 		t.Log("stderr:", stderr)
 		t.Fatalf("cluster or app not ready: %s", stdout)
 	}
-	return
 }
