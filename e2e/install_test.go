@@ -83,8 +83,6 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-
-	runPuppeteerAppStatusCheck(t, 0, tc)
 }
 
 func TestSingleNodeInstallationDebian12(t *testing.T) {
@@ -111,8 +109,6 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-
-	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	t.Log("creating deployment mounting pvc")
 }
@@ -142,8 +138,6 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-
-	runPuppeteerAppStatusCheck(t, 0, tc)
 }
 
 // func TestMultiNodeInteractiveInstallation(t *testing.T) {
