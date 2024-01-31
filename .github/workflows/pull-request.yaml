@@ -32,8 +32,10 @@ jobs:
         go-version: "1.21.0"
     - name: Build
       run: |
-        make build VERSION=dev-$SHORT_SHA
+        make build VERSION=dev-${{ env.SHORT_SHA }}
     - name: Docker Image
       uses: docker/build-push-action@v5
       with:
-        push: false
+        push: true
+        tags: |
+          ttl.sh/embedded-cluster-operator-image:dev-${{ env.SHORT_SHA }}
