@@ -413,14 +413,9 @@ func runOutro(c *cli.Context) error {
 // Once this is finished then a "kubeconfig" file is created.
 // Resulting k0sctl.yaml and kubeconfig are stored in the configuration dir.
 var installCommand = &cli.Command{
-	Name:  "install",
-	Usage: "Installs a new or upgrades an existing cluster",
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("install command must be run as root")
-		}
-		return nil
-	},
+	Name:    "install",
+	Aliases: []string{"apply"},
+	Usage:   "Installs a new or upgrades an existing cluster",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "config",

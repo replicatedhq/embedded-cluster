@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -104,6 +105,9 @@ var joinCommand = &cli.Command{
 		binname := defaults.BinaryName()
 		if c.Args().Len() != 2 {
 			return fmt.Errorf("usage: %s node join <url> <token>", binname)
+		}
+		if err := canRunJoin(c); err != nil {
+			return err
 		}
 		loading := pb.Start()
 		defer loading.Close()
@@ -285,6 +289,18 @@ func startK0sService() error {
 		fmt.Fprintf(os.Stderr, "%s\n", stderr.String())
 		fmt.Fprintf(os.Stdout, "%s\n", stdout.String())
 		return err
+	}
+	return nil
+}
+
+// canRunJoin checks if we can run the join command. Checks if we are running on linux,
+// if we are root, and if a token has been provided through the command line.
+func canRunJoin(c *cli.Context) error {
+	if runtime.GOOS != "linux" {
+		return fmt.Errorf("join command is only supported on linux")
+	}
+	if os.Getuid() != 0 {
+		return fmt.Errorf("join command must be run as root")
 	}
 	return nil
 }
