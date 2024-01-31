@@ -36,7 +36,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
 
-pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
+pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}: Makefile
 	mkdir -p pkg/goods/bins/k0sctl
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
 	    curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
@@ -45,24 +45,24 @@ pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}:
 	fi
 	chmod +x pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
-pkg/goods/bins/embedded-cluster/kubectl-linux-amd64:
+pkg/goods/bins/embedded-cluster/kubectl-linux-amd64: Makefile
 	mkdir -p pkg/goods/bins/embedded-cluster
 	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
 	chmod +x pkg/goods/bins/embedded-cluster/kubectl-linux-amd64
 
-pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64:
+pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64: Makefile
 	mkdir -p pkg/goods/bins/embedded-cluster
 	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-linux-x64"
 	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64
 
-pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64:
+pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64: Makefile
 	mkdir -p pkg/goods/bins/embedded-cluster
 	mkdir -p output/tmp/support-bundle
 	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
 	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
 
-pkg/goods/bins/embedded-cluster/kubectl-preflight:
+pkg/goods/bins/embedded-cluster/kubectl-preflight: Makefile
 	mkdir -p pkg/goods/bins/embedded-cluster
 	mkdir -p output/tmp/preflight
 	curl -L -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
