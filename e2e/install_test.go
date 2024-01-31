@@ -44,35 +44,12 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Log("install stderr:", stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing puppeteer on node 0")
-	line = []string{"install-puppeteer.sh"}
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
-	}
-	t.Log("accessing kotsadm interface and checking app and cluster state")
-	line = []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to access kotsadm interface and state: %v", err)
-	}
-	var r clusterStatusResponse
-	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to parse script response: %v", err)
-	}
-	if r.App != "Ready" || r.Cluster != "Up to date" {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("cluster or app not ready: %s", stdout)
-	}
+
+	runPuppeteerAppStatusCheck(t, line, 0, tc)
+
 	t.Log("checking installation state")
 	line = []string{"check-installation-state.sh"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
@@ -106,6 +83,8 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	runPuppeteerAppStatusCheck(t, line, 0, tc)
 }
 
 func TestSingleNodeInstallationDebian12(t *testing.T) {
@@ -132,6 +111,9 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	runPuppeteerAppStatusCheck(t, line, 0, tc)
+
 	t.Log("creating deployment mounting pvc")
 }
 
@@ -160,6 +142,8 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	runPuppeteerAppStatusCheck(t, line, 0, tc)
 }
 
 // func TestMultiNodeInteractiveInstallation(t *testing.T) {
@@ -289,32 +273,13 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing puppeteer on node 0")
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, []string{"install-puppeteer.sh"}); err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
-	}
-	t.Log("accessing kotsadm interface and checking app and cluster state")
-	line := []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to access kotsadm interface and state: %v", err)
-	}
-	var r clusterStatusResponse
-	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to parse script response: %v", err)
-	} else if r.App != "Ready" || r.Cluster != "Up to date" {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("cluster or app not ready: %s", stdout)
-	}
+	runPuppeteerAppStatusCheck(t, []string{}, 0, tc)
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Log("generating two new controller token commands")
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line = []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
+		line := []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
 		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 		if err != nil {
 			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -332,8 +297,8 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Log("generating a new worker token command")
-	line = []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	line := []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to generate controller join token: %s", stdout)
@@ -379,4 +344,34 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log(stdout)
+}
+
+func runPuppeteerAppStatusCheck(t *testing.T, line []string, node int, tc *cluster.Output) {
+	t.Logf("installing puppeteer on node %d", node)
+	line = []string{"install-puppeteer.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("accessing kotsadm interface and checking app and cluster state")
+	line = []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to access kotsadm interface and state: %v", err)
+	}
+	var r clusterStatusResponse
+	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to parse script response: %v", err)
+	}
+	if r.App != "Ready" || r.Cluster != "Up to date" {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("cluster or app not ready: %s", stdout)
+	}
+	return
 }
