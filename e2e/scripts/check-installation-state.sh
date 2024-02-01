@@ -2,6 +2,8 @@
 set -euo pipefail
 
 main() {
+    sleep 30
+
     systemctl status k0scontroller.service
 
     echo "pods"
