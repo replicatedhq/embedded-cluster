@@ -59,7 +59,7 @@ ensure_node_config() {
 }
 
 wait_for_memcached_pods() {
-    ready=$(kubectl get pods -n memcached | grep -c memcached || true)
+    ready=$(kubectl get pods -n memcached -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -68,27 +68,25 @@ wait_for_memcached_pods() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for memcached pods"
-        ready=$(kubectl get pods -n memcached | grep -c memcached || true)
+        ready=$(kubectl get pods -n memcached -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
         kubectl get pods -n memcached 2>&1 || true
-        echo "$ready"
+        echo "ready: $ready"
     done
 }
 
 wait_for_nginx_pods() {
-    ready=$(kubectl get pods -n kotsadm | grep -c nginx || true)
+    ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].status.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
-            echo "nginx pods did not appear"
-            kubectl logs -n kotsadm -l app=kotsadm
             return 1
         fi
         sleep 5
         counter=$((counter+1))
         echo "Waiting for nginx pods"
-        ready=$(kubectl get pods -n kotsadm | grep -c nginx || true)
-        kubectl get pods -n kotsadm 2>&1 || true
-        echo "$ready"
+        ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].status.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+        kubectl get pods -n nginx 2>&1 || true
+        echo "ready: $ready"
     done
 }
 
@@ -114,12 +112,12 @@ main() {
         echo "Failed to install embedded-cluster"
         exit 1
     fi
-    if ! wait_for_memcached_pods; then
-        echo "Failed waiting for memcached pods"
-        exit 1
-    fi
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
+        exit 1
+    fi
+    if ! wait_for_memcached_pods; then
+        echo "Failed waiting for memcached pods"
         exit 1
     fi
     if ! systemctl restart embedded-cluster; then
