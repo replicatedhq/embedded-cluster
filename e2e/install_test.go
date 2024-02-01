@@ -45,8 +45,6 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	time.Sleep(time.Minute)
-
 	t.Log("checking installation state")
 	line = []string{"check-installation-state.sh"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
@@ -400,6 +398,13 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 	if r.App != "Ready" || r.Cluster != "Up to date" {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
-		t.Fatalf("cluster or app not ready: %s", stdout)
+		t.Logf("cluster or app not ready: %s", stdout)
+
+		t.Log("checking installation state")
+		line = []string{"check-installation-state.sh"}
+		stdout, stderr, _ = RunCommandOnNode(t, tc, 0, line)
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("cluster or app not ready")
 	}
 }
