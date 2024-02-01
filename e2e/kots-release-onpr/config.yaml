@@ -25,11 +25,11 @@ spec:
         spec:
           telemetry:
             enabled: false
-  extensions:
-    helm:
-      charts:
-        - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
-          name: memcached-vendor-chart
-          namespace: memcached
-          order: 4
-          version: 6.6.2
+#  extensions:
+#    helm:
+#      charts:
+#        - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
+#          name: memcached-vendor-chart
+#          namespace: memcached
+#          order: 4
+#          version: 6.6.2
