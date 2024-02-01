@@ -53,7 +53,6 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
-	t.Log("installation state:", stdout)
 
 	runPuppeteerAppStatusCheck(t, 0, tc)
 }
@@ -92,7 +91,6 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
-	t.Log("installation state:", stdout)
 }
 
 func TestSingleNodeInstallationDebian12(t *testing.T) {
@@ -128,7 +126,6 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
-	t.Log("installation state:", stdout)
 
 	t.Log("creating deployment mounting pvc")
 }
@@ -167,7 +164,6 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
-	t.Log("installation state:", stdout)
 }
 
 // func TestMultiNodeInteractiveInstallation(t *testing.T) {
@@ -398,13 +394,6 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 	if r.App != "Ready" || r.Cluster != "Up to date" {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
-		t.Logf("cluster or app not ready: %s", stdout)
-
-		t.Log("checking installation state")
-		line = []string{"check-installation-state.sh"}
-		stdout, stderr, _ = RunCommandOnNode(t, tc, 0, line)
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("cluster or app not ready")
+		t.Fatalf("cluster or app not ready: %s", stdout)
 	}
 }
