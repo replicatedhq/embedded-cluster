@@ -80,7 +80,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
 		TargetNS:  "embedded-cluster",
-		Order:     2,
+		Order:     99,
 	}
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
