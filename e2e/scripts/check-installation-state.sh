@@ -14,6 +14,7 @@ main() {
     kubectl describe charts -A
 
     echo "ensure that installation is installed"
+    kubectl get installations -o jsonpath='{.items[0].status.state}'
     kubectl get installations -o jsonpath='{.items[0].status.state}' | grep -q "Installed"
 }
 
