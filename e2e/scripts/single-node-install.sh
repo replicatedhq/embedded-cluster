@@ -79,6 +79,10 @@ wait_for_nginx_pods() {
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
+            echo "nginx pods did not appear"
+            kubectl get pods -n kotsadm -o jsonpath='{.items[*].status.name} {.items[*].status.phase}'
+            kubectl get pods -n kotsadm
+            kubectl logs -n kotsadm -l app=kotsadm
             return 1
         fi
         sleep 5
