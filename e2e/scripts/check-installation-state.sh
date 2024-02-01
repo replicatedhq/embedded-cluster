@@ -4,9 +4,6 @@ set -euo pipefail
 main() {
     echo "pods"
     kubectl get pods -A
-    kubectl rollout restart deployment/kotsadm -n kotsadm
-    sleep 60
-
     echo "installations"
     kubectl get installations
     kubectl describe installations

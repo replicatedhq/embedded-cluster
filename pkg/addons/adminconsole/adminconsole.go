@@ -240,6 +240,13 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := pb.Start()
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/3 ready")
+
+	err := kubeutils.RestartDeployment(ctx, cli, a.namespace, "kotsadm")
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to restart kotsadm: %w", err)
+	}
+
 	var lasterr error
 	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
 		var count int

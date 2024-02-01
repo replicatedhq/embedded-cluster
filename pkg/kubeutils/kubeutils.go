@@ -64,3 +64,12 @@ func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string)
 	}
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
 }
+
+func RestartDeployment(ctx context.Context, cli client.Client, ns, name string) error {
+	var deploy appsv1.Deployment
+	if err := cli.Get(ctx, types.NamespacedName{Namespace: ns, Name: name}, &deploy); err != nil {
+		return err
+	}
+	deploy.Spec.Template.ObjectMeta.Labels["restartedAt"] = time.Now().String()
+	return cli.Update(ctx, &deploy)
+}

@@ -85,6 +85,16 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	t.Log("checking installation state")
+	line = []string{"check-installation-state.sh"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+	t.Log("installation state:", stdout)
 }
 
 func TestSingleNodeInstallationDebian12(t *testing.T) {
@@ -111,6 +121,16 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	t.Log("checking installation state")
+	line = []string{"check-installation-state.sh"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+	t.Log("installation state:", stdout)
 
 	t.Log("creating deployment mounting pvc")
 }
@@ -140,6 +160,16 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	t.Log("checking installation state")
+	line = []string{"check-installation-state.sh"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+	t.Log("installation state:", stdout)
 }
 
 // func TestMultiNodeInteractiveInstallation(t *testing.T) {
