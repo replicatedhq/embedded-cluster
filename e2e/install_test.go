@@ -294,7 +294,14 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	time.Sleep(time.Minute)
+	t.Log("checking installation state")
+	line := []string{"check-installation-state.sh"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
 
 	runPuppeteerAppStatusCheck(t, 0, tc)
 
@@ -302,7 +309,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	t.Log("generating two new controller token commands")
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line := []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
+		line = []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
 		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 		if err != nil {
 			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -320,8 +327,8 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Log("generating a new worker token command")
-	line := []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	line = []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to generate controller join token: %s", stdout)
