@@ -14,8 +14,8 @@ main() {
     kubectl describe charts -A
 
     echo "ensure that installation is installed"
-    kubectl get installations -o jsonpath='{.items[].status.state}'
-    kubectl get installations -o jsonpath='{.items[].status.state}' | grep -q "Installed"
+    kubectl get installations --no-headers
+    kubectl get installations --no-headers | grep -q "Installed"
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
