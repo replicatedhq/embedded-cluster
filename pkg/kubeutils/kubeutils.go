@@ -3,7 +3,6 @@ package kubeutils
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -64,13 +63,4 @@ func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string)
 		return false, nil
 	}
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
-}
-
-func RestartDeployment(ctx context.Context, cli client.Client, ns, name string) error {
-	var deploy appsv1.Deployment
-	if err := cli.Get(ctx, types.NamespacedName{Namespace: ns, Name: name}, &deploy); err != nil {
-		return err
-	}
-	deploy.Spec.Template.ObjectMeta.Labels["restartedAt"] = regexp.MustCompile(`[-_:]`).ReplaceAllString(time.Now().Format(time.RFC3339), "")
-	return cli.Update(ctx, &deploy)
 }
