@@ -2,6 +2,8 @@
 set -euo pipefail
 
 main() {
+    systemctl status k0scontroller.service
+
     echo "pods"
     kubectl get pods -A
     echo "installations"
