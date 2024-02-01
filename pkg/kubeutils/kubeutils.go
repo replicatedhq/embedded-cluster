@@ -70,6 +70,6 @@ func RestartDeployment(ctx context.Context, cli client.Client, ns, name string) 
 	if err := cli.Get(ctx, types.NamespacedName{Namespace: ns, Name: name}, &deploy); err != nil {
 		return err
 	}
-	deploy.Spec.Template.ObjectMeta.Labels["restartedAt"] = time.Now().String()
+	deploy.Spec.Template.ObjectMeta.Labels["restartedAt"] = time.Now().Format(time.RFC3339)
 	return cli.Update(ctx, &deploy)
 }
