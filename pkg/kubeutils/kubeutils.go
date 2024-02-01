@@ -3,6 +3,7 @@ package kubeutils
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -70,6 +71,6 @@ func RestartDeployment(ctx context.Context, cli client.Client, ns, name string) 
 	if err := cli.Get(ctx, types.NamespacedName{Namespace: ns, Name: name}, &deploy); err != nil {
 		return err
 	}
-	deploy.Spec.Template.ObjectMeta.Labels["restartedAt"] = time.Now().Format(time.RFC3339)
+	deploy.Spec.Template.ObjectMeta.Labels["restartedAt"] = regexp.MustCompile(`[-_:]`).ReplaceAllString(time.Now().Format(time.RFC3339), "")
 	return cli.Update(ctx, &deploy)
 }
