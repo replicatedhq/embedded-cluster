@@ -60,7 +60,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.INFRA_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
         AWS_REGION: "us-east-1"
       run: |
-        export EC_VERSION="dev-metadata"
+        export EC_VERSION="vdev-metadata"
         ./scripts/cache-files.sh
 
     - name: Cache files for integration test
@@ -71,7 +71,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
         AWS_REGION: "us-east-1"
       run: |
-        export EC_VERSION="dev-metadata"
+        export EC_VERSION="vdev-metadata"
         ./scripts/cache-files.sh
   e2e:
     runs-on: ubuntu-latest
