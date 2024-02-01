@@ -41,7 +41,7 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterID":         metrics.ClusterID().String(),
 	"image": map[string]string{
 		"repository": "ttl.sh/embedded-cluster-operator-image",
-		"tag":        "dev-d7cb3b0",
+		"tag":        "dev-cd5e873",
 	},
 }
 
@@ -80,7 +80,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
 		TargetNS:  "embedded-cluster",
-		Order:     99,
+		Order:     2,
 	}
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
