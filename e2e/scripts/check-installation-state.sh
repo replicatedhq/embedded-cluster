@@ -10,6 +10,8 @@ main() {
     kubectl describe charts -A
     echo "pods"
     kubectl get pods -A
+    kubectl rollout restart deployment/kotsadm -n kotsadm
+    sleep 30
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
