@@ -276,7 +276,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 	}
 
 	// skip if the new release has no addon configs - this should not happen in production
-	if meta.Configs == nil && in.Spec.Config.Extensions.Helm == nil {
+	if meta.Configs == nil || len(meta.Configs.Charts) == 0 {
 		log.Info("addons", "configcheck", "no addons")
 		if in.Status.State == v1beta1.InstallationStateKubernetesInstalled {
 			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed")

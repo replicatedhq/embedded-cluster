@@ -66,6 +66,32 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 			releaseMeta: release.Meta{K0sSHA: "abc"},
 		},
 		{
+			name: "k8s install completed, good version, only config extensions chart",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+						Extensions: v1beta1.Extensions{
+							Helm: &k0sv1beta1.HelmExtensions{
+								Charts: []k0sv1beta1.Chart{
+									{
+										Name:    "extchart",
+										Version: "2",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			out: v1beta1.InstallationStatus{
+				State:  v1beta1.InstallationStateInstalled,
+				Reason: "Installed",
+			},
+			releaseMeta: release.Meta{K0sSHA: "abc"},
+		},
+		{
 			name: "k8s install completed, good version, both types of charts, no drift",
 			in: v1beta1.Installation{
 				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
