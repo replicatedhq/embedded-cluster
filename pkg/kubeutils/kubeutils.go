@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -20,6 +21,24 @@ func BackOffToDuration(backoff wait.Backoff) time.Duration {
 		duration = time.Duration(float64(duration) * backoff.Factor)
 	}
 	return total
+}
+
+// WaitForChart waits for the provided helm chart to be applied on the cluster. Applied does not
+// mean fully processed, it means that k0s has applied the chart and it is now being processed by
+// the cluster.
+func WaitForChart(ctx context.Context, cli client.Client, ns, name string) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
+		var chart v1beta1.Chart
+		if err := cli.Get(ctx, nsn, &chart); err != nil {
+			return false, err
+		}
+		return chart.Status.ReleaseName != "", nil
+	}); err != nil {
+		return fmt.Errorf("timed out waiting for chart %s: %v", name, err)
+	}
+	return nil
 }
 
 // WaitForDeployment waits for the provided deployment to be ready.

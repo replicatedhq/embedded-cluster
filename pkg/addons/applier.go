@@ -9,6 +9,7 @@ import (
 	"io"
 	"time"
 
+	helmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -21,6 +22,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
@@ -49,11 +51,28 @@ func (a *Applier) Outro(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
+	if err := helmv1beta1.AddToScheme(kcli.Scheme()); err != nil {
+		return fmt.Errorf("unable to add helm types to scheme: %w", err)
+	}
 	addons, err := a.load()
 	if err != nil {
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
+		charts, _, err := addon.GenerateHelmConfig(true)
+		if err != nil {
+			return fmt.Errorf("unable to generate helm config: %w", err)
+		}
+		for _, chart := range charts {
+			loading := pb.Start()
+			loading.Infof("Waiting for %s to be applied", chart.Name)
+			name := fmt.Sprintf("k0s-addon-chart-%s", chart.Name)
+			if err := kubeutils.WaitForChart(ctx, kcli, "kube-system", name); err != nil {
+				loading.Close()
+				return fmt.Errorf("unable to wait for chart to be processed: %w", err)
+			}
+			loading.Close()
+		}
 		if err := addon.Outro(ctx, kcli); err != nil {
 			return err
 		}
@@ -124,28 +143,28 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 }
 
 // load instantiates all enabled addons.
-func (a *Applier) load() (map[string]AddOn, error) {
-	addons := map[string]AddOn{}
+func (a *Applier) load() ([]AddOn, error) {
+	addons := []AddOn{}
 	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
 		obs, err := openebs.New()
 		if err != nil {
 			return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 		}
-		addons["openebs"] = obs
+		addons = append(addons, obs)
 	}
 	if _, disabledAddons := a.disabledAddons["embeddedclusteroperator"]; !disabledAddons {
 		embedoperator, err := embeddedclusteroperator.New(a.endUserConfig)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 		}
-		addons["embeddedclusteroperator"] = embedoperator
+		addons = append(addons, embedoperator)
 	}
 	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
 		aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 		}
-		addons["adminconsole"] = aconsole
+		addons = append(addons, aconsole)
 	}
 	return addons, nil
 }
@@ -157,10 +176,10 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
 	versions := map[string]string{}
-	for name, addon := range addons {
+	for _, addon := range addons {
 		version, err := addon.Version()
 		if err != nil {
-			return nil, fmt.Errorf("unable to get version (%s): %w", name, err)
+			return nil, fmt.Errorf("unable to get version (%T): %w", addon, err)
 		}
 		for k, v := range version {
 			versions[k] = v
@@ -169,7 +188,6 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	for _, chart := range additionalCharts {
 		versions[chart.Name] = chart.Version
 	}
-
 	return versions, nil
 }
 
