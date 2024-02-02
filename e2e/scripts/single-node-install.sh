@@ -63,6 +63,9 @@ wait_for_memcached_pods() {
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
+            echo "memcached pods did not appear"
+            kubectl get pods -n memcached -o jsonpath='{.items[*].status.phase}'
+            kubectl get pods -n memcached 2>&1 || true
             return 1
         fi
         sleep 5
