@@ -82,7 +82,7 @@ var shellCommand = &cli.Command{
 		config = fmt.Sprintf("export PATH=\"$PATH:%s\"\n", bindir)
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
-		config = fmt.Sprintf("source <(kubectl completion $(basename ${SHELL}))\n")
+		config = "source <(kubectl completion $(basename ${SHELL}))\n"
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 		go func() { _, _ = io.Copy(shellpty, os.Stdin) }()
