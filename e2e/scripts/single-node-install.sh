@@ -66,6 +66,8 @@ wait_for_memcached_pods() {
             echo "memcached pods did not appear"
             kubectl get pods -n memcached -o jsonpath='{.items[*].status.phase}'
             kubectl get pods -n memcached 2>&1 || true
+            kubectl get secrets -n memcached 2>&1 || true
+            kubectl get charts -A
             return 1
         fi
         sleep 5
