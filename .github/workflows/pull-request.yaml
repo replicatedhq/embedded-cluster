@@ -91,6 +91,7 @@ jobs:
           - TestMultiNodeInstallation
           - TestMultiNodeReset
           - TestCommandsRequireSudo
+          - TestInstallWithoutRootSSHAccess
     steps:
     - name: Checkout
       uses: actions/checkout@v4

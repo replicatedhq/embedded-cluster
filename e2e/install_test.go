@@ -368,3 +368,32 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 		t.Fatalf("cluster or app not ready: %s", stdout)
 	}
 }
+
+func TestInstallWithoutRootSSHAccess(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "ubuntu/jammy",
+		SSHPublicKey:        "../output/tmp/id_rsa.pub",
+		SSHPrivateKey:       "../output/tmp/id_rsa",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	})
+	defer tc.Destroy()
+	t.Log("installing ssh on node 0")
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "openssh-server", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log("testing installation without root access")
+	line := []string{"single-node-install-without-root.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("install stdout:", stdout)
+		t.Log("install stderr:", stderr)
+		t.Log("failed")
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+}

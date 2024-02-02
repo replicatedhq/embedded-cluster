@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -408,6 +409,38 @@ func runOutro(c *cli.Context) error {
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
+// validateSSHDConfig checks if we can ssh into ourselves as root using ssh
+// keys. XXX this is a workaround while we don't implement a different method
+// of installation that does not require ssh access.
+func validateSSHDConfig() error {
+	sshdcfg := "/etc/ssh/sshd_config"
+	fp, err := os.Open(sshdcfg)
+	if err != nil {
+		return fmt.Errorf("unable to read sshd_config (%s): %w", sshdcfg, err)
+	}
+	defer fp.Close()
+	scanner := bufio.NewScanner(fp)
+	var invalid bool
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "PermitRootLogin") {
+			continue
+		}
+		invalid = strings.HasSuffix(line, "no")
+		break
+	}
+	if !invalid {
+		return nil
+	}
+	fmt.Printf("PermitRootLogin config is set to 'no' in %s\n", sshdcfg)
+	fmt.Printf("This will prevent %s from installing.\n", defaults.BinaryName())
+	fmt.Printf("You can temporarily enable root login by changing the\n")
+	fmt.Printf("PermitRootLogin config to 'without-password' and restarting\n")
+	fmt.Printf("the sshd service. Once the installation is finished you can\n")
+	fmt.Printf("restore the original configuration.\n")
+	return fmt.Errorf("ssh root access is not allowed")
+}
+
 // installCommands executes the "install" command. This will ensure that a
 // k0sctl.yaml file exists and then run `k0sctl apply` to apply the cluster.
 // Once this is finished then a "kubeconfig" file is created.
@@ -454,6 +487,10 @@ var installCommand = &cli.Command{
 			fmt.Printf("Run '%s node --help' for more information.\n", defaults.BinaryName())
 			metrics.ReportApplyFinished(c, fmt.Errorf("wrong upgrade on decentralized install"))
 			return fmt.Errorf("decentralized install detected")
+		}
+		if err := validateSSHDConfig(); err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
 		}
 		logrus.Infof("Materializing binaries")
 		if err := goods.Materialize(); err != nil {
