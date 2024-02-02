@@ -14,7 +14,8 @@ main() {
     kubectl describe charts -A
 
     echo "ensure that installation is installed"
-    kubectl get installations --no-headers
+    kubectl get secrets -A
+    kubectl get installations
     kubectl get installations --no-headers | grep -q "Installed"
 }
 
