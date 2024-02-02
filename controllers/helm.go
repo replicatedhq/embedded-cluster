@@ -177,3 +177,38 @@ func generateDesiredCharts(meta *release.Meta, clusterconfig k0sv1beta1.ClusterC
 	}
 	return finalChartList, nil
 }
+
+// shouldNotUpdateClusterConfig returns true if there are charts within the clusterConfig that have not yet been applied
+// to the cluster. if we update the cluster config while charts are still being applied, k0s may attempt to apply the
+// same chart twice in parallel, which causes an error
+// 'can't install loadedChart `CHART_NAME_HERE`: cannot re-use a name that is still in use'
+// returns the list of charts that are still being applied
+func shouldNotUpdateClusterConfig(configCharts *k0sv1beta1.HelmExtensions, charts k0shelm.ChartList) []string {
+	pendingCharts := []string{}
+	if configCharts == nil {
+		return pendingCharts
+	}
+
+	for _, specChart := range configCharts.Charts {
+		foundChart := false
+		for _, clusterChart := range charts.Items {
+			if specChart.Name == clusterChart.Spec.ReleaseName {
+				foundChart = true
+
+				if clusterChart.Status.ReleaseName == "" {
+					// this chart has not yet been applied to the cluster, otherwise the ReleaseName would be set
+					pendingCharts = append(pendingCharts, specChart.Name)
+				}
+
+				break
+			}
+		}
+
+		if !foundChart {
+			// this chart is present in the spec, but not the cluster, and thus is still being applied
+			pendingCharts = append(pendingCharts, specChart.Name)
+		}
+	}
+
+	return pendingCharts
+}

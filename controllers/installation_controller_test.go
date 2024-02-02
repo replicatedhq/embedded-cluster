@@ -443,14 +443,14 @@ password: overridden`,
 							Values: `abc: original
 password: original`,
 						},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1", ReleaseName: "metachart"},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "extchart",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "extchart"},
-						Status: k0shelmv1beta1.ChartStatus{Version: "2"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "2", ReleaseName: "extchart"},
 					},
 					&k0sv1beta1.ClusterConfig{
 						ObjectMeta: metav1.ObjectMeta{
@@ -471,6 +471,65 @@ password: original`,
 										{
 											Name:    "extchart",
 											Version: "2",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "k8s install completed, values drift but chart not yet installed",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+					},
+				},
+			},
+			out: v1beta1.InstallationStatus{
+				State:  v1beta1.InstallationStatePendingChartCreation,
+				Reason: "Pending charts: [metachart]",
+			},
+			releaseMeta: release.Meta{
+				Configs: &k0sv1beta1.HelmExtensions{
+					Charts: []k0sv1beta1.Chart{
+						{
+							Name:    "metachart",
+							Version: "1",
+							Values:  `abc: xyz`,
+						},
+					},
+				},
+			},
+			fields: fields{
+				State: []runtime.Object{
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "metachart",
+						},
+						Spec: k0shelmv1beta1.ChartSpec{
+							ReleaseName: "metachart",
+							Values:      `abc: original`,
+						},
+						Status: k0shelmv1beta1.ChartStatus{},
+					},
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{
+							Extensions: &k0sv1beta1.ClusterExtensions{
+								Helm: &k0sv1beta1.HelmExtensions{
+									Charts: []k0sv1beta1.Chart{
+										{
+											Name:    "metachart",
+											Version: "1",
+											Values:  `abc: original`,
 										},
 									},
 								},

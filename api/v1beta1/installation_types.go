@@ -32,6 +32,7 @@ const (
 	InstallationStateObsolete               string = "Obsolete"
 	InstallationStateFailed                 string = "Failed"
 	InstallationStateUnknown                string = "Unknown"
+	InstallationStatePendingChartCreation   string = "PendingChartCreation"
 )
 
 // NodeStatus is used to keep track of the status of a cluster node, we
@@ -77,6 +78,7 @@ func (s *InstallationStatus) GetKubernetesInstalled() bool {
 	if s.State == InstallationStateInstalled ||
 		s.State == InstallationStateKubernetesInstalled ||
 		s.State == InstallationStateAddonsInstalling ||
+		s.State == InstallationStatePendingChartCreation ||
 		s.State == InstallationStateHelmChartUpdateFailure {
 		return true
 	}

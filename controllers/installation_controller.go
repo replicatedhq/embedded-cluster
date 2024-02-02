@@ -327,9 +327,14 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return nil
 	}
 
-	if in.Status.State != v1beta1.InstallationStateKubernetesInstalled {
+	if in.Status.State == v1beta1.InstallationStateAddonsInstalling {
 		// after the first time we apply new helm charts, this will be set to InstallationStateAddonsInstalling
 		// and we will not re-apply the charts to the k0s cluster config while waiting for those changes to propagate
+		return nil
+	}
+
+	if pendingCharts := shouldNotUpdateClusterConfig(clusterconfig.Spec.Extensions.Helm, installedCharts); len(pendingCharts) != 0 {
+		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts))
 		return nil
 	}
 
@@ -549,5 +554,6 @@ func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1beta1.Installation{}).
 		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
 		Watches(&apv1b2.Plan{}, &handler.EnqueueRequestForObject{}).
+		Watches(&k0shelm.Chart{}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }

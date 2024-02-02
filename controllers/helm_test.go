@@ -589,3 +589,146 @@ func Test_generateDesiredCharts(t *testing.T) {
 		})
 	}
 }
+
+func Test_shouldNotUpdateClusterConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		configCharts *k0sv1beta1.HelmExtensions
+		charts       k0shelm.ChartList
+		want         []string
+	}{
+		{
+			name:         "no charts",
+			configCharts: nil,
+			want:         []string{},
+		},
+		{
+			name:         "no config charts",
+			configCharts: &k0sv1beta1.HelmExtensions{},
+			want:         []string{},
+		},
+		{
+			name: "all charts present",
+			configCharts: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name: "test",
+					},
+					{
+						Name: "test2",
+					},
+				},
+			},
+			charts: k0shelm.ChartList{
+				Items: []k0shelm.Chart{
+					{
+						Spec: k0shelm.ChartSpec{
+							ReleaseName: "test",
+						},
+						Status: k0shelm.ChartStatus{
+							ReleaseName: "test",
+						},
+					},
+					{
+						Spec: k0shelm.ChartSpec{
+							ReleaseName: "test2",
+						},
+						Status: k0shelm.ChartStatus{
+							ReleaseName: "test2",
+						},
+					},
+				},
+			},
+			want: []string{},
+		},
+		{
+			name: "one chart not present in cluster",
+			configCharts: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name: "test",
+					},
+					{
+						Name: "test2",
+					},
+				},
+			},
+			charts: k0shelm.ChartList{
+				Items: []k0shelm.Chart{
+					{
+						Spec: k0shelm.ChartSpec{
+							ReleaseName: "test2",
+						},
+						Status: k0shelm.ChartStatus{
+							ReleaseName: "test2",
+						},
+					},
+				},
+			},
+			want: []string{"test"},
+		},
+		{
+			name: "chart present but not yet applied",
+			configCharts: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name: "test",
+					},
+				},
+			},
+			charts: k0shelm.ChartList{
+				Items: []k0shelm.Chart{
+					{
+						Spec: k0shelm.ChartSpec{
+							ReleaseName: "test",
+						},
+						Status: k0shelm.ChartStatus{},
+					},
+				},
+			},
+			want: []string{"test"},
+		},
+		{
+			name: "one chart ok, one not applied, one not present",
+			configCharts: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name: "okchart",
+					},
+					{
+						Name: "notapplied",
+					},
+					{
+						Name: "notpresent",
+					},
+				},
+			},
+			charts: k0shelm.ChartList{
+				Items: []k0shelm.Chart{
+					{
+						Spec: k0shelm.ChartSpec{
+							ReleaseName: "okchart",
+						},
+						Status: k0shelm.ChartStatus{
+							ReleaseName: "okchart",
+						},
+					},
+					{
+						Spec: k0shelm.ChartSpec{
+							ReleaseName: "notapplied",
+						},
+						Status: k0shelm.ChartStatus{},
+					},
+				},
+			},
+			want: []string{"notapplied", "notpresent"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			got := shouldNotUpdateClusterConfig(tt.configCharts, tt.charts)
+			req.ElementsMatch(tt.want, got)
+		})
+	}
+}
