@@ -22,7 +22,7 @@ wait_for_installation() {
 }
 
 main() {
-    sleep 30
+    sleep 30 # wait for kubectl to become available
 
     echo "pods"
     kubectl get pods -A
