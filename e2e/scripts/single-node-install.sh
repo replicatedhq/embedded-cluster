@@ -75,12 +75,12 @@ wait_for_memcached_pods() {
 }
 
 wait_for_nginx_pods() {
-    ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].status.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+    ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             echo "nginx pods did not appear"
-            kubectl get pods -n kotsadm -o jsonpath='{.items[*].status.name} {.items[*].status.phase}'
+            kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}'
             kubectl get pods -n kotsadm
             kubectl logs -n kotsadm -l app=kotsadm
             return 1
@@ -88,7 +88,7 @@ wait_for_nginx_pods() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for nginx pods"
-        ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].status.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+        ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
         kubectl get pods -n nginx 2>&1 || true
         echo "ready: $ready"
     done
