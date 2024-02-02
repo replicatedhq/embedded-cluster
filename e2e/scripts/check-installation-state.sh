@@ -22,13 +22,12 @@ wait_for_installation() {
 }
 
 main() {
-    sleep 30
-
     echo "pods"
     kubectl get pods -A
 
     echo "ensure that installation is installed"
     wait_for_installation
+    kubectl get installations --no-headers | grep -q "Installed"
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
