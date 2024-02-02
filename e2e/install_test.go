@@ -29,7 +29,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("installing ssh on node 0")
+	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "openssh-server", "-y"},
@@ -37,48 +37,26 @@ func TestSingleNodeInstallation(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing embedded-cluster on node 0")
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("install stdout:", stdout)
 		t.Log("install stderr:", stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing puppeteer on node 0")
-	line = []string{"install-puppeteer.sh"}
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
-	}
-	t.Log("accessing kotsadm interface and checking app and cluster state")
-	line = []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to access kotsadm interface and state: %v", err)
-	}
-	var r clusterStatusResponse
-	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to parse script response: %v", err)
-	}
-	if r.App != "Ready" || r.Cluster != "Up to date" {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("cluster or app not ready: %s", stdout)
-	}
-	t.Log("checking installation state")
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
-	t.Log("installation state:", stdout)
+
+	runPuppeteerAppStatusCheck(t, 0, tc)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
@@ -92,7 +70,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("installing ssh on node 0")
+	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"dnf", "install", "-y", "openssh-server"},
 		{"systemctl", "enable", "sshd"},
@@ -101,11 +79,22 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing embedded-cluster on node 0")
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func TestSingleNodeInstallationDebian12(t *testing.T) {
@@ -119,7 +108,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("installing ssh on node 0")
+	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "openssh-server", "-y"},
@@ -127,12 +116,22 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node 0: %v", err)
 	}
-	t.Log("installing embedded-cluster on node 0")
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("creating deployment mounting pvc")
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
@@ -146,7 +145,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("installing ssh on node 0")
+	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"dnf", "install", "-y", "openssh-server"},
 		{"systemctl", "enable", "sshd"},
@@ -155,60 +154,23 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing embedded-cluster on node 0")
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-}
 
-// func TestMultiNodeInteractiveInstallation(t *testing.T) {
-// 	t.Parallel()
-// 	t.Log("creating cluster")
-// 	tc := cluster.NewTestCluster(&cluster.Input{
-// 		T:                   t,
-// 		Nodes:               3,
-// 		Image:               "ubuntu/jammy",
-// 		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-// 		SSHPrivateKey:       "../output/tmp/id_rsa",
-// 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-// 	})
-// 	defer tc.Destroy()
-// 	for i := range tc.Nodes {
-// 		t.Logf("installing ssh on node %d", i)
-// 		commands := [][]string{
-// 			{"apt-get", "update", "-y"},
-// 			{"apt-get", "install", "openssh-server", "-y"},
-// 		}
-// 		if err := RunCommandsOnNode(t, tc, i, commands); err != nil {
-// 			t.Fatalf("fail to install ssh on node %d: %v", i, err)
-// 		}
-// 	}
-// 	t.Logf("installing expect on node 0")
-// 	line := []string{"apt-get", "install", "expect", "-y"}
-// 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-// 		t.Fatalf("fail to install expect on node 0: %v", err)
-// 	}
-// 	t.Log("running multi node interactive install from node 0")
-// 	line = []string{"interactive-multi-node-install.exp"}
-// 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-// 		t.Fatalf("fail to install embedded-cluster from node 0: %v", err)
-// 	}
-// 	t.Log("waiting for cluster nodes to report ready")
-// 	line = []string{"wait-for-ready-nodes.sh", "3"}
-// 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-// 		t.Fatalf("nodes not reporting ready: %v", err)
-// 	}
-// 	t.Log("restarting embedded-cluster service in all nodes")
-// 	for i := range tc.Nodes {
-// 		cmd := []string{"systemctl", "restart", "embedded-cluster"}
-// 		if stdout, stderr, err := RunCommandOnNode(t, tc, i, cmd); err != nil {
-// 			t.Logf("stdout: %s", stdout)
-// 			t.Logf("stderr: %s", stderr)
-// 			t.Fatalf("fail to restart service node %d: %v", i, err)
-// 		}
-// 	}
-// }
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
 
 func TestInstallWithDisabledAddons(t *testing.T) {
 	t.Parallel()
@@ -221,7 +183,7 @@ func TestInstallWithDisabledAddons(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("installing ssh in node 0")
+	t.Logf("%s: installing ssh in node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "openssh-server", "-y"},
@@ -229,11 +191,13 @@ func TestInstallWithDisabledAddons(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installling with disabled addons on node 0")
+	t.Logf("%s: installling with disabled addons on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"install-with-disabled-addons.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded ssh in node 0: %v", err)
 	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func TestHostPreflight(t *testing.T) {
@@ -247,7 +211,7 @@ func TestHostPreflight(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("installing ssh and binutils on node 0")
+	t.Logf("%s: installing ssh and binutils on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"dnf", "--setopt=metadata_expire=120", "install", "-y", "openssh-server", "binutils", "tar"},
 		{"systemctl", "enable", "sshd"},
@@ -256,11 +220,13 @@ func TestHostPreflight(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing embedded-cluster on node 0")
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-preflight.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 // This test creates 4 nodes, installs on the first one and then generate 2 join tokens
@@ -276,7 +242,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("installing ssh on node 0")
+	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{{"apt-get", "update", "-y"}, {"apt-get", "install", "openssh-server", "-y"}}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
@@ -284,34 +250,25 @@ func TestMultiNodeInstallation(t *testing.T) {
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
-	t.Log("installing embedded-cluster on node 0")
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, []string{"single-node-install.sh"}); err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing puppeteer on node 0")
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, []string{"install-puppeteer.sh"}); err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
-	}
-	t.Log("accessing kotsadm interface and checking app and cluster state")
-	line := []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line := []string{"check-installation-state.sh"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to access kotsadm interface and state: %v", err)
-	}
-	var r clusterStatusResponse
-	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to parse script response: %v", err)
-	} else if r.App != "Ready" || r.Cluster != "Up to date" {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("cluster or app not ready: %s", stdout)
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	runPuppeteerAppStatusCheck(t, 0, tc)
+
 	// generate all node join commands (2 for controllers and 1 for worker).
-	t.Log("generating two new controller token commands")
+	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
 		line = []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
@@ -331,7 +288,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		controllerCommands = append(controllerCommands, command)
 		t.Log("controller join token command:", command)
 	}
-	t.Log("generating a new worker token command")
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
 	line = []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
@@ -347,7 +304,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	// join the nodes.
 	for i, cmd := range controllerCommands {
 		node := i + 1
-		t.Logf("joining node %d to the cluster (controller)", node)
+		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
 		stdout, stderr, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " "))
 		if err != nil {
 			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -364,7 +321,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	}
 	command := strings.TrimPrefix(jr.Command, "sudo ./")
 	t.Log("worker join token command:", command)
-	t.Log("joining node 3 to the cluster as a worker")
+	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = RunCommandOnNode(t, tc, 3, strings.Split(command, " "))
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -372,11 +329,42 @@ func TestMultiNodeInstallation(t *testing.T) {
 	}
 
 	// wait for the nodes to report as ready.
-	t.Log("all nodes joined, waiting for them to be ready")
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log(stdout)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
+	t.Logf("%s: installing puppeteer on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"install-puppeteer.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Logf("%s: accessing kotsadm interface and checking app and cluster state", time.Now().Format(time.RFC3339))
+	line = []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to access kotsadm interface and state: %v", err)
+	}
+	var r clusterStatusResponse
+	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to parse script response: %v", err)
+	}
+	if r.App != "Ready" || r.Cluster != "Up to date" {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("cluster or app not ready: %s", stdout)
+	}
 }

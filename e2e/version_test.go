@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
@@ -21,7 +22,7 @@ func TestVersion(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("validating embedded-cluster version in node 0")
+	t.Logf("%s: validating embedded-cluster version in node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-cluster", "version"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
@@ -81,4 +82,6 @@ func TestVersion(t *testing.T) {
 		t.Log(output)
 		return
 	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
