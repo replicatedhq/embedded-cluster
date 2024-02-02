@@ -22,7 +22,7 @@ func TestMultiNodeReset(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Log("installing ssh on node 0")
+	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{{"apt-get", "update", "-y"}, {"apt-get", "install", "openssh-server", "-y"}}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
@@ -30,37 +30,19 @@ func TestMultiNodeReset(t *testing.T) {
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
-	t.Log("installing embedded-cluster on node 0")
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, []string{"single-node-install.sh"}); err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log("installing puppeteer on node 0")
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, []string{"install-puppeteer.sh"}); err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
-	}
-	t.Log("accessing kotsadm interface and checking app and cluster state")
-	line := []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to access kotsadm interface and state: %v", err)
-	}
-	var r clusterStatusResponse
-	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to parse script response: %v", err)
-	} else if r.App != "Ready" || r.Cluster != "Up to date" {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("cluster or app not ready: %s", stdout)
-	}
+
+	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	// generate all node join commands (2 for controllers and 1 for worker).
-	t.Log("generating two new controller token commands")
+	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line = []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
+		line := []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
 		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 		if err != nil {
 			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -77,9 +59,9 @@ func TestMultiNodeReset(t *testing.T) {
 		controllerCommands = append(controllerCommands, command)
 		t.Log("controller join token command:", command)
 	}
-	t.Log("generating a new worker token command")
-	line = []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
+	line := []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to generate controller join token: %s", stdout)
@@ -93,7 +75,7 @@ func TestMultiNodeReset(t *testing.T) {
 	// join the nodes.
 	for i, cmd := range controllerCommands {
 		node := i + 1
-		t.Logf("joining node %d to the cluster (controller)", node)
+		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
 		stdout, stderr, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " "))
 		if err != nil {
 			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -110,7 +92,7 @@ func TestMultiNodeReset(t *testing.T) {
 	}
 	command := strings.TrimPrefix(jr.Command, "sudo ./")
 	t.Log("worker join token command:", command)
-	t.Log("joining node 3 to the cluster as a worker")
+	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = RunCommandOnNode(t, tc, 3, strings.Split(command, " "))
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -118,7 +100,7 @@ func TestMultiNodeReset(t *testing.T) {
 	}
 
 	// wait for the nodes to report as ready.
-	t.Log("all nodes joined, waiting for them to be ready")
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -128,7 +110,7 @@ func TestMultiNodeReset(t *testing.T) {
 
 	bin := strings.Split(command, " ")[0]
 	// reset worker node
-	t.Log("resetting worker node")
+	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = RunCommandOnNode(t, tc, 3, []string{bin, "node", "reset", "--no-prompt"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -138,7 +120,7 @@ func TestMultiNodeReset(t *testing.T) {
 
 	// reset a controller node
 	// this should fail with a prompt to override
-	t.Log("resetting controller node")
+	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "node", "reset", "--no-prompt"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -153,4 +135,5 @@ func TestMultiNodeReset(t *testing.T) {
 	}
 	t.Log(stdout)
 
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

@@ -3,8 +3,8 @@ kind: Config
 metadata:
   name: "testconfig"
 spec:
+  version: "staging-metadata"
   roles:
-    version: "staging-metadata"
     controller:
       labels:
         controller-label: controller-label-value
