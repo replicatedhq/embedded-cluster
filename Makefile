@@ -9,7 +9,7 @@ ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.22.0
+EMBEDDED_OPERATOR_CHART_VERSION = 0.22.1
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
@@ -69,11 +69,11 @@ pkg/goods/bins/embedded-cluster/kubectl-preflight: Makefile
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
 
-output/tmp/release-onmerge.tar.gz:
+output/tmp/release-onmerge.tar.gz: e2e/kots-release-onmerge/*
 	mkdir -p output/tmp
 	tar -czf output/tmp/release-onmerge.tar.gz -C e2e/kots-release-onmerge .
 
-output/tmp/release-onpr.tar.gz:
+output/tmp/release-onpr.tar.gz: e2e/kots-release-onpr/*
 	mkdir -p output/tmp
 	tar -czf output/tmp/release-onpr.tar.gz -C e2e/kots-release-onpr .
 
