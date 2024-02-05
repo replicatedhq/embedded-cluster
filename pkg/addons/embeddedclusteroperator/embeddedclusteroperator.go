@@ -63,9 +63,7 @@ func (e *EmbeddedClusterOperator) HostPreflights() (*v1beta2.HostPreflightSpec, 
 // GetProtectedFields returns the protected fields for the embedded charts.
 // placeholder for now.
 func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
-	protectedFields := []string{
-		"embeddedBinaryName",
-	}
+	protectedFields := []string{}
 	return map[string][]string{releaseName: protectedFields}
 }
 
@@ -78,7 +76,16 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		TargetNS:  "embedded-cluster",
 		Order:     2,
 	}
-	valuesStringData, err := yaml.Marshal(helmValues)
+	values := map[string]interface{}{}
+	for key, value := range helmValues {
+		// we do not want to override embeddedClusterID and embeddedBinaryName
+		// as these vary from cluster to cluster.
+		if onlyDefaults && (key == "embeddedClusterID" || key == "embeddedBinaryName") {
+			continue
+		}
+		values[key] = value
+	}
+	valuesStringData, err := yaml.Marshal(values)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}

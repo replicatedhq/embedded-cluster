@@ -36,14 +36,9 @@ var (
 	MigrationsImageOverride = ""
 )
 
-// protectedFields are helm values that are not overwritten when upgrading the addon.
-var protectedFields = []string{
-	"automation",
-}
-
 const DEFAULT_ADMIN_CONSOLE_NODE_PORT = 30000
 
-var helmValues = map[string]interface{}{
+var defaultHelmValues = map[string]interface{}{
 	"minimalRBAC":   false,
 	"isHelmManaged": false,
 	"service": map[string]interface{}{
@@ -53,20 +48,19 @@ var helmValues = map[string]interface{}{
 		"enabled":  true,
 		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
 	},
-	"embeddedClusterID": metrics.ClusterID().String(),
 }
 
 func init() {
 	if ImageOverride != "" {
-		helmValues["images"] = map[string]interface{}{
+		defaultHelmValues["images"] = map[string]interface{}{
 			"kotsadm": ImageOverride,
 		}
 	}
 	if MigrationsImageOverride != "" {
-		if helmValues["images"] == nil {
-			helmValues["images"] = map[string]interface{}{}
+		if defaultHelmValues["images"] == nil {
+			defaultHelmValues["images"] = map[string]interface{}{}
 		}
-		helmValues["images"].(map[string]interface{})["migrations"] = MigrationsImageOverride
+		defaultHelmValues["images"].(map[string]interface{})["migrations"] = MigrationsImageOverride
 	}
 }
 
@@ -103,6 +97,7 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 
 // GetProtectedFields returns the helm values that are not overwritten when upgrading
 func (a *AdminConsole) GetProtectedFields() map[string][]string {
+	protectedFields := []string{}
 	return map[string][]string{releaseName: protectedFields}
 }
 
@@ -112,33 +107,35 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return embed.GetHostPreflights()
 }
 
-// addLicenseAndVersionToHelmValues adds the embedded license to the helm values.
-func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
+// assessLicenseAndVersion checks if there is a license embedded in the binary and also
+// if a default application sequence (version) has also been embedded. Returns a map
+// that can then be set in the helm values.yaml when deploying the admin console. If no
+// license is found this returns nil and no error.
+func (a *AdminConsole) assessLicenseAndVersion() (map[string]interface{}, error) {
 	license, err := embed.GetLicense()
 	if err != nil {
-		return fmt.Errorf("unable to get license: %w", err)
+		return nil, fmt.Errorf("unable to get license: %w", err)
 	}
 	if license == nil {
-		return nil
+		return nil, nil
 	}
 	raw, err := k8syaml.Marshal(license)
 	if err != nil {
-		return fmt.Errorf("unable to marshal license: %w", err)
+		return nil, fmt.Errorf("unable to marshal license: %w", err)
 	}
 	var appVersion string
 	if release, err := embed.GetChannelRelease(); err != nil {
-		return fmt.Errorf("unable to get channel release: %w", err)
+		return nil, fmt.Errorf("unable to get channel release: %w", err)
 	} else if release != nil {
 		appVersion = release.VersionLabel
 	}
-	helmValues["automation"] = map[string]interface{}{
+	return map[string]interface{}{
 		"appVersionLabel": appVersion,
 		"license": map[string]interface{}{
 			"slug": license.Spec.AppSlug,
 			"data": string(raw),
 		},
-	}
-	return nil
+	}, nil
 }
 
 // getPasswordFromConfig returns the adminconsole password from the provided chart config.
@@ -173,66 +170,95 @@ func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 	return nil
 }
 
-// addPasswordToHelmValues adds the adminconsole password to the helm values.
-func (a *AdminConsole) addPasswordToHelmValues() error {
+// assessPassword finds what is the password to be used by the user to access the adming console.
+func (a *AdminConsole) assessPassword() (string, error) {
 	curconfig := a.GetCurrentChartConfig()
 	if curconfig == nil {
 		pass, err := a.askPassword()
 		if err != nil {
-			return fmt.Errorf("unable to ask password: %w", err)
+			return "", fmt.Errorf("unable to ask password: %w", err)
 		}
-		helmValues["password"] = pass
-		return nil
+		return pass, nil
 	}
 	pass, err := getPasswordFromConfig(curconfig)
 	if err != nil {
-		return fmt.Errorf("unable to get password from current config: %w", err)
+		return "", fmt.Errorf("unable to get password from current config: %w", err)
 	}
-	helmValues["password"] = pass
-	return nil
+	return pass, nil
 }
 
-// addKotsApplicationToHelmValues extracts the embed application struct found in this binary
-// and adds it to the helm values.
-func (a *AdminConsole) addKotsApplicationToHelmValues() error {
+// assessKotsApplication finds the kots application yaml that is embedded in the binary. If no
+// kots application yaml is found returns "default value" instead.
+func (a *AdminConsole) assessKotsApplication() (string, error) {
 	app, err := embed.GetApplication()
 	if err != nil {
-		return fmt.Errorf("unable to get application: %w", err)
+		return "", fmt.Errorf("unable to get application: %w", err)
 	} else if app == nil {
-		helmValues["kotsApplication"] = "default value"
-		return nil
+		return "default value", nil
 	}
-	helmValues["kotsApplication"] = string(app)
-	return nil
+	return string(app), nil
 }
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	if !onlyDefaults {
-		if err := a.addPasswordToHelmValues(); err != nil {
-			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
+	if onlyDefaults {
+		values, err := yaml.Marshal(defaultHelmValues)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 		}
-		if err := a.addKotsApplicationToHelmValues(); err != nil {
-			return nil, nil, fmt.Errorf("unable to add kots app to helm values: %w", err)
-		}
+		return []v1beta1.Chart{
+			{
+				Name:      releaseName,
+				ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
+				Version:   Version,
+				Values:    string(values),
+				TargetNS:  a.namespace,
+				Order:     3,
+			},
+		}, nil, nil
 	}
-	if err := a.addLicenseAndVersionToHelmValues(); err != nil {
-		return nil, nil, fmt.Errorf("unable to add license to helm values: %w", err)
+
+	localValues := map[string]interface{}{}
+	for k, v := range defaultHelmValues {
+		localValues[k] = v
 	}
-	values, err := yaml.Marshal(helmValues)
+
+	localValues["embeddedClusterID"] = metrics.ClusterID().String()
+
+	pass, err := a.assessPassword()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to determine password: %w", err)
+	}
+	localValues["password"] = pass
+
+	app, err := a.assessKotsApplication()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to determine kots application values: %w", err)
+	}
+	localValues["kotsApplication"] = app
+
+	if automation, err := a.assessLicenseAndVersion(); err != nil {
+		return nil, nil, fmt.Errorf("unable to determine automation values: %w", err)
+	} else if automation != nil {
+		localValues["automation"] = automation
+	}
+
+	values, err := yaml.Marshal(localValues)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig := v1beta1.Chart{
-		Name:      releaseName,
-		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
-		Version:   Version,
-		Values:    string(values),
-		TargetNS:  a.namespace,
-		Order:     3,
-	}
-	return []v1beta1.Chart{chartConfig}, nil, nil
+
+	return []v1beta1.Chart{
+		{
+			Name:      releaseName,
+			ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
+			Version:   Version,
+			Values:    string(values),
+			TargetNS:  a.namespace,
+			Order:     3,
+		},
+	}, nil, nil
 }
 
 // Outro waits for the adminconsole to be ready.
