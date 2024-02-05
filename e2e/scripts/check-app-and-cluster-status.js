@@ -221,6 +221,58 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         }
         console.log(JSON.stringify(state));
     }
+    {
+        process.stderr.write("checking for updates\n");
+        const targetPage = page;
+        await puppeteer.Locator.race([
+            targetPage.locator('div.u-paddingRight--15 div:nth-of-type(1) > span'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"app\\"]/div/div[2]/div/div/div/div[2]/div/div/div[2]/div[1]/div/div[1]/div/div/div[1]/span)'),
+            targetPage.locator(':scope >>> div.u-paddingRight--15 div:nth-of-type(1) > span'),
+            targetPage.locator('::-p-text(Check for update)')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 60.6953125,
+                y: 9,
+              },
+            });
+    }
+    {
+        process.stderr.write("deploying the new version\n");
+        const targetPage = page;
+        await puppeteer.Locator.race([
+            targetPage.locator('::-p-aria(Deploy) >>>> ::-p-aria([role=\\"generic\\"])'),
+            targetPage.locator('div.is-new > div.flex1 span'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"app\\"]/div/div[2]/div/div/div/div[2]/div/div/div[2]/div[1]/div/div[3]/div/div[1]/div[3]/div[2]/button/span)'),
+            targetPage.locator(':scope >>> div.is-new > div.flex1 span')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 32.5078125,
+                y: 5.90625,
+              },
+            });
+    }
+    {
+        process.stderr.write("confirming that we want to deploy the new version\n");
+        const targetPage = page;
+        await puppeteer.Locator.race([
+            targetPage.locator('::-p-aria(Yes, Deploy)'),
+            targetPage.locator('button.u-marginLeft--10'),
+            targetPage.locator('::-p-xpath(/html/body/div[8]/div/div/div/div/button[2])'),
+            targetPage.locator(':scope >>> button.u-marginLeft--10'),
+            targetPage.locator('::-p-text(Yes, Deploy)')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 55.1484375,
+                y: 19,
+              },
+            });
+    }
 
     await browser.close();
 
