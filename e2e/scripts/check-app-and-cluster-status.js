@@ -32,19 +32,19 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             height: 934
         })
     }
-    // {
-    //     process.stderr.write("opening a new tab\n");
-    //     const targetPage = page;
-    //     const promises = [];
-    //     const startWaitingForEvents = () => {
-    //         promises.push(targetPage.waitForNavigation());
-    //     }
-    //     startWaitingForEvents();
-    //     await targetPage.goto('chrome://new-tab-page/');
-    //     await Promise.all(promises);
-    // }
     {
-        process.stderr.write("acessing kotsadm on port 30000\n");
+        process.stderr.write("opening a new tab\n");
+        const targetPage = page;
+        const promises = [];
+        const startWaitingForEvents = () => {
+            promises.push(targetPage.waitForNavigation());
+        }
+        startWaitingForEvents();
+        await targetPage.goto('chrome://new-tab-page/');
+        await Promise.all(promises);
+    }
+    {
+        process.stderr.write("accessing kotsadm on port 30000\n");
         const targetPage = page;
         const promises = [];
         const startWaitingForEvents = () => {
@@ -56,7 +56,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         await Promise.all(promises);
     }
     {
-        process.stderr.write("waiting and clickin on the 'Continue to Setup' button\n");
+        process.stderr.write("waiting and clicking on the 'Continue to Setup' button\n");
         const targetPage = page;
         const promises = [];
         const startWaitingForEvents = () => {
