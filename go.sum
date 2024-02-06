@@ -308,8 +308,8 @@ github.com/prometheus/common v0.45.0 h1:2BGz0eBc2hdMDLnO/8n0jeB3oPrt2D08CekT0lne
 github.com/prometheus/common v0.45.0/go.mod h1:YJmSTw9BoKxJplESWWxlbyttQR4uaEcGyv9MZjVOJsY=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
-github.com/replicatedhq/embedded-cluster-operator v0.21.0 h1:8op84Vuoh3ZQ2rcin0iFFlTQcR+e0sPh94e68b7I8gc=
-github.com/replicatedhq/embedded-cluster-operator v0.21.0/go.mod h1:uqF+I0D7RY3/q8LHgGfEjhH/ks1vvtBZ7bUA30vtPII=
+github.com/replicatedhq/embedded-cluster-operator v0.22.1 h1:GM1kGgtZXZ+ZwZhRXAVV5j8+2qpXP9a3bkbBAsaoAlc=
+github.com/replicatedhq/embedded-cluster-operator v0.22.1/go.mod h1:T5Tp2Jj0WW/T3EpKts7iI0lMkoEa6ZbqoPxhfOE7cG4=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
 github.com/replicatedhq/troubleshoot v0.81.0 h1:YMYZQiTRzDCoPntrZuyjSOw8IZzXag+NX2zrRycJ9GU=
