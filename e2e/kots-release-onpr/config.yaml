@@ -17,6 +17,9 @@ spec:
       - labels:
           xyz-test-label: xyz-value
         name: xyz
+      - labels:
+          final-test-label: final-value
+        name: final
   unsupportedOverrides:
     k0s: |
       config:
