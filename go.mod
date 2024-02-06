@@ -15,7 +15,7 @@ require (
 	github.com/k0sproject/rig v0.17.4
 	github.com/replicatedhq/embedded-cluster-operator v0.22.1
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
-	github.com/replicatedhq/troubleshoot v0.81.0
+	github.com/replicatedhq/troubleshoot v0.82.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.27.1
@@ -33,7 +33,7 @@ require (
 	github.com/bodgit/ntlmssp v0.0.0-20231224131242-ee0981b06f47 // indirect
 	github.com/bodgit/windows v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/containerd/containerd v1.7.11 // indirect
+	github.com/containerd/containerd v1.7.13 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
