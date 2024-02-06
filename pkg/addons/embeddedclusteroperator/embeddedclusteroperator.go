@@ -118,6 +118,10 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 		},
+		Status: embeddedclusterv1beta1.InstallationStatus{
+			State:  embeddedclusterv1beta1.InstallationStateInstalled,
+			Reason: "Initial installation",
+		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
 	if err := cli.Create(ctx, &installation); err != nil {
