@@ -132,6 +132,16 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		return fmt.Errorf("unable to update installation status: %w", err)
 	}
 
+	gotInstall := embeddedclusterv1beta1.Installation{}
+	if err := cli.Get(ctx, client.ObjectKey{Name: installation.Name, Namespace: "embedded-cluster"}, &gotInstall); err != nil {
+		return fmt.Errorf("unable to get installation: %w", err)
+	}
+
+	if gotInstall.Status.State != embeddedclusterv1beta1.InstallationStateInstalled {
+		fmt.Printf("Installation status: %+v\n", gotInstall.Status)
+		return fmt.Errorf("installation state was not 'installed'")
+	}
+
 	return nil
 }
 
