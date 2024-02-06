@@ -35,7 +35,7 @@ main() {
     kubectl get pods -A
 
     # ensure that goldpinger exists
-    kubectl get pods -n goldpinger
+    kubectl get ns goldpinger
 
     # ensure that new app pods exist
     kubectl get pods -n kotsadm -l app=second
