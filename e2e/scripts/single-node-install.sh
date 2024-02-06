@@ -100,11 +100,11 @@ wait_for_nginx_pods() {
 }
 
 ensure_app_not_upgraded() {
-    if kubectl get ns goldpinger; then
+    if kubectl get ns | grep -q goldpinger ; then
         echo "found goldpinger ns"
         return 1
     fi
-    if kubectl get pods -n kotsadm -l app=second; then
+    if kubectl get pods -n kotsadm -l app=second -q | grep -q second ; then
         echo "found pods from app update"
         return 1
     fi
