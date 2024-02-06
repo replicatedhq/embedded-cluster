@@ -99,6 +99,17 @@ wait_for_nginx_pods() {
     done
 }
 
+ensure_app_not_upgraded() {
+    if kubectl get pods -n goldpinger; then
+        echo "found goldpinger pods"
+        return 1
+    fi
+    if kubectl get pods -n kotsadm -l app=second; then
+        echo "found pods from app update"
+        return 1
+    fi
+}
+
 main() {
     if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
@@ -127,6 +138,9 @@ main() {
     fi
     if ! wait_for_memcached_pods; then
         echo "Failed waiting for memcached pods"
+        exit 1
+    fi
+    if ! ensure_app_not_upgraded; then
         exit 1
     fi
     if ! systemctl restart embedded-cluster; then
