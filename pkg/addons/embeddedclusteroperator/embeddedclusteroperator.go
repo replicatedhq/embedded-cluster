@@ -127,6 +127,11 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	if err := cli.Create(ctx, &installation); err != nil {
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
+
+	if err := cli.Status().Update(ctx, &installation); err != nil {
+		return fmt.Errorf("unable to update installation status: %w", err)
+	}
+
 	return nil
 }
 
