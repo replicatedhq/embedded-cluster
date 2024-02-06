@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
@@ -12,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 )
 
@@ -27,13 +29,24 @@ var versionCommand = &cli.Command{
 		}
 		writer := table.NewWriter()
 		writer.AppendHeader(table.Row{"component", "version"})
+		release, err := embed.GetChannelRelease()
+		if err == nil && release != nil {
+			writer.AppendRow(table.Row{defaults.BinaryName(), release.VersionLabel})
+		}
 		writer.AppendRow(table.Row{"Installer", defaults.Version})
 		writer.AppendRow(table.Row{"Kubernetes", defaults.K0sVersion})
-		for name, version := range versions {
+
+		keys := []string{}
+		for k := range versions {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			version := versions[k]
 			if !strings.HasPrefix(version, "v") {
 				version = fmt.Sprintf("v%s", version)
 			}
-			writer.AppendRow(table.Row{name, version})
+			writer.AppendRow(table.Row{k, version})
 		}
 		fmt.Printf("%s\n", writer.Render())
 		return nil
@@ -62,6 +75,10 @@ var metadataCommand = &cli.Command{
 		}
 		versions["Kubernetes"] = defaults.K0sVersion
 		versions["Installer"] = defaults.Version
+		release, err := embed.GetChannelRelease()
+		if err == nil && release != nil {
+			versions[defaults.BinaryName()] = release.VersionLabel
+		}
 		sha, err := goods.K0sBinarySHA256()
 		if err != nil {
 			return fmt.Errorf("unable to get k0s binary sha256: %w", err)

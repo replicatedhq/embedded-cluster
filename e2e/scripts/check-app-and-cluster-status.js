@@ -44,7 +44,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         await Promise.all(promises);
     }
     {
-        process.stderr.write("acessing kotsadm on port 30000\n");
+        process.stderr.write("accessing kotsadm on port 30000\n");
         const targetPage = page;
         const promises = [];
         const startWaitingForEvents = () => {
@@ -56,7 +56,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         await Promise.all(promises);
     }
     {
-        process.stderr.write("waiting and clickin on the 'Continue to Setup' button\n");
+        process.stderr.write("waiting and clicking on the 'Continue to Setup' button\n");
         const targetPage = page;
         const promises = [];
         const startWaitingForEvents = () => {
