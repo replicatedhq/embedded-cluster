@@ -118,27 +118,30 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 		},
-		Status: embeddedclusterv1beta1.InstallationStatus{
-			State:  embeddedclusterv1beta1.InstallationStateInstalled,
-			Reason: "Initial installation",
-		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
 	if err := cli.Create(ctx, &installation); err != nil {
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
 
-	if err := cli.Status().Update(ctx, &installation); err != nil {
-		return fmt.Errorf("unable to update installation status: %w", err)
-	}
-
 	gotInstall := embeddedclusterv1beta1.Installation{}
 	if err := cli.Get(ctx, client.ObjectKey{Name: installation.Name, Namespace: "embedded-cluster"}, &gotInstall); err != nil {
 		return fmt.Errorf("unable to get installation: %w", err)
 	}
+	gotInstall.Status = embeddedclusterv1beta1.InstallationStatus{
+		State:  embeddedclusterv1beta1.InstallationStateInstalled,
+		Reason: "Initial installation",
+	}
+	if err := cli.Status().Update(ctx, &gotInstall); err != nil {
+		return fmt.Errorf("unable to update installation status: %w", err)
+	}
 
-	if gotInstall.Status.State != embeddedclusterv1beta1.InstallationStateInstalled {
-		fmt.Printf("Installation status: %+v\n", gotInstall.Status)
+	gotInstall2 := embeddedclusterv1beta1.Installation{}
+	if err := cli.Get(ctx, client.ObjectKey{Name: installation.Name, Namespace: "embedded-cluster"}, &gotInstall2); err != nil {
+		return fmt.Errorf("unable to get installation: %w", err)
+	}
+	if gotInstall2.Status.State != embeddedclusterv1beta1.InstallationStateInstalled {
+		fmt.Printf("Installation status: %+v\n", gotInstall2.Status)
 		return fmt.Errorf("installation state was not 'installed'")
 	}
 
