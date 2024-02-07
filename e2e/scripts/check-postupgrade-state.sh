@@ -31,6 +31,8 @@ main() {
 
     kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --deploy --namespace kotsadm
 
+    sleep 30
+
     echo "ensure that installation is installed"
     wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"
