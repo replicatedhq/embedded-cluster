@@ -22,6 +22,7 @@ jobs:
           make embedded-cluster-linux-amd64
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
+          make embedded-release-onmerge # this is done after the metadata.json is generated so as to not include additional charts
       - name: Cache files
         env:
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
@@ -41,8 +42,16 @@ jobs:
           files: |
             *.tgz
             metadata.json
+      - name: upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-release-onmerge
+          path: |
+            output/bin/embedded-cluster
   e2e:
     runs-on: ubuntu-latest
+    needs:
+      - releaser
     strategy:
       fail-fast: false
       matrix:
@@ -63,6 +72,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: embedded-release-onmerge
       - uses: ./.github/actions/e2e
         with:
           test-env: 'onmerge'
