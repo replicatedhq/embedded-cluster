@@ -27,6 +27,10 @@ wait_for_installation() {
 main() {
     sleep 30 # wait for kubectl to become available
 
+    curl https://kots.io/install/1.107.1 | bash
+
+    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --deploy --namespace kotsadm
+
     echo "ensure that installation is installed"
     wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"

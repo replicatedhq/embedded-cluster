@@ -103,6 +103,15 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -138,6 +147,15 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -176,6 +194,15 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
