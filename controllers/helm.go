@@ -2,8 +2,6 @@ package controllers
 
 import (
 	"fmt"
-	"reflect"
-
 	"github.com/k0sproject/dig"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -83,55 +81,110 @@ func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.
 	return combinedConfigs
 }
 
-// detect if the charts currently installed in the cluster (installedCharts) match the desired charts (combinedConfigs)
-// also detect if any of the charts installed in the cluster contain error messages
-func detectChartDrift(combinedConfigs *k0sv1beta1.HelmExtensions, installedCharts k0shelm.ChartList) ([]string, bool, error) {
+// detect if the charts currently installed in the cluster (currentConfigs) match the desired charts (combinedConfigs)
+func detectChartDrift(combinedConfigs, currentConfigs *k0sv1beta1.HelmExtensions) (bool, error) {
+	if len(currentConfigs.Charts) != len(combinedConfigs.Charts) ||
+		len(currentConfigs.Repositories) != len(combinedConfigs.Repositories) {
+		return true, nil
+	}
+
 	targetCharts := combinedConfigs.Charts
-	chartErrors := []string{}
-	chartDrift := len(installedCharts.Items) != len(targetCharts)
+	chartDrift := false
 	// grab the installed charts
-	for _, chart := range installedCharts.Items {
-		// extract any errors from installed charts
-		if chart.Status.Error != "" {
-			chartErrors = append(chartErrors, chart.Status.Error)
-		}
+	for _, chart := range currentConfigs.Charts {
 		// check for version and values drift between installed charts and charts in the installer metadata
 		chartSeen := false
 		for _, targetChart := range targetCharts {
-			if targetChart.Name != chart.Spec.ReleaseName {
+			if targetChart.Name != chart.Name {
 				continue
 			}
 			chartSeen = true
 
-			checkVersion := chart.Status.Version
-			if checkVersion == "" { // status will not contain the version if there is an error
-				checkVersion = chart.Spec.Version
-			}
-			if targetChart.Version != checkVersion {
-				chartDrift = true
-			}
-			targetValuesMap := map[string]interface{}{}
-			err := yaml.Unmarshal([]byte(targetChart.Values), &targetValuesMap)
-			if err != nil {
-				return nil, false, fmt.Errorf("target chart %s values error: %w", targetChart.Name, err)
-			}
-
-			currentValuesMap := map[string]interface{}{}
-			err = yaml.Unmarshal([]byte(chart.Spec.Values), &currentValuesMap)
-			if err != nil {
-				return nil, false, fmt.Errorf("existing chart %s values error: %w", chart.Spec.ReleaseName, err)
-			}
-
-			if !reflect.DeepEqual(targetValuesMap, currentValuesMap) {
+			if targetChart.Version != chart.Version {
 				chartDrift = true
 			}
 
+			valuesDiff, err := yamlDiff(targetChart.Values, chart.Values)
+			if err != nil {
+				return false, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
+			}
+			if valuesDiff {
+				chartDrift = true
+			}
 		}
 		if !chartSeen { // if this chart in the cluster is not in the target spec, there is drift
 			chartDrift = true
 		}
 	}
-	return chartErrors, chartDrift, nil
+	return chartDrift, nil
+}
+
+// yamlDiff compares two yaml strings and returns true if they are different
+func yamlDiff(a, b string) (bool, error) {
+	aMap := map[string]interface{}{}
+	err := yaml.Unmarshal([]byte(a), &aMap)
+	if err != nil {
+		return false, fmt.Errorf("yaml A values error: %w", err)
+	}
+
+	bMap := map[string]interface{}{}
+	err = yaml.Unmarshal([]byte(b), &bMap)
+	if err != nil {
+		return false, fmt.Errorf("yaml B values error: %w", err)
+	}
+
+	aYaml, err := yaml.Marshal(aMap)
+	if err != nil {
+		return false, fmt.Errorf("yaml A marshal error: %w", err)
+	}
+
+	bYaml, err := yaml.Marshal(bMap)
+	if err != nil {
+		return false, fmt.Errorf("yaml B marshal error: %w", err)
+	}
+
+	return string(aYaml) != string(bYaml), nil
+}
+
+// check if all charts in the combinedConfigs are installed successfully with the desired version and values
+func detectChartCompletion(combinedConfigs *k0sv1beta1.HelmExtensions, installedCharts k0shelm.ChartList) (bool, []string, error) {
+	chartErrors := []string{}
+	diffDetected := false
+	for _, chart := range combinedConfigs.Charts {
+		chartSeen := false
+		for _, installedChart := range installedCharts.Items {
+			if chart.Name == installedChart.Spec.ReleaseName {
+				chartSeen = true
+
+				valuesDiff, err := yamlDiff(chart.Values, installedChart.Spec.Values)
+				if err != nil {
+					return false, nil, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
+				}
+				if valuesDiff {
+					diffDetected = true
+				}
+
+				if installedChart.Status.Version != chart.Version {
+					diffDetected = true
+				}
+
+				if installedChart.Status.Error != "" {
+					chartErrors = append(chartErrors, installedChart.Status.Error)
+				}
+
+				break
+			}
+		}
+		if !chartSeen {
+			diffDetected = true
+		}
+	}
+
+	if diffDetected || len(chartErrors) > 0 {
+		return false, chartErrors, nil
+	}
+
+	return true, nil, nil
 }
 
 // merge the helmcharts in the cluster with the charts we desire to be in the cluster

@@ -286,31 +286,42 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 
 	combinedConfigs := mergeHelmConfigs(meta, in)
 
-	// fetch the current clusterconfig
-	var clusterconfig k0sv1beta1.ClusterConfig
-	if err := r.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterconfig); err != nil {
+	// fetch the current clusterConfig
+	var clusterConfig k0sv1beta1.ClusterConfig
+	if err := r.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterConfig); err != nil {
 		return fmt.Errorf("failed to get cluster config: %w", err)
 	}
 
-	finalChartList, err := generateDesiredCharts(meta, clusterconfig, combinedConfigs)
+	finalChartList, err := generateDesiredCharts(meta, clusterConfig, combinedConfigs)
 	if err != nil {
 		return err
 	}
 	combinedConfigs.Charts = finalChartList
+
+	existingHelm := &k0sv1beta1.HelmExtensions{}
+	if clusterConfig.Spec != nil && clusterConfig.Spec.Extensions != nil && clusterConfig.Spec.Extensions.Helm != nil {
+		existingHelm = clusterConfig.Spec.Extensions.Helm
+	}
+
+	chartDrift, err := detectChartDrift(combinedConfigs, existingHelm)
+	if err != nil {
+		return fmt.Errorf("failed to check chart drift: %w", err)
+	}
 
 	// detect drift between the cluster config and the installer metadata
 	var installedCharts k0shelm.ChartList
 	if err := r.List(ctx, &installedCharts); err != nil {
 		return fmt.Errorf("failed to list installed charts: %w", err)
 	}
-
-	chartErrors, chartDrift, err := detectChartDrift(combinedConfigs, installedCharts)
+	chartsApplied, chartErrors, err := detectChartCompletion(combinedConfigs, installedCharts)
 	if err != nil {
-		return fmt.Errorf("failed to check chart drift: %w", err)
+		return fmt.Errorf("failed to check chart completion: %w", err)
 	}
 
 	// If any chart has errors, update installer state and return
-	if len(chartErrors) > 0 {
+	// if there is a difference between what we want and what we have
+	// we should update the cluster instead of letting chart errors stop deployment permanently
+	if len(chartErrors) > 0 && !chartDrift {
 		chartErrorString := strings.Join(chartErrors, ",")
 		chartErrorString = "failed to update helm charts: " + chartErrorString
 		log.Info("chart errors", "errors", chartErrorString)
@@ -321,8 +332,8 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return nil
 	}
 
-	// If all addons match their target version, mark installation as complete (or as failed, if there are errors)
-	if !chartDrift {
+	// If all addons match their target version + values, mark installation as complete (or as failed, if there are errors)
+	if chartsApplied {
 		in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded")
 		return nil
 	}
@@ -333,16 +344,22 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return nil
 	}
 
-	if pendingCharts := shouldNotUpdateClusterConfig(clusterconfig.Spec.Extensions.Helm, installedCharts); len(pendingCharts) != 0 {
+	if pendingCharts := shouldNotUpdateClusterConfig(clusterConfig.Spec.Extensions.Helm, installedCharts); len(pendingCharts) != 0 {
 		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts))
 		return nil
 	}
 
+	if !chartDrift {
+		// if there is no drift, we should not reapply the cluster config
+		// however, the charts have not been applied yet, so we should not mark the installation as complete
+		return nil
+	}
+
 	// Replace the current chart configs with the new chart configs
-	clusterconfig.Spec.Extensions.Helm = combinedConfigs
+	clusterConfig.Spec.Extensions.Helm = combinedConfigs
 	in.Status.SetState(v1beta1.InstallationStateAddonsInstalling, "Installing addons")
-	//Update the clusterconfig
-	if err := r.Update(ctx, &clusterconfig); err != nil {
+	//Update the clusterConfig
+	if err := r.Update(ctx, &clusterConfig); err != nil {
 		return fmt.Errorf("failed to update cluster config: %w", err)
 	}
 	return nil

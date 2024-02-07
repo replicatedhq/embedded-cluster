@@ -221,7 +221,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 	}
 }
 
-func Test_detectChartDrift(t *testing.T) {
+func Test_detectChartCompletion(t *testing.T) {
 	type args struct {
 		combinedConfigs *k0sv1beta1.HelmExtensions
 		installedCharts k0shelm.ChartList
@@ -230,7 +230,7 @@ func Test_detectChartDrift(t *testing.T) {
 		name            string
 		args            args
 		wantChartErrors []string
-		wantDrift       bool
+		wantCompletion  bool
 	}{
 		{
 			name: "no drift",
@@ -268,8 +268,8 @@ func Test_detectChartDrift(t *testing.T) {
 					},
 				},
 			},
-			wantDrift:       false,
-			wantChartErrors: []string{},
+			wantCompletion:  true,
+			wantChartErrors: nil,
 		},
 		{
 			name: "new chart",
@@ -299,7 +299,7 @@ func Test_detectChartDrift(t *testing.T) {
 					},
 				},
 			},
-			wantDrift:       true,
+			wantCompletion:  false,
 			wantChartErrors: []string{},
 		},
 		{
@@ -334,8 +334,8 @@ func Test_detectChartDrift(t *testing.T) {
 					},
 				},
 			},
-			wantDrift:       true,
-			wantChartErrors: []string{},
+			wantCompletion:  true,
+			wantChartErrors: nil,
 		},
 		{
 			name: "added and removed chart",
@@ -361,7 +361,7 @@ func Test_detectChartDrift(t *testing.T) {
 					},
 				},
 			},
-			wantDrift:       true,
+			wantCompletion:  false,
 			wantChartErrors: []string{},
 		},
 		{
@@ -402,7 +402,7 @@ func Test_detectChartDrift(t *testing.T) {
 					},
 				},
 			},
-			wantDrift:       false,
+			wantCompletion:  false,
 			wantChartErrors: []string{"test chart error", "test chart two error"},
 		},
 		{
@@ -443,7 +443,7 @@ func Test_detectChartDrift(t *testing.T) {
 					},
 				},
 			},
-			wantDrift:       true,
+			wantCompletion:  false,
 			wantChartErrors: []string{"test chart error", "test chart two error"},
 		},
 		{
@@ -476,7 +476,7 @@ func Test_detectChartDrift(t *testing.T) {
 					},
 				},
 			},
-			wantDrift:       true,
+			wantCompletion:  false,
 			wantChartErrors: []string{},
 		},
 	}
@@ -484,10 +484,10 @@ func Test_detectChartDrift(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			gotErrors, gotDrift, err := detectChartDrift(tt.args.combinedConfigs, tt.args.installedCharts)
+			gotCompletion, gotErrors, err := detectChartCompletion(tt.args.combinedConfigs, tt.args.installedCharts)
 			req.NoError(err)
 			req.Equal(tt.wantChartErrors, gotErrors)
-			req.Equal(tt.wantDrift, gotDrift)
+			req.Equal(tt.wantCompletion, gotCompletion)
 		})
 	}
 }
@@ -729,6 +729,152 @@ func Test_shouldNotUpdateClusterConfig(t *testing.T) {
 			req := require.New(t)
 			got := shouldNotUpdateClusterConfig(tt.configCharts, tt.charts)
 			req.ElementsMatch(tt.want, got)
+		})
+	}
+}
+
+func Test_detectChartDrift(t *testing.T) {
+	tests := []struct {
+		name            string
+		combinedConfigs *k0sv1beta1.HelmExtensions
+		currentConfigs  *k0sv1beta1.HelmExtensions
+		want            bool
+	}{
+		{
+			name: "one chart no drift",
+			combinedConfigs: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz # with a comment",
+					},
+				},
+			},
+			currentConfigs: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "one chart different values",
+			combinedConfigs: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: newvalue",
+					},
+				},
+			},
+			currentConfigs: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "one chart different version",
+			combinedConfigs: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.1",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			currentConfigs: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "new chart added",
+			combinedConfigs: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.1",
+						Values:  "abc: xyz",
+					},
+					{
+						Name:    "newchart",
+						Version: "2.0.0",
+					},
+				},
+			},
+			currentConfigs: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			got, err := detectChartDrift(tt.combinedConfigs, tt.currentConfigs)
+			req.NoError(err)
+			req.Equal(tt.want, got)
+		})
+	}
+}
+
+func Test_yamlDiff(t *testing.T) {
+	tests := []struct {
+		name string
+		a    string
+		b    string
+		want bool
+	}{
+		{
+			name: "comments",
+			a:    "abc: xyz",
+			b:    "abc: xyz # with a comment",
+			want: false,
+		},
+		{
+			name: "order",
+			a:    "abc: xyz\nkey2: val2",
+			b:    "key2: val2\nabc: xyz",
+			want: false,
+		},
+		{
+			name: "different values",
+			a:    "abc: xyz",
+			b:    "abc: newvalue",
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			got, err := yamlDiff(tt.a, tt.b)
+			req.NoError(err)
+			req.Equal(tt.want, got)
 		})
 	}
 }
