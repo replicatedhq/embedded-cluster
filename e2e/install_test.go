@@ -220,7 +220,7 @@ func TestHostPreflight(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-preflight.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
