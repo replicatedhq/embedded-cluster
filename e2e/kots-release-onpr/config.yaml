@@ -25,11 +25,23 @@ spec:
         spec:
           telemetry:
             enabled: false
+          api:
+            extraArgs:
+              service-node-port-range: 80-32767
   extensions:
     helm:
+      repositories:
+        - name: ingress-nginx
+          url: https://kubernetes.github.io/ingress-nginx
       charts:
-        - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
-          name: memcached-vendor-chart
-          namespace: memcached
+        - name: ingress-nginx
+          chartname: ingress-nginx/ingress-nginx
+          namespace: ingress-nginx
           order: 4
-          version: 6.6.2
+          values: |
+            controller:
+              service:
+                type: NodePort
+                nodePorts:
+                  http: "80"
+                  https: "443"
