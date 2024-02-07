@@ -33,6 +33,10 @@ main() {
 
     echo "pods"
     kubectl get pods -A
+    echo "charts"
+    kubectl get charts -A
+    echo "installations"
+    kubectl get installations
 
     # ensure that goldpinger exists
     kubectl get ns goldpinger
