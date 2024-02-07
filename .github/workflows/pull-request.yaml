@@ -108,6 +108,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: embedded-release-onpr
+        path: output/bin
     - uses: ./.github/actions/e2e
       with:
         test-env: 'onpr'

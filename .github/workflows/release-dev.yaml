@@ -76,6 +76,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: embedded-release-onmerge
+          path: output/bin
       - uses: ./.github/actions/e2e
         with:
           test-env: 'onmerge'
