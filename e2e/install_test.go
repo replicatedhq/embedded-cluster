@@ -25,6 +25,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "ubuntu/jammy",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -65,6 +66,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "rockylinux/8",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -110,6 +112,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -157,6 +160,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "centos/8-Stream",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -199,10 +203,12 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 func TestHostPreflight(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "centos/8-Stream",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:                                 t,
+		Nodes:                             1,
+		Image:                             "centos/8-Stream",
+		LicensePath:                       "license.yaml",
+		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
+		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
 	})
 	defer tc.Destroy()
 
@@ -233,6 +239,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		T:                   t,
 		Nodes:               4,
 		Image:               "ubuntu/jammy",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()

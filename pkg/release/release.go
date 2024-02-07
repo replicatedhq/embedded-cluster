@@ -1,4 +1,4 @@
-package embed
+package release
 
 import (
 	"archive/tar"
@@ -6,13 +6,20 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"os"
+	"sync"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-utils/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
-	"github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	kyaml "sigs.k8s.io/yaml"
+)
+
+var (
+	mtx         sync.Mutex
+	releaseData *ReleaseData
 )
 
 // ReleaseData holds the parsed data from a Kots Release.
@@ -20,7 +27,6 @@ type ReleaseData struct {
 	data                  []byte
 	Application           []byte
 	HostPreflights        [][]byte
-	License               []byte
 	EmbeddedClusterConfig []byte
 	ChannelRelease        []byte
 }
@@ -36,6 +42,39 @@ func NewReleaseDataFrom(data []byte) (*ReleaseData, error) {
 		return nil, fmt.Errorf("unable to parse release data: %w", err)
 	}
 	return rd, nil
+}
+
+// parseReleaseDataFromBinary reads the embedded data from the binary and sets the global
+// releaseData variable only once.
+func parseReleaseDataFromBinary() error {
+	mtx.Lock()
+	defer mtx.Unlock()
+	if releaseData != nil {
+		return nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("unable to get executable path: %w", err)
+	}
+	data, err := embed.ExtractReleaseDataFromBinary(exe)
+	if err != nil {
+		return fmt.Errorf("failed to extract data from binary: %w", err)
+	}
+	release, err := NewReleaseDataFrom(data)
+	if err != nil {
+		return fmt.Errorf("failed to parse release data: %w", err)
+	}
+	releaseData = release
+	return nil
+}
+
+// GetHostPreflights returns a list of HostPreflight specs that are found in the
+// binary. These are part of the embedded Kots Application Release.
+func GetHostPreflights() (*v1beta2.HostPreflightSpec, error) {
+	if err := parseReleaseDataFromBinary(); err != nil {
+		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
+	}
+	return releaseData.GetHostPreflights()
 }
 
 // GetHostPreflights returns a list of HostPreflight specs that are found in the binary.
@@ -56,17 +95,14 @@ func (r *ReleaseData) GetHostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return all, nil
 }
 
-// GetLicense reads the kots license from the embedded Kots Application Release. If no license
-// is found, returns nil and no error.
-func (r *ReleaseData) GetLicense() (*v1beta1.License, error) {
-	if len(r.License) == 0 {
-		return nil, nil
+// GetApplication reads and returns the kots application embedded as part of the
+// release. If no application is found, returns nil and no error. This function does
+// not unmarshal the application yaml.
+func GetApplication() ([]byte, error) {
+	if err := parseReleaseDataFromBinary(); err != nil {
+		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
 	}
-	var license v1beta1.License
-	if err := kyaml.Unmarshal(r.License, &license); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal license: %w", err)
-	}
-	return &license, nil
+	return releaseData.GetApplication()
 }
 
 // GetApplication reads and returns the kots application embedded as part of the release. If
@@ -74,6 +110,15 @@ func (r *ReleaseData) GetLicense() (*v1beta1.License, error) {
 // application yaml.
 func (r *ReleaseData) GetApplication() ([]byte, error) {
 	return r.Application, nil
+}
+
+// GetEmbeddedClusterConfig reads the embedded cluster config from the embedded Kots
+// Application Release.
+func GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, error) {
+	if err := parseReleaseDataFromBinary(); err != nil {
+		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
+	}
+	return releaseData.GetEmbeddedClusterConfig()
 }
 
 // GetEmbeddedClusterConfig reads the embedded cluster config from the embedded Kots Application
@@ -92,6 +137,15 @@ func (r *ReleaseData) GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config
 // ChannelRelease contains information about a specific app release inside a channel.
 type ChannelRelease struct {
 	VersionLabel string `yaml:"versionLabel"`
+}
+
+// GetChannelRelease reads the embedded channel release object. If no channel release
+// is found, returns nil and no error.
+func GetChannelRelease() (*ChannelRelease, error) {
+	if err := parseReleaseDataFromBinary(); err != nil {
+		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
+	}
+	return releaseData.GetChannelRelease()
 }
 
 // GetChannelRelease reads the embedded channel release object. If no channel release is found,
@@ -135,9 +189,6 @@ func (r *ReleaseData) parse() error {
 		if bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta1")) {
 			if bytes.Contains(content.Bytes(), []byte("kind: Application")) {
 				r.Application = content.Bytes()
-			}
-			if bytes.Contains(content.Bytes(), []byte("kind: License")) {
-				r.License = content.Bytes()
 			}
 			continue
 		}

@@ -13,8 +13,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 var versionCommand = &cli.Command{
@@ -29,9 +29,9 @@ var versionCommand = &cli.Command{
 		}
 		writer := table.NewWriter()
 		writer.AppendHeader(table.Row{"component", "version"})
-		release, err := embed.GetChannelRelease()
-		if err == nil && release != nil {
-			writer.AppendRow(table.Row{defaults.BinaryName(), release.VersionLabel})
+		channelRelease, err := release.GetChannelRelease()
+		if err == nil && channelRelease != nil {
+			writer.AppendRow(table.Row{defaults.BinaryName(), channelRelease.VersionLabel})
 		}
 		writer.AppendRow(table.Row{"Installer", defaults.Version})
 		writer.AppendRow(table.Row{"Kubernetes", defaults.K0sVersion})
@@ -75,9 +75,9 @@ var metadataCommand = &cli.Command{
 		}
 		versions["Kubernetes"] = defaults.K0sVersion
 		versions["Installer"] = defaults.Version
-		release, err := embed.GetChannelRelease()
-		if err == nil && release != nil {
-			versions[defaults.BinaryName()] = release.VersionLabel
+		channelRelease, err := release.GetChannelRelease()
+		if err == nil && channelRelease != nil {
+			versions[defaults.BinaryName()] = channelRelease.VersionLabel
 		}
 		sha, err := goods.K0sBinarySHA256()
 		if err != nil {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,10 +17,10 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 const (
@@ -47,6 +48,7 @@ type EmbeddedClusterOperator struct {
 	namespace     string
 	deployName    string
 	endUserConfig *embeddedclusterv1beta1.Config
+	license       *kotsv1beta1.License
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -93,7 +95,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		return err
 	}
 	loading.Closef("Embedded Cluster Operator is ready!")
-	cfg, err := embed.GetEmbeddedClusterConfig()
+	cfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
 		return err
 	}
@@ -111,7 +113,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		},
 		Spec: embeddedclusterv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
-			MetricsBaseURL:            metrics.BaseURL(),
+			MetricsBaseURL:            metrics.BaseURL(e.license),
 			AirGap:                    false,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
@@ -125,10 +127,11 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, license *kotsv1beta1.License) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:     "embedded-cluster",
 		deployName:    "embedded-cluster-operator",
 		endUserConfig: endUserConfig,
+		license:       license,
 	}, nil
 }

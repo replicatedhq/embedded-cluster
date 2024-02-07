@@ -67,14 +67,13 @@ pkg/goods/bins/kubectl-preflight: Makefile
 	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
 	touch pkg/goods/bins/kubectl-preflight
 
-output/tmp/release.tar.gz: e2e/kots-release-install/* e2e/license.yaml
+output/tmp/release.tar.gz: e2e/kots-release-install/*
 	mkdir -p output/tmp
-	cp e2e/license.yaml e2e/kots-release-install
 	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
 
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
-	go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
+	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
 .PHONY: embedded-release
 embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder

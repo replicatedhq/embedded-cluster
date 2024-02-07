@@ -54,14 +54,16 @@ func (n *NoopCloser) Close() error {
 // Input are the options passed in to the cluster creation plus some data
 // for internal consumption only.
 type Input struct {
-	Nodes               int
-	CreateRegularUser   bool
-	EmbeddedClusterPath string
-	Image               string
-	network             string
-	T                   *testing.T
-	WithProxy           bool
-	id                  string
+	Nodes                             int
+	CreateRegularUser                 bool
+	LicensePath                       string
+	EmbeddedClusterPath               string
+	EmbeddedClusterReleaseBuilderPath string // used to replace the release in the binary
+	Image                             string
+	network                           string
+	T                                 *testing.T
+	WithProxy                         bool
+	id                                string
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -381,8 +383,18 @@ func CopyFilesToNode(in *Input, node string) {
 	}
 	files := []File{
 		{
+			SourcePath: in.LicensePath,
+			DestPath:   "/tmp/license.yaml",
+			Mode:       0644,
+		},
+		{
 			SourcePath: in.EmbeddedClusterPath,
 			DestPath:   "/usr/local/bin/embedded-cluster",
+			Mode:       0755,
+		},
+		{
+			SourcePath: in.EmbeddedClusterReleaseBuilderPath,
+			DestPath:   "/usr/local/bin/embedded-cluster-release-builder",
 			Mode:       0755,
 		},
 	}
@@ -417,6 +429,10 @@ func CopyFilesToNode(in *Input, node string) {
 
 // CopyFileToNode copies a single file to a node.
 func CopyFileToNode(in *Input, node string, file File) {
+	if file.SourcePath == "" {
+		in.T.Logf("Skipping file %s: source path is empty", file.DestPath)
+		return
+	}
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)

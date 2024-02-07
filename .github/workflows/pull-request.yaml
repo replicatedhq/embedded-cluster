@@ -101,6 +101,7 @@ jobs:
         name: embedded-release
         path: |
           output/bin/embedded-cluster
+          output/bin/embedded-cluster-release-builder
 
   e2e:
     runs-on: ubuntu-latest
