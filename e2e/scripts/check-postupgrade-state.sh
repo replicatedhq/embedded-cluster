@@ -12,6 +12,7 @@ wait_for_installation() {
             kubectl get charts -A
             kubectl get secrets -A
             kubectl describe clusterconfig -A
+            kubectl get pods -A
             echo "operator logs:"
             kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
             return 1
@@ -29,7 +30,7 @@ main() {
 
     curl https://kots.io/install/1.107.1 | bash
 
-    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --deploy --namespace kotsadm
+    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --deploy-version-label="0.1.5" --namespace kotsadm
 
     sleep 30
 
