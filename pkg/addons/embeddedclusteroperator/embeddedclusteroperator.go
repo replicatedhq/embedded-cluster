@@ -39,6 +39,10 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
 	"embeddedBinaryName":        defaults.BinaryName(),
 	"embeddedClusterID":         metrics.ClusterID().String(),
+	"image": map[string]interface{}{
+		"repository": "ttl.sh/embedded-cluster-operator-image",
+		"tag":        "dev-ae48d9d",
+	},
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
