@@ -50,6 +50,12 @@ main() {
 
     # ensure that new app pods exist
     kubectl get pods -n kotsadm -l app=second
+
+    # ensure that memcached has been updated
+    kubectl describe chart -n kube-system k0s-addon-chart-memcached-vendor-chart
+    kubectl describe pods -n memcached
+    kubectl get clusterconfig -n kube-system k0s -o yaml | grep -q "newChartValues"
+    kubectl describe pods -n memcached | grep -q "newChartValues"
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
