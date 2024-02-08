@@ -52,7 +52,7 @@ main() {
     kubectl get pods -n kotsadm -l app=second
 
     # ensure that nginx-ingress has been updated
-    kubectl describe chart -n kube-system k0s-addon-chart-nginx-ingress
+    kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
     kubectl describe pods -n nginx-ingress
     kubectl get clusterconfig -n kube-system k0s -o yaml
     kubectl get clusterconfig -n kube-system k0s -o yaml | grep -q "test-upgrade-value"
