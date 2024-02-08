@@ -83,8 +83,7 @@ func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.
 
 // detect if the charts currently installed in the cluster (currentConfigs) match the desired charts (combinedConfigs)
 func detectChartDrift(combinedConfigs, currentConfigs *k0sv1beta1.HelmExtensions) (bool, error) {
-	if len(currentConfigs.Charts) != len(combinedConfigs.Charts) ||
-		len(currentConfigs.Repositories) != len(combinedConfigs.Repositories) {
+	if len(currentConfigs.Charts) != len(combinedConfigs.Charts) {
 		return true, nil
 	}
 
