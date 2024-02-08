@@ -41,7 +41,7 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterID":         metrics.ClusterID().String(),
 	"image": map[string]interface{}{
 		"repository": "ttl.sh/embedded-cluster-operator-image",
-		"tag":        "dev-98e3f68",
+		"tag":        "dev-a12a120",
 	},
 }
 
