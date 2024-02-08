@@ -103,7 +103,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	t.Logf("%s: installing yum", time.Now().Format(time.RFC3339))
+	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line = []string{"yum-install-tar.sh"}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
@@ -205,7 +205,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	t.Logf("%s: installing yum", time.Now().Format(time.RFC3339))
+	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line = []string{"yum-install-tar.sh"}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
