@@ -53,10 +53,10 @@ main() {
 
     # ensure that nginx-ingress has been updated
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
-    kubectl describe pods -n nginx-ingress
+    kubectl describe pods -n ingress-nginx
     kubectl get clusterconfig -n kube-system k0s -o yaml
     kubectl get clusterconfig -n kube-system k0s -o yaml | grep -q "test-upgrade-value"
-    kubectl describe pods -n nginx-ingress | grep -q "test-upgrade-value"
+    kubectl describe pods -n ingress-nginx | grep -q "test-upgrade-value"
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
