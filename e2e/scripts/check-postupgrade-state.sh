@@ -28,8 +28,9 @@ wait_for_installation() {
 main() {
     sleep 30 # wait for kubectl to become available
 
-    # TODO base this on the version in the makefile
-    curl https://kots.io/install/1.107.1 | bash
+    local ec_version=
+    ec_version=$(./embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}')
+    curl https://kots.io/install/$ec_version | bash
 
     kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --deploy-version-label="0.1.11" --namespace kotsadm
 
