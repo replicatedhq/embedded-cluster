@@ -148,7 +148,18 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 						},
 						Spec: &k0sv1beta1.ClusterSpec{
 							Extensions: &k0sv1beta1.ClusterExtensions{
-								Helm: &k0sv1beta1.HelmExtensions{},
+								Helm: &k0sv1beta1.HelmExtensions{
+									Charts: []k0sv1beta1.Chart{
+										{
+											Name:    "metachart",
+											Version: "1",
+										},
+										{
+											Name:    "extchart",
+											Version: "2",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -640,7 +651,8 @@ password: original`,
 				},
 			},
 			out: v1beta1.InstallationStatus{
-				State: v1beta1.InstallationStateKubernetesInstalled,
+				State:  v1beta1.InstallationStatePendingChartCreation,
+				Reason: "Pending charts: [metachart]",
 			},
 			releaseMeta: release.Meta{
 				Configs: &k0sv1beta1.HelmExtensions{

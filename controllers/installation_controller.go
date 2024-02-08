@@ -313,7 +313,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 	if err := r.List(ctx, &installedCharts); err != nil {
 		return fmt.Errorf("failed to list installed charts: %w", err)
 	}
-	chartsApplied, chartErrors, err := detectChartCompletion(combinedConfigs, installedCharts)
+	pendingCharts, chartErrors, err := detectChartCompletion(existingHelm, installedCharts)
 	if err != nil {
 		return fmt.Errorf("failed to check chart completion: %w", err)
 	}
@@ -332,20 +332,21 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return nil
 	}
 
-	// If all addons match their target version + values, mark installation as complete (or as failed, if there are errors)
-	if chartsApplied {
+	// If all addons match their target version + values, mark installation as complete
+	if len(pendingCharts) == 0 && !chartDrift {
 		in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded")
+		return nil
+	}
+
+	if len(pendingCharts) > 0 {
+		// If there are pending charts, mark the installation as pending with a message about the pending charts
+		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts))
 		return nil
 	}
 
 	if in.Status.State == v1beta1.InstallationStateAddonsInstalling {
 		// after the first time we apply new helm charts, this will be set to InstallationStateAddonsInstalling
 		// and we will not re-apply the charts to the k0s cluster config while waiting for those changes to propagate
-		return nil
-	}
-
-	if pendingCharts := shouldNotUpdateClusterConfig(clusterConfig.Spec.Extensions.Helm, installedCharts); len(pendingCharts) != 0 {
-		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts))
 		return nil
 	}
 

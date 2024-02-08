@@ -227,10 +227,10 @@ func Test_detectChartCompletion(t *testing.T) {
 		installedCharts k0shelm.ChartList
 	}
 	tests := []struct {
-		name            string
-		args            args
-		wantChartErrors []string
-		wantCompletion  bool
+		name                 string
+		args                 args
+		wantChartErrors      []string
+		wantIncompleteCharts []string
 	}{
 		{
 			name: "no drift",
@@ -268,8 +268,8 @@ func Test_detectChartCompletion(t *testing.T) {
 					},
 				},
 			},
-			wantCompletion:  true,
-			wantChartErrors: nil,
+			wantIncompleteCharts: []string{},
+			wantChartErrors:      []string{},
 		},
 		{
 			name: "new chart",
@@ -299,8 +299,8 @@ func Test_detectChartCompletion(t *testing.T) {
 					},
 				},
 			},
-			wantCompletion:  false,
-			wantChartErrors: []string{},
+			wantIncompleteCharts: []string{"test2"},
+			wantChartErrors:      []string{},
 		},
 		{
 			name: "removed chart",
@@ -334,8 +334,8 @@ func Test_detectChartCompletion(t *testing.T) {
 					},
 				},
 			},
-			wantCompletion:  true,
-			wantChartErrors: nil,
+			wantIncompleteCharts: []string{},
+			wantChartErrors:      []string{},
 		},
 		{
 			name: "added and removed chart",
@@ -361,8 +361,8 @@ func Test_detectChartCompletion(t *testing.T) {
 					},
 				},
 			},
-			wantCompletion:  false,
-			wantChartErrors: []string{},
+			wantIncompleteCharts: []string{"test2"},
+			wantChartErrors:      []string{},
 		},
 		{
 			name: "no drift, but error",
@@ -402,8 +402,8 @@ func Test_detectChartCompletion(t *testing.T) {
 					},
 				},
 			},
-			wantCompletion:  false,
-			wantChartErrors: []string{"test chart error", "test chart two error"},
+			wantIncompleteCharts: []string{},
+			wantChartErrors:      []string{"test chart error", "test chart two error"},
 		},
 		{
 			name: "drift and error",
@@ -443,8 +443,8 @@ func Test_detectChartCompletion(t *testing.T) {
 					},
 				},
 			},
-			wantCompletion:  false,
-			wantChartErrors: []string{"test chart error", "test chart two error"},
+			wantIncompleteCharts: []string{},
+			wantChartErrors:      []string{"test chart error", "test chart two error"},
 		},
 		{
 			name: "drift values",
@@ -476,18 +476,18 @@ func Test_detectChartCompletion(t *testing.T) {
 					},
 				},
 			},
-			wantCompletion:  false,
-			wantChartErrors: []string{},
+			wantIncompleteCharts: []string{"test"},
+			wantChartErrors:      []string{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			gotCompletion, gotErrors, err := detectChartCompletion(tt.args.combinedConfigs, tt.args.installedCharts)
+			gotIncomplete, gotErrors, err := detectChartCompletion(tt.args.combinedConfigs, tt.args.installedCharts)
 			req.NoError(err)
 			req.Equal(tt.wantChartErrors, gotErrors)
-			req.Equal(tt.wantCompletion, gotCompletion)
+			req.Equal(tt.wantIncompleteCharts, gotIncomplete)
 		})
 	}
 }
@@ -590,7 +590,7 @@ func Test_generateDesiredCharts(t *testing.T) {
 	}
 }
 
-func Test_shouldNotUpdateClusterConfig(t *testing.T) {
+func Test_detectChartDrift2(t *testing.T) {
 	tests := []struct {
 		name         string
 		configCharts *k0sv1beta1.HelmExtensions
@@ -672,7 +672,8 @@ func Test_shouldNotUpdateClusterConfig(t *testing.T) {
 			configCharts: &k0sv1beta1.HelmExtensions{
 				Charts: []k0sv1beta1.Chart{
 					{
-						Name: "test",
+						Name:    "test",
+						Version: "1",
 					},
 				},
 			},
@@ -693,13 +694,16 @@ func Test_shouldNotUpdateClusterConfig(t *testing.T) {
 			configCharts: &k0sv1beta1.HelmExtensions{
 				Charts: []k0sv1beta1.Chart{
 					{
-						Name: "okchart",
+						Name:    "okchart",
+						Version: "1",
 					},
 					{
-						Name: "notapplied",
+						Name:    "notapplied",
+						Version: "1",
 					},
 					{
-						Name: "notpresent",
+						Name:    "notpresent",
+						Version: "1",
 					},
 				},
 			},
@@ -711,6 +715,7 @@ func Test_shouldNotUpdateClusterConfig(t *testing.T) {
 						},
 						Status: k0shelm.ChartStatus{
 							ReleaseName: "okchart",
+							Version:     "1",
 						},
 					},
 					{
@@ -727,7 +732,9 @@ func Test_shouldNotUpdateClusterConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			got := shouldNotUpdateClusterConfig(tt.configCharts, tt.charts)
+			got, charterrs, err := detectChartCompletion(tt.configCharts, tt.charts)
+			req.NoError(err)
+			req.Empty(charterrs)
 			req.ElementsMatch(tt.want, got)
 		})
 	}

@@ -147,10 +147,14 @@ func yamlDiff(a, b string) (bool, error) {
 }
 
 // check if all charts in the combinedConfigs are installed successfully with the desired version and values
-func detectChartCompletion(combinedConfigs *k0sv1beta1.HelmExtensions, installedCharts k0shelm.ChartList) (bool, []string, error) {
+func detectChartCompletion(combinedConfigs *k0sv1beta1.HelmExtensions, installedCharts k0shelm.ChartList) ([]string, []string, error) {
+	incompleteCharts := []string{}
 	chartErrors := []string{}
-	diffDetected := false
+	if combinedConfigs == nil {
+		return incompleteCharts, chartErrors, nil
+	}
 	for _, chart := range combinedConfigs.Charts {
+		diffDetected := false
 		chartSeen := false
 		for _, installedChart := range installedCharts.Items {
 			if chart.Name == installedChart.Spec.ReleaseName {
@@ -158,7 +162,7 @@ func detectChartCompletion(combinedConfigs *k0sv1beta1.HelmExtensions, installed
 
 				valuesDiff, err := yamlDiff(chart.Values, installedChart.Spec.Values)
 				if err != nil {
-					return false, nil, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
+					return nil, nil, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
 				}
 				if valuesDiff {
 					diffDetected = true
@@ -170,21 +174,18 @@ func detectChartCompletion(combinedConfigs *k0sv1beta1.HelmExtensions, installed
 
 				if installedChart.Status.Error != "" {
 					chartErrors = append(chartErrors, installedChart.Status.Error)
+					diffDetected = false
 				}
 
 				break
 			}
 		}
-		if !chartSeen {
-			diffDetected = true
+		if !chartSeen || diffDetected {
+			incompleteCharts = append(incompleteCharts, chart.Name)
 		}
 	}
 
-	if diffDetected || len(chartErrors) > 0 {
-		return false, chartErrors, nil
-	}
-
-	return true, nil, nil
+	return incompleteCharts, chartErrors, nil
 }
 
 // merge the helmcharts in the cluster with the charts we desire to be in the cluster
@@ -229,39 +230,4 @@ func generateDesiredCharts(meta *release.Meta, clusterconfig k0sv1beta1.ClusterC
 		finalChartList = append(finalChartList, chart)
 	}
 	return finalChartList, nil
-}
-
-// shouldNotUpdateClusterConfig returns true if there are charts within the clusterConfig that have not yet been applied
-// to the cluster. if we update the cluster config while charts are still being applied, k0s may attempt to apply the
-// same chart twice in parallel, which causes an error
-// 'can't install loadedChart `CHART_NAME_HERE`: cannot re-use a name that is still in use'
-// returns the list of charts that are still being applied
-func shouldNotUpdateClusterConfig(configCharts *k0sv1beta1.HelmExtensions, charts k0shelm.ChartList) []string {
-	pendingCharts := []string{}
-	if configCharts == nil {
-		return pendingCharts
-	}
-
-	for _, specChart := range configCharts.Charts {
-		foundChart := false
-		for _, clusterChart := range charts.Items {
-			if specChart.Name == clusterChart.Spec.ReleaseName {
-				foundChart = true
-
-				if clusterChart.Status.ReleaseName == "" {
-					// this chart has not yet been applied to the cluster, otherwise the ReleaseName would be set
-					pendingCharts = append(pendingCharts, specChart.Name)
-				}
-
-				break
-			}
-		}
-
-		if !foundChart {
-			// this chart is present in the spec, but not the cluster, and thus is still being applied
-			pendingCharts = append(pendingCharts, specChart.Name)
-		}
-	}
-
-	return pendingCharts
 }
