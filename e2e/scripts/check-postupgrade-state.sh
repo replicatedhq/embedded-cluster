@@ -30,7 +30,7 @@ main() {
 
     curl https://kots.io/install/1.107.1 | bash
 
-    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --deploy-version-label="0.1.10" --namespace kotsadm
+    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --deploy-version-label="0.1.11" --namespace kotsadm
 
     sleep 30
 
