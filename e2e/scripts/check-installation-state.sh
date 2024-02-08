@@ -10,6 +10,7 @@ wait_for_installation() {
             kubectl get installations 2>&1 || true
             kubectl describe installations 2>&1 || true
             kubectl get charts -A
+            kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
             kubectl get secrets -A
             kubectl describe clusterconfig -A
             echo "operator logs:"

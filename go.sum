@@ -214,8 +214,8 @@ github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c h1:rL7cCMTRv92zD
 github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c/go.mod h1:4+Y6RiiR9Up/rU/3SirRNlrdPhIo3TCZUZiInuaCQus=
 github.com/k0sproject/k0sctl v0.17.4 h1:CNfCriE6GPwCDTaXLO41113x1e3YQCXxdrsNLEYkTCc=
 github.com/k0sproject/k0sctl v0.17.4/go.mod h1:ovmA+UEzXwg20bP2NdIx26ZbGc2PIK8Q/14zWreeXBg=
-github.com/k0sproject/rig v0.17.4 h1:RTY/ozX/JEeU5vOfkxo15gxfHsn+nejvaFmvOQPvC4A=
-github.com/k0sproject/rig v0.17.4/go.mod h1:6i71zLJjUZuMp3gfLtd+oXoW+yUmq1+BQhe7nHaAmZw=
+github.com/k0sproject/rig v0.17.5 h1:YTWAkQw14LE1fDqkx/84bVKJ5kD1WVjIqaq1F7wBvGQ=
+github.com/k0sproject/rig v0.17.5/go.mod h1:6i71zLJjUZuMp3gfLtd+oXoW+yUmq1+BQhe7nHaAmZw=
 github.com/k0sproject/version v0.6.0 h1:Wi8wu9j+H36+okIQA47o/YHbzNpKeIYj8IjGdJOdqsI=
 github.com/k0sproject/version v0.6.0/go.mod h1:5/7Js62gDCLBP6mEs0mUcYEEkYneM5qXDKN/hyFlQTM=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNUXsshfwJMBgNA0RU6/i7WVaAegv3PtuIHPMs=
@@ -308,8 +308,8 @@ github.com/prometheus/common v0.45.0 h1:2BGz0eBc2hdMDLnO/8n0jeB3oPrt2D08CekT0lne
 github.com/prometheus/common v0.45.0/go.mod h1:YJmSTw9BoKxJplESWWxlbyttQR4uaEcGyv9MZjVOJsY=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
-github.com/replicatedhq/embedded-cluster-operator v0.21.0 h1:8op84Vuoh3ZQ2rcin0iFFlTQcR+e0sPh94e68b7I8gc=
-github.com/replicatedhq/embedded-cluster-operator v0.21.0/go.mod h1:uqF+I0D7RY3/q8LHgGfEjhH/ks1vvtBZ7bUA30vtPII=
+github.com/replicatedhq/embedded-cluster-operator v0.22.1 h1:GM1kGgtZXZ+ZwZhRXAVV5j8+2qpXP9a3bkbBAsaoAlc=
+github.com/replicatedhq/embedded-cluster-operator v0.22.1/go.mod h1:T5Tp2Jj0WW/T3EpKts7iI0lMkoEa6ZbqoPxhfOE7cG4=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
 github.com/replicatedhq/troubleshoot v0.81.0 h1:YMYZQiTRzDCoPntrZuyjSOw8IZzXag+NX2zrRycJ9GU=

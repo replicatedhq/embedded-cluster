@@ -9,7 +9,7 @@ ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.22.2
+EMBEDDED_OPERATOR_CHART_VERSION = 0.22.4
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
@@ -116,14 +116,14 @@ e2e-tests: embedded-release-onmerge
 	go test -timeout 45m -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test-onpr
-e2e-test-onpr: embedded-release-onpr
+e2e-test-onpr:
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
 	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
 
 .PHONY: e2e-test-onmerge
-e2e-test-onmerge: embedded-release-onmerge
+e2e-test-onmerge:
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
