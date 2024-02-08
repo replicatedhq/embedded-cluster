@@ -28,6 +28,7 @@ wait_for_installation() {
 main() {
     sleep 30 # wait for kubectl to become available
 
+    # TODO base this on the version in the makefile
     curl https://kots.io/install/1.107.1 | bash
 
     kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --deploy-version-label="0.1.11" --namespace kotsadm
@@ -43,6 +44,7 @@ main() {
     wait_for_installation
     echo "after restart"
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
+    kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
 
     kubectl get installations --no-headers | grep -q "Installed"
 
