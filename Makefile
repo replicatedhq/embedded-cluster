@@ -44,16 +44,19 @@ pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}: Makefile
 	    curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
 	fi
 	chmod +x pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
+	touch pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
 
 pkg/goods/bins/embedded-cluster/kubectl-linux-amd64: Makefile
 	mkdir -p pkg/goods/bins/embedded-cluster
 	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
 	chmod +x pkg/goods/bins/embedded-cluster/kubectl-linux-amd64
+	touch pkg/goods/bins/embedded-cluster/kubectl-linux-amd64
 
 pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64: Makefile
 	mkdir -p pkg/goods/bins/embedded-cluster
 	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-linux-x64"
 	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64
+	touch pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64
 
 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64: Makefile
 	mkdir -p pkg/goods/bins/embedded-cluster
@@ -61,6 +64,7 @@ pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64: Makefile
 	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
 	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
+	touch pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
 
 pkg/goods/bins/embedded-cluster/kubectl-preflight: Makefile
 	mkdir -p pkg/goods/bins/embedded-cluster
@@ -68,6 +72,7 @@ pkg/goods/bins/embedded-cluster/kubectl-preflight: Makefile
 	curl -L -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
+	touch pkg/goods/bins/embedded-cluster/kubectl-preflight
 
 output/tmp/release-onmerge.tar.gz: e2e/kots-release-onmerge/*
 	mkdir -p output/tmp
