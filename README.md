@@ -100,7 +100,7 @@ Once the cluster has been deployed you can open a new terminal to interact with 
 $ ./embedded-cluster shell
 ```
 
-This will drop you in a new shell, this shell is configured to reach the cluster:
+This will drop you in a new shell, this shell is configured to reach the cluster and includes shell completion:
 
 ```
 ubuntu@ip-172-16-10-242:~$ ./embedded-cluster shell
@@ -113,6 +113,7 @@ ubuntu@ip-172-16-10-242:~$ ./embedded-cluster shell
  ~~~~~~~~~~~
 ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$ export KUBECONFIG="/home/ubuntu/.embedded-cluster/etc/kubeconfig"
 ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$ export PATH="$PATH:/home/ubuntu/.embedded-cluster/bin"
+ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$ source <(kubectl completion $(basename "/bin/bash"))
 ubuntu@ip-172-16-10-242:~/.embedded-cluster/etc$
 ```
 
