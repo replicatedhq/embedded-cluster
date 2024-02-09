@@ -85,6 +85,13 @@ var shellCommand = &cli.Command{
 		config = "source <(kubectl completion $(basename ${SHELL}))\n"
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+		// if /etc/bash_completion is present, source it
+		if _, err := os.Stat("/etc/bash_completion"); err == nil {
+			config = "source /etc/bash_completion\n"
+			_, _ = shellpty.WriteString(config)
+			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+		}
+
 		go func() { _, _ = io.Copy(shellpty, os.Stdin) }()
 		go func() { _, _ = io.Copy(os.Stdout, shellpty) }()
 		_ = shell.Wait()
