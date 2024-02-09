@@ -38,14 +38,6 @@ main() {
 
     echo "ensure that installation is installed"
     wait_for_installation
-    echo "after installation completion"
-    kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
-    kubectl rollout restart -n embedded-cluster deployment embedded-cluster-operator
-    sleep 10
-    wait_for_installation
-    echo "after restart"
-    kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
-    kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
 
     kubectl get installations --no-headers | grep -q "Installed"
 
