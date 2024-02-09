@@ -66,6 +66,7 @@ main() {
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "test-upgrade-value" # ensure new values are present
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "4.9.1" # ensure new version is present
+    kubectl describe pod -n ingress-nginx | grep -q "4.9.1" # ensure the new version made it into the pod
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
