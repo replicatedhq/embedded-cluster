@@ -99,6 +99,15 @@ wait_for_nginx_pods() {
     done
 }
 
+check_openebs_storage_class() {
+    scs=$(kubectl get sc --no-headers | wc -l)
+    if [ "$scs" -ne "1" ]; then
+        echo "Expected 1 storage class, found $scs"
+        kubectl get sc
+        return 1
+    fi
+}
+
 ensure_app_not_upgraded() {
     if kubectl get ns | grep -q goldpinger ; then
         echo "found goldpinger ns"
@@ -130,6 +139,10 @@ main() {
     fi
     if ! wait_for_pods_running 900; then
         echo "Failed to install embedded-cluster"
+        exit 1
+    fi
+    if ! check_openebs_storage_class; then
+        echo "Failed to validate if only openebs storage class is present"
         exit 1
     fi
     if ! wait_for_nginx_pods; then

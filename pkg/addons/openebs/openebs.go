@@ -31,6 +31,9 @@ var helmValues = map[string]interface{}{
 		"enabled": false,
 	},
 	"localprovisioner": map[string]interface{}{
+		"deviceClass": map[string]interface{}{
+			"enabled": false,
+		},
 		"hostpathClass": map[string]interface{}{
 			"isDefaultClass": true,
 		},
