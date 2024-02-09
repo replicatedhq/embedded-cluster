@@ -58,23 +58,23 @@ ensure_node_config() {
     fi
 }
 
-wait_for_memcached_pods() {
-    ready=$(kubectl get pods -n memcached -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
+wait_for_ingress_pods() {
+    ready=$(kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
-            echo "memcached pods did not appear"
-            kubectl get pods -n memcached -o jsonpath='{.items[*].status.phase}'
-            kubectl get pods -n memcached 2>&1 || true
-            kubectl get secrets -n memcached 2>&1 || true
+            echo "ingress pods did not appear"
+            kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}'
+            kubectl get pods -n ingress-nginx 2>&1 || true
+            kubectl get secrets -n ingress-nginx 2>&1 || true
             kubectl get charts -A
             return 1
         fi
         sleep 5
         counter=$((counter+1))
-        echo "Waiting for memcached pods"
-        ready=$(kubectl get pods -n memcached -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
-        kubectl get pods -n memcached 2>&1 || true
+        echo "Waiting for ingress pods"
+        ready=$(kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
+        kubectl get pods -n ingress-nginx 2>&1 || true
         echo "ready: $ready"
     done
 }
@@ -97,6 +97,17 @@ wait_for_nginx_pods() {
         kubectl get pods -n nginx 2>&1 || true
         echo "ready: $ready"
     done
+}
+
+ensure_app_not_upgraded() {
+    if kubectl get ns | grep -q goldpinger ; then
+        echo "found goldpinger ns"
+        return 1
+    fi
+    if kubectl get pods -n kotsadm -l app=second -q | grep -q second ; then
+        echo "found pods from app update"
+        return 1
+    fi
 }
 
 main() {
@@ -125,8 +136,11 @@ main() {
         echo "Failed waiting for the application's nginx pods"
         exit 1
     fi
-    if ! wait_for_memcached_pods; then
-        echo "Failed waiting for memcached pods"
+    if ! wait_for_ingress_pods; then
+        echo "Failed waiting for ingress pods"
+        exit 1
+    fi
+    if ! ensure_app_not_upgraded; then
         exit 1
     fi
     if ! systemctl restart embedded-cluster; then
