@@ -41,7 +41,7 @@ spec:
           chartname: ingress-nginx/ingress-nginx
           namespace: ingress-nginx
           version: "4.8.3"
-          order: 1
+          order: 3
           values: |
             controller:
               service:
