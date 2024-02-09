@@ -10,11 +10,25 @@ wait_for_installation() {
             kubectl get installations 2>&1 || true
             kubectl describe installations 2>&1 || true
             kubectl get charts -A
-            kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
+            kubectl get charts -A -o yaml
             kubectl get secrets -A
-            kubectl describe clusterconfig -A
+            kubectl get clusterconfig -o yaml -A
             echo "operator logs:"
             kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
+            echo ""
+            echo "k0s sysinfo"
+            echo ""
+            uname -srvmo; cat /etc/os-release || lsb_release -a
+            echo ""
+            echo "k0s version"
+            echo ""
+            /usr/local/bin/k0s version
+            echo ""
+            echo "k0s sysinfo"
+            echo ""
+            /usr/local/bin/k0s sysinfo
+            echo ""
+
             return 1
         fi
         sleep 5
