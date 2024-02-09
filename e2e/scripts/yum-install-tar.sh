@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-yum update
+yum update -y
 yum install -y tar
