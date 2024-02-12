@@ -67,6 +67,7 @@ jobs:
         REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
         REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
       run: |
+        echo "$(SHORT_SHA)"
         sed -i "s/__version_string__/$(SHORT_SHA)/g" e2e/kots-release-install/cluster-config.yaml
         sed -i "s/__version_string__/$(SHORT_SHA)-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
 
