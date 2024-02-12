@@ -113,15 +113,8 @@ e2e-tests: embedded-release
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
 	go test -timeout 45m -parallel 1 -failfast -v ./e2e
 
-.PHONY: e2e-test-onpr
-e2e-test-onpr:
-	mkdir -p output/tmp
-	rm -rf output/tmp/id_rsa*
-	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
-	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
-
-.PHONY: e2e-test-onmerge
-e2e-test-onmerge:
+.PHONY: e2e-test
+e2e-test:
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
