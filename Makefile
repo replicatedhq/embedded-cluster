@@ -79,7 +79,7 @@ output/tmp/release.tar.gz: e2e/kots-release-install/* e2e/license.yaml
 	echo '$(SHORT_SHA)'
 	sed -i 's/__version_string__/$(SHORT_SHA)/g' e2e/kots-release-install/cluster-config.yaml
 	cp e2e/license.yaml e2e/kots-release-install
-	tar -czf output/tmp/release-onpr.tar.gz -C e2e/kots-release-install .
+	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
 
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
