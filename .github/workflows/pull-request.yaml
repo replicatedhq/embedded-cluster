@@ -67,6 +67,7 @@ jobs:
         REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
         REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
       run: |
+        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
         echo "$(SHORT_SHA)"
         sed -i "s/__version_string__/$(SHORT_SHA)/g" e2e/kots-release-install/cluster-config.yaml
         sed -i "s/__version_string__/$(SHORT_SHA)-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
@@ -76,6 +77,7 @@ jobs:
     - name: Build CI binary
       if: github.actor != 'dependabot[bot]'
       run: |
+        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
         echo "versionLabel: $(SHORT_SHA)" >> e2e/kots-release-install/release.yaml
         make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
     - name: Cache files for integration test
@@ -86,6 +88,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
         AWS_REGION: "us-east-1"
       run: |
+        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
         export EC_VERSION="v$(SHORT_SHA)"
         ./scripts/cache-files.sh
         export EC_VERSION="v$(SHORT_SHA)-upgrade"
