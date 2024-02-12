@@ -68,17 +68,17 @@ jobs:
         REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
-        echo "$(SHORT_SHA)"
-        sed -i "s/__version_string__/$(SHORT_SHA)/g" e2e/kots-release-install/cluster-config.yaml
-        sed -i "s/__version_string__/$(SHORT_SHA)-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+        echo "${SHORT_SHA}"
+        sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+        sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
 
-        replicated release create --yaml-dir e2e/kots-release-install --promote CI --version '$(SHORT_SHA)'
-        replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version '$(SHORT_SHA)-upgrade'
+        replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
+        replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
     - name: Build CI binary
       if: github.actor != 'dependabot[bot]'
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
-        echo "versionLabel: $(SHORT_SHA)" >> e2e/kots-release-install/release.yaml
+        echo "versionLabel: ${SHORT_SHA}" >> e2e/kots-release-install/release.yaml
         make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
     - name: Cache files for integration test
       if: github.actor != 'dependabot[bot]'
@@ -89,9 +89,9 @@ jobs:
         AWS_REGION: "us-east-1"
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
-        export EC_VERSION="v$(SHORT_SHA)"
+        export EC_VERSION="v${SHORT_SHA}"
         ./scripts/cache-files.sh
-        export EC_VERSION="v$(SHORT_SHA)-upgrade"
+        export EC_VERSION="v${SHORT_SHA}-upgrade"
         ./scripts/cache-files.sh
 
     - name: upload binary
