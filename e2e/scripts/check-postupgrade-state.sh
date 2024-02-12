@@ -26,13 +26,17 @@ wait_for_installation() {
 }
 
 main() {
+    local installation_version=
+    installation_version="$1"
+
     sleep 30 # wait for kubectl to become available
 
     local ec_version=
     ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}')
     curl https://kots.io/install/$ec_version | bash
 
-    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm # --deploy-version-label="0.1.11"
+    echo "upgrading to version ${installation_version}-upgrade"
+    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --deploy-version-label="${installation_version}-upgrade"
 
     sleep 30
 
@@ -64,4 +68,4 @@ main() {
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
 export PATH=$PATH:/root/.config/embedded-cluster/bin
-main
+main "$@"

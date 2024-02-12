@@ -46,4 +46,5 @@ runs:
   - name: E2E
     shell: bash
     run: |
+      export SHORT_SHA=$(git rev-parse --short=7 HEAD)
       make e2e-test-${{ inputs.test-env }} TEST_NAME=${{ inputs.test-name }}
