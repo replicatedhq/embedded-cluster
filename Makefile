@@ -74,25 +74,19 @@ pkg/goods/bins/embedded-cluster/kubectl-preflight: Makefile
 	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
 	touch pkg/goods/bins/embedded-cluster/kubectl-preflight
 
-output/tmp/release-onmerge.tar.gz: e2e/kots-release-onmerge/*
+output/tmp/release.tar.gz: e2e/kots-release-install/* e2e/license.yaml
 	mkdir -p output/tmp
-	tar -czf output/tmp/release-onmerge.tar.gz -C e2e/kots-release-onmerge .
-
-output/tmp/release-onpr.tar.gz: e2e/kots-release-onpr/*
-	mkdir -p output/tmp
-	tar -czf output/tmp/release-onpr.tar.gz -C e2e/kots-release-onpr .
+	sed -i 's/__version_string__/$(VERSION)/g' e2e/kots-release-install/cluster-config.yaml
+	cp e2e/license.yaml e2e/kots-release-install
+	tar -czf output/tmp/release-onpr.tar.gz -C e2e/kots-release-install .
 
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
-.PHONY: embedded-release-onmerge
-embedded-release-onmerge: embedded-cluster-linux-amd64 output/tmp/release-onmerge.tar.gz output/bin/embedded-cluster-release-builder
-	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release-onmerge.tar.gz output/bin/embedded-cluster
-
-.PHONY: embedded-release-onpr
-embedded-release-onpr: embedded-cluster-linux-amd64 output/tmp/release-onpr.tar.gz output/bin/embedded-cluster-release-builder
-	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release-onpr.tar.gz output/bin/embedded-cluster
+.PHONY: embedded-release
+embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
+	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 .PHONY: static
 static: pkg/goods/bins/embedded-cluster/kubectl-preflight \
@@ -114,7 +108,7 @@ vet: static-linux-amd64 static
 	go vet ./...
 
 .PHONY: e2e-tests
-e2e-tests: embedded-release-onmerge
+e2e-tests: embedded-release
 	mkdir -p output/tmp
 	rm -rf output/tmp/id_rsa*
 	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
