@@ -17,6 +17,9 @@ spec:
       - labels:
           xyz-test-label: xyz-value
         name: xyz
+      - labels:
+          final-test-label: final-value
+        name: final
   unsupportedOverrides:
     k0s: |
       config:
@@ -33,12 +36,14 @@ spec:
       repositories:
         - name: ingress-nginx
           url: https://kubernetes.github.io/ingress-nginx
+        - name: okgolove
+          url: https://okgolove.github.io/helm-charts/
       charts:
         - name: ingress-nginx
           chartname: ingress-nginx/ingress-nginx
           namespace: ingress-nginx
-          version: "4.8.3"
-          order: 2
+          version: "4.9.1"
+          order: 4
           values: |
             controller:
               service:
@@ -46,3 +51,10 @@ spec:
                 nodePorts:
                   http: "80"
                   https: "443"
+                annotations:
+                  test-upgrade-annotation: test-upgrade-value
+        - chartname: okgolove/goldpinger
+          name: goldpinger
+          namespace: goldpinger
+          version: 6.1.2
+          order: 5
