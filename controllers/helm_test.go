@@ -519,7 +519,7 @@ func Test_generateDesiredCharts(t *testing.T) {
 			want: []k0sv1beta1.Chart{},
 		},
 		{
-			name: "add new chart, change chart values, change chart version, remove old chart",
+			name: "add new chart, change chart values, change chart versions, remove old chart",
 			args: args{
 				meta: &release.Meta{
 					Protected: map[string][]string{
@@ -542,6 +542,16 @@ func Test_generateDesiredCharts(t *testing.T) {
 										Name:    "newversion",
 										Version: "1.0.0",
 									},
+									{
+										Name:    "change2",
+										Values:  "",
+										Version: "1.0.0",
+									},
+									{
+										Name:    "change3",
+										Values:  "",
+										Version: "1.0.0",
+									},
 								},
 							},
 						},
@@ -561,6 +571,16 @@ func Test_generateDesiredCharts(t *testing.T) {
 							Name:    "newversion",
 							Version: "2.0.0",
 						},
+						{
+							Name:    "change2",
+							Values:  "abc: 2",
+							Version: "1.0.2",
+						},
+						{
+							Name:    "change3",
+							Version: "1.0.3",
+							Values:  "abc: 3",
+						},
 					},
 				},
 			},
@@ -576,6 +596,16 @@ func Test_generateDesiredCharts(t *testing.T) {
 				{
 					Name:    "newversion",
 					Version: "2.0.0",
+				},
+				{
+					Name:    "change2",
+					Values:  "abc: 2",
+					Version: "1.0.2",
+				},
+				{
+					Name:    "change3",
+					Version: "1.0.3",
+					Values:  "abc: 3",
 				},
 			},
 		},
