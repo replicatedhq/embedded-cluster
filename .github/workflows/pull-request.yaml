@@ -51,17 +51,7 @@ jobs:
       run: |
         make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
         ./output/bin/embedded-cluster version metadata > metadata.json
-        make embedded-release-onpr # this is done after the metadata.json is generated so as to not include additional charts
-    - name: Cache files
-      if: github.actor != 'dependabot[bot]'
-      env:
-        S3_BUCKET: "tf-infra-staging-emb-cluster-bin"
-        AWS_ACCESS_KEY_ID: ${{ secrets.INFRA_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.INFRA_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-        AWS_REGION: "us-east-1"
-      run: |
-        export EC_VERSION="vdev-metadata"
-        ./scripts/cache-files.sh
+        make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
 
     - name: Cache files for integration test
       if: github.actor != 'dependabot[bot]'
@@ -71,8 +61,9 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
         AWS_REGION: "us-east-1"
       run: |
-        export EC_VERSION="vdev-metadata"
+        export EC_VERSION="v$(SHORT_SHA)"
         ./scripts/cache-files.sh
+
     - name: upload binary
       uses: actions/upload-artifact@v4
       with:
