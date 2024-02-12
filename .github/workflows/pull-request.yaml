@@ -78,7 +78,7 @@ jobs:
       if: github.actor != 'dependabot[bot]'
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
-        echo "versionLabel: ${SHORT_SHA}" >> e2e/kots-release-install/release.yaml
+        echo "versionLabel: \"${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
         cat e2e/kots-release-install/release.yaml
         make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
     - name: Cache files for integration test
