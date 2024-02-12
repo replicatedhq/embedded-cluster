@@ -63,8 +63,7 @@ jobs:
           export SHORT_SHA=$(git rev-parse --short=7 HEAD)
           export EC_VERSION="v${SHORT_SHA}"
           ./scripts/cache-files.sh
-          export EC_VERSION="v${SHORT_SHA}-upgrade"
-          ./scripts/cache-files.sh
+          ./scripts/create-upgrade-release.sh
 
       - name: upload binary
         uses: actions/upload-artifact@v4
