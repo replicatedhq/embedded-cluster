@@ -93,14 +93,12 @@ jobs:
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos8Stream
           - TestVersion
-          - TestMultiNodeInteractiveInstallation
           - TestInstallWithDisabledAddons
           - TestHostPreflight
           - TestUnsupportedOverrides
           - TestMultiNodeInstallation
           - TestMultiNodeReset
           - TestCommandsRequireSudo
-          - TestInstallWithoutRootSSHAccess
     steps:
     - name: Checkout
       uses: actions/checkout@v4

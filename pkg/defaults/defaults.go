@@ -32,11 +32,6 @@ func BinaryName() string {
 	return def().BinaryName()
 }
 
-// K0sctlBinsSubDir calls K0sctlBinsSubDir on the default provider.
-func K0sctlBinsSubDir() string {
-	return def().K0sctlBinsSubDir()
-}
-
 // EmbeddedClusterBinsSubDir calls EmbeddedClusterBinsSubDir on the default provider.
 func EmbeddedClusterBinsSubDir() string {
 	return def().EmbeddedClusterBinsSubDir()
@@ -47,34 +42,14 @@ func EmbeddedClusterLogsSubDir() string {
 	return def().EmbeddedClusterLogsSubDir()
 }
 
-// K0sctlApplyLogPath calls K0sctlApplyLogPath on the default provider.
-func K0sctlApplyLogPath() string {
-	return def().K0sctlApplyLogPath()
-}
-
-// SSHKeyPath calls SSHKeyPath on the default provider.
-func SSHKeyPath() string {
-	return def().SSHKeyPath()
-}
-
-// SSHAuthorizedKeysPath calls SSHAuthorizedKeysPath on the default provider.
-func SSHAuthorizedKeysPath() string {
-	return def().SSHAuthorizedKeysPath()
-}
-
-// ConfigSubDir calls ConfigSubDir on the default provider.
-func ConfigSubDir() string {
-	return def().ConfigSubDir()
+// EmbeddedClusterConfigSubDir calls ConfigSubDir on the default provider.
+func EmbeddedClusterConfigSubDir() string {
+	return def().EmbeddedClusterConfigSubDir()
 }
 
 // K0sBinaryPath calls K0sBinaryPath on the default provider.
 func K0sBinaryPath() string {
 	return def().K0sBinaryPath()
-}
-
-// PathToK0sctlBinary calls PathToK0sctlBinary on the default provider.
-func PathToK0sctlBinary(name string) string {
-	return def().PathToK0sctlBinary(name)
 }
 
 // PathToEmbeddedClusterBinary calls PathToEmbeddedClusterBinary on the default provider.
@@ -92,11 +67,6 @@ func PathToConfig(name string) string {
 	return def().PathToConfig(name)
 }
 
-// FileNameForImage calls FileNameForImage on the default provider.
-func FileNameForImage(img string) string {
-	return def().FileNameForImage(img)
-}
-
 // PreferredNodeIPAddress calls PreferredNodeIPAddress on the default provider.
 func PreferredNodeIPAddress() (string, error) {
 	return def().PreferredNodeIPAddress()
@@ -107,12 +77,17 @@ func TryDiscoverPublicIP() string {
 	return def().TryDiscoverPublicIP()
 }
 
-// DecentralizedInstall calls DecentralizedInstall on the default provider.
-func DecentralizedInstall() bool {
-	return def().DecentralizedInstall()
+// PathToK0sConfig calls PathToK0sConfig on the default provider.
+func PathToK0sConfig() string {
+	return def().PathToK0sConfig()
 }
 
-// SetInstallAsDecentralized calls SetInstallAsDecentralized on the default provider.
-func SetInstallAsDecentralized() error {
-	return def().SetInstallAsDecentralized()
+// PathToK0sStatusSocket calls PathToK0sStatusSocket on the default provider.
+func PathToK0sStatusSocket() string {
+	return def().PathToK0sStatusSocket()
+}
+
+// EmbeddedClusterHomeDirectory calls EmbeddedClusterHomeDirectory on the default provider.
+func EmbeddedClusterHomeDirectory() string {
+	return def().EmbeddedClusterHomeDirectory()
 }

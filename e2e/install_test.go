@@ -24,19 +24,9 @@ func TestSingleNodeInstallation(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "ubuntu/jammy",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "openssh-server", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
-	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -74,20 +64,9 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "rockylinux/8",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"dnf", "install", "-y", "openssh-server"},
-		{"systemctl", "enable", "sshd"},
-		{"systemctl", "start", "sshd"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
-	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -130,19 +109,20 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
+
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "openssh-server", "-y"},
+		{"apt-get", "install", "ca-certificates", "curl", "-y"},
+		{"update-ca-certificates"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install ssh on node 0: %v", err)
 	}
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -176,20 +156,9 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "centos/8-Stream",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"dnf", "install", "-y", "openssh-server"},
-		{"systemctl", "enable", "sshd"},
-		{"systemctl", "start", "sshd"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
-	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -232,23 +201,13 @@ func TestInstallWithDisabledAddons(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "ubuntu/jammy",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: installing ssh in node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "openssh-server", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
-	}
 	t.Logf("%s: installling with disabled addons on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"install-with-disabled-addons.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install embedded ssh in node 0: %v", err)
+		t.Fatalf("fail to install embedded cluster in node 0: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -260,20 +219,20 @@ func TestHostPreflight(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "centos/8-Stream",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: installing ssh and binutils on node 0", time.Now().Format(time.RFC3339))
+
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
-		{"dnf", "--setopt=metadata_expire=120", "install", "-y", "openssh-server", "binutils", "tar"},
+		{"dnf", "install", "-y", "openssh-server", "binutils", "tar"},
 		{"systemctl", "enable", "sshd"},
 		{"systemctl", "start", "sshd"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to install dependencies on node %s: %v", tc.Nodes[0], err)
 	}
+
 	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-preflight.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -291,16 +250,9 @@ func TestMultiNodeInstallation(t *testing.T) {
 		T:                   t,
 		Nodes:               4,
 		Image:               "ubuntu/jammy",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{{"apt-get", "update", "-y"}, {"apt-get", "install", "openssh-server", "-y"}}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
-	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -420,34 +372,5 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
 		t.Fatalf("cluster or app not ready: %s", stdout)
-	}
-}
-
-func TestInstallWithoutRootSSHAccess(t *testing.T) {
-	t.Parallel()
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Destroy()
-	t.Log("installing ssh on node 0")
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "openssh-server", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
-	}
-	t.Log("testing installation without root access")
-	line := []string{"single-node-install-without-root.sh"}
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Log("install stdout:", stdout)
-		t.Log("install stderr:", stderr)
-		t.Log("failed")
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 }

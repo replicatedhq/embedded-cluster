@@ -14,8 +14,6 @@ func TestCommandsRequireSudo(t *testing.T) {
 		Nodes:               1,
 		CreateRegularUser:   true,
 		Image:               "ubuntu/jammy",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()

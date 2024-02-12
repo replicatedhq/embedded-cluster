@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -12,24 +15,16 @@ import (
 )
 
 func main() {
-
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+	defer cancel()
 	logging.SetupLogging()
-
 	name := path.Base(os.Args[0])
 	var app = &cli.App{
-		Name: name,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "debug",
-				Usage:   "Output all setup messages to stdout",
-				Aliases: []string{"d"},
-				Value:   false,
-				Action: func(ctx *cli.Context, v bool) error {
-					logging.Debug = v
-					return nil
-				},
-			},
-		},
+		Name:  name,
 		Usage: fmt.Sprintf("Installs or updates %s.", name),
 		Commands: []*cli.Command{
 			installCommand,
@@ -38,8 +33,7 @@ func main() {
 			versionCommand,
 		},
 	}
-	if err := app.Run(os.Args); err != nil {
+	if err := app.RunContext(ctx, os.Args); err != nil {
 		logrus.Fatal(err)
 	}
-
 }
