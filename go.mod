@@ -13,7 +13,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0sctl v0.17.4
 	github.com/k0sproject/rig v0.17.5
-	github.com/replicatedhq/embedded-cluster-operator v0.22.1
+	github.com/replicatedhq/embedded-cluster-operator v0.22.5
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.83.0
 	github.com/sirupsen/logrus v1.9.3
