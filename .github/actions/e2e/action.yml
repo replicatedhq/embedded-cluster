@@ -1,9 +1,6 @@
 name: End to End
 description: e2e tests for embedded-cluster
 inputs:
-  test-env:
-    description: 'test environment - onpr or onmerge'
-    required: true
   test-name:
     description: 'individual test to run'
     required: true
@@ -46,4 +43,5 @@ runs:
   - name: E2E
     shell: bash
     run: |
-      make e2e-test-${{ inputs.test-env }} TEST_NAME=${{ inputs.test-name }}
+      export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+      make e2e-test TEST_NAME=${{ inputs.test-name }}

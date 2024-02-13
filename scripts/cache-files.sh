@@ -94,7 +94,8 @@ function embeddedcluster() {
     fi
 }
 
-# there are two files to be uploaded for each release - the k0s binary and the metadata file
+# there are three files to be uploaded for each release - the k0s binary, the metadata file, and the embedded-cluster release
+# the embedded cluster release does not exist for CI builds
 function main() {
     k0sbin
     metadata
