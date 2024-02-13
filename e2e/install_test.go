@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +48,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh"}
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -92,7 +93,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh"}
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -139,7 +140,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh"}
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -184,7 +185,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh"}
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)

@@ -3,7 +3,7 @@ kind: Config
 metadata:
   name: "testconfig"
 spec:
-  version: "dev-metadata"
+  version: "__version_string__"
   roles:
     controller:
       labels:
@@ -17,9 +17,6 @@ spec:
       - labels:
           xyz-test-label: xyz-value
         name: xyz
-      - labels:
-          final-test-label: final-value
-        name: final
   unsupportedOverrides:
     k0s: |
       config:

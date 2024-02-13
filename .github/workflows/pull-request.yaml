@@ -51,18 +51,37 @@ jobs:
       run: |
         make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
         ./output/bin/embedded-cluster version metadata > metadata.json
-        make embedded-release-onpr # this is done after the metadata.json is generated so as to not include additional charts
-    - name: Cache files
+    - name: Install Replicated CLI
+      run: |
+        curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
+        | grep "browser_download_url.*linux_amd64.tar.gz" \
+        | cut -d : -f 2,3 \
+        | tr -d \" \
+        | wget -O replicated.tar.gz -qi -
+        tar xf replicated.tar.gz replicated && rm replicated.tar.gz
+        mv replicated /usr/local/bin/replicated
+    - name: Create CI Releases
       if: github.actor != 'dependabot[bot]'
       env:
-        S3_BUCKET: "tf-infra-staging-emb-cluster-bin"
-        AWS_ACCESS_KEY_ID: ${{ secrets.INFRA_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.INFRA_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-        AWS_REGION: "us-east-1"
+        REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+        REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+        REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
       run: |
-        export EC_VERSION="vdev-metadata"
-        ./scripts/cache-files.sh
+        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+        echo "${SHORT_SHA}"
+        sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+        sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
 
+        replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
+        replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
+    - name: Build CI binary
+      if: github.actor != 'dependabot[bot]'
+      run: |
+        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+        echo "# channel release object" > e2e/kots-release-install/release.yaml
+        echo "versionLabel: \"${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
+        cat e2e/kots-release-install/release.yaml
+        make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
     - name: Cache files for integration test
       if: github.actor != 'dependabot[bot]'
       env:
@@ -71,12 +90,15 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
         AWS_REGION: "us-east-1"
       run: |
-        export EC_VERSION="vdev-metadata"
+        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+        export EC_VERSION="v${SHORT_SHA}"
         ./scripts/cache-files.sh
+        ./scripts/create-upgrade-release.sh
+
     - name: upload binary
       uses: actions/upload-artifact@v4
       with:
-        name: embedded-release-onpr
+        name: embedded-release
         path: |
           output/bin/embedded-cluster
 
@@ -105,9 +127,9 @@ jobs:
     - name: download binary
       uses: actions/download-artifact@v4
       with:
-        name: embedded-release-onpr
+        name: embedded-release
         path: output/bin
     - uses: ./.github/actions/e2e
+      if: github.actor != 'dependabot[bot]'
       with:
-        test-env: 'onpr'
         test-name: '${{ matrix.tests }}'

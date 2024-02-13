@@ -67,25 +67,18 @@ pkg/goods/bins/kubectl-preflight: Makefile
 	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
 	touch pkg/goods/bins/kubectl-preflight
 
-output/tmp/release-onmerge.tar.gz: e2e/kots-release-onmerge/*
+output/tmp/release.tar.gz: e2e/kots-release-install/* e2e/license.yaml
 	mkdir -p output/tmp
-	tar -czf output/tmp/release-onmerge.tar.gz -C e2e/kots-release-onmerge .
-
-output/tmp/release-onpr.tar.gz: e2e/kots-release-onpr/*
-	mkdir -p output/tmp
-	tar -czf output/tmp/release-onpr.tar.gz -C e2e/kots-release-onpr .
+	cp e2e/license.yaml e2e/kots-release-install
+	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
 
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
-.PHONY: embedded-release-onmerge
-embedded-release-onmerge: embedded-cluster-linux-amd64 output/tmp/release-onmerge.tar.gz output/bin/embedded-cluster-release-builder
-	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release-onmerge.tar.gz output/bin/embedded-cluster
-
-.PHONY: embedded-release-onpr
-embedded-release-onpr: embedded-cluster-linux-amd64 output/tmp/release-onpr.tar.gz output/bin/embedded-cluster-release-builder
-	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release-onpr.tar.gz output/bin/embedded-cluster
+.PHONY: embedded-release
+embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
+	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 .PHONY: static
 static: pkg/goods/bins/k0s \
@@ -106,15 +99,11 @@ vet: static
 	go vet ./...
 
 .PHONY: e2e-tests
-e2e-tests: embedded-release-onmerge
+e2e-tests: embedded-release
 	go test -timeout 45m -parallel 1 -failfast -v ./e2e
 
-.PHONY: e2e-test-onpr
-e2e-test-onpr:
-	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
-
-.PHONY: e2e-test-onmerge
-e2e-test-onmerge:
+.PHONY: e2e-test
+e2e-test:
 	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
 
 .PHONY: clean

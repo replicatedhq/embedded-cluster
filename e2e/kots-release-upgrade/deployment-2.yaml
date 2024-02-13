@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: second
+  labels:
+    app: second
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: second
+  template:
+    metadata:
+      labels:
+        app: second
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+          resources:
+            limits:
+              memory: '32Mi'
+              cpu: '50m'
