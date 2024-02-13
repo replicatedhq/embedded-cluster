@@ -123,12 +123,6 @@ main() {
     if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "Failed to install embedded-cluster"
-        echo "cat:"
-        cat /root/.config/embedded-cluster/bin/k0s
-        echo "file:"
-        file /root/.config/embedded-cluster/bin/k0s
-        echo "objdump:"
-        objdump -x /root/.config/embedded-cluster/bin/k0s
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
