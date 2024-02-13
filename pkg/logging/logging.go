@@ -14,7 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
-// StdoutLogger is a Logrus hook for routing Info, Error, and Fatal logs to the stdout.
+// StdoutLogger is a Logrus hook for routing Info, Error, and Fatal logs to the screen.
 type StdoutLogger struct{}
 
 // Levels defines on which log levels this hook would trigger.
@@ -26,13 +26,18 @@ func (hook *StdoutLogger) Levels() []logrus.Level {
 	}
 }
 
-// Fire executes the hook for the given entry
+// Fire executes the hook for the given entry.
 func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
 	message := fmt.Sprintf("%s\n", entry.Message)
-	os.Stdout.Write([]byte(message))
+	output := os.Stdout
+	if entry.Level != logrus.InfoLevel {
+		output = os.Stderr
+	}
+	output.Write([]byte(message))
 	return nil
 }
 
+// needsFileLogging filters out, based on command line argument, if we need to log to a file.
 func needsFileLogging() bool {
 	if len(os.Args) == 1 {
 		return false
