@@ -98,7 +98,7 @@ jobs:
       - name: download binary
         uses: actions/download-artifact@v4
         with:
-          name: embedded-release-onmerge
+          name: embedded-release
           path: output/bin
       - uses: ./.github/actions/e2e
         with:
