@@ -107,7 +107,7 @@ var metadataCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("unable to marshal versions: %w", err)
 		}
-		fmt.Print(string(data))
+		fmt.Println(string(data))
 		return nil
 	},
 }
