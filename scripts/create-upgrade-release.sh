@@ -40,9 +40,14 @@ function metadata() {
         return 0
     fi
 
-    # check if a file 'metadata.json' exists in the directory
-    # if it does, upload it as metadata/${ec_version}.json
+    # mutate the metadata.json to create a suitable upgrade
     if [ -f metadata.json ]; then
+        apt-get install jq -y
+
+        cat metadata.json
+
+        # TODO actually edit metadata
+
         retry 3 aws s3 cp metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
     else
         echo "metadata.json not found, skipping upload"
