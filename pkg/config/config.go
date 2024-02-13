@@ -59,8 +59,6 @@ func RenderK0sConfig(ctx context.Context) (*k0sconfig.ClusterConfig, error) {
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
 func UpdateHelmConfigs(cfg *k0sconfig.ClusterConfig, opts ...addons.Option) error {
 	applier := addons.NewApplier(opts...)
-	cfgcopy := cfg.DeepCopy()
-	opts = append(opts, addons.WithConfig(*cfgcopy))
 	chtconfig, repconfig, err := applier.GenerateHelmConfigs(
 		AdditionalCharts(), AdditionalRepositories(),
 	)
