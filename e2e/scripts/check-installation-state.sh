@@ -16,7 +16,7 @@ wait_for_installation() {
             echo "operator logs:"
             kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
             echo "k0s version:"
-            /root/.config/embedded-cluster/bin/k0s version
+            /usr/local/bin/k0s version
             return 1
         fi
         sleep 5
