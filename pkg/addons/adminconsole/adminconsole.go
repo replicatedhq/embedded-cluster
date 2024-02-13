@@ -284,7 +284,7 @@ func (a *AdminConsole) printSuccessMessage() {
 		var err error
 		ipaddr, err = defaults.PreferredNodeIPAddress()
 		if err != nil {
-			logrus.Errorf("unable to determine node IP address: %w", err)
+			logrus.Errorf("unable to determine node IP address: %v", err)
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
