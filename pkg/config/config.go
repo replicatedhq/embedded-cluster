@@ -1,6 +1,4 @@
-// Package config handles the cluster configuration file generation. It implements
-// an interactive configuration generation as well as provides default configuration
-// for single node deployments.
+// Package config handles the cluster configuration file generation.
 package config
 
 import (
@@ -34,7 +32,7 @@ func ReadConfigFile(cfgPath string) (dig.Mapping, error) {
 	return cfg, nil
 }
 
-// RenderK0sConfig renders a cluster configuration interactively.
+// RenderK0sConfig renders a k0s cluster configuration.
 func RenderK0sConfig(ctx context.Context) (*k0sconfig.ClusterConfig, error) {
 	bin := defaults.PathToEmbeddedClusterBinary("k0s")
 	cmd := exec.Command(bin, "config", "create")
