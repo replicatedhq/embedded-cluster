@@ -44,11 +44,10 @@ function metadata() {
     if [ -f metadata.json ]; then
         sudo apt-get install jq -y
 
-        cat metadata.json
+        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "global\n  labels:\n    embedded-cluster-operator-upgrade-label: embedded-cluster-operator-upgrade-value"' metadata.json > upgrade-metadata.json
+        cat upgrade-metadata.json
 
-        # TODO actually edit metadata
-
-        retry 3 aws s3 cp metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
+        retry 3 aws s3 cp upgrade-metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
     else
         echo "metadata.json not found, skipping upload"
     fi
