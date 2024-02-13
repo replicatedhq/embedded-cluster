@@ -42,7 +42,7 @@ function metadata() {
 
     # mutate the metadata.json to create a suitable upgrade
     if [ -f metadata.json ]; then
-        apt-get install jq -y
+        sudo apt-get install jq -y
 
         cat metadata.json
 
