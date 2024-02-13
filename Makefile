@@ -33,7 +33,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
 
 .DEFAULT_GOAL := default
-default: embedded-cluster
+default: embedded-cluster-linux-amd64
 
 pkg/goods/bins/k0s: Makefile
 	mkdir -p pkg/goods/bins
@@ -80,11 +80,11 @@ output/bin/embedded-cluster-release-builder:
 	go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
 .PHONY: embedded-release-onmerge
-embedded-release-onmerge: embedded-cluster output/tmp/release-onmerge.tar.gz output/bin/embedded-cluster-release-builder
+embedded-release-onmerge: embedded-cluster-linux-amd64 output/tmp/release-onmerge.tar.gz output/bin/embedded-cluster-release-builder
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release-onmerge.tar.gz output/bin/embedded-cluster
 
 .PHONY: embedded-release-onpr
-embedded-release-onpr: embedded-cluster output/tmp/release-onpr.tar.gz output/bin/embedded-cluster-release-builder
+embedded-release-onpr: embedded-cluster-linux-amd64 output/tmp/release-onpr.tar.gz output/bin/embedded-cluster-release-builder
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release-onpr.tar.gz output/bin/embedded-cluster
 
 .PHONY: static
@@ -93,8 +93,8 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl \
 	pkg/goods/bins/kubectl-support_bundle
 	
-.PHONY: embedded-cluster
-embedded-cluster: static
+.PHONY: embedded-cluster-linux-amd64
+embedded-cluster-linux-amd64: static
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 .PHONY: unit-tests

@@ -49,7 +49,7 @@ jobs:
         go-version: "1.21.0"
     - name: Build Linux AMD64
       run: |
-        make embedded-cluster VERSION=dev-$SHORT_SHA
+        make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
         ./output/bin/embedded-cluster version metadata > metadata.json
         make embedded-release-onpr # this is done after the metadata.json is generated so as to not include additional charts
     - name: Cache files

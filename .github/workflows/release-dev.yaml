@@ -19,7 +19,7 @@ jobs:
           go-version: "1.21"
       - name: Build linux-amd64
         run: |
-          make embedded-cluster
+          make embedded-cluster-linux-amd64
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
           make embedded-release-onmerge # this is done after the metadata.json is generated so as to not include additional charts
