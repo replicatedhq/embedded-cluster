@@ -8,15 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/gosimple/slug"
 	"github.com/sirupsen/logrus"
-)
-
-const (
-	k0sBinsSubDirLinux = ".cache/k0sctl/k0s/linux/amd64"
 )
 
 // NewProvider returns a new Provider using the provided base dir.
@@ -36,10 +31,7 @@ type Provider struct {
 
 // Init makes sure all the necessary directory exists on the system.
 func (d *Provider) Init() {
-	if err := os.MkdirAll(d.K0sctlBinsSubDir(), 0755); err != nil {
-		logrus.Fatalf("unable to create basedir: %s", err)
-	}
-	if err := os.MkdirAll(d.ConfigSubDir(), 0755); err != nil {
+	if err := os.MkdirAll(d.EmbeddedClusterConfigSubDir(), 0755); err != nil {
 		logrus.Fatalf("unable to create config dir: %s", err)
 	}
 	if err := os.MkdirAll(d.EmbeddedClusterBinsSubDir(), 0755); err != nil {
@@ -47,9 +39,6 @@ func (d *Provider) Init() {
 	}
 	if err := os.MkdirAll(d.EmbeddedClusterLogsSubDir(), 0755); err != nil {
 		panic(fmt.Errorf("unable to create embedded-cluster logs dir: %w", err))
-	}
-	if err := os.MkdirAll(d.SSHConfigSubDir(), 0700); err != nil {
-		logrus.Fatalf("unable to create ssh config dir: %s", err)
 	}
 }
 
@@ -79,26 +68,6 @@ func (d *Provider) config() string {
 	return home
 }
 
-// state returns the user's state dir.
-func (d *Provider) state() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		logrus.Fatalf("unable to get user home dir: %s", err)
-	}
-
-	// use the XDG_STATE_HOME environment variable if set
-	if xdgStateHome := os.Getenv("XDG_STATE_HOME"); xdgStateHome != "" {
-		return xdgStateHome
-	}
-
-	// otherwise, default to $HOME/.local/state on linux
-	if runtime.GOOS == "linux" {
-		return filepath.Join(home, ".local", "state")
-	}
-
-	return home
-}
-
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if
 // the binary is renamed). We make sure the name does not contain invalid
@@ -112,10 +81,10 @@ func (d *Provider) BinaryName() string {
 	return slug.Make(base)
 }
 
-// EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs are
-// stored.
+// EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs
+// are stored.
 func (d *Provider) EmbeddedClusterLogsSubDir() string {
-	return filepath.Join(d.Base, d.state(), d.BinaryName(), "logs")
+	return filepath.Join(d.Base, d.config(), d.BinaryName(), "logs")
 }
 
 // PathToLog returns the full path to a log file. This function does not check
@@ -124,61 +93,34 @@ func (d *Provider) PathToLog(name string) string {
 	return filepath.Join(d.EmbeddedClusterLogsSubDir(), name)
 }
 
-// K0sctlBinsSubDir returns the path to the directory where k0sctl binaries
-// are stored. This is a subdirectory of the user's home directory. Follows
-// the k0sctl directory convention.
-func (d *Provider) K0sctlBinsSubDir() string {
-	return filepath.Join(d.Base, d.home(), k0sBinsSubDirLinux)
-}
-
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
 func (d *Provider) EmbeddedClusterBinsSubDir() string {
 	return filepath.Join(d.Base, d.config(), d.BinaryName(), "bin")
 }
 
-// K0sctlApplyLogPath returns the path to the k0sctl apply log file.
-func (d *Provider) K0sctlApplyLogPath() string {
-	return filepath.Join(d.Base, d.home(), ".cache", "k0sctl", "k0sctl.log")
-}
-
-// SSHKeyPath returns the path to the SSH managed by embedded-cluster installation.
-func (d *Provider) SSHKeyPath() string {
-	return filepath.Join(d.Base, d.home(), ".ssh", "embedded-cluster_rsa")
-}
-
-// SSHAuthorizedKeysPath returns the path to the authorized_hosts file.
-func (d *Provider) SSHAuthorizedKeysPath() string {
-	return filepath.Join(d.SSHConfigSubDir(), "authorized_keys")
-}
-
-// SSHConfigSubDir returns the path to the directory where SSH configuration
-// files are stored. This is a subdirectory of the user's home directory.
-func (d *Provider) SSHConfigSubDir() string {
-	return filepath.Join(d.Base, d.home(), ".ssh")
-}
-
-// ConfigSubDir returns the path to the directory where k0sctl configuration
-// files are stored.
-func (d *Provider) ConfigSubDir() string {
+// EmbeddedClusterConfigSubDir returns the path to the directory where configuration files are
+// stored.
+func (d *Provider) EmbeddedClusterConfigSubDir() string {
 	return filepath.Join(d.Base, d.config(), d.BinaryName(), "etc")
 }
 
-// K0sBinaryPath returns the path to the k0s binary.
-func (d *Provider) K0sBinaryPath() string {
-	return d.PathToK0sctlBinary(fmt.Sprintf("k0s-%s", K0sVersion))
+// EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
+// store all the embedded-cluster related files.
+func (d *Provider) EmbeddedClusterHomeDirectory() string {
+	return filepath.Join(d.Base, d.config(), d.BinaryName())
 }
 
-// PathToK0sctlBinary is an utility function that returns the full path to
-// a materialized binary that belongs to k0sctl. This function does not check
-// if the file exists.
-func (d *Provider) PathToK0sctlBinary(name string) string {
-	return filepath.Join(d.K0sctlBinsSubDir(), name)
+// K0sBinaryPath returns the path to the k0s binary when it is installed on the node. This
+// does not return the binary just after we materilized it but the path we want it to be
+// once it is installed.
+func (d *Provider) K0sBinaryPath() string {
+	return "/usr/local/bin/k0s"
 }
 
 // PathToEmbeddedClusterBinary is an utility function that returns the full path to a
-// materialized binary that belongs to embedded-cluster (do not confuse with binaries
-// belonging to k0sctl). This function does not check if the file exists.
+// materialized binary that belongs to embedded-cluster. This function does not check
+// if the file exists.
 func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 	return filepath.Join(d.EmbeddedClusterBinsSubDir(), name)
 }
@@ -186,16 +128,7 @@ func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 // PathToConfig returns the full path to a configuration file. This function
 // does not check if the file exists.
 func (d *Provider) PathToConfig(name string) string {
-	return filepath.Join(d.ConfigSubDir(), name)
-}
-
-// FileNameForImage returns an appropriate .tar name for a given image.
-// e.g. quay.io/test/test:v1 would return quay.io-test-test-v1.tar.
-func (d *Provider) FileNameForImage(img string) string {
-	prefix := strings.ReplaceAll(img, "/", "-")
-	prefix = strings.ReplaceAll(prefix, ":", "-")
-	prefix = strings.ReplaceAll(prefix, "@", "-")
-	return fmt.Sprintf("%s.tar", prefix)
+	return filepath.Join(d.EmbeddedClusterConfigSubDir(), name)
 }
 
 // PreferredNodeIPAddress returns the ip address the node uses when reaching
@@ -209,27 +142,6 @@ func (d *Provider) PreferredNodeIPAddress() (string, error) {
 	defer conn.Close()
 	addr := conn.LocalAddr().(*net.UDPAddr)
 	return addr.IP.String(), nil
-}
-
-// DecentralizedInstall returns true if the cluster installation has been
-// executed in a decentralized way (installing the first node then generating
-// a join token and installing the others).
-func (d *Provider) DecentralizedInstall() bool {
-	fpath := d.PathToConfig(".decentralized")
-	_, err := os.Stat(fpath)
-	return err == nil
-}
-
-// SetInstallAsDecentralized sets the decentralized install flag inside the
-// configuration directory.
-func (d *Provider) SetInstallAsDecentralized() error {
-	fpath := d.PathToConfig(".decentralized")
-	fp, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return fmt.Errorf("unable to set installation mode: %w", err)
-	}
-	defer fp.Close()
-	return nil
 }
 
 // TryDiscoverPublicIP tries to discover the public IP of the node by querying
@@ -264,7 +176,7 @@ func (d *Provider) TryDiscoverPublicIP() string {
 		if resp.StatusCode == http.StatusOK {
 			bodyBytes, _ := io.ReadAll(resp.Body)
 			publicIP := string(bodyBytes)
-			if isValidIPv4(publicIP) {
+			if net.ParseIP(publicIP).To4() != nil {
 				return publicIP
 			} else {
 				return ""
@@ -274,6 +186,12 @@ func (d *Provider) TryDiscoverPublicIP() string {
 	return ""
 }
 
-func isValidIPv4(ip string) bool {
-	return net.ParseIP(ip).To4() != nil
+// PathToK0sStatusSocket returns the full path to the k0s status socket.
+func (d *Provider) PathToK0sStatusSocket() string {
+	return "/run/k0s/status.sock"
+}
+
+// PathToK0sConfig returns the full path to the k0s configuration file.
+func (d *Provider) PathToK0sConfig() string {
+	return "/etc/k0s/k0s.yaml"
 }

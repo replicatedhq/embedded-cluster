@@ -86,25 +86,25 @@ wait_for_healthy_node() {
 }
 
 override_applied() {
-    grep -A1 telemetry "$K0SCTLCONFIG" > /tmp/telemetry-section
+    grep -A1 telemetry "$K0SCONFIG" > /tmp/telemetry-section
     if ! grep -q "enabled: true" /tmp/telemetry-section; then
       echo "override not applied, expected telemetry true, actual config:"
-      cat "$K0SCTLCONFIG"
+      cat "$K0SCONFIG"
       return 1
     fi
-    if ! grep "testing-overrides-k0s-name" "$K0SCTLCONFIG"; then
+    if ! grep "testing-overrides-k0s-name" "$K0SCONFIG"; then
       echo "override not applied, expected name testing-overrides-k0s-name, actual config:"
-      cat "$K0SCTLCONFIG"
+      cat "$K0SCONFIG"
       return 1
     fi
-    if ! grep "net.ipv4.ip_forward" "$K0SCTLCONFIG"; then
+    if ! grep "net.ipv4.ip_forward" "$K0SCONFIG"; then
       echo "override not applied, expected worker profile not found, actual config:"
-      cat "$K0SCTLCONFIG"
+      cat "$K0SCONFIG"
       return 1
     fi
-    if ! grep "memcached" "$K0SCTLCONFIG"; then
+    if ! grep "memcached" "$K0SCONFIG"; then
       echo "override not applied, expected memcached helmchart not found, actual config:"
-      cat "$K0SCTLCONFIG"
+      cat "$K0SCONFIG"
       return 1
     fi
 }
@@ -149,6 +149,6 @@ main() {
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
-export K0SCTLCONFIG=/root/.config/embedded-cluster/etc/k0sctl.yaml
+export K0SCONFIG=/etc/k0s/k0s.yaml
 export PATH=$PATH:/root/.config/embedded-cluster/bin
 main

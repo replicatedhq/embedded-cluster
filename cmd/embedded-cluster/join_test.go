@@ -4,11 +4,12 @@ import (
 	"embed"
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/k0sproject/dig"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +20,28 @@ import (
 //go:embed testdata/*
 var testData embed.FS
 
+func parseTestsYAML[T any](t *testing.T, prefix string) map[string]T {
+	entries, err := testData.ReadDir("testdata")
+	require.NoError(t, err)
+	tests := make(map[string]T, 0)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), prefix) {
+			continue
+		}
+
+		fpath := filepath.Join("testdata", entry.Name())
+		data, err := testData.ReadFile(fpath)
+		require.NoError(t, err)
+
+		var onetest T
+		err = yaml.Unmarshal(data, &onetest)
+		require.NoError(t, err)
+
+		tests[fpath] = onetest
+	}
+	return tests
+}
+
 func Test_patchK0sConfig(t *testing.T) {
 	type test struct {
 		Name     string
@@ -26,24 +49,8 @@ func Test_patchK0sConfig(t *testing.T) {
 		Override string `yaml:"override"`
 		Expected string `yaml:"expected"`
 	}
-	entries, err := testData.ReadDir("testdata/patch-k0s-config")
-	assert.NoError(t, err)
-	var tests []test
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), "skip.") {
-			continue
-		}
-		fpath := path.Join("testdata", "patch-k0s-config", entry.Name())
-		data, err := testData.ReadFile(fpath)
-		assert.NoError(t, err)
-		var onetest test
-		err = yaml.Unmarshal(data, &onetest)
-		assert.NoError(t, err)
-		onetest.Name = fpath
-		tests = append(tests, onetest)
-	}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+	for tname, tt := range parseTestsYAML[test](t, "patch-k0s-config-") {
+		t.Run(tname, func(t *testing.T) {
 			req := require.New(t)
 
 			originalFile, err := os.CreateTemp("", "k0s-original-*.yaml")
@@ -66,12 +73,15 @@ func Test_patchK0sConfig(t *testing.T) {
 			err = patchK0sConfig(originalFile.Name(), patch)
 			req.NoError(err, "unable to patch config")
 
-			var original dig.Mapping
-			err = yaml.NewDecoder(originalFile).Decode(&original)
+			data, err := os.ReadFile(originalFile.Name())
+			req.NoError(err, "unable to read patched config")
+
+			var original k0sconfig.ClusterConfig
+			err = k8syaml.Unmarshal(data, &original)
 			req.NoError(err, "unable to decode original file")
 
-			var expected dig.Mapping
-			err = yaml.Unmarshal([]byte(tt.Expected), &expected)
+			var expected k0sconfig.ClusterConfig
+			err = k8syaml.Unmarshal([]byte(tt.Expected), &expected)
 			req.NoError(err, "unable to unmarshal expected file")
 
 			assert.Equal(t, expected, original)
@@ -87,24 +97,8 @@ func TestJoinCommandResponseOverrides(t *testing.T) {
 		ExpectedEmbeddedOverrides string `yaml:"expectedEmbeddedOverrides"`
 		ExpectedUserOverrides     string `yaml:"expectedUserOverrides"`
 	}
-	entries, err := testData.ReadDir("testdata/join-command-response")
-	assert.NoError(t, err)
-	var tests []test
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), "skip.") {
-			continue
-		}
-		fpath := path.Join("testdata", "join-command-response", entry.Name())
-		data, err := testData.ReadFile(fpath)
-		assert.NoError(t, err)
-		var onetest test
-		err = yaml.Unmarshal(data, &onetest)
-		assert.NoError(t, err)
-		onetest.Name = fpath
-		tests = append(tests, onetest)
-	}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+	for tname, tt := range parseTestsYAML[test](t, "join-command-response-") {
+		t.Run(tname, func(t *testing.T) {
 			req := require.New(t)
 			join := JoinCommandResponse{
 				K0sUnsupportedOverrides:   tt.EmbeddedOverrides,

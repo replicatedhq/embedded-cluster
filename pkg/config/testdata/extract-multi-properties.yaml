@@ -1,0 +1,17 @@
+override: |-
+  config:
+    metadata:
+      name: foo
+    spec:
+      test:
+      - one
+      - two
+      emptyObject: {}
+expected: |-
+  metadata:
+    name: foo
+  spec:
+    test:
+    - one
+    - two
+    emptyObject: {}

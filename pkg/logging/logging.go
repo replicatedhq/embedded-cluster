@@ -1,107 +1,75 @@
-// Package logging manages setup of common logging interfaces and settings.
+// Package logging manages setup of common logging interfaces and settings. We set the log
+// level to all levels but we only show on stdout the info, error, and fatal levels. All
+// other error levels are written only to a log file.
 package logging
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
+	"strings"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/sirupsen/logrus"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
-// LogrusFileHook is a hook to handle writing to a file.
-type LogrusFileHook struct {
-	file      *os.File
-	flag      int
-	chmod     os.FileMode
-	formatter *logrus.TextFormatter
+// StdoutLogger is a Logrus hook for routing Info, Error, and Fatal logs to the screen.
+type StdoutLogger struct{}
+
+// Levels defines on which log levels this hook would trigger.
+func (hook *StdoutLogger) Levels() []logrus.Level {
+	return []logrus.Level{
+		logrus.InfoLevel,
+		logrus.ErrorLevel,
+		logrus.FatalLevel,
+	}
 }
 
-// Debug is a flag that indicates whether debug logging is enabled.
-var Debug bool
-
-// NewLogrusFileHook creates a new hook to write to a file.
-func NewLogrusFileHook(file string, flag int, chmod os.FileMode) (*LogrusFileHook, error) {
-	plainFormatter := &logrus.TextFormatter{DisableColors: true}
-	logFile, err := os.OpenFile(file, flag, chmod)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "unable to write file on filehook %v", err)
-		return nil, err
+// Fire executes the hook for the given entry.
+func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
+	message := fmt.Sprintf("%s\n", entry.Message)
+	output := os.Stdout
+	if entry.Level != logrus.InfoLevel {
+		output = os.Stderr
 	}
-
-	return &LogrusFileHook{logFile, flag, chmod, plainFormatter}, err
-}
-
-// Fire is called when a log event is fired.
-func (hook *LogrusFileHook) Fire(entry *logrus.Entry) error {
-
-	plainformat, err := hook.formatter.Format(entry)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "unable to parse line %v", err)
-		return err
-	}
-	line := string(plainformat)
-	_, err = hook.file.WriteString(line)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "unable to write file on filehook(entry.String) %v", err)
-		return err
-	}
-
+	output.Write([]byte(message))
 	return nil
 }
 
-// Levels returns the levels that this hook should be enabled for.
-func (hook *LogrusFileHook) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-// StandardHook is a hook to handle writing to a file.
-type StandardHook struct {
-	Writer    io.Writer
-	LogLevels []logrus.Level
-	Formatter *logrus.TextFormatter
-}
-
-// Fire is called when a log event is fired.
-func (hook *StandardHook) Fire(entry *logrus.Entry) error {
-	text, err := hook.Formatter.Format(entry)
-	if err != nil {
-		return err
+// needsFileLogging filters out, based on command line argument, if we need to log to a file.
+func needsFileLogging() bool {
+	if len(os.Args) == 1 {
+		return false
 	}
-
-	if !Debug && entry.Level == logrus.InfoLevel || entry.Level == logrus.DebugLevel {
-		return nil
+	cmdline := strings.Join(os.Args, " ")
+	if strings.Contains(cmdline, "version") {
+		return false
 	}
-
-	_, err = hook.Writer.Write(text)
-	return err
+	if strings.Contains(cmdline, "help") {
+		return false
+	}
+	if strings.Contains(cmdline, "shell") {
+		return false
+	}
+	return true
 }
 
-// Levels returns the levels that this hook should be enabled for.
-func (hook *StandardHook) Levels() []logrus.Level {
-	return hook.LogLevels
-}
-
-// SetupLogging sets up the logging for the application.
+// SetupLogging sets up the logging for the application. If the debug flag is set we print
+// all to the screen otherwise we print to a log file.
 func SetupLogging() {
-	logrus.SetOutput(io.Discard)
-
-	logrus.AddHook(&StandardHook{
-		Writer:    os.Stderr,
-		LogLevels: logrus.AllLevels,
-		Formatter: &logrus.TextFormatter{ForceColors: true},
-	})
-
-	now := time.Now().Format("20060102150405")
-
-	dir := defaults.EmbeddedClusterLogsSubDir()
-	path := filepath.Join(dir, "embedded-cluster-"+now+".log")
-
-	fileHook, err := NewLogrusFileHook(path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-	if err == nil {
-		logrus.AddHook(fileHook)
+	if !needsFileLogging() {
+		return
 	}
+	logrus.SetLevel(logrus.DebugLevel)
+	fname := fmt.Sprintf("%s-%s.log", defaults.BinaryName(), time.Now().Format("2006-01-02-15:04:05.000"))
+	logpath := defaults.PathToLog(fname)
+	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
+	if err != nil {
+		logrus.Warnf("unable to setup logging: %v", err)
+		return
+	}
+	logrus.SetOutput(logfile)
+	logrus.AddHook(&StdoutLogger{})
+	logrus.Debugf("command line: %v", os.Args)
 }

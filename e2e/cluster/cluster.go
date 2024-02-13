@@ -56,8 +56,6 @@ func (n *NoopCloser) Close() error {
 type Input struct {
 	Nodes               int
 	CreateRegularUser   bool
-	SSHPublicKey        string
-	SSHPrivateKey       string
 	EmbeddedClusterPath string
 	Image               string
 	network             string
@@ -233,16 +231,6 @@ func CopyFilesToNode(in *Input, node string) {
 		in.T.Fatalf("Failed to create directory: %v", err)
 	}
 	files := []File{
-		{
-			SourcePath: in.SSHPrivateKey,
-			DestPath:   "/root/.ssh/id_rsa",
-			Mode:       0600,
-		},
-		{
-			SourcePath: in.SSHPublicKey,
-			DestPath:   "/root/.ssh/authorized_keys",
-			Mode:       0600,
-		},
 		{
 			SourcePath: in.EmbeddedClusterPath,
 			DestPath:   "/usr/local/bin/embedded-cluster",

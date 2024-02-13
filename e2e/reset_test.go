@@ -17,17 +17,9 @@ func TestMultiNodeReset(t *testing.T) {
 		T:                   t,
 		Nodes:               4,
 		Image:               "ubuntu/jammy",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: installing ssh on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{{"apt-get", "update", "-y"}, {"apt-get", "install", "openssh-server", "-y"}}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
-	}
-
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))

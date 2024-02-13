@@ -10,6 +10,7 @@ import (
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/etcd"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -230,7 +231,7 @@ func stopAndResetK0s() error {
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
-	fmt.Println("Node has been reset. Please reboot to ensure transient configuration is also reset.")
+	logrus.Infof("Node has been reset. Please reboot to ensure transient configuration is also reset.")
 	return nil
 }
 
@@ -276,15 +277,15 @@ func checkErrPrompt(c *cli.Context, err error) bool {
 	if err == nil {
 		return true
 	}
-	fmt.Println(err)
+	logrus.Errorf("error: %s", err)
 	if c.Bool("force") {
 		return true
 	}
-	fmt.Println("An error occurred while trying to reset this node.")
+	logrus.Info("An error occurred while trying to reset this node.")
 	if c.Bool("no-prompt") {
 		return false
 	}
-	fmt.Println("Continuing may leave the cluster in an unexpected state.")
+	logrus.Info("Continuing may leave the cluster in an unexpected state.")
 	return prompts.New().Confirm("Do you want to continue anyway?", false)
 }
 
@@ -304,8 +305,8 @@ var resetCommand = &cli.Command{
 	},
 	Usage: "Reset the current node",
 	Action: func(c *cli.Context) error {
-		fmt.Println("This will remove this node from the cluster and completely reset it.")
-		fmt.Println("Do not reset another node until this reset is complete.")
+		logrus.Info("This will remove this node from the cluster and completely reset it.")
+		logrus.Info("Do not reset another node until this reset is complete.")
 		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
 			return fmt.Errorf("Aborting")
 		}
@@ -328,14 +329,14 @@ var resetCommand = &cli.Command{
 		}
 
 		// drain node
-		fmt.Println("Draining node...")
+		logrus.Info("Draining node...")
 		err = currentHost.drainNode()
 		if !checkErrPrompt(c, err) {
 			return err
 		}
 
 		// remove node from cluster
-		fmt.Println("Removing node from cluster...")
+		logrus.Info("Removing node from cluster...")
 		err = currentHost.deleteNode(c.Context)
 		if !checkErrPrompt(c, err) {
 			return err
@@ -359,10 +360,22 @@ var resetCommand = &cli.Command{
 		}
 
 		// reset
-		fmt.Printf("Resetting %s...\n", binName)
+		logrus.Infof("Resetting %s...", binName)
 		err = stopAndResetK0s()
 		if !checkErrPrompt(c, err) {
 			return err
+		}
+
+		if _, err := os.Stat(defaults.PathToK0sConfig()); err == nil {
+			if err := os.Remove(defaults.PathToK0sConfig()); err != nil {
+				return err
+			}
+		}
+
+		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
+			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
+				return err
+			}
 		}
 
 		return nil

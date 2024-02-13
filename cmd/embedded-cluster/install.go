@@ -1,28 +1,19 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
-	"path"
-	"runtime"
-	"strings"
+	"path/filepath"
 	"time"
 
-	k0sv1beta1 "github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1"
-	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
-	"github.com/k0sproject/rig"
-	"github.com/k0sproject/rig/log"
-	k0sversion "github.com/k0sproject/version"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	"gopkg.in/yaml.v2"
-	kyaml "sigs.k8s.io/yaml"
+	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -31,32 +22,40 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
-	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
-// runPostApply is meant to run things that can't be run automatically with
-// k0sctl. Iterates over all hosts and calls runPostApply on each.
-func runPostApply() error {
-	mask := func(raw string) string {
-		logrus.StandardLogger().Writer().Write([]byte(raw))
-		return fmt.Sprintf("Creating systemd unit for %s", defaults.BinaryName())
+// runCommand spawns a command and capture its output. Outputs are logged using the
+// logrus package and stdout is returned as a string.
+func runCommand(bin string, args ...string) (string, error) {
+	fullcmd := append([]string{bin}, args...)
+	logrus.Debugf("running command: %v", fullcmd)
+
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
+	cmd := exec.Command(bin, args...)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		logrus.Debugf("failed to run command:")
+		logrus.Debugf("stdout: %s", stdout.String())
+		logrus.Debugf("stderr: %s", stderr.String())
+		return "", err
 	}
-	loading := pb.Start(pb.WithMask(mask))
-	orig := log.Log
-	rig.SetLogger(loading)
-	defer func() {
-		loading.Close()
-		log.Log = orig
-	}()
-	cfg, err := config.ReadConfigFile(defaults.PathToConfig("k0sctl.yaml"))
-	if err != nil {
-		return fmt.Errorf("unable to read cluster config: %w", err)
+	return stdout.String(), nil
+}
+
+// runPostInstall is a helper function that run things just after the k0s install
+// command ran.
+func runPostInstall() error {
+	src := "/etc/systemd/system/k0scontroller.service"
+	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
+	if err := os.Symlink(src, dst); err != nil {
+		return fmt.Errorf("failed to create symlink: %w", err)
 	}
-	for _, host := range cfg.Spec.Hosts {
-		if err := runPostApplyOnHost(host); err != nil {
-			return err
-		}
+	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
 	return nil
 }
@@ -65,207 +64,44 @@ func runPostApply() error {
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
 func runHostPreflights(c *cli.Context) error {
-	logrus.Infof("Running host preflights on nodes")
-	cfg, err := config.ReadConfigFile(defaults.PathToConfig("k0sctl.yaml"))
-	if err != nil {
-		return fmt.Errorf("unable to read cluster config: %w", err)
-	}
 	hpf, err := addons.NewApplier().HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
-		logrus.Info("No host preflights found")
 		return nil
 	}
-	outputs := preflights.NewOutputs()
-	for _, host := range cfg.Spec.Hosts {
-		addr := host.Address()
-		out, err := preflights.Run(c.Context, host, hpf)
-		if err != nil {
-			return fmt.Errorf("preflight failed on %s: %w", addr, err)
-		}
-		outputs[addr] = out
+	logrus.Infof("Running host preflights on node")
+	output, err := preflights.Run(c.Context, hpf)
+	if err != nil {
+		return fmt.Errorf("host preflights failed: %w", err)
 	}
-	outputs.PrintTable()
-	if outputs.HaveFails() {
-		return fmt.Errorf("preflights haven't passed on one or more hosts")
+	output.PrintTable()
+	if output.HasFail() {
+		return fmt.Errorf("preflights haven't passed on the host")
 	}
-	if !outputs.HaveWarns() || c.Bool("no-prompt") {
+	if !output.HasWarn() || c.Bool("no-prompt") {
 		return nil
 	}
-	fmt.Println("Host preflights have warnings on one or more hosts")
+	logrus.Infof("Host preflights have warnings")
 	if !prompts.New().Confirm("Do you want to continue ?", false) {
 		return fmt.Errorf("user aborted")
 	}
 	return nil
 }
 
-// runPostApply runs the post-apply script on a host. XXX I don't think this
-// belongs here and needs to be refactored in a more generic way. It's here
-// because I have other things to do and this is a prototype.
-func runPostApplyOnHost(host *cluster.Host) error {
-	if err := host.Connect(); err != nil {
-		return fmt.Errorf("failed to connect to host: %w", err)
-	}
-	defer host.Disconnect()
-	src := "/etc/systemd/system/k0scontroller.service"
-	if host.Role == "worker" {
-		src = "/etc/systemd/system/k0sworker.service"
-	}
-	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
-	_, _ = host.ExecOutput(fmt.Sprintf("sudo ln -s %s %s", src, dst))
-	_, _ = host.ExecOutput("sudo systemctl daemon-reload")
-	return nil
-}
-
-// createK0sctlConfigBackup creates a backup of the current k0sctl.yaml file.
-func createK0sctlConfigBackup(ctx context.Context) error {
-	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	if _, err := os.Stat(cfgpath); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("unable to stat config: %w", err)
-	}
-	bkdir := path.Join(defaults.ConfigSubDir(), "backup")
-	if err := os.MkdirAll(bkdir, 0700); err != nil {
-		return fmt.Errorf("unable to create backup dir: %w", err)
-	}
-	fname := fmt.Sprintf("k0sctl.yaml-%d", time.Now().UnixNano())
-	bakpath := path.Join(bkdir, fname)
-	logrus.Infof("Creating k0sctl.yaml backup in %s", bkdir)
-	data, err := os.ReadFile(cfgpath)
-	if err != nil {
-		return fmt.Errorf("unable to read config: %w", err)
-	}
-	if err := os.WriteFile(bakpath, data, 0600); err != nil {
-		return fmt.Errorf("unable to write config backup: %w", err)
-	}
-	return nil
-}
-
-// updateConfig updates the k0sctl.yaml file with the latest configuration
-// options.
-func updateConfig(c *cli.Context) error {
-	if err := createK0sctlConfigBackup(c.Context); err != nil {
-		return fmt.Errorf("unable to create config backup: %w", err)
-	}
-	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	cfg, err := config.ReadConfigFile(cfgpath)
-	if err != nil {
-		return fmt.Errorf("unable to read cluster config: %w", err)
-	}
-	opts := []addons.Option{}
-	if c.Bool("no-prompt") {
-		opts = append(opts, addons.WithoutPrompt())
-	}
-	for _, addon := range c.StringSlice("disable-addon") {
-		opts = append(opts, addons.WithoutAddon(addon))
-	}
-	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
-		return fmt.Errorf("unable to update helm configs: %w", err)
-	}
-	cfg.Spec.K0s.Version = k0sversion.MustParse(defaults.K0sVersion)
-	if err := applyUnsupportedOverrides(c, cfg); err != nil {
-		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
-	}
-	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return fmt.Errorf("unable to create config file: %w", err)
-	}
-	defer fp.Close()
-	if err := yaml.NewEncoder(fp).Encode(cfg); err != nil {
-		return fmt.Errorf("unable to write config file: %w", err)
-	}
-	return nil
-}
-
-// applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
-// overrides embedded into the binary and after the ones provided by the user (--overrides).
-func applyUnsupportedOverrides(c *cli.Context, cfg *k0sv1beta1.Cluster) error {
-	if embcfg, err := embed.GetEmbeddedClusterConfig(); err != nil {
-		return fmt.Errorf("unable to get embedded cluster config: %w", err)
-	} else if embcfg != nil {
-		overrides := embcfg.Spec.UnsupportedOverrides.K0s
-		if err := config.ApplyEmbeddedUnsupportedOverrides(cfg, overrides); err != nil {
-			return fmt.Errorf("unable to apply embedded overrides: %w", err)
-		}
-	}
-	if c.String("overrides") == "" {
-		return nil
-	}
-	eucfg, err := parseEndUserConfig(c.String("overrides"))
-	if err != nil {
-		return fmt.Errorf("unable to process overrides file: %w", err)
-	}
-	overrides := eucfg.Spec.UnsupportedOverrides.K0s
-	if err := config.ApplyEmbeddedUnsupportedOverrides(cfg, overrides); err != nil {
-		return fmt.Errorf("unable to apply overrides: %w", err)
-	}
-	return nil
-}
-
-// copyUserProvidedConfig copies the user provided configuration to the config dir.
-func copyUserProvidedConfig(c *cli.Context) error {
-	usercfg := c.String("config")
-	cfg, err := config.ReadConfigFile(usercfg)
-	if err != nil {
-		return fmt.Errorf("unable to read cluster config: %w", err)
-	}
-	if err := createK0sctlConfigBackup(c.Context); err != nil {
-		return fmt.Errorf("unable to create config backup: %w", err)
-	}
-	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return fmt.Errorf("unable to create config file: %w", err)
-	}
-	defer fp.Close()
-	if err := yaml.NewEncoder(fp).Encode(cfg); err != nil {
-		return fmt.Errorf("unable to write config file: %w", err)
-	}
-	return nil
-}
-
-// overwriteExistingConfig asks user if they want to overwrite the existing cluster
-// configuration file.
-func overwriteExistingConfig() bool {
-	fmt.Println("A cluster configuration file was found. This means you already")
-	fmt.Println("have created and configured a cluster. You can either use the")
-	fmt.Println("existing configuration or create a new one (the original config")
-	fmt.Println("will be backed up).")
-	return prompts.New().Confirm(
-		"Do you want to create a new cluster configuration ?", false,
-	)
-}
-
-// ensureK0sctlConfig ensures that a k0sctl.yaml file exists in the configuration
-// directory. If none exists then this directs the user to a wizard to create one.
-func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
-	multi := c.Bool("multi-node")
-	if !multi && runtime.GOOS != "linux" {
-		return fmt.Errorf("single node clusters only supported on linux")
-	}
-	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	if usercfg := c.String("config"); usercfg != "" {
-		logrus.Infof("Using %s config file", usercfg)
-		return copyUserProvidedConfig(c)
-	}
+// createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
+// global location (as returned by defaults.PathToK0sConfig()). If a file already sits
+// there, this function returns an error.
+func ensureK0sConfig(c *cli.Context, useprompt bool) error {
+	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
-		if !useprompt {
-			return updateConfig(c)
-		}
-		if !overwriteExistingConfig() {
-			return updateConfig(c)
-		}
-		if err := createK0sctlConfigBackup(c.Context); err != nil {
-			return fmt.Errorf("unable to create config backup: %w", err)
-		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("unable to open config: %w", err)
+		return fmt.Errorf("configuration file already exists")
 	}
-	cfg, err := config.RenderClusterConfig(c.Context, multi)
+	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
+		return fmt.Errorf("unable to create directory: %w", err)
+	}
+	cfg, err := config.RenderK0sConfig(c.Context)
 	if err != nil {
 		return fmt.Errorf("unable to render config: %w", err)
 	}
@@ -279,65 +115,111 @@ func ensureK0sctlConfig(c *cli.Context, useprompt bool) error {
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
-	if err := applyUnsupportedOverrides(c, cfg); err != nil {
+	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
 		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
-	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	data, err := k8syaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("unable to marshal config: %w", err)
+	}
+	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to create config file: %w", err)
 	}
 	defer fp.Close()
-	if err := yaml.NewEncoder(fp).Encode(cfg); err != nil {
+	if _, err := fp.Write(data); err != nil {
 		return fmt.Errorf("unable to write config file: %w", err)
 	}
 	return nil
 }
 
-// runK0sctlApply runs `k0sctl apply` refering to the k0sctl.yaml file found on
-// the configuration directory. Returns when the command is finished.
-func runK0sctlApply(ctx context.Context) error {
-	message := "Applying cluster configuration"
-	mask := func(raw string) string {
-		logrus.StandardLogger().Writer().Write([]byte(raw))
-		if !strings.Contains(raw, "Running phase:") {
-			return message
+// applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
+// overrides embedded into the binary and after the ones provided by the user (--overrides).
+func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k0sconfig.ClusterConfig, error) {
+	var err error
+	if embcfg, err := embed.GetEmbeddedClusterConfig(); err != nil {
+		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
+	} else if embcfg != nil {
+		overrides := embcfg.Spec.UnsupportedOverrides.K0s
+		if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
+			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
 		}
-		slices := strings.SplitN(raw, ":", 2)
-		message = strings.ReplaceAll(slices[1], `"`, "")
-		message = strings.TrimSpace(message)
-		message = strings.ReplaceAll(message, "k0s", defaults.BinaryName())
-		message = strings.ReplaceAll(message, "Upload", "Copy")
-		message = fmt.Sprintf("Phase: %s", message)
-		return message
 	}
-	bin := defaults.PathToEmbeddedClusterBinary("k0sctl")
-	loading := pb.Start(pb.WithMask(mask))
-	defer func() {
-		loading.Closef("Finished applying cluster configuration")
-	}()
-	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	kctl := exec.Command(bin, "apply", "-c", cfgpath, "--disable-telemetry")
-	kctl.Stderr = loading
-	kctl.Stdout = loading
-	return kctl.Run()
+	if c.String("overrides") == "" {
+		return cfg, nil
+	}
+	eucfg, err := parseEndUserConfig(c.String("overrides"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to process overrides file: %w", err)
+	}
+	overrides := eucfg.Spec.UnsupportedOverrides.K0s
+	if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
+		return nil, fmt.Errorf("unable to apply overrides: %w", err)
+	}
+	return cfg, nil
 }
 
-// runK0sctlKubeconfig runs the `k0sctl kubeconfig` command. Result is saved
-// under a file called "kubeconfig" inside defaults.ConfigSubDir(). XXX File
-// is overwritten, no questions asked.
-func runK0sctlKubeconfig(ctx context.Context) error {
-	bin := defaults.PathToEmbeddedClusterBinary("k0sctl")
-	cfgpath := defaults.PathToConfig("k0sctl.yaml")
-	if _, err := os.Stat(cfgpath); err != nil {
-		return fmt.Errorf("cluster configuration not found")
+// parseEndUserConfig parses the end user configuration from the given file.
+func parseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
+	data, err := os.ReadFile(fpath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read overrides file: %w", err)
 	}
-	buf := bytes.NewBuffer(nil)
-	kctl := exec.Command(bin, "kubeconfig", "-c", cfgpath)
-	kctl.Stderr, kctl.Stdout = buf, buf
-	if err := kctl.Run(); err != nil {
-		logrus.Errorf("Failed to read kubeconfig:")
-		logrus.Errorf(buf.String())
-		return fmt.Errorf("unable to run kubeconfig: %w", err)
+	var cfg embeddedclusterv1beta1.Config
+	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal overrides file: %w", err)
+	}
+	return &cfg, nil
+}
+
+// installK0s runs the k0s install command and waits for it to finish. If no configuration
+// is found one is generated.
+func installK0s(c *cli.Context) error {
+	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
+	hstbin := defaults.K0sBinaryPath()
+	if err := os.Rename(ourbin, hstbin); err != nil {
+		return fmt.Errorf("unable to move k0s binary: %w", err)
+	}
+	if _, err := runCommand(hstbin, config.InstallFlags()...); err != nil {
+		return fmt.Errorf("unable to install: %w", err)
+	}
+	if _, err := runCommand(hstbin, "start"); err != nil {
+		return fmt.Errorf("unable to start: %w", err)
+	}
+	return nil
+}
+
+// waitForK0s waits for the k0s API to be available. We wait for the k0s socket to
+// appear in the system and until the k0s status command to finish.
+func waitForK0s(ctx context.Context) error {
+	pb := progressbar.Start()
+	defer pb.Close()
+	pb.Infof("Waiting for %s node to be ready", defaults.BinaryName())
+	var success bool
+	for i := 0; i < 30; i++ {
+		time.Sleep(2 * time.Second)
+		spath := defaults.PathToK0sStatusSocket()
+		if _, err := os.Stat(spath); err != nil {
+			continue
+		}
+		success = true
+		break
+	}
+	if !success {
+		return fmt.Errorf("timeout waiting for %s", defaults.BinaryName())
+	}
+	if _, err := runCommand(defaults.K0sBinaryPath(), "status"); err != nil {
+		return fmt.Errorf("unable to get status: %w", err)
+	}
+	pb.Infof("Node installation finished")
+	return nil
+}
+
+// runK0sKubeconfig generates a new kubeconfig file with admin privileges.
+func runK0sKubeconfig(ctx context.Context) error {
+	stdout, err := runCommand(defaults.K0sBinaryPath(), "kubeconfig", "admin")
+	if err != nil {
+		return fmt.Errorf("unable to generate kubeconfig: %w", err)
 	}
 	kpath := defaults.PathToConfig("kubeconfig")
 	fp, err := os.OpenFile(kpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
@@ -345,48 +227,8 @@ func runK0sctlKubeconfig(ctx context.Context) error {
 		return fmt.Errorf("unable to open kubeconfig: %w", err)
 	}
 	defer fp.Close()
-	if _, err := io.Copy(fp, buf); err != nil {
+	if _, err := fp.WriteString(stdout); err != nil {
 		return fmt.Errorf("unable to write kubeconfig: %w", err)
-	}
-	logrus.Infof("Kubeconfig saved to %s", kpath)
-	return nil
-}
-
-// dumpApplyLogs dumps all k0sctl apply command output to the stdout.
-func dumpApplyLogs() {
-	logs := defaults.K0sctlApplyLogPath()
-	fp, err := os.Open(logs)
-	if err != nil {
-		logrus.Errorf("Unable to read logs: %s", err.Error())
-		return
-	}
-	defer fp.Close()
-	_, _ = io.Copy(os.Stdout, fp)
-}
-
-// applyK0sctl runs the k0sctl apply command and waits for it to finish. If
-// no configuration is found one is generated.
-func applyK0sctl(c *cli.Context) error {
-	useprompt := !c.Bool("no-prompt")
-	fmt.Println("Processing cluster configuration")
-	if err := ensureK0sctlConfig(c, useprompt); err != nil {
-		return fmt.Errorf("unable to create config file: %w", err)
-	}
-	if err := runHostPreflights(c); err != nil {
-		return fmt.Errorf("unable to finish preflight checks: %w", err)
-	}
-	fmt.Println("Applying cluster configuration")
-	if err := runK0sctlApply(c.Context); err != nil {
-		logrus.Errorf("Installation or upgrade failed.")
-		if !useprompt {
-			dumpApplyLogs()
-			return fmt.Errorf("unable to apply cluster: %w", err)
-		}
-		msg := "Do you wish to visualize the logs?"
-		if prompts.New().Confirm(msg, true) {
-			dumpApplyLogs()
-		}
-		return fmt.Errorf("unable to apply cluster: %w", err)
 	}
 	return nil
 }
@@ -409,45 +251,12 @@ func runOutro(c *cli.Context) error {
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
-// validateSSHDConfig checks if we can ssh into ourselves as root using ssh
-// keys. XXX this is a workaround while we don't implement a different method
-// of installation that does not require ssh access.
-func validateSSHDConfig() error {
-	sshdcfg := "/etc/ssh/sshd_config"
-	fp, err := os.Open(sshdcfg)
-	if err != nil {
-		return fmt.Errorf("unable to read sshd_config (%s): %w", sshdcfg, err)
-	}
-	defer fp.Close()
-	scanner := bufio.NewScanner(fp)
-	var invalid bool
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.HasPrefix(line, "PermitRootLogin") {
-			continue
-		}
-		invalid = strings.HasSuffix(line, "no")
-		break
-	}
-	if !invalid {
-		return nil
-	}
-	fmt.Printf("PermitRootLogin config is set to 'no' in %s\n", sshdcfg)
-	fmt.Printf("This will prevent %s from installing.\n", defaults.BinaryName())
-	fmt.Printf("You can temporarily enable root login by changing the\n")
-	fmt.Printf("PermitRootLogin config to 'without-password' and restarting\n")
-	fmt.Printf("the sshd service. Once the installation is finished you can\n")
-	fmt.Printf("restore the original configuration.\n")
-	return fmt.Errorf("ssh root access is not allowed")
-}
-
-// installCommands executes the "install" command. This will ensure that a
-// k0sctl.yaml file exists and then run `k0sctl apply` to apply the cluster.
-// Once this is finished then a "kubeconfig" file is created.
-// Resulting k0sctl.yaml and kubeconfig are stored in the configuration dir.
+// installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
+// and then run `k0s install` to apply the cluster. Once this is finished then a "kubeconfig"
+// file is created. Resulting kubeconfig is stored in the configuration dir.
 var installCommand = &cli.Command{
 	Name:  "install",
-	Usage: "Installs a new or upgrades an existing cluster",
+	Usage: "Installs and starts a new cluster",
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
@@ -455,15 +264,6 @@ var installCommand = &cli.Command{
 		return nil
 	},
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "config",
-			Usage: "Path to the configuration to be applied",
-		},
-		&cli.BoolFlag{
-			Name:  "multi-node",
-			Usage: "Installs or upgrades a multi node deployment",
-			Value: false,
-		},
 		&cli.BoolFlag{
 			Name:  "no-prompt",
 			Usage: "Do not prompt user when it is not necessary",
@@ -481,39 +281,49 @@ var installCommand = &cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		metrics.ReportApplyStarted(c)
-		if defaults.DecentralizedInstall() {
-			fmt.Println("Decentralized install was detected. To manage the cluster")
-			fmt.Printf("you have to use the '%s node' commands instead.\n", defaults.BinaryName())
-			fmt.Printf("Run '%s node --help' for more information.\n", defaults.BinaryName())
-			metrics.ReportApplyFinished(c, fmt.Errorf("wrong upgrade on decentralized install"))
-			return fmt.Errorf("decentralized install detected")
-		}
-		if err := validateSSHDConfig(); err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		logrus.Infof("Materializing binaries")
+		logrus.Debugf("materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		if err := applyK0sctl(c); err != nil {
+		logrus.Debugf("running host preflights")
+		if err := runHostPreflights(c); err != nil {
+			err := fmt.Errorf("unable to finish preflight checks: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+		logrus.Debugf("creating k0s configuration file")
+		if err := ensureK0sConfig(c, !c.Bool("no-prompt")); err != nil {
+			err := fmt.Errorf("unable to create config file: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+		logrus.Debugf("installing k0s")
+		if err := installK0s(c); err != nil {
 			err := fmt.Errorf("unable update cluster: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		if err := runPostApply(); err != nil {
-			err := fmt.Errorf("unable to run post apply: %w", err)
+		logrus.Debugf("running post install")
+		if err := runPostInstall(); err != nil {
+			err := fmt.Errorf("unable to run post install: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Infof("Reading cluster access configuration")
-		if err := runK0sctlKubeconfig(c.Context); err != nil {
+		logrus.Debugf("waiting for k0s to be ready")
+		if err := waitForK0s(c.Context); err != nil {
+			err := fmt.Errorf("unable to wait for node: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+		logrus.Debugf("reading k0s kubeconfig")
+		if err := runK0sKubeconfig(c.Context); err != nil {
 			err := fmt.Errorf("unable to get kubeconfig: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+		logrus.Debugf("running outro")
 		if err := runOutro(c); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
@@ -521,17 +331,4 @@ var installCommand = &cli.Command{
 		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},
-}
-
-// parseEndUserConfig parses the end user configuration from the given file.
-func parseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
-	data, err := os.ReadFile(fpath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read overrides file: %w", err)
-	}
-	var cfg embeddedclusterv1beta1.Config
-	if err := kyaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal overrides file: %w", err)
-	}
-	return &cfg, nil
 }

@@ -6,56 +6,8 @@ import (
 	"io"
 
 	"github.com/jedib0t/go-pretty/table"
+	"github.com/sirupsen/logrus"
 )
-
-// Outputs holds a list of Output objects indexed by host address.
-type Outputs map[string]*Output
-
-// HaveFails returns true if any of the host preflight checks failed.
-func (o Outputs) HaveFails() bool {
-	for _, out := range o {
-		if out.HasFail() {
-			return true
-		}
-	}
-	return false
-}
-
-// HaveWarns returns true if any of the host preflight checks returned
-// a warning.
-func (o Outputs) HaveWarns() bool {
-	for _, out := range o {
-		if out.HasWarn() {
-			return true
-		}
-	}
-	return false
-}
-
-// PrintTable prints the preflight output in a table format.
-func (o Outputs) PrintTable() {
-	tb := table.NewWriter()
-	add := tb.AppendRow
-	tb.AppendHeader(table.Row{"Address", "Status", "Title", "Message"})
-	for addr, out := range o {
-		for _, rec := range out.Pass {
-			add(table.Row{addr, "PASS", rec.Title, rec.Message})
-		}
-		for _, rec := range out.Warn {
-			add(table.Row{addr, "WARN", rec.Title, rec.Message})
-		}
-		for _, rec := range out.Fail {
-			add(table.Row{addr, "FAIL", rec.Title, rec.Message})
-		}
-	}
-	tb.SortBy([]table.SortBy{{Name: "Status", Mode: table.Asc}})
-	fmt.Printf("%s\n", tb.Render())
-}
-
-// NewOutputs creates a new Outputs object.
-func NewOutputs() Outputs {
-	return make(map[string]*Output)
-}
 
 // Output is the output of a troubleshoot preflight check as returned by
 // `preflight --format=json`. It just wraps a list of results, aka records,
@@ -91,7 +43,7 @@ func (o Output) PrintTable() {
 		add(table.Row{"FAIL", rec.Title, rec.Message})
 	}
 	tb.SortBy([]table.SortBy{{Name: "Status", Mode: table.Asc}})
-	fmt.Printf("%s\n", tb.Render())
+	logrus.Infof("%s\n", tb.Render())
 }
 
 // OutputFromReader reads the provided reader and returns a Output

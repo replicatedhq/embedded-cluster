@@ -10,6 +10,7 @@ import (
 	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -78,7 +79,7 @@ type AdminConsole struct {
 func (a *AdminConsole) askPassword() (string, error) {
 	defaultPass := "password"
 	if !a.useprompt {
-		fmt.Println("Admin Console password set to: password")
+		logrus.Info("Admin Console password set to: password")
 		return defaultPass, nil
 	}
 	maxTries := 3
@@ -89,7 +90,7 @@ func (a *AdminConsole) askPassword() (string, error) {
 		if promptA == promptB {
 			return promptA, nil
 		}
-		fmt.Println("Passwords don't match, please try again.")
+		logrus.Info("Passwords don't match, please try again.")
 	}
 	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
 }
@@ -283,14 +284,14 @@ func (a *AdminConsole) printSuccessMessage() {
 		var err error
 		ipaddr, err = defaults.PreferredNodeIPAddress()
 		if err != nil {
-			fmt.Println(fmt.Errorf("unable to determine node IP address: %w", err))
+			logrus.Errorf("unable to determine node IP address: %v", err)
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
 	successMessage := fmt.Sprintf("Admin Console accessible at: %shttp://%s:%v%s",
 		successColor, ipaddr, DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
 	)
-	fmt.Println(successMessage)
+	logrus.Info(successMessage)
 }
 
 // New creates a new AdminConsole object.

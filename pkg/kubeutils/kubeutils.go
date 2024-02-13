@@ -26,14 +26,16 @@ func BackOffToDuration(backoff wait.Backoff) time.Duration {
 func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
-	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
-		ready, err := IsDeploymentReady(ctx, cli, ns, name)
-		if err != nil {
-			lasterr = fmt.Errorf("unable to get deploy %s status: %v", name, err)
-			return false, nil
-		}
-		return ready, nil
-	}); err != nil {
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := IsDeploymentReady(ctx, cli, ns, name)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get deploy %s status: %v", name, err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
 		return fmt.Errorf("timed out waiting for deploy %s: %v", name, lasterr)
 	}
 	return nil

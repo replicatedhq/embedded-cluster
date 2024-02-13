@@ -27,10 +27,6 @@ jobs:
       run: |
         export VERSION=`curl -L -s https://dl.k8s.io/release/stable.txt`
         sed -i "/^KUBECTL_VERSION/c\KUBECTL_VERSION = $VERSION" Makefile
-    - name: K0sctl
-      run: |
-        export VERSION=`curl https://api.github.com/repos/k0sproject/k0sctl/releases/latest | jq -r .name`
-        sed -i "/^K0SCTL_VERSION/c\K0SCTL_VERSION = $VERSION" Makefile
     - name: K0s
       run: |
         # Remove the '-ec.X' suffix and only update if the prefix (upstream k0s release) has changed.

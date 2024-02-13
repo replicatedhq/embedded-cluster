@@ -1,24 +1,23 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/k0sproject/dig"
-	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -184,7 +183,9 @@ func applyJoinConfigurationOverrides(c *cli.Context, jcmd *JoinCommandResponse) 
 	if len(patch) > 0 {
 		if data, err := yaml.Marshal(patch); err != nil {
 			return fmt.Errorf("unable to marshal embedded overrides: %w", err)
-		} else if err := patchK0sConfig("/etc/k0s/k0s.yaml", string(data)); err != nil {
+		} else if err := patchK0sConfig(
+			defaults.PathToK0sConfig(), string(data),
+		); err != nil {
 			return fmt.Errorf("unable to patch config with embedded data: %w", err)
 		}
 	}
@@ -195,7 +196,9 @@ func applyJoinConfigurationOverrides(c *cli.Context, jcmd *JoinCommandResponse) 
 	}
 	if data, err := yaml.Marshal(patch); err != nil {
 		return fmt.Errorf("unable to marshal embedded overrides: %w", err)
-	} else if err := patchK0sConfig("/etc/k0s/k0s.yaml", string(data)); err != nil {
+	} else if err := patchK0sConfig(
+		defaults.PathToK0sConfig(), string(data),
+	); err != nil {
 		return fmt.Errorf("unable to patch config with embedded data: %w", err)
 	}
 	return nil
@@ -206,38 +209,45 @@ func patchK0sConfig(path string, patch string) error {
 	if len(patch) == 0 {
 		return nil
 	}
-	finalcfg := dig.Mapping{
-		"apiVersion": "k0s.k0sproject.io/v1beta1",
-		"kind":       "ClusterConfig",
-		"metadata":   dig.Mapping{"name": defaults.BinaryName()},
+	finalcfg := k0sconfig.ClusterConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: defaults.BinaryName()},
 	}
 	if _, err := os.Stat(path); err == nil {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("unable to read node config: %w", err)
 		}
-		finalcfg = dig.Mapping{}
-		if err := yaml.Unmarshal(data, &finalcfg); err != nil {
+		finalcfg = k0sconfig.ClusterConfig{}
+		if err := k8syaml.Unmarshal(data, &finalcfg); err != nil {
 			return fmt.Errorf("unable to unmarshal node config: %w", err)
 		}
 	}
-	k0sconfig := cluster.K0s{Config: finalcfg.Dup()}
-	result, err := config.PatchK0sConfig(&k0sconfig, patch)
+	result, err := config.PatchK0sConfig(finalcfg.DeepCopy(), patch)
 	if err != nil {
 		return fmt.Errorf("unable to patch node config: %w", err)
 	}
-	if len(result.Config.DigMapping("spec", "api")) > 0 {
-		finalcfg.DigMapping("spec")["api"] = result.Config.DigMapping("spec", "api")
+	if result.Spec.API != nil {
+		if finalcfg.Spec == nil {
+			finalcfg.Spec = &k0sconfig.ClusterSpec{}
+		}
+		finalcfg.Spec.API = result.Spec.API
 	}
-	if len(result.Config.DigMapping("spec", "storage")) > 0 {
-		finalcfg.DigMapping("spec")["storage"] = result.Config.DigMapping("spec", "storage")
+	if result.Spec.Storage != nil {
+		if finalcfg.Spec == nil {
+			finalcfg.Spec = &k0sconfig.ClusterSpec{}
+		}
+		finalcfg.Spec.Storage = result.Spec.Storage
 	}
 	out, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to open node config file for writing: %w", err)
 	}
 	defer out.Close()
-	if err := yaml.NewEncoder(out).Encode(finalcfg); err != nil {
+	data, err := k8syaml.Marshal(finalcfg)
+	if err != nil {
+		return fmt.Errorf("unable to marshal node config: %w", err)
+	}
+	if _, err := out.Write(data); err != nil {
 		return fmt.Errorf("unable to write node config: %w", err)
 	}
 	return nil
@@ -255,36 +265,20 @@ func saveTokenToDisk(token string) error {
 	return nil
 }
 
-// installK0sBinary saves the embedded k0s binary to disk under /usr/local/bin.
+// installK0sBinary moves the embedded k0s binary to its destination.
 func installK0sBinary() error {
-	in, err := os.Open(defaults.K0sBinaryPath())
-	if err != nil {
-		return fmt.Errorf("unable to open embedded k0s binary: %w", err)
-	}
-	defer in.Close()
-	out, err := os.OpenFile("/usr/local/bin/k0s", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-	if err != nil {
-		return fmt.Errorf("unable to open k0s binary: %w", err)
-	}
-	defer out.Close()
-	if _, err := io.Copy(out, in); err != nil {
-		return fmt.Errorf("unable to copy k0s binary: %w", err)
+	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
+	hstbin := defaults.K0sBinaryPath()
+	if err := os.Rename(ourbin, hstbin); err != nil {
+		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
 	return nil
 }
 
 // startK0sService starts the k0s service.
 func startK0sService() error {
-	cmd := exec.Command("/usr/local/bin/k0s", "start")
-	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		logrus.Errorf("service start failed:")
-		fmt.Fprintf(os.Stderr, "%s\n", stderr.String())
-		fmt.Fprintf(os.Stdout, "%s\n", stdout.String())
-		return err
+	if _, err := runCommand(defaults.K0sBinaryPath(), "start"); err != nil {
+		return fmt.Errorf("unable to start: %w", err)
 	}
 	return nil
 }
@@ -304,15 +298,7 @@ func createSystemdUnitFile(fullcmd string) error {
 	if err := os.Symlink(src, dst); err != nil {
 		return err
 	}
-	cmd := exec.Command("systemctl", "daemon-reload")
-	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		logrus.Errorf("systemctl reload failed:")
-		fmt.Fprintf(os.Stderr, "%s\n", stderr.String())
-		fmt.Fprintf(os.Stdout, "%s\n", stdout.String())
+	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
 		return err
 	}
 	return nil
@@ -326,15 +312,7 @@ func runK0sInstallCommand(fullcmd string) error {
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
 	}
-	cmd := exec.Command(args[0], args[1:]...)
-	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		logrus.Errorf("install failed:")
-		fmt.Fprintf(os.Stderr, "%s\n", stderr.String())
-		fmt.Fprintf(os.Stdout, "%s\n", stdout.String())
+	if _, err := runCommand(args[0], args[1:]...); err != nil {
 		return err
 	}
 	return nil
@@ -343,16 +321,14 @@ func runK0sInstallCommand(fullcmd string) error {
 // runHostPreflightsLocally runs the embedded host preflights in the local node prior to
 // node upgrade.
 func runHostPreflightsLocally(c *cli.Context) error {
-	logrus.Infof("Running host preflights locally")
 	hpf, err := addons.NewApplier().HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
-		logrus.Info("No host preflights found")
 		return nil
 	}
-	out, err := preflights.RunLocal(c.Context, hpf)
+	out, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		return fmt.Errorf("preflight failed: %w", err)
 	}
@@ -363,7 +339,7 @@ func runHostPreflightsLocally(c *cli.Context) error {
 	if !out.HasWarn() || c.Bool("no-prompt") {
 		return nil
 	}
-	fmt.Println("Host preflights have warnings on one or more hosts")
+	logrus.Infof("Host preflights have warnings on one or more hosts")
 	if !prompts.New().Confirm("Do you want to continue ?", false) {
 		return fmt.Errorf("user aborted")
 	}

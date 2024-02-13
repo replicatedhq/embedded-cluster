@@ -14,7 +14,6 @@ OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
 KUBECTL_VERSION = v1.29.1
-K0SCTL_VERSION = v0.17.4
 K0S_VERSION = v1.29.1+k0s.1
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.83.0
@@ -36,43 +35,37 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
 
-pkg/goods/bins/k0sctl/k0s-${K0S_VERSION}: Makefile
-	mkdir -p pkg/goods/bins/k0sctl
+pkg/goods/bins/k0s: Makefile
+	mkdir -p pkg/goods/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
-	    curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
+	    curl -L -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
 	else \
-	    curl -L -o pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION) "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
+	    curl -L -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
 	fi
-	chmod +x pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
-	touch pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
+	chmod +x pkg/goods/bins/k0s
+	touch pkg/goods/bins/k0s
 
-pkg/goods/bins/embedded-cluster/kubectl-linux-amd64: Makefile
-	mkdir -p pkg/goods/bins/embedded-cluster
-	curl -L -o pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
-	chmod +x pkg/goods/bins/embedded-cluster/kubectl-linux-amd64
-	touch pkg/goods/bins/embedded-cluster/kubectl-linux-amd64
+pkg/goods/bins/kubectl: Makefile
+	mkdir -p pkg/goods/bins
+	curl -L -o pkg/goods/bins/kubectl "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+	chmod +x pkg/goods/bins/kubectl
+	touch pkg/goods/bins/kubectl
 
-pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64: Makefile
-	mkdir -p pkg/goods/bins/embedded-cluster
-	curl -L -o pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64 "https://github.com/k0sproject/k0sctl/releases/download/$(K0SCTL_VERSION)/k0sctl-linux-x64"
-	chmod +x pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64
-	touch pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64
-
-pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64: Makefile
-	mkdir -p pkg/goods/bins/embedded-cluster
+pkg/goods/bins/kubectl-support_bundle: Makefile
+	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/support-bundle
 	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
-	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
-	touch pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
+	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/kubectl-support_bundle
+	touch pkg/goods/bins/kubectl-support_bundle
 
-pkg/goods/bins/embedded-cluster/kubectl-preflight: Makefile
-	mkdir -p pkg/goods/bins/embedded-cluster
+pkg/goods/bins/kubectl-preflight: Makefile
+	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/preflight
 	curl -L -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
-	mv output/tmp/preflight/preflight pkg/goods/bins/embedded-cluster/kubectl-preflight
-	touch pkg/goods/bins/embedded-cluster/kubectl-preflight
+	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
+	touch pkg/goods/bins/kubectl-preflight
 
 output/tmp/release.tar.gz: e2e/kots-release-install/* e2e/license.yaml
 	mkdir -p output/tmp
@@ -88,14 +81,13 @@ embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 .PHONY: static
-static: pkg/goods/bins/embedded-cluster/kubectl-preflight \
-	pkg/goods/bins/k0sctl/k0s-$(K0S_VERSION)
-
-.PHONY: static-linux-amd64
-static-linux-amd64: pkg/goods/bins/embedded-cluster/kubectl-linux-amd64 pkg/goods/bins/embedded-cluster/k0sctl-linux-amd64 pkg/goods/bins/embedded-cluster/kubectl-support_bundle-linux-amd64
-
+static: pkg/goods/bins/k0s \
+	pkg/goods/bins/kubectl-preflight \
+	pkg/goods/bins/kubectl \
+	pkg/goods/bins/kubectl-support_bundle
+	
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: static static-linux-amd64
+embedded-cluster-linux-amd64: static
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 .PHONY: unit-tests
@@ -103,28 +95,20 @@ unit-tests:
 	go test -v $(shell go list ./... | grep -v /e2e)
 
 .PHONY: vet
-vet: static-linux-amd64 static
+vet: static
 	go vet ./...
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-	mkdir -p output/tmp
-	rm -rf output/tmp/id_rsa*
-	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
 	go test -timeout 45m -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
 e2e-test:
-	mkdir -p output/tmp
-	rm -rf output/tmp/id_rsa*
-	ssh-keygen -t rsa -N "" -C "Integration Test Key" -f output/tmp/id_rsa
 	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
 
 .PHONY: clean
 clean:
 	rm -rf output
-	rm -rf pkg/addons/adminconsole/charts/*.tgz
-	rm -rf pkg/addons/openebs/charts/*.tgz
 	rm -rf pkg/goods/bins
 
 .PHONY: lint

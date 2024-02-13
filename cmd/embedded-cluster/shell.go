@@ -55,7 +55,7 @@ var shellCommand = &cli.Command{
 		fmt.Printf(welcome, defaults.BinaryName())
 		shell := exec.Command(shpath)
 		shell.Env = os.Environ()
-		shell.Dir = defaults.ConfigSubDir()
+		shell.Dir = defaults.EmbeddedClusterBinsSubDir()
 		shellpty, err := pty.Start(shell)
 		if err != nil {
 			return fmt.Errorf("unable to start shell: %w", err)

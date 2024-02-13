@@ -17,8 +17,6 @@ func TestVersion(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "ubuntu/jammy",
-		SSHPublicKey:        "../output/tmp/id_rsa.pub",
-		SSHPrivateKey:       "../output/tmp/id_rsa",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()

@@ -1,0 +1,31 @@
+config: |-
+  apiVersion: k0s.k0sproject.io/v1beta1
+  kind: ClusterConfig
+  metadata:
+    name: embedded-cluster
+  spec:
+    api:
+      externalAddress: my-lb-address.example.com
+      sans:
+      - 192.168.68.106
+    network:
+      provider: calico
+    telemetry:
+      enabled: false
+override: |-
+    config:
+      spec:
+        api:
+          sans: null
+expected: |-
+  apiVersion: k0s.k0sproject.io/v1beta1
+  kind: ClusterConfig
+  metadata:
+    name: embedded-cluster
+  spec:
+    api:
+      externalAddress: my-lb-address.example.com
+    network:
+      provider: calico
+    telemetry:
+      enabled: false

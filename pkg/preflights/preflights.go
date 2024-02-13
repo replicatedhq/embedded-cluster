@@ -9,17 +9,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
-	"path/filepath"
-	"runtime"
 
-	"github.com/k0sproject/k0sctl/pkg/apis/k0sctl.k0sproject.io/v1beta1/cluster"
 	"github.com/k0sproject/rig"
-	rexec "github.com/k0sproject/rig/exec"
 	"github.com/k0sproject/rig/log"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 	"sigs.k8s.io/yaml"
@@ -54,12 +48,9 @@ func SerializeSpec(spec *v1beta2.HostPreflightSpec) ([]byte, error) {
 	return yaml.Marshal(hpf)
 }
 
-// RunLocal runs the provided host preflight spec locally. This function is meant to be
+// Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func RunLocal(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, error) {
-	if runtime.GOOS != "linux" {
-		return nil, errors.New("local preflights are only supported on linux hosts")
-	}
+func Run(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, error) {
 	stop, err := startProgressbar("localhost")
 	if err != nil {
 		return nil, fmt.Errorf("unable to start running host preflight: %w", err)
@@ -84,29 +75,6 @@ func RunLocal(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, er
 	return OutputFromReader(stdout)
 }
 
-// Run runs the provided host preflight spec on the provided host.
-func Run(ctx context.Context, host *cluster.Host, spec *v1beta2.HostPreflightSpec) (*Output, error) {
-	stop, err := startProgressbar(host.Address())
-	if err != nil {
-		return nil, fmt.Errorf("unable to start running host preflight: %w", err)
-	}
-	defer stop()
-	fpath, err := saveHostPreflightFile(spec)
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(fpath)
-	if err := uploadFile(host, fpath, "/tmp/embedded-cluster-preflight.yaml", 0600); err != nil {
-		return nil, err
-	}
-	src := defaults.PathToEmbeddedClusterBinary("kubectl-preflight")
-	dst := path.Join("/tmp", filepath.Base(src))
-	if err := uploadFile(host, src, dst, 0755); err != nil {
-		return nil, err
-	}
-	return execute(host)
-}
-
 // startProgressbar starts a progress bar for the provided host. Returns a function that
 // must be called stop the progress bar. Redirects rig's logger to a log file.
 func startProgressbar(addr string) (func(), error) {
@@ -127,45 +95,6 @@ func startProgressbar(addr string) (func(), error) {
 		log.Log = orig
 		fp.Close()
 	}, nil
-}
-
-// execute executes the host preflight remotely on the provided host. for troubleshoot exit
-// codes see https://troubleshoot.sh/docs/preflight/exit-codes.
-func execute(host *cluster.Host) (*Output, error) {
-	if err := host.Connect(); err != nil {
-		return nil, fmt.Errorf("unable to connect to host: %w", err)
-	}
-	defer host.Disconnect()
-	arg := "--interactive=false --format=json"
-	cmd := fmt.Sprintf("/tmp/kubectl-preflight %s /tmp/embedded-cluster-preflight.yaml 2>/dev/null", arg)
-	var err error
-	out := bytes.NewBuffer(nil)
-	opts := []rexec.Option{rexec.Sudo(host), rexec.Writer(out)}
-	if err = host.Connection.Exec(cmd, opts...); err == nil {
-		return OutputFromReader(out)
-	}
-	var exit *ssh.ExitError
-	if !errors.As(err, &exit) || exit.ExitStatus() < 2 {
-		return nil, fmt.Errorf("unable to run host preflight: %w", err)
-	}
-	return OutputFromReader(out)
-}
-
-// uploadFile uploads a file from src to the host and stores it at dst with the provided
-// permissions set.
-func uploadFile(host *cluster.Host, src, dst string, mode os.FileMode) error {
-	if err := host.Connect(); err != nil {
-		return fmt.Errorf("unable to connect to host: %w", err)
-	}
-	defer host.Disconnect()
-	if err := host.Connection.Upload(src, dst); err != nil {
-		return fmt.Errorf("unable to upload file: %w", err)
-	}
-	cmd := fmt.Sprintf("chmod %o %s", mode, dst)
-	if _, err := host.Connection.ExecOutput(cmd); err != nil {
-		return fmt.Errorf("unable to change file mode: %w", err)
-	}
-	return nil
 }
 
 // saveHostPreflightFile saves the provided spec to a temporary file and returns

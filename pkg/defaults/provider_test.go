@@ -13,38 +13,8 @@ func TestInit(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
-	assert.DirExists(t, def.K0sctlBinsSubDir(), "k0s binary dir should exist")
-	assert.DirExists(t, def.ConfigSubDir(), "config dir should exist")
+	assert.DirExists(t, def.EmbeddedClusterConfigSubDir(), "config dir should exist")
 	assert.DirExists(t, def.EmbeddedClusterBinsSubDir(), "embedded-cluster binary dir should exist")
-}
-
-func TestDecentralizedInstall(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
-	def := NewProvider(tmpdir)
-	assert.False(t, def.DecentralizedInstall(), "default should be centralized")
-	err = def.SetInstallAsDecentralized()
-	assert.NoError(t, err)
-	assert.True(t, def.DecentralizedInstall(), "unable to set decentralized install")
-}
-
-func TestFileNameForImage(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
-	def := NewProvider(tmpdir)
-	for img, exp := range map[string]string{
-		"nginx:latest":                   "nginx-latest.tar",
-		"nginx":                          "nginx.tar",
-		"nginx@sha256:1234567890":        "nginx-sha256-1234567890.tar",
-		"docker.io/library/nginx:latest": "docker.io-library-nginx-latest.tar",
-		"quay.io/project/image:v123":     "quay.io-project-image-v123.tar",
-	} {
-		result := def.FileNameForImage(img)
-		assert.Equal(t, exp, result, "unexpected filename for image %s", img)
-	}
-
 }
 
 func TestPreferredNodeIPAddress(t *testing.T) {
@@ -63,15 +33,9 @@ func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
 	for _, fn := range []func() string{
-		def.K0sctlBinsSubDir,
 		def.EmbeddedClusterBinsSubDir,
 		def.EmbeddedClusterLogsSubDir,
-		def.K0sctlApplyLogPath,
-		def.SSHKeyPath,
-		def.SSHAuthorizedKeysPath,
-		def.K0sBinaryPath,
-		def.ConfigSubDir,
-		def.SSHConfigSubDir,
+		def.EmbeddedClusterConfigSubDir,
 	} {
 		assert.Contains(t, fn(), tmpdir, "directory should be inside base")
 		count := strings.Count(fn(), tmpdir)
