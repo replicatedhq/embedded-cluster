@@ -68,7 +68,7 @@ jobs:
       - name: upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: embedded-release-onpr
+          name: embedded-release
           path: |
             output/bin/embedded-cluster
   e2e:
