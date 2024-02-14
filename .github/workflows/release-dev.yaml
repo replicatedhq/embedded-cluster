@@ -19,8 +19,19 @@ jobs:
           go-version: "1.21"
       - name: Build Linux AMD64
         run: |
-          make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
+          make embedded-cluster-linux-amd64
+          tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
+      - name: Publish development release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          automatic_release_tag: development
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
+          title: Development Release Build
+          files: |
+            *.tgz
+            metadata.json
       - name: Install Replicated CLI
         run: |
           curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
