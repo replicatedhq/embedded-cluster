@@ -58,3 +58,14 @@ func TestEmbedReleaseDataInBinary(t *testing.T) {
 
 	assert.Equal(t, string(releaseData), string(embeddedData))
 }
+
+func TestNoReleaseData(t *testing.T) {
+	// Create temporary files for testing
+	binFile, err := os.CreateTemp("", "test-bin")
+	assert.NoError(t, err)
+	defer os.Remove(binFile.Name())
+
+	// Verify that no error is returned when the binary does not contain release data
+	_, err = ExtractReleaseDataFromBinary(binFile.Name())
+	assert.NoError(t, err)
+}
