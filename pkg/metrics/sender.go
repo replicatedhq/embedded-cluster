@@ -6,31 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/sirupsen/logrus"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 )
-
-// BaseURL determines the base url to be used when sending metrics over.
-func BaseURL() string {
-	if os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL") != "" {
-		return os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL")
-	}
-	license, _ := embed.GetLicense()
-	if license == nil || license.Spec.Endpoint == "" {
-		return "https://replicated.app"
-	}
-	return license.Spec.Endpoint
-}
 
 // Send is a helper function that sends an event to the metrics endpoint.
 // Metrics endpoint can be overwritten by the license.spec.endpoint field
 // or by the EMBEDDED_CLUSTER_METRICS_BASEURL environment variable, the latter has
 // precedence over the former.
-func Send(ctx context.Context, ev Event) {
-	sender := Sender{BaseURL()}
+func Send(ctx context.Context, baseURL string, ev Event) {
+	sender := Sender{baseURL}
 	sender.Send(ctx, ev)
 }
 

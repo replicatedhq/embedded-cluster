@@ -10,10 +10,12 @@ import (
 func TestUnsupportedOverrides(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:                                 t,
+		Nodes:                             1,
+		Image:                             "ubuntu/jammy",
+		LicensePath:                       "license.yaml",
+		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
+		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
 	})
 	defer tc.Destroy()
 	t.Logf("%s: installing dependencies on node 0", time.Now().Format(time.RFC3339))

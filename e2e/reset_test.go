@@ -17,6 +17,7 @@ func TestMultiNodeReset(t *testing.T) {
 		T:                   t,
 		Nodes:               4,
 		Image:               "ubuntu/jammy",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()

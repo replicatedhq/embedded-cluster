@@ -32,6 +32,7 @@ type JoinCommandResponse struct {
 	ClusterID                 uuid.UUID `json:"clusterID"`
 	K0sUnsupportedOverrides   string    `json:"k0sUnsupportedOverrides"`
 	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
+	MetricsBaseURL            string    `json:"metricsBaseURL"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -114,63 +115,63 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to get join token: %w", err)
 		}
 
-		metrics.ReportJoinStarted(c.Context, jcmd.ClusterID)
+		metrics.ReportJoinStarted(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Infof("Materializing %s binaries", binname)
 		if err := goods.Materialize(); err != nil {
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		if err := runHostPreflights(c); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Infof("Saving token to disk")
 		if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 			err := fmt.Errorf("unable to save token to disk: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Infof("Installing %s binaries", binname)
 		if err := installK0sBinary(); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Infof("Joining node to cluster")
 		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Infof("Applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(c, jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Infof("Creating systemd unit file")
 		if err := createSystemdUnitFile(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to create systemd unit file: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Infof("Starting %s service", binname)
 		if err := startK0sService(); err != nil {
 			err := fmt.Errorf("unable to start service: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		metrics.ReportJoinSucceeded(c.Context, jcmd.ClusterID)
+		metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Infof("Join finished")
 		return nil
 	},
