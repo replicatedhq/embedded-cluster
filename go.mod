@@ -11,7 +11,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/replicatedhq/embedded-cluster-operator v0.22.5
-	github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214164639-553741902722
+	github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214174642-c4acfad05b93
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.83.0
 	github.com/sirupsen/logrus v1.9.3
