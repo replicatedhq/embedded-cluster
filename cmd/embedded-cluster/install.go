@@ -265,7 +265,7 @@ func runOutro(c *cli.Context) error {
 // file is created. Resulting kubeconfig is stored in the configuration dir.
 var installCommand = &cli.Command{
 	Name:  "install",
-	Usage: "Installs and starts a new cluster",
+	Usage: "Install a cluster",
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
@@ -280,7 +280,7 @@ var installCommand = &cli.Command{
 		},
 		&cli.StringSliceFlag{
 			Name:  "disable-addon",
-			Usage: "Disable addon during install/upgrade",
+			Usage: "Disable addon during install",
 		},
 		&cli.StringFlag{
 			Name:   "overrides",

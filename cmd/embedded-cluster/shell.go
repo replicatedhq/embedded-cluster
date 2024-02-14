@@ -36,7 +36,7 @@ func handleResize(ch chan os.Signal, tty *os.File) {
 
 var shellCommand = &cli.Command{
 	Name:  "shell",
-	Usage: "Starts a shell with access to the running cluster",
+	Usage: "Start a shell with access to the running cluster",
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("shell command must be run as root")
