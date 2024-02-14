@@ -118,9 +118,6 @@ func ensureK0sConfig(c *cli.Context, useprompt bool) error {
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
 	}
-	for _, addon := range c.StringSlice("disable-addon") {
-		opts = append(opts, addons.WithoutAddon(addon))
-	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -246,9 +243,6 @@ func runK0sKubeconfig(ctx context.Context) error {
 func runOutro(c *cli.Context) error {
 	os.Setenv("KUBECONFIG", defaults.PathToConfig("kubeconfig"))
 	opts := []addons.Option{}
-	for _, addon := range c.StringSlice("disable-addon") {
-		opts = append(opts, addons.WithoutAddon(addon))
-	}
 	if c.String("overrides") == "" {
 		return addons.NewApplier(opts...).Outro(c.Context)
 	}
@@ -277,10 +271,6 @@ var installCommand = &cli.Command{
 			Name:  "no-prompt",
 			Usage: "Do not prompt user when it is not necessary",
 			Value: false,
-		},
-		&cli.StringSliceFlag{
-			Name:  "disable-addon",
-			Usage: "Disable addon during install",
 		},
 		&cli.StringFlag{
 			Name:   "overrides",

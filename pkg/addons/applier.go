@@ -35,12 +35,11 @@ type AddOn interface {
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
 type Applier struct {
-	disabledAddons map[string]bool
-	prompt         bool
-	verbose        bool
-	config         v1beta1.ClusterConfig
-	onlyDefaults   bool
-	endUserConfig  *embeddedclusterv1beta1.Config
+	prompt        bool
+	verbose       bool
+	config        v1beta1.ClusterConfig
+	onlyDefaults  bool
+	endUserConfig *embeddedclusterv1beta1.Config
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -126,27 +125,21 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 // load instantiates all enabled addons.
 func (a *Applier) load() (map[string]AddOn, error) {
 	addons := map[string]AddOn{}
-	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
-		obs, err := openebs.New()
-		if err != nil {
-			return nil, fmt.Errorf("unable to create openebs addon: %w", err)
-		}
-		addons["openebs"] = obs
+	obs, err := openebs.New()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 	}
-	if _, disabledAddons := a.disabledAddons["embeddedclusteroperator"]; !disabledAddons {
-		embedoperator, err := embeddedclusteroperator.New(a.endUserConfig)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
-		}
-		addons["embeddedclusteroperator"] = embedoperator
+	addons["openebs"] = obs
+	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
-	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
-		}
-		addons["adminconsole"] = aconsole
+	addons["embeddedclusteroperator"] = embedoperator
+	aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
+	addons["adminconsole"] = aconsole
 	return addons, nil
 }
 
@@ -222,10 +215,9 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 // NewApplier creates a new Applier instance with all addons registered.
 func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
-		prompt:         true,
-		verbose:        true,
-		disabledAddons: map[string]bool{},
-		config:         v1beta1.ClusterConfig{},
+		prompt:  true,
+		verbose: true,
+		config:  v1beta1.ClusterConfig{},
 	}
 	for _, fn := range opts {
 		fn(applier)
