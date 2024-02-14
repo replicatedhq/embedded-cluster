@@ -48,6 +48,10 @@ func (o *OpenEBS) Version() (map[string]string, error) {
 	return map[string]string{"OpenEBS": "v" + Version}, nil
 }
 
+func (a *OpenEBS) Name() string {
+	return "OpenEBS"
+}
+
 // HostPreflights returns the host preflight objects found inside the OpenEBS
 // Helm Chart, this is empty as there is no host preflight on there.
 func (o *OpenEBS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {

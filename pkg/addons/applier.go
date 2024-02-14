@@ -25,6 +25,7 @@ import (
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
 	Version() (map[string]string, error)
+	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
 	GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
@@ -111,7 +112,7 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	for _, addon := range addons {
 		hpf, err := addon.HostPreflights()
 		if err != nil {
-			return nil, fmt.Errorf("unable to get preflights for %s: %w", addon, err)
+			return nil, fmt.Errorf("unable to get preflights for %s: %w", addon.Name(), err)
 		} else if hpf == nil {
 			continue
 		}
