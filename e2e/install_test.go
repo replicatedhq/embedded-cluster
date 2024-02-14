@@ -336,6 +336,26 @@ func TestMultiNodeInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestInstallWithoutEmbed(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "rockylinux/8",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
+	})
+	defer tc.Destroy()
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"default-install.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 	t.Logf("%s: installing puppeteer on node %d", time.Now().Format(time.RFC3339), node)
 	line := []string{"install-puppeteer.sh"}
