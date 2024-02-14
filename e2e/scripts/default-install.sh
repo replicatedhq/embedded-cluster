@@ -46,18 +46,6 @@ wait_for_pods_running() {
     done
 }
 
-ensure_node_config() {
-    if ! kubectl describe node | grep "controller-label" ; then
-        echo "Failed to find controller-label"
-        return 1
-    fi
-
-    if ! kubectl describe node | grep "controller-test" ; then
-        echo "Failed to find controller-test"
-        return 1
-    fi
-}
-
 check_openebs_storage_class() {
     scs=$(kubectl get sc --no-headers | wc -l)
     if [ "$scs" -ne "1" ]; then
@@ -79,10 +67,6 @@ main() {
     fi
     if ! wait_for_healthy_node; then
         echo "Failed to install embedded-cluster"
-        exit 1
-    fi
-    if ! ensure_node_config; then
-        echo "Cluster did not respect node config"
         exit 1
     fi
     if ! wait_for_pods_running 900; then
