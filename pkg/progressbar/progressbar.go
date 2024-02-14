@@ -22,6 +22,7 @@ type MaskFn func(string) string
 type MessageWriter struct {
 	ch     chan string
 	end    chan struct{}
+	err    bool
 	printf WriteFn
 	mask   MaskFn
 }
@@ -47,6 +48,13 @@ func (m *MessageWriter) Closef(format string, args ...interface{}) {
 
 // Close closes the MessageWriter inner channel.
 func (m *MessageWriter) Close() {
+	close(m.ch)
+	<-m.end
+}
+
+// CloseWithError closes the MessageWriter with an error.
+func (m *MessageWriter) CloseWithError() {
+	m.err = true
 	close(m.ch)
 	<-m.end
 }
@@ -102,7 +110,11 @@ func (m *MessageWriter) loop() {
 			_, _ = m.printf("\033[K\r%s  %s ", blocks[pos], message)
 			continue
 		}
-		_, _ = m.printf("\033[K\r✓  %s\n", message)
+		prefix := "✔"
+		if m.err {
+			prefix = "✗"
+		}
+		_, _ = m.printf("\033[K\r%s  %s\n", prefix, message)
 		close(m.end)
 		return
 	}

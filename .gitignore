@@ -5,3 +5,4 @@ pkg/goods/images
 *tgz
 .pre-commit-config.yaml
 vendor
+e2e/kots-release-install/license.yaml
