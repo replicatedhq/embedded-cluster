@@ -93,8 +93,15 @@ func getJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommand
 }
 
 var joinCommand = &cli.Command{
-	Name:  "join",
-	Usage: "Join the current node to an existing cluster",
+	Name:      "join",
+	Usage:     "Join the current node to an existing cluster",
+	ArgsUsage: "<url> <token>",
+	Before: func(c *cli.Context) error {
+		if os.Getuid() != 0 {
+			return fmt.Errorf("node join command must be run as root")
+		}
+		return nil
+	},
 	Action: func(c *cli.Context) error {
 		binname := defaults.BinaryName()
 		if c.Args().Len() != 2 {
