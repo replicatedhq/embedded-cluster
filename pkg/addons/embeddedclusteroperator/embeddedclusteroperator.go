@@ -56,6 +56,10 @@ func (e *EmbeddedClusterOperator) Version() (map[string]string, error) {
 	return map[string]string{"EmbeddedClusterOperator": "v" + Version}, nil
 }
 
+func (a *EmbeddedClusterOperator) Name() string {
+	return "EmbeddedClusterOperator"
+}
+
 // HostPreflights returns the host preflight objects found inside the EmbeddedClusterOperator
 // Helm Chart, this is empty as there is no host preflight on there.
 func (e *EmbeddedClusterOperator) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
