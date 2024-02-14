@@ -10,7 +10,6 @@ import (
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -18,12 +17,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 // runCommand spawns a command and capture its output. Outputs are logged using the
@@ -64,25 +64,34 @@ func runPostInstall() error {
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
 func runHostPreflights(c *cli.Context) error {
+	pb := progressbar.Start()
+	pb.Infof("Running host preflights on node")
 	hpf, err := addons.NewApplier().HostPreflights()
 	if err != nil {
+		pb.CloseWithError()
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
+		pb.Close()
 		return nil
 	}
-	logrus.Infof("Running host preflights on node")
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
+		pb.CloseWithError()
 		return fmt.Errorf("host preflights failed: %w", err)
 	}
-	output.PrintTable()
 	if output.HasFail() {
+		pb.CloseWithError()
+		output.PrintTable()
 		return fmt.Errorf("preflights haven't passed on the host")
 	}
 	if !output.HasWarn() || c.Bool("no-prompt") {
+		pb.Close()
+		output.PrintTable()
 		return nil
 	}
+	pb.CloseWithError()
+	output.PrintTable()
 	logrus.Infof("Host preflights have warnings")
 	if !prompts.New().Confirm("Do you want to continue ?", false) {
 		return fmt.Errorf("user aborted")
@@ -109,8 +118,12 @@ func ensureK0sConfig(c *cli.Context, useprompt bool) error {
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
 	}
-	for _, addon := range c.StringSlice("disable-addon") {
-		opts = append(opts, addons.WithoutAddon(addon))
+	if c.String("license") != "" {
+		license, err := helpers.ParseLicense(c.String("license"))
+		if err != nil {
+			return fmt.Errorf("unable to parse license: %w", err)
+		}
+		opts = append(opts, addons.WithLicense(license))
 	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
@@ -137,7 +150,7 @@ func ensureK0sConfig(c *cli.Context, useprompt bool) error {
 // overrides embedded into the binary and after the ones provided by the user (--overrides).
 func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k0sconfig.ClusterConfig, error) {
 	var err error
-	if embcfg, err := embed.GetEmbeddedClusterConfig(); err != nil {
+	if embcfg, err := release.GetEmbeddedClusterConfig(); err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
 	} else if embcfg != nil {
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s
@@ -148,7 +161,7 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 	if c.String("overrides") == "" {
 		return cfg, nil
 	}
-	eucfg, err := parseEndUserConfig(c.String("overrides"))
+	eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to process overrides file: %w", err)
 	}
@@ -157,19 +170,6 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 		return nil, fmt.Errorf("unable to apply overrides: %w", err)
 	}
 	return cfg, nil
-}
-
-// parseEndUserConfig parses the end user configuration from the given file.
-func parseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
-	data, err := os.ReadFile(fpath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read overrides file: %w", err)
-	}
-	var cfg embeddedclusterv1beta1.Config
-	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal overrides file: %w", err)
-	}
-	return &cfg, nil
 }
 
 // installK0s runs the k0s install command and waits for it to finish. If no configuration
@@ -237,17 +237,20 @@ func runK0sKubeconfig(ctx context.Context) error {
 func runOutro(c *cli.Context) error {
 	os.Setenv("KUBECONFIG", defaults.PathToConfig("kubeconfig"))
 	opts := []addons.Option{}
-	for _, addon := range c.StringSlice("disable-addon") {
-		opts = append(opts, addons.WithoutAddon(addon))
+	if c.String("license") != "" {
+		license, err := helpers.ParseLicense(c.String("license"))
+		if err != nil {
+			return fmt.Errorf("unable to parse license: %w", err)
+		}
+		opts = append(opts, addons.WithLicense(license))
 	}
-	if c.String("overrides") == "" {
-		return addons.NewApplier(opts...).Outro(c.Context)
+	if c.String("overrides") != "" {
+		eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
+		if err != nil {
+			return fmt.Errorf("unable to load overrides: %w", err)
+		}
+		opts = append(opts, addons.WithEndUserConfig(eucfg))
 	}
-	eucfg, err := parseEndUserConfig(c.String("overrides"))
-	if err != nil {
-		return fmt.Errorf("unable to load overrides: %w", err)
-	}
-	opts = append(opts, addons.WithEndUserConfig(eucfg))
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
@@ -256,7 +259,7 @@ func runOutro(c *cli.Context) error {
 // file is created. Resulting kubeconfig is stored in the configuration dir.
 var installCommand = &cli.Command{
 	Name:  "install",
-	Usage: "Installs and starts a new cluster",
+	Usage: fmt.Sprintf("Install %s", defaults.BinaryName()),
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
@@ -269,14 +272,15 @@ var installCommand = &cli.Command{
 			Usage: "Do not prompt user when it is not necessary",
 			Value: false,
 		},
-		&cli.StringSliceFlag{
-			Name:  "disable-addon",
-			Usage: "Disable addon during install/upgrade",
-		},
 		&cli.StringFlag{
 			Name:   "overrides",
 			Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
 			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "license",
+			Usage:  "Path to the application license file",
+			Hidden: false,
 		},
 	},
 	Action: func(c *cli.Context) error {

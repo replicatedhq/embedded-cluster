@@ -19,14 +19,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8syaml "sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
-	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
-	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
@@ -36,6 +32,7 @@ type JoinCommandResponse struct {
 	ClusterID                 uuid.UUID `json:"clusterID"`
 	K0sUnsupportedOverrides   string    `json:"k0sUnsupportedOverrides"`
 	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
+	MetricsBaseURL            string    `json:"metricsBaseURL"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -97,78 +94,85 @@ func getJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommand
 }
 
 var joinCommand = &cli.Command{
-	Name:  "join",
-	Usage: "Join the current node to an existing cluster",
+	Name:      "join",
+	Usage:     "Join the current node to an existing cluster",
+	ArgsUsage: "<url> <token>",
+	Before: func(c *cli.Context) error {
+		if os.Getuid() != 0 {
+			return fmt.Errorf("node join command must be run as root")
+		}
+		return nil
+	},
 	Action: func(c *cli.Context) error {
 		binname := defaults.BinaryName()
 		if c.Args().Len() != 2 {
 			return fmt.Errorf("usage: %s node join <url> <token>", binname)
 		}
-		loading := pb.Start()
-		defer loading.Close()
-		loading.Infof("Fetching join token remotely")
+
+		logrus.Infof("Fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to get join token: %w", err)
 		}
-		metrics.ReportJoinStarted(c.Context, jcmd.ClusterID)
-		loading.Infof("Materializing %s binaries", binname)
+
+		metrics.ReportJoinStarted(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
+		logrus.Infof("Materializing %s binaries", binname)
 		if err := goods.Materialize(); err != nil {
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		loading.Infof("Executing host preflights")
-		if err := runHostPreflightsLocally(c); err != nil {
+
+		if err := runHostPreflights(c); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		loading.Infof("Saving token to disk")
+
+		logrus.Infof("Saving token to disk")
 		if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 			err := fmt.Errorf("unable to save token to disk: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		loading.Infof("Installing %s binaries", binname)
+
+		logrus.Infof("Installing %s binaries", binname)
 		if err := installK0sBinary(); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		loading.Infof("Joining node to cluster")
+
+		logrus.Infof("Joining node to cluster")
 		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		loading.Infof("Applying configuration overrides")
+
+		logrus.Infof("Applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(c, jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		loading.Infof("Creating systemd unit file")
+
+		logrus.Infof("Creating systemd unit file")
 		if err := createSystemdUnitFile(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to create systemd unit file: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		loading.Infof("Starting %s service", binname)
+
+		logrus.Infof("Starting %s service", binname)
 		if err := startK0sService(); err != nil {
 			err := fmt.Errorf("unable to start service: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		fpath := defaults.PathToConfig(".cluster-id")
-		cid := jcmd.ClusterID.String()
-		if err := os.WriteFile(fpath, []byte(cid), 0644); err != nil {
-			err := fmt.Errorf("unable to write cluster id to disk: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.ClusterID, err)
-			return err
-		}
-		metrics.ReportJoinSucceeded(c.Context, jcmd.ClusterID)
-		loading.Infof("Join finished")
+
+		metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
+		logrus.Infof("Join finished")
 		return nil
 	},
 }
@@ -314,34 +318,6 @@ func runK0sInstallCommand(fullcmd string) error {
 	}
 	if _, err := runCommand(args[0], args[1:]...); err != nil {
 		return err
-	}
-	return nil
-}
-
-// runHostPreflightsLocally runs the embedded host preflights in the local node prior to
-// node upgrade.
-func runHostPreflightsLocally(c *cli.Context) error {
-	hpf, err := addons.NewApplier().HostPreflights()
-	if err != nil {
-		return fmt.Errorf("unable to read host preflights: %w", err)
-	}
-	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
-		return nil
-	}
-	out, err := preflights.Run(c.Context, hpf)
-	if err != nil {
-		return fmt.Errorf("preflight failed: %w", err)
-	}
-	out.PrintTable()
-	if out.HasFail() {
-		return fmt.Errorf("preflights haven't passed on one or more hosts")
-	}
-	if !out.HasWarn() || c.Bool("no-prompt") {
-		return nil
-	}
-	logrus.Infof("Host preflights have warnings on one or more hosts")
-	if !prompts.New().Confirm("Do you want to continue ?", false) {
-		return fmt.Errorf("user aborted")
 	}
 	return nil
 }

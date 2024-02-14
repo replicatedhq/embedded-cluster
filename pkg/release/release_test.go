@@ -1,4 +1,4 @@
-package embed
+package release
 
 import (
 	"os"
@@ -34,14 +34,4 @@ func TestGetEmbeddedClusterConfig(t *testing.T) {
 	app, err := release.GetEmbeddedClusterConfig()
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-}
-
-func TestGetNonExistentLicense(t *testing.T) {
-	data, err := os.ReadFile("testdata/release.tar.gz")
-	assert.NoError(t, err)
-	release, err := NewReleaseDataFrom(data)
-	assert.NoError(t, err)
-	app, err := release.GetLicense()
-	assert.NoError(t, err)
-	assert.Nil(t, app)
 }

@@ -14,7 +14,7 @@ wait_for_installation() {
             kubectl describe clusterconfig -A
             kubectl get pods -A
             echo "operator logs:"
-            kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
+            kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
             return 1
         fi
         sleep 5
@@ -63,6 +63,17 @@ main() {
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "test-upgrade-value" # ensure new values are present
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "4.9.1" # ensure new version is present
     kubectl describe pod -n ingress-nginx | grep -q "4.9.1" # ensure the new version made it into the pod
+
+    # ensure that the embedded-cluster-operator has been updated
+    kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator
+    kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator | grep -q embedded-cluster-operator-upgrade-value # ensure new values are present
+    kubectl describe pod -n embedded-cluster
+    # ensure the new value made it into the pod
+    if ! kubectl describe pod -n embedded-cluster | grep -q embedded-cluster-operator-upgrade-value ; then
+        echo "embedded-cluster-operator-upgrade-value not found in embedded-cluster pod"
+        kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
+        exit 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

@@ -6,27 +6,26 @@ package addons
 import (
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
 	Version() (map[string]string, error)
+	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
 	GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
@@ -35,17 +34,17 @@ type AddOn interface {
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
 type Applier struct {
-	disabledAddons map[string]bool
-	prompt         bool
-	verbose        bool
-	config         v1beta1.ClusterConfig
-	onlyDefaults   bool
-	endUserConfig  *embeddedclusterv1beta1.Config
+	prompt        bool
+	verbose       bool
+	config        v1beta1.ClusterConfig
+	license       *kotsv1beta1.License
+	onlyDefaults  bool
+	endUserConfig *embeddedclusterv1beta1.Config
 }
 
 // Outro runs the outro in all enabled add-ons.
 func (a *Applier) Outro(ctx context.Context) error {
-	kcli, err := a.kubeClient()
+	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
@@ -113,7 +112,7 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	for _, addon := range addons {
 		hpf, err := addon.HostPreflights()
 		if err != nil {
-			return nil, fmt.Errorf("unable to get preflights for %s: %w", addon, err)
+			return nil, fmt.Errorf("unable to get preflights for %s: %w", addon.Name(), err)
 		} else if hpf == nil {
 			continue
 		}
@@ -126,27 +125,21 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 // load instantiates all enabled addons.
 func (a *Applier) load() (map[string]AddOn, error) {
 	addons := map[string]AddOn{}
-	if _, disabledAddons := a.disabledAddons["openebs"]; !disabledAddons {
-		obs, err := openebs.New()
-		if err != nil {
-			return nil, fmt.Errorf("unable to create openebs addon: %w", err)
-		}
-		addons["openebs"] = obs
+	obs, err := openebs.New()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 	}
-	if _, disabledAddons := a.disabledAddons["embeddedclusteroperator"]; !disabledAddons {
-		embedoperator, err := embeddedclusteroperator.New(a.endUserConfig)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
-		}
-		addons["embeddedclusteroperator"] = embedoperator
+	addons["openebs"] = obs
+	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.license)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
-	if _, disabledAddons := a.disabledAddons["adminconsole"]; !disabledAddons {
-		aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create admin console addon: %w", err)
-		}
-		addons["adminconsole"] = aconsole
+	addons["embeddedclusteroperator"] = embedoperator
+	aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config, a.license)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
+	addons["adminconsole"] = aconsole
 	return addons, nil
 }
 
@@ -173,19 +166,6 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	return versions, nil
 }
 
-// kubeClient returns a new kubernetes client.
-func (a *Applier) kubeClient() (client.Client, error) {
-	k8slogger := zap.New(func(o *zap.Options) {
-		o.DestWriter = io.Discard
-	})
-	log.SetLogger(k8slogger)
-	cfg, err := config.GetConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
-	}
-	return client.New(cfg, client.Options{})
-}
-
 // waitForKubernetes waits until we manage to make a successful connection to the
 // Kubernetes API server.
 func (a *Applier) waitForKubernetes(ctx context.Context) error {
@@ -193,7 +173,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 	defer func() {
 		loading.Closef("Kubernetes API server is ready")
 	}()
-	kcli, err := a.kubeClient()
+	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kubernetes client: %w", err)
 	}
@@ -222,10 +202,10 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 // NewApplier creates a new Applier instance with all addons registered.
 func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
-		prompt:         true,
-		verbose:        true,
-		disabledAddons: map[string]bool{},
-		config:         v1beta1.ClusterConfig{},
+		prompt:  true,
+		verbose: true,
+		config:  v1beta1.ClusterConfig{},
+		license: nil,
 	}
 	for _, fn := range opts {
 		fn(applier)

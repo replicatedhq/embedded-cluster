@@ -16,7 +16,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/embed"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 // ReadConfigFile reads the cluster configuration from the provided file.
@@ -154,7 +154,7 @@ func nodeLabels() []string {
 }
 
 func getControllerRoleName() string {
-	clusterConfig, err := embed.GetEmbeddedClusterConfig()
+	clusterConfig, err := release.GetEmbeddedClusterConfig()
 	controllerRoleName := "controller"
 	if err == nil {
 		if clusterConfig != nil {
@@ -167,7 +167,7 @@ func getControllerRoleName() string {
 }
 
 func additionalControllerLabels() map[string]string {
-	clusterConfig, err := embed.GetEmbeddedClusterConfig()
+	clusterConfig, err := release.GetEmbeddedClusterConfig()
 	if err == nil {
 		if clusterConfig != nil {
 			if clusterConfig.Spec.Roles.Controller.Labels != nil {
@@ -179,7 +179,7 @@ func additionalControllerLabels() map[string]string {
 }
 
 func AdditionalCharts() []k0sconfig.Chart {
-	clusterConfig, err := embed.GetEmbeddedClusterConfig()
+	clusterConfig, err := release.GetEmbeddedClusterConfig()
 	if err == nil {
 		if clusterConfig != nil {
 			if clusterConfig.Spec.Extensions.Helm != nil {
@@ -191,7 +191,7 @@ func AdditionalCharts() []k0sconfig.Chart {
 }
 
 func AdditionalRepositories() []k0sconfig.Repository {
-	clusterConfig, err := embed.GetEmbeddedClusterConfig()
+	clusterConfig, err := release.GetEmbeddedClusterConfig()
 	if err == nil {
 		if clusterConfig != nil {
 			if clusterConfig.Spec.Extensions.Helm != nil {

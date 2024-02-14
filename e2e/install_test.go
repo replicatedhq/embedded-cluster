@@ -25,6 +25,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "ubuntu/jammy",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -65,6 +66,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "rockylinux/8",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -110,6 +112,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -157,6 +160,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "centos/8-Stream",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -196,31 +200,15 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestInstallWithDisabledAddons(t *testing.T) {
-	t.Parallel()
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Destroy()
-	t.Logf("%s: installling with disabled addons on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"install-with-disabled-addons.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install embedded cluster in node 0: %v", err)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
 func TestHostPreflight(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "centos/8-Stream",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:                                 t,
+		Nodes:                             1,
+		Image:                             "centos/8-Stream",
+		LicensePath:                       "license.yaml",
+		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
+		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
 	})
 	defer tc.Destroy()
 
@@ -251,6 +239,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		T:                   t,
 		Nodes:               4,
 		Image:               "ubuntu/jammy",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
@@ -343,6 +332,26 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log(stdout)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallWithoutEmbed(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "rockylinux/8",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
+	})
+	defer tc.Destroy()
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"default-install.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

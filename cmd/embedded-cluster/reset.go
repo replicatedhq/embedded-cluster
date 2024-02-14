@@ -291,6 +291,13 @@ func checkErrPrompt(c *cli.Context, err error) bool {
 
 var resetCommand = &cli.Command{
 	Name: "reset",
+	Before: func(c *cli.Context) error {
+		if os.Getuid() != 0 {
+			return fmt.Errorf("node reset command must be run as root")
+		}
+		return nil
+	},
+	Args: false,
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "no-prompt",
@@ -299,7 +306,7 @@ var resetCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "force",
-			Usage: "Ignore errors encountered when resetting the node. Implies --no-prompt.",
+			Usage: "Ignore errors encountered when resetting the node (implies --no-prompt)",
 			Value: false,
 		},
 	},

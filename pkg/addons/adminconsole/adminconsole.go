@@ -9,6 +9,7 @@ import (
 
 	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -17,11 +18,11 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/embed"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 const (
@@ -74,6 +75,7 @@ type AdminConsole struct {
 	namespace string
 	useprompt bool
 	config    v1beta1.ClusterConfig
+	license   *kotsv1beta1.License
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -100,6 +102,10 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 	return map[string]string{"AdminConsole": "v" + Version}, nil
 }
 
+func (a *AdminConsole) Name() string {
+	return "AdminConsole"
+}
+
 // GetProtectedFields returns the helm values that are not overwritten when upgrading
 func (a *AdminConsole) GetProtectedFields() map[string][]string {
 	return map[string][]string{releaseName: protectedFields}
@@ -108,32 +114,28 @@ func (a *AdminConsole) GetProtectedFields() map[string][]string {
 // HostPreflights returns the host preflight objects found inside the adminconsole
 // or as part of the embedded kots release.
 func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
-	return embed.GetHostPreflights()
+	return release.GetHostPreflights()
 }
 
 // addLicenseAndVersionToHelmValues adds the embedded license to the helm values.
 func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
-	license, err := embed.GetLicense()
-	if err != nil {
-		return fmt.Errorf("unable to get license: %w", err)
-	}
-	if license == nil {
+	if a.license == nil {
 		return nil
 	}
-	raw, err := k8syaml.Marshal(license)
+	raw, err := k8syaml.Marshal(a.license)
 	if err != nil {
 		return fmt.Errorf("unable to marshal license: %w", err)
 	}
 	var appVersion string
-	if release, err := embed.GetChannelRelease(); err != nil {
+	if channelRelease, err := release.GetChannelRelease(); err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
-	} else if release != nil {
-		appVersion = release.VersionLabel
+	} else if channelRelease != nil {
+		appVersion = channelRelease.VersionLabel
 	}
 	helmValues["automation"] = map[string]interface{}{
 		"appVersionLabel": appVersion,
 		"license": map[string]interface{}{
-			"slug": license.Spec.AppSlug,
+			"slug": a.license.Spec.AppSlug,
 			"data": string(raw),
 		},
 	}
@@ -194,7 +196,7 @@ func (a *AdminConsole) addPasswordToHelmValues() error {
 // addKotsApplicationToHelmValues extracts the embed application struct found in this binary
 // and adds it to the helm values.
 func (a *AdminConsole) addKotsApplicationToHelmValues() error {
-	app, err := embed.GetApplication()
+	app, err := release.GetApplication()
 	if err != nil {
 		return fmt.Errorf("unable to get application: %w", err)
 	} else if app == nil {
@@ -295,10 +297,11 @@ func (a *AdminConsole) printSuccessMessage() {
 }
 
 // New creates a new AdminConsole object.
-func New(ns string, useprompt bool, config v1beta1.ClusterConfig) (*AdminConsole, error) {
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig, license *kotsv1beta1.License) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace: ns,
 		useprompt: useprompt,
 		config:    config,
+		license:   license,
 	}, nil
 }

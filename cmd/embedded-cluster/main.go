@@ -25,7 +25,7 @@ func main() {
 	name := path.Base(os.Args[0])
 	var app = &cli.App{
 		Name:  name,
-		Usage: fmt.Sprintf("Installs or updates %s.", name),
+		Usage: fmt.Sprintf("Install and manage %s", name),
 		Commands: []*cli.Command{
 			installCommand,
 			shellCommand,
