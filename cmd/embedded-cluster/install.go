@@ -237,14 +237,20 @@ func runK0sKubeconfig(ctx context.Context) error {
 func runOutro(c *cli.Context) error {
 	os.Setenv("KUBECONFIG", defaults.PathToConfig("kubeconfig"))
 	opts := []addons.Option{}
-	if c.String("overrides") == "" {
-		return addons.NewApplier(opts...).Outro(c.Context)
+	if c.String("license") != "" {
+		license, err := helpers.ParseLicense(c.String("license"))
+		if err != nil {
+			return fmt.Errorf("unable to parse license: %w", err)
+		}
+		opts = append(opts, addons.WithLicense(license))
 	}
-	eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
-	if err != nil {
-		return fmt.Errorf("unable to load overrides: %w", err)
+	if c.String("overrides") != "" {
+		eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
+		if err != nil {
+			return fmt.Errorf("unable to load overrides: %w", err)
+		}
+		opts = append(opts, addons.WithEndUserConfig(eucfg))
 	}
-	opts = append(opts, addons.WithEndUserConfig(eucfg))
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
