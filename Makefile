@@ -87,7 +87,6 @@ static: pkg/goods/bins/k0s \
 	
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: static
-	echo "$(LD_FLAGS)"
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 embedded-cluster-darwin-amd64:
