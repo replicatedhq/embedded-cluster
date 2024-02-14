@@ -80,7 +80,7 @@ func ExtractReleaseDataFromBinary(exe string) ([]byte, error) {
 
 	start := bytes.Index(binContent, []byte(beginReleaseDelimiter))
 	if start == -1 {
-		return nil, fmt.Errorf("failed to find start delimiter in executable")
+		return nil, nil
 	}
 
 	end := bytes.Index(binContent, []byte(endReleaseDelimiter))
