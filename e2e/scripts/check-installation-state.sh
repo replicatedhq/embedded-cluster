@@ -14,7 +14,7 @@ wait_for_installation() {
             kubectl get secrets -A
             kubectl describe clusterconfig -A
             echo "operator logs:"
-            kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
+            kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
             return 1
         fi
         sleep 5

@@ -102,6 +102,10 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 	return map[string]string{"AdminConsole": "v" + Version}, nil
 }
 
+func (a *AdminConsole) Name() string {
+	return "AdminConsole"
+}
+
 // GetProtectedFields returns the helm values that are not overwritten when upgrading
 func (a *AdminConsole) GetProtectedFields() map[string][]string {
 	return map[string][]string{releaseName: protectedFields}
