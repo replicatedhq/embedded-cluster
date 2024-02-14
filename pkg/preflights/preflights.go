@@ -10,16 +10,12 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/k0sproject/rig"
-	"github.com/k0sproject/rig/log"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"github.com/sirupsen/logrus"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 // UnserializeSpec unserializes an HostPreflightSpec from a raw slice of bytes.
@@ -51,11 +47,6 @@ func SerializeSpec(spec *v1beta2.HostPreflightSpec) ([]byte, error) {
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
 func Run(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, error) {
-	stop, err := startProgressbar("localhost")
-	if err != nil {
-		return nil, fmt.Errorf("unable to start running host preflight: %w", err)
-	}
-	defer stop()
 	fpath, err := saveHostPreflightFile(spec)
 	if err != nil {
 		return nil, fmt.Errorf("unable to save preflight locally: %w", err)
@@ -73,28 +64,6 @@ func Run(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, error) 
 		return nil, fmt.Errorf("unknown error running host preflight: %w", err)
 	}
 	return OutputFromReader(stdout)
-}
-
-// startProgressbar starts a progress bar for the provided host. Returns a function that
-// must be called stop the progress bar. Redirects rig's logger to a log file.
-func startProgressbar(addr string) (func(), error) {
-	fpath := defaults.PathToLog(fmt.Sprintf("embedded-cluster-preflight-%s.log", addr))
-	fp, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
-	if err != nil {
-		return nil, fmt.Errorf("unable to open log file: %w", err)
-	}
-	logfile := logrus.New()
-	logfile.SetLevel(logrus.DebugLevel)
-	logfile.SetOutput(fp)
-	loading := pb.Start()
-	loading.Infof("Running host preflight on %s", addr)
-	orig := log.Log
-	rig.SetLogger(logfile)
-	return func() {
-		loading.Closef("Host Preflight checks completed on host %s", addr)
-		log.Log = orig
-		fp.Close()
-	}, nil
 }
 
 // saveHostPreflightFile saves the provided spec to a temporary file and returns

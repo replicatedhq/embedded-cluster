@@ -76,6 +76,16 @@ func TestStartAndErrorf(t *testing.T) {
 	assert.Contains(t, buf.String(), "errorf")
 }
 
+func TestStartAndCloseWithError(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	pb := Start(WithWriter(WriteTo(buf)))
+	for i := 0; i < 1000; i++ {
+		pb.Infof("test nr %d", i)
+	}
+	pb.CloseWithError()
+	assert.Contains(t, buf.String(), "✗")
+}
+
 func TestMask(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	maskfn := func(s string) string {
