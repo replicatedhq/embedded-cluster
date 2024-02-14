@@ -19,7 +19,7 @@ import (
 
 var versionCommand = &cli.Command{
 	Name:        "version",
-	Usage:       fmt.Sprintf("Shows the %s installer version", defaults.BinaryName()),
+	Usage:       fmt.Sprintf("Show the %s component versions", defaults.BinaryName()),
 	Subcommands: []*cli.Command{metadataCommand},
 	Action: func(c *cli.Context) error {
 		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
