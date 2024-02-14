@@ -82,18 +82,20 @@ func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.
 }
 
 // detect if the charts currently installed in the cluster (currentConfigs) match the desired charts (combinedConfigs)
-func detectChartDrift(combinedConfigs, currentConfigs *k0sv1beta1.HelmExtensions) (bool, error) {
-	if len(currentConfigs.Charts) != len(combinedConfigs.Charts) {
-		return true, nil
+func detectChartDrift(combinedConfigs, currentConfigs *k0sv1beta1.HelmExtensions) (bool, []string, error) {
+	chartDrift := false
+	driftMap := map[string]struct{}{}
+	if len(currentConfigs.Repositories) != len(combinedConfigs.Repositories) {
+		chartDrift = true
+		driftMap["repositories"] = struct{}{}
 	}
 
 	targetCharts := combinedConfigs.Charts
-	chartDrift := false
-	// grab the installed charts
-	for _, chart := range currentConfigs.Charts {
-		// check for version and values drift between installed charts and charts in the installer metadata
+	// grab the desired charts
+	for _, targetChart := range targetCharts {
+		// check for version and values drift between installed charts and desired charts
 		chartSeen := false
-		for _, targetChart := range targetCharts {
+		for _, chart := range currentConfigs.Charts {
 			if targetChart.Name != chart.Name {
 				continue
 			}
@@ -101,21 +103,31 @@ func detectChartDrift(combinedConfigs, currentConfigs *k0sv1beta1.HelmExtensions
 
 			if targetChart.Version != chart.Version {
 				chartDrift = true
+				driftMap[chart.Name] = struct{}{}
 			}
 
 			valuesDiff, err := yamlDiff(targetChart.Values, chart.Values)
 			if err != nil {
-				return false, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
+				return false, nil, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
 			}
 			if valuesDiff {
 				chartDrift = true
+				driftMap[chart.Name] = struct{}{}
 			}
 		}
-		if !chartSeen { // if this chart in the cluster is not in the target spec, there is drift
+		if !chartSeen { // if this chart in the spec is not in the cluster, there is drift
 			chartDrift = true
+			driftMap[targetChart.Name] = struct{}{}
 		}
 	}
-	return chartDrift, nil
+
+	// flatten map to []string
+	driftSlice := []string{}
+	for k := range driftMap {
+		driftSlice = append(driftSlice, k)
+	}
+
+	return chartDrift, driftSlice, nil
 }
 
 // yamlDiff compares two yaml strings and returns true if they are different
@@ -164,6 +176,11 @@ func detectChartCompletion(combinedConfigs *k0sv1beta1.HelmExtensions, installed
 					return nil, nil, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
 				}
 				if valuesDiff {
+					diffDetected = true
+				}
+
+				// if the spec's HashValues does not match the status's ValuesHash, the chart is currently being applied with the new values
+				if installedChart.Spec.HashValues() != installedChart.Status.ValuesHash {
 					diffDetected = true
 				}
 
