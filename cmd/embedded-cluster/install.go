@@ -265,7 +265,7 @@ func runOutro(c *cli.Context) error {
 // file is created. Resulting kubeconfig is stored in the configuration dir.
 var installCommand = &cli.Command{
 	Name:  "install",
-	Usage: "Install a cluster",
+	Usage: fmt.Sprintf("Install %s", defaults.BinaryName()),
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
