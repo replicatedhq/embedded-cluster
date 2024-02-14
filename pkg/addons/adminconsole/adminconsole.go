@@ -12,7 +12,10 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
@@ -76,6 +79,7 @@ type AdminConsole struct {
 	useprompt bool
 	config    v1beta1.ClusterConfig
 	license   *kotsv1beta1.License
+	password  string
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -182,14 +186,14 @@ func (a *AdminConsole) addPasswordToHelmValues() error {
 		if err != nil {
 			return fmt.Errorf("unable to ask password: %w", err)
 		}
-		helmValues["password"] = pass
+		a.password = pass
 		return nil
 	}
 	pass, err := getPasswordFromConfig(curconfig)
 	if err != nil {
 		return fmt.Errorf("unable to get password from current config: %w", err)
 	}
-	helmValues["password"] = pass
+	a.password = pass
 	return nil
 }
 
@@ -236,11 +240,41 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
+func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client) error {
+	shaBytes, err := bcrypt.GenerateFromPassword([]byte(a.password), 10)
+	if err != nil {
+		return fmt.Errorf("unable to hash password: %w", err)
+	}
+
+	secretData := map[string][]byte{
+		"passwordBcrypt":    shaBytes,
+		"passwordUpdatedAt": []byte(time.Now().Format(time.RFC3339)),
+	}
+
+	passSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kotsadm-password",
+			Namespace: a.namespace,
+		},
+		Data: secretData,
+	}
+	if err := cli.Create(ctx, &passSecret); err != nil {
+		return fmt.Errorf("unable to create installation: %w", err)
+	}
+	return nil
+}
+
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := pb.Start()
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/3 ready")
+
+	err := a.setPasswordSecret(ctx, cli)
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to set password secret: %w", err)
+	}
 
 	var lasterr error
 	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
