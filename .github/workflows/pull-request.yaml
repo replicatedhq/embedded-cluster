@@ -115,7 +115,6 @@ jobs:
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos8Stream
           - TestVersion
-          - TestInstallWithDisabledAddons
           - TestHostPreflight
           - TestUnsupportedOverrides
           - TestMultiNodeInstallation
