@@ -53,7 +53,8 @@ var helmValues = map[string]interface{}{
 		"enabled":  true,
 		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
 	},
-	"embeddedClusterID": metrics.ClusterID().String(),
+	"embeddedClusterID":      metrics.ClusterID().String(),
+	"embeddedClusterVersion": defaults.Version,
 }
 
 func init() {
