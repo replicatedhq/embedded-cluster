@@ -198,10 +198,9 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 }
 
 func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client) error {
-
 	pass := a.password
 	if pass == "" {
-		pass = "password"
+		pass = "password backup"
 	}
 	shaBytes, err := bcrypt.GenerateFromPassword([]byte(pass), 10)
 	if err != nil {
