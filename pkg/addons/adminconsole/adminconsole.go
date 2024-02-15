@@ -271,6 +271,20 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 
 	var lasterr error
 	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
+		err := a.setPasswordSecret(ctx, cli)
+		if err != nil {
+			return false, fmt.Errorf("unable to set password secret: %w", err)
+		}
+		return true, nil
+	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
+		loading.Close()
+		return fmt.Errorf("error setting password secret: %v", lasterr)
+	}
+
+	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
 		var count int
 		ready, err := kubeutils.IsDeploymentReady(ctx, cli, a.namespace, "kotsadm")
 		if err != nil {
@@ -298,12 +312,6 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		}
 		loading.Close()
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
-	}
-
-	err := a.setPasswordSecret(ctx, cli)
-	if err != nil {
-		loading.Close()
-		return fmt.Errorf("unable to set password secret: %w", err)
 	}
 
 	loading.Closef("Admin Console is ready!")
