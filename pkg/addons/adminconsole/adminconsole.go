@@ -39,7 +39,7 @@ var (
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
-var protectedFields = []string{"automation", "embeddedClusterID"}
+var protectedFields = []string{"automation", "embeddedClusterID", "embeddedClusterVersion"}
 
 const DEFAULT_ADMIN_CONSOLE_NODE_PORT = 30000
 
@@ -53,7 +53,8 @@ var helmValues = map[string]interface{}{
 		"enabled":  true,
 		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
 	},
-	"embeddedClusterID": metrics.ClusterID().String(),
+	"embeddedClusterID":      metrics.ClusterID().String(),
+	"embeddedClusterVersion": defaults.Version,
 }
 
 func init() {
