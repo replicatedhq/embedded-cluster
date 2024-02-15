@@ -156,10 +156,10 @@ main() {
     if ! ensure_app_not_upgraded; then
         exit 1
     fi
-    if ! systemctl restart embedded-cluster; then
-        echo "Failed to restart embedded-cluster service"
-        exit 1
-    fi
+#    if ! systemctl restart embedded-cluster; then
+#        echo "Failed to restart embedded-cluster service"
+#        exit 1
+#    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

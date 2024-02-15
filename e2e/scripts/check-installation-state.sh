@@ -15,6 +15,7 @@ wait_for_installation() {
             kubectl describe clusterconfig -A
             echo "operator logs:"
             kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
+            kubectl get secret -n kotsadm kotsadm-password -o yaml
             return 1
         fi
         sleep 5
