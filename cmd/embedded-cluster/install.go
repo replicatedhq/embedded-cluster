@@ -26,6 +26,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
+// ErrNothingElseToAdd is an error returned when there is nothing else to add to the
+// screen. This is useful when we want to exit an error from a function here but
+// don't want to print anything else (possibly because we have already printed the
+// necessary data to the screen).
+var ErrNothingElseToAdd = fmt.Errorf("")
+
 // runCommand spawns a command and capture its output. Outputs are logged using the
 // logrus package and stdout is returned as a string.
 func runCommand(bin string, args ...string) (string, error) {
@@ -307,7 +313,7 @@ var installCommand = &cli.Command{
 			logrus.Infof("If you want to reinstall you need to remove the existing installation")
 			logrus.Infof("first. You can do this by running the following command:")
 			logrus.Infof("\n  %s node reset\n", defaults.BinaryName())
-			return fmt.Errorf("%s is already installed", defaults.BinaryName())
+			return ErrNothingElseToAdd
 		}
 		metrics.ReportApplyStarted(c)
 		logrus.Debugf("materializing binaries")
