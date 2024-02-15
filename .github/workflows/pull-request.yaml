@@ -136,3 +136,5 @@ jobs:
       if: github.actor != 'dependabot[bot]'
       with:
         test-name: '${{ matrix.tests }}'
+        license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
+        license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}

@@ -116,3 +116,5 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.tests }}'
+          license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
+          license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}

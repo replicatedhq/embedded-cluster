@@ -4,6 +4,12 @@ inputs:
   test-name:
     description: 'individual test to run'
     required: true
+  license-id:
+    description: 'license id to use for e2e tests'
+    required: true
+  license:
+    description: 'license (b64) to use for e2e tests'
+    required: true
 
 runs:
   using: composite
@@ -44,4 +50,6 @@ runs:
     shell: bash
     run: |
       export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+      export LICENSE_ID=${{ inputs.license-id }}
+      echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
       make e2e-test TEST_NAME=${{ inputs.test-name }}
