@@ -104,6 +104,7 @@ var joinCommand = &cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
+		logrus.Debugf("checking if %s is already installed", defaults.BinaryName())
 		if installed, err := isAlreadyInstalled(); err != nil {
 			return err
 		} else if installed {
