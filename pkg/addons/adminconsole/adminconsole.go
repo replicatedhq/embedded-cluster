@@ -149,6 +149,7 @@ func (a *AdminConsole) addPasswordToHelmValues() error {
 	if err != nil {
 		return fmt.Errorf("unable to ask password: %w", err)
 	}
+	fmt.Printf("password set to %s here\n", pass)
 	a.password = pass
 
 	return nil
@@ -200,7 +201,8 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client) error {
 	pass := a.password
 	if pass == "" {
-		pass = "password backup"
+		panic(fmt.Errorf("password not set"))
+		//pass = "password"
 	}
 	shaBytes, err := bcrypt.GenerateFromPassword([]byte(pass), 10)
 	if err != nil {
