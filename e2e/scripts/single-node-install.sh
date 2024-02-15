@@ -156,8 +156,8 @@ main() {
     if ! ensure_app_not_upgraded; then
         exit 1
     fi
-    if ! systemctl status embedded-cluster; then
-        echo "Failed to get status of embedded-cluster service"
+    if ! systemctl restart embedded-cluster; then
+        echo "Failed to restart of embedded-cluster service"
         exit 1
     fi
 }
