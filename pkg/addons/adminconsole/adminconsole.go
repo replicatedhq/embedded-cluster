@@ -39,7 +39,7 @@ var (
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
-var protectedFields = []string{"automation", "embeddedClusterID", "embeddedClusterVersion"}
+var protectedFields = []string{"automation", "embeddedClusterID"}
 
 const DEFAULT_ADMIN_CONSOLE_NODE_PORT = 30000
 
