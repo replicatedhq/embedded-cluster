@@ -221,7 +221,7 @@ func runK0sKubeconfig(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to generate kubeconfig: %w", err)
 	}
-	kpath := defaults.PathToConfig("kubeconfig")
+	kpath := defaults.PathToKubeconfig()
 	fp, err := os.OpenFile(kpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to open kubeconfig: %w", err)
@@ -235,7 +235,7 @@ func runK0sKubeconfig(ctx context.Context) error {
 
 // runOutro calls Outro() in all enabled addons by means of Applier.
 func runOutro(c *cli.Context) error {
-	os.Setenv("KUBECONFIG", defaults.PathToConfig("kubeconfig"))
+	os.Setenv("KUBECONFIG", defaults.PathToKubeconfig())
 	opts := []addons.Option{}
 	if c.String("license") != "" {
 		license, err := helpers.ParseLicense(c.String("license"))

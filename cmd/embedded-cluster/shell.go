@@ -44,7 +44,7 @@ var shellCommand = &cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
-		cfgpath := defaults.PathToConfig("kubeconfig")
+		cfgpath := defaults.PathToKubeconfig()
 		if _, err := os.Stat(cfgpath); err != nil {
 			return fmt.Errorf("kubeconfig not found at %s", cfgpath)
 		}
@@ -74,7 +74,7 @@ var shellCommand = &cli.Command{
 			fd := int(os.Stdin.Fd())
 			_ = term.Restore(fd, state)
 		}()
-		kcpath := defaults.PathToConfig("kubeconfig")
+		kcpath := defaults.PathToKubeconfig()
 		config := fmt.Sprintf("export KUBECONFIG=%q\n", kcpath)
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))

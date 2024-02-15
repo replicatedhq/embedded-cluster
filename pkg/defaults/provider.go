@@ -96,7 +96,7 @@ func (d *Provider) PathToLog(name string) string {
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
 func (d *Provider) EmbeddedClusterBinsSubDir() string {
-	return filepath.Join(d.Base, d.config(), d.BinaryName(), "bin")
+	return filepath.Join("/usr/local/bin")
 }
 
 // EmbeddedClusterConfigSubDir returns the path to the directory where configuration files are
@@ -129,6 +129,10 @@ func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 // does not check if the file exists.
 func (d *Provider) PathToConfig(name string) string {
 	return filepath.Join(d.EmbeddedClusterConfigSubDir(), name)
+}
+
+func (d *Provider) PathToKubeconfig() string {
+	return filepath.Join("~/.kube/config")
 }
 
 // PreferredNodeIPAddress returns the ip address the node uses when reaching
