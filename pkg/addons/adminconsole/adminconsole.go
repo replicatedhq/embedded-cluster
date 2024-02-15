@@ -270,12 +270,6 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/3 ready")
 
-	err := a.setPasswordSecret(ctx, cli)
-	if err != nil {
-		loading.Close()
-		return fmt.Errorf("unable to set password secret: %w", err)
-	}
-
 	var lasterr error
 	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
 		var count int
@@ -306,6 +300,13 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		loading.Close()
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
+
+	err := a.setPasswordSecret(ctx, cli)
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to set password secret: %w", err)
+	}
+
 	loading.Closef("Admin Console is ready!")
 	a.printSuccessMessage()
 	return nil
