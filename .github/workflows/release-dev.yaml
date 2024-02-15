@@ -104,6 +104,7 @@ jobs:
           - TestMultiNodeReset
           - TestCommandsRequireSudo
           - TestInstallWithoutEmbed
+          - TestInstallFromReplicatedApp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
