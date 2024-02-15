@@ -273,7 +273,8 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
 		err := a.setPasswordSecret(ctx, cli)
 		if err != nil {
-			return false, fmt.Errorf("unable to set password secret: %w", err)
+			lasterr = fmt.Errorf("unable to set password secret: %w", err)
+			return false, nil
 		}
 		return true, nil
 	}); err != nil {
