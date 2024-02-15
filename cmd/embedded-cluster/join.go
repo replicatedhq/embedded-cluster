@@ -104,6 +104,17 @@ var joinCommand = &cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
+		logrus.Debugf("checking if %s is already installed", defaults.BinaryName())
+		if installed, err := isAlreadyInstalled(); err != nil {
+			return err
+		} else if installed {
+			logrus.Errorf("An installation has been detected on this machine.")
+			logrus.Infof("If you want to reinstall you need to remove the existing installation")
+			logrus.Infof("first. You can do this by running the following command:")
+			logrus.Infof("\n  %s node reset\n", defaults.BinaryName())
+			return ErrNothingElseToAdd
+		}
+
 		binname := defaults.BinaryName()
 		if c.Args().Len() != 2 {
 			return fmt.Errorf("usage: %s node join <url> <token>", binname)

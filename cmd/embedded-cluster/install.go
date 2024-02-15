@@ -26,6 +26,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
+// ErrNothingElseToAdd is an error returned when there is nothing else to add to the
+// screen. This is useful when we want to exit an error from a function here but
+// don't want to print anything else (possibly because we have already printed the
+// necessary data to the screen).
+var ErrNothingElseToAdd = fmt.Errorf("")
+
 // runCommand spawns a command and capture its output. Outputs are logged using the
 // logrus package and stdout is returned as a string.
 func runCommand(bin string, args ...string) (string, error) {
@@ -97,6 +103,21 @@ func runHostPreflights(c *cli.Context) error {
 		return fmt.Errorf("user aborted")
 	}
 	return nil
+}
+
+// isAlreadyInstalled checks if the embedded cluster is already installed by looking for
+// the k0s configuration file existence.
+func isAlreadyInstalled() (bool, error) {
+	cfgpath := defaults.PathToK0sConfig()
+	_, err := os.Stat(cfgpath)
+	switch {
+	case err == nil:
+		return true, nil
+	case os.IsNotExist(err):
+		return false, nil
+	default:
+		return false, fmt.Errorf("unable to check if already installed: %w", err)
+	}
 }
 
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
@@ -284,6 +305,16 @@ var installCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		logrus.Debugf("checking if %s is already installed", defaults.BinaryName())
+		if installed, err := isAlreadyInstalled(); err != nil {
+			return err
+		} else if installed {
+			logrus.Errorf("An installation has been detected on this machine.")
+			logrus.Infof("If you want to reinstall you need to remove the existing installation")
+			logrus.Infof("first. You can do this by running the following command:")
+			logrus.Infof("\n  %s node reset\n", defaults.BinaryName())
+			return ErrNothingElseToAdd
+		}
 		metrics.ReportApplyStarted(c)
 		logrus.Debugf("materializing binaries")
 		if err := goods.Materialize(); err != nil {

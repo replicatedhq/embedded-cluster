@@ -9,10 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
+
+// MaxLogFiles is the maximum number of log files we keep.
+const MaxLogFiles = 100
 
 // StdoutLogger is a Logrus hook for routing Info, Error, and Fatal logs to the screen.
 type StdoutLogger struct{}
@@ -21,6 +25,7 @@ type StdoutLogger struct{}
 func (hook *StdoutLogger) Levels() []logrus.Level {
 	return []logrus.Level{
 		logrus.InfoLevel,
+		logrus.WarnLevel,
 		logrus.ErrorLevel,
 		logrus.FatalLevel,
 	}
@@ -33,7 +38,16 @@ func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
 	if entry.Level != logrus.InfoLevel {
 		output = os.Stderr
 	}
-	output.Write([]byte(message))
+	var writer *color.Color
+	switch entry.Level {
+	case logrus.WarnLevel:
+		writer = color.New(color.FgYellow)
+	case logrus.ErrorLevel, logrus.FatalLevel:
+		writer = color.New(color.FgRed)
+	default:
+		writer = color.New(color.FgWhite)
+	}
+	writer.Fprintf(output, message)
 	return nil
 }
 
@@ -55,6 +69,32 @@ func needsFileLogging() bool {
 	return true
 }
 
+// trimLogDir removes the oldest log files if we have more than MaxLogFiles.
+func trimLogDir() {
+	dir := defaults.EmbeddedClusterLogsSubDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	if len(entries) <= MaxLogFiles {
+		return
+	}
+	oldest := time.Now()
+	var fname string
+	for _, file := range entries {
+		info, err := file.Info()
+		if err != nil {
+			return
+		}
+		if info.ModTime().After(oldest) {
+			continue
+		}
+		oldest = info.ModTime()
+		fname = file.Name()
+	}
+	os.Remove(defaults.PathToLog(fname))
+}
+
 // SetupLogging sets up the logging for the application. If the debug flag is set we print
 // all to the screen otherwise we print to a log file.
 func SetupLogging() {
@@ -62,7 +102,7 @@ func SetupLogging() {
 		return
 	}
 	logrus.SetLevel(logrus.DebugLevel)
-	fname := fmt.Sprintf("%s-%s.log", defaults.BinaryName(), time.Now().Format("2006-01-02-15:04:05.000"))
+	fname := fmt.Sprintf("%s-%s.log", defaults.BinaryName(), time.Now().Format("20060102150405.000"))
 	logpath := defaults.PathToLog(fname)
 	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
 	if err != nil {
@@ -72,4 +112,5 @@ func SetupLogging() {
 	logrus.SetOutput(logfile)
 	logrus.AddHook(&StdoutLogger{})
 	logrus.Debugf("command line: %v", os.Args)
+	trimLogDir()
 }
