@@ -57,6 +57,8 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterID": metrics.ClusterID().String(),
 }
 
+var kotsadmPassword = ""
+
 func init() {
 	if ImageOverride != "" {
 		helmValues["images"] = map[string]interface{}{
@@ -76,7 +78,6 @@ type AdminConsole struct {
 	namespace string
 	useprompt bool
 	license   *kotsv1beta1.License
-	password  string
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -149,8 +150,7 @@ func (a *AdminConsole) addPasswordToHelmValues() error {
 	if err != nil {
 		return fmt.Errorf("unable to ask password: %w", err)
 	}
-	fmt.Printf("password set to %s here\n", pass)
-	a.password = pass
+	kotsadmPassword = pass
 
 	return nil
 }
@@ -172,7 +172,6 @@ func (a *AdminConsole) addKotsApplicationToHelmValues() error {
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	fmt.Printf("GenerateHelmConfig here, onlydefaults %t\n", onlyDefaults)
 	if !onlyDefaults {
 		if err := a.addPasswordToHelmValues(); err != nil {
 			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
@@ -200,12 +199,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 }
 
 func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client) error {
-	pass := a.password
-	if pass == "" {
-		panic(fmt.Errorf("password not set"))
-		//pass = "password"
-	}
-	shaBytes, err := bcrypt.GenerateFromPassword([]byte(pass), 10)
+	shaBytes, err := bcrypt.GenerateFromPassword([]byte(kotsadmPassword), 10)
 	if err != nil {
 		return fmt.Errorf("unable to hash password: %w", err)
 	}
