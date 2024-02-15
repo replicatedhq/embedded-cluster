@@ -37,6 +37,11 @@ func EmbeddedClusterBinsSubDir() string {
 	return def().EmbeddedClusterBinsSubDir()
 }
 
+// EmbeddedClusterLogsSubDir calls EmbeddedClusterLogsSubDir on the default provider.
+func EmbeddedClusterLogsSubDir() string {
+	return def().EmbeddedClusterLogsSubDir()
+}
+
 // K0sBinaryPath calls K0sBinaryPath on the default provider.
 func K0sBinaryPath() string {
 	return def().K0sBinaryPath()
