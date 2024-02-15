@@ -214,7 +214,7 @@ func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client)
 	}
 
 	existingSecret := corev1.Secret{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: a.namespace, Name: "kotsadm-password"}, &existingSecret)
+	err = cli.Get(ctx, client.ObjectKey{Namespace: a.namespace, Name: "kotsadm-password"}, &existingSecret)
 	if err != nil {
 		return fmt.Errorf("unable to get password existing secret: %w", err)
 	}
