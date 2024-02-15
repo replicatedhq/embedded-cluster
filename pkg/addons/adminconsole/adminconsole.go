@@ -15,7 +15,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
@@ -251,15 +250,15 @@ func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client)
 		"passwordUpdatedAt": []byte(time.Now().Format(time.RFC3339)),
 	}
 
-	passSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kotsadm-password",
-			Namespace: a.namespace,
-		},
-		Data: secretData,
+	existingSecret := corev1.Secret{}
+	err = cli.Get(ctx, client.ObjectKey{Namespace: a.namespace, Name: "kotsadm-password"}, &existingSecret)
+	if err != nil {
+		return fmt.Errorf("unable to get password existing secret: %w", err)
 	}
-	if err := cli.Create(ctx, &passSecret); err != nil {
-		return fmt.Errorf("unable to create installation: %w", err)
+	existingSecret.Data = secretData
+
+	if err := cli.Update(ctx, &existingSecret); err != nil {
+		return fmt.Errorf("unable to update password secret: %w", err)
 	}
 	return nil
 }
