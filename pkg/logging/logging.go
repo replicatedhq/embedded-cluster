@@ -9,18 +9,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
-// StdoutLogger is a Logrus hook for routing Info, Error, and Fatal logs to the screen.
+// StdoutLogger is a Logrus hook for routing Info, Error, Warn, and Fatal logs to the screen.
 type StdoutLogger struct{}
 
 // Levels defines on which log levels this hook would trigger.
 func (hook *StdoutLogger) Levels() []logrus.Level {
 	return []logrus.Level{
 		logrus.InfoLevel,
+		logrus.WarnLevel,
 		logrus.ErrorLevel,
 		logrus.FatalLevel,
 	}
@@ -33,7 +35,16 @@ func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
 	if entry.Level != logrus.InfoLevel {
 		output = os.Stderr
 	}
-	output.Write([]byte(message))
+	var writer *color.Color
+	switch entry.Level {
+	case logrus.WarnLevel:
+		writer = color.New(color.FgYellow)
+	case logrus.ErrorLevel, logrus.FatalLevel:
+		writer = color.New(color.FgRed)
+	default:
+		writer = color.New(color.FgWhite)
+	}
+	writer.Fprintf(output, message)
 	return nil
 }
 

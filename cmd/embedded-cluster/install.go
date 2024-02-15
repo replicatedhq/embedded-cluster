@@ -99,6 +99,21 @@ func runHostPreflights(c *cli.Context) error {
 	return nil
 }
 
+// isAlreadyInstalled checks if the embedded cluster is already installed by looking for
+// the k0s configuration file existence.
+func isAlreadyInstalled() (bool, error) {
+	cfgpath := defaults.PathToK0sConfig()
+	_, err := os.Stat(cfgpath)
+	switch {
+	case err == nil:
+		return true, nil
+	case os.IsNotExist(err):
+		return false, nil
+	default:
+		return false, fmt.Errorf("unable to check if already installed: %w", err)
+	}
+}
+
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
@@ -284,6 +299,16 @@ var installCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		logrus.Debugf("checking if %s is already installed", defaults.BinaryName())
+		if installed, err := isAlreadyInstalled(); err != nil {
+			return err
+		} else if installed {
+			logrus.Errorf("An installation has been detected on this machine.")
+			logrus.Infof("If you want to reinstall you need to remove the existing installation")
+			logrus.Infof("first. You can do this by running the following command:")
+			logrus.Infof("\n  %s node reset\n", defaults.BinaryName())
+			return fmt.Errorf("%s is already installed", defaults.BinaryName())
+		}
 		metrics.ReportApplyStarted(c)
 		logrus.Debugf("materializing binaries")
 		if err := goods.Materialize(); err != nil {
