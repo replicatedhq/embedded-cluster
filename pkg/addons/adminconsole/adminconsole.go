@@ -74,11 +74,11 @@ func init() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
-	namespace string
-	useprompt bool
-	config    v1beta1.ClusterConfig
-	license   *kotsv1beta1.License
-	password  string
+	namespace     string
+	useprompt     bool
+	license       *kotsv1beta1.License
+	password      string
+	passwordBytes []byte
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -160,39 +160,20 @@ func getPasswordFromConfig(chart *v1beta1.Chart) (string, error) {
 	return "", nil
 }
 
-// GetCurrentChartConfig returns the current adminconsole chart config from the cluster config.
-func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
-	if a.config.Spec == nil || a.config.Spec.Extensions == nil {
-		return nil
-	}
-	if a.config.Spec.Extensions.Helm == nil {
-		return nil
-	}
-	chtlist := a.config.Spec.Extensions.Helm.Charts
-	for _, chart := range chtlist {
-		if chart.Name == releaseName {
-			return &chart
-		}
-	}
-	return nil
-}
-
 // addPasswordToHelmValues adds the adminconsole password to the helm values.
 func (a *AdminConsole) addPasswordToHelmValues() error {
-	curconfig := a.GetCurrentChartConfig()
-	if curconfig == nil {
-		pass, err := a.askPassword()
-		if err != nil {
-			return fmt.Errorf("unable to ask password: %w", err)
-		}
-		a.password = pass
-		return nil
-	}
-	pass, err := getPasswordFromConfig(curconfig)
+	pass, err := a.askPassword()
 	if err != nil {
-		return fmt.Errorf("unable to get password from current config: %w", err)
+		return fmt.Errorf("unable to ask password: %w", err)
 	}
 	a.password = pass
+
+	shaBytes, err := bcrypt.GenerateFromPassword([]byte(a.password), 10)
+	if err != nil {
+		return fmt.Errorf("unable to hash password: %w", err)
+	}
+	a.passwordBytes = shaBytes
+
 	return nil
 }
 
@@ -240,18 +221,13 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 }
 
 func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client) error {
-	shaBytes, err := bcrypt.GenerateFromPassword([]byte(a.password), 10)
-	if err != nil {
-		return fmt.Errorf("unable to hash password: %w", err)
-	}
-
 	secretData := map[string][]byte{
-		"passwordBcrypt":    shaBytes,
+		"passwordBcrypt":    a.passwordBytes,
 		"passwordUpdatedAt": []byte(time.Now().Format(time.RFC3339)),
 	}
 
 	existingSecret := corev1.Secret{}
-	err = cli.Get(ctx, client.ObjectKey{Namespace: a.namespace, Name: "kotsadm-password"}, &existingSecret)
+	err := cli.Get(ctx, client.ObjectKey{Namespace: a.namespace, Name: "kotsadm-password"}, &existingSecret)
 	if err != nil {
 		return fmt.Errorf("unable to get password existing secret: %w", err)
 	}
@@ -340,11 +316,10 @@ func (a *AdminConsole) printSuccessMessage() {
 }
 
 // New creates a new AdminConsole object.
-func New(ns string, useprompt bool, config v1beta1.ClusterConfig, license *kotsv1beta1.License) (*AdminConsole, error) {
+func New(ns string, useprompt bool, license *kotsv1beta1.License) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace: ns,
 		useprompt: useprompt,
-		config:    config,
 		license:   license,
 	}, nil
 }
