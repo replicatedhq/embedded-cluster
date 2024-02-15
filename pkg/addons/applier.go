@@ -36,7 +36,6 @@ type AddOn interface {
 type Applier struct {
 	prompt        bool
 	verbose       bool
-	config        v1beta1.ClusterConfig
 	license       *kotsv1beta1.License
 	onlyDefaults  bool
 	endUserConfig *embeddedclusterv1beta1.Config
@@ -135,7 +134,7 @@ func (a *Applier) load() (map[string]AddOn, error) {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
 	addons["embeddedclusteroperator"] = embedoperator
-	aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config, a.license)
+	aconsole, err := adminconsole.New("kotsadm", a.prompt, a.license)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
@@ -204,7 +203,6 @@ func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
 		prompt:  true,
 		verbose: true,
-		config:  v1beta1.ClusterConfig{},
 		license: nil,
 	}
 	for _, fn := range opts {

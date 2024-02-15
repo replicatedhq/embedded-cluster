@@ -1,7 +1,6 @@
 package addons
 
 import (
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -20,13 +19,6 @@ func WithoutPrompt() Option {
 func Quiet() Option {
 	return func(a *Applier) {
 		a.verbose = false
-	}
-}
-
-// WithConfig sets the helm config for the addons.
-func WithConfig(config v1beta1.ClusterConfig) Option {
-	return func(a *Applier) {
-		a.config = config
 	}
 }
 
