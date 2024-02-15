@@ -96,7 +96,7 @@ func (d *Provider) PathToLog(name string) string {
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
 func (d *Provider) EmbeddedClusterBinsSubDir() string {
-	return filepath.Join("/usr/local/bin")
+	return filepath.Join("/var/lib/embedded-cluster/bin")
 }
 
 // EmbeddedClusterConfigSubDir returns the path to the directory where configuration files are
