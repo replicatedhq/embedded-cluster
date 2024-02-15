@@ -172,6 +172,7 @@ func (a *AdminConsole) addKotsApplicationToHelmValues() error {
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	fmt.Printf("GenerateHelmConfig here, onlydefaults %t\n", onlyDefaults)
 	if !onlyDefaults {
 		if err := a.addPasswordToHelmValues(); err != nil {
 			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
