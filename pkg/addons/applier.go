@@ -19,7 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
-	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
@@ -60,7 +59,7 @@ func (a *Applier) Outro(ctx context.Context) error {
 		}
 	}
 
-	err = waitForCharts(ctx, kcli, config.AdditionalCharts())
+	err = waitForCharts(ctx, kcli, a.config.Spec.Extensions.Helm.Charts)
 	if err != nil {
 		return fmt.Errorf("error waiting for charts: %w", err)
 	}
