@@ -365,8 +365,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	//line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA")}
-	line := []string{"vandoor-prepare.sh", "362b817"}
+	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)

@@ -124,7 +124,6 @@ jobs:
           - TestMultiNodeReset
           - TestCommandsRequireSudo
           - TestInstallWithoutEmbed
-          - TestInstallFromReplicatedApp # TODO remove this, it will not actually run on PRs in reality
     steps:
     - name: Checkout
       uses: actions/checkout@v4
