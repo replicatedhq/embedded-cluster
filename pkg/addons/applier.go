@@ -13,11 +13,13 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
@@ -57,6 +59,12 @@ func (a *Applier) Outro(ctx context.Context) error {
 			return err
 		}
 	}
+
+	err = waitForCharts(ctx, kcli, config.AdditionalCharts())
+	if err != nil {
+		return fmt.Errorf("error waiting for charts: %w", err)
+	}
+
 	return nil
 }
 
@@ -211,4 +219,36 @@ func NewApplier(opts ...Option) *Applier {
 		fn(applier)
 	}
 	return applier
+}
+
+func waitForCharts(ctx context.Context, cli client.Client, charts []v1beta1.Chart) error {
+	loading := pb.Start()
+	defer func() {
+		loading.Closef("All charts are ready")
+	}()
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	loading.Infof("Waiting for additional charts to deploy: 0/%d ready", len(charts))
+	var lasterr error
+	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
+		var count int
+		for _, chart := range charts {
+			ready, err := kubeutils.IsChartReady(ctx, cli, chart.Name)
+			if err != nil {
+				lasterr = fmt.Errorf("error checking status of %s: %v", chart.Name, err)
+				return false, nil
+			}
+			if ready {
+				count++
+			}
+		}
+		loading.Infof("Waiting for all charts to deploy: %d/%d ready", count, len(charts))
+		return count == len(charts), nil
+	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
+		loading.Close()
+		return fmt.Errorf("error waiting for all charts: %v", lasterr)
+	}
+	return nil
 }

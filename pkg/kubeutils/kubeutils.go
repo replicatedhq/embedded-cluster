@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -65,4 +66,27 @@ func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string)
 		return false, nil
 	}
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
+}
+
+// IsChartReady returns true if the chart object has been created in the kube-system namespace by k0s and has deployed successfully
+func IsChartReady(ctx context.Context, cli client.Client, name string) (bool, error) {
+	chart := k0shelm.Chart{}
+	nsn := types.NamespacedName{Namespace: "kube-system", Name: fmt.Sprintf("k0s-addon-chart-%s", name)}
+	if err := cli.Get(ctx, nsn, &chart); err != nil {
+		return false, err
+	}
+
+	if chart.Status.ReleaseName != chart.Spec.ReleaseName {
+		return false, fmt.Errorf("release name mismatch: %s != %s", chart.Status.ReleaseName, chart.Spec.ReleaseName)
+	}
+
+	if chart.Spec.HashValues() != chart.Status.ValuesHash {
+		return false, fmt.Errorf("values hash mismatch: %s != %s", chart.Spec.HashValues(), chart.Status.ValuesHash)
+	}
+
+	if chart.Spec.Version != chart.Status.Version {
+		return false, fmt.Errorf("version mismatch: %s != %s", chart.Spec.Version, chart.Status.Version)
+	}
+
+	return true, nil
 }
