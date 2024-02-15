@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -77,7 +76,6 @@ type AdminConsole struct {
 	namespace     string
 	useprompt     bool
 	license       *kotsv1beta1.License
-	password      string
 	passwordBytes []byte
 }
 
@@ -145,30 +143,14 @@ func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
 	return nil
 }
 
-// getPasswordFromConfig returns the adminconsole password from the provided chart config.
-func getPasswordFromConfig(chart *v1beta1.Chart) (string, error) {
-	if chart.Values == "" {
-		return "", nil
-	}
-	values := dig.Mapping{}
-	if err := yaml.Unmarshal([]byte(chart.Values), &values); err != nil {
-		return "", fmt.Errorf("unable to unmarshal values: %w", err)
-	}
-	if password, ok := values["password"].(string); ok {
-		return password, nil
-	}
-	return "", nil
-}
-
 // addPasswordToHelmValues adds the adminconsole password to the helm values.
 func (a *AdminConsole) addPasswordToHelmValues() error {
-	pass, err := a.askPassword()
+	_, err := a.askPassword()
 	if err != nil {
 		return fmt.Errorf("unable to ask password: %w", err)
 	}
-	a.password = pass
 
-	shaBytes, err := bcrypt.GenerateFromPassword([]byte(a.password), 10)
+	shaBytes, err := bcrypt.GenerateFromPassword([]byte("password"), 10)
 	if err != nil {
 		return fmt.Errorf("unable to hash password: %w", err)
 	}
