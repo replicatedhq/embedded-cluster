@@ -73,10 +73,10 @@ func init() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
-	namespace     string
-	useprompt     bool
-	license       *kotsv1beta1.License
-	passwordBytes []byte
+	namespace string
+	useprompt bool
+	license   *kotsv1beta1.License
+	password  string
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -145,16 +145,11 @@ func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
 
 // addPasswordToHelmValues adds the adminconsole password to the helm values.
 func (a *AdminConsole) addPasswordToHelmValues() error {
-	_, err := a.askPassword()
+	pass, err := a.askPassword()
 	if err != nil {
 		return fmt.Errorf("unable to ask password: %w", err)
 	}
-
-	shaBytes, err := bcrypt.GenerateFromPassword([]byte("password"), 10)
-	if err != nil {
-		return fmt.Errorf("unable to hash password: %w", err)
-	}
-	a.passwordBytes = shaBytes
+	a.password = pass
 
 	return nil
 }
@@ -203,8 +198,18 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 }
 
 func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client) error {
+
+	pass := a.password
+	if pass == "" {
+		pass = "password"
+	}
+	shaBytes, err := bcrypt.GenerateFromPassword([]byte(pass), 10)
+	if err != nil {
+		return fmt.Errorf("unable to hash password: %w", err)
+	}
+
 	secretData := map[string][]byte{
-		"passwordBcrypt":    a.passwordBytes,
+		"passwordBcrypt":    shaBytes,
 		"passwordUpdatedAt": []byte(time.Now().Format(time.RFC3339)),
 	}
 
