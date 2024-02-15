@@ -218,6 +218,17 @@ func (a *AdminConsole) setPasswordSecret(ctx context.Context, cli client.Client)
 	if err := cli.Update(ctx, &existingSecret); err != nil {
 		return fmt.Errorf("unable to update password secret: %w", err)
 	}
+
+	secretTwo := corev1.Secret{}
+	err = cli.Get(ctx, client.ObjectKey{Namespace: a.namespace, Name: "kotsadm-password"}, &secretTwo)
+	if err != nil {
+		return fmt.Errorf("unable to get password secret: %w", err)
+	}
+
+	if string(secretTwo.Data["passwordBcrypt"]) != string(secretData["passwordBcrypt"]) {
+		return fmt.Errorf("password secret not updated")
+	}
+
 	return nil
 }
 
