@@ -67,6 +67,10 @@ func PathToConfig(name string) string {
 	return def().PathToConfig(name)
 }
 
+func PathToKubeConfig() string {
+	return def().PathToKubeConfig()
+}
+
 // PreferredNodeIPAddress calls PreferredNodeIPAddress on the default provider.
 func PreferredNodeIPAddress() (string, error) {
 	return def().PreferredNodeIPAddress()

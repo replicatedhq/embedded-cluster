@@ -131,6 +131,10 @@ func (d *Provider) PathToConfig(name string) string {
 	return filepath.Join(d.EmbeddedClusterConfigSubDir(), name)
 }
 
+func (d *Provider) PathToKubeConfig() string {
+	return "/var/lib/k0s/pki/admin.conf"
+}
+
 // PreferredNodeIPAddress returns the ip address the node uses when reaching
 // the internet. This is useful when the node has multiple interfaces and we
 // want to bind to one of the interfaces.
