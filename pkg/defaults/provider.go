@@ -40,7 +40,6 @@ func (d *Provider) Init() {
 	if err := os.MkdirAll(d.EmbeddedClusterLogsSubDir(), 0755); err != nil {
 		panic(fmt.Errorf("unable to create embedded-cluster logs dir: %w", err))
 	}
-
 	if err := os.MkdirAll(filepath.Dir(d.PathToKubeConfig()), 0755); err != nil {
 		panic(fmt.Errorf("unable to create kubeconfig directory: %w", err))
 	}
