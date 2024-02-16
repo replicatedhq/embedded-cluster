@@ -172,7 +172,6 @@ main() {
         echo "Failed to install embedded-cluster"
         exit 1
     fi
-    ln -s /usr/local/bin/k0s /usr/local/bin/kubectl
     if ! has_applied_host_preflight; then
         echo "Install hasn't applied host preflight"
         cat /tmp/log

@@ -65,7 +65,6 @@ main() {
         echo "Failed to install embedded-cluster"
         exit 1
     fi
-    ln -s /usr/local/bin/k0s /usr/local/bin/kubectl
     if ! wait_for_healthy_node; then
         echo "Failed to install embedded-cluster"
         exit 1
