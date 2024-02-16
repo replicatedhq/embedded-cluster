@@ -74,7 +74,7 @@ var shellCommand = &cli.Command{
 			_ = term.Restore(fd, state)
 		}()
 
-		config := fmt.Sprintf("alias kubectl=\"/usr/local/bin/k0s/kubectl\"\n")
+		config := fmt.Sprintf("alias kubectl=\"/usr/local/bin/k0s kubectl\"\n")
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
