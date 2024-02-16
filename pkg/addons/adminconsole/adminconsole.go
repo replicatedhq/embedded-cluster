@@ -244,7 +244,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading.Infof("Waiting for Admin Console to deploy: 0/3 ready")
 
 	var lasterr error
-	if err := wait.ExponentialBackoff(backoff, func() (bool, error) {
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		var count int
 		ready, err := kubeutils.IsDeploymentReady(ctx, cli, a.namespace, "kotsadm")
 		if err != nil {
