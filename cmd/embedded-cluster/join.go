@@ -182,12 +182,6 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		logrus.Debugf("linking k0s binary")
-		if err := linkK0s(); err != nil {
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
-		}
-
 		metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Infof("Join finished")
 		return nil

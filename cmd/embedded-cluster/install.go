@@ -257,15 +257,6 @@ func runOutro(c *cli.Context) error {
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
-// linkK0s is a helper function that links the k0s binary to the embedded cluster bins dir as 'kubectl'.
-func linkK0s() error {
-	if err := os.Symlink(defaults.K0sBinaryPath(), defaults.PathToEmbeddedClusterBinary("kubectl")); err != nil {
-		return fmt.Errorf("unable to create symlink: %w", err)
-	}
-
-	return nil
-}
-
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
 // and then run `k0s install` to apply the cluster. Once this is finished then a "kubeconfig"
 // file is created. Resulting kubeconfig is stored in the configuration dir.
@@ -345,11 +336,6 @@ var installCommand = &cli.Command{
 		}
 		logrus.Debugf("running outro")
 		if err := runOutro(c); err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		logrus.Debugf("linking k0s binary")
-		if err := linkK0s(); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

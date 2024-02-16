@@ -13,6 +13,7 @@ EMBEDDED_OPERATOR_CHART_VERSION = 0.22.7
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
+KUBECTL_VERSION = v1.29.1
 K0S_VERSION = v1.29.1+k0s.1
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.83.0
@@ -43,6 +44,12 @@ pkg/goods/bins/k0s: Makefile
 	fi
 	chmod +x pkg/goods/bins/k0s
 	touch pkg/goods/bins/k0s
+
+pkg/goods/bins/kubectl: Makefile
+	mkdir -p pkg/goods/bins
+	curl -L -o pkg/goods/bins/kubectl "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+	chmod +x pkg/goods/bins/kubectl
+	touch pkg/goods/bins/kubectl
 
 pkg/goods/bins/kubectl-support_bundle: Makefile
 	mkdir -p pkg/goods/bins
@@ -75,6 +82,7 @@ embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/
 .PHONY: static
 static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-preflight \
+	pkg/goods/bins/kubectl \
 	pkg/goods/bins/kubectl-support_bundle
 	
 .PHONY: embedded-cluster-linux-amd64
