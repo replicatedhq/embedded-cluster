@@ -57,7 +57,14 @@ var shellCommand = &cli.Command{
 		fmt.Printf(welcome, defaults.BinaryName())
 		shell := exec.Command(shpath)
 		shell.Env = os.Environ()
-		shell.Dir = defaults.EmbeddedClusterBinsSubDir()
+
+		// get the current working directory
+		var err error
+		shell.Dir, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("unable to get current working directory: %w", err)
+		}
+
 		shellpty, err := pty.Start(shell)
 		if err != nil {
 			return fmt.Errorf("unable to start shell: %w", err)
