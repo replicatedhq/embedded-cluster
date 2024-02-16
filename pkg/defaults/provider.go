@@ -132,7 +132,7 @@ func (d *Provider) PathToConfig(name string) string {
 }
 
 func (d *Provider) PathToKubeConfig() string {
-	return filepath.Join(d.Base, "var/lib/k0s/pki/admin.conf")
+	return "/var/lib/k0s/pki/admin.conf"
 }
 
 // PreferredNodeIPAddress returns the ip address the node uses when reaching
