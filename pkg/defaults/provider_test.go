@@ -33,6 +33,7 @@ func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
 	for _, fn := range []func() string{
+		def.EmbeddedClusterBinsSubDir,
 		def.EmbeddedClusterLogsSubDir,
 	} {
 		assert.Contains(t, fn(), tmpdir, "directory should be inside base")
