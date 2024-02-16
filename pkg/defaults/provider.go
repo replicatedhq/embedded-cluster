@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/gosimple/slug"
@@ -53,19 +52,7 @@ func (d *Provider) home() string {
 
 // config returns the user's config dir.
 func (d *Provider) config() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		logrus.Fatalf("unable to get user home dir: %s", err)
-	}
-	// use the XDG_CONFIG_HOME environment variable if set
-	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
-		return xdgConfigHome
-	}
-	// otherwise, default to $HOME/.config on linux
-	if runtime.GOOS == "linux" {
-		return filepath.Join(home, ".config")
-	}
-	return home
+	return "/var/lib/embedded-cluster"
 }
 
 // BinaryName returns the binary name, this is useful for places where we
@@ -96,7 +83,7 @@ func (d *Provider) PathToLog(name string) string {
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
 func (d *Provider) EmbeddedClusterBinsSubDir() string {
-	return filepath.Join(d.Base, d.config(), d.BinaryName(), "bin")
+	return filepath.Join(d.Base, d.config(), "bin")
 }
 
 // EmbeddedClusterConfigSubDir returns the path to the directory where configuration files are
