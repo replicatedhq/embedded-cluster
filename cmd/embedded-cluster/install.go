@@ -259,8 +259,7 @@ func runOutro(c *cli.Context) error {
 
 // linkK0s is a helper function that links the k0s binary to the embedded cluster bins dir as 'kubectl'.
 func linkK0s() error {
-	kubectlPath := filepath.Join(defaults.EmbeddedClusterBinsSubDir(), "kubectl")
-	if err := os.Symlink(defaults.K0sBinaryPath(), kubectlPath); err != nil {
+	if err := os.Symlink(defaults.K0sBinaryPath(), defaults.PathToEmbeddedClusterBinary("kubectl")); err != nil {
 		return fmt.Errorf("unable to create symlink: %w", err)
 	}
 
