@@ -2,7 +2,7 @@
 set -euo pipefail
 
 wait_for_healthy_node() {
-    ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -11,8 +11,8 @@ wait_for_healthy_node() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for node to be ready"
-        ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-        /usr/local/bin/k0s kubectl get nodes || true
+        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+        kubectl get nodes || true
     done
 
     return 0
@@ -28,16 +28,16 @@ wait_for_pods_running() {
         current_time=$(date +%s)
         elapsed_time=$((current_time - start_time))
         if [ "$elapsed_time" -ge "$timeout" ]; then
-            /usr/local/bin/k0s kubectl get pods -A -o yaml || true
-            /usr/local/bin/k0s kubectl describe nodes || true
+            kubectl get pods -A -o yaml || true
+            kubectl describe nodes || true
             echo "Timed out waiting for all pods to be running."
             return 1
         fi
         local non_running_pods
-        non_running_pods=$(/usr/local/bin/k0s kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 != "Running" && $4 != "Completed" { print $0 }' | wc -l || echo 1)
+        non_running_pods=$(kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 != "Running" && $4 != "Completed" { print $0 }' | wc -l || echo 1)
         if [ "$non_running_pods" -ne 0 ]; then
             echo "Not all pods are running. Waiting."
-            /usr/local/bin/k0s kubectl get pods,nodes -A || true
+            kubectl get pods,nodes -A || true
             sleep 5
             continue
         fi
@@ -47,10 +47,10 @@ wait_for_pods_running() {
 }
 
 check_openebs_storage_class() {
-    scs=$(/usr/local/bin/k0s kubectl get sc --no-headers | wc -l)
+    scs=$(kubectl get sc --no-headers | wc -l)
     if [ "$scs" -ne "1" ]; then
         echo "Expected 1 storage class, found $scs"
-        /usr/local/bin/k0s kubectl get sc
+        kubectl get sc
         return 1
     fi
 }
@@ -85,6 +85,7 @@ main() {
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
+ln -s \"/usr/local/bin/k0s\" /usr/local/bin/kubectl
 export PATH=$PATH:/root/.config/embedded-cluster/bin
-source <(/usr/local/bin/k0s kubectl completion $(basename ${SHELL}))
+source <(kubectl completion $(basename ${SHELL}))
 main

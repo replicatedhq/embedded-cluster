@@ -4,7 +4,7 @@ set -euo pipefail
 
 main() {
     expected_nodes="$1"
-    ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "$expected_nodes" ]; do
         echo "Waiting for nodes to be ready ($ready/$expected_nodes)"
@@ -14,8 +14,8 @@ main() {
         fi
         sleep 5
         counter=$((counter+1))
-        ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-        /usr/local/bin/k0s kubectl get nodes || true
+        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+        kubectl get nodes || true
     done
     echo "All nodes are ready"
     exit 0
@@ -23,5 +23,6 @@ main() {
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
+ln -s \"/usr/local/bin/k0s\" /usr/local/bin/kubectl
 export PATH=$PATH:/root/.config/embedded-cluster/bin
 main "$@"

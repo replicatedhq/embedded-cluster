@@ -133,7 +133,7 @@ has_applied_host_preflight() {
 }
 
 wait_for_healthy_node() {
-    ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -142,8 +142,8 @@ wait_for_healthy_node() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for node to be ready"
-        ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-        /usr/local/bin/k0s kubectl get nodes || true
+        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+        kubectl get nodes || true
     done
     return 0
 }
@@ -189,5 +189,6 @@ main() {
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
+ln -s \"/usr/local/bin/k0s\" /usr/local/bin/kubectl
 export PATH=$PATH:/root/.config/embedded-cluster/bin
 main

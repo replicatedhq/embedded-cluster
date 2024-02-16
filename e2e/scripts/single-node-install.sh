@@ -2,7 +2,7 @@
 set -euo pipefail
 
 wait_for_healthy_node() {
-    ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -11,8 +11,8 @@ wait_for_healthy_node() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for node to be ready"
-        ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-        /usr/local/bin/k0s kubectl get nodes || true
+        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+        kubectl get nodes || true
     done
 
     return 0
@@ -28,16 +28,16 @@ wait_for_pods_running() {
         current_time=$(date +%s)
         elapsed_time=$((current_time - start_time))
         if [ "$elapsed_time" -ge "$timeout" ]; then
-            /usr/local/bin/k0s kubectl get pods -A -o yaml || true
-            /usr/local/bin/k0s kubectl describe nodes || true
+            kubectl get pods -A -o yaml || true
+            kubectl describe nodes || true
             echo "Timed out waiting for all pods to be running."
             return 1
         fi
         local non_running_pods
-        non_running_pods=$(/usr/local/bin/k0s kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 != "Running" && $4 != "Completed" { print $0 }' | wc -l || echo 1)
+        non_running_pods=$(kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 != "Running" && $4 != "Completed" { print $0 }' | wc -l || echo 1)
         if [ "$non_running_pods" -ne 0 ]; then
             echo "Not all pods are running. Waiting."
-            /usr/local/bin/k0s kubectl get pods,nodes -A || true
+            kubectl get pods,nodes -A || true
             sleep 5
             continue
         fi
@@ -47,73 +47,73 @@ wait_for_pods_running() {
 }
 
 ensure_node_config() {
-    if ! /usr/local/bin/k0s kubectl describe node | grep "controller-label" ; then
+    if ! kubectl describe node | grep "controller-label" ; then
         echo "Failed to find controller-label"
         return 1
     fi
 
-    if ! /usr/local/bin/k0s kubectl describe node | grep "controller-test" ; then
+    if ! kubectl describe node | grep "controller-test" ; then
         echo "Failed to find controller-test"
         return 1
     fi
 }
 
 wait_for_ingress_pods() {
-    ready=$(/usr/local/bin/k0s kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
+    ready=$(kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             echo "ingress pods did not appear"
-            /usr/local/bin/k0s kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}'
-            /usr/local/bin/k0s kubectl get pods -n ingress-nginx 2>&1 || true
-            /usr/local/bin/k0s kubectl get secrets -n ingress-nginx 2>&1 || true
-            /usr/local/bin/k0s kubectl get charts -A
+            kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}'
+            kubectl get pods -n ingress-nginx 2>&1 || true
+            kubectl get secrets -n ingress-nginx 2>&1 || true
+            kubectl get charts -A
             return 1
         fi
         sleep 5
         counter=$((counter+1))
         echo "Waiting for ingress pods"
-        ready=$(/usr/local/bin/k0s kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
-        /usr/local/bin/k0s kubectl get pods -n ingress-nginx 2>&1 || true
+        ready=$(kubectl get pods -n ingress-nginx -o jsonpath='{.items[*].status.phase}' | grep -c Running || true)
+        kubectl get pods -n ingress-nginx 2>&1 || true
         echo "ready: $ready"
     done
 }
 
 wait_for_nginx_pods() {
-    ready=$(/usr/local/bin/k0s kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+    ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             echo "nginx pods did not appear"
-            /usr/local/bin/k0s kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}'
-            /usr/local/bin/k0s kubectl get pods -n kotsadm
-            /usr/local/bin/k0s kubectl logs -n kotsadm -l app=kotsadm
+            kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}'
+            kubectl get pods -n kotsadm
+            kubectl logs -n kotsadm -l app=kotsadm
             return 1
         fi
         sleep 5
         counter=$((counter+1))
         echo "Waiting for nginx pods"
-        ready=$(/usr/local/bin/k0s kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
-        /usr/local/bin/k0s kubectl get pods -n nginx 2>&1 || true
+        ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+        kubectl get pods -n nginx 2>&1 || true
         echo "ready: $ready"
     done
 }
 
 check_openebs_storage_class() {
-    scs=$(/usr/local/bin/k0s kubectl get sc --no-headers | wc -l)
+    scs=$(kubectl get sc --no-headers | wc -l)
     if [ "$scs" -ne "1" ]; then
         echo "Expected 1 storage class, found $scs"
-        /usr/local/bin/k0s kubectl get sc
+        kubectl get sc
         return 1
     fi
 }
 
 ensure_app_not_upgraded() {
-    if /usr/local/bin/k0s kubectl get ns | grep -q goldpinger ; then
+    if kubectl get ns | grep -q goldpinger ; then
         echo "found goldpinger ns"
         return 1
     fi
-    if /usr/local/bin/k0s kubectl get pods -n kotsadm -l app=second -q | grep -q second ; then
+    if kubectl get pods -n kotsadm -l app=second -q | grep -q second ; then
         echo "found pods from app update"
         return 1
     fi
@@ -164,5 +164,6 @@ main() {
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
+ln -s \"/usr/local/bin/k0s\" /usr/local/bin/kubectl
 export PATH=$PATH:/root/.config/embedded-cluster/bin
 main
