@@ -84,7 +84,7 @@ var shellCommand = &cli.Command{
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-		config = `alias kubectl="/usr/local/bin/k0s kubectl"`
+		config = `alias kubectl="/usr/local/bin/k0s kubectl\n"`
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
