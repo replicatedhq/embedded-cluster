@@ -84,6 +84,10 @@ var shellCommand = &cli.Command{
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
+		config = `alias kubectl="/usr/local/bin/k0s kubectl"`
+		_, _ = shellpty.WriteString(config)
+		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+
 		bindir := defaults.EmbeddedClusterBinsSubDir()
 		config = fmt.Sprintf("export PATH=\"$PATH:%s\"\n", bindir)
 		_, _ = shellpty.WriteString(config)

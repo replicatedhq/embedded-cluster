@@ -87,6 +87,7 @@ func (h *hostInfo) deleteControlNode(ctx context.Context) error {
 func (h *hostInfo) drainNode() error {
 	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
 	drainArgList := []string{
+		"/usr/local/bin/k0s",
 		"kubectl",
 		"drain",
 		"--ignore-daemonsets",
