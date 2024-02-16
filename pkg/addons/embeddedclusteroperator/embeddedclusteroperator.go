@@ -81,8 +81,8 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		Order:     2,
 	}
 
-	helmValues["embeddedBinaryName"] = defaults.BinaryName()
 	if !onlyDefaults {
+		helmValues["embeddedBinaryName"] = defaults.BinaryName()
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 	}
 

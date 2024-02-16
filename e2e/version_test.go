@@ -62,6 +62,10 @@ func TestVersion(t *testing.T) {
 			t.Errorf("metadata output for chart %s contains embeddedClusterID", foundChart.Name)
 			failed = true
 		}
+		if strings.Contains(foundChart.Values, "embeddedBinaryName") {
+			t.Errorf("metadata output for chart %s contains embeddedBinaryName", foundChart.Name)
+			failed = true
+		}
 	}
 
 	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "ingress-nginx"}
