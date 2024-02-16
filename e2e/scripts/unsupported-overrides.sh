@@ -69,7 +69,7 @@ embed_cluster_config() {
 }
 
 wait_for_healthy_node() {
-    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+    ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -78,8 +78,8 @@ wait_for_healthy_node() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for node to be ready"
-        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-        kubectl get nodes || true
+        ready=$(/usr/local/bin/k0s kubectl get nodes | grep -v NotReady | grep -c Ready || true)
+        /usr/local/bin/k0s kubectl get nodes || true
     done
     return 0
 }
@@ -109,7 +109,7 @@ override_applied() {
 }
 
 wait_for_memcached_pods() {
-    ready=$(kubectl get pods -n embedded-cluster | grep -c memcached || true)
+    ready=$(/usr/local/bin/k0s kubectl get pods -n embedded-cluster | grep -c memcached || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
@@ -118,8 +118,8 @@ wait_for_memcached_pods() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for memcached pods"
-        ready=$(kubectl get pods -n embedded-cluster | grep -c memcached || true)
-        kubectl get pods -n embedded-cluster 2>&1 || true
+        ready=$(/usr/local/bin/k0s kubectl get pods -n embedded-cluster | grep -c memcached || true)
+        /usr/local/bin/k0s kubectl get pods -n embedded-cluster 2>&1 || true
         echo "$ready"
     done
 }
@@ -148,7 +148,6 @@ main() {
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
-alias kubectl="/usr/local/bin/k0s kubectl"
 export K0SCONFIG=/etc/k0s/k0s.yaml
 export PATH=$PATH:/root/.config/embedded-cluster/bin
 main
