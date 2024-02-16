@@ -30,7 +30,7 @@ func KubeClient() (client.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create temp dir: %w", err)
 	}
-	defer os.RemoveAll(confDir)
+	//defer os.RemoveAll(confDir) // TODO remove this conf dir somewhere
 	err = os.Setenv("KUBECONFIG", filepath.Join(confDir, "kubeconfig.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to set KUBECONFIG: %w", err)
