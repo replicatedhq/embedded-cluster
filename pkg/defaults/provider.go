@@ -31,7 +31,9 @@ type Provider struct {
 // Init makes sure all the necessary directory exists on the system.
 func (d *Provider) Init() {
 	if err := os.MkdirAll(d.EmbeddedClusterConfigSubDir(), 0755); err != nil {
-		logrus.Fatalf("unable to create config dir: %s", err)
+		panic(fmt.Errorf("unable to create config dir: %w", err))
+
+		//logrus.Fatalf("unable to create config dir: %s", err)
 	}
 	if err := os.MkdirAll(d.EmbeddedClusterBinsSubDir(), 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
