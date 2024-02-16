@@ -147,7 +147,7 @@ main() {
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
+alias kubectl="/usr/local/bin/k0s kubectl"
 export K0SCONFIG=/etc/k0s/k0s.yaml
 export PATH=$PATH:/root/.config/embedded-cluster/bin
 main

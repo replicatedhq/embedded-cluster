@@ -6,20 +6,16 @@ package addons
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 )
 
 // AddOn is the interface that all addons must implement.
@@ -164,39 +160,6 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	}
 
 	return versions, nil
-}
-
-// waitForKubernetes waits until we manage to make a successful connection to the
-// Kubernetes API server.
-func (a *Applier) waitForKubernetes(ctx context.Context) error {
-	loading := pb.Start()
-	defer func() {
-		loading.Closef("Kubernetes API server is ready")
-	}()
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("unable to create kubernetes client: %w", err)
-	}
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	counter := 1
-	loading.Infof("1/n Waiting for Kubernetes API server to be ready")
-	for {
-		select {
-		case <-ticker.C:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-		counter++
-		if err := kcli.List(ctx, &corev1.NamespaceList{}); err != nil {
-			loading.Infof(
-				"%d/n Waiting for Kubernetes API server to be ready.",
-				counter,
-			)
-			continue
-		}
-		return nil
-	}
 }
 
 // NewApplier creates a new Applier instance with all addons registered.

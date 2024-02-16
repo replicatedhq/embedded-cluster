@@ -236,27 +236,8 @@ func waitForK0s(ctx context.Context) error {
 	return nil
 }
 
-// runK0sKubeconfig generates a new kubeconfig file with admin privileges.
-func runK0sKubeconfig(ctx context.Context) error {
-	stdout, err := runCommand(defaults.K0sBinaryPath(), "kubeconfig", "admin")
-	if err != nil {
-		return fmt.Errorf("unable to generate kubeconfig: %w", err)
-	}
-	kpath := defaults.PathToConfig("kubeconfig")
-	fp, err := os.OpenFile(kpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return fmt.Errorf("unable to open kubeconfig: %w", err)
-	}
-	defer fp.Close()
-	if _, err := fp.WriteString(stdout); err != nil {
-		return fmt.Errorf("unable to write kubeconfig: %w", err)
-	}
-	return nil
-}
-
 // runOutro calls Outro() in all enabled addons by means of Applier.
 func runOutro(c *cli.Context) error {
-	os.Setenv("KUBECONFIG", defaults.PathToConfig("kubeconfig"))
 	opts := []addons.Option{}
 	if c.String("license") != "" {
 		license, err := helpers.ParseLicense(c.String("license"))
@@ -349,12 +330,6 @@ var installCommand = &cli.Command{
 		logrus.Debugf("waiting for k0s to be ready")
 		if err := waitForK0s(c.Context); err != nil {
 			err := fmt.Errorf("unable to wait for node: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		logrus.Debugf("reading k0s kubeconfig")
-		if err := runK0sKubeconfig(c.Context); err != nil {
-			err := fmt.Errorf("unable to get kubeconfig: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

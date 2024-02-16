@@ -44,11 +44,6 @@ var shellCommand = &cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
-		cfgpath := defaults.PathToConfig("kubeconfig")
-		if _, err := os.Stat(cfgpath); err != nil {
-			return fmt.Errorf("kubeconfig not found at %s", cfgpath)
-		}
-
 		shpath := os.Getenv("SHELL")
 		if shpath == "" {
 			shpath = "/bin/bash"
@@ -79,8 +74,7 @@ var shellCommand = &cli.Command{
 			_ = term.Restore(fd, state)
 		}()
 
-		kcpath := defaults.PathToConfig("kubeconfig")
-		config := fmt.Sprintf("export KUBECONFIG=%q\n", kcpath)
+		config := fmt.Sprintf("alias kubectl=\"/usr/local/bin/k0s/kubectl\"\n")
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
