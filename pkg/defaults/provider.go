@@ -135,7 +135,7 @@ func (d *Provider) PathToConfig(name string) string {
 }
 
 func (d *Provider) PathToKubeConfig() string {
-	return filepath.Join(d.home(), ".kube", "config")
+	return filepath.Join(d.Base, d.home(), ".kube", "config")
 }
 
 // PreferredNodeIPAddress returns the ip address the node uses when reaching
