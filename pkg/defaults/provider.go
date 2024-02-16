@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/gosimple/slug"
@@ -30,37 +29,7 @@ type Provider struct {
 }
 
 // Init makes sure all the necessary directory exists on the system.
-func (d *Provider) Init() {
-	if err := os.MkdirAll(d.EmbeddedClusterLogsSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create embedded-cluster logs dir: %w", err))
-	}
-}
-
-// home returns the user's home dir.
-func (d *Provider) home() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		logrus.Fatalf("unable to get user home dir: %s", err)
-	}
-	return home
-}
-
-// config returns the user's config dir.
-func (d *Provider) config() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		logrus.Fatalf("unable to get user home dir: %s", err)
-	}
-	// use the XDG_CONFIG_HOME environment variable if set
-	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
-		return xdgConfigHome
-	}
-	// otherwise, default to $HOME/.config on linux
-	if runtime.GOOS == "linux" {
-		return filepath.Join(home, ".config")
-	}
-	return home
-}
+func (d *Provider) Init() {}
 
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if
@@ -78,7 +47,12 @@ func (d *Provider) BinaryName() string {
 // EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs
 // are stored.
 func (d *Provider) EmbeddedClusterLogsSubDir() string {
-	return filepath.Join(d.Base, d.config(), d.BinaryName(), "logs")
+	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "logs")
+	if err := os.MkdirAll(path, 0755); err != nil {
+		logrus.Fatalf("unable to create embedded-cluster logs dir: %s", err)
+	}
+
+	return path
 }
 
 // PathToLog returns the full path to a log file. This function does not check
@@ -90,7 +64,7 @@ func (d *Provider) PathToLog(name string) string {
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
 func (d *Provider) EmbeddedClusterBinsSubDir() string {
-	path := filepath.Join(d.Base, "/var/lib/embedded-cluster", "bin")
+	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "bin")
 
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
@@ -101,7 +75,7 @@ func (d *Provider) EmbeddedClusterBinsSubDir() string {
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func (d *Provider) EmbeddedClusterHomeDirectory() string {
-	return filepath.Join(d.Base, d.config(), d.BinaryName())
+	return filepath.Join(d.Base, "/var/lib/embedded-cluster")
 }
 
 // K0sBinaryPath returns the path to the k0s binary when it is installed on the node. This

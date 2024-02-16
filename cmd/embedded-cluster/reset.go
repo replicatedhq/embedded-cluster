@@ -385,12 +385,6 @@ var resetCommand = &cli.Command{
 			}
 		}
 
-		if _, err := os.Stat(defaults.EmbeddedClusterBinsSubDir()); err == nil {
-			if err := os.RemoveAll(defaults.EmbeddedClusterBinsSubDir()); err != nil {
-				return err
-			}
-		}
-
 		return nil
 	},
 }
