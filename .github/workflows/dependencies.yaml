@@ -23,10 +23,6 @@ jobs:
       run: |
         export VERSION=`curl https://api.github.com/repos/openebs/charts/releases/latest | jq -r .name | tr -d openebs-`
         sed -i "/^OPENEBS_CHART_VERSION/c\OPENEBS_CHART_VERSION = $VERSION" Makefile
-    - name: Kubectl
-      run: |
-        export VERSION=`curl -L -s https://dl.k8s.io/release/stable.txt`
-        sed -i "/^KUBECTL_VERSION/c\KUBECTL_VERSION = $VERSION" Makefile
     - name: K0s
       run: |
         # Remove the '-ec.X' suffix and only update if the prefix (upstream k0s release) has changed.

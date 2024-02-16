@@ -16,13 +16,14 @@ func TestVersion(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
+		CreateRegularUser:   true,
 		Image:               "ubuntu/jammy",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
 	t.Logf("%s: validating embedded-cluster version in node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-cluster", "version"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err := RunRegularUserCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
@@ -42,7 +43,7 @@ func TestVersion(t *testing.T) {
 	}
 
 	line2 := []string{"embedded-cluster", "version", "metadata"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line2)
+	stdout, stderr, err = RunRegularUserCommandOnNode(t, tc, 0, line2)
 	if err != nil {
 		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
 	}
@@ -54,6 +55,17 @@ func TestVersion(t *testing.T) {
 	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
 		t.Log(output)
 		t.Fatalf("fail to parse metadata output: %v", err)
+	}
+
+	for _, foundChart := range parsed.Configs.Charts {
+		if strings.Contains(foundChart.Values, "embeddedClusterID") {
+			t.Errorf("metadata output for chart %s contains embeddedClusterID", foundChart.Name)
+			failed = true
+		}
+		if strings.Contains(foundChart.Values, "embeddedBinaryName") {
+			t.Errorf("metadata output for chart %s contains embeddedBinaryName", foundChart.Name)
+			failed = true
+		}
 	}
 
 	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "ingress-nginx"}

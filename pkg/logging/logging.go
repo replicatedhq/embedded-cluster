@@ -66,6 +66,11 @@ func needsFileLogging() bool {
 	if strings.Contains(cmdline, "shell") {
 		return false
 	}
+	if os.Getuid() != 0 {
+		// if this is not the root user, we're going to exit with a 'you aren't root' error
+		return false
+	}
+
 	return true
 }
 

@@ -42,11 +42,6 @@ func EmbeddedClusterLogsSubDir() string {
 	return def().EmbeddedClusterLogsSubDir()
 }
 
-// EmbeddedClusterConfigSubDir calls ConfigSubDir on the default provider.
-func EmbeddedClusterConfigSubDir() string {
-	return def().EmbeddedClusterConfigSubDir()
-}
-
 // K0sBinaryPath calls K0sBinaryPath on the default provider.
 func K0sBinaryPath() string {
 	return def().K0sBinaryPath()
@@ -60,11 +55,6 @@ func PathToEmbeddedClusterBinary(name string) string {
 // PathToLog calls PathToLog on the default provider.
 func PathToLog(name string) string {
 	return def().PathToLog(name)
-}
-
-// PathToConfig calls PathToConfig on the default provider.
-func PathToConfig(name string) string {
-	return def().PathToConfig(name)
 }
 
 func PathToKubeConfig() string {

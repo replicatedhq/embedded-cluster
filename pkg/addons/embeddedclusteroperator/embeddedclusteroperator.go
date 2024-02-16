@@ -38,8 +38,6 @@ var helmValues = map[string]interface{}{
 	"kotsVersion":               adminconsole.Version,
 	"embeddedClusterVersion":    defaults.Version,
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
-	"embeddedBinaryName":        defaults.BinaryName(),
-	"embeddedClusterID":         metrics.ClusterID().String(),
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
@@ -82,6 +80,12 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		TargetNS:  "embedded-cluster",
 		Order:     2,
 	}
+
+	if !onlyDefaults {
+		helmValues["embeddedBinaryName"] = defaults.BinaryName()
+		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
+	}
+
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)

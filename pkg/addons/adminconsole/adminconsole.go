@@ -53,7 +53,6 @@ var helmValues = map[string]interface{}{
 		"enabled":  true,
 		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
 	},
-	"embeddedClusterID":      metrics.ClusterID().String(),
 	"embeddedClusterVersion": defaults.Version,
 }
 
@@ -218,6 +217,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 		if err := a.addKotsApplicationToHelmValues(); err != nil {
 			return nil, nil, fmt.Errorf("unable to add kots app to helm values: %w", err)
 		}
+		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 	}
 	if err := a.addLicenseAndVersionToHelmValues(); err != nil {
 		return nil, nil, fmt.Errorf("unable to add license to helm values: %w", err)
