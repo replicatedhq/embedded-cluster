@@ -17,6 +17,7 @@ import (
 )
 
 var clusterIDMut sync.Mutex
+var clusterID *uuid.UUID
 
 // BaseURL determines the base url to be used when sending metrics over.
 func BaseURL(license *kotsv1beta1.License) string {
@@ -43,30 +44,15 @@ func License(c *cli.Context) *kotsv1beta1.License {
 	return license
 }
 
-// ClusterID returns the cluster id. It is read from from a local file (if this is
-// a second attempt at installation or an upgrade) or a new one is generated and
-// stored locally.
+// ClusterID returns the cluster id. This is unique per 'install', but will be stored in the cluster and used by any future 'join' commands.
 func ClusterID() uuid.UUID {
 	clusterIDMut.Lock()
 	defer clusterIDMut.Unlock()
-	fpath := defaults.PathToConfig(".cluster-id")
-	if _, err := os.Stat(fpath); err == nil {
-		data, err := os.ReadFile(fpath)
-		if err != nil {
-			logrus.Warnf("unable to read cluster id from %s: %s", fpath, err)
-			return uuid.New()
-		}
-		id, err := uuid.Parse(string(data))
-		if err != nil {
-			logrus.Warnf("unable to parse cluster id from %s: %s", fpath, err)
-			return uuid.New()
-		}
-		return id
+	if clusterID != nil {
+		return *clusterID
 	}
 	id := uuid.New()
-	if err := os.WriteFile(fpath, []byte(id.String()), 0644); err != nil {
-		logrus.Warnf("unable to write cluster id to %s: %s", fpath, err)
-	}
+	clusterID = &id
 	return id
 }
 
