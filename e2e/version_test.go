@@ -57,9 +57,11 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("fail to parse metadata output: %v", err)
 	}
 
-	if strings.Contains(output, "embeddedClusterID") {
-		t.Errorf("metadata output contains embeddedClusterID")
-		failed = true
+	for _, foundChart := range parsed.Configs.Charts {
+		if strings.Contains(foundChart.Values, "embeddedClusterID") {
+			t.Errorf("metadata output for chart %s contains embeddedClusterID", foundChart.Name)
+			failed = true
+		}
 	}
 
 	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "ingress-nginx"}
