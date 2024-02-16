@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -193,59 +194,104 @@ func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, 
 // upgrade plan already exists we make sure the installation status is updated with the
 // latest plan status.
 func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1beta1.Installation) error {
+	// if the installation has no desired version then there isn't much we can do other
+	// than flagging as installed. this will allow the add-ons to be applied.
 	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
 		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "")
 		return nil
 	}
+
+	// if we are running the desired version sets the kubernetes as installed. the upgrade
+	// process is: 1st) upgrade the k0s cluster and 2nd) update the addons. if we are online
+	// and our version matches the desired version then it means that the k0s upgrade went
+	// through.
+	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
+	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
+	if curstr == desstr {
+		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "")
+		return nil
+	}
+
+	// fetch the metadata for the desired embedded cluster version.
 	meta, err := release.MetadataFor(ctx, in.Spec.Config.Version, in.Spec.MetricsBaseURL)
 	if err != nil {
 		in.Status.SetState(v1beta1.InstallationStateFailed, err.Error())
 		return nil
 	}
+
+	// find out the kubernetes version we are currently running so we can compare with
+	// the desired kubernetes version. we don't want anyone trying to do a downgrade.
 	vinfo, err := r.Discovery.ServerVersion()
 	if err != nil {
 		return fmt.Errorf("failed to get server version: %w", err)
 	}
 	runningVersion := vinfo.GitVersion
-	if runningVersion == meta.Versions.Kubernetes {
-		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "")
-		return nil
-	}
 	running, err := version.NewVersion(runningVersion)
 	if err != nil {
 		reason := fmt.Sprintf("Invalid running version %s", runningVersion)
 		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
 		return nil
 	}
-	desired, err := version.NewVersion(meta.Versions.Kubernetes)
+
+	// if we have installed the cluster with a k0s version like v1.29.1+k0s.1 then
+	// the kubernetes server version reported back is v1.29.1+k0s. i.e. the .1 is
+	// not part of the kubernetes version, it is the k0s version. we trim it down
+	// so we can compare kube with kube version.
+	desiredVersion := meta.Versions.Kubernetes
+	index := strings.Index(desiredVersion, "k0s")
+	if index == -1 {
+		reason := fmt.Sprintf("Invalid desired version %s", desiredVersion)
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+		return nil
+	}
+	desiredVersion = desiredVersion[:index+len("k0s")]
+	desired, err := version.NewVersion(desiredVersion)
 	if err != nil {
 		reason := fmt.Sprintf("Invalid desired version %s", in.Spec.Config.Version)
 		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
 		return nil
 	}
+
+	// stop here if someone is trying a downgrade. we do not support this, flag the
+	// installation accordingly and returns.
 	if running.GreaterThan(desired) {
 		in.Status.SetState(v1beta1.InstallationStateFailed, "Downgrades not supported")
 		return nil
 	}
+
 	var plan apv1b2.Plan
 	okey := client.ObjectKey{Name: "autopilot"}
 	if err := r.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get upgrade plan: %w", err)
 	} else if errors.IsNotFound(err) {
+		// there is no autopilot plan in the cluster so we are free to
+		// start our own plan. here we link the plan to the installation
+		// by its name.
 		if err := r.StartUpgrade(ctx, in); err != nil {
 			return fmt.Errorf("failed to start upgrade: %w", err)
 		}
 		return nil
 	}
+
+	// if we have created this plan we just found for the installation we are
+	// reconciling we set the installation state according to the plan state.
 	if plan.Spec.ID == in.Name {
 		r.SetStateBasedOnPlan(in, plan)
 		return nil
 	}
+
+	// this is most likely a plan that has been created by a previous installation
+	// object, we can't move on until this one finishes. this can happen if someone
+	// issues multiple upgrade requests at the same time.
 	if !autopilot.HasThePlanEnded(plan) {
 		reason := fmt.Sprintf("Another upgrade is in progress (%s)", plan.Spec.ID)
 		in.Status.SetState(v1beta1.InstallationStateWaiting, reason)
 		return nil
 	}
+
+	// it seems like the plan previously created by other installation object
+	// has been finished, we can delete it. this will trigger a new reconcile
+	// this time without the plan (i.e. we will be able to create our own plan).
 	if err := r.Delete(ctx, &plan); err != nil {
 		return fmt.Errorf("failed to delete previous upgrade plan: %w", err)
 	}

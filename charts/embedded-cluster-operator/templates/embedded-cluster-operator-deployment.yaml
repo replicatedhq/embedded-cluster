@@ -52,6 +52,12 @@ spec:
         command:
         - /manager
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+        env:
+        - name: EMBEDDEDCLUSTER_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: embedded-cluster-config
+              key: embedded-cluster-version
         name: manager
 {{- if .Values.livenessProbe }}
         livenessProbe:
