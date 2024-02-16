@@ -75,6 +75,12 @@ func (d *Provider) EmbeddedClusterBinsSubDir() string {
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func (d *Provider) EmbeddedClusterHomeDirectory() string {
+	// check if the current user is root - if so, we use /var/lib/embedded-cluster
+	// otherwise, we use the home dir
+	if os.Getuid() != 0 {
+		return filepath.Join(d.Base, os.Getenv("HOME"), ".embedded-cluster")
+	}
+
 	return filepath.Join(d.Base, "/var/lib/embedded-cluster")
 }
 
