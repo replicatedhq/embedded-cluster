@@ -65,6 +65,7 @@ main() {
         echo "Failed to install embedded-cluster"
         exit 1
     fi
+    ln -s /usr/local/bin/k0s /usr/local/bin/kubectl
     if ! wait_for_healthy_node; then
         echo "Failed to install embedded-cluster"
         exit 1
@@ -85,7 +86,5 @@ main() {
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/root/.config/embedded-cluster/etc/kubeconfig
-ln -s \"/usr/local/bin/k0s\" /usr/local/bin/kubectl
 export PATH=$PATH:/root/.config/embedded-cluster/bin
-source <(kubectl completion $(basename ${SHELL}))
 main
