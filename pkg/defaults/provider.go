@@ -40,6 +40,10 @@ func (d *Provider) Init() {
 	if err := os.MkdirAll(d.EmbeddedClusterLogsSubDir(), 0755); err != nil {
 		panic(fmt.Errorf("unable to create embedded-cluster logs dir: %w", err))
 	}
+
+	if err := os.MkdirAll(filepath.Dir(d.PathToKubeConfig()), 0755); err != nil {
+		panic(fmt.Errorf("unable to create kubeconfig directory: %w", err))
+	}
 }
 
 // home returns the user's home dir.
@@ -129,6 +133,10 @@ func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 // does not check if the file exists.
 func (d *Provider) PathToConfig(name string) string {
 	return filepath.Join(d.EmbeddedClusterConfigSubDir(), name)
+}
+
+func (d *Provider) PathToKubeConfig() string {
+	return filepath.Join(d.home(), ".kube", "config")
 }
 
 // PreferredNodeIPAddress returns the ip address the node uses when reaching
