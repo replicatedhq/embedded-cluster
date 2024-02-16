@@ -13,7 +13,7 @@ func TestInit(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
-	assert.DirExists(t, def.EmbeddedClusterConfigSubDir(), "config dir should exist")
+	assert.DirExists(t, def.EmbeddedClusterLogsSubDir(), "logs dir should exist")
 	assert.DirExists(t, def.EmbeddedClusterBinsSubDir(), "embedded-cluster binary dir should exist")
 }
 
@@ -33,9 +33,7 @@ func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	def := NewProvider(tmpdir)
 	for _, fn := range []func() string{
-		def.EmbeddedClusterBinsSubDir,
 		def.EmbeddedClusterLogsSubDir,
-		def.EmbeddedClusterConfigSubDir,
 	} {
 		assert.Contains(t, fn(), tmpdir, "directory should be inside base")
 		count := strings.Count(fn(), tmpdir)

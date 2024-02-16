@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/gosimple/slug"
@@ -30,14 +31,6 @@ type Provider struct {
 
 // Init makes sure all the necessary directory exists on the system.
 func (d *Provider) Init() {
-	if err := os.MkdirAll(d.EmbeddedClusterConfigSubDir(), 0755); err != nil {
-		panic(fmt.Errorf("unable to create config dir: %w", err))
-
-		//logrus.Fatalf("unable to create config dir: %s", err)
-	}
-	if err := os.MkdirAll(d.EmbeddedClusterBinsSubDir(), 0755); err != nil {
-		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
-	}
 	if err := os.MkdirAll(d.EmbeddedClusterLogsSubDir(), 0755); err != nil {
 		panic(fmt.Errorf("unable to create embedded-cluster logs dir: %w", err))
 	}
@@ -54,7 +47,19 @@ func (d *Provider) home() string {
 
 // config returns the user's config dir.
 func (d *Provider) config() string {
-	return "/var/lib/embedded-cluster"
+	home, err := os.UserHomeDir()
+	if err != nil {
+		logrus.Fatalf("unable to get user home dir: %s", err)
+	}
+	// use the XDG_CONFIG_HOME environment variable if set
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		return xdgConfigHome
+	}
+	// otherwise, default to $HOME/.config on linux
+	if runtime.GOOS == "linux" {
+		return filepath.Join(home, ".config")
+	}
+	return home
 }
 
 // BinaryName returns the binary name, this is useful for places where we
@@ -85,13 +90,12 @@ func (d *Provider) PathToLog(name string) string {
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
 // are stored.
 func (d *Provider) EmbeddedClusterBinsSubDir() string {
-	return filepath.Join(d.Base, d.config(), "bin")
-}
+	path := filepath.Join(d.Base, "/var/lib/embedded-cluster", "bin")
 
-// EmbeddedClusterConfigSubDir returns the path to the directory where configuration files are
-// stored.
-func (d *Provider) EmbeddedClusterConfigSubDir() string {
-	return filepath.Join(d.Base, d.config(), d.BinaryName(), "etc")
+	if err := os.MkdirAll(path, 0755); err != nil {
+		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
+	}
+	return path
 }
 
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
@@ -112,12 +116,6 @@ func (d *Provider) K0sBinaryPath() string {
 // if the file exists.
 func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 	return filepath.Join(d.EmbeddedClusterBinsSubDir(), name)
-}
-
-// PathToConfig returns the full path to a configuration file. This function
-// does not check if the file exists.
-func (d *Provider) PathToConfig(name string) string {
-	return filepath.Join(d.EmbeddedClusterConfigSubDir(), name)
 }
 
 func (d *Provider) PathToKubeConfig() string {
