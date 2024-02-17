@@ -70,17 +70,15 @@ func runPostInstall() error {
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
 func runHostPreflights(c *cli.Context) error {
-	pb := progressbar.Start()
-	pb.Infof("Running host preflights on node")
 	hpf, err := addons.NewApplier().HostPreflights()
 	if err != nil {
-		pb.CloseWithError()
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
-		pb.Close()
 		return nil
 	}
+	pb := progressbar.Start()
+	pb.Infof("Running host preflights on node")
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		pb.CloseWithError()
