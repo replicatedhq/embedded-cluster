@@ -19,8 +19,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
@@ -92,7 +92,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 
 // Outro is executed after the cluster deployment.
 func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) error {
-	loading := pb.Start()
+	loading := spinner.Start()
 	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
 	if err := kubeutils.WaitForDeployment(ctx, cli, e.namespace, e.deployName); err != nil {
 		loading.Close()
