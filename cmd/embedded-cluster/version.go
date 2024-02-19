@@ -20,7 +20,7 @@ import (
 var versionCommand = &cli.Command{
 	Name:        "version",
 	Usage:       fmt.Sprintf("Show the %s component versions", defaults.BinaryName()),
-	Subcommands: []*cli.Command{metadataCommand, embedCommand},
+	Subcommands: []*cli.Command{metadataCommand, embeddedDataCommand},
 	Action: func(c *cli.Context) error {
 		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
 		versions, err := addons.NewApplier(opts...).Versions(config.AdditionalCharts())
@@ -112,8 +112,8 @@ var metadataCommand = &cli.Command{
 	},
 }
 
-var embedCommand = &cli.Command{
-	Name:   "embed",
+var embeddedDataCommand = &cli.Command{
+	Name:   "embedded-data",
 	Usage:  "read the application data embedded in the cluster",
 	Hidden: true,
 	Action: func(context *cli.Context) error {
