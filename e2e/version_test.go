@@ -21,7 +21,7 @@ func TestVersion(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
-	t.Logf("%s: validating embedded-cluster version in node 0", time.Now().Format(time.RFC3339))
+	t.Logf("%s: validating 'embedded-cluster version' in node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-cluster", "version"}
 	stdout, stderr, err := RunRegularUserCommandOnNode(t, tc, 0, line)
 	if err != nil {
@@ -42,6 +42,7 @@ func TestVersion(t *testing.T) {
 		return
 	}
 
+	t.Logf("%s: validating 'embedded-cluster version metadata' in node 0", time.Now().Format(time.RFC3339))
 	line2 := []string{"embedded-cluster", "version", "metadata"}
 	stdout, stderr, err = RunRegularUserCommandOnNode(t, tc, 0, line2)
 	if err != nil {
@@ -90,7 +91,30 @@ func TestVersion(t *testing.T) {
 
 	if failed {
 		t.Log(output)
-		return
+		t.FailNow()
+	}
+
+	t.Logf("%s: validating 'embedded-cluster version embed' in node 0", time.Now().Format(time.RFC3339))
+	line3 := []string{"embedded-cluster", "version", "embed"}
+	stdout, stderr, err = RunRegularUserCommandOnNode(t, tc, 0, line3)
+	if err != nil {
+		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
+	}
+
+	sections := []string{"Application", "Embedded Cluster Config", "Release", "Preflights"}
+	for _, section := range sections {
+		if !strings.Contains(stdout, section) {
+			t.Errorf("missing %q section in 'embed' output", section)
+			failed = true
+		}
+	}
+
+	if failed {
+		t.Log("stdout")
+		t.Log(stdout)
+		t.Log("stderr")
+		t.Log(stderr)
+		t.FailNow()
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
