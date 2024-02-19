@@ -12,6 +12,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: "1.21.0"
+        cache: false
     - name: Go vet
       run: |
         make vet
@@ -29,6 +30,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: "1.21.0"
+        cache: false
     - name: Go vet
       run: |
        make vet
@@ -47,6 +49,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: "1.21.0"
+        cache: false
     - name: Build Linux AMD64
       run: |
         make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
