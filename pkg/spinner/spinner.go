@@ -1,7 +1,5 @@
-// Package progressbar provides a simple progress bar for the CLI. This
-// should have been called "loadingbar" instead as there is no progress
-// at all.
-package progressbar
+// Package spinner provides a simple spinner for the CLI.
+package spinner
 
 import (
 	"fmt"

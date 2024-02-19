@@ -1,4 +1,4 @@
-package progressbar
+package spinner
 
 // Option is a function that sets an option on a MessageWriter.
 type Option func(*MessageWriter)

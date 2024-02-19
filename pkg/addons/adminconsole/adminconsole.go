@@ -20,9 +20,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
@@ -239,7 +239,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
-	loading := pb.Start()
+	loading := spinner.Start()
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/3 ready")
 

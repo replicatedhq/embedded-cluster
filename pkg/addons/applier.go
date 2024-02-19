@@ -19,7 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	pb "github.com/replicatedhq/embedded-cluster/pkg/progressbar"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 // AddOn is the interface that all addons must implement.
@@ -169,7 +169,7 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 // waitForKubernetes waits until we manage to make a successful connection to the
 // Kubernetes API server.
 func (a *Applier) waitForKubernetes(ctx context.Context) error {
-	loading := pb.Start()
+	loading := spinner.Start()
 	defer func() {
 		loading.Closef("Kubernetes API server is ready")
 	}()

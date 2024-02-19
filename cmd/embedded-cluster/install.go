@@ -21,9 +21,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/progressbar"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 // ErrNothingElseToAdd is an error returned when there is nothing else to add to the
@@ -70,17 +70,15 @@ func runPostInstall() error {
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
 func runHostPreflights(c *cli.Context) error {
-	pb := progressbar.Start()
-	pb.Infof("Running host preflights on node")
 	hpf, err := addons.NewApplier().HostPreflights()
 	if err != nil {
-		pb.CloseWithError()
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
-		pb.Close()
 		return nil
 	}
+	pb := spinner.Start()
+	pb.Infof("Running host preflights on node")
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		pb.CloseWithError()
@@ -213,9 +211,9 @@ func installK0s(c *cli.Context) error {
 // waitForK0s waits for the k0s API to be available. We wait for the k0s socket to
 // appear in the system and until the k0s status command to finish.
 func waitForK0s(ctx context.Context) error {
-	pb := progressbar.Start()
-	defer pb.Close()
-	pb.Infof("Waiting for %s node to be ready", defaults.BinaryName())
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Waiting for %s node to be ready", defaults.BinaryName())
 	var success bool
 	for i := 0; i < 30; i++ {
 		time.Sleep(2 * time.Second)
@@ -232,7 +230,7 @@ func waitForK0s(ctx context.Context) error {
 	if _, err := runCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
 	}
-	pb.Infof("Node installation finished")
+	loading.Infof("Node installation finished")
 	return nil
 }
 
