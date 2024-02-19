@@ -20,7 +20,7 @@ import (
 var versionCommand = &cli.Command{
 	Name:        "version",
 	Usage:       fmt.Sprintf("Show the %s component versions", defaults.BinaryName()),
-	Subcommands: []*cli.Command{metadataCommand},
+	Subcommands: []*cli.Command{metadataCommand, embeddedDataCommand},
 	Action: func(c *cli.Context) error {
 		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
 		versions, err := addons.NewApplier(opts...).Versions(config.AdditionalCharts())
@@ -108,6 +108,64 @@ var metadataCommand = &cli.Command{
 			return fmt.Errorf("unable to marshal versions: %w", err)
 		}
 		fmt.Println(string(data))
+		return nil
+	},
+}
+
+var embeddedDataCommand = &cli.Command{
+	Name:   "embedded-data",
+	Usage:  "read the application data embedded in the cluster",
+	Hidden: true,
+	Action: func(context *cli.Context) error {
+		// Application
+		app, err := release.GetApplication()
+		if err != nil {
+			return fmt.Errorf("failed to get embedded application: %w", err)
+		}
+		fmt.Printf("Application:\n%s\n\n", string(app))
+
+		// Embedded Cluster Config
+		cfg, err := release.GetEmbeddedClusterConfig()
+		if err != nil {
+			return fmt.Errorf("failed to get embedded cluster config: %w", err)
+		}
+		if cfg != nil {
+			cfgJson, err := json.MarshalIndent(cfg, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal embedded cluster config: %w", err)
+			}
+
+			fmt.Printf("Embedded Cluster Config:\n%s\n\n", string(cfgJson))
+		}
+
+		// Channel Release
+		rel, err := release.GetChannelRelease()
+		if err != nil {
+			return fmt.Errorf("failed to get release: %w", err)
+		}
+		if rel != nil {
+			relJson, err := json.MarshalIndent(rel, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal release: %w", err)
+			}
+
+			fmt.Printf("Release:\n%s\n\n", string(relJson))
+		}
+
+		// Host Preflights
+		pre, err := release.GetHostPreflights()
+		if err != nil {
+			return fmt.Errorf("failed to get host preflights: %w", err)
+		}
+		if pre != nil {
+			preJson, err := json.MarshalIndent(pre, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal host preflights: %w", err)
+			}
+
+			fmt.Printf("Preflights:\n%s\n\n", string(preJson))
+		}
+
 		return nil
 	},
 }
