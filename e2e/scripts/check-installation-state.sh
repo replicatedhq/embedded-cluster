@@ -34,6 +34,9 @@ main() {
     echo "ensure that installation is installed"
     wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"
+
+    echo "ensure that the admin console branding is available"
+    kubectl get cm -n kotsadm kotsadm-application-metadata
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
