@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/creack/pty"
@@ -57,7 +58,14 @@ var shellCommand = &cli.Command{
 		fmt.Printf(welcome, defaults.BinaryName())
 		shell := exec.Command(shpath)
 		shell.Env = os.Environ()
-		shell.Dir = defaults.EmbeddedClusterBinsSubDir()
+
+		// get the current working directory
+		var err error
+		shell.Dir, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("unable to get current working directory: %w", err)
+		}
+
 		shellpty, err := pty.Start(shell)
 		if err != nil {
 			return fmt.Errorf("unable to start shell: %w", err)
@@ -91,7 +99,7 @@ var shellCommand = &cli.Command{
 
 		// if /etc/bash_completion is present enable kubectl auto completion.
 		if _, err := os.Stat("/etc/bash_completion"); err == nil {
-			config = "source <(kubectl completion $(basename ${SHELL}))\n"
+			config = fmt.Sprintf("source <(kubectl completion %s)\n", filepath.Base(shpath))
 			_, _ = shellpty.WriteString(config)
 			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
