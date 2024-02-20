@@ -232,7 +232,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 		Version:   Version,
 		Values:    string(values),
 		TargetNS:  a.namespace,
-		Order:     -10,
+		Order:     3,
 	}
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
