@@ -77,6 +77,13 @@ main() {
 
     echo "ensure that the admin console branding is available"
     kubectl get cm -n kotsadm kotsadm-application-metadata
+
+    echo "ensure that the default chart order remained 10"
+    kubectl describe clusterconfig -n kube-system k0s
+    if ! kubectl describe clusterconfig -n kube-system k0s | grep "Order" | grep -q "10"; then
+        echo "no charts had an order of '10'"
+        exit 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
