@@ -19,6 +19,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
+const DEFAULT_VENDOR_CHART_ORDER = 10
+
 // ReadConfigFile reads the cluster configuration from the provided file.
 func ReadConfigFile(cfgPath string) (dig.Mapping, error) {
 	data, err := os.ReadFile(cfgPath)
@@ -183,6 +185,12 @@ func AdditionalCharts() []k0sconfig.Chart {
 	if err == nil {
 		if clusterConfig != nil {
 			if clusterConfig.Spec.Extensions.Helm != nil {
+				for k, _ := range clusterConfig.Spec.Extensions.Helm.Charts {
+					if clusterConfig.Spec.Extensions.Helm.Charts[k].Order == 0 {
+						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = DEFAULT_VENDOR_CHART_ORDER
+					}
+				}
+
 				return clusterConfig.Spec.Extensions.Helm.Charts
 			}
 		}
