@@ -5,6 +5,7 @@ package logging
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -52,6 +53,8 @@ func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
 }
 
 // needsFileLogging filters out, based on command line argument, if we need to log to a file.
+// we only log to a file when running as root as the log location is in a directory a regular
+// user may not be able to write to.
 func needsFileLogging() bool {
 	if len(os.Args) == 1 {
 		return false
@@ -66,12 +69,7 @@ func needsFileLogging() bool {
 	if strings.Contains(cmdline, "shell") {
 		return false
 	}
-	if os.Getuid() != 0 {
-		// if this is not the root user, we're going to exit with a 'you aren't root' error
-		return false
-	}
-
-	return true
+	return os.Getuid() == 0
 }
 
 // trimLogDir removes the oldest log files if we have more than MaxLogFiles.
@@ -104,6 +102,8 @@ func trimLogDir() {
 // all to the screen otherwise we print to a log file.
 func SetupLogging() {
 	if !needsFileLogging() {
+		logrus.SetOutput(io.Discard)
+		logrus.AddHook(&StdoutLogger{})
 		return
 	}
 	logrus.SetLevel(logrus.DebugLevel)
