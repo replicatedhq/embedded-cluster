@@ -127,7 +127,7 @@ wait_for_memcached_pods() {
 main() {
     cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_cluster_config "$embedded_cluster_config"
-    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         cat /tmp/log
         exit 1
