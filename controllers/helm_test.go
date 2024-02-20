@@ -131,6 +131,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 							{
 								Name:    "test",
 								Version: "1.0.0",
+								Order:   2,
 							},
 						},
 					},
@@ -143,6 +144,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					{
 						Name:    "test",
 						Version: "1.0.0",
+						Order:   2,
 					},
 				},
 			},
@@ -193,11 +195,13 @@ func Test_mergeHelmConfigs(t *testing.T) {
 				},
 				Charts: []k0sv1beta1.Chart{
 					{
-						Name: "origchart",
+						Name:  "origchart",
+						Order: 10,
 					},
 					{
 						Name:    "newchart",
 						Version: "1.0.0",
+						Order:   10,
 					},
 				},
 			},

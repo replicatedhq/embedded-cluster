@@ -373,6 +373,7 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 						{
 							Name:    "metachart",
 							Version: "1",
+							Order:   1,
 						},
 					},
 				},
@@ -397,10 +398,12 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 					{
 						Name:    "metachart",
 						Version: "1",
+						Order:   1,
 					},
 					{
 						Name:    "extchart",
 						Version: "2",
+						Order:   10,
 					},
 				},
 			},

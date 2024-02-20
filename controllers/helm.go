@@ -13,6 +13,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
 )
 
+const DEFAULT_VENDOR_CHART_ORDER = 10
+
 // MergeValues takes two helm values in the form of dig.Mapping{} and a list of values (in jsonpath notation) to not override
 // and combines the values. it returns the resultant yaml string
 func MergeValues(oldValues, newValues string, protectedValues []string) (string, error) {
@@ -75,6 +77,12 @@ func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.
 
 		// append the user provided charts to the default charts
 		combinedConfigs.Charts = append(combinedConfigs.Charts, in.Spec.Config.Extensions.Helm.Charts...)
+		for k := range combinedConfigs.Charts {
+			if combinedConfigs.Charts[k].Order == 0 {
+				combinedConfigs.Charts[k].Order = DEFAULT_VENDOR_CHART_ORDER
+			}
+		}
+
 		// append the user provided repositories to the default repositories
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, in.Spec.Config.Extensions.Helm.Repositories...)
 	}
