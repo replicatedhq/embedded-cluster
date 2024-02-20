@@ -11,6 +11,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-operator/controllers"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -18,8 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
-
-const DEFAULT_VENDOR_CHART_ORDER = 10
 
 // ReadConfigFile reads the cluster configuration from the provided file.
 func ReadConfigFile(cfgPath string) (dig.Mapping, error) {
@@ -187,7 +186,7 @@ func AdditionalCharts() []k0sconfig.Chart {
 			if clusterConfig.Spec.Extensions.Helm != nil {
 				for k := range clusterConfig.Spec.Extensions.Helm.Charts {
 					if clusterConfig.Spec.Extensions.Helm.Charts[k].Order == 0 {
-						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = DEFAULT_VENDOR_CHART_ORDER
+						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = controllers.DEFAULT_VENDOR_CHART_ORDER
 					}
 				}
 

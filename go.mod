@@ -11,7 +11,7 @@ require (
 	github.com/gosimple/slug v1.13.1
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/replicatedhq/embedded-cluster-operator v0.22.7
+	github.com/replicatedhq/embedded-cluster-operator v0.23.0
 	github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.83.0
@@ -40,6 +40,7 @@ require (
 	github.com/google/pprof v0.0.0-20230323073829-e72429f035bd // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
+	github.com/ohler55/ojg v1.21.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
@@ -141,7 +142,7 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apiextensions-apiserver v0.29.0 // indirect
-	k8s.io/client-go v0.29.1 // indirect
+	k8s.io/client-go v0.29.2 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231113174909-778a5567bc1e // indirect
 	k8s.io/utils v0.0.0-20231121161247-cf03d44ff3cf // indirect
