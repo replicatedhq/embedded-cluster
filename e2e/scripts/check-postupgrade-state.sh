@@ -60,9 +60,22 @@ main() {
 
     # ensure that nginx-ingress has been updated
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
-    kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "test-upgrade-value" # ensure new values are present
-    kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "4.9.1" # ensure new version is present
-    kubectl describe pod -n ingress-nginx | grep -q "4.9.1" # ensure the new version made it into the pod
+    # ensure new values are present
+    if ! kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "test-upgrade-value"; then
+        echo "test-upgrade-value not found in ingress-nginx chart"
+        exit 1
+    fi
+    # ensure new version is present
+    if ! kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "4.9.1"; then
+        echo "4.9.1 not found in ingress-nginx chart"
+        exit 1
+    fi
+    # ensure the new version made it into the pod
+    if ! kubectl describe pod -n ingress-nginx | grep -q "4.9.1" ; then
+        echo "4.9.1 not found in ingress-nginx pod"
+        kubectl describe pod -n ingress-nginx
+        exit 1
+    fi
 
     # ensure that the embedded-cluster-operator has been updated
     kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator
