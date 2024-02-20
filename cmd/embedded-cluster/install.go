@@ -118,6 +118,47 @@ func isAlreadyInstalled() (bool, error) {
 	}
 }
 
+func checkLicenseMatches(c *cli.Context) error {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+	}
+
+	// handle the three cases that do not require parsing the license file
+	// 1. no release and no license, which is OK
+	// 2. no license and a release, which is not OK
+	// 3. a license and no release, which is not OK
+	if rel == nil && c.String("license") == "" {
+		// no license and no release, this is OK
+		return nil
+	} else if rel == nil && c.String("license") != "" {
+		// license is present but no release, this means we would install without vendor charts and k0s overrides
+		return fmt.Errorf("a license was provided but no release was found in binary")
+	} else if rel != nil && c.String("license") == "" {
+		// release is present but no license, this is not OK
+		return fmt.Errorf("no license was provided for %s", rel.AppSlug)
+	}
+
+	license, err := helpers.ParseLicense(c.String("license"))
+	if err != nil {
+		return fmt.Errorf("unable to parse license: %w", err)
+	}
+
+	// Check if the license matches the application version data
+	if rel.AppSlug != license.Spec.AppSlug {
+		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
+		return fmt.Errorf("license app %s does not match binary app %s", license.Spec.AppSlug, rel.AppSlug)
+	}
+	if rel.ChannelID != license.Spec.ChannelID {
+		// if the channel is different, we will not be able to install the pinned vendor application version within kots
+		// this may result in an immediate k8s upgrade after installation, which is undesired
+		return fmt.Errorf("license channel %s (%s) does not match binary channel %s", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+	}
+
+	return nil
+
+}
+
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
@@ -296,6 +337,12 @@ var installCommand = &cli.Command{
 			return ErrNothingElseToAdd
 		}
 		metrics.ReportApplyStarted(c)
+		logrus.Debugf("checking license matches")
+		if err := checkLicenseMatches(c); err != nil {
+			err := fmt.Errorf("unable to check license: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
 		logrus.Debugf("materializing binaries")
 		if err := goods.Materialize(); err != nil {
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
