@@ -120,6 +120,11 @@ ensure_app_not_upgraded() {
 }
 
 main() {
+    if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
+        echo "Expected installation to fail without a license provided"
+        exit 1
+    fi
+
     if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "Failed to install embedded-cluster"

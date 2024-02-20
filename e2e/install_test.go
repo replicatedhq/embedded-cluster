@@ -342,6 +342,7 @@ func TestInstallWithoutEmbed(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		Image:               "rockylinux/8",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
 	defer tc.Destroy()
