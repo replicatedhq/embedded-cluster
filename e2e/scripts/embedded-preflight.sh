@@ -151,7 +151,7 @@ wait_for_healthy_node() {
 main() {
     cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"
-    if embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
+    if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /tmp/log
         echo "Expected installation to fail"
         exit 1
@@ -163,7 +163,7 @@ main() {
     fi
     mv /tmp/log /tmp/log-failure
     embed_preflight "$preflight_with_warning"
-    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "Failed to install embedded-cluster"
         exit 1
