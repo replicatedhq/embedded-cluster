@@ -74,6 +74,9 @@ main() {
         kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
         exit 1
     fi
+
+    echo "ensure that the admin console branding is available"
+    kubectl get cm -n kotsadm kotsadm-application-metadata
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
