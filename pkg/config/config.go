@@ -185,7 +185,7 @@ func AdditionalCharts() []k0sconfig.Chart {
 	if err == nil {
 		if clusterConfig != nil {
 			if clusterConfig.Spec.Extensions.Helm != nil {
-				for k, _ := range clusterConfig.Spec.Extensions.Helm.Charts {
+				for k := range clusterConfig.Spec.Extensions.Helm.Charts {
 					if clusterConfig.Spec.Extensions.Helm.Charts[k].Order == 0 {
 						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = DEFAULT_VENDOR_CHART_ORDER
 					}
