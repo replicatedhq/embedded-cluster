@@ -72,7 +72,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 		ChartName: ChartName,
 		Version:   Version,
 		TargetNS:  "openebs",
-		Order:     1,
+		Order:     -30,
 	}
 
 	repositoryConfig := v1beta1.Repository{
