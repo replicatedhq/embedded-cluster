@@ -79,8 +79,8 @@ main() {
     kubectl get cm -n kotsadm kotsadm-application-metadata
 
     echo "ensure that the default chart order remained 10"
-    kubectl describe clusterconfig -n kube-system k0s
-    if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:[\w]+10' ; then
+    if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:\W*10' ; then
+        kubectl describe clusterconfig -n kube-system k0s
         echo "no charts had an order of '10'"
         exit 1
     fi
