@@ -67,9 +67,9 @@ func UpdateHelmConfigs(cfg *k0sconfig.ClusterConfig, opts ...addons.Option) erro
 	// k0s sorts order numbers alphabetically because they're used in file names,
 	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").
 	// We add 100 to the order of each chart to work around this.
-	for k := range chtconfig {
-		chtconfig[k].Order += 100
-	}
+	// for k := range chtconfig {
+	// 	chtconfig[k].Order += 100
+	// }
 	cfg.Spec.Extensions = &k0sconfig.ClusterExtensions{
 		Helm: &k0sconfig.HelmExtensions{
 			Charts:       chtconfig,
