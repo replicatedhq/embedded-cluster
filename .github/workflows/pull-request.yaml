@@ -78,7 +78,6 @@ jobs:
       if: github.actor != 'dependabot[bot]'
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
-        echo "# channel release object" > e2e/kots-release-install/release.yaml
         echo "versionLabel: \"${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
         cat e2e/kots-release-install/release.yaml
         cp output/bin/embedded-cluster output/bin/embedded-cluster-original
