@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -346,7 +347,9 @@ var resetCommand = &cli.Command{
 
 		// remove node from cluster
 		logrus.Info("Removing node from cluster...")
-		err = currentHost.deleteNode(c.Context)
+		removeCtx, removeCancel := context.WithTimeout(c.Context, time.Minute*5)
+		defer removeCancel()
+		err = currentHost.deleteNode(removeCtx)
 		if !checkErrPrompt(c, err) {
 			return err
 		}
@@ -355,7 +358,9 @@ var resetCommand = &cli.Command{
 		if currentHost.Status.Role == "controller" {
 
 			// delete controlNode object from cluster
-			err := currentHost.deleteControlNode(c.Context)
+			deleteControlCtx, deleteCancel := context.WithTimeout(c.Context, time.Minute)
+			defer deleteCancel()
+			err := currentHost.deleteControlNode(deleteControlCtx)
 			if !checkErrPrompt(c, err) {
 				return err
 			}
