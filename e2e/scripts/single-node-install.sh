@@ -119,6 +119,20 @@ ensure_app_not_upgraded() {
     fi
 }
 
+check_pod_install_order() {
+    local ingress_install_time=
+    ingress_install_time=$(kubectl get pods --no-headers=true -n ingress-nginx -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)
+
+
+    local openebs_install_time=
+    openebs_install_time=$(kubectl get pods --no-headers=true -n openebs -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)
+
+    if [ "$ingress_install_time" -lt "$openebs_install_time" ]; then
+        echo "Ingress pods were installed before openebs pods"
+        return 1
+    fi
+}
+
 main() {
     if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail without a license provided"
@@ -159,6 +173,9 @@ main() {
         exit 1
     fi
     if ! ensure_app_not_upgraded; then
+        exit 1
+    fi
+    if ! check_pod_install_order; then
         exit 1
     fi
     if ! systemctl status embedded-cluster; then
