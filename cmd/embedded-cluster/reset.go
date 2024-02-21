@@ -347,7 +347,7 @@ var resetCommand = &cli.Command{
 
 		// remove node from cluster
 		logrus.Info("Removing node from cluster...")
-		removeCtx, removeCancel := context.WithTimeout(c.Context, time.Minute*5)
+		removeCtx, removeCancel := context.WithTimeout(c.Context, time.Minute)
 		defer removeCancel()
 		err = currentHost.deleteNode(removeCtx)
 		if !checkErrPrompt(c, err) {
