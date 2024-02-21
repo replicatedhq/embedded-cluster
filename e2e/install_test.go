@@ -40,8 +40,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	t.Log("stdout:", stdout)
 	if err != nil {
-		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
