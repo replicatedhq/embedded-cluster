@@ -91,6 +91,7 @@ func (h *hostInfo) drainNode() error {
 		"drain",
 		"--ignore-daemonsets",
 		"--delete-emptydir-data",
+		"--timeout", "60",
 		h.Hostname,
 	}
 	out, err := exec.Command(k0s, drainArgList...).CombinedOutput()
@@ -260,7 +261,7 @@ func newHostInfo(c *cli.Context) (hostInfo, error) {
 	currentHost.configureKubernetesClient()
 	// fetch node object
 	currentHost.getNodeObject(c.Context)
-	// control plane only stff
+	// control plane only stuff
 	if currentHost.Status.Role == "controller" {
 		// fetch controlNode
 		currentHost.getControlNodeObject(c.Context)
