@@ -91,7 +91,7 @@ func (h *hostInfo) drainNode() error {
 		"drain",
 		"--ignore-daemonsets",
 		"--delete-emptydir-data",
-		"--timeout", "60",
+		"--timeout", "60s",
 		h.Hostname,
 	}
 	out, err := exec.Command(k0s, drainArgList...).CombinedOutput()
