@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+
 	"github.com/k0sproject/dig"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -85,6 +86,12 @@ func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.
 
 		// append the user provided repositories to the default repositories
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, in.Spec.Config.Extensions.Helm.Repositories...)
+	}
+	// k0s sorts order numbers alphabetically because they're used in file names,
+	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").
+	// We add 100 to the order of each chart to work around this.
+	for k := range combinedConfigs.Charts {
+		combinedConfigs.Charts[k].Order += 100
 	}
 	return combinedConfigs
 }
