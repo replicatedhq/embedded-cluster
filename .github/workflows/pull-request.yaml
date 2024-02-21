@@ -124,6 +124,7 @@ jobs:
           - TestMultiNodeReset
           - TestCommandsRequireSudo
           - TestInstallWithoutEmbed
+          - TestResetAndReinstall
     steps:
     - name: Checkout
       uses: actions/checkout@v4
