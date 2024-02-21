@@ -133,7 +133,7 @@ func checkLicenseMatches(c *cli.Context) error {
 		return nil
 	} else if rel == nil && c.String("license") != "" {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
-		return fmt.Errorf("a license was provided but no release was found in binary, please run without the license flag")
+		return fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
 	} else if rel != nil && c.String("license") == "" {
 		// release is present but no license, this is not OK
 		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
