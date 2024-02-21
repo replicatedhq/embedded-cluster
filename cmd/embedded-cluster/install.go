@@ -133,26 +133,26 @@ func checkLicenseMatches(c *cli.Context) error {
 		return nil
 	} else if rel == nil && c.String("license") != "" {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
-		return fmt.Errorf("a license was provided but no release was found in binary")
+		return fmt.Errorf("a license was provided but no release was found in binary, please run without the license flag")
 	} else if rel != nil && c.String("license") == "" {
 		// release is present but no license, this is not OK
-		return fmt.Errorf("no license was provided for %s", rel.AppSlug)
+		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
 	license, err := helpers.ParseLicense(c.String("license"))
 	if err != nil {
-		return fmt.Errorf("unable to parse license: %w", err)
+		return fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", c.String("license"), err)
 	}
 
 	// Check if the license matches the application version data
 	if rel.AppSlug != license.Spec.AppSlug {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return fmt.Errorf("license app %s does not match binary app %s", license.Spec.AppSlug, rel.AppSlug)
+		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
 	}
 	if rel.ChannelID != license.Spec.ChannelID {
 		// if the channel is different, we will not be able to install the pinned vendor application version within kots
 		// this may result in an immediate k8s upgrade after installation, which is undesired
-		return fmt.Errorf("license channel %s (%s) does not match binary channel %s", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+		return fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
 	}
 
 	return nil
@@ -339,9 +339,9 @@ var installCommand = &cli.Command{
 		metrics.ReportApplyStarted(c)
 		logrus.Debugf("checking license matches")
 		if err := checkLicenseMatches(c); err != nil {
-			err := fmt.Errorf("unable to check license: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
+			metricErr := fmt.Errorf("unable to check license: %w", err)
+			metrics.ReportApplyFinished(c, metricErr)
+			return err // do not return the metricErr, as we want the user to see the error message without a prefix
 		}
 		logrus.Debugf("materializing binaries")
 		if err := goods.Materialize(); err != nil {
