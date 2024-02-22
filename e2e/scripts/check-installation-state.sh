@@ -31,9 +31,6 @@ main() {
     echo "pods"
     kubectl get pods -A
 
-    echo "helm configs"
-    sudo find /var -type f -print | grep '_helm_extension_'
-
     echo "ensure that installation is installed"
     wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"
