@@ -91,10 +91,10 @@ main() {
     echo "ensure that the admin console branding is available"
     kubectl get cm -n kotsadm kotsadm-application-metadata
 
-    echo "ensure that the default chart order remained 10"
-    if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:\W*10' ; then
+    echo "ensure that the default chart order remained 110"
+    if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:\W*110' ; then
         kubectl describe clusterconfig -n kube-system k0s
-        echo "no charts had an order of '10'"
+        echo "no charts had an order of '110'"
         exit 1
     fi
 }
