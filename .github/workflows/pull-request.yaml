@@ -124,6 +124,7 @@ jobs:
           - TestCommandsRequireSudo
           - TestInstallWithoutEmbed
           - TestResetAndReinstall
+          - TestCollectSupportBundle
     steps:
     - name: Checkout
       uses: actions/checkout@v4

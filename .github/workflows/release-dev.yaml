@@ -52,7 +52,7 @@ jobs:
           echo "${SHORT_SHA}"
           sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
           sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
-          
+
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
       - name: Build CI binary
@@ -105,6 +105,7 @@ jobs:
           - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
           - TestResetAndReinstall
+          - TestCollectSupportBundle
     steps:
       - name: Checkout
         uses: actions/checkout@v4
