@@ -3,6 +3,6 @@ kind: ConfigMap
 metadata:
   name: embedded-cluster-cluster-support-bundle
   labels:
-    troubleshoot.io/kind: support-bundle
+    troubleshoot.sh/kind: support-bundle
 data:
   support-bundle-spec: {{ .Files.Get "troubleshoot/cluster-support-bundle.yaml" | quote }}
