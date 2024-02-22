@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 set -euo pipefail
-NODE_PATH="$(npm root -g)" "$@"
+PUPPETEER_SKIP_DOWNLOAD=1 NODE_PATH="$(npm root -g)" "$@"
