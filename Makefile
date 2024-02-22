@@ -89,6 +89,11 @@ static: pkg/goods/bins/k0s \
 embedded-cluster-linux-amd64: static
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
+# for testing
+.PHONY: embedded-cluster-darwin-amd64
+embedded-cluster-darwin-amd64:
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
+
 .PHONY: unit-tests
 unit-tests:
 	go test -v $(shell go list ./... | grep -v /e2e)
