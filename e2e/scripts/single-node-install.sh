@@ -130,7 +130,7 @@ check_pod_install_order() {
     echo "ingress_install_time: $ingress_install_time"
     echo "openebs_install_time: $openebs_install_time"
 
-    if [ "$ingress_install_time" -lt "$openebs_install_time" ]; then
+    if [[ "$ingress_install_time" < "$openebs_install_time" ]]; then
         echo "Ingress pods were installed before openebs pods"
         return 1
     fi
