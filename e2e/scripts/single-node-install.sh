@@ -143,7 +143,6 @@ main() {
     fi
 
     if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
-        cat /etc/os-release
         echo "Failed to install embedded-cluster"
         exit 1
     fi

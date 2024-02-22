@@ -10,10 +10,14 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
 	releaseName = "openebs"
+	namespace   = "openebs"
 )
 
 // Overwritten by -ldflags in Makefile
@@ -71,7 +75,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
-		TargetNS:  "openebs",
+		TargetNS:  namespace,
 		Order:     1,
 	}
 
@@ -90,7 +94,14 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 }
 
 // Outro is executed after the cluster deployment.
-func (o *OpenEBS) Outro(_ context.Context, _ client.Client) error {
+func (o *OpenEBS) Outro(ctx context.Context, cli client.Client) error {
+	loading := spinner.Start()
+	loading.Infof("Waiting for Storage to be ready")
+	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "openebs-localpv-provisioner"); err != nil {
+		loading.Close()
+		return err
+	}
+	loading.Closef("Storage is ready!")
 	return nil
 }
 
