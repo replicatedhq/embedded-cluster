@@ -97,7 +97,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 func (o *OpenEBS) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Storage to be ready")
-	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "openebs"); err != nil {
+	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "openebs-localpv-provisioner"); err != nil {
 		loading.Close()
 		return err
 	}
