@@ -156,7 +156,7 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	for _, addon := range addons {
 		version, err := addon.Version()
 		if err != nil {
-			return nil, fmt.Errorf("unable to get version (%T): %w", addon, err)
+			return nil, fmt.Errorf("unable to get version (%s): %w", addon.Name(), err)
 		}
 		for k, v := range version {
 			versions[k] = v
