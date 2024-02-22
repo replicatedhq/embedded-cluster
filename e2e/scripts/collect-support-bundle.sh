@@ -2,12 +2,12 @@
 set -euo pipefail
 
 main() {
-    if ! kubectl support-bundle --output sb.tgz --interactive=false /var/lib/embedded-cluster/support/host-support-bundle.yaml; then
+    if ! kubectl support-bundle --output sb.tar.gz --interactive=false /var/lib/embedded-cluster/support/host-support-bundle.yaml; then
         echo "Failed to collect support bundle"
         return 1
     fi
 
-    if [ ! -f sb.tgz ]; then
+    if [ ! -f sb.tar.gz ]; then
         echo "Support bundle tgz file not found"
         return 1
     fi
