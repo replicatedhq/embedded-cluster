@@ -111,7 +111,7 @@ var joinCommand = &cli.Command{
 			logrus.Errorf("An installation has been detected on this machine.")
 			logrus.Infof("If you want to reinstall you need to remove the existing installation")
 			logrus.Infof("first. You can do this by running the following command:")
-			logrus.Infof("\n  sudo ./%s uninstall\n", binName)
+			logrus.Infof("\n  sudo ./%s reset\n", binName)
 			return ErrNothingElseToAdd
 		}
 

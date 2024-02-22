@@ -10,6 +10,6 @@ var nodeCommands = &cli.Command{
 	Hidden: true, // this has been replaced by top-level commands
 	Subcommands: []*cli.Command{
 		joinCommand,
-		uninstallCommand,
+		resetCommand,
 	},
 }
