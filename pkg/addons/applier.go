@@ -123,23 +123,25 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 }
 
 // load instantiates all enabled addons.
-func (a *Applier) load() (map[string]AddOn, error) {
-	addons := map[string]AddOn{}
+func (a *Applier) load() ([]AddOn, error) {
+	addons := []AddOn{}
 	obs, err := openebs.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 	}
-	addons["openebs"] = obs
+	addons = append(addons, obs)
+
 	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.license)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
-	addons["embeddedclusteroperator"] = embedoperator
+	addons = append(addons, embedoperator)
+
 	aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config, a.license)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
-	addons["adminconsole"] = aconsole
+	addons = append(addons, aconsole)
 	return addons, nil
 }
 
@@ -149,16 +151,18 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
+
 	versions := map[string]string{}
-	for name, addon := range addons {
+	for _, addon := range addons {
 		version, err := addon.Version()
 		if err != nil {
-			return nil, fmt.Errorf("unable to get version (%s): %w", name, err)
+			return nil, fmt.Errorf("unable to get version (%s): %w", addon.Name(), err)
 		}
 		for k, v := range version {
 			versions[k] = v
 		}
 	}
+
 	for _, chart := range additionalCharts {
 		versions[chart.Name] = chart.Version
 	}
