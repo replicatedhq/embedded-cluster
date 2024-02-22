@@ -69,7 +69,7 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
-	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "ingress-nginx"}
+	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "ingress-nginx", "goldpinger"}
 	if len(parsed.Configs.Charts) != len(expectedCharts) {
 		t.Log(output)
 		t.Fatalf("found %d charts in metadata, expected %d", len(parsed.Configs.Charts), len(expectedCharts))
