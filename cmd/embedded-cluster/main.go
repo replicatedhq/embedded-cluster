@@ -31,6 +31,8 @@ func main() {
 			shellCommand,
 			nodeCommands,
 			versionCommand,
+			joinCommand,
+			resetCommand,
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {

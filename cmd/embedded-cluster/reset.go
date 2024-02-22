@@ -293,10 +293,11 @@ func checkErrPrompt(c *cli.Context, err error) bool {
 }
 
 var resetCommand = &cli.Command{
-	Name: "reset",
+	Name:    "reset",
+	Aliases: []string{"uninstall"},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
-			return fmt.Errorf("node reset command must be run as root")
+			return fmt.Errorf("uninstall command must be run as root")
 		}
 		return nil
 	},
