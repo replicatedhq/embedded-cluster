@@ -127,6 +127,9 @@ check_pod_install_order() {
     local openebs_install_time=
     openebs_install_time=$(kubectl get pods --no-headers=true -n openebs -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)
 
+    echo "ingress_install_time: $ingress_install_time"
+    echo "openebs_install_time: $openebs_install_time"
+
     if [ "$ingress_install_time" -lt "$openebs_install_time" ]; then
         echo "Ingress pods were installed before openebs pods"
         return 1

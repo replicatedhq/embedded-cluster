@@ -25,6 +25,23 @@ wait_for_installation() {
     done
 }
 
+check_pod_install_order() {
+    local ingress_install_time=
+    ingress_install_time=$(kubectl get pods --no-headers=true -n ingress-nginx -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)
+
+
+    local openebs_install_time=
+    openebs_install_time=$(kubectl get pods --no-headers=true -n openebs -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)
+
+    echo "ingress_install_time: $ingress_install_time"
+    echo "openebs_install_time: $openebs_install_time"
+
+    if [ "$ingress_install_time" -lt "$openebs_install_time" ]; then
+        echo "Ingress pods were installed before openebs pods"
+        return 1
+    fi
+}
+
 main() {
     sleep 30 # wait for kubectl to become available
 
@@ -33,6 +50,10 @@ main() {
 
     echo "helm configs"
     sudo find /var -type f -print | grep '_helm_extension_'
+
+    if ! check_pod_install_order; then
+        exit 1
+    fi
 
     echo "ensure that installation is installed"
     wait_for_installation
