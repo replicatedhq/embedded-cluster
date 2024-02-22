@@ -52,8 +52,8 @@ main() {
     echo "installations"
     kubectl get installations
 
-    # ensure that goldpinger exists
-    kubectl get ns goldpinger
+    # ensure that memcached exists
+    kubectl get ns memcached
 
     # ensure that new app pods exist
     kubectl get pods -n kotsadm -l app=second

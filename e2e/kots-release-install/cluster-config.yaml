@@ -45,3 +45,8 @@ spec:
                 nodePorts:
                   http: "80"
                   https: "443"
+        - chartname: okgolove/goldpinger
+          name: goldpinger
+          namespace: goldpinger
+          version: 6.1.2
+          order: 11
