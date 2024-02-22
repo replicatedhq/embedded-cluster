@@ -194,7 +194,7 @@ func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
 		}
 	}
 	if len(workers) > 0 && len(controllers) == 1 {
-		message := fmt.Sprintf("Cannot reset the last %s node when there are other nodes in the cluster.", h.RoleName)
+		message := fmt.Sprintf("Cannot uninstall the last %s node when there are other nodes in the cluster.", h.RoleName)
 		return false, message, nil
 	}
 	return true, "", nil
@@ -284,7 +284,7 @@ func checkErrPrompt(c *cli.Context, err error) bool {
 	if c.Bool("force") {
 		return true
 	}
-	logrus.Info("An error occurred while trying to reset this node.")
+	logrus.Info("An error occurred while trying to uninstall this node.")
 	if c.Bool("no-prompt") {
 		return false
 	}
@@ -292,11 +292,11 @@ func checkErrPrompt(c *cli.Context, err error) bool {
 	return prompts.New().Confirm("Do you want to continue anyway?", false)
 }
 
-var resetCommand = &cli.Command{
-	Name: "reset",
+var uninstallCommand = &cli.Command{
+	Name: "uninstall",
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
-			return fmt.Errorf("node reset command must be run as root")
+			return fmt.Errorf("uninstall command must be run as root")
 		}
 		return nil
 	},
@@ -309,14 +309,14 @@ var resetCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "force",
-			Usage: "Ignore errors encountered when resetting the node (implies --no-prompt)",
+			Usage: "Ignore errors encountered when uninstalling the node (implies --no-prompt)",
 			Value: false,
 		},
 	},
-	Usage: "Reset the current node",
+	Usage: fmt.Sprintf("Uninstall %s from the current node", binName),
 	Action: func(c *cli.Context) error {
 		logrus.Info("This will remove this node from the cluster and completely reset it.")
-		logrus.Info("Do not reset another node until this reset is complete.")
+		logrus.Info("Do not uninstall another node until this is complete.")
 		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
 			return fmt.Errorf("Aborting")
 		}
@@ -374,7 +374,7 @@ var resetCommand = &cli.Command{
 		}
 
 		// reset
-		logrus.Infof("Resetting %s...", binName)
+		logrus.Infof("Uninstalling %s...", binName)
 		err = stopAndResetK0s()
 		if !checkErrPrompt(c, err) {
 			return err

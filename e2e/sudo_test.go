@@ -25,7 +25,8 @@ func TestCommandsRequireSudo(t *testing.T) {
 	}
 	for _, cmd := range [][]string{
 		{"embedded-cluster", "node", "join", "https://test", "token"},
-		{"embedded-cluster", "node", "reset", "--force"},
+		{"embedded-cluster", "join", "https://test", "token"},
+		{"embedded-cluster", "uninstall", "--force"},
 		{"embedded-cluster", "shell"},
 		{"embedded-cluster", "install", "--no-prompt"},
 	} {

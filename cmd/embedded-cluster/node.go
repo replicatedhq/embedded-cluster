@@ -5,10 +5,11 @@ import (
 )
 
 var nodeCommands = &cli.Command{
-	Name:  "node",
-	Usage: "Manage cluster nodes",
+	Name:   "node",
+	Usage:  "Manage cluster nodes",
+	Hidden: true, // this has been replaced by top-level commands
 	Subcommands: []*cli.Command{
 		joinCommand,
-		resetCommand,
+		uninstallCommand,
 	},
 }

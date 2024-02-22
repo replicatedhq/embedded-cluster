@@ -2,8 +2,8 @@
 set -euo pipefail
 
 main() {
-    if ! embedded-cluster node reset --no-prompt | tee /tmp/log ; then
-        echo "Failed to reset embedded-cluster"
+    if ! embedded-cluster uninstall --no-prompt | tee /tmp/log ; then
+        echo "Failed to uninstall embedded-cluster"
         exit 1
     fi
 
