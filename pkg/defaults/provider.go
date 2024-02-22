@@ -160,3 +160,20 @@ func (d *Provider) PathToK0sStatusSocket() string {
 func (d *Provider) PathToK0sConfig() string {
 	return "/etc/k0s/k0s.yaml"
 }
+
+// EmbeddedClusterSupportSubDir returns the path to the directory where embedded-cluster
+// support files are stored. Things that are useful when providing end user support in
+// a running cluster should be stored into this directory.
+func (d *Provider) EmbeddedClusterSupportSubDir() string {
+	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "support")
+	if err := os.MkdirAll(path, 0700); err != nil {
+		logrus.Fatalf("unable to create embedded-cluster support dir: %s", err)
+	}
+	return path
+}
+
+// PathToEmbeddedClusterSupportFile is an utility function that returns the full path to
+// a materialized support file. This function does not check if the file exists.
+func (d *Provider) PathToEmbeddedClusterSupportFile(name string) string {
+	return filepath.Join(d.EmbeddedClusterSupportSubDir(), name)
+}

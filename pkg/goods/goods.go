@@ -13,9 +13,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
-//go:embed bins/*
-var binfs embed.FS
-
 // K0sBinarySHA256 returns the SHA256 checksum of the embedded k0s binary.
 func K0sBinarySHA256() (string, error) {
 	fp, err := binfs.Open("bins/k0s")
@@ -30,8 +27,11 @@ func K0sBinarySHA256() (string, error) {
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
-// Materialize writes to disk all embedded assets.
-func Materialize() error {
+//go:embed bins/*
+var binfs embed.FS
+
+// materializeBinaries materializes all binary files from inside bins directory.
+func materializeBinaries() error {
 	entries, err := binfs.ReadDir("bins")
 	if err != nil {
 		return fmt.Errorf("unable to read embedded-cluster bins dir: %w", err)
@@ -46,6 +46,40 @@ func Materialize() error {
 		if err := os.WriteFile(dstpath, srcfile, 0755); err != nil {
 			return fmt.Errorf("unable to write file: %w", err)
 		}
+	}
+	return nil
+}
+
+//go:embed support/*
+var supportfs embed.FS
+
+// materializeSupportFiles materializes all support files from inside support directory.
+func materializeSupportFiles() error {
+	entries, err := supportfs.ReadDir("support")
+	if err != nil {
+		return fmt.Errorf("unable to read embedded-cluster support dir: %w", err)
+	}
+	for _, entry := range entries {
+		srcpath := fmt.Sprintf("support/%s", entry.Name())
+		srcfile, err := supportfs.ReadFile(srcpath)
+		if err != nil {
+			return fmt.Errorf("unable to read asset: %w", err)
+		}
+		dstpath := defaults.PathToEmbeddedClusterSupportFile(entry.Name())
+		if err := os.WriteFile(dstpath, srcfile, 0700); err != nil {
+			return fmt.Errorf("unable to write file: %w", err)
+		}
+	}
+	return nil
+}
+
+// Materialize writes to disk all embedded assets.
+func Materialize() error {
+	if err := materializeBinaries(); err != nil {
+		return fmt.Errorf("unable to materialize embedded binaries: %w", err)
+	}
+	if err := materializeSupportFiles(); err != nil {
+		return fmt.Errorf("unable to materialize embedded support files: %w", err)
 	}
 	return nil
 }
