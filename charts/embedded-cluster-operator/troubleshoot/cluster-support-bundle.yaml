@@ -1,0 +1,70 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: SupportBundle
+metadata:
+  name: embedded-cluster-cluster-support-bundle
+  labels:
+    troubleshoot.io/kind: support-bundle
+spec:
+  uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster-operator/main/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
+  collectors:
+  - logs:
+      name: podlogs/embedded-cluster-operator
+      namespace: embedded-cluster
+      selector:
+      - app.kubernetes.io/name=embedded-cluster-operator
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/calico-kube-controllers
+      namespace: kube-system
+      selector:
+      - k8s-app=calico-kube-controllers
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/calico-node
+      namespace: kube-system
+      selector:
+      - k8s-app=calico-node
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/coredns
+      namespace: kube-system
+      selector:
+      - k8s-app=kube-dns
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/kube-proxy
+      namespace: kube-system
+      selector:
+      - k8s-app=kube-proxy
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/metrics-server
+      namespace: kube-system
+      selector:
+      - k8s-app=metrics-server
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/openebs
+      namespace: openebs
+      selector:
+      - app=openebs
+      limits:
+        maxAge: 720h
+  analyzers:
+  - textAnalyze:
+      checkName: Cluster installation status
+      fileName: cluster-resources/custom-resources/installations.embeddedcluster.replicated.com.yaml
+      regex: 'state: Installed'
+      outcomes:
+      - fail:
+          when: "false"
+          message: Cluster installation in 'Installed' state not found
+      - pass:
+          when: "true"
+          message: Cluster installation in 'Installed' state found

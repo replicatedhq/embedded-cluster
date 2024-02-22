@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: embedded-cluster-cluster-support-bundle
+  labels:
+    troubleshoot.io/kind: support-bundle
+data:
+  support-bundle-spec: {{ .Files.Get "troubleshoot/cluster-support-bundle.yaml" | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: embedded-cluster-host-support-bundle
+  labels:
+    troubleshoot.io/kind: support-bundle
+data:
+  support-bundle-spec: {{ .Files.Get "troubleshoot/host-support-bundle.yaml" | quote }}
+
