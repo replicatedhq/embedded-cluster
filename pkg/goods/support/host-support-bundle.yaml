@@ -1,0 +1,82 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: SupportBundle
+metadata:
+  name: embedded-cluster-host-support-bundle
+spec:
+  uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/pkg/goods/support/host-support-bundle.yaml
+  hostCollectors:
+  - cpu: {}
+  - hostOS: {}
+  - memory: {}
+  - blockDevices: {}
+  - diskUsage:
+      collectorName: root-disk-usage
+      path: /
+  - diskUsage:
+      collectorName: openebs-disk-usage
+      path: /var/openebs/local
+  - run:
+      collectorName: k0s-status
+      command: k0s
+      args: [ "status" ]
+  - run:
+      collectorName: k0s-issue-template
+      command: sh
+      args: [ "-c", "uname -srvmo; cat /etc/os-release || lsb_release -a" ]
+  - run:
+      collectorName: k0s-sysinfo
+      command: k0s
+      args: [ "sysinfo" ]
+  - copy:
+      collectorName: installer-logs
+      path: /var/lib/embedded-cluster/logs/*.log
+  hostAnalyzers:
+  - memory:
+      checkName: Amount of Memory
+      outcomes:
+      - warn:
+          when: "< 2G"
+          message: At least 2G of memory is recommended
+      - pass:
+          message: The system has at least 2G of memory
+  - diskUsage:
+      checkName: Root disk usage
+      collectorName: root-disk-usage
+      outcomes:
+      - fail:
+          when: "total < 40Gi"
+          message: The disk containing directory / has less than 40Gi of total space
+      - warn:
+          when: "used/total > 80%"
+          message: The disk containing directory / is more than 80% full
+      - warn:
+          when: "available < 10Gi"
+          message: The disk containing directory / has less than 10Gi of disk space available
+      - pass:
+          message: The disk containing directory / has sufficient space
+  - diskUsage:
+      checkName: OpenEBS disk usage
+      collectorName: openebs-disk-usage
+      outcomes:
+      - fail:
+          when: "total < 40Gi"
+          message: The disk containing OpenEBS volumes has less than 40Gi of space
+      - warn:
+          when: "used/total > 80%"
+          message: The disk containing OpenEBS volumes is more than 80% full
+      - warn:
+          when: "available < 10Gi"
+          message:  The disk containing OpenEBS volumes has less than 10Gi of disk space available
+      - pass:
+          message: The disk containing directory OpenEBS volumes has sufficient space
+  - textAnalyze:
+      checkName: Kubernetes API probing
+      fileName: host-collectors/run-host/k0s-status.txt
+      regex: 'Kube-api probing successful: true'
+      outcomes:
+      - fail:
+          when: "false"
+          message: Kubernetes API probing is reporting a failure
+      - pass:
+          when: "true"
+          message: Kubernetes API probing is reporting success
