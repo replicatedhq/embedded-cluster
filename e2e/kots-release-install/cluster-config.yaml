@@ -33,6 +33,8 @@ spec:
       repositories:
         - name: ingress-nginx
           url: https://kubernetes.github.io/ingress-nginx
+        - name: okgolove
+          url: https://okgolove.github.io/helm-charts/
       charts:
         - name: ingress-nginx
           chartname: ingress-nginx/ingress-nginx
