@@ -113,7 +113,7 @@ ensure_app_not_upgraded() {
         echo "found goldpinger ns"
         return 1
     fi
-    if kubectl get pods -n kotsadm -l app=second -q | grep -q second ; then
+    if kubectl get pods -n kotsadm -l app=second | grep -q second ; then
         echo "found pods from app update"
         return 1
     fi
@@ -127,7 +127,7 @@ check_pod_install_order() {
     local openebs_install_time=
     openebs_install_time=$(kubectl get pods --no-headers=true -n openebs -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)
 
-    if [ "$ingress_install_time" -lt "$openebs_install_time" ]; then
+    if [[ "$ingress_install_time" < "$openebs_install_time" ]]; then
         echo "Ingress pods were installed before openebs pods"
         return 1
     fi
