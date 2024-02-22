@@ -85,3 +85,8 @@ func PathToK0sStatusSocket() string {
 func EmbeddedClusterHomeDirectory() string {
 	return def().EmbeddedClusterHomeDirectory()
 }
+
+// PathToEmbeddedClusterSupportFile calls PathToEmbeddedClusterSupportFile on the default provider.
+func PathToEmbeddedClusterSupportFile(name string) string {
+	return def().PathToEmbeddedClusterSupportFile(name)
+}
