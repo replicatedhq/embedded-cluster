@@ -301,7 +301,7 @@ func runOutro(c *cli.Context) error {
 // file is created. Resulting kubeconfig is stored in the configuration dir.
 var installCommand = &cli.Command{
 	Name:  "install",
-	Usage: fmt.Sprintf("Install %s", defaults.BinaryName()),
+	Usage: fmt.Sprintf("Install %s", binName),
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
@@ -326,14 +326,14 @@ var installCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
-		logrus.Debugf("checking if %s is already installed", defaults.BinaryName())
+		logrus.Debugf("checking if %s is already installed", binName)
 		if installed, err := isAlreadyInstalled(); err != nil {
 			return err
 		} else if installed {
 			logrus.Errorf("An installation has been detected on this machine.")
 			logrus.Infof("If you want to reinstall you need to remove the existing installation")
 			logrus.Infof("first. You can do this by running the following command:")
-			logrus.Infof("\n  sudo ./%s reset\n", defaults.BinaryName())
+			logrus.Infof("\n  sudo ./%s uninstall\n", binName)
 			return ErrNothingElseToAdd
 		}
 		metrics.ReportApplyStarted(c)

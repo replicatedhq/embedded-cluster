@@ -104,7 +104,7 @@ func TestMultiNodeReset(t *testing.T) {
 	bin := strings.Split(command, " ")[0]
 	// reset worker node
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = RunCommandOnNode(t, tc, 3, []string{bin, "reset", "--no-prompt"})
+	stdout, stderr, err = RunCommandOnNode(t, tc, 3, []string{bin, "uninstall", "--no-prompt"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to reset worker node")

@@ -95,7 +95,7 @@ func getJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommand
 
 var joinCommand = &cli.Command{
 	Name:      "join",
-	Usage:     "Join the current node to an existing cluster",
+	Usage:     fmt.Sprintf("Join the current node to a %s cluster", binName),
 	ArgsUsage: "<url> <token>",
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
@@ -104,20 +104,19 @@ var joinCommand = &cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
-		logrus.Debugf("checking if %s is already installed", defaults.BinaryName())
+		logrus.Debugf("checking if %s is already installed", binName)
 		if installed, err := isAlreadyInstalled(); err != nil {
 			return err
 		} else if installed {
 			logrus.Errorf("An installation has been detected on this machine.")
 			logrus.Infof("If you want to reinstall you need to remove the existing installation")
 			logrus.Infof("first. You can do this by running the following command:")
-			logrus.Infof("\n  sudo ./%s reset\n", defaults.BinaryName())
+			logrus.Infof("\n  sudo ./%s uninstall\n", binName)
 			return ErrNothingElseToAdd
 		}
 
-		binname := defaults.BinaryName()
 		if c.Args().Len() != 2 {
-			return fmt.Errorf("usage: %s node join <url> <token>", binname)
+			return fmt.Errorf("usage: %s node join <url> <token>", binName)
 		}
 
 		logrus.Infof("Fetching join token remotely")
@@ -127,7 +126,7 @@ var joinCommand = &cli.Command{
 		}
 
 		metrics.ReportJoinStarted(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
-		logrus.Infof("Materializing %s binaries", binname)
+		logrus.Infof("Materializing %s binaries", binName)
 		if err := goods.Materialize(); err != nil {
 			err := fmt.Errorf("unable to materialize binaries: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
@@ -147,7 +146,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		logrus.Infof("Installing %s binaries", binname)
+		logrus.Infof("Installing %s binaries", binName)
 		if err := installK0sBinary(); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
@@ -175,7 +174,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		logrus.Infof("Starting %s service", binname)
+		logrus.Infof("Starting %s service", binName)
 		if err := startK0sService(); err != nil {
 			err := fmt.Errorf("unable to start service: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)

@@ -32,7 +32,7 @@ func main() {
 			nodeCommands,
 			versionCommand,
 			joinCommand,
-			resetCommand,
+			uninstallCommand,
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {
