@@ -56,6 +56,11 @@ ensure_app_not_upgraded() {
     fi
 }
 
+ensure_app_deployed() {
+    kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
+    return 1 # testing
+}
+
 main() {
     sleep 30 # wait for kubectl to become available
 
@@ -74,6 +79,9 @@ main() {
         exit 1
     fi
     if ! ensure_app_not_upgraded; then
+        exit 1
+    fi
+    if ! ensure_app_deployed; then
         exit 1
     fi
 }
