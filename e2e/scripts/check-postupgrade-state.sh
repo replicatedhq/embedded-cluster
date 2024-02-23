@@ -48,9 +48,9 @@ main() {
     echo "installations"
     kubectl get installations
 
-    # ensure that goldpinger exists
-    if ! kubectl get ns goldpinger; then
-        echo "no goldpinger ns found"
+    # ensure that memcached exists
+    if ! kubectl get ns memcached; then
+        echo "no memcached ns found"
         kubectl get ns
         exit 1
     fi
