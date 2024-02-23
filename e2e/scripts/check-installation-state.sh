@@ -25,6 +25,37 @@ wait_for_installation() {
     done
 }
 
+wait_for_nginx_pods() {
+    ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+    counter=0
+    while [ "$ready" -lt "1" ]; do
+        if [ "$counter" -gt 36 ]; then
+            echo "nginx pods did not appear"
+            kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}'
+            kubectl get pods -n kotsadm
+            kubectl logs -n kotsadm -l app=kotsadm
+            return 1
+        fi
+        sleep 5
+        counter=$((counter+1))
+        echo "Waiting for nginx pods"
+        ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+        kubectl get pods -n nginx 2>&1 || true
+        echo "ready: $ready"
+    done
+}
+
+ensure_app_not_upgraded() {
+    if kubectl get ns | grep -q goldpinger ; then
+        echo "found goldpinger ns"
+        return 1
+    fi
+    if kubectl get pods -n kotsadm -l app=second | grep -q second ; then
+        echo "found pods from app update"
+        return 1
+    fi
+}
+
 main() {
     sleep 30 # wait for kubectl to become available
 
@@ -37,6 +68,14 @@ main() {
 
     echo "ensure that the admin console branding is available"
     kubectl get cm -n kotsadm kotsadm-application-metadata
+
+    if ! wait_for_nginx_pods; then
+        echo "Failed waiting for the application's nginx pods"
+        exit 1
+    fi
+    if ! ensure_app_not_upgraded; then
+        exit 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

@@ -38,15 +38,6 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to check installation state: %v", err)
-	}
-
 	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -264,22 +255,13 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line := []string{"check-installation-state.sh"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to check installation state: %v", err)
-	}
-
 	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line = []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
+		line := []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
 		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 		if err != nil {
 			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
@@ -297,8 +279,8 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	line = []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	line := []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to generate controller join token: %s", stdout)
@@ -486,23 +468,13 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to access kotsadm interface and state: %v", err)
 	}
-	t.Logf("%s: accessing kotsadm interface and checking app and cluster state", time.Now().Format(time.RFC3339))
-	line = []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh"}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
-		t.Fatalf("fail to access kotsadm interface and state: %v", err)
-	}
-	var r clusterStatusResponse
-	if err := json.Unmarshal([]byte(stdout), &r); err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to parse script response: %v", err)
-	}
-	if r.App != "Ready" || r.Cluster != "Up to date" {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("cluster or app not ready: %s", stdout)
+		t.Fatalf("fail to check installation state: %v", err)
 	}
 }
