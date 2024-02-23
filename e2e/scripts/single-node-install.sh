@@ -86,15 +86,18 @@ maybe_install_curl() {
     fi
 }
 
-deploy_app() {
+install_kots_cli() {
     maybe_install_curl
 
     # install kots CLI
-    echo "installing kotsadm"
+    echo "installing kots cli"
     local ec_version=
     ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}')
     curl https://kots.io/install/$ec_version | bash
 
+}
+
+deploy_app() {
     echo "getting apps"
     # run a no-op kots command to populate the authstring secret
     kubectl kots get apps -n kotsadm
@@ -201,6 +204,8 @@ check_pod_install_order() {
 }
 
 main() {
+    local app_deploy_method="$1"
+
     if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail without a license provided"
         exit 1
@@ -214,6 +219,10 @@ main() {
         echo "Failed to install embedded-cluster"
         exit 1
     fi
+    if ! install_kots_cli; then
+        echo "Failed to install kots cli"
+        exit 1
+    fi
     if ! wait_for_healthy_node; then
         echo "Failed to install embedded-cluster"
         exit 1
@@ -222,9 +231,11 @@ main() {
         echo "Cluster did not respect node config"
         exit 1
     fi
-    if ! deploy_app; then
-        echo "Failed to deploy app"
-        exit 1
+    if [[ "$app_deploy_method" == "cli" ]]; then
+        if ! deploy_app; then
+            echo "Failed to deploy app"
+            exit 1
+        fi
     fi
     if ! wait_for_pods_running 900; then
         echo "Failed to install embedded-cluster"
@@ -234,8 +245,13 @@ main() {
         echo "Failed to validate if only openebs storage class is present"
         exit 1
     fi
-    if ! wait_for_nginx_pods; then
-        echo "Failed waiting for the application's nginx pods"
+    if [[ "$app_deploy_method" == "cli" ]]; then
+        if ! wait_for_nginx_pods; then
+            echo "Failed waiting for the application's nginx pods"
+            exit 1
+        fi
+    else
+        echo "did not deploy app"
         exit 1
     fi
     if ! wait_for_ingress_pods; then
@@ -257,4 +273,4 @@ main() {
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
 export PATH=$PATH:/var/lib/embedded-cluster/bin
-main
+main "$@"

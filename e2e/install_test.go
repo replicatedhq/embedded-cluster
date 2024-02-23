@@ -82,7 +82,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh"}
+	line = []string{"single-node-install.sh", "cli"}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -133,7 +133,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh"}
+	line := []string{"single-node-install.sh", "cli"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -183,7 +183,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh"}
+	line = []string{"single-node-install.sh", "cli"}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -386,7 +386,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh"}
+	line = []string{"single-node-install.sh", "cli"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("install stdout:", stdout)
 		t.Log("install stderr:", stderr)
@@ -425,7 +425,7 @@ func TestResetAndReinstall(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh"}
+	line := []string{"single-node-install.sh", "cli"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("install stdout:", stdout)
 		t.Log("install stderr:", stderr)
@@ -451,7 +451,7 @@ func TestResetAndReinstall(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0 after reset", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh"}
+	line = []string{"single-node-install.sh", "cli"}
 	if stdout, stderr, err = RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("install stdout:", stdout)
 		t.Log("install stderr:", stderr)
