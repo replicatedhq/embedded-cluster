@@ -326,9 +326,9 @@ func runK0sInstallCommand(fullcmd string) error {
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
 
-		if !strings.Contains(fullcmd, "--no-taints") {
-			args = append(args, "--no-taints")
-		}
+		//if !strings.Contains(fullcmd, "--no-taints") {
+		//	args = append(args, "--no-taints")
+		//}
 	}
 	if _, err := runCommand(args[0], args[1:]...); err != nil {
 		return err
