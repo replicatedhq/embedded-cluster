@@ -31,10 +31,6 @@ main() {
 
     sleep 30 # wait for kubectl to become available
 
-    local ec_version=
-    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}')
-    curl https://kots.io/install/$ec_version | bash
-
     echo "upgrading to version ${installation_version}-upgrade"
     kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --deploy-version-label="${installation_version}-upgrade"
 
@@ -53,10 +49,18 @@ main() {
     kubectl get installations
 
     # ensure that memcached exists
-    kubectl get ns memcached
+    if ! kubectl get ns memcached; then
+        echo "no memcached ns found"
+        kubectl get ns
+        exit 1
+    fi
 
     # ensure that new app pods exist
-    kubectl get pods -n kotsadm -l app=second
+    if ! kubectl get pods -n kotsadm -l app=second; then
+        echo "no pods found for second app version"
+        kubectl get pods -n kotsadm
+        exit 1
+    fi
 
     # ensure that nginx-ingress has been updated
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx

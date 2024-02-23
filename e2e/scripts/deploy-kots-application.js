@@ -18,11 +18,12 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         }
     );
     const page = await browser.newPage();
-    const timeout = 5000;
+    const timeout = 30000;
     page.setDefaultTimeout(timeout);
+
     const args = process.argv.slice(2);
     if (args.length !== 1) {
-        throw new Error('usage: check-app-and-cluster-status.js <kotsadm-ip>');
+        throw new Error('usage: deploy-kots-application.js <kotsadm-ip>');
     }
 
     {
@@ -33,7 +34,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         })
     }
     {
-        process.stderr.write("opening a new tab\n");
+        process.stderr.write("opening a new page\n");
         const targetPage = page;
         const promises = [];
         const startWaitingForEvents = () => {
@@ -44,7 +45,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         await Promise.all(promises);
     }
     {
-        process.stderr.write("accessing kotsadm on port 30000\n");
+        process.stderr.write("opening kots page\n");
         const targetPage = page;
         const promises = [];
         const startWaitingForEvents = () => {
@@ -73,8 +74,8 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .on('action', () => startWaitingForEvents())
             .click({
               offset: {
-                x: 44,
-                y: 15,
+                x: 52,
+                y: 13,
               },
             });
         await Promise.all(promises);
@@ -92,8 +93,8 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 77,
-                y: 21.2421875,
+                x: 69,
+                y: 23.2421875,
               },
             });
     }
@@ -102,7 +103,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         const targetPage = page;
         // CUSTOM: using command line argument.
         await puppeteer.Locator.race([
-            targetPage.locator(`::-p-aria(Proceed to ${args[0]} \\(unsafe\\))`),
+            targetPage.locator('::-p-aria(Proceed to 192.168.86.6 \\(unsafe\\))'),
             targetPage.locator('#proceed-link'),
             targetPage.locator('::-p-xpath(//*[@id=\\"proceed-link\\"])'),
             targetPage.locator(':scope >>> #proceed-link'),
@@ -111,8 +112,8 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 48,
-                y: 7.7421875,
+                x: 75,
+                y: 9.7421875,
               },
             });
     }
@@ -129,12 +130,12 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         await Promise.all(promises);
     }
     {
-        process.stderr.write("waiting and clicking on 'Continue'\n");
         const targetPage = page;
         const promises = [];
         const startWaitingForEvents = () => {
             promises.push(targetPage.waitForNavigation());
         }
+        process.stderr.write("waiting and clicking on 'Continue'\n");
         await puppeteer.Locator.race([
             targetPage.locator('::-p-aria(Continue)'),
             targetPage.locator('button'),
@@ -146,7 +147,7 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .on('action', () => startWaitingForEvents())
             .click({
               offset: {
-                x: 45,
+                x: 43,
                 y: 6,
               },
             });
@@ -164,8 +165,8 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 35,
-                y: 17.5078125,
+                x: 32,
+                y: 24.5078125,
               },
             });
     }
@@ -193,33 +194,73 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
             .setTimeout(timeout)
             .click({
               offset: {
-                x: 27,
-                y: 22.5078125,
+                x: 30,
+                y: 21.5078125,
               },
             });
     }
     {
-        // CUSTOM: finding the element with the app state and extracting its content.
-        let state = {app: "", cluster:""};
-        process.stderr.write("waiting and fetching the application and cluster state\n");
+        process.stderr.write("clicking on Continue in the cluster management page\n");
         const targetPage = page;
-        await targetPage.waitForSelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(6)');
-        let elementContent = await targetPage.evaluate(() => {
-            const element = document.querySelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(6)');
-            return element ? element.textContent : null;
-        });
-        if (elementContent) {
-            state.cluster = elementContent;
-        }
-        await targetPage.waitForSelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(2)');
-        elementContent = await targetPage.evaluate(() => {
-            const element = document.querySelector('#app > div > div.flex1.flex-column.u-overflow--auto.tw-relative > div > div > div > div.flex-column.flex1.u-position--relative.u-overflow--auto.u-padding--20 > div > div > div.flex.flex1.alignItems--center > div.u-marginLeft--20 > div > div:nth-child(1) > span:nth-child(2)');
-            return element ? element.textContent : null;
-        });
-        if (elementContent) {
-            state.app = elementContent;
-        }
-        console.log(JSON.stringify(state));
+        await puppeteer.Locator.race([
+            targetPage.locator('::-p-aria(Continue)'),
+            targetPage.locator('div.flex1 > div > div > button'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"app\\"]/div/div[2]/div/div/button)'),
+            targetPage.locator(':scope >>> div.flex1 > div > div > button'),
+            targetPage.locator('::-p-text(Continue)')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 45.9921875,
+                y: 6.5859375,
+              },
+            });
+    }
+    {
+        process.stderr.write("clicking on the configuration field so we can enter the application configuration\n");
+        const targetPage = page;
+        await puppeteer.Locator.race([
+            targetPage.locator('input'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"hostname-group\\"]/div[2]/div/input)'),
+            targetPage.locator(':scope >>> input')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 350.4296875,
+                y: 24.8046875,
+              },
+            });
+    }
+    {
+        process.stderr.write("typing 'abc' as the configuration value\n");
+        const targetPage = page;
+        await puppeteer.Locator.race([
+            targetPage.locator('input'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"hostname-group\\"]/div[2]/div/input)'),
+            targetPage.locator(':scope >>> input')
+        ])
+            .setTimeout(timeout)
+            .fill('abc');
+    }
+    {
+        process.stderr.write("clicking on Continue after filling in the configuration\n");
+        const targetPage = page;
+        await puppeteer.Locator.race([
+            targetPage.locator('::-p-aria(Continue)'),
+            targetPage.locator('button'),
+            targetPage.locator('::-p-xpath(//*[@id=\\"app\\"]/div/div[2]/div/div/div/div[2]/div/div[2]/div/button)'),
+            targetPage.locator(':scope >>> button'),
+            targetPage.locator('::-p-text(Continue)')
+        ])
+            .setTimeout(timeout)
+            .click({
+              offset: {
+                x: 44.4296875,
+                y: 11.8046875,
+              },
+            });
     }
 
     await browser.close();
