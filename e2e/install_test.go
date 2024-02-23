@@ -82,7 +82,7 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh"}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -133,7 +133,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh"}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -183,7 +183,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh"}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -376,7 +376,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh"}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -415,7 +415,7 @@ func TestResetAndReinstall(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh"}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -441,7 +441,7 @@ func TestResetAndReinstall(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after reinstall", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh"}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
@@ -470,7 +470,7 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh"}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)

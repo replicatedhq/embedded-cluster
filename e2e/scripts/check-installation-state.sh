@@ -46,12 +46,28 @@ wait_for_nginx_pods() {
 }
 
 ensure_app_deployed() {
+    local version="$1"
+
     kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
-    kubectl get pods -A
-    return 1 # testing
+    if ! kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app | grep -q "${version}\W*[01]\W*deployed"; then
+        echo "application not deployed"
+        return 1
+    fi
+}
+
+ensure_app_not_upgraded() {
+    if kubectl get ns | grep -q memcached ; then
+        echo "found memcached ns"
+        return 1
+    fi
+    if kubectl get pods -n kotsadm -l app=second | grep -q second ; then
+        echo "found pods from app update"
+        return 1
+    fi
 }
 
 main() {
+    local version="$1"
     sleep 30 # wait for kubectl to become available
 
     echo "pods"
@@ -68,7 +84,10 @@ main() {
         echo "Failed waiting for the application's nginx pods"
         exit 1
     fi
-    if ! ensure_app_deployed; then
+    if ! ensure_app_deployed "$version"; then
+        exit 1
+    fi
+    if ! ensure_app_not_upgraded; then
         exit 1
     fi
 }
@@ -76,4 +95,4 @@ main() {
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
 export PATH=$PATH:/var/lib/embedded-cluster/bin
-main
+main "$@"
