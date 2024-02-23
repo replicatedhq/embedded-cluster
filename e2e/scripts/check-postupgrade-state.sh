@@ -49,10 +49,18 @@ main() {
     kubectl get installations
 
     # ensure that goldpinger exists
-    kubectl get ns goldpinger
+    if ! kubectl get ns goldpinger; then
+        echo "no goldpinger ns found"
+        kubectl get ns
+        exit 1
+    fi
 
     # ensure that new app pods exist
-    kubectl get pods -n kotsadm -l app=second
+    if ! kubectl get pods -n kotsadm -l app=second; then
+        echo "no pods found for second app version"
+        kubectl get pods -n kotsadm
+        exit 1
+    fi
 
     # ensure that nginx-ingress has been updated
     kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx

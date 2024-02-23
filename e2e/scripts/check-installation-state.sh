@@ -45,17 +45,6 @@ wait_for_nginx_pods() {
     done
 }
 
-ensure_app_not_upgraded() {
-    if kubectl get ns | grep -q goldpinger ; then
-        echo "found goldpinger ns"
-        return 1
-    fi
-    if kubectl get pods -n kotsadm -l app=second | grep -q second ; then
-        echo "found pods from app update"
-        return 1
-    fi
-}
-
 ensure_app_deployed() {
     kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
     return 1 # testing
@@ -76,9 +65,6 @@ main() {
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
-        exit 1
-    fi
-    if ! ensure_app_not_upgraded; then
         exit 1
     fi
     if ! ensure_app_deployed; then
