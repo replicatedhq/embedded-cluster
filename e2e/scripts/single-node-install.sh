@@ -123,7 +123,7 @@ deploy_app() {
 
     echo "bypassing cluster management page"
     # bypass cluster management page
-    curl -k -X POST "https://${kotsadm_ip}:${kotsadm_port}/api/v1/embedded-cluster/management" -H "Authorization: $kotsadm_auth_string"
+    curl -k -X POST "http://${kotsadm_ip}:${kotsadm_port}/api/v1/embedded-cluster/management" -H "Authorization: $kotsadm_auth_string"
     echo "app versions"
     kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
 
