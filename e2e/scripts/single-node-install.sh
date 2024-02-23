@@ -79,6 +79,39 @@ wait_for_ingress_pods() {
     done
 }
 
+deploy_app() {
+    # install kots CLI
+    echo "installing kotsadm"
+    local ec_version=
+    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}')
+    curl https://kots.io/install/$ec_version | bash
+
+    echo "getting apps"
+    # run a no-op kots command to populate the authstring secret
+    kubectl kots get apps -n kotsadm
+
+    echo "exporting authstring"
+    # export the authstring secret
+    local kotsadm_auth_string=
+    kotsadm_auth_string=$(kubectl get secret -n kotsadm kotsadm-authstring -o jsonpath='{.data.kotsadm-authstring}' | base64 -d)
+
+    echo "getting kotsadm service IP"
+    # get kotsadm service IP address
+    local kotsadm_ip=
+    kotsadm_ip=$(kubectl get svc -n kotsadm kotsadm -o jsonpath='{.spec.clusterIP}')
+
+    echo "bypassing cluster management page"
+    # bypass cluster management page
+    curl -k -X POST "https://${kotsadm_ip}:30000/api/v1/embedded-cluster/management" -H "Authorization: $kotsadm_auth_string"
+
+    echo "providing a config for the app"
+    # provide a config for the app
+    kubectl kots set config embedded-cluster-smoke-test-staging-app --key="entryABC" --value="123" -n kotsadm
+
+    echo "deploying the app"
+    sleep 5
+}
+
 wait_for_nginx_pods() {
     ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
     counter=0
@@ -156,6 +189,10 @@ main() {
     fi
     if ! ensure_node_config; then
         echo "Cluster did not respect node config"
+        exit 1
+    fi
+    if ! deploy_app; then
+        echo "Failed to deploy app"
         exit 1
     fi
     if ! wait_for_pods_running 900; then

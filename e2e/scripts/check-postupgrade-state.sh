@@ -31,10 +31,6 @@ main() {
 
     sleep 30 # wait for kubectl to become available
 
-    local ec_version=
-    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}')
-    curl https://kots.io/install/$ec_version | bash
-
     echo "upgrading to version ${installation_version}-upgrade"
     kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --deploy-version-label="${installation_version}-upgrade"
 
