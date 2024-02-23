@@ -6,7 +6,7 @@
  * all logging has also been manually added (process.stderr.write() calls).
  * this script is meant to be run as an argument to the `puppeteer.sh` script.
  * THIS SCRIPT EXPECTS THE STEP TO ENABLE HTTPS ACCESS TO KOTS TO BE ALREADY
- * COMPLETED. YOU NEED TO RUN check-app-and-cluster-status.js BEFORE THIS.
+ * COMPLETED. YOU NEED TO RUN deploy-kots-application.js BEFORE THIS.
  */
 
 const puppeteer = require('puppeteer'); // v20.7.4 or later
