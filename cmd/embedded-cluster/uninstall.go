@@ -92,7 +92,6 @@ func (h *hostInfo) drainNode() error {
 		"drain",
 		"--ignore-daemonsets",
 		"--delete-emptydir-data",
-		"--delete-local-data",
 		"--timeout", "60s",
 		h.Hostname,
 	}
