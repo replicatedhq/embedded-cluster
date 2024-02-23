@@ -89,16 +89,22 @@ deploy_app() {
     echo "getting apps"
     # run a no-op kots command to populate the authstring secret
     kubectl kots get apps -n kotsadm
+    echo "kotsadm version"
+    kubectl kots version -n kotsadm
+    echo "app versions"
+    kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
 
     echo "exporting authstring"
     # export the authstring secret
     local kotsadm_auth_string=
     kotsadm_auth_string=$(kubectl get secret -n kotsadm kotsadm-authstring -o jsonpath='{.data.kotsadm-authstring}' | base64 -d)
+    echo "kotsadm_auth_string: $kotsadm_auth_string"
 
     echo "getting kotsadm service IP"
     # get kotsadm service IP address
     local kotsadm_ip=
     kotsadm_ip=$(kubectl get svc -n kotsadm kotsadm -o jsonpath='{.spec.clusterIP}')
+    echo "kotsadm_ip: $kotsadm_ip"
 
     echo "bypassing cluster management page"
     # bypass cluster management page
@@ -107,9 +113,14 @@ deploy_app() {
     echo "providing a config for the app"
     # provide a config for the app
     kubectl kots set config embedded-cluster-smoke-test-staging-app --key="entryABC" --value="123" -n kotsadm
+    echo "app versions"
+    kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
 
     echo "deploying the app"
-    sleep 5
+    sleep 15
+
+    echo "kotsadm logs"
+    kubectl logs -n kotsadm -l app=kotsadm
 }
 
 wait_for_nginx_pods() {
