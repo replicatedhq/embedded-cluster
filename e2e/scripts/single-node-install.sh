@@ -115,9 +115,15 @@ deploy_app() {
     kotsadm_ip=$(kubectl get svc -n kotsadm kotsadm -o jsonpath='{.spec.clusterIP}')
     echo "kotsadm_ip: $kotsadm_ip"
 
+    echo "getting kotsadm service port"
+    # get kotsadm service port
+    local kotsadm_port=
+    kotsadm_port=$(kubectl get svc -n kotsadm kotsadm -o jsonpath='{.spec.ports[?(@.name=="http")].port}')
+    echo "kotsadm_port: $kotsadm_port"
+
     echo "bypassing cluster management page"
     # bypass cluster management page
-    curl -k -X POST "https://${kotsadm_ip}:30000/api/v1/embedded-cluster/management" -H "Authorization: $kotsadm_auth_string"
+    curl -k -X POST "https://${kotsadm_ip}:${kotsadm_port}/api/v1/embedded-cluster/management" -H "Authorization: $kotsadm_auth_string"
 
     echo "providing a config for the app"
     # provide a config for the app
