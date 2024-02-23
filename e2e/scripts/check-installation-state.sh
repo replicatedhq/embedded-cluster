@@ -47,6 +47,7 @@ wait_for_nginx_pods() {
 
 ensure_app_deployed() {
     kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
+    kubectl get pods -A
     return 1 # testing
 }
 
