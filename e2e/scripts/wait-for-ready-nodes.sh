@@ -18,6 +18,16 @@ main() {
         kubectl get nodes || true
     done
     echo "All nodes are ready"
+
+    echo "checking that goldpinger has run on all nodes"
+    kubectl get pods -n goldpinger
+    local goldpinger_running_count=
+    goldpinger_running_count=$(kubectl get pods --no-headers -n goldpinger | wc -l)
+    if [ "$goldpinger_running_count" -lt "$expected_nodes" ]; then
+        echo "goldpinger is running on $goldpinger_running_count nodes, expected $expected_nodes"
+        exit 1
+    fi
+
     exit 0
 }
 

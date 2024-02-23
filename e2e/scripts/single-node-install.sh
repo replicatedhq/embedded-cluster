@@ -109,8 +109,8 @@ check_openebs_storage_class() {
 }
 
 ensure_app_not_upgraded() {
-    if kubectl get ns | grep -q goldpinger ; then
-        echo "found goldpinger ns"
+    if kubectl get ns | grep -q memcached ; then
+        echo "found memcached ns"
         return 1
     fi
     if kubectl get pods -n kotsadm -l app=second | grep -q second ; then
