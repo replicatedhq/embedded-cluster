@@ -79,7 +79,16 @@ wait_for_ingress_pods() {
     done
 }
 
+maybe_install_curl() {
+    if ! command -v curl; then
+        apt-get update
+        apt-get install -y curl
+    fi
+}
+
 deploy_app() {
+    maybe_install_curl
+
     # install kots CLI
     echo "installing kotsadm"
     local ec_version=
