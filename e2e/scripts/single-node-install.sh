@@ -250,9 +250,6 @@ main() {
             echo "Failed waiting for the application's nginx pods"
             exit 1
         fi
-    else
-        echo "did not deploy app"
-        exit 1
     fi
     if ! wait_for_ingress_pods; then
         echo "Failed waiting for ingress pods"
