@@ -478,9 +478,17 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
 	}
+	t.Logf("%s: accessing kotsadm interface and deploying app", time.Now().Format(time.RFC3339))
+	line = []string{"puppeteer.sh", "deploy-kots-application.js", "10.0.0.2"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to access kotsadm interface and state: %v", err)
+	}
 	t.Logf("%s: accessing kotsadm interface and checking app and cluster state", time.Now().Format(time.RFC3339))
 	line = []string{"puppeteer.sh", "check-app-and-cluster-status.js", "10.0.0.2"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)

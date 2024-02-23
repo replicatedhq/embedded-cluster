@@ -56,30 +56,6 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
         await Promise.all(promises);
     }
     {
-        process.stderr.write("waiting and clicking on the 'Continue to Setup' button\n");
-        const targetPage = page;
-        const promises = [];
-        const startWaitingForEvents = () => {
-            promises.push(targetPage.waitForNavigation());
-        }
-        await puppeteer.Locator.race([
-            targetPage.locator('::-p-aria(Continue to Setup)'),
-            targetPage.locator('button'),
-            targetPage.locator('::-p-xpath(/html/body/div/div/div[2]/div[1]/div[4]/button)'),
-            targetPage.locator(':scope >>> button'),
-            targetPage.locator('::-p-text(Continue to Setup)')
-        ])
-            .setTimeout(timeout)
-            .on('action', () => startWaitingForEvents())
-            .click({
-              offset: {
-                x: 44,
-                y: 15,
-              },
-            });
-        await Promise.all(promises);
-    }
-    {
         process.stderr.write("waiting and clicking on 'Advanced' to move on with the certificate\n");
         const targetPage = page;
         await puppeteer.Locator.race([
@@ -115,42 +91,6 @@ const puppeteer = require('puppeteer'); // v20.7.4 or later
                 y: 7.7421875,
               },
             });
-    }
-    {
-        process.stderr.write("going to the /tls endpoint\n");
-        const targetPage = page;
-        const promises = [];
-        const startWaitingForEvents = () => {
-            promises.push(targetPage.waitForNavigation());
-        }
-        startWaitingForEvents();
-        // CUSTOM: using the command line argument.
-        await targetPage.goto(`https://${args[0]}:30000/tls`);
-        await Promise.all(promises);
-    }
-    {
-        process.stderr.write("waiting and clicking on 'Continue'\n");
-        const targetPage = page;
-        const promises = [];
-        const startWaitingForEvents = () => {
-            promises.push(targetPage.waitForNavigation());
-        }
-        await puppeteer.Locator.race([
-            targetPage.locator('::-p-aria(Continue)'),
-            targetPage.locator('button'),
-            targetPage.locator('::-p-xpath(//*[@id=\\"upload-form\\"]/div[6]/button)'),
-            targetPage.locator(':scope >>> button'),
-            targetPage.locator('::-p-text(Continue\n   )')
-        ])
-            .setTimeout(timeout)
-            .on('action', () => startWaitingForEvents())
-            .click({
-              offset: {
-                x: 45,
-                y: 6,
-              },
-            });
-        await Promise.all(promises);
     }
     {
         process.stderr.write("waiting and clicking in the password field\n");
