@@ -31,6 +31,8 @@ if [ $? == 0 ]; then
     exit 0
 fi
 echo "Internet connection is down"
+cat /etc/os-release
+uname -a
 exit 1
 `
 

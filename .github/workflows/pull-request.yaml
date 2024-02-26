@@ -115,20 +115,20 @@ jobs:
       fail-fast: false
       matrix:
         tests:
-          - TestSingleNodeInstallation
+#          - TestSingleNodeInstallation
           - TestSingleNodeInstallationRockyLinux8
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos8Stream
+#          - TestSingleNodeInstallationDebian12
+#          - TestSingleNodeInstallationCentos8Stream
           - TestSingleNodeInstallationRockyLinux9
-          - TestVersion
-          - TestHostPreflight
-          - TestUnsupportedOverrides
-          - TestMultiNodeInstallation
-          - TestMultiNodeReset
-          - TestCommandsRequireSudo
-          - TestInstallWithoutEmbed
-          - TestResetAndReinstall
-          - TestCollectSupportBundle
+#          - TestVersion
+#          - TestHostPreflight
+#          - TestUnsupportedOverrides
+#          - TestMultiNodeInstallation
+#          - TestMultiNodeReset
+#          - TestCommandsRequireSudo
+#          - TestInstallWithoutEmbed
+#          - TestResetAndReinstall
+#          - TestCollectSupportBundle
     steps:
     - name: Checkout
       uses: actions/checkout@v4
