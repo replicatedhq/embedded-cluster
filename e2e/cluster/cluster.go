@@ -26,7 +26,7 @@ lxc.cgroup.devices.allow=a
 lxc.mount.auto=proc:rw sys:rw
 lxc.mount.entry = /dev/kmsg dev/kmsg none defaults,bind,create=file`
 const checkInternet = `#!/bin/sh
-timeout 5 bash -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
+timeout 5 sh -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
 if [ $? == 0 ]; then
     exit 0
 fi
