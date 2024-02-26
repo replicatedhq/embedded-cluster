@@ -36,6 +36,9 @@ uname -a
 ip a || true
 systemctl status NetworkManager || true
 NetworkManager --print-config || true
+yum update -y
+yum install -y curl
+curl -sSLf https://www.replicated.com
 exit 1
 `
 
