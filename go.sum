@@ -208,8 +208,6 @@ github.com/muhlemmer/gu v0.3.1/go.mod h1:YHtHR+gxM+bKEIIs7Hmi9sPT3ZDUvTN/i88wQpZ
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
-github.com/ohler55/ojg v1.21.1 h1:b2RLUaDcy9gvn46dmhTjezu/TDauoR0/kgKTqkwIxto=
-github.com/ohler55/ojg v1.21.1/go.mod h1:gQhDVpQLqrmnd2eqGAvJtn+NfKoYJbe/A4Sj3/Vro4o=
 github.com/ohler55/ojg v1.21.2 h1:6N3eBqzMQ4lYurweV/H/c3DK0Z2ufj8aZcAj3mhknwM=
 github.com/ohler55/ojg v1.21.2/go.mod h1:gQhDVpQLqrmnd2eqGAvJtn+NfKoYJbe/A4Sj3/Vro4o=
 github.com/oklog/ulid v1.3.1 h1:EGfNDEx6MqHz8B3uNV6QAib1UR2Lm97sHi3ocA6ESJ4=
@@ -241,10 +239,8 @@ github.com/prometheus/common v0.45.0 h1:2BGz0eBc2hdMDLnO/8n0jeB3oPrt2D08CekT0lne
 github.com/prometheus/common v0.45.0/go.mod h1:YJmSTw9BoKxJplESWWxlbyttQR4uaEcGyv9MZjVOJsY=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
-github.com/replicatedhq/embedded-cluster-operator v0.22.7 h1:IwH4SUZnQtANAfBXbdQO+GLMHzEXk1rx6xUoQAw2rb8=
-github.com/replicatedhq/embedded-cluster-operator v0.22.7/go.mod h1:aDdrVEbQeoPYHG+fIJxODOTZA3asYZ9SS1Yeb2tfRPQ=
-github.com/replicatedhq/embedded-cluster-operator v0.23.0 h1:+1Y6g9Ed+e8yNvIh7IQTB73ER0LXjjBTKbxthZy65rQ=
-github.com/replicatedhq/embedded-cluster-operator v0.23.0/go.mod h1:CFiwfofNfU2lwUVC0hA6XTodmM40hYJwXgdMza1AT2w=
+github.com/replicatedhq/embedded-cluster-operator v0.24.1 h1:1eBhFJVz9eQvGx5DywQeQOIS9MBj2lJqBgEcqQtEAF4=
+github.com/replicatedhq/embedded-cluster-operator v0.24.1/go.mod h1:CFiwfofNfU2lwUVC0hA6XTodmM40hYJwXgdMza1AT2w=
 github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be h1:wuHmBUANuvCUeX4WmUVf7AWOlRTJMAmAR/GsYOY0Jdo=
 github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be/go.mod h1:4JmMC2CwMCLxq05GEW3XSPPVotqyamAF/omrbB3pH+c=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
@@ -477,8 +473,6 @@ k8s.io/apiextensions-apiserver v0.29.0 h1:0VuspFG7Hj+SxyF/Z/2T0uFbI5gb5LRgEyUVE3
 k8s.io/apiextensions-apiserver v0.29.0/go.mod h1:TKmpy3bTS0mr9pylH0nOt/QzQRrW7/h7yLdRForMZwc=
 k8s.io/apimachinery v0.29.2 h1:EWGpfJ856oj11C52NRCHuU7rFDwxev48z+6DSlGNsV8=
 k8s.io/apimachinery v0.29.2/go.mod h1:6HVkd1FwxIagpYrHSwJlQqZI3G9LfYWRPAkUvLnXTKU=
-k8s.io/client-go v0.29.1 h1:19B/+2NGEwnFLzt0uB5kNJnfTsbV8w6TgQRz9l7ti7A=
-k8s.io/client-go v0.29.1/go.mod h1:TDG/psL9hdet0TI9mGyHJSgRkW3H9JZk2dNEUS7bRks=
 k8s.io/client-go v0.29.2 h1:FEg85el1TeZp+/vYJM7hkDlSTFZ+c5nnK44DJ4FyoRg=
 k8s.io/client-go v0.29.2/go.mod h1:knlvFZE58VpqbQpJNbCbctTVXcd35mMyAAwBdpt4jrA=
 k8s.io/component-base v0.29.0 h1:T7rjd5wvLnPBV1vC4zWd/iWRbV8Mdxs+nGaoaFzGw3s=
