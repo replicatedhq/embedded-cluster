@@ -39,6 +39,17 @@ NetworkManager --print-config || true
 exit 1
 `
 
+const checkInternetAlpine = `#!/bin/sh
+apk update
+apk add curl bash
+curl -sSf http://www.replicated.com > /dev/null
+if [ $? == 0 ]; then
+	exit 0
+fi
+echo "Internet connection is down"
+exit 1
+`
+
 func init() {
 	networkaddr = make(chan string, 255)
 	for i := 2; i < 255; i++ {
@@ -483,8 +494,15 @@ func NodeHasInternet(in *Input, node string) {
 	defer func() {
 		os.RemoveAll(fp.Name())
 	}()
-	if err := os.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
-		in.T.Fatalf("Failed to write script: %v", err)
+
+	if strings.Contains(in.Image, "alpine") {
+		if err := os.WriteFile(fp.Name(), []byte(checkInternetAlpine), 0755); err != nil {
+			in.T.Fatalf("Failed to write script: %v", err)
+		}
+	} else {
+		if err := os.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
+			in.T.Fatalf("Failed to write script: %v", err)
+		}
 	}
 	file := File{
 		SourcePath: fp.Name(),
