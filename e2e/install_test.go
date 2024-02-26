@@ -253,6 +253,47 @@ func TestSingleNodeInstallationRockyLinux9(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestSingleNodeInstallationAlpine319(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "alpine/3.19",
+		LicensePath:         "license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	})
+	defer tc.Destroy()
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-install.sh", "cli"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func TestHostPreflight(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{

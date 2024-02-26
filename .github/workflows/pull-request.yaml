@@ -120,6 +120,7 @@ jobs:
 #          - TestSingleNodeInstallationDebian12
 #          - TestSingleNodeInstallationCentos8Stream
           - TestSingleNodeInstallationRockyLinux9
+          - TestSingleNodeInstallationAlpine319
 #          - TestVersion
 #          - TestHostPreflight
 #          - TestUnsupportedOverrides
