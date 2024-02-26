@@ -33,7 +33,8 @@ fi
 echo "Internet connection is down"
 cat /etc/os-release
 uname -a
-ifconfig
+systemctl status NetworkManager || true
+NetworkManager --print-config || true
 exit 1
 `
 
