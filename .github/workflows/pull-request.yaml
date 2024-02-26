@@ -119,6 +119,7 @@ jobs:
           - TestSingleNodeInstallationRockyLinux8
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos8Stream
+          - TestSingleNodeInstallationRockyLinux9
           - TestVersion
           - TestHostPreflight
           - TestUnsupportedOverrides
