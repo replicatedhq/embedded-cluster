@@ -33,6 +33,7 @@ fi
 echo "Internet connection is down"
 cat /etc/os-release
 uname -a
+ifconfig
 exit 1
 `
 
