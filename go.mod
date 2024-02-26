@@ -6,7 +6,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c
 	github.com/k0sproject/version v0.6.0
-	github.com/ohler55/ojg v1.21.2
+	github.com/ohler55/ojg v1.21.3
 	github.com/onsi/ginkgo/v2 v2.15.0
 	github.com/onsi/gomega v1.31.1
 	github.com/stretchr/testify v1.8.4
