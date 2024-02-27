@@ -66,9 +66,9 @@ func runPostInstall() error {
 			return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 		}
 
-	} else {
-		// assume this is OpenRC, and do nothing
 	}
+	// assume this is OpenRC, and do nothing if there's no k0scontroller service
+
 	return nil
 }
 
