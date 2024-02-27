@@ -261,9 +261,13 @@ main() {
     if ! check_pod_install_order; then
         exit 1
     fi
-    if ! systemctl status embedded-cluster; then
-        echo "Failed to get status of embedded-cluster service"
-        exit 1
+
+    # only check the embedded-cluster service if the systemctl command exists
+    if command -v systemctl; then
+        if ! systemctl status embedded-cluster; then
+            echo "Failed to get status of embedded-cluster service"
+            exit 1
+        fi
     fi
 }
 

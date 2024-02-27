@@ -55,13 +55,19 @@ func runCommand(bin string, args ...string) (string, error) {
 // runPostInstall is a helper function that run things just after the k0s install
 // command ran.
 func runPostInstall() error {
-	src := "/etc/systemd/system/k0scontroller.service"
-	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
-	if err := os.Symlink(src, dst); err != nil {
-		return fmt.Errorf("failed to create symlink: %w", err)
-	}
-	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+	if _, err := os.Stat("/etc/systemd/system/k0scontroller.service"); err == nil {
+		// if the k0scontroller service exists
+		src := "/etc/systemd/system/k0scontroller.service"
+		dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
+		if err := os.Symlink(src, dst); err != nil {
+			return fmt.Errorf("failed to create symlink: %w", err)
+		}
+		if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
+			return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+		}
+
+	} else {
+		// assume this is OpenRC, and do nothing
 	}
 	return nil
 }
