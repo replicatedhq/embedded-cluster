@@ -8,7 +8,7 @@ require (
 	github.com/creack/pty v1.1.21
 	github.com/fatih/color v1.16.0
 	github.com/google/uuid v1.6.0
-	github.com/gosimple/slug v1.13.1
+	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/replicatedhq/embedded-cluster-operator v0.24.1
