@@ -8,10 +8,10 @@ require (
 	github.com/creack/pty v1.1.21
 	github.com/fatih/color v1.16.0
 	github.com/google/uuid v1.6.0
-	github.com/gosimple/slug v1.13.1
+	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/replicatedhq/embedded-cluster-operator v0.23.0
+	github.com/replicatedhq/embedded-cluster-operator v0.24.1
 	github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.83.0
