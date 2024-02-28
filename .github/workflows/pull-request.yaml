@@ -5,7 +5,7 @@ jobs:
   copy-secrets-to-dependabot-secrets:
     runs-on: ubuntu-20.04
     env:
-      GITHUB_TOKEN: ${{ secrets.TEMPORARY_PAT }}
+      GITHUB_TOKEN: ${{ secrets.AUTOMATED_PR_GH_PAT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
