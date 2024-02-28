@@ -2,6 +2,20 @@ name: Pull request
 on:
 - pull_request
 jobs:
+  copy-secrets-to-dependabot-secrets:
+    runs-on: ubuntu-20.04
+    env:
+      GITHUB_TOKEN: ${{ secrets.TEMPORARY_PAT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - run: |
+          gh secret set STAGING_REPLICATED_API_TOKEN --app dependabot --body '${{ secrets.STAGING_REPLICATED_API_TOKEN }}'
+          gh secret set STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID --app dependabot --body '${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}'
+          gh secret set STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET --app dependabot --body '${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}'
+          gh secret set STAGING_EMBEDDED_CLUSTER_LICENSE_ID --app dependabot --body '${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}'
+          gh secret set STAGING_EMBEDDED_CLUSTER_LICENSE --app dependabot --body '${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}'
+
   sanitize:
     name: Sanitize
     runs-on: ubuntu-latest
