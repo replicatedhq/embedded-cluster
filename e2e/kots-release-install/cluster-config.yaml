@@ -10,8 +10,8 @@ spec:
         controller-label: controller-label-value
       name: controller-test
       workerProfiles:
-        - controller-profile
-#        - custom-eviction
+#        - controller-profile
+        - custom-eviction
     custom:
       - labels:
           abc-test-label: abc-test-label-value
