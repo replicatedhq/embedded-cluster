@@ -52,6 +52,11 @@ func RenderK0sConfig(ctx context.Context) (*k0sconfig.ClusterConfig, error) {
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
 	cfg.Spec.Telemetry.Enabled = false
+	cfg.Spec.API.ExtraArgs = map[string]string{
+		"use-service-account-credentials": "true",
+		"insecure-port":                   "0",
+		"read-only-port":                  "0",
+	}
 	return &cfg, nil
 }
 
