@@ -134,12 +134,14 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
+// https://docs.k0sproject.io/v1.29.2+k0s.0/cli/k0s_install_controller/
 func InstallFlags() []string {
 	return []string{
 		"install",
 		"controller",
 		"--disable-components", "konnectivity-server",
 		"--labels", strings.Join(nodeLabels(), ","),
+		"--profile", strings.Join(workerProfiles(), ","),
 		"--enable-worker",
 		"--no-taints",
 		"--enable-dynamic-config",
@@ -171,6 +173,18 @@ func getControllerRoleName() string {
 		}
 	}
 	return controllerRoleName
+}
+
+func workerProfiles() []string {
+	clusterConfig, err := release.GetEmbeddedClusterConfig()
+	if err == nil {
+		if clusterConfig != nil {
+			if clusterConfig.Spec.Roles.Controller.WorkerProfiles != nil {
+				return clusterConfig.Spec.Roles.Controller.WorkerProfiles
+			}
+		}
+	}
+	return []string{"default"}
 }
 
 func additionalControllerLabels() map[string]string {
