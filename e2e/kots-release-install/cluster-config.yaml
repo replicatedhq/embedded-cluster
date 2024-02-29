@@ -11,7 +11,7 @@ spec:
       name: controller-test
       workerProfiles:
         - controller-profile
-        - custom-eviction
+#        - custom-eviction
     custom:
       - labels:
           abc-test-label: abc-test-label-value
