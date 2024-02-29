@@ -9,6 +9,9 @@ spec:
       labels:
         controller-label: controller-label-value
       name: controller-test
+      workerProfiles:
+        - controller-profile
+        - custom-eviction
     custom:
       - labels:
           abc-test-label: abc-test-label-value
@@ -28,6 +31,21 @@ spec:
           api:
             extraArgs:
               service-node-port-range: 80-32767
+  workerProfiles:
+    - name: controller-profile
+      values:
+        allowedUnsafeSysctls:
+          - fs.inotify.max_user_instances
+    - name: custom-eviction
+      values:
+        evictionHard:
+          memory.available: "500Mi"
+          nodefs.available: "1Gi"
+          imagefs.available: "100Gi"
+        evictionMinimumReclaim:
+          memory.available: "0Mi"
+          nodefs.available: "500Mi"
+          imagefs.available: "2Gi"
   extensions:
     helm:
       repositories:
