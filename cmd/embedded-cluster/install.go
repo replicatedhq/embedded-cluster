@@ -217,6 +217,7 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 		if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
 		}
+		cfg.Spec.WorkerProfiles = embcfg.Spec.WorkerProfiles
 	}
 	if c.String("overrides") == "" {
 		return cfg, nil

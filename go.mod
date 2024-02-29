@@ -11,7 +11,7 @@ require (
 	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/replicatedhq/embedded-cluster-operator v0.24.1
+	github.com/replicatedhq/embedded-cluster-operator v0.24.2-0.20240227201310-c946021e227e
 	github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.83.0
@@ -40,7 +40,7 @@ require (
 	github.com/google/pprof v0.0.0-20230323073829-e72429f035bd // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
-	github.com/ohler55/ojg v1.21.2 // indirect
+	github.com/ohler55/ojg v1.21.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect

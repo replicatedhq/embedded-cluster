@@ -210,6 +210,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8m
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/ohler55/ojg v1.21.2 h1:6N3eBqzMQ4lYurweV/H/c3DK0Z2ufj8aZcAj3mhknwM=
 github.com/ohler55/ojg v1.21.2/go.mod h1:gQhDVpQLqrmnd2eqGAvJtn+NfKoYJbe/A4Sj3/Vro4o=
+github.com/ohler55/ojg v1.21.3 h1:0smW0EKpyPBBIpTKhM+UbCDeQFbR0oEUxym+rFv2Y/8=
+github.com/ohler55/ojg v1.21.3/go.mod h1:gQhDVpQLqrmnd2eqGAvJtn+NfKoYJbe/A4Sj3/Vro4o=
 github.com/oklog/ulid v1.3.1 h1:EGfNDEx6MqHz8B3uNV6QAib1UR2Lm97sHi3ocA6ESJ4=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/onsi/ginkgo/v2 v2.15.0 h1:79HwNRBAZHOEwrczrgSOPy+eFTTlIGELKy5as+ClttY=
@@ -241,6 +243,8 @@ github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
 github.com/replicatedhq/embedded-cluster-operator v0.24.1 h1:1eBhFJVz9eQvGx5DywQeQOIS9MBj2lJqBgEcqQtEAF4=
 github.com/replicatedhq/embedded-cluster-operator v0.24.1/go.mod h1:CFiwfofNfU2lwUVC0hA6XTodmM40hYJwXgdMza1AT2w=
+github.com/replicatedhq/embedded-cluster-operator v0.24.2-0.20240227201310-c946021e227e h1:EiBb3X8sWkVO4aL4CcDoCDouUcEPJPMwnZ9CZOd132w=
+github.com/replicatedhq/embedded-cluster-operator v0.24.2-0.20240227201310-c946021e227e/go.mod h1:gKLyq+Ap1d1uzt/xN1sYvs19bwf6XT4L04C1yRgcaXA=
 github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be h1:wuHmBUANuvCUeX4WmUVf7AWOlRTJMAmAR/GsYOY0Jdo=
 github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be/go.mod h1:4JmMC2CwMCLxq05GEW3XSPPVotqyamAF/omrbB3pH+c=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
