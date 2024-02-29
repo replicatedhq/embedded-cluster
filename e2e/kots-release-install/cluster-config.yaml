@@ -10,7 +10,7 @@ spec:
         controller-label: controller-label-value
       name: controller-test
       workerProfiles:
-#        - controller-profile
+        - default
         - custom-eviction
     custom:
       - labels:
