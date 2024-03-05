@@ -320,9 +320,10 @@ var installCommand = &cli.Command{
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "license",
-			Usage:  "Path to the application license file",
-			Hidden: false,
+			Name:    "license",
+			Aliases: []string{"l"},
+			Usage:   "Path to the application license file",
+			Hidden:  false,
 		},
 	},
 	Action: func(c *cli.Context) error {
