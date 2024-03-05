@@ -306,6 +306,10 @@ var installCommand = &cli.Command{
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
 		}
+
+		if c.String("airgap") != "" {
+			metrics.DisableMetrics()
+		}
 		return nil
 	},
 	Flags: []cli.Flag{
@@ -324,6 +328,11 @@ var installCommand = &cli.Command{
 			Aliases: []string{"l"},
 			Usage:   "Path to the application license file",
 			Hidden:  false,
+		},
+		&cli.StringFlag{
+			Name:   "airgap",
+			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Hidden: false,
 		},
 	},
 	Action: func(c *cli.Context) error {

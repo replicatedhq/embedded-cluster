@@ -26,6 +26,11 @@ type Sender struct {
 
 // Send sends an event to the metrics endpoint.
 func (s *Sender) Send(ctx context.Context, ev Event) {
+	if metricsDisabled {
+		logrus.Debugf("metrics are disabled, not sending event %s", ev.Title())
+		return
+	}
+
 	url := fmt.Sprintf("%s/embedded_cluster_metrics/%s", s.baseURL, ev.Title())
 	payload, err := s.payload(ev)
 	if err != nil {

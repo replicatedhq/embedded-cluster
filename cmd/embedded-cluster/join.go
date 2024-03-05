@@ -97,9 +97,20 @@ var joinCommand = &cli.Command{
 	Name:      "join",
 	Usage:     fmt.Sprintf("Join the current node to a %s cluster", binName),
 	ArgsUsage: "<url> <token>",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:   "airgap",
+			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Hidden: false,
+		},
+	},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("node join command must be run as root")
+		}
+
+		if c.String("airgap") != "" {
+			metrics.DisableMetrics()
 		}
 		return nil
 	},
