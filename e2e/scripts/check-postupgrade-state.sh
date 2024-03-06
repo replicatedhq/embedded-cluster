@@ -18,6 +18,8 @@ wait_for_installation() {
             echo "plans:"
             kubectl get plans -A
             kubectl get plans -A -o yaml
+            echo "k0s logs"
+            journalctl -u k0s -n 100
             return 1
         fi
         sleep 5
