@@ -15,6 +15,9 @@ wait_for_installation() {
             kubectl get pods -A
             echo "operator logs:"
             kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
+            echo "plans:"
+            kubectl get plans -A
+            kubectl get plans -A -o yaml
             return 1
         fi
         sleep 5
