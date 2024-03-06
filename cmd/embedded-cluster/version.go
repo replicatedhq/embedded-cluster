@@ -75,6 +75,8 @@ var metadataCommand = &cli.Command{
 		}
 		versions["Kubernetes"] = defaults.K0sVersion
 		versions["Installer"] = defaults.Version
+		versions["Troubleshoot"] = defaults.TroubleshootVersion
+		versions["Kubectl"] = defaults.KubectlVersion
 		channelRelease, err := release.GetChannelRelease()
 		if err == nil && channelRelease != nil {
 			versions[defaults.BinaryName()] = channelRelease.VersionLabel
