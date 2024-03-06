@@ -15,6 +15,11 @@ wait_for_installation() {
             kubectl describe clusterconfig -A
             echo "operator logs:"
             kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
+            echo "plans:"
+            kubectl get plans -A
+            kubectl get plans -A -o yaml
+            echo "k0s logs"
+            journalctl -u k0scontroller -n 10000
             return 1
         fi
         sleep 5
