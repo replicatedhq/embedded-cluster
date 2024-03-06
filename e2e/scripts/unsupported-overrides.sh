@@ -43,7 +43,7 @@ spec:
                 name: admin-console
                 namespace: kotsadm
                 order: 3
-                version: 1.105.1
+                version: 1.108.0-build.1
                 values: |
                   isHelmManaged: false
                   kotsApplication: default value
