@@ -72,6 +72,17 @@ func (d *Provider) EmbeddedClusterBinsSubDir() string {
 	return path
 }
 
+// EmbeddedClusterChartsSubDir returns the path to the directory where embedded-cluster helm charts
+// are stored.
+func (d *Provider) EmbeddedClusterChartsSubDir() string {
+	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "charts")
+
+	if err := os.MkdirAll(path, 0755); err != nil {
+		logrus.Fatalf("unable to create embedded-cluster charts dir: %s", err)
+	}
+	return path
+}
+
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func (d *Provider) EmbeddedClusterHomeDirectory() string {

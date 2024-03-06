@@ -192,6 +192,11 @@ func ensureK0sConfig(c *cli.Context) error {
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
 		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
+	if c.String("airgap") != "" {
+		// update the k0s config to install with airgap
+		airgap.RemapHelm(cfg)
+		airgap.SetAirgapConfig(cfg)
+	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("unable to marshal config: %w", err)
