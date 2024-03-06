@@ -92,7 +92,7 @@ install_kots_cli() {
     # install kots CLI
     echo "installing kots cli"
     local ec_version=
-    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}')
+    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}') | cut -d'-' -f1
     curl https://kots.io/install/$ec_version | bash
 
 }
