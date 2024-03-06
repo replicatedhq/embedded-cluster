@@ -19,7 +19,7 @@ wait_for_installation() {
             kubectl get plans -A
             kubectl get plans -A -o yaml
             echo "k0s logs"
-            journalctl -u k0s -n 100
+            journalctl -u k0scontroller -n 100
             return 1
         fi
         sleep 5
