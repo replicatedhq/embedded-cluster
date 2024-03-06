@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8syaml "sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
@@ -162,6 +163,14 @@ var joinCommand = &cli.Command{
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
+		}
+
+		if c.String("airgap") != "" {
+			logrus.Infof("materializing airgap installation files")
+			if err := airgap.MaterializeAirgapFiles(c); err != nil {
+				err = fmt.Errorf("unable to run materialize airgap files: %w", err)
+				return err
+			}
 		}
 
 		logrus.Infof("Joining node to cluster")

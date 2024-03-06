@@ -15,6 +15,7 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
@@ -162,7 +163,7 @@ func checkLicenseMatches(c *cli.Context) error {
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
-func ensureK0sConfig(c *cli.Context, useprompt bool) error {
+func ensureK0sConfig(c *cli.Context) error {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
 		return fmt.Errorf("configuration file already exists")
@@ -365,8 +366,15 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+		if c.String("airgap") != "" {
+			logrus.Infof("materializing airgap installation files")
+			if err := airgap.MaterializeAirgapFiles(c); err != nil {
+				err = fmt.Errorf("unable to run materialize airgap files: %w", err)
+				return err
+			}
+		}
 		logrus.Debugf("creating k0s configuration file")
-		if err := ensureK0sConfig(c, !c.Bool("no-prompt")); err != nil {
+		if err := ensureK0sConfig(c); err != nil {
 			err := fmt.Errorf("unable to create config file: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
