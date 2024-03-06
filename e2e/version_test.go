@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/types"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
@@ -50,12 +50,18 @@ func TestVersion(t *testing.T) {
 	}
 
 	output = fmt.Sprintf("%s\n%s", stdout, stderr)
-	parsed := struct {
-		Configs k0sconfig.HelmExtensions
-	}{}
+	parsed := types.ReleaseMetadata{}
 	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
 		t.Log(output)
 		t.Fatalf("fail to parse metadata output: %v", err)
+	}
+
+	expectedVersions := []string{"Kubernetes", "Installer", "Troubleshoot", "Kubectl", "doesnotexist"}
+	for _, v := range expectedVersions {
+		if val, ok := parsed.Versions[v]; !ok || val == "" {
+			t.Errorf("missing %q version in 'metadata' output", v)
+			failed = true
+		}
 	}
 
 	for _, foundChart := range parsed.Configs.Charts {

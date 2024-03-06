@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/types"
 	"sort"
 	"strings"
 
@@ -53,16 +54,6 @@ var versionCommand = &cli.Command{
 	},
 }
 
-// ReleaseMetadata holds the metadata about a specific release, including addons and
-// their versions.
-type ReleaseMetadata struct {
-	Versions     map[string]string
-	K0sSHA       string
-	K0sBinaryURL string
-	Configs      k0sconfig.HelmExtensions
-	Protected    map[string][]string
-}
-
 var metadataCommand = &cli.Command{
 	Name:   "metadata",
 	Usage:  "Print metadata about this release",
@@ -85,7 +76,7 @@ var metadataCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("unable to get k0s binary sha256: %w", err)
 		}
-		meta := ReleaseMetadata{
+		meta := types.ReleaseMetadata{
 			Versions:     versions,
 			K0sSHA:       sha,
 			K0sBinaryURL: defaults.K0sBinaryURL,
