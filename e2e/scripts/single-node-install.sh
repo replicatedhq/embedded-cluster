@@ -261,6 +261,12 @@ main() {
     if ! check_pod_install_order; then
         exit 1
     fi
+
+    if ! kubectl version | grep 1.28.6; then
+        echo "Failed to validate kubectl version"
+        exit 1
+    fi
+
     if ! systemctl status embedded-cluster; then
         echo "Failed to get status of embedded-cluster service"
         exit 1

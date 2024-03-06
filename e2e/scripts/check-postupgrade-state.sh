@@ -101,6 +101,11 @@ main() {
         echo "no charts had an order of '110'"
         exit 1
     fi
+
+    if ! kubectl version | grep 1.29.2; then
+        echo "Failed to validate kubectl version"
+        exit 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
