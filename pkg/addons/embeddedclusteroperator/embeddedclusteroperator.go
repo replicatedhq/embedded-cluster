@@ -38,10 +38,10 @@ var helmValues = map[string]interface{}{
 	"kotsVersion":               adminconsole.Version,
 	"embeddedClusterVersion":    defaults.Version,
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
-	"image": map[string]interface{}{
-		"repository": "ttl.sh/embedded-cluster-operator-image",
-		"tag":        "dev-247b901",
-	},
+	//"image": map[string]interface{}{
+	//	"repository": "ttl.sh/embedded-cluster-operator-image",
+	//	"tag":        "dev-247b901",
+	//},
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
