@@ -49,7 +49,7 @@ func AirgapBundleVersions(airgapFile string) (appSlug, channelID, versionLabel s
 				err = fmt.Errorf("failed to read airgap.yaml file within %s: %w", airgapFile, err)
 				return
 			}
-			airgapInfo := kotsv1beta1.Airgap{}
+			var airgapInfo kotsv1beta1.Airgap{}
 			airgapInfo, err = airgapYamlVersions(contents)
 			if err != nil {
 				err = fmt.Errorf("failed to parse airgap.yaml: %w", err)

@@ -19,8 +19,6 @@ func RemapHelm(cfg *v1beta1.ClusterConfig) {
 	for idx := range cfg.Spec.Extensions.Helm.Charts {
 		cfg.Spec.Extensions.Helm.Charts[idx].ChartName = helmChartHostPath(cfg.Spec.Extensions.Helm.Charts[idx])
 	}
-
-	return
 }
 
 func helmChartHostPath(chart v1beta1.Chart) string {
