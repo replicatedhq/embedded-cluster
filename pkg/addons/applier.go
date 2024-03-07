@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -137,7 +138,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, embedoperator)
 
-	aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config, a.license)
+	aconsole, err := adminconsole.New(defaults.KOTSADM_NAMESPACE, a.prompt, a.config, a.license)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}

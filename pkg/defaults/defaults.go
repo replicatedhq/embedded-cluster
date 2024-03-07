@@ -18,6 +18,8 @@ var (
 	K0sBinaryURL = ""
 )
 
+const KOTSADM_NAMESPACE = "kotsadm"
+
 // def returns a global reference to the default provider. creates one if not
 // already created.
 func def() *Provider {
