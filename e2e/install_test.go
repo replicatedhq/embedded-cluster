@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -39,7 +38,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc, os.Getenv("SHORT_SHA"))
+	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
@@ -256,7 +255,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc, os.Getenv("SHORT_SHA"))
+	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
@@ -352,6 +351,7 @@ func TestInstallWithoutEmbed(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+// TODO: use this as the base
 func TestInstallFromReplicatedApp(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
@@ -456,23 +456,35 @@ func TestResetAndReinstall(t *testing.T) {
 func TestOldVersionUpgrade(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		LicensePath:         "license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster-old-version",
+		T:     t,
+		Nodes: 1,
+		Image: "ubuntu/jammy",
 	})
 	defer tc.Destroy()
+	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", "pre-minio-removal", os.Getenv("LICENSE_ID")}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
+	}
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "cli"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Log("install stdout:", stdout)
+		t.Log("install stderr:", stderr)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", "pre-minio-removal"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to check installation state: %v", err)
 	}
-
-	runPuppeteerAppStatusCheck(t, 0, tc, fmt.Sprintf("%s-old-version", os.Getenv("SHORT_SHA")))
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
@@ -486,7 +498,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output, appVersion string) {
+func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 	t.Logf("%s: installing puppeteer on node %d", time.Now().Format(time.RFC3339), node)
 	line := []string{"install-puppeteer.sh"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -504,7 +516,7 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output, appV
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", appVersion}
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)

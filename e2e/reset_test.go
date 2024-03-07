@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +29,7 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc, os.Getenv("SHORT_SHA"))
+	runPuppeteerAppStatusCheck(t, 0, tc)
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))

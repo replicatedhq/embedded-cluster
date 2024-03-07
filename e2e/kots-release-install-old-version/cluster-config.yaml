@@ -3,7 +3,7 @@ kind: Config
 metadata:
   name: "testconfig"
 spec:
-  version: "v1.29.2+ec.2"
+  version: "1.28.7+ec.0"
   roles:
     controller:
       labels:
