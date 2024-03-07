@@ -94,7 +94,7 @@ jobs:
         cat e2e/kots-release-install-old-version/release.yaml
 
         mkdir -p output/tmp
-        tar -czf output/tmp/release.tar.gz e2e/kots-release-install-old-version .
+        tar -czf output/tmp/old-version-release.tar.gz e2e/kots-release-install-old-version .
 
         export OLD_VERSION=v1.29.2+ec.2
         curl -L -o ec.tgz "https://github.com/replicatedhq/embedded-cluster/releases/download/${OLD_VERSION}/embedded-cluster-linux-amd64.tgz"
@@ -102,7 +102,7 @@ jobs:
         rm ec.tgz
 
         make output/bin/embedded-cluster-release-builder
-        ./output/bin/embedded-cluster-release-builder output/tmp/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster-old-version
+        ./output/bin/embedded-cluster-release-builder output/tmp/embedded-cluster output/tmp/old-version-release.tar.gz output/bin/embedded-cluster-old-version
         chmod +x output/bin/embedded-cluster-old-version
     - name: Cache files for integration test
       env:
