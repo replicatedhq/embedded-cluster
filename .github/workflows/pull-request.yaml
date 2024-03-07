@@ -85,8 +85,6 @@ jobs:
         cp output/bin/embedded-cluster output/bin/embedded-cluster-original
         make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
     - name: Build binary for old release
-      env:
-        OLD_VERSION: v1.29.2+ec.2
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
         echo "# channel release object" > e2e/kots-release-install-old-version/release.yaml
@@ -98,6 +96,7 @@ jobs:
         mkdir -p output/tmp
 	      tar -czf output/tmp/release.tar.gz e2e/kots-release-install-old-version .
         
+        export OLD_VERSION=v1.29.2+ec.2
         curl -L -o ec.tgz "https://github.com/replicatedhq/embedded-cluster/releases/download/${OLD_VERSION}/embedded-cluster-linux-amd64.tgz"
         tar -xzf ec.tgz -C output/tmp
         rm ec.tgz
