@@ -38,7 +38,8 @@ func createAppConfigMap(ctx context.Context, cli client.Client, key string, cont
 			},
 		},
 		Data: map[string]string{
-			key: base64.StdEncoding.EncodeToString(contents),
+			"wait-for-airgap-app": "true",
+			key:                   base64.StdEncoding.EncodeToString(contents),
 		},
 	}
 
