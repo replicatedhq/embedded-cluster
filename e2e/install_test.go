@@ -351,7 +351,6 @@ func TestInstallWithoutEmbed(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-// TODO: use this as the base
 func TestInstallFromReplicatedApp(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
@@ -470,7 +469,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "cli"}
+	line = []string{"pre-minio-removal-install.sh", "cli"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("install stdout:", stdout)
 		t.Log("install stderr:", stderr)
