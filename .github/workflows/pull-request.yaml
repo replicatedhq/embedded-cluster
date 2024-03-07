@@ -76,6 +76,9 @@ jobs:
 
         replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
         replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
+
+        # re-promote a release containing an old version of embedded-cluster to test upgrades
+        replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${SHORT_SHA}-pre-minio-removal"
     - name: Build CI binary
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
