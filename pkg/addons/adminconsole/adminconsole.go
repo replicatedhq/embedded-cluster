@@ -241,20 +241,12 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-	loading.Infof("Waiting for Admin Console to deploy: 0/3 ready")
+	loading.Infof("Waiting for Admin Console to deploy: 0/2 ready")
 
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		var count int
-		ready, err := kubeutils.IsDeploymentReady(ctx, cli, a.namespace, "kotsadm")
-		if err != nil {
-			lasterr = fmt.Errorf("error checking status of kotsadm: %v", err)
-			return false, nil
-		}
-		if ready {
-			count++
-		}
-		for _, name := range []string{"kotsadm-rqlite", "kotsadm-minio"} {
+		for _, name := range []string{"kotsadm-rqlite", "kotsadm"} {
 			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, a.namespace, name)
 			if err != nil {
 				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
@@ -264,8 +256,8 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 				count++
 			}
 		}
-		loading.Infof("Waiting for Admin Console to deploy: %d/3 ready", count)
-		return count == 3, nil
+		loading.Infof("Waiting for Admin Console to deploy: %d/2 ready", count)
+		return count == 2, nil
 	}); err != nil {
 		if lasterr == nil {
 			lasterr = err

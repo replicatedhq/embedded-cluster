@@ -5,7 +5,7 @@ wait_for_installation() {
     ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
+        if [ "$counter" -gt 84 ]; then
             echo "installation did not become ready"
             kubectl get installations 2>&1 || true
             kubectl describe installations 2>&1 || true
@@ -94,6 +94,16 @@ main() {
 
     echo "ensure that the admin console branding is available"
     kubectl get cm -n kotsadm kotsadm-application-metadata
+
+    echo "ensure that the kotsadm statefulset exists"
+    kubectl get statefulset -n kotsadm kotsadm
+
+    echo "ensure the kotsadm-minio statefulset does not exist"
+    if kubectl get statefulset -n kotsadm kotsadm-minio; then
+        echo "kotsadm-minio statefulset found"
+        kubectl get statefulset -n kotsadm kotsadm-minio
+        exit 1
+    fi
 
     echo "ensure that the default chart order remained 110"
     if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:\W*110' ; then
