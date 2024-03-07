@@ -41,8 +41,6 @@ main() {
 
     kubectl get installations --no-headers | grep -q "Installed"
 
-    echo "kotsadm logs"
-    kubectl logs -n kotsadm -l app=kotsadm --tail=50
     echo "pods"
     kubectl get pods -A
     echo "charts"
