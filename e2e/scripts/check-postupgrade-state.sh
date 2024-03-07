@@ -98,10 +98,10 @@ main() {
     echo "ensure that the kotsadm statefulset exists"
     kubectl get statefulset -n kotsadm kotsadm
 
-    echo "ensure the minio statefulset does not exist"
-    if kubectl get statefulset -n kotsadm minio; then
-        echo "minio statefulset found"
-        kubectl get statefulset -n kotsadm minio
+    echo "ensure the kotsadm-minio statefulset does not exist"
+    if kubectl get statefulset -n kotsadm kotsadm-minio; then
+        echo "kotsadm-minio statefulset found"
+        kubectl get statefulset -n kotsadm kotsadm-minio
         exit 1
     fi
 
