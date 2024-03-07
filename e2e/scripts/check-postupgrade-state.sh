@@ -95,6 +95,16 @@ main() {
     echo "ensure that the admin console branding is available"
     kubectl get cm -n kotsadm kotsadm-application-metadata
 
+    echo "ensure that the kotsadm statefulset exists"
+    kubectl get statefulset -n kotsadm kotsadm
+
+    echo "ensure the minio statefulset does not exist"
+    if kubectl get statefulset -n kotsadm minio; then
+        echo "minio statefulset found"
+        kubectl get statefulset -n kotsadm minio
+        exit 1
+    fi
+
     echo "ensure that the default chart order remained 110"
     if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:\W*110' ; then
         kubectl describe clusterconfig -n kube-system k0s
