@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -281,6 +282,21 @@ func waitForK0s(ctx context.Context) error {
 	return nil
 }
 
+// createAirgapConfigMaps creates the airgap configmaps in the k8s cluster from the airgap file.
+func createAirgapConfigMaps(c *cli.Context) error {
+	// create k8s client
+	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
+	cli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("failed to create k8s client: %w", err)
+	}
+
+	if err = airgap.CreateAppConfigMaps(c.Context, cli, c.String("airgap")); err != nil {
+		return fmt.Errorf("unable to create airgap configmaps: %w", err)
+	}
+	return nil
+}
+
 // runOutro calls Outro() in all enabled addons by means of Applier.
 func runOutro(c *cli.Context) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
@@ -401,6 +417,14 @@ var installCommand = &cli.Command{
 			err := fmt.Errorf("unable to wait for node: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
+		}
+		if c.String("airgap") != "" {
+			logrus.Infof("creating airgap configmaps")
+			err := createAirgapConfigMaps(c)
+			if err != nil {
+				err = fmt.Errorf("unable to create airgap configmaps: %w", err)
+				return err
+			}
 		}
 		logrus.Debugf("running outro")
 		if err := runOutro(c); err != nil {

@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateAppConfigMaps(cli client.Client, airgapFile string) error {
+func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapFile string) error {
 	// read file from airgapFile
 	rawfile, err := os.Open(airgapFile)
 	if err != nil {
@@ -42,14 +42,14 @@ func CreateAppConfigMaps(cli client.Client, airgapFile string) error {
 			if err != nil {
 				return fmt.Errorf("failed to read airgap.yaml file within %s: %w", airgapFile, err)
 			}
-			err = createAppConfigMap(context.Background(), cli, "airgap-meta", contents)
+			err = createAppConfigMap(ctx, cli, "airgap-meta", contents)
 			if err != nil {
 				return fmt.Errorf("failed to create app configmap: %w", err)
 			}
 		}
 		if nextFile.Name == "app.tar.gz" {
 			foundAppRelease = true
-			err = createAppYamlConfigMaps(context.Background(), cli, tarreader)
+			err = createAppYamlConfigMaps(ctx, cli, tarreader)
 			if err != nil {
 				return fmt.Errorf("failed to read app release file within %s: %w", airgapFile, err)
 			}
