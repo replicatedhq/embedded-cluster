@@ -214,6 +214,9 @@ func ensureK0sConfig(c *cli.Context) error {
 		}
 		opts = append(opts, addons.WithLicense(license))
 	}
+	if c.String("airgap") != "" {
+		opts = append(opts, addons.Airgap())
+	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}

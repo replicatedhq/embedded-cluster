@@ -74,6 +74,7 @@ func init() {
 type AdminConsole struct {
 	namespace string
 	useprompt bool
+	airgap    bool
 	config    v1beta1.ClusterConfig
 	license   *kotsv1beta1.License
 }
@@ -132,13 +133,29 @@ func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
 	} else if channelRelease != nil {
 		appVersion = channelRelease.VersionLabel
 	}
+
+	isAirgap := "false"
+	if a.airgap {
+		isAirgap = "true"
+	}
+
 	helmValues["automation"] = map[string]interface{}{
 		"appVersionLabel": appVersion,
 		"license": map[string]interface{}{
 			"slug": a.license.Spec.AppSlug,
 			"data": string(raw),
 		},
+		"airgap": isAirgap,
 	}
+
+	if a.airgap {
+		helmValues["registry"] = map[string]interface{}{
+			"enabled":  "true",
+			"readOnly": "true",
+			"endpoint": "embedded-cluster-registry:5000",
+		}
+	}
+
 	return nil
 }
 
@@ -290,11 +307,12 @@ func (a *AdminConsole) printSuccessMessage() {
 }
 
 // New creates a new AdminConsole object.
-func New(ns string, useprompt bool, config v1beta1.ClusterConfig, license *kotsv1beta1.License) (*AdminConsole, error) {
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig, license *kotsv1beta1.License, airgap bool) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace: ns,
 		useprompt: useprompt,
 		config:    config,
 		license:   license,
+		airgap:    airgap,
 	}, nil
 }

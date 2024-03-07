@@ -41,6 +41,7 @@ type Applier struct {
 	license       *kotsv1beta1.License
 	onlyDefaults  bool
 	endUserConfig *embeddedclusterv1beta1.Config
+	airgap        bool
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -138,7 +139,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, embedoperator)
 
-	aconsole, err := adminconsole.New(defaults.KOTSADM_NAMESPACE, a.prompt, a.config, a.license)
+	aconsole, err := adminconsole.New(defaults.KOTSADM_NAMESPACE, a.prompt, a.config, a.license, a.airgap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
