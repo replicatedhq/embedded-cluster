@@ -73,6 +73,7 @@ jobs:
 
         replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
         replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
+        replicated release create --yaml-dir e2e/kots-release-install-old-version --promote CI --version "${SHORT_SHA}-old-version"
     - name: Build CI binary
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
@@ -83,6 +84,27 @@ jobs:
         cat e2e/kots-release-install/release.yaml
         cp output/bin/embedded-cluster output/bin/embedded-cluster-original
         make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
+    - name: Build binary for old release
+      env:
+        OLD_VERSION: v1.29.2+ec.2
+      run: |
+        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+        echo "# channel release object" > e2e/kots-release-install-old-version/release.yaml
+        echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install-old-version/release.yaml
+        echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install-old-version/release.yaml
+        echo "versionLabel: \"${SHORT_SHA}-old-version\"" >> e2e/kots-release-install-old-version/release.yaml
+        cat e2e/kots-release-install-old-version/release.yaml
+
+        mkdir -p output/tmp
+	      tar -czf output/tmp/release.tar.gz e2e/kots-release-install-old-version .
+        
+        curl -L -o ec.tgz "https://github.com/replicatedhq/embedded-cluster/releases/download/${OLD_VERSION}/embedded-cluster-linux-amd64.tgz"
+        tar -xzf ec.tgz -C output/tmp
+        rm ec.tgz
+
+        make output/bin/embedded-cluster-release-builder
+        ./output/bin/embedded-cluster-release-builder output/tmp/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster-old-version
+        chmod +x output/bin/embedded-cluster-old-version
     - name: Cache files for integration test
       env:
         S3_BUCKET: "tf-staging-embedded-cluster-bin"
@@ -103,6 +125,7 @@ jobs:
           output/bin/embedded-cluster
           output/bin/embedded-cluster-original
           output/bin/embedded-cluster-release-builder
+          output/bin/embedded-cluster-old-version
 
   e2e:
     runs-on: ubuntu-latest
@@ -125,6 +148,7 @@ jobs:
           - TestInstallWithoutEmbed
           - TestResetAndReinstall
           - TestCollectSupportBundle
+          - TestOldVersionUpgrade
     steps:
     - name: Checkout
       uses: actions/checkout@v4
