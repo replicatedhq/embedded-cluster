@@ -137,6 +137,13 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to get join token: %w", err)
 		}
 
+		if c.String("airgap") != "" {
+			logrus.Debugf("checking airgap bundle matches binary")
+			if err := checkAirgapMatches(c); err != nil {
+				return err // we want the user to see the error message without a prefix
+			}
+		}
+
 		metrics.ReportJoinStarted(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Infof("Materializing %s binaries", binName)
 		if err := goods.Materialize(); err != nil {

@@ -166,7 +166,7 @@ func checkAirgapMatches(c *cli.Context) error {
 		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
 	}
 
-	appSlug, channelID, _, err := airgap.AirgapBundleVersions(c.String("airgap"))
+	appSlug, channelID, airgapVersion, err := airgap.AirgapBundleVersions(c.String("airgap"))
 	if err != nil {
 		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
 	}
@@ -179,6 +179,10 @@ func checkAirgapMatches(c *cli.Context) error {
 	if rel.ChannelID != channelID {
 		// if the channel is different, we will not be able to install the pinned vendor application version within kots
 		return fmt.Errorf("airgap bundle channel %s does not match binary channel %s, please provide the correct bundle", channelID, rel.ChannelID)
+	}
+	if rel.VersionLabel != airgapVersion {
+		// if the version is different, who knows what might be different
+		return fmt.Errorf("airgap bundle version %s does not match binary version %s, please provide the correct bundle", airgapVersion, rel.VersionLabel)
 	}
 
 	return nil
