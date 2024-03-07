@@ -9,6 +9,11 @@ var (
 	// K0sVersion holds the version of k0s binary we are embedding. this is
 	// set at compile time via ldflags.
 	K0sVersion = "0.0.0"
+	// TroubleshootVersion holds the version of troubleshoot and preflight
+	// binaries we are embedding. this is set at compile time via ldflags.
+	TroubleshootVersion = "0.0.0"
+	// KubectlVersion holds the version of kubectl binary we are embedding.
+	KubectlVersion = "0.0.0"
 	// provider holds a global reference to the default provider.
 	provider *Provider
 	// K0sBinaryURL holds an alternative URL from where to download the k0s

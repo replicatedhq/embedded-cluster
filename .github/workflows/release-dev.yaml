@@ -106,6 +106,7 @@ jobs:
           - TestInstallFromReplicatedApp
           - TestResetAndReinstall
           - TestCollectSupportBundle
+          - TestOldVersionUpgrade
     steps:
       - name: Checkout
         uses: actions/checkout@v4
