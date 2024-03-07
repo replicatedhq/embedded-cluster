@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -38,7 +39,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc)
+	runPuppeteerAppStatusCheck(t, 0, tc, os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
@@ -255,7 +256,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc)
+	runPuppeteerAppStatusCheck(t, 0, tc, os.Getenv("SHORT_SHA"))
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
@@ -471,7 +472,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc)
+	runPuppeteerAppStatusCheck(t, 0, tc, fmt.Sprintf("%s-old-version", os.Getenv("SHORT_SHA")))
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
@@ -485,7 +486,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
+func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output, appVersion string) {
 	t.Logf("%s: installing puppeteer on node %d", time.Now().Format(time.RFC3339), node)
 	line := []string{"install-puppeteer.sh"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -503,7 +504,7 @@ func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-installation-state.sh", appVersion}
 	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
