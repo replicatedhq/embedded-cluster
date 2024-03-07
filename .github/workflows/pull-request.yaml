@@ -71,8 +71,6 @@ jobs:
         sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
         sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
 
-        # TEMPORARY: remove after this release is created
-        replicated release create --yaml-dir e2e/kots-release-install-old-version --promote CI --version "pre-minio-removal"
         replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
         replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
     - name: Build CI binary
