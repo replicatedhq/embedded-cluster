@@ -5,7 +5,7 @@ wait_for_installation() {
     ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
+        if [ "$counter" -gt 60 ]; then
             echo "installation did not become ready"
             kubectl get installations 2>&1 || true
             kubectl describe installations 2>&1 || true
