@@ -158,7 +158,30 @@ func checkLicenseMatches(c *cli.Context) error {
 	}
 
 	return nil
+}
 
+func checkAirgapMatches(c *cli.Context) error {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+	}
+
+	appSlug, channelID, _, err := airgap.AirgapBundleVersions(c.String("airgap"))
+	if err != nil {
+		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
+	}
+
+	// Check if the airgap bundle matches the application version data
+	if rel.AppSlug != appSlug {
+		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
+		return fmt.Errorf("airgap bundle app %s does not match binary app %s, please provide the correct bundle", appSlug, rel.AppSlug)
+	}
+	if rel.ChannelID != channelID {
+		// if the channel is different, we will not be able to install the pinned vendor application version within kots
+		return fmt.Errorf("airgap bundle channel %s does not match binary channel %s, please provide the correct bundle", channelID, rel.ChannelID)
+	}
+
+	return nil
 }
 
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
@@ -374,6 +397,12 @@ var installCommand = &cli.Command{
 			metricErr := fmt.Errorf("unable to check license: %w", err)
 			metrics.ReportApplyFinished(c, metricErr)
 			return err // do not return the metricErr, as we want the user to see the error message without a prefix
+		}
+		if c.String("airgap") != "" {
+			logrus.Debugf("checking airgap bundle matches binary")
+			if err := checkAirgapMatches(c); err != nil {
+				return err // we want the user to see the error message without a prefix
+			}
 		}
 		logrus.Debugf("materializing binaries")
 		if err := goods.Materialize(); err != nil {
