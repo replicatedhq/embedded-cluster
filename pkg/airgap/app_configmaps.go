@@ -34,7 +34,20 @@ func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapFile stri
 	tarreader := tar.NewReader(ungzip)
 	var nextFile *tar.Header
 	foundAppRelease, foundAirgapYaml := false, false
-	for nextFile, err = tarreader.Next(); err != nil; {
+	for {
+		nextFile, err = tarreader.Next()
+		if err != nil {
+			if err == io.EOF {
+				if !foundAppRelease {
+					return fmt.Errorf("app release not found in %s", airgapFile)
+				}
+				if !foundAirgapYaml {
+					return fmt.Errorf("airgap.yaml not found in %s", airgapFile)
+				}
+			}
+			return fmt.Errorf("failed to read airgap file: %w", err)
+		}
+
 		if nextFile.Name == "airgap.yaml" {
 			foundAirgapYaml = true
 			var contents []byte
@@ -42,7 +55,7 @@ func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapFile stri
 			if err != nil {
 				return fmt.Errorf("failed to read airgap.yaml file within %s: %w", airgapFile, err)
 			}
-			err = createAppConfigMap(ctx, cli, "airgap-meta", contents)
+			err = createAppConfigMap(ctx, cli, "meta", "airgap.yaml", contents)
 			if err != nil {
 				return fmt.Errorf("failed to create app configmap: %w", err)
 			}
@@ -57,12 +70,6 @@ func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapFile stri
 		if foundAppRelease && foundAirgapYaml {
 			break
 		}
-	}
-	if !foundAppRelease {
-		return fmt.Errorf("app release not found in %s", airgapFile)
-	}
-	if !foundAirgapYaml {
-		return fmt.Errorf("airgap.yaml not found in %s", airgapFile)
 	}
 
 	return nil
@@ -81,7 +88,15 @@ func createAppYamlConfigMaps(ctx context.Context, cli client.Client, apptarball 
 
 	tarreader := tar.NewReader(ungzip)
 	var nextFile *tar.Header
-	for nextFile, err = tarreader.Next(); err != nil; {
+	for {
+		nextFile, err = tarreader.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("failed to read app release file: %w", err)
+		}
+
 		var contents []byte
 		contents, err = io.ReadAll(tarreader)
 
@@ -89,7 +104,7 @@ func createAppYamlConfigMaps(ctx context.Context, cli client.Client, apptarball 
 			return fmt.Errorf("failed to read app release file %s: %w", nextFile.Name, err)
 		}
 
-		err = createAppConfigMap(ctx, cli, nextFile.Name, contents)
+		err = createAppConfigMap(ctx, cli, nextFile.Name, nextFile.Name, contents)
 		if err != nil {
 			return fmt.Errorf("failed to create app configmap: %w", err)
 		}
@@ -98,7 +113,7 @@ func createAppYamlConfigMaps(ctx context.Context, cli client.Client, apptarball 
 	return nil
 }
 
-func createAppConfigMap(ctx context.Context, cli client.Client, key string, contents []byte) error {
+func createAppConfigMap(ctx context.Context, cli client.Client, name string, filename string, contents []byte) error {
 	rel, err := release.GetChannelRelease()
 	if err != nil {
 		return fmt.Errorf("failed to get channel release: %w", err)
@@ -110,7 +125,7 @@ func createAppConfigMap(ctx context.Context, cli client.Client, key string, cont
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("kotsadm-airgap-%s", slug.Make(key)),
+			Name:      fmt.Sprintf("kotsadm-airgap-%s", slug.Make(name)),
 			Namespace: defaults.KOTSADM_NAMESPACE,
 			Labels: map[string]string{
 				"kots.io/automation": "airgap",
@@ -119,7 +134,7 @@ func createAppConfigMap(ctx context.Context, cli client.Client, key string, cont
 			},
 		},
 		Data: map[string]string{
-			key: base64.StdEncoding.EncodeToString(contents),
+			filename: base64.StdEncoding.EncodeToString(contents),
 		},
 	}
 
