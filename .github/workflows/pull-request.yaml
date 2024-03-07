@@ -94,7 +94,7 @@ jobs:
         cat e2e/kots-release-install-old-version/release.yaml
 
         mkdir -p output/tmp
-        tar -czf output/tmp/old-version-release.tar.gz e2e/kots-release-install-old-version .
+        tar -czf output/tmp/old-version-release.tar.gz -C e2e/kots-release-install-old-version .
 
         export OLD_VERSION=v1.29.2+ec.2
         curl -L -o ec.tgz "https://github.com/replicatedhq/embedded-cluster/releases/download/${OLD_VERSION}/embedded-cluster-linux-amd64.tgz"
