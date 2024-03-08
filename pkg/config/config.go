@@ -2,7 +2,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -33,16 +32,15 @@ func ReadConfigFile(cfgPath string) (dig.Mapping, error) {
 }
 
 // RenderK0sConfig renders a k0s cluster configuration.
-func RenderK0sConfig(ctx context.Context) (*k0sconfig.ClusterConfig, error) {
+func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	cfg := k0sconfig.DefaultClusterConfig()
 	// Customize the default k0s configuration to our taste.
 	cfg.Name = defaults.BinaryName()
-	cfg.Spec.Images = nil
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
 	cfg.Spec.Telemetry.Enabled = false
-	return cfg, nil
+	return cfg
 }
 
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
