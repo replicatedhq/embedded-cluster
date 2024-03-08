@@ -41,15 +41,18 @@ func TestEmbedReleaseDataInBinary(t *testing.T) {
 	gotBinContent, err := os.ReadFile(outputFile.Name())
 	assert.NoError(t, err)
 
-	wantBinContent := append(binContent, []byte(beginReleaseDelimiter)...)
+	beginString := "-----BEGIN APP RELEASE-----"
+	endString := "-----END APP RELEASE-----"
+
+	wantBinContent := append(binContent, []byte(beginString)...)
 	wantBinContent = append(wantBinContent, []byte(encodedRelease)...)
-	wantBinContent = append(wantBinContent, []byte(endReleaseDelimiter)...)
+	wantBinContent = append(wantBinContent, []byte(endString)...)
 
 	assert.Equal(t, string(wantBinContent), string(gotBinContent))
 
 	// Verify the new binary size
 	gotBinSize := int64(len(gotBinContent))
-	wantBinSize := int64(len(binContent)) + int64(len(beginReleaseDelimiter)) + int64(len(encodedRelease)) + int64(len(endReleaseDelimiter))
+	wantBinSize := int64(len(binContent)) + int64(len(beginReleaseDelimiterBytes())) + int64(len(encodedRelease)) + int64(len(endReleaseDelimiterBytes()))
 	assert.Equal(t, wantBinSize, gotBinSize)
 
 	// Extract and verify the embedded release data
