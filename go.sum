@@ -241,8 +241,8 @@ github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
 github.com/replicatedhq/embedded-cluster-operator v0.24.1 h1:1eBhFJVz9eQvGx5DywQeQOIS9MBj2lJqBgEcqQtEAF4=
 github.com/replicatedhq/embedded-cluster-operator v0.24.1/go.mod h1:CFiwfofNfU2lwUVC0hA6XTodmM40hYJwXgdMza1AT2w=
-github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be h1:wuHmBUANuvCUeX4WmUVf7AWOlRTJMAmAR/GsYOY0Jdo=
-github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240214185439-68a1dfae58be/go.mod h1:4JmMC2CwMCLxq05GEW3XSPPVotqyamAF/omrbB3pH+c=
+github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240308200300-87d150770db8 h1:YGMQIIi321f3SkY5UEWv+MExJIlbbPPUpY/0zBfDdt4=
+github.com/replicatedhq/embedded-cluster-utils v0.0.0-20240308200300-87d150770db8/go.mod h1:4JmMC2CwMCLxq05GEW3XSPPVotqyamAF/omrbB3pH+c=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe h1:3AJInd06UxzqHmgy8+24CPsT2tYSE0zToJZyuX9q+MA=
 github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
 github.com/replicatedhq/troubleshoot v0.83.0 h1:rRG0sL+Ku9w8TJ5AH6kZb7yxeFQoODOaTAUs8yrkwJE=
@@ -319,8 +319,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
 golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
-golang.org/x/crypto v0.19.0 h1:ENy+Az/9Y1vSrlrvBSyna3PITt4tiZLf7sgCjZBX7Wo=
-golang.org/x/crypto v0.19.0/go.mod h1:Iy9bg/ha4yyC70EfRS8jz+B6ybOBKMaSxLj6P6oBDfU=
+golang.org/x/crypto v0.21.0 h1:X31++rzVUdKhX5sWmSOFZxx8UW/ldWx55cbf08iNAMA=
+golang.org/x/crypto v0.21.0/go.mod h1:0BP7YvVV9gBbVKyeTG0Gyn+gZm94bibOW5BjDEYAOMs=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa h1:FRnLl4eNAQl8hwxVVC17teOw8kdjVDVAiFMtgUdTSRQ=
 golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa/go.mod h1:zk2irFbV9DP96SEBUUAy67IdHUaZuSnrz1n472HUCLE=
@@ -344,8 +344,8 @@ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwY
 golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
 golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
 golang.org/x/net v0.0.0-20220722155237-a158d28d115b/go.mod h1:XRhObCWvk6IyKnWLug+ECip1KBveYUHfp+8e9klMJ9c=
-golang.org/x/net v0.20.0 h1:aCL9BSgETF1k+blQaYUBx9hJ9LOGP3gAVemcZlf1Kpo=
-golang.org/x/net v0.20.0/go.mod h1:z8BVo6PvndSri0LbOE3hAn0apkU+1YvI6E70E9jsnvY=
+golang.org/x/net v0.21.0 h1:AQyQV4dYCvJ7vGmJyKki9+PBdyvhkSd8EIx/qb0AYv4=
+golang.org/x/net v0.21.0/go.mod h1:bIjVDfnllIU7BJ2DNgfnXvpSvtn8VRwhlsaeUTyUS44=
 golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
 golang.org/x/oauth2 v0.15.0 h1:s8pnnxNVzjWyrvYdFUQq5llS1PX2zhPXmccZv99h7uQ=
 golang.org/x/oauth2 v0.15.0/go.mod h1:q48ptWNTY5XWf+JNten23lcvHpLJ0ZSxF5ttTHKVCAM=

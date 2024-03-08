@@ -81,6 +81,10 @@ output/bin/embedded-cluster-release-builder:
 embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
+go.mod: Makefile
+	go get github.com/k0sproject/k0s@$(K0S_VERSION)
+	go mod tidy
+
 .PHONY: static
 static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-preflight \
@@ -88,13 +92,13 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-support_bundle
 	
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: static
+embedded-cluster-linux-amd64: static go.mod
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 # for testing
-.PHONY: embedded-cluster-darwin-amd64
-embedded-cluster-darwin-amd64:
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
+.PHONY: embedded-cluster-darwin-arm64
+embedded-cluster-darwin-arm64: go.mod
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 .PHONY: unit-tests
 unit-tests:

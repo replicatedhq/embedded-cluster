@@ -64,7 +64,7 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
-	expectedImageSubstrings := []string{"coredns", "calico-cni", "metrics-server", "pause"}
+	expectedImageSubstrings := []string{"coredns", "calico-cni", "metrics-server", "pause", "envoy"}
 	for _, v := range expectedImageSubstrings {
 		found := false
 
@@ -75,7 +75,7 @@ func TestVersion(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("missing image substring %q in 'metadata' output", v)
+			t.Errorf("missing image substring %q in image metadata output", v)
 			failed = true
 		}
 	}
