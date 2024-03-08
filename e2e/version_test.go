@@ -64,6 +64,22 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
+	expectedImageSubstrings := []string{"coredns", "calico-cni", "metrics-server", "pause"}
+	for _, v := range expectedImageSubstrings {
+		found := false
+
+		for _, image := range parsed.K0sImages {
+			if strings.Contains(image, v) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing image substring %q in 'metadata' output", v)
+			failed = true
+		}
+	}
+
 	for _, foundChart := range parsed.Configs.Charts {
 		if strings.Contains(foundChart.Values, "embeddedClusterID") {
 			t.Errorf("metadata output for chart %s contains embeddedClusterID", foundChart.Name)

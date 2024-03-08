@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/types"
 	"sort"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
+	"github.com/k0sproject/k0s/pkg/airgap"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/urfave/cli/v2"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -96,6 +97,14 @@ var metadataCommand = &cli.Command{
 			return fmt.Errorf("unable to get protected fields: %w", err)
 		}
 		meta.Protected = protectedFields
+
+		// Render k0s config to get the images contained within
+		k0sConfig, err := config.RenderK0sConfig(c.Context)
+		if err != nil {
+			return fmt.Errorf("unable to render k0s config: %w", err)
+		}
+		meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
+
 		data, err := json.MarshalIndent(meta, "", "\t")
 		if err != nil {
 			return fmt.Errorf("unable to marshal versions: %w", err)
