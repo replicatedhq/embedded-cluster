@@ -21,6 +21,8 @@ jobs:
         run: |
           make embedded-cluster-linux-amd64
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
+      - name: Output Metadata
+        run: |
           ./output/bin/embedded-cluster version metadata > metadata.json
       - name: Publish development release
         uses: marvinpinto/action-automatic-releases@latest

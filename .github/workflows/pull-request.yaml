@@ -53,6 +53,8 @@ jobs:
     - name: Build Linux AMD64
       run: |
         make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
+    - name: Output Metadata
+      run: |
         ./output/bin/embedded-cluster version metadata > metadata.json
     - name: Install Replicated CLI
       run: |
