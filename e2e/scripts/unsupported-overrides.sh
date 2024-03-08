@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 embedded_cluster_config="
 apiVersion: embeddedcluster.replicated.com/v1beta1

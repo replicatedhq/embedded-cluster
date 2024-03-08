@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # This script waits for X nodes to be ready after removing nodes. X is the first argument.
 # It fails if the cluster size isn't exactly what we expect 
-set -euo pipefail
+set -euox pipefail
 
 main() {
     expected_nodes="$1"
