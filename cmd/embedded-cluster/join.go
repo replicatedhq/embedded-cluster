@@ -174,7 +174,7 @@ var joinCommand = &cli.Command{
 
 		if c.String("airgap") != "" {
 			logrus.Infof("materializing airgap installation files")
-			if err := airgap.MaterializeAirgapFiles(c); err != nil {
+			if err := airgap.MaterializeAirgapImages(c.String("airgap")); err != nil {
 				err = fmt.Errorf("unable to run materialize airgap files: %w", err)
 				return err
 			}
