@@ -99,7 +99,7 @@ var metadataCommand = &cli.Command{
 		meta.Protected = protectedFields
 
 		// Render k0s config to get the images contained within
-		k0sConfig, err := config.RenderK0sConfig(c.Context)
+		k0sConfig := k0sconfig.DefaultClusterConfig()
 		if err != nil {
 			return fmt.Errorf("unable to render k0s config: %w", err)
 		}
