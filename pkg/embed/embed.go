@@ -60,7 +60,7 @@ func EmbedReleaseDataInBinaryReader(binReader io.Reader, binSize int64, releaseD
 	newBinSize := binSize
 	newBinSize += int64(len(beginReleaseDelimiterBytes()))
 	newBinSize += int64(len(encodedRelease))
-	newBinSize += int64(len(endReleaseDelimiter))
+	newBinSize += int64(len(endReleaseDelimiterBytes()))
 
 	newBinReader := io.MultiReader(
 		binReader,
