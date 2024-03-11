@@ -13,6 +13,9 @@ EMBEDDED_OPERATOR_CHART_VERSION = 0.24.1
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
+SEAWEEDFS_CHART_URL = https://seaweedfs.github.io/seaweedfs/helm
+SEAWEEDFS_CHART_NAME = seaweedfs/seaweedfs
+SEAWEEDFS_CHART_VERSION = 3.63.0
 KUBECTL_VERSION = v1.29.2
 K0S_VERSION = v1.29.2+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
@@ -32,7 +35,10 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.ChartURL=$(SEAWEEDFS_CHART_URL) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.ChartName=$(SEAWEEDFS_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.Version=$(SEAWEEDFS_CHART_VERSION)
 
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64

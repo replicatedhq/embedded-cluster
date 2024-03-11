@@ -5,8 +5,11 @@ import (
 	"fmt"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -26,48 +29,81 @@ var (
 )
 
 var helmValues = map[string]interface{}{
-	// TODO
+	"master": map[string]interface{}{
+		"replicas": 1,
+		"data": map[string]interface{}{
+			"type":         "persistentVolumeClaim",
+			"size":         "1Gi",
+			"storageClass": "local",
+		},
+		"disableHttp": true,
+	},
+	"volume": map[string]interface{}{
+		"replicas": 1,
+		"dataDirs": []map[string]interface{}{
+			{
+				"name":         "data1",
+				"type":         "persistentVolumeClaim",
+				"size":         "10Gi",
+				"storageClass": "local",
+				"maxVolumes":   0,
+			},
+		},
+	},
+	"filer": map[string]interface{}{
+		"data": map[string]interface{}{
+			"type":         "persistentVolumeClaim",
+			"size":         "1Gi",
+			"storageClass": "local",
+		},
+		"s3": map[string]interface{}{
+			"enabled":              true,
+			"enableAuth":           true,
+			"existingConfigSecret": "seaweedfs-s3-access-secret",
+		},
+		"disableHttp": true,
+	},
 }
 
-// Registry manages the installation of the Registry helm chart.
-type Registry struct {
+// SeaweedFS manages the installation of the SeaweedFS helm chart.
+type SeaweedFS struct {
 	isAirgap bool
 }
 
-// Version returns the version of the Registry chart.
-func (o *Registry) Version() (map[string]string, error) {
-	return map[string]string{"Registry": "v" + Version}, nil
+// Version returns the version of the SeaweedFS chart.
+func (o *SeaweedFS) Version() (map[string]string, error) {
+	return map[string]string{"SeaweedFS": "v" + Version}, nil
 }
 
-func (a *Registry) Name() string {
-	return "Registry"
+func (a *SeaweedFS) Name() string {
+	return "SeaweedFS"
 }
 
-// HostPreflights returns the host preflight objects found inside the Registry
+// HostPreflights returns the host preflight objects found inside the SeaweedFS
 // Helm Chart, this is empty as there is no host preflight on there.
-func (o *Registry) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
+func (o *SeaweedFS) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return nil, nil
 }
 
 // GetProtectedFields returns the protected fields for the embedded charts.
 // placeholder for now.
-func (o *Registry) GetProtectedFields() map[string][]string {
+func (o *SeaweedFS) GetProtectedFields() map[string][]string {
 	protectedFields := []string{}
 	return map[string][]string{releaseName: protectedFields}
 }
 
-// GenerateHelmConfig generates the helm config for the Registry chart.
-func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	if !o.isAirgap {
-		return nil, nil, nil
-	}
+// GenerateHelmConfig generates the helm config for the SeaweedFS chart.
+func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	//if !o.isAirgap {
+	//	return nil, nil, nil
+	//}
 
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
 		TargetNS:  namespace,
-		Order:     1,
+		Order:     2,
 	}
 
 	repositoryConfig := v1beta1.Repository{
@@ -85,18 +121,43 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 }
 
 // Outro is executed after the cluster deployment.
-func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
+func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	loading.Infof("Waiting for Registry to be ready")
-	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "seaweedfs"); err != nil {
+	loading.Infof("Waiting for SeaweedFS to be ready")
+
+	accessSecretTemplate := `'{"identities":[{"name":"anvAdmin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write"]},{"name":"anvReadOnly","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Read"]}]}'`
+	// generate 4 random strings for access keys and secret keys
+	accessKey1, secretKey1, accessKey2, secretKey2 := helpers.RandString(20), helpers.RandString(40), helpers.RandString(20), helpers.RandString(40)
+	accessSecretString := fmt.Sprintf(accessSecretTemplate, accessKey1, secretKey1, accessKey2, secretKey2)
+	accessSecret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "seaweedfs-s3-access-secret",
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"seaweedfs_s3_config": accessSecretString,
+		},
+		Type: "Opaque",
+	}
+	err := cli.Create(ctx, &accessSecret)
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to create seaweedfs-s3-access-secret: %w", err)
+	}
+
+	if err = kubeutils.WaitForDeployment(ctx, cli, namespace, "seaweedfs"); err != nil {
 		loading.Close()
 		return err
 	}
-	loading.Closef("Registry is ready!")
+	loading.Closef("SeaweedFS is ready!")
 	return nil
 }
 
-// New creates a new Registry addon.
-func New(isAirgap bool) (*Registry, error) {
-	return &Registry{isAirgap: isAirgap}, nil
+// New creates a new SeaweedFS addon.
+func New(isAirgap bool) (*SeaweedFS, error) {
+	return &SeaweedFS{isAirgap: isAirgap}, nil
 }

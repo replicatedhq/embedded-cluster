@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -132,6 +133,12 @@ func (a *Applier) load() ([]AddOn, error) {
 		return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 	}
 	addons = append(addons, obs)
+
+	seaweed, err := seaweedfs.New(a.airgap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
+	}
+	addons = append(addons, seaweed)
 
 	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.license)
 	if err != nil {
