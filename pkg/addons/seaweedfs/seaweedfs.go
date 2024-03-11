@@ -3,6 +3,7 @@ package seaweedfs
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -10,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -34,7 +36,7 @@ var helmValues = map[string]interface{}{
 		"data": map[string]interface{}{
 			"type":         "persistentVolumeClaim",
 			"size":         "1Gi",
-			"storageClass": "local",
+			"storageClass": "openebs-hostpath",
 		},
 		"disableHttp": true,
 	},
@@ -45,7 +47,7 @@ var helmValues = map[string]interface{}{
 				"name":         "data1",
 				"type":         "persistentVolumeClaim",
 				"size":         "10Gi",
-				"storageClass": "local",
+				"storageClass": "openebs-hostpath",
 				"maxVolumes":   0,
 			},
 		},
@@ -54,7 +56,7 @@ var helmValues = map[string]interface{}{
 		"data": map[string]interface{}{
 			"type":         "persistentVolumeClaim",
 			"size":         "1Gi",
-			"storageClass": "local",
+			"storageClass": "openebs-hostpath",
 		},
 		"s3": map[string]interface{}{
 			"enabled":              true,
@@ -154,10 +156,30 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("unable to create seaweedfs-s3-access-secret: %w", err)
 	}
 
-	if err = kubeutils.WaitForDeployment(ctx, cli, namespace, "seaweedfs"); err != nil {
+	var lasterr error
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	if err = wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		var count int
+		for _, name := range []string{"seaweedfs-filer", "seaweedfs-master", "seaweedfs-volume"} {
+			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, namespace, name)
+			if err != nil {
+				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
+				return false, nil
+			}
+			if ready {
+				count++
+			}
+		}
+		loading.Infof("Waiting for SeaweedFS to deploy: %d/3 ready", count)
+		return count == 2, nil
+	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
 		loading.Close()
-		return err
+		return fmt.Errorf("error waiting for SeaweedFS: %v", lasterr)
 	}
+
 	loading.Closef("SeaweedFS is ready!")
 	return nil
 }
