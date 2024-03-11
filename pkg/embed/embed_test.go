@@ -41,12 +41,9 @@ func TestEmbedReleaseDataInBinary(t *testing.T) {
 	gotBinContent, err := os.ReadFile(outputFile.Name())
 	assert.NoError(t, err)
 
-	beginString := "-----BEGIN APP RELEASE-----"
-	endString := "-----END APP RELEASE-----"
-
-	wantBinContent := append(binContent, []byte(beginString)...)
+	wantBinContent := append(binContent, beginReleaseDelimiterBytes()...)
 	wantBinContent = append(wantBinContent, []byte(encodedRelease)...)
-	wantBinContent = append(wantBinContent, []byte(endString)...)
+	wantBinContent = append(wantBinContent, endReleaseDelimiterBytes()...)
 
 	assert.Equal(t, string(wantBinContent), string(gotBinContent))
 
@@ -71,4 +68,12 @@ func TestNoReleaseData(t *testing.T) {
 	// Verify that no error is returned when the binary does not contain release data
 	_, err = ExtractReleaseDataFromBinary(binFile.Name())
 	assert.NoError(t, err)
+}
+
+func Test_beginReleaseDelimiterBytes(t *testing.T) {
+	assert.Equalf(t, []byte("-----BEGIN APP RELEASE-----"), beginReleaseDelimiterBytes(), "beginReleaseDelimiterBytes()")
+}
+
+func Test_endReleaseDelimiterBytes(t *testing.T) {
+	assert.Equalf(t, []byte("-----END APP RELEASE-----"), endReleaseDelimiterBytes(), "beginReleaseDelimiterBytes()")
 }
