@@ -31,4 +31,4 @@ jobs:
           go-version: "1.19"
       - name: Unit tests
         run: |
-          make unit-tests
+          make test
