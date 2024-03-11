@@ -39,10 +39,13 @@ func EmbedReleaseDataInBinary(binPath string, releasePath string, outputPath str
 		return fmt.Errorf("failed to read release data: %w", err)
 	}
 
-	newBinReader, _ := EmbedReleaseDataInBinaryReader(binReader, binSize, releaseData)
+	newBinReader, totalLen := EmbedReleaseDataInBinaryReader(binReader, binSize, releaseData)
 	newBinContent, err := io.ReadAll(newBinReader)
 	if err != nil {
 		return fmt.Errorf("failed to read new binary: %w", err)
+	}
+	if totalLen != int64(len(newBinContent)) {
+		return fmt.Errorf("failed to read new binary: expected %d bytes, got %d", totalLen, len(newBinContent))
 	}
 
 	if err := os.WriteFile(outputPath, newBinContent, 0644); err != nil {
