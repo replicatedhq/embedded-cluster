@@ -199,10 +199,7 @@ func ensureK0sConfig(c *cli.Context) error {
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
-	cfg, err := config.RenderK0sConfig(c.Context)
-	if err != nil {
-		return fmt.Errorf("unable to render config: %w", err)
-	}
+	cfg := config.RenderK0sConfig()
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -220,6 +217,7 @@ func ensureK0sConfig(c *cli.Context) error {
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
+	var err error
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
 		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}

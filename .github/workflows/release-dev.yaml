@@ -21,6 +21,8 @@ jobs:
         run: |
           make embedded-cluster-linux-amd64
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
+      - name: Output Metadata
+        run: |
           ./output/bin/embedded-cluster version metadata > metadata.json
       - name: Publish development release
         uses: marvinpinto/action-automatic-releases@latest
@@ -51,6 +53,9 @@ jobs:
           echo "${SHORT_SHA}"
           sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
           sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+
+          # re-promote a release containing an old version of embedded-cluster to test upgrades
+          replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${SHORT_SHA}-pre-minio-removal"
           
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"

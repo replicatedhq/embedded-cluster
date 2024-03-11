@@ -11,6 +11,10 @@ jobs:
     steps:
     - name: Check out repo
       uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.21"
     - name: AdminConsole
       run: |
         export VERSION=`curl https://api.github.com/repos/replicatedhq/kots-helm/tags | jq -r .[].name | grep -v alpha | head -1 | tr -d v`
@@ -35,6 +39,7 @@ jobs:
         if [ "$CURVERSION" != "$VERSION" ]; then
           sed -i "/^K0S_VERSION/c\K0S_VERSION = $VERSION" Makefile
           sed -i "/^K0S_BINARY_SOURCE_OVERRIDE/c\K0S_BINARY_SOURCE_OVERRIDE =" Makefile
+          go get github.com/k0sproject/k0s@${VERSION}
         fi
     - name: Troubleshoot
       run: |

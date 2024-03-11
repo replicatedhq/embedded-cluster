@@ -23,6 +23,8 @@ jobs:
         run: |
           make embedded-cluster-linux-amd64 VERSION=$TAG_NAME
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
+      - name: Output Metadata
+        run: |
           ./output/bin/embedded-cluster version metadata > metadata.json
       - name: Cache Staging Files
         env:
