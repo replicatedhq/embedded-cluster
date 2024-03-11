@@ -155,8 +155,8 @@ github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4d
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/k0sproject/dig v0.2.0 h1:cNxEIl96g9kqSMfPSZLhpnZ0P8bWXKv08nxvsMHop5w=
 github.com/k0sproject/dig v0.2.0/go.mod h1:rBcqaQlJpcKdt2x/OE/lPvhGU50u/e95CSm5g/r4s78=
-github.com/k0sproject/k0s v1.29.3-0.20240220215935-6a63dc9024ce h1:1nJ2TXqP4gdI59Bx5sBit35p623YeFL74C1xOa8Su1k=
-github.com/k0sproject/k0s v1.29.3-0.20240220215935-6a63dc9024ce/go.mod h1:NbLJexSoG/Oole5FURBdL9ExxKbIOZX1az5k/Ri3RSE=
+github.com/k0sproject/k0s v1.28.8-0.20240221081009-d83e1fe62960 h1:qC14Kou1vIXB0BCPQDvE9t/CwomzQK/e0BOOTdxe+io=
+github.com/k0sproject/k0s v1.28.8-0.20240221081009-d83e1fe62960/go.mod h1:uXBMMXiR3EM3q6veINSCR9s2apz0X+YcZ1wn/BdJLiM=
 github.com/k0sproject/version v0.6.0 h1:Wi8wu9j+H36+okIQA47o/YHbzNpKeIYj8IjGdJOdqsI=
 github.com/k0sproject/version v0.6.0/go.mod h1:5/7Js62gDCLBP6mEs0mUcYEEkYneM5qXDKN/hyFlQTM=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNUXsshfwJMBgNA0RU6/i7WVaAegv3PtuIHPMs=
@@ -398,8 +398,8 @@ golang.org/x/tools v0.0.0-20200505023115-26f46d2f7ef8/go.mod h1:EkVYQZoAsY45+roY
 golang.org/x/tools v0.0.0-20200619180055-7c47624df98f/go.mod h1:EkVYQZoAsY45+roYkvgYkIh4xh/qjgUK9TdY2XT94GE=
 golang.org/x/tools v0.0.0-20210106214847-113979e3529a/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
 golang.org/x/tools v0.1.12/go.mod h1:hNGJHUnrk76NpqgfD5Aqm5Crs+Hm0VOH/i9J2+nxYbc=
-golang.org/x/tools v0.17.0 h1:FvmRgNOcs3kOa+T20R1uhfP9F6HgG2mfxDv1vrx1Htc=
-golang.org/x/tools v0.17.0/go.mod h1:xsh6VxdV005rRVaS6SSAf9oiAqljS7UZUacMZ8Bnsps=
+golang.org/x/tools v0.16.1 h1:TLyB3WofjdOEepBHAU20JdNC1Zbg87elYofWYAY5oZA=
+golang.org/x/tools v0.16.1/go.mod h1:kYVVN6I1mBNoB1OX+noeBjbRk4IUEPa7JJ+TJMEooJ0=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
