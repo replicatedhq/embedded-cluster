@@ -7,9 +7,11 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
+	"github.com/k0sproject/k0s/pkg/airgap"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/urfave/cli/v2"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -53,16 +55,6 @@ var versionCommand = &cli.Command{
 	},
 }
 
-// ReleaseMetadata holds the metadata about a specific release, including addons and
-// their versions.
-type ReleaseMetadata struct {
-	Versions     map[string]string
-	K0sSHA       string
-	K0sBinaryURL string
-	Configs      k0sconfig.HelmExtensions
-	Protected    map[string][]string
-}
-
 var metadataCommand = &cli.Command{
 	Name:   "metadata",
 	Usage:  "Print metadata about this release",
@@ -75,6 +67,8 @@ var metadataCommand = &cli.Command{
 		}
 		versions["Kubernetes"] = defaults.K0sVersion
 		versions["Installer"] = defaults.Version
+		versions["Troubleshoot"] = defaults.TroubleshootVersion
+		versions["Kubectl"] = defaults.KubectlVersion
 		channelRelease, err := release.GetChannelRelease()
 		if err == nil && channelRelease != nil {
 			versions[defaults.BinaryName()] = channelRelease.VersionLabel
@@ -83,7 +77,7 @@ var metadataCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("unable to get k0s binary sha256: %w", err)
 		}
-		meta := ReleaseMetadata{
+		meta := types.ReleaseMetadata{
 			Versions:     versions,
 			K0sSHA:       sha,
 			K0sBinaryURL: defaults.K0sBinaryURL,
@@ -103,6 +97,14 @@ var metadataCommand = &cli.Command{
 			return fmt.Errorf("unable to get protected fields: %w", err)
 		}
 		meta.Protected = protectedFields
+
+		// Render k0s config to get the images contained within
+		k0sConfig := config.RenderK0sConfig()
+		if err != nil {
+			return fmt.Errorf("unable to render k0s config: %w", err)
+		}
+		meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
+
 		data, err := json.MarshalIndent(meta, "", "\t")
 		if err != nil {
 			return fmt.Errorf("unable to marshal versions: %w", err)

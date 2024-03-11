@@ -2,10 +2,8 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -34,25 +32,15 @@ func ReadConfigFile(cfgPath string) (dig.Mapping, error) {
 }
 
 // RenderK0sConfig renders a k0s cluster configuration.
-func RenderK0sConfig(ctx context.Context) (*k0sconfig.ClusterConfig, error) {
-	bin := defaults.PathToEmbeddedClusterBinary("k0s")
-	cmd := exec.Command(bin, "config", "create")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate default config: %w", err)
-	}
-	var cfg k0sconfig.ClusterConfig
-	if err := k8syaml.Unmarshal(output, &cfg); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal default config: %w", err)
-	}
+func RenderK0sConfig() *k0sconfig.ClusterConfig {
+	cfg := k0sconfig.DefaultClusterConfig()
 	// Customize the default k0s configuration to our taste.
 	cfg.Name = defaults.BinaryName()
-	cfg.Spec.Images = nil
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
 	cfg.Spec.Telemetry.Enabled = false
-	return &cfg, nil
+	return cfg
 }
 
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.

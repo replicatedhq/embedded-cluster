@@ -162,7 +162,7 @@ func checkLicenseMatches(c *cli.Context) error {
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
-func ensureK0sConfig(c *cli.Context, useprompt bool) error {
+func ensureK0sConfig(c *cli.Context) error {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
 		return fmt.Errorf("configuration file already exists")
@@ -170,10 +170,7 @@ func ensureK0sConfig(c *cli.Context, useprompt bool) error {
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
-	cfg, err := config.RenderK0sConfig(c.Context)
-	if err != nil {
-		return fmt.Errorf("unable to render config: %w", err)
-	}
+	cfg := config.RenderK0sConfig()
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -188,6 +185,7 @@ func ensureK0sConfig(c *cli.Context, useprompt bool) error {
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
+	var err error
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
 		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
@@ -320,9 +318,10 @@ var installCommand = &cli.Command{
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "license",
-			Usage:  "Path to the application license file",
-			Hidden: false,
+			Name:    "license",
+			Aliases: []string{"l"},
+			Usage:   "Path to the application license file",
+			Hidden:  false,
 		},
 	},
 	Action: func(c *cli.Context) error {
@@ -356,7 +355,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("creating k0s configuration file")
-		if err := ensureK0sConfig(c, !c.Bool("no-prompt")); err != nil {
+		if err := ensureK0sConfig(c); err != nil {
 			err := fmt.Errorf("unable to create config file: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
