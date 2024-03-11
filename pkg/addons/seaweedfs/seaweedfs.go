@@ -53,17 +53,12 @@ var helmValues = map[string]interface{}{
 		},
 	},
 	"filer": map[string]interface{}{
-		"data": map[string]interface{}{
-			"type":         "persistentVolumeClaim",
-			"size":         "1Gi",
-			"storageClass": "openebs-hostpath",
-		},
-		"s3": map[string]interface{}{
-			"enabled":              true,
-			"enableAuth":           true,
-			"existingConfigSecret": "seaweedfs-s3-access-secret",
-		},
-		"disableHttp": true,
+		"enabled": false,
+	},
+	"s3": map[string]interface{}{
+		"enabled":              true,
+		"enableAuth":           true,
+		"existingConfigSecret": "seaweedfs-s3-access-secret",
 	},
 }
 
@@ -132,7 +127,7 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 	}
 	loading.Infof("SeaweedFS namespace is ready")
 
-	accessSecretTemplate := `'{"identities":[{"name":"anvAdmin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write"]},{"name":"anvReadOnly","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Read"]}]}'`
+	accessSecretTemplate := `{"identities":[{"name":"anvAdmin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write"]},{"name":"anvReadOnly","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Read"]}]}`
 	// generate 4 random strings for access keys and secret keys
 	accessKey1, secretKey1, accessKey2, secretKey2 := helpers.RandString(20), helpers.RandString(40), helpers.RandString(20), helpers.RandString(40)
 	accessSecretString := fmt.Sprintf(accessSecretTemplate, accessKey1, secretKey1, accessKey2, secretKey2)
@@ -160,7 +155,18 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	if err = wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		var count int
-		for _, name := range []string{"seaweedfs-filer", "seaweedfs-master", "seaweedfs-volume"} {
+		for _, name := range []string{"seaweedfs-s3"} {
+			ready, err := kubeutils.IsDeploymentReady(ctx, cli, namespace, name)
+			if err != nil {
+				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
+				return false, nil
+			}
+			if ready {
+				count++
+			}
+		}
+
+		for _, name := range []string{"seaweedfs-master", "seaweedfs-volume"} {
 			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, namespace, name)
 			if err != nil {
 				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
@@ -171,7 +177,7 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 			}
 		}
 		loading.Infof("Waiting for SeaweedFS to deploy: %d/3 ready", count)
-		return count == 2, nil
+		return count == 3, nil
 	}); err != nil {
 		if lasterr == nil {
 			lasterr = err
