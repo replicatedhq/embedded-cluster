@@ -124,6 +124,11 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1
 func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for SeaweedFS to be ready")
+	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+		loading.Close()
+		return err
+	}
+	loading.Infof("SeaweedFS namespace is ready")
 
 	accessSecretTemplate := `'{"identities":[{"name":"anvAdmin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write"]},{"name":"anvReadOnly","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Read"]}]}'`
 	// generate 4 random strings for access keys and secret keys

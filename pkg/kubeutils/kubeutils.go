@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,6 +21,25 @@ func BackOffToDuration(backoff wait.Backoff) time.Duration {
 		duration = time.Duration(float64(duration) * backoff.Factor)
 	}
 	return total
+}
+
+func WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := IsNamespaceReady(ctx, cli, ns)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get namespace %s status: %v", ns, err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
+		return fmt.Errorf("timed out waiting for namespace %s: %v", ns, lasterr)
+	}
+	return nil
+
 }
 
 // WaitForDeployment waits for the provided deployment to be ready.
@@ -39,6 +59,14 @@ func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) 
 		return fmt.Errorf("timed out waiting for deploy %s: %v", name, lasterr)
 	}
 	return nil
+}
+
+func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
+	var namespace corev1.Namespace
+	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {
+		return false, err
+	}
+	return namespace.Status.Phase == corev1.NamespaceActive, nil
 }
 
 // IsDeploymentReady returns true if the deployment is ready.
