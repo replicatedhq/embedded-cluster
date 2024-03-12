@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 main() {
     if ! kubectl support-bundle --output host.tar.gz --interactive=false /var/lib/embedded-cluster/support/host-support-bundle.yaml; then

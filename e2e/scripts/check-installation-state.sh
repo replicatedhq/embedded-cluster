@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 wait_for_installation() {
     ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
