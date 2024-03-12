@@ -40,5 +40,24 @@ func TestLocalArtifactMirror(t *testing.T) {
 		t.Fatalf("fail testing local artifact mirror: %v", err)
 	}
 
+	command := []string{"cp", "/etc/passwd", "/var/lib/embedded-cluster/logs/passwd"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, command); err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to copy file: %v", err)
+	}
+
+	command = []string{"curl", "-O", "--fail", "127.0.0.1:50000/logs/passwd"}
+	t.Logf("running %v", command)
+	if _, _, err := RunCommandOnNode(t, tc, 0, command); err == nil {
+		t.Fatalf("we should not be able to fetch logs from local artifact mirror")
+	}
+
+	command = []string{"curl", "-O", "--fail", "127.0.0.1:50000/../../../etc/passwd"}
+	t.Logf("running %v", command)
+	if _, _, err := RunCommandOnNode(t, tc, 0, command); err == nil {
+		t.Fatalf("we should not be able to fetch paths with ../")
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
