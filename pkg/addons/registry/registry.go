@@ -92,7 +92,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	}
 
 	repositoryConfig := v1beta1.Repository{
-		Name: "registry",
+		Name: "twuni",
 		URL:  ChartURL,
 	}
 
