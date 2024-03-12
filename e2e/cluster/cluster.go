@@ -59,6 +59,7 @@ type Input struct {
 	LicensePath                       string
 	EmbeddedClusterPath               string
 	EmbeddedClusterReleaseBuilderPath string // used to replace the release in the binary
+	AirgapBundlePath                  string
 	Image                             string
 	network                           string
 	T                                 *testing.T
@@ -395,6 +396,11 @@ func CopyFilesToNode(in *Input, node string) {
 		{
 			SourcePath: in.EmbeddedClusterReleaseBuilderPath,
 			DestPath:   "/usr/local/bin/embedded-cluster-release-builder",
+			Mode:       0755,
+		},
+		{
+			SourcePath: in.AirgapBundlePath,
+			DestPath:   "/tmp/release.airgap",
 			Mode:       0755,
 		},
 	}
