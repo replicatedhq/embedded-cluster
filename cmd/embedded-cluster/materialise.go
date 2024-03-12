@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/urfave/cli/v2"
 
@@ -15,6 +16,9 @@ var materialiseCommand = &cli.Command{
 	Hidden:    true,
 	UsageText: fmt.Sprintf("%s materialise <dir>", defaults.BinaryName()),
 	Before: func(c *cli.Context) error {
+		if os.Getuid() != 0 {
+			return fmt.Errorf("materialise command must be run as root")
+		}
 		if len(c.Args().Slice()) != 1 {
 			return fmt.Errorf("materialise command requires exactly 1 argument")
 		}
