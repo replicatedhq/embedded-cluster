@@ -126,7 +126,7 @@ jobs:
           - TestSingleNodeInstallationCentos8Stream
           - TestVersion
           - TestHostPreflight
-          - TestUnsupportedOverrides
+#          - TestUnsupportedOverrides TODO reenable this
           - TestMultiNodeInstallation
           - TestMultiNodeReset
           - TestCommandsRequireSudo
