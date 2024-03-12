@@ -64,6 +64,13 @@ var helmValues = map[string]interface{}{
 	},
 }
 
+var (
+	rwAccessKey = helpers.RandString(20)
+	rwSecretKey = helpers.RandString(40)
+	roAccessKey = helpers.RandString(20)
+	roSecretKey = helpers.RandString(40)
+)
+
 // SeaweedFS manages the installation of the SeaweedFS helm chart.
 type SeaweedFS struct {
 	isAirgap bool
@@ -121,6 +128,10 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1
 
 // Outro is executed after the cluster deployment.
 func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
+	//if !o.isAirgap {
+	//	return nil
+	//}
+
 	loading := spinner.Start()
 	loading.Infof("Waiting for SeaweedFS to be ready")
 	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
@@ -130,9 +141,7 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 	loading.Infof("SeaweedFS namespace is ready")
 
 	accessSecretTemplate := `{"identities":[{"name":"anvAdmin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write"]},{"name":"anvReadOnly","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Read"]}]}`
-	// generate 4 random strings for access keys and secret keys
-	accessKey1, secretKey1, accessKey2, secretKey2 := helpers.RandString(20), helpers.RandString(40), helpers.RandString(20), helpers.RandString(40)
-	accessSecretString := fmt.Sprintf(accessSecretTemplate, accessKey1, secretKey1, accessKey2, secretKey2)
+	accessSecretString := fmt.Sprintf(accessSecretTemplate, rwAccessKey, rwSecretKey, roAccessKey, roSecretKey)
 	accessSecret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -184,4 +193,8 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 // New creates a new SeaweedFS addon.
 func New(isAirgap bool) (*SeaweedFS, error) {
 	return &SeaweedFS{isAirgap: isAirgap}, nil
+}
+
+func GetRWInfo() (string, string) {
+	return rwAccessKey, rwSecretKey
 }
