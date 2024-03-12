@@ -34,7 +34,8 @@ var helmValues = map[string]interface{}{
 	"master": map[string]interface{}{
 		"replicas": 1,
 		"data": map[string]interface{}{
-			"type": "none",
+			"type":           "hostPath",
+			"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/master",
 		},
 		"logs": map[string]interface{}{
 			"type": "none",
