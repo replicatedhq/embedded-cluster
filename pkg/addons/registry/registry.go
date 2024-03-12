@@ -30,7 +30,8 @@ var (
 )
 
 var helmValues = map[string]interface{}{
-	"replicaCount": 1,
+	"replicaCount":     1,
+	"fullnameOverride": "registry",
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
@@ -113,7 +114,6 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		loading.Close()
 		return err
 	}
-	loading.Infof("Registry namespace is ready")
 
 	rwKey, rwSecret := seaweedfs.GetRWInfo()
 	accessSecret := corev1.Secret{
