@@ -90,6 +90,28 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 	return charts, repositories, nil
 }
 
+func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	seaweed, err := seaweedfs.New(true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
+	}
+	seaweedChart, seaweedRepo, err := seaweed.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to generate helm config for seaweedfs: %w", err)
+	}
+
+	reg, err := registry.New(true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to create registry addon: %w", err)
+	}
+	regChart, regRepo, err := reg.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
+	}
+
+	return append(seaweedChart, regChart...), append(seaweedRepo, regRepo...), nil
+}
+
 // ProtectedFields returns the protected fields for all the embedded charts.
 func (a *Applier) ProtectedFields() (map[string][]string, error) {
 	protectedFields := map[string][]string{}

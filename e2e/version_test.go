@@ -91,7 +91,7 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
-	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "ingress-nginx", "goldpinger", "seaweedfs"}
+	expectedCharts := []string{"openebs", "embedded-cluster-operator", "admin-console", "ingress-nginx", "goldpinger"}
 	if len(parsed.Configs.Charts) != len(expectedCharts) {
 		t.Log(output)
 		t.Fatalf("found %d charts in metadata, expected %d", len(parsed.Configs.Charts), len(expectedCharts))
@@ -107,6 +107,26 @@ func TestVersion(t *testing.T) {
 		}
 		if !foundName {
 			t.Errorf("failed to find chart %s in 'metadata' output", expectedName)
+			failed = true
+		}
+	}
+
+	expectedAirgapCharts := []string{"registry", "seaweedfs"}
+	if len(parsed.AirgapConfigs.Charts) != len(expectedAirgapCharts) {
+		t.Log(output)
+		t.Fatalf("found %d airgap charts in metadata, expected %d", len(parsed.AirgapConfigs.Charts), len(expectedAirgapCharts))
+	}
+
+	for _, expectedName := range expectedAirgapCharts {
+		foundName := false
+		for _, foundChart := range parsed.AirgapConfigs.Charts {
+			if foundChart.Name == expectedName {
+				foundName = true
+				break
+			}
+		}
+		if !foundName {
+			t.Errorf("failed to find airgap chart %s in 'metadata' output", expectedName)
 			failed = true
 		}
 	}

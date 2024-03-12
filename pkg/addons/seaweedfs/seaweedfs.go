@@ -106,9 +106,9 @@ func (o *SeaweedFS) GetProtectedFields() map[string][]string {
 
 // GenerateHelmConfig generates the helm config for the SeaweedFS chart.
 func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	//if !o.isAirgap {
-	//	return nil, nil, nil
-	//}
+	if !o.isAirgap {
+		return nil, nil, nil
+	}
 
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
@@ -134,9 +134,9 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1
 
 // Outro is executed after the cluster deployment.
 func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
-	//if !o.isAirgap {
-	//	return nil
-	//}
+	if !o.isAirgap {
+		return nil
+	}
 
 	loading := spinner.Start()
 	loading.Infof("Waiting for SeaweedFS to be ready")

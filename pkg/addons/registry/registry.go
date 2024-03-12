@@ -49,6 +49,28 @@ var helmValues = map[string]interface{}{
 			"secretRef": "seaweedfs-s3-rw",
 		},
 	},
+	"configData": map[string]interface{}{
+		"auth": map[string]interface{}{
+			"htpasswd": map[string]interface{}{
+				"realm": "Registry",
+				"path":  "/auth/htpasswd",
+			},
+		},
+	},
+	"extraVolumeMounts": []map[string]interface{}{
+		{
+			"name":      "auth",
+			"mountPath": "/auth",
+		},
+	},
+	"extraVolumes": []map[string]interface{}{
+		{
+			"name": "auth",
+			"secret": map[string]interface{}{
+				"secretName": "registry-auth",
+			},
+		},
+	},
 }
 
 // Registry manages the installation of the Registry helm chart.
@@ -80,9 +102,9 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
 func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	//if !o.isAirgap {
-	//	return nil, nil, nil
-	//}
+	if !o.isAirgap {
+		return nil, nil, nil
+	}
 
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
@@ -108,6 +130,10 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 
 // Outro is executed after the cluster deployment.
 func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
+	if !o.isAirgap {
+		return nil
+	}
+
 	loading := spinner.Start()
 	loading.Infof("Waiting for Registry to be ready")
 	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
@@ -116,7 +142,7 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	}
 
 	rwKey, rwSecret := seaweedfs.GetRWInfo()
-	accessSecret := corev1.Secret{
+	s3AccessSecret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -131,11 +157,13 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		},
 		Type: "Opaque",
 	}
-	err := cli.Create(ctx, &accessSecret)
+	err := cli.Create(ctx, &s3AccessSecret)
 	if err != nil {
 		loading.Close()
 		return fmt.Errorf("unable to create seaweedfs-s3-rw secret: %w", err)
 	}
+
+	// TODO generate a htpasswd secret
 
 	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "registry"); err != nil {
 		loading.Close()
