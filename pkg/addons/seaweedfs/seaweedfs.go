@@ -53,12 +53,16 @@ var helmValues = map[string]interface{}{
 		},
 	},
 	"filer": map[string]interface{}{
-		"enabled": false,
-	},
-	"s3": map[string]interface{}{
-		"enabled":              true,
-		"enableAuth":           true,
-		"existingConfigSecret": "seaweedfs-s3-access-secret",
+		"data": map[string]interface{}{
+			"type":         "persistentVolumeClaim",
+			"size":         "1Gi",
+			"storageClass": "openebs-hostpath",
+		},
+		"s3": map[string]interface{}{
+			"enabled":              true,
+			"enableAuth":           true,
+			"existingConfigSecret": "seaweedfs-s3-access-secret",
+		},
 	},
 }
 
@@ -155,18 +159,7 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	if err = wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		var count int
-		for _, name := range []string{"seaweedfs-s3"} {
-			ready, err := kubeutils.IsDeploymentReady(ctx, cli, namespace, name)
-			if err != nil {
-				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
-				return false, nil
-			}
-			if ready {
-				count++
-			}
-		}
-
-		for _, name := range []string{"seaweedfs-master", "seaweedfs-volume"} {
+		for _, name := range []string{"seaweedfs-master", "seaweedfs-volume", "seaweedfs-filer"} {
 			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, namespace, name)
 			if err != nil {
 				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
