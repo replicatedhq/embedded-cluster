@@ -52,6 +52,25 @@ func runCommand(bin string, args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
+// installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
+// service is reponsible for serving on localhost, through http, all files that are used
+// during a cluster upgrade.
+func installAndEnableLocalArtifactMirror() error {
+	if err := goods.MaterializeLocalArtiactMirrorUnitFile(); err != nil {
+		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
+	}
+	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+	}
+	if _, err := runCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
+	}
+	if _, err := runCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
+	}
+	return nil
+}
+
 // runPostInstall is a helper function that run things just after the k0s install
 // command ran.
 func runPostInstall() error {
@@ -63,7 +82,7 @@ func runPostInstall() error {
 	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	return nil
+	return installAndEnableLocalArtifactMirror()
 }
 
 // runHostPreflights run the host preflights we found embedded in the binary
