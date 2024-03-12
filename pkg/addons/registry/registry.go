@@ -3,6 +3,9 @@ package registry
 import (
 	"context"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -20,13 +23,31 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL  = "https://url"
-	ChartName = "name"
-	Version   = "v0.0.0"
+	ChartURL     = "https://url"
+	ChartName    = "name"
+	Version      = "v0.0.0"
+	ImageVersion = "2.8.3"
 )
 
 var helmValues = map[string]interface{}{
-	// TODO
+	"replicaCount": 1,
+	"image": map[string]interface{}{
+		"tag": ImageVersion,
+	},
+	"storage": "s3",
+	"s3": map[string]interface{}{
+		"region":         "us-east-1",
+		"regionEndpoint": "seaweedfs-s3.seaweedfs.svc.cluster.local:8333",
+		"bucket":         "registry",
+		"rootdirectory":  "/registry",
+		"encrypt":        false,
+		"secure":         true,
+	},
+	"secrets": map[string]interface{}{
+		"s3": map[string]interface{}{
+			"secretRef": "seaweedfs-s3-rw",
+		},
+	},
 }
 
 // Registry manages the installation of the Registry helm chart.
@@ -88,6 +109,34 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Registry to be ready")
+	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+		loading.Close()
+		return err
+	}
+	loading.Infof("Registry namespace is ready")
+
+	rwKey, rwSecret := seaweedfs.GetRWInfo()
+	accessSecret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "seaweedfs-s3-rw",
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"accessKey": rwKey,
+			"secretKey": rwSecret,
+		},
+		Type: "Opaque",
+	}
+	err := cli.Create(ctx, &accessSecret)
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to create seaweedfs-s3-rw secret: %w", err)
+	}
+
 	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "registry"); err != nil {
 		loading.Close()
 		return err
