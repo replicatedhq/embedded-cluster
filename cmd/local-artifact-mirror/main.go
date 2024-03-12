@@ -53,7 +53,7 @@ func logAndFilterRequest(handler http.Handler) http.Handler {
 // the autopilot during an upgrade.
 var serveCommand = &cli.Command{
 	Name:  "serve",
-	Usage: "Serve local files over HTTP",
+	Usage: "Serve /var/lib/embedded-cluster files over HTTP",
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("serve command must be run as root")
