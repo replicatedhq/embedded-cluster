@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 main() {
     if ! embedded-cluster reset --no-prompt | tee /tmp/log ; then

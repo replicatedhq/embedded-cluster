@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 preflight_with_failure="
 apiVersion: troubleshoot.sh/v1beta2
