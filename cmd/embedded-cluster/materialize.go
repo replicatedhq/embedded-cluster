@@ -10,17 +10,17 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 )
 
-var materialiseCommand = &cli.Command{
-	Name:      "materialise",
-	Usage:     "Materialise embedded assets into a directory",
+var materializeCommand = &cli.Command{
+	Name:      "materialize",
+	Usage:     "Materialize embedded assets into a directory",
 	Hidden:    true,
-	UsageText: fmt.Sprintf("%s materialise <dir>", defaults.BinaryName()),
+	UsageText: fmt.Sprintf("%s materialize <dir>", defaults.BinaryName()),
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
-			return fmt.Errorf("materialise command must be run as root")
+			return fmt.Errorf("materialize command must be run as root")
 		}
 		if len(c.Args().Slice()) != 1 {
-			return fmt.Errorf("materialise command requires exactly 1 argument")
+			return fmt.Errorf("materialize command requires exactly 1 argument")
 		}
 		return nil
 	},
@@ -29,7 +29,7 @@ var materialiseCommand = &cli.Command{
 		defaults.GlobalProvider = defaults.NewProvider("")
 		defaults.GlobalProvider.Home = dst
 		if err := goods.Materialize(); err != nil {
-			return fmt.Errorf("unable to materialise: %v", err)
+			return fmt.Errorf("unable to materialize: %v", err)
 		}
 		fmt.Printf("Materialising embedded binaries into %s\n", dst)
 		return nil

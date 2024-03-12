@@ -7,7 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 
-func TestMaterialise(t *testing.T) {
+func TestMaterialize(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
@@ -19,13 +19,13 @@ func TestMaterialise(t *testing.T) {
 
 	commands := [][]string{
 		{"mkdir", "/tmp/home"},
-		{"embedded-cluster", "materialise", "/tmp/home"},
+		{"embedded-cluster", "materialize", "/tmp/home"},
 		{"ls", "-la", "/tmp/home/bin/kubectl-preflight"},
 		{"ls", "-la", "/tmp/home/bin/kubectl"},
 		{"ls", "-la", "/tmp/home/bin/k0s"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail testing materialise assets: %v", err)
+		t.Fatalf("fail testing materialize assets: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
