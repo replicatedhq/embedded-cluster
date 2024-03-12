@@ -1,9 +1,12 @@
 package airgap
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/require"
+	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
@@ -27,12 +30,14 @@ versionLabel: "test-version-label"`
 
 	tests := []struct {
 		name           string
-		airgapFile     string
+		airgapDir      string
+		airgapAppDir   string
 		wantConfigmaps []corev1.ConfigMap
 	}{
 		{
-			name:       "tiny-airgap-noimages",
-			airgapFile: "tiny-airgap-noimages.airgap",
+			name:         "tiny-airgap-noimages",
+			airgapDir:    "tiny-airgap-noimages",
+			airgapAppDir: "tiny-airgap-noimages-app",
 			wantConfigmaps: []corev1.ConfigMap{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -152,9 +157,16 @@ versionLabel: "test-version-label"`
 			req.NoError(err)
 			t.Logf("Current working directory: %s", dir)
 
+			// create tarball stream from airgapAppDir
+			appTarballReader := createTarballFromDir(filepath.Join(dir, "testfiles", tt.airgapAppDir), nil)
+			appTarballBytes := []byte{}
+			appTarballBytes, err = io.ReadAll(appTarballReader)
+			req.NoError(err)
+			airgapReader := createTarballFromDir(filepath.Join(dir, "testfiles", tt.airgapDir), map[string][]byte{"app.tar.gz": appTarballBytes})
+
 			// create fake client and run CreateAppConfigMaps
 			fakeCLI := fake.NewClientBuilder().Build()
-			err = CreateAppConfigMaps(ctx, fakeCLI, filepath.Join(dir, "testfiles", tt.airgapFile))
+			err = CreateAppConfigMaps(ctx, fakeCLI, airgapReader)
 			req.NoError(err)
 
 			// ensure that the configmaps created are the ones we expected
@@ -175,4 +187,83 @@ versionLabel: "test-version-label"`
 			}
 		})
 	}
+}
+
+func createTarballFromDir(rootPath string, additionalFiles map[string][]byte) io.Reader {
+	appTarReader, appWriter := io.Pipe()
+	gWriter := gzip.NewWriter(appWriter)
+	appTarWriter := tar.NewWriter(gWriter)
+	go func() {
+		err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if rootPath == path {
+				return nil
+			}
+			header, err := tar.FileInfoHeader(info, info.Name())
+			if err != nil {
+				return err
+			}
+			header.Name = filepath.Base(path)
+			err = appTarWriter.WriteHeader(header)
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() {
+				file, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				_, err = io.Copy(appTarWriter, file)
+				if err != nil {
+					return err
+				}
+				err = file.Close()
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			appTarWriter.Close()
+			appWriter.CloseWithError(err)
+			return
+		}
+		for name, data := range additionalFiles {
+			header := tar.Header{
+				Name: name,
+				Size: int64(len(data)),
+			}
+			err = appTarWriter.WriteHeader(&header)
+			if err != nil {
+				appTarWriter.Close()
+				appWriter.CloseWithError(err)
+				return
+			}
+			_, err = appTarWriter.Write(data)
+			if err != nil {
+				appTarWriter.Close()
+				appWriter.CloseWithError(err)
+				return
+			}
+		}
+		err = appTarWriter.Close()
+		if err != nil {
+			appWriter.CloseWithError(err)
+			return
+		}
+		err = gWriter.Close()
+		if err != nil {
+			appWriter.CloseWithError(err)
+			return
+		}
+		err = appWriter.Close()
+		if err != nil {
+			return
+		}
+	}()
+
+	return appTarReader
 }

@@ -319,7 +319,14 @@ func createAirgapConfigMaps(c *cli.Context) error {
 		return fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
-	if err = airgap.CreateAppConfigMaps(c.Context, cli, c.String("airgap")); err != nil {
+	// read file from path
+	rawfile, err := os.Open(c.String("airgap"))
+	if err != nil {
+		return fmt.Errorf("failed to open airgap file: %w", err)
+	}
+	defer rawfile.Close()
+
+	if err = airgap.CreateAppConfigMaps(c.Context, cli, rawfile); err != nil {
 		return fmt.Errorf("unable to create airgap configmaps: %w", err)
 	}
 	return nil

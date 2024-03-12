@@ -12,20 +12,12 @@ import (
 	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapFile string) error {
-	// read file from airgapFile
-	rawfile, err := os.Open(airgapFile)
-	if err != nil {
-		return fmt.Errorf("failed to open airgap file: %w", err)
-	}
-	defer rawfile.Close()
-
+func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapReader io.Reader) error {
 	// decompress tarball
-	ungzip, err := gzip.NewReader(rawfile)
+	ungzip, err := gzip.NewReader(airgapReader)
 	if err != nil {
 		return fmt.Errorf("failed to decompress airgap file: %w", err)
 	}
@@ -39,10 +31,10 @@ func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapFile stri
 		if err != nil {
 			if err == io.EOF {
 				if !foundAppRelease {
-					return fmt.Errorf("app release not found in %s", airgapFile)
+					return fmt.Errorf("app release not found in airgap file")
 				}
 				if !foundAirgapYaml {
-					return fmt.Errorf("airgap.yaml not found in %s", airgapFile)
+					return fmt.Errorf("airgap.yaml not found in airgap file")
 				}
 			}
 			return fmt.Errorf("failed to read airgap file: %w", err)
@@ -53,7 +45,7 @@ func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapFile stri
 			var contents []byte
 			contents, err = io.ReadAll(tarreader)
 			if err != nil {
-				return fmt.Errorf("failed to read airgap.yaml file within %s: %w", airgapFile, err)
+				return fmt.Errorf("failed to read airgap.yaml file within airgap file: %w", err)
 			}
 			err = createAppConfigMap(ctx, cli, "meta", "airgap.yaml", contents)
 			if err != nil {
@@ -64,7 +56,7 @@ func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapFile stri
 			foundAppRelease = true
 			err = createAppYamlConfigMaps(ctx, cli, tarreader)
 			if err != nil {
-				return fmt.Errorf("failed to read app release file within %s: %w", airgapFile, err)
+				return fmt.Errorf("failed to read app release file within airgap file: %w", err)
 			}
 		}
 		if foundAppRelease && foundAirgapYaml {

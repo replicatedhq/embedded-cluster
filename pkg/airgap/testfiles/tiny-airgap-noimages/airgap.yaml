@@ -1,0 +1,18 @@
+apiVersion: kots.io/v1beta1
+kind: Airgap
+metadata:
+  creationTimestamp: null
+spec:
+  appSlug: laverya-tiny-airgap
+  channelID: 2dMrAqJjrPzfeNHv9bc0gCHh25N
+  channelName: Stable
+  format: docker-archive
+  replicatedChartNames:
+  - replicated
+  - replicated-sdk
+  savedImages:
+  - alpine:3.19.1
+  signature: PQ4Zs4e4g1sgrd1lYog2i23+ixbDXX3NancOcDdK+JqD1S4elmkHhsGIUazIl15rL4YuJQdzeem0geK14PKADN+0YLzvEVm9Gw1Coq+y3ZDpUn2+On7caK4k1vckAEbomUDw7Cm5AGxYDFPiz4iC+OnKmFYdfU8FqSNT0iMUxjTvBLdlIf9VOh5wsbi5J511UCEv2Ht9UexcNGobgolrC5AUWKAvbH4mGxnSXVRSHjXtsAJaIw/Aw0RdQ830AIaTEz+L+qbgwasQG7lExkaQz2dEbywPP2nL9ZiyCOIAsjaKiclGx8HzKDCk7Womt4+WOfusqyk6mUFe/EflX/l2TA==
+  updateCursor: "1"
+  versionLabel: 0.1.0
+status: {}
