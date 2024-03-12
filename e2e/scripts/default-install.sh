@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 wait_for_healthy_node() {
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)

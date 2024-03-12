@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # This script waits for X nodes to be ready. X is the first argument.
-set -euo pipefail
+set -euox pipefail
 
 main() {
     expected_nodes="$1"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 wait_for_healthy_node() {
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
@@ -93,7 +93,7 @@ install_kots_cli() {
     echo "installing kots cli"
     local ec_version=
     ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1)
-    curl https://kots.io/install/$ec_version | bash
+    curl "https://kots.io/install/$ec_version" | bash
 
 }
 
