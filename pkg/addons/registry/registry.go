@@ -79,16 +79,16 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
 func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	if !o.isAirgap {
-		return nil, nil, nil
-	}
+	//if !o.isAirgap {
+	//	return nil, nil, nil
+	//}
 
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
 		TargetNS:  namespace,
-		Order:     1,
+		Order:     3,
 	}
 
 	repositoryConfig := v1beta1.Repository{
