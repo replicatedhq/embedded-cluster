@@ -24,9 +24,13 @@ func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]stri
 		cmdstr := strings.Join(cmd, " ")
 		t.Logf("running `%s` node %d", cmdstr, node)
 		stdout, stderr, err := RunCommandOnNode(t, cl, node, cmd)
-		if err != nil {
+		if len(stdout) > 0 || len(stderr) > 0 {
+			t.Logf("-----")
 			t.Logf("stdout:\n%s", stdout)
 			t.Logf("stderr:\n%s", stderr)
+			t.Logf("-----")
+		}
+		if err != nil {
 			return err
 		}
 	}

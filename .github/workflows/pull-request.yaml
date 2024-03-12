@@ -134,6 +134,8 @@ jobs:
           - TestResetAndReinstall
           - TestCollectSupportBundle
           - TestOldVersionUpgrade
+          - TestMaterialise
+          - TestLocalArtifactMirror
     steps:
     - name: Checkout
       uses: actions/checkout@v4
