@@ -34,8 +34,10 @@ var helmValues = map[string]interface{}{
 	"master": map[string]interface{}{
 		"replicas": 1,
 		"data": map[string]interface{}{
-			"type":           "hostPath",
-			"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/master",
+			"type": "none",
+		},
+		"logs": map[string]interface{}{
+			"type": "none",
 		},
 		"disableHttp": true,
 	},
@@ -53,8 +55,10 @@ var helmValues = map[string]interface{}{
 	},
 	"filer": map[string]interface{}{
 		"data": map[string]interface{}{
-			"type":           "hostPath",
-			"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/filer",
+			"type": "none",
+		},
+		"logs": map[string]interface{}{
+			"type": "none",
 		},
 		"s3": map[string]interface{}{
 			"enabled":              true,
