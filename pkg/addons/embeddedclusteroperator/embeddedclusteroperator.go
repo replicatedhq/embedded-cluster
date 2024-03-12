@@ -78,7 +78,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
 		TargetNS:  "embedded-cluster",
-		Order:     4,
+		Order:     3,
 	}
 
 	if !onlyDefaults {

@@ -56,7 +56,8 @@ var helmValues = map[string]interface{}{
 	},
 	"filer": map[string]interface{}{
 		"data": map[string]interface{}{
-			"type": "none",
+			"type": "persistentVolumeClaim",
+			"size": "1Gi",
 		},
 		"logs": map[string]interface{}{
 			"type": "none",

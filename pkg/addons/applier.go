@@ -141,17 +141,17 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, seaweed)
 
-	reg, err := registry.New(a.airgap)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create registry addon: %w", err)
-	}
-	addons = append(addons, reg)
-
 	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.license)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
 	addons = append(addons, embedoperator)
+
+	reg, err := registry.New(a.airgap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create registry addon: %w", err)
+	}
+	addons = append(addons, reg)
 
 	aconsole, err := adminconsole.New(defaults.KOTSADM_NAMESPACE, a.prompt, a.config, a.license, a.airgap)
 	if err != nil {
