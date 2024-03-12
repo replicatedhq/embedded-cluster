@@ -159,7 +159,7 @@ versionLabel: "test-version-label"`
 
 			// create tarball stream from airgapAppDir
 			appTarballReader := createTarballFromDir(filepath.Join(dir, "testfiles", tt.airgapAppDir), nil)
-			appTarballBytes := []byte{}
+			var appTarballBytes []byte
 			appTarballBytes, err = io.ReadAll(appTarballReader)
 			req.NoError(err)
 			airgapReader := createTarballFromDir(filepath.Join(dir, "testfiles", tt.airgapDir), map[string][]byte{"app.tar.gz": appTarballBytes})
