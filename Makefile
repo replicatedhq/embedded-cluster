@@ -69,6 +69,10 @@ pkg/goods/bins/kubectl-preflight: Makefile
 	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
 	touch pkg/goods/bins/kubectl-preflight
 
+pkg/goods/bins/local-artifact-mirror: Makefile
+	mkdir -p pkg/goods/bins
+	CGO_ENABLED=0 go build -o pkg/goods/bins/local-artifact-mirror ./cmd/local-artifact-mirror
+
 output/tmp/release.tar.gz: e2e/kots-release-install/*
 	mkdir -p output/tmp
 	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
@@ -81,11 +85,13 @@ output/bin/embedded-cluster-release-builder:
 embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
+
 .PHONY: static
 static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-preflight \
 	pkg/goods/bins/kubectl \
-	pkg/goods/bins/kubectl-support_bundle
+	pkg/goods/bins/kubectl-support_bundle \
+	pkg/goods/bins/local-artifact-mirror
 	
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: static

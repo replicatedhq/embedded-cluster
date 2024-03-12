@@ -1,0 +1,8 @@
+[Unit]
+Description=Embedded Cluster Local Artifact Mirror
+
+[Service]
+ExecStart=/var/lib/embedded-cluster/bin/local-artifact-mirror serve
+
+[Install]
+WantedBy=multi-user.target
