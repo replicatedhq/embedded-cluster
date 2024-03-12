@@ -166,7 +166,14 @@ func checkAirgapMatches(c *cli.Context) error {
 		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
 	}
 
-	appSlug, channelID, airgapVersion, err := airgap.AirgapBundleVersions(c.String("airgap"))
+	// read file from path
+	rawfile, err := os.Open(c.String("airgap"))
+	if err != nil {
+		return fmt.Errorf("failed to open airgap file: %w", err)
+	}
+	defer rawfile.Close()
+
+	appSlug, channelID, airgapVersion, err := airgap.AirgapBundleVersions(rawfile)
 	if err != nil {
 		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
 	}

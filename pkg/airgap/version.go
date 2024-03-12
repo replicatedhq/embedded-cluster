@@ -5,24 +5,16 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"os"
 	"sigs.k8s.io/yaml"
 
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 // AirgapBundleVersions returns the appSlug, channelID, and versionLabel of the airgap bundle
-func AirgapBundleVersions(airgapFile string) (appSlug, channelID, versionLabel string, err error) {
-	// read file from airgapFile
-	rawfile, err := os.Open(airgapFile)
-	if err != nil {
-		err = fmt.Errorf("failed to open airgap file: %w", err)
-		return
-	}
-	defer rawfile.Close()
+func AirgapBundleVersions(reader io.Reader) (appSlug, channelID, versionLabel string, err error) {
 
 	// decompress tarball
-	ungzip, err := gzip.NewReader(rawfile)
+	ungzip, err := gzip.NewReader(reader)
 	if err != nil {
 		err = fmt.Errorf("failed to decompress airgap file: %w", err)
 		return
@@ -35,7 +27,7 @@ func AirgapBundleVersions(airgapFile string) (appSlug, channelID, versionLabel s
 		nextFile, err = tarreader.Next()
 		if err != nil {
 			if err == io.EOF {
-				err = fmt.Errorf("app release not found in %s", airgapFile)
+				err = fmt.Errorf("app release not found in airgap file")
 				return
 			}
 			err = fmt.Errorf("failed to read airgap file: %w", err)
@@ -46,7 +38,7 @@ func AirgapBundleVersions(airgapFile string) (appSlug, channelID, versionLabel s
 			var contents []byte
 			contents, err = io.ReadAll(tarreader)
 			if err != nil {
-				err = fmt.Errorf("failed to read airgap.yaml file within %s: %w", airgapFile, err)
+				err = fmt.Errorf("failed to read airgap.yaml file within airgap file: %w", err)
 				return
 			}
 			var airgapInfo kotsv1beta1.Airgap

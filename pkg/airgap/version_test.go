@@ -10,14 +10,14 @@ import (
 func TestAirgapBundleVersions(t *testing.T) {
 	tests := []struct {
 		name             string
-		airgapFile       string
+		airgapDir        string
 		wantAppslug      string
 		wantChannelid    string
 		wantVersionlabel string
 	}{
 		{
 			name:             "tiny-airgap-noimages",
-			airgapFile:       "tiny-airgap-noimages.airgap",
+			airgapDir:        "tiny-airgap-noimages",
 			wantAppslug:      "laverya-tiny-airgap",
 			wantChannelid:    "2dMrAqJjrPzfeNHv9bc0gCHh25N",
 			wantVersionlabel: "0.1.0",
@@ -30,8 +30,9 @@ func TestAirgapBundleVersions(t *testing.T) {
 			dir, err := os.Getwd()
 			req.NoError(err)
 			t.Logf("Current working directory: %s", dir)
+			airgapReader := createTarballFromDir(filepath.Join(dir, "testfiles", tt.airgapDir), nil)
 
-			appSlug, channelID, versionLabel, err := AirgapBundleVersions(filepath.Join(dir, "testfiles", tt.airgapFile))
+			appSlug, channelID, versionLabel, err := AirgapBundleVersions(airgapReader)
 			req.NoError(err)
 			req.Equal(tt.wantAppslug, appSlug)
 			req.Equal(tt.wantChannelid, channelID)
