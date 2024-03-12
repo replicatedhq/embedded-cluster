@@ -126,8 +126,8 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 			Namespace: namespace,
 		},
 		StringData: map[string]string{
-			"accessKey": rwKey,
-			"secretKey": rwSecret,
+			"s3AccessKey": rwKey,
+			"s3SecretKey": rwSecret,
 		},
 		Type: "Opaque",
 	}
