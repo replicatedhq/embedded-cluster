@@ -11,7 +11,8 @@ import (
 
 const K0S_IMAGE_PATH = "/var/lib/k0s/images/install.tar.gz"
 
-// MaterializeAirgapImages places the the airgap image bundle for k0s
+// MaterializeAirgapImages places the airgap image bundle for k0s
+// this should be located at 'images-amd64.tar.gz' within embedded-cluster.tar.gz within the airgap bundle
 func MaterializeAirgapImages(airgapReader io.Reader) error {
 	// setup destination
 	err := os.MkdirAll(filepath.Dir(K0S_IMAGE_PATH), 0755)
@@ -37,9 +38,30 @@ func MaterializeAirgapImages(airgapReader io.Reader) error {
 			return fmt.Errorf("failed to read airgap file: %w", err)
 		}
 
-		if nextFile.Name == "images.tar.gz" {
+		if nextFile.Name == "embedded-cluster.tar.gz" {
 			break
 		}
+	}
+
+	internalUngzip, err := gzip.NewReader(tarreader)
+	if err != nil {
+		return fmt.Errorf("failed to decompress embedded-cluster.tar.gz within airgap file: %w", err)
+	}
+	internalTarReader := tar.NewReader(internalUngzip)
+	var internalNextFile *tar.Header
+	for {
+		internalNextFile, err = internalTarReader.Next()
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("k0s images not found in embedded-cluster.tar.gz within airgap file")
+			}
+			return fmt.Errorf("failed to read embedded-cluster.tar.gz within airgap file: %w", err)
+		}
+
+		if internalNextFile.Name == "images-amd64.tar.gz" {
+			break
+		}
+
 	}
 
 	// stream to destination file
@@ -54,7 +76,7 @@ func MaterializeAirgapImages(airgapReader io.Reader) error {
 		return fmt.Errorf("failed to set destination file permissions: %w", err)
 	}
 
-	_, err = io.Copy(destFile, tarreader)
+	_, err = io.Copy(destFile, internalTarReader)
 	if err != nil {
 		return fmt.Errorf("failed to copy images file: %w", err)
 	}
