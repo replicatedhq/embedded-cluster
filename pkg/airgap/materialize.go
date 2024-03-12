@@ -12,22 +12,15 @@ import (
 const K0S_IMAGE_PATH = "/var/lib/k0s/images/install.tar.gz"
 
 // MaterializeAirgapImages places the the airgap image bundle for k0s
-func MaterializeAirgapImages(airgapFile string) error {
+func MaterializeAirgapImages(airgapReader io.Reader) error {
 	// setup destination
 	err := os.MkdirAll(filepath.Dir(K0S_IMAGE_PATH), 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	// read file from airgapFile
-	rawfile, err := os.Open(airgapFile)
-	if err != nil {
-		return fmt.Errorf("failed to open airgap file: %w", err)
-	}
-	defer rawfile.Close()
-
 	// decompress tarball
-	ungzip, err := gzip.NewReader(rawfile)
+	ungzip, err := gzip.NewReader(airgapReader)
 	if err != nil {
 		return fmt.Errorf("failed to decompress airgap file: %w", err)
 	}
@@ -39,7 +32,7 @@ func MaterializeAirgapImages(airgapFile string) error {
 		nextFile, err = tarreader.Next()
 		if err != nil {
 			if err == io.EOF {
-				return fmt.Errorf("application images not found in %s", airgapFile)
+				return fmt.Errorf("application images not found in airgap file")
 			}
 			return fmt.Errorf("failed to read airgap file: %w", err)
 		}

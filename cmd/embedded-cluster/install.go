@@ -198,6 +198,29 @@ func checkAirgapMatches(c *cli.Context) error {
 	return nil
 }
 
+func materializeFiles(c *cli.Context) error {
+	if err := goods.Materialize(); err != nil {
+		return fmt.Errorf("unable to materialize binaries: %w", err)
+	}
+	if c.String("airgap") != "" {
+		logrus.Infof("materializing airgap installation files")
+
+		// read file from path
+		rawfile, err := os.Open(c.String("airgap"))
+		if err != nil {
+			return fmt.Errorf("failed to open airgap file: %w", err)
+		}
+		defer rawfile.Close()
+
+		if err := airgap.MaterializeAirgapImages(rawfile); err != nil {
+			err = fmt.Errorf("unable to materialize airgap files: %w", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
@@ -427,8 +450,7 @@ var installCommand = &cli.Command{
 			}
 		}
 		logrus.Debugf("materializing binaries")
-		if err := goods.Materialize(); err != nil {
-			err := fmt.Errorf("unable to materialize binaries: %w", err)
+		if err := materializeFiles(c); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
@@ -437,13 +459,6 @@ var installCommand = &cli.Command{
 			err := fmt.Errorf("unable to finish preflight checks: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
-		}
-		if c.String("airgap") != "" {
-			logrus.Infof("materializing airgap installation files")
-			if err := airgap.MaterializeAirgapImages(c.String("airgap")); err != nil {
-				err = fmt.Errorf("unable to run materialize airgap files: %w", err)
-				return err
-			}
 		}
 		logrus.Debugf("creating k0s configuration file")
 		if err := ensureK0sConfig(c); err != nil {
