@@ -17,15 +17,19 @@ import (
 // Base is the base directory inside which all the other directories are
 // created.
 func NewProvider(base string) *Provider {
-	return &Provider{Base: base, Home: "/var/lib/embedded-cluster"}
+	obj := &Provider{Base: base}
+	obj.Init()
+	return obj
 }
 
 // Provider is an entity that provides default values used during
 // EmbeddedCluster installation.
 type Provider struct {
 	Base string
-	Home string
 }
+
+// Init makes sure all the necessary directory exists on the system.
+func (d *Provider) Init() {}
 
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if
@@ -71,7 +75,7 @@ func (d *Provider) EmbeddedClusterBinsSubDir() string {
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func (d *Provider) EmbeddedClusterHomeDirectory() string {
-	return filepath.Join(d.Base, d.Home)
+	return filepath.Join(d.Base, "/var/lib/embedded-cluster")
 }
 
 // K0sBinaryPath returns the path to the k0s binary when it is installed on the node. This

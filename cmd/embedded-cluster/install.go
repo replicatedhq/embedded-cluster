@@ -60,7 +60,7 @@ func installAndEnableLocalArtifactMirror() error {
 	if err := os.Rename(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move local artifact mirror binary: %w", err)
 	}
-	if err := goods.MaterializeLocalArtiactMirrorUnitFile(); err != nil {
+	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
 	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {

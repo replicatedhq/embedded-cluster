@@ -18,11 +18,13 @@ func TestMaterialize(t *testing.T) {
 	defer tc.Destroy()
 
 	commands := [][]string{
-		{"mkdir", "/tmp/home"},
-		{"embedded-cluster", "materialize", "/tmp/home"},
-		{"ls", "-la", "/tmp/home/bin/kubectl-preflight"},
-		{"ls", "-la", "/tmp/home/bin/kubectl"},
-		{"ls", "-la", "/tmp/home/bin/k0s"},
+		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl"},
+		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl-preflight"},
+		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl-support_bundle"},
+		{"embedded-cluster", "materialize"},
+		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl"},
+		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl-preflight"},
+		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl-support_bundle"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail testing materialize assets: %v", err)

@@ -14,8 +14,8 @@ var (
 	TroubleshootVersion = "0.0.0"
 	// KubectlVersion holds the version of kubectl binary we are embedding.
 	KubectlVersion = "0.0.0"
-	// GlobalProvider holds a global reference to the default provider.
-	GlobalProvider *Provider
+	// provider holds a global reference to the default provider.
+	provider *Provider
 	// K0sBinaryURL holds an alternative URL from where to download the k0s
 	// binary that has been embedded in this version of the binary. If this
 	// is empty then it means we have shipped the official k0s binary. This
@@ -26,10 +26,10 @@ var (
 // def returns a global reference to the default provider. creates one if not
 // already created.
 func def() *Provider {
-	if GlobalProvider == nil {
-		GlobalProvider = NewProvider("")
+	if provider == nil {
+		provider = NewProvider("")
 	}
-	return GlobalProvider
+	return provider
 }
 
 // BinaryName calls BinaryName on the default provider.
