@@ -165,6 +165,9 @@ func checkAirgapMatches(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
 	}
+	if rel == nil {
+		return nil // TODO make this an error when done testing
+	}
 
 	// read file from path
 	rawfile, err := os.Open(c.String("airgap"))
