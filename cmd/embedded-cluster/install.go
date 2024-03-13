@@ -383,6 +383,9 @@ func runOutro(c *cli.Context) error {
 		}
 		opts = append(opts, addons.WithEndUserConfig(eucfg))
 	}
+	if c.String("airgap") != "" {
+		opts = append(opts, addons.Airgap())
+	}
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
