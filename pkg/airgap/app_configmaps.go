@@ -110,6 +110,11 @@ func createAppConfigMap(ctx context.Context, cli client.Client, name string, fil
 	if err != nil {
 		return fmt.Errorf("failed to get channel release: %w", err)
 	}
+	if rel == nil {
+		rel = &release.ChannelRelease{
+			AppSlug: "unknown",
+		}
+	}
 
 	configMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{

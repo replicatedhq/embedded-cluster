@@ -33,7 +33,7 @@ func MaterializeAirgapImages(airgapReader io.Reader) error {
 		nextFile, err = tarreader.Next()
 		if err != nil {
 			if err == io.EOF {
-				return fmt.Errorf("application images not found in airgap file")
+				return fmt.Errorf("embedded-cluster.tar.gz not found in airgap file")
 			}
 			return fmt.Errorf("failed to read airgap file: %w", err)
 		}
