@@ -56,7 +56,7 @@ func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) 
 			return ready, nil
 		},
 	); err != nil {
-		return fmt.Errorf("timed out waiting for deploy %s: %v", name, lasterr)
+		return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
 	}
 	return nil
 }

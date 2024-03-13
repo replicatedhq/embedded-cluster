@@ -42,6 +42,11 @@ var helmValues = map[string]interface{}{
 				"path":  "/auth/htpasswd",
 			},
 		},
+		"storage": map[string]interface{}{
+			"filesystem": map[string]interface{}{
+				"rootdirectory": "/var/lib/registry",
+			},
+		},
 	},
 	"extraVolumeMounts": []map[string]interface{}{
 		{
