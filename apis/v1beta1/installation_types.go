@@ -43,6 +43,17 @@ type NodeStatus struct {
 	Hash string `json:"hash"`
 }
 
+// ArtifactsLocation defines a location from where we can download an
+// airgap bundle. It contains individual URLs for each component of the
+// bundle. These URLs are expected to point to a registry running inside
+// the cluster, authentication for the registry is read from the cluster
+// at execution time so they do not need to be provided here.
+type ArtifactsLocation struct {
+	Images                string `json:"images"`
+	HelmCharts            string `json:"helmCharts"`
+	EmbeddedClusterBinary string `json:"embeddedClusterBinary"`
+}
+
 // InstallationSpec defines the desired state of Installation.
 type InstallationSpec struct {
 	// ClusterID holds the cluster, generated during the installation.
@@ -51,6 +62,8 @@ type InstallationSpec struct {
 	MetricsBaseURL string `json:"metricsBaseURL,omitempty"`
 	// AirGap indicates if the installation is airgapped.
 	AirGap bool `json:"airGap"`
+	// Artifacts holds the location of the airgap bundle.
+	Artifacts *ArtifactsLocation `json:"artifacts,omitempty"`
 	// Config holds the configuration used at installation time.
 	Config *ConfigSpec `json:"config,omitempty"`
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
