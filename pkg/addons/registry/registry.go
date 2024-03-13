@@ -3,13 +3,12 @@ package registry
 import (
 	"context"
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -35,20 +34,7 @@ var helmValues = map[string]interface{}{
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
-	"storage": "s3",
-	"s3": map[string]interface{}{
-		"region":         "us-east-1",
-		"regionEndpoint": "seaweedfs-s3.seaweedfs.svc.cluster.local:8333",
-		"bucket":         "registry",
-		"rootdirectory":  "/registry",
-		"encrypt":        false,
-		"secure":         true,
-	},
-	"secrets": map[string]interface{}{
-		"s3": map[string]interface{}{
-			"secretRef": "seaweedfs-s3-rw",
-		},
-	},
+	"storage": "hostpath", // this is not a recognized option but gets us past all the storage options
 	"configData": map[string]interface{}{
 		"auth": map[string]interface{}{
 			"htpasswd": map[string]interface{}{
@@ -62,12 +48,22 @@ var helmValues = map[string]interface{}{
 			"name":      "auth",
 			"mountPath": "/auth",
 		},
+		{
+			"name":      "registry-data",
+			"mountPath": "/var/lib/registry",
+		},
 	},
 	"extraVolumes": []map[string]interface{}{
 		{
 			"name": "auth",
 			"secret": map[string]interface{}{
 				"secretName": "registry-auth",
+			},
+		},
+		{
+			"name": "registry-data",
+			"hostPath": map[string]interface{}{
+				"path": "/var/lib/embedded-cluster/registry",
 			},
 		},
 	},
@@ -141,26 +137,24 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		return err
 	}
 
-	rwKey, rwSecret := seaweedfs.GetRWInfo()
-	s3AccessSecret := corev1.Secret{
+	htpasswd := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "seaweedfs-s3-rw",
+			Name:      "registry-auth",
 			Namespace: namespace,
 		},
 		StringData: map[string]string{
-			"s3AccessKey": rwKey,
-			"s3SecretKey": rwSecret,
+			"htpasswd": "TODO",
 		},
 		Type: "Opaque",
 	}
-	err := cli.Create(ctx, &s3AccessSecret)
+	err := cli.Create(ctx, &htpasswd)
 	if err != nil {
 		loading.Close()
-		return fmt.Errorf("unable to create seaweedfs-s3-rw secret: %w", err)
+		return fmt.Errorf("unable to create registry-auth secret: %w", err)
 	}
 
 	// TODO generate a htpasswd secret

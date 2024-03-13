@@ -19,7 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -91,15 +90,6 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 }
 
 func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	seaweed, err := seaweedfs.New(true)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
-	}
-	seaweedChart, seaweedRepo, err := seaweed.GenerateHelmConfig(true)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to generate helm config for seaweedfs: %w", err)
-	}
-
 	reg, err := registry.New(true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create registry addon: %w", err)
@@ -109,7 +99,7 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 		return nil, nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
 	}
 
-	return append(seaweedChart, regChart...), append(seaweedRepo, regRepo...), nil
+	return regChart, regRepo, nil
 }
 
 // ProtectedFields returns the protected fields for all the embedded charts.
@@ -156,12 +146,6 @@ func (a *Applier) load() ([]AddOn, error) {
 		return nil, fmt.Errorf("unable to create openebs addon: %w", err)
 	}
 	addons = append(addons, obs)
-
-	seaweed, err := seaweedfs.New(a.airgap)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
-	}
-	addons = append(addons, seaweed)
 
 	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.license)
 	if err != nil {
