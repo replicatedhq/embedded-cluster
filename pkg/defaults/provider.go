@@ -96,6 +96,12 @@ func (d *Provider) K0sBinaryPath() string {
 	return "/usr/local/bin/k0s"
 }
 
+// LocalArtifactMirrorPath returns the path where we install the local artifact mirror
+// binary.
+func (d *Provider) LocalArtifactMirrorPath() string {
+	return "/usr/local/bin/local-artifact-mirror"
+}
+
 // PathToEmbeddedClusterBinary is an utility function that returns the full path to a
 // materialized binary that belongs to embedded-cluster. This function does not check
 // if the file exists.

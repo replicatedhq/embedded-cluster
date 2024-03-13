@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-set -x
-set -euo pipefail
-
+set -euox pipefail
 
 main() {
     local app_version_label=
@@ -18,4 +16,5 @@ main() {
     mv embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster
     mv license.yaml /tmp/license.yaml
 }
+
 main "$@"

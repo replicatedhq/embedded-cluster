@@ -59,6 +59,11 @@ func K0sBinaryPath() string {
 	return def().K0sBinaryPath()
 }
 
+// LocalArtifactMirrorPath calls LocalArtifactMirrorPath on the default provider.
+func LocalArtifactMirrorPath() string {
+	return def().LocalArtifactMirrorPath()
+}
+
 // PathToEmbeddedClusterBinary calls PathToEmbeddedClusterBinary on the default provider.
 func PathToEmbeddedClusterBinary(name string) string {
 	return def().PathToEmbeddedClusterBinary(name)

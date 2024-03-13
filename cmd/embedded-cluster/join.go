@@ -177,15 +177,15 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Infof("Applying configuration overrides")
-		if err := applyJoinConfigurationOverrides(c, jcmd); err != nil {
+		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Creating systemd unit file")
-		if err := createSystemdUnitFile(jcmd.K0sJoinCommand); err != nil {
-			err := fmt.Errorf("unable to create systemd unit file: %w", err)
+		logrus.Infof("Creating systemd unit files")
+		if err := createSystemdUnitFiles(jcmd.K0sJoinCommand); err != nil {
+			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
@@ -205,7 +205,7 @@ var joinCommand = &cli.Command{
 
 // applyJoinConfigurationOverrides applies both config overrides received from the kots api.
 // Applies first the EmbeddedOverrides and then the EndUserOverrides.
-func applyJoinConfigurationOverrides(c *cli.Context, jcmd *JoinCommandResponse) error {
+func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
 	patch, err := jcmd.EmbeddedOverrides()
 	if err != nil {
 		return fmt.Errorf("unable to get embedded overrides: %w", err)
@@ -313,8 +313,9 @@ func startK0sService() error {
 	return nil
 }
 
-// createSystemdUnitFile links the k0s systemd unit file.
-func createSystemdUnitFile(fullcmd string) error {
+// createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
+// systemd unit file for the local artifact mirror service.
+func createSystemdUnitFiles(fullcmd string) error {
 	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
 	if _, err := os.Stat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -331,7 +332,7 @@ func createSystemdUnitFile(fullcmd string) error {
 	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
 		return err
 	}
-	return nil
+	return installAndEnableLocalArtifactMirror()
 }
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots

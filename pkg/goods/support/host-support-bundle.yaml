@@ -5,6 +5,7 @@ metadata:
 spec:
   uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/pkg/goods/support/host-support-bundle.yaml
   hostCollectors:
+  - hostServices: {}
   - cpu: {}
   - hostOS: {}
   - memory: {}
@@ -80,3 +81,12 @@ spec:
       - pass:
           when: "true"
           message: Kubernetes API probing is reporting success
+  - hostServices:
+      checkName: "Local Artifact Mirror"
+      outcomes:
+      - fail:
+          when: "local-artifact-mirror != active"
+          message: Local Artifact Mirror isn't active
+      - pass:
+          when:  "local-artifact-mirror = active"
+          message: Local Artifact Mirror is active
