@@ -16,6 +16,11 @@ import (
 )
 
 func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapReader io.Reader) error {
+	err := createNamespaceIfNotExist(ctx, cli, defaults.KOTSADM_NAMESPACE)
+	if err != nil {
+		return fmt.Errorf("failed to create namespace: %w", err)
+	}
+
 	// decompress tarball
 	ungzip, err := gzip.NewReader(airgapReader)
 	if err != nil {
@@ -100,6 +105,28 @@ func createAppYamlConfigMaps(ctx context.Context, cli client.Client, apptarball 
 		if err != nil {
 			return fmt.Errorf("failed to create app configmap: %w", err)
 		}
+	}
+
+	return nil
+}
+
+func createNamespaceIfNotExist(ctx context.Context, cli client.Client, name string) error {
+	existingNs := &corev1.Namespace{}
+
+	err := cli.Get(ctx, client.ObjectKey{Name: name}, existingNs)
+	if err == nil {
+		return nil
+	}
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+
+	err = cli.Create(ctx, ns)
+	if err != nil {
+		return fmt.Errorf("failed to create namespace %s: %w", ns.Name, err)
 	}
 
 	return nil
