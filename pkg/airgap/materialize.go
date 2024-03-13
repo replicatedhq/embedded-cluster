@@ -24,6 +24,7 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 
 	// iterate through tarball
 	tarreader := tar.NewReader(ungzip)
+	foundCharts, foundImages := false, false
 	var nextFile *tar.Header
 	for {
 		nextFile, err = tarreader.Next()
@@ -34,39 +35,18 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 			return fmt.Errorf("failed to read airgap file: %w", err)
 		}
 
-		if nextFile.Name == "embedded-cluster.tar.gz" {
-			break
-		}
-	}
-
-	internalUngzip, err := gzip.NewReader(tarreader)
-	if err != nil {
-		return fmt.Errorf("failed to decompress embedded-cluster.tar.gz within airgap file: %w", err)
-	}
-	internalTarReader := tar.NewReader(internalUngzip)
-	var internalNextFile *tar.Header
-	foundCharts, foundImages := false, false
-	for {
-		internalNextFile, err = internalTarReader.Next()
-		if err != nil {
-			if err == io.EOF {
-				return fmt.Errorf("k0s images not found in embedded-cluster.tar.gz within airgap file")
-			}
-			return fmt.Errorf("failed to read embedded-cluster.tar.gz within airgap file: %w", err)
-		}
-
-		if internalNextFile.Name == "images-amd64.tar.gz" {
-			err = writeOneFile(internalTarReader, K0S_IMAGE_PATH)
+		if nextFile.Name == "embedded-cluster/images-amd64.tar" {
+			err = writeOneFile(tarreader, K0S_IMAGE_PATH)
 			if err != nil {
 				return fmt.Errorf("failed to write k0s images file: %w", err)
 			}
 			foundImages = true
 		}
 
-		if internalNextFile.Name == "charts.tar.gz" {
-			err = writeChartFiles(internalTarReader)
+		if nextFile.Name == "embedded-cluster/charts.tar.gz" {
+			err = writeChartFiles(tarreader)
 			if err != nil {
-				return fmt.Errorf("failed to write charts files: %w", err)
+				return fmt.Errorf("failed to write chart files: %w", err)
 			}
 			foundCharts = true
 		}

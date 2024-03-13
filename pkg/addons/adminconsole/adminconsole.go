@@ -4,7 +4,11 @@ package adminconsole
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	"github.com/k0sproject/dig"
@@ -260,8 +264,14 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/2 ready")
 
+	err := createRegistrySecret(ctx, cli, a.namespace)
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("error creating registry secret: %v", err)
+	}
+
 	var lasterr error
-	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+	if err = wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		var count int
 		for _, name := range []string{"kotsadm-rqlite", "kotsadm"} {
 			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, a.namespace, name)
@@ -315,4 +325,39 @@ func New(ns string, useprompt bool, config v1beta1.ClusterConfig, license *kotsv
 		license:   license,
 		airgap:    airgap,
 	}, nil
+}
+
+func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {
+	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+		return err
+	}
+	registryIP, err := registry.GetRegistryClusterIP()
+	if err != nil {
+		return fmt.Errorf("unable to get registry cluster ip: %w", err)
+	}
+
+	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
+
+	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{auth: "%s"}}`, registryIP, authString)
+
+	registryCreds := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "registry-creds",
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			".dockerconfigjson": authConfig,
+		},
+		Type: "Opaque",
+	}
+	err = cli.Create(ctx, &registryCreds)
+	if err != nil {
+		return fmt.Errorf("unable to create registry-auth secret: %w", err)
+	}
+
+	return nil
 }

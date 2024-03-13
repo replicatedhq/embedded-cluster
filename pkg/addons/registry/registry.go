@@ -184,3 +184,11 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 func New(isAirgap bool) (*Registry, error) {
 	return &Registry{isAirgap: isAirgap}, nil
 }
+
+func GetRegistryPassword() string {
+	return registryPassword
+}
+
+func GetRegistryClusterIP() (string, error) {
+	return "TODO", nil
+}
