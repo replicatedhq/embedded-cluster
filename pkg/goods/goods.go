@@ -30,19 +30,38 @@ func K0sBinarySHA256() (string, error) {
 //go:embed bins/*
 var binfs embed.FS
 
-// materializeBinaries materializes all binary files from inside bins directory.
+// materializeBinaries materializes all binary files from inside bins directory. If the
+// file already exists a copy of it is made first before overwriting it, this is done
+// because we can't overwrite a running binary. Copies are removed.
 func materializeBinaries() error {
 	entries, err := binfs.ReadDir("bins")
 	if err != nil {
 		return fmt.Errorf("unable to read embedded-cluster bins dir: %w", err)
 	}
+
+	var remove []string
+	defer func() {
+		for _, f := range remove {
+			os.Remove(f)
+		}
+	}()
+
 	for _, entry := range entries {
 		srcpath := fmt.Sprintf("bins/%s", entry.Name())
 		srcfile, err := binfs.ReadFile(srcpath)
 		if err != nil {
 			return fmt.Errorf("unable to read asset: %w", err)
 		}
+
 		dstpath := defaults.PathToEmbeddedClusterBinary(entry.Name())
+		if _, err := os.Stat(dstpath); err == nil {
+			tmp := fmt.Sprintf("%s.bkp", dstpath)
+			if err := os.Rename(dstpath, tmp); err != nil {
+				return fmt.Errorf("unable to rename %s to %s: %w", dstpath, tmp, err)
+			}
+			remove = append(remove, tmp)
+		}
+
 		if err := os.WriteFile(dstpath, srcfile, 0755); err != nil {
 			return fmt.Errorf("unable to write file: %w", err)
 		}
