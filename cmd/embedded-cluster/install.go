@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -52,6 +51,30 @@ func runCommand(bin string, args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
+// installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
+// service is reponsible for serving on localhost, through http, all files that are used
+// during a cluster upgrade.
+func installAndEnableLocalArtifactMirror() error {
+	ourbin := defaults.PathToEmbeddedClusterBinary("local-artifact-mirror")
+	hstbin := defaults.LocalArtifactMirrorPath()
+	if err := os.Rename(ourbin, hstbin); err != nil {
+		return fmt.Errorf("unable to move local artifact mirror binary: %w", err)
+	}
+	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
+		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
+	}
+	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+	}
+	if _, err := runCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
+	}
+	if _, err := runCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
+	}
+	return nil
+}
+
 // runPostInstall is a helper function that run things just after the k0s install
 // command ran.
 func runPostInstall() error {
@@ -63,7 +86,7 @@ func runPostInstall() error {
 	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	return nil
+	return installAndEnableLocalArtifactMirror()
 }
 
 // runHostPreflights run the host preflights we found embedded in the binary
@@ -232,7 +255,7 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 
 // installK0s runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
-func installK0s(c *cli.Context) error {
+func installK0s() error {
 	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
 	hstbin := defaults.K0sBinaryPath()
 	if err := os.Rename(ourbin, hstbin); err != nil {
@@ -249,7 +272,7 @@ func installK0s(c *cli.Context) error {
 
 // waitForK0s waits for the k0s API to be available. We wait for the k0s socket to
 // appear in the system and until the k0s status command to finish.
-func waitForK0s(ctx context.Context) error {
+func waitForK0s() error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for %s node to be ready", defaults.BinaryName())
@@ -361,7 +384,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("installing k0s")
-		if err := installK0s(c); err != nil {
+		if err := installK0s(); err != nil {
 			err := fmt.Errorf("unable update cluster: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
@@ -373,7 +396,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("waiting for k0s to be ready")
-		if err := waitForK0s(c.Context); err != nil {
+		if err := waitForK0s(); err != nil {
 			err := fmt.Errorf("unable to wait for node: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
