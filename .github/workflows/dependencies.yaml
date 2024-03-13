@@ -27,6 +27,18 @@ jobs:
       run: |
         export VERSION=`curl https://api.github.com/repos/openebs/charts/releases/latest | jq -r .name | tr -d openebs-`
         sed -i "/^OPENEBS_CHART_VERSION/c\OPENEBS_CHART_VERSION = $VERSION" Makefile
+    - name: SeaweedFS
+      run: |
+        export VERSION=`curl https://raw.githubusercontent.com/seaweedfs/seaweedfs/master/k8s/charts/seaweedfs/Chart.yaml | grep version | tr -d 'version: '`
+        sed -i "/^SEAWEEDFS_CHART_VERSION/c\SEAWEEDFS_CHART_VERSION = $VERSION" Makefile
+    - name: Registry Chart
+      run: |
+        export VERSION=`curl https://api.github.com/repos/twuni/docker-registry.helm/tags | jq -r .[].name | head -1 | tr -d v`
+        sed -i "/^REGISTRY_CHART_VERSION/c\REGISTRY_CHART_VERSION = $VERSION" Makefile
+    - name: Registry Image
+      run: |
+        export VERSION=`curl https://api.github.com/repos/distribution/distribution/tags | jq -r '.[].name'  | tr -d v | grep -v alpha | grep -v beta | head -n 1`
+        sed -i "/^REGISTRY_IMAGE_VERSION/c\REGISTRY_IMAGE_VERSION = $VERSION" Makefile
     - name: Kubectl
       run: |
         export VERSION=`curl -L -s https://dl.k8s.io/release/stable.txt`
