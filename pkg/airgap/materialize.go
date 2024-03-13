@@ -115,18 +115,18 @@ func writeChartFiles(reader io.Reader) error {
 	var nextFile *tar.Header
 	for {
 		nextFile, err = tarreader.Next()
-		if !nextFile.FileInfo().IsDir() {
-			err = writeOneFile(tarreader, filepath.Join(defaults.EmbeddedClusterChartsSubDir(), nextFile.Name))
-			if err != nil {
-				return fmt.Errorf("failed to write chart file: %w", err)
-			}
-		}
-
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
 			return fmt.Errorf("failed to read airgap file: %w", err)
+		}
+
+		if !nextFile.FileInfo().IsDir() {
+			err = writeOneFile(tarreader, filepath.Join(defaults.EmbeddedClusterChartsSubDir(), nextFile.Name))
+			if err != nil {
+				return fmt.Errorf("failed to write chart file: %w", err)
+			}
 		}
 	}
 }
