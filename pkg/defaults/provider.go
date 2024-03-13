@@ -11,8 +11,6 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/sirupsen/logrus"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 // NewProvider returns a new Provider using the provided base dir.
@@ -78,11 +76,6 @@ func (d *Provider) EmbeddedClusterBinsSubDir() string {
 // are stored.
 func (d *Provider) EmbeddedClusterChartsSubDir() string {
 	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "charts")
-
-	rel, err := release.GetChannelRelease()
-	if err == nil && rel != nil {
-		path = filepath.Join(d.EmbeddedClusterHomeDirectory(), rel.VersionLabel, "charts")
-	}
 
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster charts dir: %s", err)
