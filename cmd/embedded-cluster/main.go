@@ -33,6 +33,7 @@ func main() {
 			versionCommand,
 			joinCommand,
 			resetCommand,
+			materializeCommand,
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {

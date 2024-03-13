@@ -385,6 +385,19 @@ var resetCommand = &cli.Command{
 			}
 		}
 
+		lamPath := "/etc/systemd/system/local-artifact-mirror.service"
+		if _, err := os.Stat(lamPath); err == nil {
+			if _, err := runCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
+				return err
+			}
+			if err := os.RemoveAll(lamPath); err != nil {
+				return err
+			}
+			if err := os.RemoveAll(defaults.LocalArtifactMirrorPath()); err != nil {
+				return err
+			}
+		}
+
 		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
 			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
 				return err

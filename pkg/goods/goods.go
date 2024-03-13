@@ -83,3 +83,19 @@ func Materialize() error {
 	}
 	return nil
 }
+
+//go:embed systemd/*
+var systemdfs embed.FS
+
+// MaterializeLocalArtifactMirrorUnitFile writes to disk the local-artifact-mirror systemd unit file.
+func MaterializeLocalArtifactMirrorUnitFile() error {
+	content, err := systemdfs.ReadFile("systemd/local-artifact-mirror.service")
+	if err != nil {
+		return fmt.Errorf("unable to open unit file: %w", err)
+	}
+	dstpath := "/etc/systemd/system/local-artifact-mirror.service"
+	if err := os.WriteFile(dstpath, content, 0644); err != nil {
+		return fmt.Errorf("unable to write file: %w", err)
+	}
+	return nil
+}

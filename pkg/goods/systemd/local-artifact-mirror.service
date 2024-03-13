@@ -1,0 +1,10 @@
+[Unit]
+Description=Embedded Cluster Local Artifact Mirror
+
+[Service]
+ExecStart=/usr/local/bin/local-artifact-mirror serve
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
