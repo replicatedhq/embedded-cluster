@@ -199,11 +199,15 @@ func checkAirgapMatches(c *cli.Context) error {
 }
 
 func materializeFiles(c *cli.Context) error {
+	mat := spinner.Start()
+	defer mat.Close()
+	mat.Infof("Materializing files")
+
 	if err := goods.Materialize(); err != nil {
 		return fmt.Errorf("unable to materialize binaries: %w", err)
 	}
 	if c.String("airgap") != "" {
-		logrus.Infof("materializing airgap installation files")
+		mat.Infof("Materializing airgap installation files")
 
 		// read file from path
 		rawfile, err := os.Open(c.String("airgap"))
@@ -217,6 +221,8 @@ func materializeFiles(c *cli.Context) error {
 			return err
 		}
 	}
+
+	mat.Infof("Host files materialized")
 
 	return nil
 }
