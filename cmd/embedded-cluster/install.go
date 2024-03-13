@@ -345,6 +345,9 @@ func waitForK0s(ctx context.Context) error {
 
 // createAirgapConfigMaps creates the airgap configmaps in the k8s cluster from the airgap file.
 func createAirgapConfigMaps(c *cli.Context) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Creating airgap configmaps")
 	// create k8s client
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	cli, err := kubeutils.KubeClient()
@@ -362,6 +365,7 @@ func createAirgapConfigMaps(c *cli.Context) error {
 	if err = airgap.CreateAppConfigMaps(c.Context, cli, rawfile); err != nil {
 		return fmt.Errorf("unable to create airgap configmaps: %w", err)
 	}
+	loading.Infof("Airgap configmaps created")
 	return nil
 }
 
@@ -488,7 +492,6 @@ var installCommand = &cli.Command{
 			return err
 		}
 		if c.String("airgap") != "" {
-			logrus.Infof("creating airgap configmaps")
 			err := createAirgapConfigMaps(c)
 			if err != nil {
 				err = fmt.Errorf("unable to create airgap configmaps: %w", err)
