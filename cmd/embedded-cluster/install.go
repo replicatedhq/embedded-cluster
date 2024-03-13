@@ -212,7 +212,7 @@ func materializeFiles(c *cli.Context) error {
 		}
 		defer rawfile.Close()
 
-		if err := airgap.MaterializeAirgapImages(rawfile); err != nil {
+		if err := airgap.MaterializeAirgap(rawfile); err != nil {
 			err = fmt.Errorf("unable to materialize airgap files: %w", err)
 			return err
 		}

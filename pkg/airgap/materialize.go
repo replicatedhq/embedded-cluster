@@ -7,19 +7,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 const K0S_IMAGE_PATH = "/var/lib/k0s/images/install.tar.gz"
 
-// MaterializeAirgapImages places the airgap image bundle for k0s
+// MaterializeAirgap places the airgap image bundle for k0s
 // this should be located at 'images-amd64.tar.gz' within embedded-cluster.tar.gz within the airgap bundle
-func MaterializeAirgapImages(airgapReader io.Reader) error {
-	// setup destination
-	err := os.MkdirAll(filepath.Dir(K0S_IMAGE_PATH), 0755)
-	if err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
-	}
-
+func MaterializeAirgap(airgapReader io.Reader) error {
 	// decompress tarball
 	ungzip, err := gzip.NewReader(airgapReader)
 	if err != nil {
@@ -49,6 +45,7 @@ func MaterializeAirgapImages(airgapReader io.Reader) error {
 	}
 	internalTarReader := tar.NewReader(internalUngzip)
 	var internalNextFile *tar.Header
+	foundCharts, foundImages := false, false
 	for {
 		internalNextFile, err = internalTarReader.Next()
 		if err != nil {
@@ -59,14 +56,36 @@ func MaterializeAirgapImages(airgapReader io.Reader) error {
 		}
 
 		if internalNextFile.Name == "images-amd64.tar.gz" {
-			break
+			err = writeOneFile(internalTarReader, K0S_IMAGE_PATH)
+			if err != nil {
+				return fmt.Errorf("failed to write k0s images file: %w", err)
+			}
+			foundImages = true
 		}
 
+		if internalNextFile.Name == "charts.tar.gz" {
+			err = writeChartFiles(internalTarReader)
+			if err != nil {
+				return fmt.Errorf("failed to write charts files: %w", err)
+			}
+			foundCharts = true
+		}
+
+		if foundCharts && foundImages {
+			return nil
+		}
+	}
+}
+
+func writeOneFile(reader io.Reader, path string) error {
+	// setup destination
+	err := os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
 	// stream to destination file
-	var destFile *os.File
-	destFile, err = os.Create(K0S_IMAGE_PATH)
+	destFile, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
@@ -76,10 +95,38 @@ func MaterializeAirgapImages(airgapReader io.Reader) error {
 		return fmt.Errorf("failed to set destination file permissions: %w", err)
 	}
 
-	_, err = io.Copy(destFile, internalTarReader)
+	_, err = io.Copy(destFile, reader)
 	if err != nil {
 		return fmt.Errorf("failed to copy images file: %w", err)
 	}
-
 	return nil
+}
+
+// take in a stream of a tarball and write the charts contained within to disk
+func writeChartFiles(reader io.Reader) error {
+	// decompress tarball
+	ungzip, err := gzip.NewReader(reader)
+	if err != nil {
+		return fmt.Errorf("failed to decompress airgap file: %w", err)
+	}
+
+	// iterate through tarball
+	tarreader := tar.NewReader(ungzip)
+	var nextFile *tar.Header
+	for {
+		nextFile, err = tarreader.Next()
+		if !nextFile.FileInfo().IsDir() {
+			err = writeOneFile(tarreader, filepath.Join(defaults.EmbeddedClusterChartsSubDir(), nextFile.Name))
+			if err != nil {
+				return fmt.Errorf("failed to write chart file: %w", err)
+			}
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("failed to read airgap file: %w", err)
+		}
+	}
 }
