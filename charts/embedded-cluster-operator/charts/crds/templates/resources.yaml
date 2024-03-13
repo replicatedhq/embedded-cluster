@@ -224,6 +224,20 @@ spec:
               airGap:
                 description: AirGap indicates if the installation is airgapped.
                 type: boolean
+              artifacts:
+                description: Artifacts holds the location of the airgap bundle.
+                properties:
+                  embeddedClusterBinary:
+                    type: string
+                  helmCharts:
+                    type: string
+                  images:
+                    type: string
+                required:
+                - embeddedClusterBinary
+                - helmCharts
+                - images
+                type: object
               clusterID:
                 description: ClusterID holds the cluster, generated during the installation.
                 type: string
