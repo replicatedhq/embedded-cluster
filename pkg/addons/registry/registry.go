@@ -3,14 +3,16 @@ package registry
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -27,6 +29,8 @@ var (
 	Version      = "v0.0.0"
 	ImageVersion = "2.8.3"
 )
+
+var registryPassword = helpers.RandString(20)
 
 var helmValues = map[string]interface{}{
 	"replicaCount":     1,
@@ -142,6 +146,12 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		return err
 	}
 
+	hashPassword, err := bcrypt.GenerateFromPassword([]byte(registryPassword), bcrypt.DefaultCost)
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to hash registry password: %w", err)
+	}
+
 	htpasswd := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -152,17 +162,15 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 			Namespace: namespace,
 		},
 		StringData: map[string]string{
-			"htpasswd": "TODO",
+			"htpasswd": fmt.Sprintf("embedded-cluster:%s", string(hashPassword)),
 		},
 		Type: "Opaque",
 	}
-	err := cli.Create(ctx, &htpasswd)
+	err = cli.Create(ctx, &htpasswd)
 	if err != nil {
 		loading.Close()
 		return fmt.Errorf("unable to create registry-auth secret: %w", err)
 	}
-
-	// TODO generate a htpasswd secret
 
 	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "registry"); err != nil {
 		loading.Close()
