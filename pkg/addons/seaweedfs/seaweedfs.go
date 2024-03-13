@@ -34,11 +34,12 @@ var helmValues = map[string]interface{}{
 	"master": map[string]interface{}{
 		"replicas": 1,
 		"data": map[string]interface{}{
-			"type":           "hostPath",
-			"hostPathPrefix": "/var/lib/embedded-cluster/seaweedfs/master",
+			"type": "persistentVolumeClaim",
+			"size": "1Gi",
 		},
 		"logs": map[string]interface{}{
-			"type": "none",
+			"type": "persistentVolumeClaim",
+			"size": "1Gi",
 		},
 		"disableHttp": true,
 	},
@@ -60,7 +61,8 @@ var helmValues = map[string]interface{}{
 			"size": "1Gi",
 		},
 		"logs": map[string]interface{}{
-			"type": "none",
+			"type": "persistentVolumeClaim",
+			"size": "1Gi",
 		},
 		"s3": map[string]interface{}{
 			"enabled":              true,
