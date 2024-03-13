@@ -11,9 +11,10 @@ import (
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-utils/pkg/embed"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	kruntime "k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -85,7 +86,7 @@ func (r *ReleaseData) GetHostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	}
 	all := &v1beta2.HostPreflightSpec{}
 	for _, serialized := range r.HostPreflights {
-		spec, err := preflights.UnserializeSpec(serialized)
+		spec, err := unserializeSpec(serialized)
 		if err != nil {
 			return nil, fmt.Errorf("unable to unserialize preflight spec: %w", err)
 		}
@@ -93,6 +94,20 @@ func (r *ReleaseData) GetHostPreflights() (*v1beta2.HostPreflightSpec, error) {
 		all.Analyzers = append(all.Analyzers, spec.Analyzers...)
 	}
 	return all, nil
+}
+
+// unserializeSpec unserializes a HostPreflightSpec from a raw slice of bytes.
+func unserializeSpec(data []byte) (*v1beta2.HostPreflightSpec, error) {
+	scheme := kruntime.NewScheme()
+	if err := v1beta2.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	decoder := conversion.NewDecoder(scheme)
+	var hpf v1beta2.HostPreflight
+	if err := decoder.DecodeInto(data, &hpf); err != nil {
+		return nil, err
+	}
+	return &hpf.Spec, nil
 }
 
 // GetApplication reads and returns the kots application embedded as part of the

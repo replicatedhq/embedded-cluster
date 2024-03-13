@@ -22,5 +22,5 @@ func RemapHelm(cfg *v1beta1.ClusterConfig) {
 }
 
 func helmChartHostPath(chart v1beta1.Chart) string {
-	return filepath.Join(defaults.EmbeddedClusterChartsSubDir(), fmt.Sprintf("%s-%s.tgz", chart.Name, chart.Version))
+	return filepath.Join(defaults.EmbeddedClusterChartsSubDir(), fmt.Sprintf("%s.tgz", chart.Name))
 }
