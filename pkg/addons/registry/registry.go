@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	releaseName = "registry"
+	releaseName = "docker-registry"
 	namespace   = "registry"
 )
 
