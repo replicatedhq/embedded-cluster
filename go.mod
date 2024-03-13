@@ -1,6 +1,6 @@
 module github.com/replicatedhq/embedded-cluster-operator
 
-go 1.21.0
+go 1.21.7
 
 require (
 	github.com/k0sproject/dig v0.2.0
@@ -9,6 +9,7 @@ require (
 	github.com/ohler55/ojg v1.21.4
 	github.com/onsi/ginkgo/v2 v2.15.0
 	github.com/onsi/gomega v1.31.1
+	github.com/replicatedhq/embedded-cluster-kinds v0.0.0-20240313215505-9240029e7834
 	github.com/stretchr/testify v1.9.0
 	k8s.io/api v0.29.2
 	k8s.io/apimachinery v0.29.2

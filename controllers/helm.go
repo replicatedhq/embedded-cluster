@@ -10,7 +10,7 @@ import (
 	"github.com/ohler55/ojg/oj"
 	"sigs.k8s.io/yaml"
 
-	"github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
 )
 
