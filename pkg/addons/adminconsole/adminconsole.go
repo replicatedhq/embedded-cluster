@@ -348,6 +348,9 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-creds",
 			Namespace: namespace,
+			Labels: map[string]string{
+				"kots.io/kotsadm": "true",
+			},
 		},
 		StringData: map[string]string{
 			".dockerconfigjson": authConfig,
