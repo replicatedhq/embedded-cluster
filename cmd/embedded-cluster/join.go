@@ -101,9 +101,9 @@ var joinCommand = &cli.Command{
 	ArgsUsage: "<url> <token>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:   "airgap",
+			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
-			Hidden: false,
+			Hidden: true,
 		},
 	},
 	Before: func(c *cli.Context) error {
@@ -111,7 +111,7 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("node join command must be run as root")
 		}
 
-		if c.String("airgap") != "" {
+		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}
 		return nil
@@ -138,7 +138,7 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to get join token: %w", err)
 		}
 
-		if c.String("airgap") != "" {
+		if c.String("airgap-bundle") != "" {
 			logrus.Debugf("checking airgap bundle matches binary")
 			if err := checkAirgapMatches(c); err != nil {
 				return err // we want the user to see the error message without a prefix

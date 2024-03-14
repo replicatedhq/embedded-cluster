@@ -193,7 +193,7 @@ func checkAirgapMatches(c *cli.Context) error {
 	}
 
 	// read file from path
-	rawfile, err := os.Open(c.String("airgap"))
+	rawfile, err := os.Open(c.String("airgap-bundle"))
 	if err != nil {
 		return fmt.Errorf("failed to open airgap file: %w", err)
 	}
@@ -229,11 +229,11 @@ func materializeFiles(c *cli.Context) error {
 	if err := goods.Materialize(); err != nil {
 		return fmt.Errorf("unable to materialize binaries: %w", err)
 	}
-	if c.String("airgap") != "" {
+	if c.String("airgap-bundle") != "" {
 		mat.Infof("Materializing airgap installation files")
 
 		// read file from path
-		rawfile, err := os.Open(c.String("airgap"))
+		rawfile, err := os.Open(c.String("airgap-bundle"))
 		if err != nil {
 			return fmt.Errorf("failed to open airgap file: %w", err)
 		}
@@ -273,7 +273,7 @@ func ensureK0sConfig(c *cli.Context) error {
 		}
 		opts = append(opts, addons.WithLicense(license))
 	}
-	if c.String("airgap") != "" {
+	if c.String("airgap-bundle") != "" {
 		opts = append(opts, addons.Airgap())
 	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
@@ -283,7 +283,7 @@ func ensureK0sConfig(c *cli.Context) error {
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
 		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
-	if c.String("airgap") != "" {
+	if c.String("airgap-bundle") != "" {
 		// update the k0s config to install with airgap
 		airgap.RemapHelm(cfg)
 		airgap.SetAirgapConfig(cfg)
@@ -385,7 +385,7 @@ func createAirgapConfigMaps(c *cli.Context) error {
 	}
 
 	// read file from path
-	rawfile, err := os.Open(c.String("airgap"))
+	rawfile, err := os.Open(c.String("airgap-bundle"))
 	if err != nil {
 		return fmt.Errorf("failed to open airgap file: %w", err)
 	}
@@ -416,7 +416,7 @@ func runOutro(c *cli.Context) error {
 		}
 		opts = append(opts, addons.WithEndUserConfig(eucfg))
 	}
-	if c.String("airgap") != "" {
+	if c.String("airgap-bundle") != "" {
 		opts = append(opts, addons.Airgap())
 	}
 	return addons.NewApplier(opts...).Outro(c.Context)
@@ -433,7 +433,7 @@ var installCommand = &cli.Command{
 			return fmt.Errorf("install command must be run as root")
 		}
 
-		if c.String("airgap") != "" {
+		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}
 		return nil
@@ -456,7 +456,7 @@ var installCommand = &cli.Command{
 			Hidden:  false,
 		},
 		&cli.StringFlag{
-			Name:   "airgap",
+			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
 			Hidden: false,
 		},
@@ -479,7 +479,7 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, metricErr)
 			return err // do not return the metricErr, as we want the user to see the error message without a prefix
 		}
-		if c.String("airgap") != "" {
+		if c.String("airgap-bundle") != "" {
 			logrus.Debugf("checking airgap bundle matches binary")
 			if err := checkAirgapMatches(c); err != nil {
 				return err // we want the user to see the error message without a prefix
@@ -520,7 +520,7 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		if c.String("airgap") != "" {
+		if c.String("airgap-bundle") != "" {
 			err := createAirgapConfigMaps(c)
 			if err != nil {
 				err = fmt.Errorf("unable to create airgap configmaps: %w", err)
