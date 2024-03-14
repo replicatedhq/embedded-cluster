@@ -54,7 +54,7 @@ func runCommand(bin string, args ...string) (string, error) {
 }
 
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
-// service is reponsible for serving on localhost, through http, all files that are used
+// service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
 func installAndEnableLocalArtifactMirror() error {
 	ourbin := defaults.PathToEmbeddedClusterBinary("local-artifact-mirror")
