@@ -3,7 +3,6 @@ package registry
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -42,6 +41,11 @@ var helmValues = map[string]interface{}{
 		"tag": ImageVersion,
 	},
 	"storage": "hostpath", // this is not a recognized option but gets us past all the storage options
+	"securityContext": map[string]interface{}{
+		"enabled":   true,
+		"runAsUser": 0,
+		"fsGroup":   0,
+	},
 	"configData": map[string]interface{}{
 		"auth": map[string]interface{}{
 			"htpasswd": map[string]interface{}{
@@ -145,12 +149,6 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 
 	loading := spinner.Start()
 	loading.Infof("Waiting for Registry to be ready")
-
-	err := os.Chmod("/var/lib/embedded-cluster/registry", 0775) // we may wish to run registry as root instead of doing this
-	if err != nil {
-		loading.Close()
-		return fmt.Errorf("failed to change permissions on /var/lib/embedded-cluster/registry: %w", err)
-	}
 
 	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
 		loading.Close()
