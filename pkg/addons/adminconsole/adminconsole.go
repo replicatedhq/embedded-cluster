@@ -331,14 +331,9 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
 		return err
 	}
-	registryIP, err := registry.GetRegistryClusterIP(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("unable to get registry cluster ip: %w", err)
-	}
 
 	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
-
-	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{auth: "%s"}}`, registryIP, authString)
+	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{auth: "%s"}}`, registry.GetRegistryClusterIP(), authString)
 
 	registryCreds := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -357,7 +352,7 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 		},
 		Type: "Opaque",
 	}
-	err = cli.Create(ctx, &registryCreds)
+	err := cli.Create(ctx, &registryCreds)
 	if err != nil {
 		return fmt.Errorf("unable to create registry-auth secret: %w", err)
 	}

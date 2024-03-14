@@ -98,6 +98,10 @@ func PathToK0sStatusSocket() string {
 	return def().PathToK0sStatusSocket()
 }
 
+func PathToK0sContainerdConfig() string {
+	return def().PathToK0sContainerdConfig()
+}
+
 // EmbeddedClusterHomeDirectory calls EmbeddedClusterHomeDirectory on the default provider.
 func EmbeddedClusterHomeDirectory() string {
 	return def().EmbeddedClusterHomeDirectory()

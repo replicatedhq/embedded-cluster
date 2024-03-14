@@ -178,6 +178,11 @@ func (d *Provider) PathToK0sConfig() string {
 	return "/etc/k0s/k0s.yaml"
 }
 
+// PathToK0sContainerdConfig returns the full path to the k0s containerd configuration directory
+func (d *Provider) PathToK0sContainerdConfig() string {
+	return "/etc/k0s/containerd.d/"
+}
+
 // EmbeddedClusterSupportSubDir returns the path to the directory where embedded-cluster
 // support files are stored. Things that are useful when providing end user support in
 // a running cluster should be stored into this directory.

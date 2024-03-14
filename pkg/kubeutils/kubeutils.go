@@ -61,6 +61,25 @@ func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) 
 	return nil
 }
 
+func WaitForService(ctx context.Context, cli client.Client, ns, name string) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			var svc corev1.Service
+			nsn := types.NamespacedName{Namespace: ns, Name: name}
+			if err := cli.Get(ctx, nsn, &svc); err != nil {
+				lasterr = fmt.Errorf("unable to get service %s: %v", name, err)
+				return false, nil
+			}
+			return svc.Spec.ClusterIP != "", nil
+		},
+	); err != nil {
+		return fmt.Errorf("timed out waiting for service %s to have an IP: %v", name, lasterr)
+	}
+	return nil
+}
+
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
 	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {

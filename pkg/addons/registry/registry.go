@@ -31,6 +31,7 @@ var (
 )
 
 var registryPassword = helpers.RandString(20)
+var registryAddress = ""
 
 var helmValues = map[string]interface{}{
 	"replicaCount":     1,
@@ -176,6 +177,16 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		loading.Close()
 		return err
 	}
+	if err := kubeutils.WaitForService(ctx, cli, namespace, "registry"); err != nil {
+		loading.Close()
+		return err
+	}
+
+	if err := initRegistryClusterIP(ctx, cli); err != nil {
+		loading.Close()
+		return fmt.Errorf("failed to determine registry cluster IP: %w", err)
+	}
+
 	loading.Closef("Registry is ready!")
 	return nil
 }
@@ -189,12 +200,17 @@ func GetRegistryPassword() string {
 	return registryPassword
 }
 
-func GetRegistryClusterIP(ctx context.Context, cli client.Client) (string, error) {
+func GetRegistryClusterIP() string {
+	return registryAddress
+}
+
+func initRegistryClusterIP(ctx context.Context, cli client.Client) error {
 	svc := corev1.Service{}
 	err := cli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &svc)
 	if err != nil {
-		return "", fmt.Errorf("failed to get registry service: %w", err)
+		return fmt.Errorf("failed to get registry service: %w", err)
 	}
 
-	return svc.Spec.ClusterIP, nil
+	registryAddress = svc.Spec.ClusterIP
+	return nil
 }
