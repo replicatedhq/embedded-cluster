@@ -152,14 +152,6 @@ func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
 		"airgap": isAirgap,
 	}
 
-	if a.airgap {
-		helmValues["registry"] = map[string]interface{}{
-			"enabled":  "true",
-			"readOnly": "true",
-			"endpoint": "embedded-cluster-registry:5000",
-		}
-	}
-
 	return nil
 }
 
@@ -264,14 +256,16 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/2 ready")
 
-	err := createRegistrySecret(ctx, cli, a.namespace)
-	if err != nil {
-		loading.Close()
-		return fmt.Errorf("error creating registry secret: %v", err)
+	if a.airgap {
+		err := createRegistrySecret(ctx, cli, a.namespace)
+		if err != nil {
+			loading.Close()
+			return fmt.Errorf("error creating registry secret: %v", err)
+		}
 	}
 
 	var lasterr error
-	if err = wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		var count int
 		for _, name := range []string{"kotsadm-rqlite", "kotsadm"} {
 			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, a.namespace, name)
