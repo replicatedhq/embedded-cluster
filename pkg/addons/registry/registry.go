@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -185,6 +186,11 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	if err := initRegistryClusterIP(ctx, cli); err != nil {
 		loading.Close()
 		return fmt.Errorf("failed to determine registry cluster IP: %w", err)
+	}
+
+	if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryAddress)); err != nil {
+		loading.Close()
+		return fmt.Errorf("failed to add insecure registry: %w", err)
 	}
 
 	loading.Closef("Registry is ready!")

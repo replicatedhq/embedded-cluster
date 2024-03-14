@@ -350,7 +350,7 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 		StringData: map[string]string{
 			".dockerconfigjson": authConfig,
 		},
-		Type: "Opaque",
+		Type: "kubernetes.io/dockerconfigjson",
 	}
 	err := cli.Create(ctx, &registryCreds)
 	if err != nil {
