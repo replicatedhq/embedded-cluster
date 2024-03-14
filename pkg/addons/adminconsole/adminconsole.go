@@ -327,7 +327,7 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 	}
 
 	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
-	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{auth: "%s"}}`, registry.GetRegistryClusterIP(), authString)
+	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registry.GetRegistryClusterIP(), registry.GetRegistryPassword(), authString)
 
 	registryCreds := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
