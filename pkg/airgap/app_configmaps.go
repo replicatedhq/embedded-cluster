@@ -18,7 +18,7 @@ import (
 )
 
 func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapReader io.Reader) error {
-	err := createNamespaceIfNotExist(ctx, cli, defaults.KOTSADM_NAMESPACE)
+	err := createNamespaceIfNotExist(ctx, cli, defaults.KotsadmNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to create namespace: %w", err)
 	}
@@ -152,7 +152,7 @@ func createAppConfigMap(ctx context.Context, cli client.Client, name string, fil
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("kotsadm-airgap-%s", slug.Make(name)),
-			Namespace: defaults.KOTSADM_NAMESPACE,
+			Namespace: defaults.KotsadmNamespace,
 			Labels: map[string]string{
 				"kots.io/automation": "airgap",
 				"kots.io/app":        rel.AppSlug,

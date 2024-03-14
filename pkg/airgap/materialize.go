@@ -11,7 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
-const K0S_IMAGE_PATH = "/var/lib/k0s/images/install.tar.gz"
+const K0sImagePath = "/var/lib/k0s/images/install.tar"
 
 // MaterializeAirgap places the airgap image bundle for k0s
 // this should be located at 'images-amd64.tar.gz' within embedded-cluster.tar.gz within the airgap bundle
@@ -36,7 +36,7 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 		}
 
 		if nextFile.Name == "embedded-cluster/images-amd64.tar" {
-			err = writeOneFile(tarreader, K0S_IMAGE_PATH)
+			err = writeOneFile(tarreader, K0sImagePath)
 			if err != nil {
 				return fmt.Errorf("failed to write k0s images file: %w", err)
 			}

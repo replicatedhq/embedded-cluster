@@ -23,7 +23,7 @@ var (
 	K0sBinaryURL = ""
 )
 
-const KOTSADM_NAMESPACE = "kotsadm"
+const KotsadmNamespace = "kotsadm"
 
 // def returns a global reference to the default provider. creates one if not
 // already created.
