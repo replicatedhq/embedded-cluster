@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/types"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
 

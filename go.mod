@@ -1,6 +1,8 @@
 module github.com/replicatedhq/embedded-cluster
 
-go 1.21.6
+go 1.21.7
+
+toolchain go1.22.0
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -12,6 +14,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.3-0.20240220215935-6a63dc9024ce
+	github.com/replicatedhq/embedded-cluster-kinds v0.0.0-20240314172115-99f52b681c63
 	github.com/replicatedhq/embedded-cluster-operator v0.24.1
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
