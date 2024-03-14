@@ -4,16 +4,18 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/stretchr/testify/require"
 	"io"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 func TestCreateAppConfigMaps(t *testing.T) {

@@ -6,13 +6,15 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/gosimple/slug"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"io"
+
+	"github.com/gosimple/slug"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 func CreateAppConfigMaps(ctx context.Context, cli client.Client, airgapReader io.Reader) error {
