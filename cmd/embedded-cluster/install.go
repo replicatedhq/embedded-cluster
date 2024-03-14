@@ -59,7 +59,7 @@ func runCommand(bin string, args ...string) (string, error) {
 func installAndEnableLocalArtifactMirror() error {
 	ourbin := defaults.PathToEmbeddedClusterBinary("local-artifact-mirror")
 	hstbin := defaults.LocalArtifactMirrorPath()
-	if err := os.Rename(ourbin, hstbin); err != nil {
+	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move local artifact mirror binary: %w", err)
 	}
 	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
@@ -334,7 +334,7 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 func installK0s() error {
 	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
 	hstbin := defaults.K0sBinaryPath()
-	if err := os.Rename(ourbin, hstbin); err != nil {
+	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
 	if _, err := runCommand(hstbin, config.InstallFlags()...); err != nil {
