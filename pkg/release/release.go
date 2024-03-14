@@ -86,7 +86,7 @@ func (r *ReleaseData) GetHostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	}
 	all := &v1beta2.HostPreflightSpec{}
 	for _, serialized := range r.HostPreflights {
-		spec, err := unserializeSpec(serialized)
+		spec, err := unserializeHostPreflightSpec(serialized)
 		if err != nil {
 			return nil, fmt.Errorf("unable to unserialize preflight spec: %w", err)
 		}
@@ -96,8 +96,8 @@ func (r *ReleaseData) GetHostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return all, nil
 }
 
-// unserializeSpec unserializes a HostPreflightSpec from a raw slice of bytes.
-func unserializeSpec(data []byte) (*v1beta2.HostPreflightSpec, error) {
+// unserializeHostPreflightSpec unserializes a HostPreflightSpec from a raw slice of bytes.
+func unserializeHostPreflightSpec(data []byte) (*v1beta2.HostPreflightSpec, error) {
 	scheme := kruntime.NewScheme()
 	if err := v1beta2.AddToScheme(scheme); err != nil {
 		return nil, err

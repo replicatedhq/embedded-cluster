@@ -32,7 +32,7 @@ func TestAirgapBundleVersions(t *testing.T) {
 			t.Logf("Current working directory: %s", dir)
 			airgapReader := createTarballFromDir(filepath.Join(dir, "testfiles", tt.airgapDir), nil)
 
-			appSlug, channelID, versionLabel, err := AirgapBundleVersions(airgapReader)
+			appSlug, channelID, versionLabel, err := ChannelReleaseMetadata(airgapReader)
 			req.NoError(err)
 			req.Equal(tt.wantAppslug, appSlug)
 			req.Equal(tt.wantChannelid, channelID)

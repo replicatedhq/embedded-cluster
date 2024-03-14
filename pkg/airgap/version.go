@@ -10,8 +10,8 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-// AirgapBundleVersions returns the appSlug, channelID, and versionLabel of the airgap bundle
-func AirgapBundleVersions(reader io.Reader) (appSlug, channelID, versionLabel string, err error) {
+// ChannelReleaseMetadata returns the appSlug, channelID, and versionLabel of the airgap bundle
+func ChannelReleaseMetadata(reader io.Reader) (appSlug, channelID, versionLabel string, err error) {
 
 	// decompress tarball
 	ungzip, err := gzip.NewReader(reader)

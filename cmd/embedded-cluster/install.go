@@ -199,7 +199,7 @@ func checkAirgapMatches(c *cli.Context) error {
 	}
 	defer rawfile.Close()
 
-	appSlug, channelID, airgapVersion, err := airgap.AirgapBundleVersions(rawfile)
+	appSlug, channelID, airgapVersion, err := airgap.ChannelReleaseMetadata(rawfile)
 	if err != nil {
 		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
 	}
