@@ -331,7 +331,7 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
 		return err
 	}
-	registryIP, err := registry.GetRegistryClusterIP()
+	registryIP, err := registry.GetRegistryClusterIP(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("unable to get registry cluster ip: %w", err)
 	}

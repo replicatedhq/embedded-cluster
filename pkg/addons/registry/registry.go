@@ -189,6 +189,12 @@ func GetRegistryPassword() string {
 	return registryPassword
 }
 
-func GetRegistryClusterIP() (string, error) {
-	return "TODO", nil
+func GetRegistryClusterIP(ctx context.Context, cli client.Client) (string, error) {
+	svc := corev1.Service{}
+	err := cli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &svc)
+	if err != nil {
+		return "", fmt.Errorf("failed to get registry service: %w", err)
+	}
+
+	return svc.Spec.ClusterIP, nil
 }
