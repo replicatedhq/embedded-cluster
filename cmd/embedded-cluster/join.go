@@ -22,6 +22,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 )
 
@@ -283,7 +284,7 @@ func saveTokenToDisk(token string) error {
 func installK0sBinary() error {
 	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
 	hstbin := defaults.K0sBinaryPath()
-	if err := os.Rename(ourbin, hstbin); err != nil {
+	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
 	return nil
