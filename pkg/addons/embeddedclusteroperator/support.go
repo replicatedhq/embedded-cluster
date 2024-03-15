@@ -14,21 +14,24 @@ metadata:
   name: infrastructure-logs
 spec:
   collectors:
-	- logs:
-		namespace: embedded-cluster
-		limits:
-		  maxAge: 7200h
-		  maxLines: 10000
-	- logs:
-		namespace: openebs
-		limits:
-		  maxAge: 7200h
-		  maxLines: 10000
-	- logs:
-		namespace: registry
-		limits:
-		  maxAge: 7200h
-		  maxLines: 10000
+    - logs:
+        name: embedded-cluster
+        namespace: embedded-cluster
+        limits:
+          maxAge: 7200h
+          maxLines: 10000
+    - logs:
+        name: openebs
+        namespace: openebs
+        limits:
+          maxAge: 7200h
+          maxLines: 10000
+    - logs:
+        name: registry
+        namespace: registry
+        limits:
+          maxAge: 7200h
+          maxLines: 10000
 `
 
 func createSupportSpec(ctx context.Context, cli client.Client) error {
