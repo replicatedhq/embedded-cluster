@@ -131,6 +131,11 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	if err := cli.Create(ctx, &installation); err != nil {
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
+
+	if err := createSupportSpec(ctx, cli); err != nil {
+		return fmt.Errorf("unable to create support spec: %w", err)
+	}
+
 	return nil
 }
 
