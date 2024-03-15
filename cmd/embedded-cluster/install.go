@@ -189,7 +189,7 @@ func checkAirgapMatches(c *cli.Context) error {
 		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
 	}
 	if rel == nil {
-		return nil // TODO make this an error when done testing
+		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
 	}
 
 	// read file from path
