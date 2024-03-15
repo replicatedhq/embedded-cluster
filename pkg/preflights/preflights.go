@@ -11,26 +11,10 @@ import (
 	"os/exec"
 
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	kruntime "k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
-
-// UnserializeSpec unserializes an HostPreflightSpec from a raw slice of bytes.
-func UnserializeSpec(data []byte) (*v1beta2.HostPreflightSpec, error) {
-	scheme := kruntime.NewScheme()
-	if err := v1beta2.AddToScheme(scheme); err != nil {
-		return nil, err
-	}
-	decoder := conversion.NewDecoder(scheme)
-	var hpf v1beta2.HostPreflight
-	if err := decoder.DecodeInto(data, &hpf); err != nil {
-		return nil, err
-	}
-	return &hpf.Spec, nil
-}
 
 // SerializeSpec serialize the provided spec inside a HostPreflight object and
 // returns the byte slice.

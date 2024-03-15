@@ -19,9 +19,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8syaml "sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 )
@@ -34,6 +34,7 @@ type JoinCommandResponse struct {
 	K0sUnsupportedOverrides   string    `json:"k0sUnsupportedOverrides"`
 	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
 	MetricsBaseURL            string    `json:"metricsBaseURL"`
+	AirgapRegistryAddress     string    `json:"airgapRegistryAddress"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -98,9 +99,20 @@ var joinCommand = &cli.Command{
 	Name:      "join",
 	Usage:     fmt.Sprintf("Join the current node to a %s cluster", binName),
 	ArgsUsage: "<url> <token>",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:   "airgap-bundle",
+			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Hidden: true,
+		},
+	},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("node join command must be run as root")
+		}
+
+		if c.String("airgap-bundle") != "" {
+			metrics.DisableMetrics()
 		}
 		return nil
 	},
@@ -126,10 +138,16 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to get join token: %w", err)
 		}
 
+		if c.String("airgap-bundle") != "" {
+			logrus.Debugf("checking airgap bundle matches binary")
+			if err := checkAirgapMatches(c); err != nil {
+				return err // we want the user to see the error message without a prefix
+			}
+		}
+
 		metrics.ReportJoinStarted(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Infof("Materializing %s binaries", binName)
-		if err := goods.Materialize(); err != nil {
-			err := fmt.Errorf("unable to materialize binaries: %w", err)
+		if err := materializeFiles(c); err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
@@ -152,6 +170,13 @@ var joinCommand = &cli.Command{
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
+		}
+
+		if jcmd.AirgapRegistryAddress != "" {
+			if err := airgap.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
+				err := fmt.Errorf("unable to add insecure registry: %w", err)
+				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			}
 		}
 
 		logrus.Infof("Joining node to cluster")

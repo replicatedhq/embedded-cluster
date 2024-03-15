@@ -23,6 +23,8 @@ var (
 	K0sBinaryURL = ""
 )
 
+const KotsadmNamespace = "kotsadm"
+
 // def returns a global reference to the default provider. creates one if not
 // already created.
 func def() *Provider {
@@ -40,6 +42,11 @@ func BinaryName() string {
 // EmbeddedClusterBinsSubDir calls EmbeddedClusterBinsSubDir on the default provider.
 func EmbeddedClusterBinsSubDir() string {
 	return def().EmbeddedClusterBinsSubDir()
+}
+
+// EmbeddedClusterChartsSubDir calls EmbeddedClusterChartsSubDir on the default provider.
+func EmbeddedClusterChartsSubDir() string {
+	return def().EmbeddedClusterChartsSubDir()
 }
 
 // EmbeddedClusterLogsSubDir calls EmbeddedClusterLogsSubDir on the default provider.
@@ -89,6 +96,10 @@ func PathToK0sConfig() string {
 // PathToK0sStatusSocket calls PathToK0sStatusSocket on the default provider.
 func PathToK0sStatusSocket() string {
 	return def().PathToK0sStatusSocket()
+}
+
+func PathToK0sContainerdConfig() string {
+	return def().PathToK0sContainerdConfig()
 }
 
 // EmbeddedClusterHomeDirectory calls EmbeddedClusterHomeDirectory on the default provider.

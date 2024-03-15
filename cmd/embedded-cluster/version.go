@@ -9,9 +9,9 @@ import (
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/k0sproject/k0s/pkg/airgap"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -97,6 +97,17 @@ var metadataCommand = &cli.Command{
 			return fmt.Errorf("unable to get protected fields: %w", err)
 		}
 		meta.Protected = protectedFields
+
+		// Airgap
+		airgapCht, airgapRepo, err := applier.GetAirgapCharts()
+		if err != nil {
+			return fmt.Errorf("unable to get airgap charts: %w", err)
+		}
+		meta.AirgapConfigs = k0sconfig.HelmExtensions{
+			ConcurrencyLevel: 1,
+			Charts:           airgapCht,
+			Repositories:     airgapRepo,
+		}
 
 		// Render k0s config to get the images contained within
 		k0sConfig := config.RenderK0sConfig()

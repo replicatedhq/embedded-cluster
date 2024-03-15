@@ -1,0 +1,12 @@
+---
+apiVersion: kots.io/v1beta1
+kind: Application
+metadata:
+  name: tiny airgap app
+  annotations:
+    kots.io/exclude: "true"
+spec:
+  title: Tiny Airgap App
+  icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
+  statusInformers:
+    - deployment/alpine

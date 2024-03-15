@@ -18,6 +18,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -40,6 +42,7 @@ type Applier struct {
 	license       *kotsv1beta1.License
 	onlyDefaults  bool
 	endUserConfig *embeddedclusterv1beta1.Config
+	airgap        bool
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -84,6 +87,19 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 	repositories = append(repositories, additionalRepositories...)
 
 	return charts, repositories, nil
+}
+
+func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	reg, err := registry.New(true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to create registry addon: %w", err)
+	}
+	regChart, regRepo, err := reg.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
+	}
+
+	return regChart, regRepo, nil
 }
 
 // ProtectedFields returns the protected fields for all the embedded charts.
@@ -131,13 +147,19 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
+	reg, err := registry.New(a.airgap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create registry addon: %w", err)
+	}
+	addons = append(addons, reg)
+
 	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.license)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
 	addons = append(addons, embedoperator)
 
-	aconsole, err := adminconsole.New("kotsadm", a.prompt, a.config, a.license)
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.license, a.airgap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}

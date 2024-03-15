@@ -1,0 +1,14 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: SupportBundle
+metadata:
+  name: support-bundle
+  annotations:
+    kots.io/exclude: "true"
+spec:
+  collectors:
+    - clusterInfo: {}
+    - clusterResources: {}
+    - logs:
+        selector:
+          - app=alpine
+        namespace: '{{repl Namespace }}'
