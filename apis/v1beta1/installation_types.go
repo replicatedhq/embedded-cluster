@@ -23,6 +23,7 @@ import (
 // What follows is a list of all valid states for an Installation object.
 const (
 	InstallationStateWaiting                string = "Waiting"
+	InstallationStateCopyingArtifacts       string = "CopyingArtifacts"
 	InstallationStateEnqueued               string = "Enqueued"
 	InstallationStateInstalling             string = "Installing"
 	InstallationStateInstalled              string = "Installed"
