@@ -167,7 +167,7 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 	err := cli.Create(ctx, &accessSecret)
 	if err != nil {
 		loading.Close()
-		return fmt.Errorf("unable to create seaweedfs-s3-access-secret: %w", err)
+		return fmt.Errorf("unable to create secret-seaweedfs-s3: %w", err)
 	}
 
 	var lasterr error
