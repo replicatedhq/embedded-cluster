@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -25,12 +26,22 @@ const (
 	HelmChartsArtifactName            = "charts.tar.gz"
 )
 
+// kubecli holds a global reference to a Kubernetes client.
+var kubecli client.Client
+
 // pullCommand pulls artifacts from the registry running in the cluster and stores
 // them locally. This command is used during cluster upgrades when we want to fetch
 // the most up to date images, binaries and helm charts.
 var pullCommand = &cli.Command{
-	Name:        "pull",
-	Usage:       "Pull artifacts for an disconnect installation",
+	Name:  "pull",
+	Usage: "Pull artifacts for an disconnect installation",
+	Before: func(c *cli.Context) (err error) {
+		if kubecli, err = kubeutils.KubeClient(); err != nil {
+			return fmt.Errorf("unable to create kube client: %w", err)
+		}
+		v1beta1.AddToScheme(kubecli.Scheme())
+		return nil
+	},
 	Subcommands: []*cli.Command{binariesCommand, imagesCommand, helmChartsCommand},
 }
 
@@ -184,16 +195,10 @@ var binariesCommand = &cli.Command{
 // fetchAndValidateInstallation fetches an Installation object from its name and
 // checks if it is valid for an airgap cluster deployment.
 func fetchAndValidateInstallation(ctx context.Context, iname string) (*v1beta1.Installation, error) {
-	kubeclient, err := kubeutils.KubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("unable to create kube client: %w", err)
-	}
-	v1beta1.AddToScheme(kubeclient.Scheme())
-
 	logrus.Infof("reading installation %q", iname)
 	nsn := types.NamespacedName{Name: iname}
 	var in v1beta1.Installation
-	if err := kubeclient.Get(ctx, nsn, &in); err != nil {
+	if err := kubecli.Get(ctx, nsn, &in); err != nil {
 		return nil, fmt.Errorf("unable to get installation: %w", err)
 	}
 

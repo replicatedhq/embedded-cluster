@@ -2,24 +2,60 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
+	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
-	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
-// registryAuth returns the credentials to reach the registry. These credentials are
-// read from the cluster. XXX It is still not defined the secret name from where we
-// are going to read the credentials so this returns empty credentials instead.
-func registryAuth(_ context.Context) (auth.Credential, error) {
-	return auth.Credential{}, nil
+// DockerConfig represents the content of the '.dockerconfigjson' secret.
+type DockerConfig struct {
+	Auths map[string]DockerConfigEntry `json:"auths"`
+}
+
+// DockerConfigEntry represents the content of the '.dockerconfigjson' secret.
+type DockerConfigEntry struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Auth     string `json:"auth"`
+}
+
+// registryAuth returns the authentication store to be used when reaching the
+// registry. The authentication store is read from the cluster secret named
+// 'registry-creds' in the 'kotsadm' namespace.
+func registryAuth(ctx context.Context) (credentials.Store, error) {
+	nsn := types.NamespacedName{Name: "registry-creds", Namespace: "kotsadm"}
+	var sct corev1.Secret
+	if err := kubecli.Get(ctx, nsn, &sct); err != nil {
+		return nil, fmt.Errorf("unable to get secret: %w", err)
+	}
+
+	data, ok := sct.Data[".dockerconfigjson"]
+	if !ok {
+		return nil, fmt.Errorf("unable to find secret .dockerconfigjson")
+	}
+
+	var cfg DockerConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal secret: %w", err)
+	}
+
+	creds := credentials.NewMemoryStore()
+	for addr, entry := range cfg.Auths {
+		creds.Put(ctx, addr, auth.Credential{
+			Username: entry.Username,
+			Password: entry.Password,
+		})
+	}
+	return creds, nil
 }
 
 // pullArtifact fetches an artifact from the registry pointed by 'from'. The artifact
@@ -27,7 +63,7 @@ func registryAuth(_ context.Context) (auth.Credential, error) {
 // Callers are responsible for removing the temporary directory when it is no longer
 // needed. In case of error, the temporary directory is removed here.
 func pullArtifact(ctx context.Context, from string) (string, error) {
-	creds, err := registryAuth(ctx)
+	store, err := registryAuth(ctx)
 	if err != nil {
 		return "", fmt.Errorf("unable to get registry auth: %w", err)
 	}
@@ -53,23 +89,9 @@ func pullArtifact(ctx context.Context, from string) (string, error) {
 	}
 	defer fs.Close()
 
-	// XXX for now we are using a custom transport to skip the certificate validation
-	//     because the test environment is using a self-signed certificate. This should
-	//     be changed.
-	repo.Client = &auth.Client{
-		Credential: auth.StaticCredential(imgref.Registry, creds),
-		Client: &http.Client{
-			Transport: &http.Transport{
-				Proxy:                 http.ProxyFromEnvironment,
-				TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
-				ForceAttemptHTTP2:     true,
-				MaxIdleConns:          100,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-			},
-		},
-	}
+	// setup the pull options. XXX we are using a registry over http.
+	repo.Client = &auth.Client{Credential: store.Get}
+	repo.PlainHTTP = true
 
 	tag := imgref.Reference
 	if _, err := oras.Copy(ctx, repo, tag, fs, tag, oras.DefaultCopyOptions); err != nil {
