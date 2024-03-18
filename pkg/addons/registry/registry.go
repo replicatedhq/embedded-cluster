@@ -3,23 +3,24 @@ package registry
 import (
 	"context"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"golang.org/x/crypto/bcrypt"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
-	releaseName = "docker-registry"
+	releaseName = "registry"
 	namespace   = "registry"
 )
 
@@ -40,11 +41,19 @@ var helmValues = map[string]interface{}{
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
-	"storage": "hostpath", // this is not a recognized option but gets us past all the storage options
-	"securityContext": map[string]interface{}{
-		"enabled":   true,
-		"runAsUser": 0,
-		"fsGroup":   0,
+	"storage": "s3",
+	"s3": map[string]interface{}{
+		"region":         "us-east-1",
+		"regionEndpoint": "seaweedfs-s3.seaweedfs.svc.cluster.local:8333",
+		"bucket":         "registry",
+		"rootdirectory":  "/registry",
+		"encrypt":        false,
+		"secure":         true,
+	},
+	"secrets": map[string]interface{}{
+		"s3": map[string]interface{}{
+			"secretRef": "seaweedfs-s3-rw",
+		},
 	},
 	"configData": map[string]interface{}{
 		"auth": map[string]interface{}{
@@ -53,20 +62,11 @@ var helmValues = map[string]interface{}{
 				"path":  "/auth/htpasswd",
 			},
 		},
-		"storage": map[string]interface{}{
-			"filesystem": map[string]interface{}{
-				"rootdirectory": "/var/lib/registry",
-			},
-		},
 	},
 	"extraVolumeMounts": []map[string]interface{}{
 		{
 			"name":      "auth",
 			"mountPath": "/auth",
-		},
-		{
-			"name":      "registry-data",
-			"mountPath": "/var/lib/registry",
 		},
 	},
 	"extraVolumes": []map[string]interface{}{
@@ -74,13 +74,6 @@ var helmValues = map[string]interface{}{
 			"name": "auth",
 			"secret": map[string]interface{}{
 				"secretName": "registry-auth",
-			},
-		},
-		{
-			"name": "registry-data",
-			"hostPath": map[string]interface{}{
-				"path": "/var/lib/embedded-cluster/registry",
-				"type": "DirectoryOrCreate",
 			},
 		},
 	},
@@ -155,12 +148,12 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		return err
 	}
 
+	// create a login for the registry
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(registryPassword), bcrypt.DefaultCost)
 	if err != nil {
 		loading.Close()
 		return fmt.Errorf("unable to hash registry password: %w", err)
 	}
-
 	htpasswd := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -179,6 +172,29 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	if err != nil {
 		loading.Close()
 		return fmt.Errorf("unable to create registry-auth secret: %w", err)
+	}
+
+	// create a secret to allow accessing the seaweedfs s3
+	rwKey, rwSecret := seaweedfs.GetRWInfo()
+	s3AccessSecret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "seaweedfs-s3-rw",
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"s3AccessKey": rwKey,
+			"s3SecretKey": rwSecret,
+		},
+		Type: "Opaque",
+	}
+	err = cli.Create(ctx, &s3AccessSecret)
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to create seaweedfs-s3-rw secret: %w", err)
 	}
 
 	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "registry"); err != nil {
