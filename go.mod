@@ -15,7 +15,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.3-0.20240220215935-6a63dc9024ce
 	github.com/replicatedhq/embedded-cluster-kinds v1.1.0
-	github.com/replicatedhq/embedded-cluster-operator v0.24.1
+	github.com/replicatedhq/embedded-cluster-operator v0.25.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
 	github.com/replicatedhq/troubleshoot v0.84.1
@@ -45,7 +45,7 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/pprof v0.0.0-20230323073829-e72429f035bd // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
-	github.com/ohler55/ojg v1.21.2 // indirect
+	github.com/ohler55/ojg v1.21.4 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
