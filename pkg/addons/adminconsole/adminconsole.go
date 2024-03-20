@@ -4,6 +4,7 @@ package adminconsole
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -13,10 +14,13 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -74,6 +78,7 @@ func init() {
 type AdminConsole struct {
 	namespace string
 	useprompt bool
+	airgap    bool
 	config    v1beta1.ClusterConfig
 	license   *kotsv1beta1.License
 }
@@ -132,13 +137,21 @@ func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
 	} else if channelRelease != nil {
 		appVersion = channelRelease.VersionLabel
 	}
+
+	isAirgap := "false"
+	if a.airgap {
+		isAirgap = "true"
+	}
+
 	helmValues["automation"] = map[string]interface{}{
 		"appVersionLabel": appVersion,
 		"license": map[string]interface{}{
 			"slug": a.license.Spec.AppSlug,
 			"data": string(raw),
 		},
+		"airgap": isAirgap,
 	}
+
 	return nil
 }
 
@@ -243,6 +256,14 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/2 ready")
 
+	if a.airgap {
+		err := createRegistrySecret(ctx, cli, a.namespace)
+		if err != nil {
+			loading.Close()
+			return fmt.Errorf("error creating registry secret: %v", err)
+		}
+	}
+
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		var count int
@@ -290,11 +311,45 @@ func (a *AdminConsole) printSuccessMessage() {
 }
 
 // New creates a new AdminConsole object.
-func New(ns string, useprompt bool, config v1beta1.ClusterConfig, license *kotsv1beta1.License) (*AdminConsole, error) {
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig, license *kotsv1beta1.License, airgap bool) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace: ns,
 		useprompt: useprompt,
 		config:    config,
 		license:   license,
+		airgap:    airgap,
 	}, nil
+}
+
+func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {
+	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+		return err
+	}
+
+	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
+	authConfig := fmt.Sprintf(`{"auths":{"%s:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registry.GetRegistryClusterIP(), registry.GetRegistryPassword(), authString)
+
+	registryCreds := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "registry-creds",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"kots.io/kotsadm": "true",
+			},
+		},
+		StringData: map[string]string{
+			".dockerconfigjson": authConfig,
+		},
+		Type: "kubernetes.io/dockerconfigjson",
+	}
+	err := cli.Create(ctx, &registryCreds)
+	if err != nil {
+		return fmt.Errorf("unable to create registry-auth secret: %w", err)
+	}
+
+	return nil
 }

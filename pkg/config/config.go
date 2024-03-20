@@ -141,6 +141,7 @@ func nodeLabels() []string {
 	lmap := additionalControllerLabels()
 	lmap["kots.io/embedded-cluster-role-0"] = getControllerRoleName()
 	lmap["kots.io/embedded-cluster-role"] = "total-1"
+
 	labels := []string{}
 	for k, v := range lmap {
 		labels = append(labels, fmt.Sprintf("%s=%s", k, v))

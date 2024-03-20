@@ -52,3 +52,10 @@ func WithLicense(license *kotsv1beta1.License) Option {
 		a.license = license
 	}
 }
+
+// Airgap sets the application to be installed in airgap mode
+func Airgap() Option {
+	return func(a *Applier) {
+		a.airgap = true
+	}
+}

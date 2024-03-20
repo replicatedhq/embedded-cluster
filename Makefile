@@ -4,19 +4,23 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.108.0-build.1
+ADMIN_CONSOLE_CHART_VERSION = 1.108.1
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.24.1
+EMBEDDED_OPERATOR_CHART_VERSION = 0.25.0
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
+REGISTRY_CHART_URL = https://helm.twun.io
+REGISTRY_CHART_NAME = twuni/docker-registry
+REGISTRY_CHART_VERSION = 2.2.3
+REGISTRY_IMAGE_VERSION = 2.8.3
 KUBECTL_VERSION = v1.28.7
 K0S_VERSION = v1.28.7+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.83.0
+TROUBLESHOOT_VERSION = v0.84.1
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sBinaryURL=$(K0S_BINARY_SOURCE_OVERRIDE) \
@@ -32,7 +36,11 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartURL=$(REGISTRY_CHART_URL) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartName=$(REGISTRY_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION)
 
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64

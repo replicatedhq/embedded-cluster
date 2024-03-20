@@ -14,10 +14,12 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -52,7 +54,7 @@ func runCommand(bin string, args ...string) (string, error) {
 }
 
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
-// service is reponsible for serving on localhost, through http, all files that are used
+// service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
 func installAndEnableLocalArtifactMirror() error {
 	ourbin := defaults.PathToEmbeddedClusterBinary("local-artifact-mirror")
@@ -179,7 +181,73 @@ func checkLicenseMatches(c *cli.Context) error {
 	}
 
 	return nil
+}
 
+func checkAirgapMatches(c *cli.Context) error {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+	}
+	if rel == nil {
+		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
+	}
+
+	// read file from path
+	rawfile, err := os.Open(c.String("airgap-bundle"))
+	if err != nil {
+		return fmt.Errorf("failed to open airgap file: %w", err)
+	}
+	defer rawfile.Close()
+
+	appSlug, channelID, airgapVersion, err := airgap.ChannelReleaseMetadata(rawfile)
+	if err != nil {
+		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
+	}
+
+	// Check if the airgap bundle matches the application version data
+	if rel.AppSlug != appSlug {
+		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
+		return fmt.Errorf("airgap bundle app %s does not match binary app %s, please provide the correct bundle", appSlug, rel.AppSlug)
+	}
+	if rel.ChannelID != channelID {
+		// if the channel is different, we will not be able to install the pinned vendor application version within kots
+		return fmt.Errorf("airgap bundle channel %s does not match binary channel %s, please provide the correct bundle", channelID, rel.ChannelID)
+	}
+	if rel.VersionLabel != airgapVersion {
+		// if the version is different, who knows what might be different
+		return fmt.Errorf("airgap bundle version %s does not match binary version %s, please provide the correct bundle", airgapVersion, rel.VersionLabel)
+	}
+
+	return nil
+}
+
+func materializeFiles(c *cli.Context) error {
+	mat := spinner.Start()
+	defer mat.Close()
+	mat.Infof("Materializing files")
+
+	if err := goods.Materialize(); err != nil {
+		return fmt.Errorf("unable to materialize binaries: %w", err)
+	}
+	if c.String("airgap-bundle") != "" {
+		mat.Infof("Materializing airgap installation files")
+
+		// read file from path
+		rawfile, err := os.Open(c.String("airgap-bundle"))
+		if err != nil {
+			return fmt.Errorf("failed to open airgap file: %w", err)
+		}
+		defer rawfile.Close()
+
+		if err := airgap.MaterializeAirgap(rawfile); err != nil {
+			err = fmt.Errorf("unable to materialize airgap files: %w", err)
+			return err
+		}
+	}
+
+	mat.Infof("Host files materialized")
+
+	return nil
 }
 
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
@@ -205,12 +273,20 @@ func ensureK0sConfig(c *cli.Context) error {
 		}
 		opts = append(opts, addons.WithLicense(license))
 	}
+	if c.String("airgap-bundle") != "" {
+		opts = append(opts, addons.Airgap())
+	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
 	var err error
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
 		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
+	}
+	if c.String("airgap-bundle") != "" {
+		// update the k0s config to install with airgap
+		airgap.RemapHelm(cfg)
+		airgap.SetAirgapConfig(cfg)
 	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
@@ -296,6 +372,32 @@ func waitForK0s() error {
 	return nil
 }
 
+// createAirgapConfigMaps creates the airgap configmaps in the k8s cluster from the airgap file.
+func createAirgapConfigMaps(c *cli.Context) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Creating airgap configmaps")
+	// create k8s client
+	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
+	cli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("failed to create k8s client: %w", err)
+	}
+
+	// read file from path
+	rawfile, err := os.Open(c.String("airgap-bundle"))
+	if err != nil {
+		return fmt.Errorf("failed to open airgap file: %w", err)
+	}
+	defer rawfile.Close()
+
+	if err = airgap.CreateAppConfigMaps(c.Context, cli, rawfile); err != nil {
+		return fmt.Errorf("unable to create airgap configmaps: %w", err)
+	}
+	loading.Infof("Airgap configmaps created")
+	return nil
+}
+
 // runOutro calls Outro() in all enabled addons by means of Applier.
 func runOutro(c *cli.Context) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
@@ -314,6 +416,9 @@ func runOutro(c *cli.Context) error {
 		}
 		opts = append(opts, addons.WithEndUserConfig(eucfg))
 	}
+	if c.String("airgap-bundle") != "" {
+		opts = append(opts, addons.Airgap())
+	}
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
@@ -326,6 +431,10 @@ var installCommand = &cli.Command{
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
+		}
+
+		if c.String("airgap-bundle") != "" {
+			metrics.DisableMetrics()
 		}
 		return nil
 	},
@@ -346,6 +455,11 @@ var installCommand = &cli.Command{
 			Usage:   "Path to the application license file",
 			Hidden:  false,
 		},
+		&cli.StringFlag{
+			Name:   "airgap-bundle",
+			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Hidden: false,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		logrus.Debugf("checking if %s is already installed", binName)
@@ -365,9 +479,14 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, metricErr)
 			return err // do not return the metricErr, as we want the user to see the error message without a prefix
 		}
+		if c.String("airgap-bundle") != "" {
+			logrus.Debugf("checking airgap bundle matches binary")
+			if err := checkAirgapMatches(c); err != nil {
+				return err // we want the user to see the error message without a prefix
+			}
+		}
 		logrus.Debugf("materializing binaries")
-		if err := goods.Materialize(); err != nil {
-			err := fmt.Errorf("unable to materialize binaries: %w", err)
+		if err := materializeFiles(c); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
@@ -400,6 +519,13 @@ var installCommand = &cli.Command{
 			err := fmt.Errorf("unable to wait for node: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
+		}
+		if c.String("airgap-bundle") != "" {
+			err := createAirgapConfigMaps(c)
+			if err != nil {
+				err = fmt.Errorf("unable to create airgap configmaps: %w", err)
+				return err
+			}
 		}
 		logrus.Debugf("running outro")
 		if err := runOutro(c); err != nil {
