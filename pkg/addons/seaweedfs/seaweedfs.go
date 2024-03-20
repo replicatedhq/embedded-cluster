@@ -67,7 +67,7 @@ var helmValues = map[string]interface{}{
 		"s3": map[string]interface{}{
 			"enabled":              true,
 			"enableAuth":           true,
-			"existingConfigSecret": "seaweedfs-s3-access-secret",
+			"existingConfigSecret": "secret-seaweedfs-s3",
 		},
 	},
 }
@@ -156,7 +156,7 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "seaweedfs-s3-access-secret",
+			Name:      "secret-seaweedfs-s3",
 			Namespace: namespace,
 		},
 		StringData: map[string]string{
