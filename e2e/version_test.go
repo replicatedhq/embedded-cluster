@@ -111,7 +111,7 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
-	expectedAirgapCharts := []string{"docker-registry"}
+	expectedAirgapCharts := []string{"docker-registry", "seaweedfs"}
 	if len(parsed.AirgapConfigs.Charts) != len(expectedAirgapCharts) {
 		t.Log(output)
 		t.Fatalf("found %d airgap charts in metadata, expected %d", len(parsed.AirgapConfigs.Charts), len(expectedAirgapCharts))
