@@ -56,6 +56,13 @@ spec:
       - app=openebs
       limits:
         maxAge: 720h
+  - logs:
+      name: podlogs/registry
+      namespace: registry
+      selector:
+      - app=registry
+      limits:
+        maxAge: 720h
   analyzers:
   - textAnalyze:
       checkName: Cluster installation status
