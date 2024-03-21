@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -33,26 +31,6 @@ import (
 // necessary data to the screen).
 var ErrNothingElseToAdd = fmt.Errorf("")
 
-// runCommand spawns a command and capture its output. Outputs are logged using the
-// logrus package and stdout is returned as a string.
-func runCommand(bin string, args ...string) (string, error) {
-	fullcmd := append([]string{bin}, args...)
-	logrus.Debugf("running command: %v", fullcmd)
-
-	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
-	cmd := exec.Command(bin, args...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		logrus.Debugf("failed to run command:")
-		logrus.Debugf("stdout: %s", stdout.String())
-		logrus.Debugf("stderr: %s", stderr.String())
-		return "", err
-	}
-	return stdout.String(), nil
-}
-
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
@@ -65,13 +43,13 @@ func installAndEnableLocalArtifactMirror() error {
 	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
-	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if _, err := runCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
-	if _, err := runCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
 	return nil
@@ -85,7 +63,7 @@ func runPostInstall() error {
 	if err := os.Symlink(src, dst); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
-	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
 	return installAndEnableLocalArtifactMirror()
@@ -337,10 +315,10 @@ func installK0s() error {
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
-	if _, err := runCommand(hstbin, config.InstallFlags()...); err != nil {
+	if _, err := helpers.RunCommand(hstbin, config.InstallFlags()...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
-	if _, err := runCommand(hstbin, "start"); err != nil {
+	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
 		return fmt.Errorf("unable to start: %w", err)
 	}
 	return nil
@@ -365,7 +343,7 @@ func waitForK0s() error {
 	if !success {
 		return fmt.Errorf("timeout waiting for %s", defaults.BinaryName())
 	}
-	if _, err := runCommand(defaults.K0sBinaryPath(), "status"); err != nil {
+	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
 	}
 	loading.Infof("Node installation finished")

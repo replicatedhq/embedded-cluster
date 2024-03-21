@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
@@ -387,7 +388,7 @@ var resetCommand = &cli.Command{
 
 		lamPath := "/etc/systemd/system/local-artifact-mirror.service"
 		if _, err := os.Stat(lamPath); err == nil {
-			if _, err := runCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
+			if _, err := helpers.RunCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
 				return err
 			}
 			if err := os.RemoveAll(lamPath); err != nil {

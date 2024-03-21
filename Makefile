@@ -2,9 +2,10 @@ VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
+KOTS_VERSION = v1.108.1
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.108.1
+ADMIN_CONSOLE_CHART_VERSION = $(subst v,,$(KOTS_VERSION))
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
@@ -81,6 +82,14 @@ pkg/goods/bins/local-artifact-mirror: Makefile
 	mkdir -p pkg/goods/bins
 	CGO_ENABLED=0 go build -o pkg/goods/bins/local-artifact-mirror ./cmd/local-artifact-mirror
 
+pkg/goods/internal/bins/kubectl-kots: Makefile
+	mkdir -p pkg/goods/internal/bins
+	mkdir -p output/tmp/kots
+	curl -L -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz
+	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
+	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots
+	touch pkg/goods/internal/bins/kubectl-kots
+
 output/tmp/release.tar.gz: e2e/kots-release-install/*
 	mkdir -p output/tmp
 	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
@@ -102,7 +111,8 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-preflight \
 	pkg/goods/bins/kubectl \
 	pkg/goods/bins/kubectl-support_bundle \
-	pkg/goods/bins/local-artifact-mirror
+	pkg/goods/bins/local-artifact-mirror \
+	pkg/goods/internal/bins/kubectl-kots
 	
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: static go.mod

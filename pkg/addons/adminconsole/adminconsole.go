@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/k0sproject/dig"
@@ -18,10 +19,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -43,7 +45,7 @@ var (
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
-var protectedFields = []string{"automation", "embeddedClusterID", "kotsApplication"}
+var protectedFields = []string{"automation", "embeddedClusterID"}
 
 const DEFAULT_ADMIN_CONSOLE_NODE_PORT = 30000
 
@@ -122,39 +124,6 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return release.GetHostPreflights()
 }
 
-// addLicenseAndVersionToHelmValues adds the embedded license to the helm values.
-func (a *AdminConsole) addLicenseAndVersionToHelmValues() error {
-	if a.license == nil {
-		return nil
-	}
-	raw, err := k8syaml.Marshal(a.license)
-	if err != nil {
-		return fmt.Errorf("unable to marshal license: %w", err)
-	}
-	var appVersion string
-	if channelRelease, err := release.GetChannelRelease(); err != nil {
-		return fmt.Errorf("unable to get channel release: %w", err)
-	} else if channelRelease != nil {
-		appVersion = channelRelease.VersionLabel
-	}
-
-	isAirgap := "false"
-	if a.airgap {
-		isAirgap = "true"
-	}
-
-	helmValues["automation"] = map[string]interface{}{
-		"appVersionLabel": appVersion,
-		"license": map[string]interface{}{
-			"slug": a.license.Spec.AppSlug,
-			"data": string(raw),
-		},
-		"airgap": isAirgap,
-	}
-
-	return nil
-}
-
 // getPasswordFromConfig returns the adminconsole password from the provided chart config.
 func getPasswordFromConfig(chart *v1beta1.Chart) (string, error) {
 	if chart.Values == "" {
@@ -206,20 +175,6 @@ func (a *AdminConsole) addPasswordToHelmValues() error {
 	return nil
 }
 
-// addKotsApplicationToHelmValues extracts the embed application struct found in this binary
-// and adds it to the helm values.
-func (a *AdminConsole) addKotsApplicationToHelmValues() error {
-	app, err := release.GetApplication()
-	if err != nil {
-		return fmt.Errorf("unable to get application: %w", err)
-	} else if app == nil {
-		helmValues["kotsApplication"] = "default value"
-		return nil
-	}
-	helmValues["kotsApplication"] = string(app)
-	return nil
-}
-
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
@@ -227,13 +182,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 		if err := a.addPasswordToHelmValues(); err != nil {
 			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
 		}
-		if err := a.addKotsApplicationToHelmValues(); err != nil {
-			return nil, nil, fmt.Errorf("unable to add kots app to helm values: %w", err)
-		}
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
-	}
-	if err := a.addLicenseAndVersionToHelmValues(); err != nil {
-		return nil, nil, fmt.Errorf("unable to add license to helm values: %w", err)
 	}
 	values, err := yaml.Marshal(helmValues)
 	if err != nil {
@@ -286,7 +235,43 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		loading.Close()
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
-	loading.Closef("Admin Console is ready!")
+
+	loading.Infof("Installing the application")
+
+	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
+	if err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	var appVersionLabel string
+	if channelRelease, err := release.GetChannelRelease(); err != nil {
+		return fmt.Errorf("unable to get channel release: %w", err)
+	} else if channelRelease != nil {
+		appVersionLabel = channelRelease.VersionLabel
+	}
+
+	// TODO NOW: what should ux be since app will be installed but not deployed because of cluster management configuartion?
+	// TODO NOW: pass license as file
+	// TODO NOW: show commnad stderr
+	if _, err := helpers.RunCommand(
+		kotsBinPath,
+		"install",
+		a.license.Spec.AppSlug,
+		"--namespace",
+		a.namespace,
+		"--shared-password",
+		helmValues["password"].(string),
+		"--app-version-label",
+		appVersionLabel,
+		"--exclude-admin-console",
+	); err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to install the application: %w", err)
+	}
+
+	loading.Closef("Application is installed!")
 	a.printSuccessMessage()
 	return nil
 }

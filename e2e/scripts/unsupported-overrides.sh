@@ -46,7 +46,6 @@ spec:
                 version: 1.108.0-build.1
                 values: |
                   isHelmManaged: false
-                  kotsApplication: default value
                   minimalRBAC: false
                   service:
                     nodePort: 30000
