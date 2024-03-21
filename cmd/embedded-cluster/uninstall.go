@@ -311,6 +311,11 @@ var resetCommand = &cli.Command{
 			Usage: "Ignore errors encountered when resetting the node (implies --no-prompt)",
 			Value: false,
 		},
+		&cli.BoolFlag{
+			Name:  "reboot",
+			Usage: "Reboot system after reseting the node",
+			Value: false,
+		},
 	},
 	Usage: fmt.Sprintf("Uninstall %s from the current node", binName),
 	Action: func(c *cli.Context) error {
@@ -402,6 +407,16 @@ var resetCommand = &cli.Command{
 			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
 				return err
 			}
+		}
+
+		if c.Bool("reboot") {
+			// this is a bit more graceful that using sync(2) and reboot(2) but
+			// can take a bit longer
+			if _, err := exec.Command("reboot").Output(); err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("Aborting reboot")
 		}
 
 		return nil
