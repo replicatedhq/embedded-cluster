@@ -44,14 +44,13 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Get short commit hash
-      run: echo "SHORT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
         go-version: "1.21.0"
     - name: Build Linux AMD64
       run: |
+        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
         make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
     - name: Output Metadata
       run: |
@@ -73,21 +72,21 @@ jobs:
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
         echo "${SHORT_SHA}"
-        sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
-        sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+        sed -i "s|__version_string__|dev/${SHORT_SHA}|g" e2e/kots-release-install/cluster-config.yaml
+        sed -i "s|__version_string__|dev/${SHORT_SHA}-upgrade|g" e2e/kots-release-upgrade/cluster-config.yaml
 
         # re-promote a release containing an old version of embedded-cluster to test upgrades
-        replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${SHORT_SHA}-pre-minio-removal"
+        replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "dev/${SHORT_SHA}-pre-minio-removal"
 
-        replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
-        replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
+        replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "dev/${SHORT_SHA}"
+        replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "dev/${SHORT_SHA}-upgrade"
     - name: Build CI binary
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
         echo "# channel release object" > e2e/kots-release-install/release.yaml
         echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
         echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
-        echo "versionLabel: \"${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
+        echo "versionLabel: \"dev/${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
         cat e2e/kots-release-install/release.yaml
         cp output/bin/embedded-cluster output/bin/embedded-cluster-original
         make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
@@ -99,7 +98,7 @@ jobs:
         AWS_REGION: "us-east-1"
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
-        export EC_VERSION="v${SHORT_SHA}"
+        export EC_VERSION="dev/v${SHORT_SHA}"
         ./scripts/cache-files.sh
         ./scripts/create-upgrade-release.sh
 
@@ -131,6 +130,7 @@ jobs:
           - TestMultiNodeReset
           - TestCommandsRequireSudo
           - TestInstallWithoutEmbed
+          - TestInstallFromReplicatedApp
           - TestResetAndReinstall
           - TestCollectSupportBundle
           - TestOldVersionUpgrade
