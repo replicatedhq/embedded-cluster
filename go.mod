@@ -9,7 +9,7 @@ require (
 	github.com/ohler55/ojg v1.21.4
 	github.com/onsi/ginkgo/v2 v2.16.0
 	github.com/onsi/gomega v1.31.1
-	github.com/replicatedhq/embedded-cluster-kinds v0.0.0-20240313215505-9240029e7834
+	github.com/replicatedhq/embedded-cluster-kinds v1.1.0
 	github.com/stretchr/testify v1.9.0
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3

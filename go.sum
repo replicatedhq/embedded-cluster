@@ -118,8 +118,8 @@ github.com/prometheus/common v0.45.0 h1:2BGz0eBc2hdMDLnO/8n0jeB3oPrt2D08CekT0lne
 github.com/prometheus/common v0.45.0/go.mod h1:YJmSTw9BoKxJplESWWxlbyttQR4uaEcGyv9MZjVOJsY=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
-github.com/replicatedhq/embedded-cluster-kinds v0.0.0-20240313215505-9240029e7834 h1:I6DEuT6+U08QblOyoVXcscDKBZVdUgQhze6cVNm43q4=
-github.com/replicatedhq/embedded-cluster-kinds v0.0.0-20240313215505-9240029e7834/go.mod h1:LheSDOgMngMRAbwAj0sVZUVv2ciKIVR2bYTMeOBGwlg=
+github.com/replicatedhq/embedded-cluster-kinds v1.1.0 h1:brGxyi/mG7pEohE4ZNRbeYBVOcDFBaMP/jt9VdcKTWY=
+github.com/replicatedhq/embedded-cluster-kinds v1.1.0/go.mod h1:LheSDOgMngMRAbwAj0sVZUVv2ciKIVR2bYTMeOBGwlg=
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
