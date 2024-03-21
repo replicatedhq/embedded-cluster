@@ -52,6 +52,7 @@ jobs:
       run: |
         export SHORT_SHA=$(git rev-parse --short=7 HEAD)
         make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
+        tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
     - name: Output Metadata
       run: |
         ./output/bin/embedded-cluster version metadata > metadata.json
