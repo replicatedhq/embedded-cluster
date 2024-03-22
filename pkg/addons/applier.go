@@ -10,7 +10,6 @@ import (
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,7 +38,7 @@ type Applier struct {
 	prompt        bool
 	verbose       bool
 	config        v1beta1.ClusterConfig
-	license       *kotsv1beta1.License
+	licenseFile   string
 	onlyDefaults  bool
 	endUserConfig *embeddedclusterv1beta1.Config
 	airgap        bool
@@ -153,13 +152,13 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, reg)
 
-	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.license)
+	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
 	addons = append(addons, embedoperator)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.license, a.airgap)
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
@@ -228,10 +227,10 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 // NewApplier creates a new Applier instance with all addons registered.
 func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
-		prompt:  true,
-		verbose: true,
-		config:  v1beta1.ClusterConfig{},
-		license: nil,
+		prompt:      true,
+		verbose:     true,
+		config:      v1beta1.ClusterConfig{},
+		licenseFile: "",
 	}
 	for _, fn := range opts {
 		fn(applier)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -78,11 +77,11 @@ func init() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
-	namespace string
-	useprompt bool
-	airgap    bool
-	config    v1beta1.ClusterConfig
-	license   *kotsv1beta1.License
+	namespace   string
+	useprompt   bool
+	airgap      bool
+	config      v1beta1.ClusterConfig
+	licenseFile string
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -245,6 +244,11 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	}
 	defer os.Remove(kotsBinPath)
 
+	license, err := helpers.ParseLicense(a.licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to parse license: %w", err)
+	}
+
 	var appVersionLabel string
 	if channelRelease, err := release.GetChannelRelease(); err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
@@ -252,17 +256,15 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		appVersionLabel = channelRelease.VersionLabel
 	}
 
-	// TODO NOW: what should ux be since app will be installed but not deployed because of cluster management configuartion?
-	// TODO NOW: pass license as file
 	// TODO NOW: show commnad stderr
 	if _, err := helpers.RunCommand(
 		kotsBinPath,
 		"install",
-		a.license.Spec.AppSlug,
+		license.Spec.AppSlug,
+		"--license-file",
+		a.licenseFile,
 		"--namespace",
 		a.namespace,
-		"--shared-password",
-		helmValues["password"].(string),
 		"--app-version-label",
 		appVersionLabel,
 		"--exclude-admin-console",
@@ -296,13 +298,13 @@ func (a *AdminConsole) printSuccessMessage() {
 }
 
 // New creates a new AdminConsole object.
-func New(ns string, useprompt bool, config v1beta1.ClusterConfig, license *kotsv1beta1.License, airgap bool) (*AdminConsole, error) {
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig, licenseFile string, airgap bool) (*AdminConsole, error) {
 	return &AdminConsole{
-		namespace: ns,
-		useprompt: useprompt,
-		config:    config,
-		license:   license,
-		airgap:    airgap,
+		namespace:   ns,
+		useprompt:   useprompt,
+		config:      config,
+		licenseFile: licenseFile,
+		airgap:      airgap,
 	}, nil
 }
 
