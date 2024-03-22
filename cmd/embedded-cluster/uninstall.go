@@ -233,7 +233,6 @@ func stopAndResetK0s() error {
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
-	logrus.Infof("Node has been reset. Please reboot to ensure transient configuration is also reset.")
 	return nil
 }
 
@@ -382,7 +381,11 @@ var resetCommand = &cli.Command{
 		err = stopAndResetK0s()
 		if !checkErrPrompt(c, err) {
 			return err
-		}
+		} 
+
+    if !c.Bool("reboot") {
+      logrus.Infof("Node has been reset. Please reboot to ensure transient configuration is also reset.")
+    }
 
 		if _, err := os.Stat(defaults.PathToK0sConfig()); err == nil {
 			if err := os.Remove(defaults.PathToK0sConfig()); err != nil {
@@ -410,15 +413,17 @@ var resetCommand = &cli.Command{
 		}
 
 		if c.Bool("reboot") {
-			// this is a bit more graceful that using sync(2) and reboot(2) but
-			// can take a bit longer
-			if _, err := exec.Command("reboot").Output(); err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("Aborting reboot")
+      if prompts.New().Confirm("Continue with reboot?", false)
+        // this is a bit more graceful that using sync(2) and reboot(2) but
+        // can take a bit longer
+        if _, err := exec.Command("reboot").Output(); err != nil {
+          return err
+        }
+      } else {
+        return fmt.Errorf("Aborting reboot")
+      }
 		}
-
+ 
 		return nil
 	},
 }
