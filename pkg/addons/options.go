@@ -52,9 +52,9 @@ func WithLicense(licenseFile string) Option {
 	}
 }
 
-// Airgap sets the application to be installed in airgap mode
-func Airgap() Option {
+// WithAirgapBundle sets the airgap bundle for the application to be installed in airgap mode.
+func WithAirgapBundle(airgapBundle string) Option {
 	return func(a *Applier) {
-		a.airgap = true
+		a.airgapBundle = airgapBundle
 	}
 }

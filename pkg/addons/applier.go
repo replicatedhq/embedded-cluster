@@ -41,7 +41,7 @@ type Applier struct {
 	licenseFile   string
 	onlyDefaults  bool
 	endUserConfig *embeddedclusterv1beta1.Config
-	airgap        bool
+	airgapBundle  string
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -146,7 +146,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(a.airgap)
+	reg, err := registry.New(a.airgapBundle != "")
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
@@ -158,7 +158,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, embedoperator)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgap)
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgapBundle)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
@@ -227,10 +227,11 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 // NewApplier creates a new Applier instance with all addons registered.
 func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
-		prompt:      true,
-		verbose:     true,
-		config:      v1beta1.ClusterConfig{},
-		licenseFile: "",
+		prompt:       true,
+		verbose:      true,
+		config:       v1beta1.ClusterConfig{},
+		licenseFile:  "",
+		airgapBundle: "",
 	}
 	for _, fn := range opts {
 		fn(applier)

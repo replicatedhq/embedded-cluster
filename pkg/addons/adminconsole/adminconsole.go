@@ -77,11 +77,11 @@ func init() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
-	namespace   string
-	useprompt   bool
-	airgap      bool
-	config      v1beta1.ClusterConfig
-	licenseFile string
+	namespace    string
+	useprompt    bool
+	config       v1beta1.ClusterConfig
+	licenseFile  string
+	airgapBundle string
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -204,7 +204,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/2 ready")
 
-	if a.airgap {
+	if a.airgapBundle != "" {
 		err := createRegistrySecret(ctx, cli, a.namespace)
 		if err != nil {
 			loading.Close()
@@ -256,8 +256,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		appVersionLabel = channelRelease.VersionLabel
 	}
 
-	if _, err := helpers.RunCommand(
-		kotsBinPath,
+	installArgs := []string{
 		"install",
 		license.Spec.AppSlug,
 		"--license-file",
@@ -267,7 +266,12 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		"--app-version-label",
 		appVersionLabel,
 		"--exclude-admin-console",
-	); err != nil {
+	}
+	if a.airgapBundle != "" {
+		installArgs = append(installArgs, "--airgap-bundle", a.airgapBundle)
+	}
+
+	if _, err := helpers.RunCommand(kotsBinPath, installArgs...); err != nil {
 		loading.Close()
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
@@ -297,13 +301,13 @@ func (a *AdminConsole) printSuccessMessage() {
 }
 
 // New creates a new AdminConsole object.
-func New(ns string, useprompt bool, config v1beta1.ClusterConfig, licenseFile string, airgap bool) (*AdminConsole, error) {
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig, licenseFile string, airgapBundle string) (*AdminConsole, error) {
 	return &AdminConsole{
-		namespace:   ns,
-		useprompt:   useprompt,
-		config:      config,
-		licenseFile: licenseFile,
-		airgap:      airgap,
+		namespace:    ns,
+		useprompt:    useprompt,
+		config:       config,
+		licenseFile:  licenseFile,
+		airgapBundle: airgapBundle,
 	}, nil
 }
 
