@@ -44,15 +44,15 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Get short commit hash
-      run: echo "SHORT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
         go-version: "1.21.0"
     - name: Build Linux AMD64
       run: |
-        make embedded-cluster-linux-amd64 VERSION=dev-$SHORT_SHA
+        export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+        make embedded-cluster-linux-amd64 VERSION=$SHORT_SHA
+        tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
     - name: Output Metadata
       run: |
         ./output/bin/embedded-cluster version metadata > metadata.json
@@ -71,7 +71,7 @@ jobs:
         REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
         REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
       run: |
-        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+        export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         echo "${SHORT_SHA}"
         sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
         sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
@@ -83,7 +83,7 @@ jobs:
         replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
     - name: Build CI binary
       run: |
-        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+        export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         echo "# channel release object" > e2e/kots-release-install/release.yaml
         echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
         echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
@@ -98,7 +98,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
         AWS_REGION: "us-east-1"
       run: |
-        export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+        export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         export EC_VERSION="v${SHORT_SHA}"
         ./scripts/cache-files.sh
         ./scripts/create-upgrade-release.sh
@@ -131,6 +131,7 @@ jobs:
           - TestMultiNodeReset
           - TestCommandsRequireSudo
           - TestInstallWithoutEmbed
+          - TestInstallFromReplicatedApp
           - TestResetAndReinstall
           - TestCollectSupportBundle
           - TestOldVersionUpgrade
