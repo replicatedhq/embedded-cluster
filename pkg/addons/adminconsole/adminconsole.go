@@ -256,7 +256,6 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		appVersionLabel = channelRelease.VersionLabel
 	}
 
-	// TODO NOW: show commnad stderr
 	if _, err := helpers.RunCommand(
 		kotsBinPath,
 		"install",

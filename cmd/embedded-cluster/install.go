@@ -400,6 +400,9 @@ var installCommand = &cli.Command{
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
 		}
+		if _, err := os.Stat(c.String("license")); err != nil {
+			return fmt.Errorf("unable to stat license file: %w", err)
+		}
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}

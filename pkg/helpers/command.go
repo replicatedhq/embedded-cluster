@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 
 	"github.com/sirupsen/logrus"
@@ -22,6 +23,9 @@ func RunCommand(bin string, args ...string) (string, error) {
 		logrus.Debugf("failed to run command:")
 		logrus.Debugf("stdout: %s", stdout.String())
 		logrus.Debugf("stderr: %s", stderr.String())
+		if stderr.String() != "" {
+			return "", fmt.Errorf("%w: %s", err, stderr.String())
+		}
 		return "", err
 	}
 	return stdout.String(), nil
