@@ -239,11 +239,12 @@ func ensureK0sConfig(c *cli.Context) error {
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
-	opts := []addons.Option{
-		addons.WithLicense(c.String("license")),
-	}
+	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
+	}
+	if l := c.String("license"); l != "" {
+		opts = append(opts, addons.WithLicense(l))
 	}
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
@@ -347,8 +348,9 @@ func waitForK0s() error {
 // runOutro calls Outro() in all enabled addons by means of Applier.
 func runOutro(c *cli.Context) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
-	opts := []addons.Option{
-		addons.WithLicense(c.String("license")),
+	opts := []addons.Option{}
+	if l := c.String("license"); l != "" {
+		opts = append(opts, addons.WithLicense(l))
 	}
 	if c.String("overrides") != "" {
 		eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
@@ -373,9 +375,6 @@ var installCommand = &cli.Command{
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
 		}
-		if _, err := os.Stat(c.String("license")); err != nil {
-			return fmt.Errorf("unable to stat license file: %w", err)
-		}
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}
@@ -393,11 +392,10 @@ var installCommand = &cli.Command{
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:     "license",
-			Aliases:  []string{"l"},
-			Usage:    "Path to the application license file",
-			Required: true,
-			Hidden:   false,
+			Name:    "license",
+			Aliases: []string{"l"},
+			Usage:   "Path to the application license file",
+			Hidden:  false,
 		},
 		&cli.StringFlag{
 			Name:   "airgap-bundle",

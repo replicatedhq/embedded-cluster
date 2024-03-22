@@ -235,6 +235,11 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
 
+	if a.licenseFile == "" {
+		loading.Closef("Admin Console is ready!")
+		return nil
+	}
+
 	loading.Infof("Installing the application")
 
 	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
