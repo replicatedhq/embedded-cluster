@@ -498,6 +498,46 @@ func TestOldVersionUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:     t,
+		Nodes: 1,
+		Image: "debian/12",
+	})
+	defer tc.Destroy()
+
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "ca-certificates", "curl", "-y"},
+		{"update-ca-certificates"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install ssh on node 0: %v", err)
+	}
+
+	t.Logf("%s: downloading embedded-cluster airgap on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s?airgap=true", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID")}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
 	t.Logf("%s: installing puppeteer on node %d", time.Now().Format(time.RFC3339), node)
 	line := []string{"install-puppeteer.sh"}

@@ -58,6 +58,7 @@ jobs:
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${SHORT_SHA}-pre-minio-removal"
           
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "${SHORT_SHA}"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
       - name: Build CI binary
         run: |
@@ -125,5 +126,6 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.tests }}'
+          airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
           license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}

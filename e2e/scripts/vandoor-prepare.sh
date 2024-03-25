@@ -15,6 +15,16 @@ main() {
 
     mv embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster
     mv license.yaml /tmp/license.yaml
+
+    # if an airgap file exists with pattern *.airgap, move it to /tmp/release.airgap
+    for file in *.airgap;
+    do
+      if [ -e "$file" ]
+      then
+        mv "$file" /tmp/release.airgap
+        break
+      fi
+    done
 }
 
 main "$@"

@@ -4,6 +4,9 @@ inputs:
   test-name:
     description: 'individual test to run'
     required: true
+  airgap-license-id:
+    description: 'airgap-enabled license id to use for e2e tests'
+    required: true
   license-id:
     description: 'license id to use for e2e tests'
     required: true
@@ -51,5 +54,6 @@ runs:
     run: |
       export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
       export LICENSE_ID=${{ inputs.license-id }}
+      export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
       echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
       make e2e-test TEST_NAME=${{ inputs.test-name }}
