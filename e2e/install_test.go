@@ -518,7 +518,7 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 	}
 
 	t.Logf("%s: downloading embedded-cluster airgap on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s?airgap=true", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "true"}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s?airgap=true", os.Getenv("SHORT_SHA")), os.Getenv("AIRGAP_LICENSE_ID"), "true"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	t.Log("stdout:", stdout)
 	t.Log("stderr:", stderr)
