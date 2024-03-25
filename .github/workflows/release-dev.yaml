@@ -58,7 +58,6 @@ jobs:
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${SHORT_SHA}-pre-minio-removal"
           
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${SHORT_SHA}"
-          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "${SHORT_SHA}"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
       - name: Build CI binary
         run: |
@@ -81,6 +80,18 @@ jobs:
           export EC_VERSION="v${SHORT_SHA}"
           ./scripts/cache-files.sh
           ./scripts/create-upgrade-release.sh
+      - name: Create Airgap Release
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+        run: |
+          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+          echo "${SHORT_SHA}"
+          sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+          
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "${SHORT_SHA}"
 
       - name: upload binary
         uses: actions/upload-artifact@v4
