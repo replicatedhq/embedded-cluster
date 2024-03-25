@@ -519,16 +519,26 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 
 	t.Logf("%s: downloading embedded-cluster airgap on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s?airgap=true", os.Getenv("SHORT_SHA")), os.Getenv("AIRGAP_LICENSE_ID"), "true"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	retries := 0 // we may be attempting to download the airgap bundle before it has been built, retry twice if needed
+	for {
+		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+		if err != nil {
+			retries++
+			t.Log("stdout:", stdout)
+			t.Log("stderr:", stderr)
+
+			if retries >= 3 {
+				t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+				return
+			}
+		} else {
+			break
+		}
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
