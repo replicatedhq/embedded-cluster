@@ -413,14 +413,8 @@ var resetCommand = &cli.Command{
 		}
 
 		if c.Bool("reboot") {
-			if prompts.New().Confirm("Continue with reboot?", false) {
-				// this is a bit more graceful that using sync(2) and reboot(2) but
-				// can take a bit longer
-				if _, err := exec.Command("reboot").Output(); err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("Aborting reboot")
+			if _, err := exec.Command("reboot").Output(); err != nil {
+				return err
 			}
 		}
 
