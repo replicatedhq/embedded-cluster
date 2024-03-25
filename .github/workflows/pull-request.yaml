@@ -135,7 +135,7 @@ jobs:
         tests:
 #          - TestSingleNodeInstallation
 #          - TestSingleNodeInstallationRockyLinux8
-          - TestSingleNodeInstallationDebian12
+#          - TestSingleNodeInstallationDebian12
 #          - TestSingleNodeInstallationCentos8Stream
 #          - TestVersion
 #          - TestHostPreflight
@@ -144,7 +144,7 @@ jobs:
 #          - TestMultiNodeReset
 #          - TestCommandsRequireSudo
 #          - TestInstallWithoutEmbed
-#          - TestInstallFromReplicatedApp
+          - TestInstallFromReplicatedApp
 #          - TestResetAndReinstall
 #          - TestCollectSupportBundle
 #          - TestOldVersionUpgrade
