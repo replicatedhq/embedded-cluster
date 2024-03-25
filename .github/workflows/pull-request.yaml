@@ -134,23 +134,23 @@ jobs:
       fail-fast: false
       matrix:
         tests:
-#          - TestSingleNodeInstallation
-#          - TestSingleNodeInstallationRockyLinux8
-#          - TestSingleNodeInstallationDebian12
-#          - TestSingleNodeInstallationCentos8Stream
-#          - TestVersion
-#          - TestHostPreflight
-#          - TestUnsupportedOverrides
-#          - TestMultiNodeInstallation
-#          - TestMultiNodeReset
-#          - TestCommandsRequireSudo
-#          - TestInstallWithoutEmbed
+          - TestSingleNodeInstallation
+          - TestSingleNodeInstallationRockyLinux8
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos8Stream
+          - TestVersion
+          - TestHostPreflight
+          - TestUnsupportedOverrides
+          - TestMultiNodeInstallation
+          - TestMultiNodeReset
+          - TestCommandsRequireSudo
+          - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
-#          - TestResetAndReinstall
-#          - TestCollectSupportBundle
-#          - TestOldVersionUpgrade
-#          - TestMaterialize
-#          - TestLocalArtifactMirror
+          - TestResetAndReinstall
+          - TestCollectSupportBundle
+          - TestOldVersionUpgrade
+          - TestMaterialize
+          - TestLocalArtifactMirror
           - TestSingleNodeAirgapInstallationDebian12
     steps:
     - name: Checkout
