@@ -240,7 +240,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return nil
 	}
 
-	loading.Infof("Installing the application")
+	loading.Infof("Finalizing")
 
 	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
 	if err != nil {
@@ -281,13 +281,13 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
-	loading.Closef("Application is installed!")
-	a.printSuccessMessage()
+	loading.Closef("Admin Console is ready!")
+	a.printSuccessMessage(license.Spec.AppSlug)
 	return nil
 }
 
 // printSuccessMessage prints the success message when the admin console is online.
-func (a *AdminConsole) printSuccessMessage() {
+func (a *AdminConsole) printSuccessMessage(appSlug string) {
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 	ipaddr := defaults.TryDiscoverPublicIP()
@@ -299,8 +299,8 @@ func (a *AdminConsole) printSuccessMessage() {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	successMessage := fmt.Sprintf("Admin Console accessible at: %shttp://%s:%v%s",
-		successColor, ipaddr, DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
+	successMessage := fmt.Sprintf("Visit the admin console to configure and install %s: %shttp://%s:%v%s",
+		appSlug, successColor, ipaddr, DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
 	)
 	logrus.Info(successMessage)
 }
