@@ -517,8 +517,6 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 		t.Fatalf("fail to install ssh on node 0: %v", err)
 	}
 
-	time.Sleep(time.Minute * 5) // give time for the airgap build to complete
-
 	t.Logf("%s: downloading embedded-cluster airgap on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s?airgap=true", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "true"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
