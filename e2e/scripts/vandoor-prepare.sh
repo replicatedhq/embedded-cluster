@@ -31,6 +31,7 @@ main() {
     apt-get update
     apt-get install curl ca-certificates -y
 
+    echo "downloading from https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${app_version_label}"
     curl "https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${app_version_label}" -H "Authorization: ${license_id}" -o ec-release.tgz
     tar xzf ec-release.tgz
 
