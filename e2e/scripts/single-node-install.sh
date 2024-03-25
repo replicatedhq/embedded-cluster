@@ -144,6 +144,10 @@ deploy_app() {
 
     echo "kotsadm logs"
     kubectl logs -n kotsadm -l app=kotsadm --tail=50
+    kubectl logs -n kotsadm -l app=kotsadm --tail=50 --previous
+
+    echo "all pods"
+    kubectl get pods -A
 }
 
 wait_for_nginx_pods() {
