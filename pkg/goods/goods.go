@@ -99,3 +99,30 @@ func MaterializeLocalArtifactMirrorUnitFile() error {
 	}
 	return nil
 }
+
+//go:embed internal/bins/*
+var internalBinfs embed.FS
+
+// MaterializeInternalBinary materializes an internal binary from inside internal/bins directory
+// and writes it to a tmp file. It returns the path to the materialized binary.
+// The binary should be deleted after it is used.
+// This is used for binaries that are not meant to be exposed to the user.
+func MaterializeInternalBinary(name string) (string, error) {
+	srcpath := fmt.Sprintf("internal/bins/%s", name)
+	srcfile, err := internalBinfs.ReadFile(srcpath)
+	if err != nil {
+		return "", fmt.Errorf("unable to read asset: %w", err)
+	}
+	dstpath, err := os.CreateTemp("", fmt.Sprintf("embedded-cluster-%s-bin-", name))
+	if err != nil {
+		return "", fmt.Errorf("unable to create temp file: %w", err)
+	}
+	defer dstpath.Close()
+	if _, err := dstpath.Write(srcfile); err != nil {
+		return "", fmt.Errorf("unable to write file: %w", err)
+	}
+	if err := dstpath.Chmod(0755); err != nil {
+		return "", fmt.Errorf("unable to set executable permissions: %w", err)
+	}
+	return dstpath.Name(), nil
+}

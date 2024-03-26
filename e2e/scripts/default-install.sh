@@ -67,15 +67,15 @@ main() {
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to validate that the Admin Console is ready"
         exit 1
     fi
     if ! wait_for_healthy_node; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to wait for healthy node"
         exit 1
     fi
     if ! wait_for_pods_running 900; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to wait for pods to be running"
         exit 1
     fi
     if ! check_openebs_storage_class; then

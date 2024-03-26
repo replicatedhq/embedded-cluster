@@ -144,6 +144,10 @@ deploy_app() {
 
     echo "kotsadm logs"
     kubectl logs -n kotsadm -l app=kotsadm --tail=50
+    kubectl logs -n kotsadm -l app=kotsadm --tail=50 --previous
+
+    echo "all pods"
+    kubectl get pods -A
 }
 
 wait_for_nginx_pods() {
@@ -216,7 +220,7 @@ main() {
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to validate that the Admin Console is ready"
         exit 1
     fi
     if ! install_kots_cli; then
@@ -224,7 +228,7 @@ main() {
         exit 1
     fi
     if ! wait_for_healthy_node; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to wait for healthy node"
         exit 1
     fi
     if ! ensure_node_config; then
@@ -238,7 +242,7 @@ main() {
         fi
     fi
     if ! wait_for_pods_running 900; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to wait for pods to be running"
         exit 1
     fi
     if ! check_openebs_storage_class; then

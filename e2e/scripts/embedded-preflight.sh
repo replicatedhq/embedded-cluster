@@ -169,7 +169,7 @@ main() {
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to validate that the Admin Console is ready"
         exit 1
     fi
     if ! has_applied_host_preflight; then
@@ -178,7 +178,7 @@ main() {
         exit 1
     fi
     if ! wait_for_healthy_node; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to wait for healthy node"
         exit 1
     fi
     if ! systemctl restart embedded-cluster; then
