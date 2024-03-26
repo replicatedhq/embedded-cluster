@@ -49,7 +49,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
-          export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
           echo "${SHORT_SHA}"
           sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
           sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
@@ -61,7 +61,7 @@ jobs:
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "${SHORT_SHA}-upgrade"
       - name: Build CI binary
         run: |
-          export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
           echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
@@ -76,10 +76,23 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
           export EC_VERSION="v${SHORT_SHA}"
           ./scripts/cache-files.sh
           ./scripts/create-upgrade-release.sh
+      - name: Create Airgap Release
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+        run: |
+          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+          echo "${SHORT_SHA}"
+          sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+          
+          rm e2e/kots-release-install/release.yaml
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "${SHORT_SHA}"
 
       - name: upload binary
         uses: actions/upload-artifact@v4
@@ -125,5 +138,6 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.tests }}'
+          airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
           license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
