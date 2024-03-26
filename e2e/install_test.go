@@ -361,7 +361,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("LICENSE_ID")}
+	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
@@ -462,7 +462,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	})
 	defer tc.Destroy()
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID")}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
@@ -493,6 +493,56 @@ func TestOldVersionUpgrade(t *testing.T) {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
 		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:     t,
+		Nodes: 1,
+		Image: "debian/12",
+	})
+	defer tc.Destroy()
+
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "ca-certificates", "curl", "-y"},
+		{"update-ca-certificates"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install ssh on node 0: %v", err)
+	}
+
+	t.Logf("%s: downloading embedded-cluster airgap on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s?airgap=true", os.Getenv("SHORT_SHA")), os.Getenv("AIRGAP_LICENSE_ID"), "true"}
+	retries := 0 // we may be attempting to download the airgap bundle before it has been built, retry twice if needed
+	for {
+		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+		if err != nil {
+			retries++
+			t.Log("stdout:", stdout)
+			t.Log("stderr:", stderr)
+
+			if retries >= 3 {
+				t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+				return
+			}
+		} else {
+			break
+		}
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
