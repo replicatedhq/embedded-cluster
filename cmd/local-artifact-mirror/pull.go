@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 )
 
+// These constant define the expected names of the files in the registry.
 const (
 	EmbeddedClusterBinaryArtifactName = "embedded-cluster-amd64"
 	ImagesArtifactName                = "images-amd64.tar"

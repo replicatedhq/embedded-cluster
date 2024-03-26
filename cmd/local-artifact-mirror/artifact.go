@@ -7,6 +7,7 @@ import (
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
@@ -25,7 +26,6 @@ type DockerConfig struct {
 type DockerConfigEntry struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Auth     string `json:"auth"`
 }
 
 // registryAuth returns the authentication store to be used when reaching the
@@ -35,6 +35,12 @@ func registryAuth(ctx context.Context) (credentials.Store, error) {
 	nsn := types.NamespacedName{Name: "registry-creds", Namespace: "kotsadm"}
 	var sct corev1.Secret
 	if err := kubecli.Get(ctx, nsn, &sct); err != nil {
+		if errors.IsNotFound(err) {
+			// if we can't locate a secret then returns an empty
+			// credentials store so we attempt to fetch the assets
+			// without authentication.
+			return credentials.NewMemoryStore(), nil
+		}
 		return nil, fmt.Errorf("unable to get secret: %w", err)
 	}
 
