@@ -50,9 +50,10 @@ type NodeStatus struct {
 // the cluster, authentication for the registry is read from the cluster
 // at execution time so they do not need to be provided here.
 type ArtifactsLocation struct {
-	Images                string `json:"images"`
-	HelmCharts            string `json:"helmCharts"`
-	EmbeddedClusterBinary string `json:"embeddedClusterBinary"`
+	Images                  string `json:"images"`
+	HelmCharts              string `json:"helmCharts"`
+	EmbeddedClusterBinary   string `json:"embeddedClusterBinary"`
+	EmbeddedClusterMetadata string `json:"embeddedClusterMetadata"`
 }
 
 // InstallationSpec defines the desired state of Installation.
@@ -70,9 +71,6 @@ type InstallationSpec struct {
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
 	// used at installation time.
 	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
-	// MetadataOverride is an OCI artifact refererence used to override the
-	// the embedded cluster metadata.
-	MetadataOverride string `json:"metadataOverride,omitempty"`
 }
 
 // InstallationStatus defines the observed state of Installation
