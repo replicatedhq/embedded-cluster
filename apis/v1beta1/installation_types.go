@@ -70,6 +70,9 @@ type InstallationSpec struct {
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
 	// used at installation time.
 	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
+	// MetadataOverride is an OCI artifact refererence used to override the
+	// the embedded cluster metadata.
+	MetadataOverride string `json:"metadataOverride,omitempty"`
 }
 
 // InstallationStatus defines the observed state of Installation
