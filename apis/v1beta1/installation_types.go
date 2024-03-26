@@ -50,9 +50,10 @@ type NodeStatus struct {
 // the cluster, authentication for the registry is read from the cluster
 // at execution time so they do not need to be provided here.
 type ArtifactsLocation struct {
-	Images                string `json:"images"`
-	HelmCharts            string `json:"helmCharts"`
-	EmbeddedClusterBinary string `json:"embeddedClusterBinary"`
+	Images                  string `json:"images"`
+	HelmCharts              string `json:"helmCharts"`
+	EmbeddedClusterBinary   string `json:"embeddedClusterBinary"`
+	EmbeddedClusterMetadata string `json:"embeddedClusterMetadata"`
 }
 
 // InstallationSpec defines the desired state of Installation.
