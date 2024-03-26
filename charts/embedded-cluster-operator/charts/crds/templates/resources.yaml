@@ -229,12 +229,15 @@ spec:
                 properties:
                   embeddedClusterBinary:
                     type: string
+                  embeddedClusterMetadata:
+                    type: string
                   helmCharts:
                     type: string
                   images:
                     type: string
                 required:
                 - embeddedClusterBinary
+                - embeddedClusterMetadata
                 - helmCharts
                 - images
                 type: object
