@@ -458,7 +458,7 @@ var installCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
-			Hidden: false,
+			Hidden: true,
 		},
 	},
 	Action: func(c *cli.Context) error {
