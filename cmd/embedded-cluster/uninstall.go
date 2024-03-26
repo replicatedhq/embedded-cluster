@@ -233,7 +233,6 @@ func stopAndResetK0s() error {
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
-	logrus.Infof("Node has been reset. Please reboot to ensure transient configuration is also reset.")
 	return nil
 }
 
@@ -311,6 +310,11 @@ var resetCommand = &cli.Command{
 			Usage: "Ignore errors encountered when resetting the node (implies --no-prompt)",
 			Value: false,
 		},
+		&cli.BoolFlag{
+			Name:  "reboot",
+			Usage: "Reboot system after reseting the node",
+			Value: false,
+		},
 	},
 	Usage: fmt.Sprintf("Uninstall %s from the current node", binName),
 	Action: func(c *cli.Context) error {
@@ -379,6 +383,10 @@ var resetCommand = &cli.Command{
 			return err
 		}
 
+		if !c.Bool("reboot") {
+			logrus.Infof("Node has been reset. Please reboot to ensure transient configuration is also reset.")
+		}
+
 		if _, err := os.Stat(defaults.PathToK0sConfig()); err == nil {
 			if err := os.Remove(defaults.PathToK0sConfig()); err != nil {
 				return err
@@ -400,6 +408,12 @@ var resetCommand = &cli.Command{
 
 		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
 			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
+				return err
+			}
+		}
+
+		if c.Bool("reboot") {
+			if _, err := exec.Command("reboot").Output(); err != nil {
 				return err
 			}
 		}
