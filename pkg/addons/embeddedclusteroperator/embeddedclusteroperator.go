@@ -17,6 +17,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -46,7 +47,7 @@ type EmbeddedClusterOperator struct {
 	namespace     string
 	deployName    string
 	endUserConfig *embeddedclusterv1beta1.Config
-	license       *kotsv1beta1.License
+	licenseFile   string
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -115,13 +116,21 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	if e.endUserConfig != nil {
 		euOverrides = e.endUserConfig.Spec.UnsupportedOverrides.K0s
 	}
+	var license *kotsv1beta1.License
+	if e.licenseFile != "" {
+		l, err := helpers.ParseLicense(e.licenseFile)
+		if err != nil {
+			return fmt.Errorf("unable to parse license: %w", err)
+		}
+		license = l
+	}
 	installation := embeddedclusterv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
 		},
 		Spec: embeddedclusterv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
-			MetricsBaseURL:            metrics.BaseURL(e.license),
+			MetricsBaseURL:            metrics.BaseURL(license),
 			AirGap:                    false,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
@@ -135,11 +144,11 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config, license *kotsv1beta1.License) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:     "embedded-cluster",
 		deployName:    "embedded-cluster-operator",
 		endUserConfig: endUserConfig,
-		license:       license,
+		licenseFile:   licenseFile,
 	}, nil
 }

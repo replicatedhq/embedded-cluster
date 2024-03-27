@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -19,7 +17,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -33,26 +30,6 @@ import (
 // necessary data to the screen).
 var ErrNothingElseToAdd = fmt.Errorf("")
 
-// runCommand spawns a command and capture its output. Outputs are logged using the
-// logrus package and stdout is returned as a string.
-func runCommand(bin string, args ...string) (string, error) {
-	fullcmd := append([]string{bin}, args...)
-	logrus.Debugf("running command: %v", fullcmd)
-
-	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
-	cmd := exec.Command(bin, args...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		logrus.Debugf("failed to run command:")
-		logrus.Debugf("stdout: %s", stdout.String())
-		logrus.Debugf("stderr: %s", stderr.String())
-		return "", err
-	}
-	return stdout.String(), nil
-}
-
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
@@ -65,13 +42,13 @@ func installAndEnableLocalArtifactMirror() error {
 	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
-	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if _, err := runCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
-	if _, err := runCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
 	return nil
@@ -85,7 +62,7 @@ func runPostInstall() error {
 	if err := os.Symlink(src, dst); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
-	if _, err := runCommand("systemctl", "daemon-reload"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
 	return installAndEnableLocalArtifactMirror()
@@ -266,15 +243,11 @@ func ensureK0sConfig(c *cli.Context) error {
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
 	}
-	if c.String("license") != "" {
-		license, err := helpers.ParseLicense(c.String("license"))
-		if err != nil {
-			return fmt.Errorf("unable to parse license: %w", err)
-		}
-		opts = append(opts, addons.WithLicense(license))
+	if l := c.String("license"); l != "" {
+		opts = append(opts, addons.WithLicense(l))
 	}
-	if c.String("airgap-bundle") != "" {
-		opts = append(opts, addons.Airgap())
+	if ab := c.String("airgap-bundle"); ab != "" {
+		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
@@ -337,10 +310,10 @@ func installK0s() error {
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
-	if _, err := runCommand(hstbin, config.InstallFlags()...); err != nil {
+	if _, err := helpers.RunCommand(hstbin, config.InstallFlags()...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
-	if _, err := runCommand(hstbin, "start"); err != nil {
+	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
 		return fmt.Errorf("unable to start: %w", err)
 	}
 	return nil
@@ -365,36 +338,10 @@ func waitForK0s() error {
 	if !success {
 		return fmt.Errorf("timeout waiting for %s", defaults.BinaryName())
 	}
-	if _, err := runCommand(defaults.K0sBinaryPath(), "status"); err != nil {
+	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
 	}
 	loading.Infof("Node installation finished")
-	return nil
-}
-
-// createAirgapConfigMaps creates the airgap configmaps in the k8s cluster from the airgap file.
-func createAirgapConfigMaps(c *cli.Context) error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Creating airgap configmaps")
-	// create k8s client
-	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
-	cli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("failed to create k8s client: %w", err)
-	}
-
-	// read file from path
-	rawfile, err := os.Open(c.String("airgap-bundle"))
-	if err != nil {
-		return fmt.Errorf("failed to open airgap file: %w", err)
-	}
-	defer rawfile.Close()
-
-	if err = airgap.CreateAppConfigMaps(c.Context, cli, rawfile); err != nil {
-		return fmt.Errorf("unable to create airgap configmaps: %w", err)
-	}
-	loading.Infof("Airgap configmaps created")
 	return nil
 }
 
@@ -402,12 +349,8 @@ func createAirgapConfigMaps(c *cli.Context) error {
 func runOutro(c *cli.Context) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	opts := []addons.Option{}
-	if c.String("license") != "" {
-		license, err := helpers.ParseLicense(c.String("license"))
-		if err != nil {
-			return fmt.Errorf("unable to parse license: %w", err)
-		}
-		opts = append(opts, addons.WithLicense(license))
+	if l := c.String("license"); l != "" {
+		opts = append(opts, addons.WithLicense(l))
 	}
 	if c.String("overrides") != "" {
 		eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
@@ -416,8 +359,8 @@ func runOutro(c *cli.Context) error {
 		}
 		opts = append(opts, addons.WithEndUserConfig(eucfg))
 	}
-	if c.String("airgap-bundle") != "" {
-		opts = append(opts, addons.Airgap())
+	if ab := c.String("airgap-bundle"); ab != "" {
+		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
@@ -432,7 +375,6 @@ var installCommand = &cli.Command{
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
 		}
-
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}
@@ -458,7 +400,7 @@ var installCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
-			Hidden: false,
+			Hidden: true,
 		},
 	},
 	Action: func(c *cli.Context) error {
@@ -519,13 +461,6 @@ var installCommand = &cli.Command{
 			err := fmt.Errorf("unable to wait for node: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
-		}
-		if c.String("airgap-bundle") != "" {
-			err := createAirgapConfigMaps(c)
-			if err != nil {
-				err = fmt.Errorf("unable to create airgap configmaps: %w", err)
-				return err
-			}
 		}
 		logrus.Debugf("running outro")
 		if err := runOutro(c); err != nil {

@@ -1,6 +1,7 @@
 output
 bundle
 pkg/goods/bins
+pkg/goods/internal/bins
 pkg/goods/images
 *tgz
 .pre-commit-config.yaml
