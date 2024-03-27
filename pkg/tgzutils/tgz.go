@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 )
 
-// Uncompress decompresses a .tgz file into a directory.
-func Uncompress(tgz, dst string) error {
+// Decompress decompresses a .tgz file into a directory.
+func Decompress(tgz, dst string) error {
 	fp, err := os.Open(tgz)
 	if err != nil {
 		return fmt.Errorf("unable to open tgz file: %v", err)

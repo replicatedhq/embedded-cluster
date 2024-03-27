@@ -16,7 +16,7 @@ import (
 )
 
 // serveCommand starts a http server that serves files from the /var/lib/embedded-cluster
-// directory. This servers listen only on localhost and is used to serve files needed by
+// directory. This server listen only on localhost and is used to serve files needed by
 // the autopilot during an upgrade.
 var serveCommand = &cli.Command{
 	Name:  "serve",

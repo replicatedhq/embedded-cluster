@@ -129,7 +129,7 @@ var helmChartsCommand = &cli.Command{
 		dst := defaults.EmbeddedClusterChartsSubDir()
 		src := filepath.Join(location, HelmChartsArtifactName)
 		logrus.Infof("uncompressing %s", src)
-		if err := tgzutils.Uncompress(src, dst); err != nil {
+		if err := tgzutils.Decompress(src, dst); err != nil {
 			return fmt.Errorf("unable to uncompress helm charts: %w", err)
 		}
 
