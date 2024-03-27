@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,13 +36,14 @@ func registryAuth(ctx context.Context) (credentials.Store, error) {
 	nsn := types.NamespacedName{Name: "registry-creds", Namespace: "kotsadm"}
 	var sct corev1.Secret
 	if err := kubecli.Get(ctx, nsn, &sct); err != nil {
-		if errors.IsNotFound(err) {
-			// if we can't locate a secret then returns an empty
-			// credentials store so we attempt to fetch the assets
-			// without authentication.
-			return credentials.NewMemoryStore(), nil
+		if !errors.IsNotFound(err) {
+			return nil, fmt.Errorf("unable to get secret: %w", err)
 		}
-		return nil, fmt.Errorf("unable to get secret: %w", err)
+
+		// if we can't locate a secret then returns an empty credentials
+		// store so we attempt to fetch the assets without auth.
+		logrus.Infof("no registry auth found, trying anonymous access")
+		return credentials.NewMemoryStore(), nil
 	}
 
 	data, ok := sct.Data[".dockerconfigjson"]
