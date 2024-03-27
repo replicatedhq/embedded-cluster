@@ -130,7 +130,7 @@ var helmChartsCommand = &cli.Command{
 		src := filepath.Join(location, HelmChartsArtifactName)
 		logrus.Infof("uncompressing %s", src)
 		if err := tgzutils.Uncompress(src, dst); err != nil {
-			return fmt.Errorf("unable to uncompress images: %w", err)
+			return fmt.Errorf("unable to uncompress helm charts: %w", err)
 		}
 
 		logrus.Infof("helm charts materialized under %s", dst)
