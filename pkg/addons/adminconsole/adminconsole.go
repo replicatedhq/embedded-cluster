@@ -280,6 +280,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		installArgs = append(installArgs, "--airgap-bundle", a.airgapBundle)
 	}
 
+	fmt.Printf("Installing application %s with args %+v\n", license.Spec.AppSlug, installArgs)
 	if _, err := helpers.RunCommand(kotsBinPath, installArgs...); err != nil {
 		loading.Close()
 		return fmt.Errorf("unable to install the application: %w", err)
