@@ -83,6 +83,15 @@ func (d *Provider) EmbeddedClusterChartsSubDir() string {
 	return path
 }
 
+// EmbeddedClusterImagesSubDir returns the path to the directory where docker images are stored.
+func (d *Provider) EmbeddedClusterImagesSubDir() string {
+	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "images")
+	if err := os.MkdirAll(path, 0755); err != nil {
+		logrus.Fatalf("unable to create embedded-cluster images dir: %s", err)
+	}
+	return path
+}
+
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func (d *Provider) EmbeddedClusterHomeDirectory() string {
