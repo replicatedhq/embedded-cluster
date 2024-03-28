@@ -13,6 +13,7 @@ EMBEDDED_OPERATOR_CHART_VERSION = 0.25.1
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
+OPENEBS_UTILS_VERSION = 4.0.0
 REGISTRY_CHART_URL = https://helm.twun.io
 REGISTRY_CHART_NAME = twuni/docker-registry
 REGISTRY_CHART_VERSION = 2.2.3
@@ -38,6 +39,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.UtilsVersion=$(OPENEBS_UTILS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartURL=$(REGISTRY_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartName=$(REGISTRY_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \

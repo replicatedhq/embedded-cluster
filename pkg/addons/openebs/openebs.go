@@ -22,9 +22,10 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL  = "https://url"
-	ChartName = "name"
-	Version   = "v0.0.0"
+	ChartURL     = "https://url"
+	ChartName    = "name"
+	Version      = "v0.0.0"
+	UtilsVersion = ""
 )
 
 var helmValues = map[string]interface{}{
@@ -71,6 +72,10 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
 func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	helmValues["helper"] = map[string]interface{}{
+		"imageTag": UtilsVersion,
+	}
+
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
