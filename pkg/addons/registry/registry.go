@@ -141,6 +141,10 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
 }
 
+func (o *Registry) GetAdditionalImages() []string {
+	return nil
+}
+
 // Outro is executed after the cluster deployment.
 func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	if !o.isAirgap {
