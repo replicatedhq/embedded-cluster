@@ -34,7 +34,7 @@ wait_for_pods_running() {
             return 1
         fi
         local non_running_pods
-        non_running_pods=$(kubectl get pods --all-namespaces --no-headers 2>/dev/null | grep -v ingress-nginx | awk '$4 != "Running" && $4 != "Completed" { print $0 }' | wc -l || echo 1)
+        non_running_pods=$(kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 != "Running" && $4 != "Completed" { print $0 }' | wc -l || echo 1)
         if [ "$non_running_pods" -ne 0 ]; then
             echo "Not all pods are running. Waiting."
             kubectl get pods,nodes -A || true
