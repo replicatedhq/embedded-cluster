@@ -205,7 +205,7 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	backoff := wait.Backoff{Steps: 10, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	loading.Infof("Waiting for Admin Console to deploy: 0/2 ready")
 
 	if a.airgapBundle != "" {
