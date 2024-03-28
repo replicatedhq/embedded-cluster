@@ -108,7 +108,7 @@ var metadataCommand = &cli.Command{
 			Charts:           airgapCht,
 			Repositories:     airgapRepo,
 		}
-		additionalImages, err := applier.GetAirgapImages()
+		additionalImages, err := applier.GetAdditionalImages()
 		if err != nil {
 			return fmt.Errorf("unable to get airgap images: %w", err)
 		}

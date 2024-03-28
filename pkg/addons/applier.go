@@ -102,7 +102,7 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 	return regChart, regRepo, nil
 }
 
-func (a *Applier) GetAirgapImages() ([]string, error) {
+func (a *Applier) GetAdditionalImages() ([]string, error) {
 	additionalImages := []string{}
 	addons, err := a.load()
 	if err != nil {
