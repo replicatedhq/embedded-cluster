@@ -19,10 +19,7 @@ func TestLocalArtifactMirror(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"default-install.sh"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -41,9 +38,7 @@ func TestLocalArtifactMirror(t *testing.T) {
 	}
 
 	command := []string{"cp", "/etc/passwd", "/var/lib/embedded-cluster/logs/passwd"}
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, command); err != nil {
-		t.Log("stdout:", stdout)
-		t.Log("stderr:", stderr)
+	if _, _, err := RunCommandOnNode(t, tc, 0, command); err != nil {
 		t.Fatalf("fail to copy file: %v", err)
 	}
 
