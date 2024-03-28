@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gosimple/slug"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
@@ -112,11 +113,12 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 		return fmt.Errorf("unable to marshal release metadata: %w", err)
 	}
 
-	version := strings.TrimPrefix(defaults.Version, "v")
-	version = strings.ReplaceAll(version, "+", "-")
+	// we trim out the prefix v from the version and then slugify it, we use
+	// the result as a suffix for the config map name.
+	slugver := slug.Make(strings.TrimPrefix(defaults.Version, "v"))
 	configmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("version-metadata-%s", version),
+			Name:      fmt.Sprintf("version-metadata-%s", slugver),
 			Namespace: e.namespace,
 		},
 		Data: map[string]string{
