@@ -48,6 +48,7 @@ type EmbeddedClusterOperator struct {
 	deployName    string
 	endUserConfig *embeddedclusterv1beta1.Config
 	licenseFile   string
+	airgap        bool
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -131,7 +132,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		Spec: embeddedclusterv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            metrics.BaseURL(license),
-			AirGap:                    false,
+			AirGap:                    e.airgap,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 		},
@@ -144,11 +145,12 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgap bool) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:     "embedded-cluster",
 		deployName:    "embedded-cluster-operator",
 		endUserConfig: endUserConfig,
 		licenseFile:   licenseFile,
+		airgap:        airgap,
 	}, nil
 }
