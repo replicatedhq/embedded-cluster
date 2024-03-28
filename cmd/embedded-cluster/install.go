@@ -34,11 +34,6 @@ var ErrNothingElseToAdd = fmt.Errorf("")
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
 func installAndEnableLocalArtifactMirror() error {
-	ourbin := defaults.PathToEmbeddedClusterBinary("local-artifact-mirror")
-	hstbin := defaults.LocalArtifactMirrorPath()
-	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
-		return fmt.Errorf("unable to move local artifact mirror binary: %w", err)
-	}
 	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
