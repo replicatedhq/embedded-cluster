@@ -49,6 +49,11 @@ func EmbeddedClusterChartsSubDir() string {
 	return def().EmbeddedClusterChartsSubDir()
 }
 
+// EmbeddedClusterImagesSubDir calls EmbeddedClusterImagesSubDir on the default provider.
+func EmbeddedClusterImagesSubDir() string {
+	return def().EmbeddedClusterImagesSubDir()
+}
+
 // EmbeddedClusterLogsSubDir calls EmbeddedClusterLogsSubDir on the default provider.
 func EmbeddedClusterLogsSubDir() string {
 	return def().EmbeddedClusterLogsSubDir()
