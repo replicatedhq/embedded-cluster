@@ -31,6 +31,7 @@ type AddOn interface {
 	GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
 	GetProtectedFields() map[string][]string
+	GetAdditionalImages() []string
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
@@ -99,6 +100,19 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 	}
 
 	return regChart, regRepo, nil
+}
+
+func (a *Applier) GetAirgapImages() ([]string, error) {
+	additionalImages := []string{}
+	addons, err := a.load()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+	for _, addon := range addons {
+		additionalImages = append(additionalImages, addon.GetAdditionalImages()...)
+	}
+
+	return additionalImages, nil
 }
 
 // ProtectedFields returns the protected fields for all the embedded charts.

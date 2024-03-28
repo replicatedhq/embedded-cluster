@@ -64,7 +64,7 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
-	expectedImageSubstrings := []string{"coredns", "calico-cni", "metrics-server", "pause", "envoy"}
+	expectedImageSubstrings := []string{"coredns", "calico-cni", "metrics-server", "pause", "envoy", "openebs/linux-utils"}
 	for _, v := range expectedImageSubstrings {
 		found := false
 

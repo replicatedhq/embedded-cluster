@@ -98,6 +98,10 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
 }
 
+func (o *OpenEBS) GetAdditionalImages() []string {
+	return []string{fmt.Sprintf("openebs/linux-utils:%s", UtilsVersion)}
+}
+
 // Outro is executed after the cluster deployment.
 func (o *OpenEBS) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()

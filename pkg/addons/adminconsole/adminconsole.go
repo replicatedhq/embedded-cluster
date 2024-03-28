@@ -198,6 +198,10 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
+func (a *AdminConsole) GetAdditionalImages() []string {
+	return nil
+}
+
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
