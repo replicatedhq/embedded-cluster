@@ -4,14 +4,18 @@ package embeddedclusteroperator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -44,11 +48,12 @@ var helmValues = map[string]interface{}{
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
 // helm chart.
 type EmbeddedClusterOperator struct {
-	namespace     string
-	deployName    string
-	endUserConfig *embeddedclusterv1beta1.Config
-	licenseFile   string
-	airgap        bool
+	namespace       string
+	deployName      string
+	endUserConfig   *embeddedclusterv1beta1.Config
+	licenseFile     string
+	airgap          bool
+	releaseMetadata *types.ReleaseMetadata
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -100,7 +105,34 @@ func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
 	return nil
 }
 
-// Outro is executed after the cluster deployment.
+// createVersionMetadataConfigMap creates a ConfigMap with the version metadata for the embedded cluster operator.
+func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Context, client client.Client) error {
+	data, err := json.Marshal(e.releaseMetadata)
+	if err != nil {
+		return fmt.Errorf("unable to marshal release metadata: %w", err)
+	}
+
+	version := strings.TrimPrefix(defaults.Version, "v")
+	version = strings.ReplaceAll(version, "+", "-")
+	configmap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("version-metadata-%s", version),
+			Namespace: e.namespace,
+		},
+		Data: map[string]string{
+			"metadata.json": string(data),
+		},
+	}
+
+	if err := client.Create(ctx, configmap); err != nil {
+		return fmt.Errorf("unable to create version metadata config map: %w", err)
+	}
+	return nil
+}
+
+// Outro is executed after the cluster deployment. Waits for the embedded cluster operator
+// to finish its deployment, creates the version metadata configmap (if in airgap) and
+// the installation object.
 func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
@@ -109,6 +141,13 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		return err
 	}
 	loading.Closef("Embedded Cluster Operator is ready!")
+
+	if e.releaseMetadata != nil {
+		if err := e.createVersionMetadataConfigmap(ctx, cli); err != nil {
+			return fmt.Errorf("unable to create version metadata: %w", err)
+		}
+	}
+
 	cfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
 		return err
@@ -129,6 +168,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		}
 		license = l
 	}
+
 	installation := embeddedclusterv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
@@ -148,13 +188,23 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	return nil
 }
 
+// Options is the options used when creating a new embedded cluster operator
+// addon installer.
+type Options struct {
+	ReleaseMetadata *types.ReleaseMetadata
+	EndUserConfig   *embeddedclusterv1beta1.Config
+	LicenseFile     string
+	Airgap          bool
+}
+
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgap bool) (*EmbeddedClusterOperator, error) {
+func New(opts Options) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
-		namespace:     "embedded-cluster",
-		deployName:    "embedded-cluster-operator",
-		endUserConfig: endUserConfig,
-		licenseFile:   licenseFile,
-		airgap:        airgap,
+		namespace:       "embedded-cluster",
+		deployName:      "embedded-cluster-operator",
+		endUserConfig:   opts.EndUserConfig,
+		licenseFile:     opts.LicenseFile,
+		airgap:          opts.Airgap,
+		releaseMetadata: opts.ReleaseMetadata,
 	}, nil
 }

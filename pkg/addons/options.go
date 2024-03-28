@@ -2,6 +2,7 @@ package addons
 
 import (
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 )
 
@@ -56,5 +57,12 @@ func WithLicense(licenseFile string) Option {
 func WithAirgapBundle(airgapBundle string) Option {
 	return func(a *Applier) {
 		a.airgapBundle = airgapBundle
+	}
+}
+
+// WithVersionMetadata sets the release version metadata to be used during addons installation.
+func WithVersionMetadata(metadata *types.ReleaseMetadata) Option {
+	return func(a *Applier) {
+		a.releaseMetadata = metadata
 	}
 }

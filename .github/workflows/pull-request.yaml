@@ -51,7 +51,7 @@ jobs:
     - name: Build Linux AMD64
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-        make embedded-cluster-linux-amd64 VERSION=$SHORT_SHA
+        make embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
         tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
     - name: Output Metadata
       run: |
@@ -90,7 +90,7 @@ jobs:
         echo "versionLabel: \"${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
         cat e2e/kots-release-install/release.yaml
         cp output/bin/embedded-cluster output/bin/embedded-cluster-original
-        make embedded-release # this is done after the metadata.json is generated so as to not include additional charts
+        make embedded-release VERSION="${SHORT_SHA}" # this is done after the metadata.json is generated so as to not include additional charts
     - name: Cache files for integration test
       env:
         S3_BUCKET: "tf-staging-embedded-cluster-bin"
