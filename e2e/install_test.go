@@ -510,7 +510,7 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", os.Getenv("AIRGAP_LICENSE_ID")))
+	req.Header.Set("Authorization", os.Getenv("AIRGAP_LICENSE_ID"))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
