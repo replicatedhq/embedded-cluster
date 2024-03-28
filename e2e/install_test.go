@@ -504,7 +504,7 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
 	// download airgap bundle
-	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/%s", os.Getenv("SHORT_SHA"))
+	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/%s?airgap=true", os.Getenv("SHORT_SHA"))
 
 	req, err := http.NewRequest("GET", airgapURL, nil)
 	if err != nil {
@@ -525,9 +525,11 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 		t.Fatalf("failed to create temporary file: %v", err)
 	}
 	defer f.Close()
-	if _, err := f.ReadFrom(resp.Body); err != nil {
+	size, err := f.ReadFrom(resp.Body)
+	if err != nil {
 		t.Fatalf("failed to write response to temporary file: %v", err)
 	}
+	t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
 
 	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
 
