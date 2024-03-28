@@ -37,6 +37,10 @@ var serveCommand = &cli.Command{
 		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
+		if err := startBinaryWatcher(stop); err != nil {
+			panic(err)
+		}
+
 		server := &http.Server{Addr: "127.0.0.1:50000"}
 		go func() {
 			fmt.Println("Starting server on 127.0.0.1:50000")
@@ -58,6 +62,34 @@ var serveCommand = &cli.Command{
 		fmt.Println("Server gracefully stopped")
 		return nil
 	},
+}
+
+// startBinaryWatcher starts a loop that observes the binary until its modification
+// time changes. When the modification time changes a SIGTERM is send in the provided
+// channel.
+func startBinaryWatcher(stop chan os.Signal) error {
+	fpath := defaults.PathToEmbeddedClusterBinary("local-artifact-mirror")
+	stat, err := os.Stat(fpath)
+	if err != nil {
+		return fmt.Errorf("unable to stat %s: %s", fpath, err)
+	}
+	lastmod := stat.ModTime()
+	go func() {
+		fmt.Println("Watching for changes in the binary")
+		ticker := time.NewTicker(5 * time.Second)
+		for range ticker.C {
+			if stat, err = os.Stat(fpath); err != nil {
+				fmt.Println("Unable to stat binary:", err)
+				continue
+			}
+			if stat.ModTime().Equal(lastmod) {
+				continue
+			}
+			fmt.Println("Binary changed, sending signal to stop")
+			stop <- syscall.SIGTERM
+		}
+	}()
+	return nil
 }
 
 // logAndFilterRequest is a middleware that logs the HTTP request details. Returns 404

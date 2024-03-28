@@ -402,9 +402,6 @@ var resetCommand = &cli.Command{
 			if err := os.RemoveAll(lamPath); err != nil {
 				return err
 			}
-			if err := os.RemoveAll(defaults.LocalArtifactMirrorPath()); err != nil {
-				return err
-			}
 		}
 
 		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
