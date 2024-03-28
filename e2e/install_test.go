@@ -3,6 +3,7 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -416,44 +417,62 @@ func TestOldVersionUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
+func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	t.Parallel()
+
+	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
+	// download airgap bundle
+	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", os.Getenv("SHORT_SHA"))
+
+	req, err := http.NewRequest("GET", airgapURL, nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Header.Set("Authorization", os.Getenv("AIRGAP_LICENSE_ID"))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("failed to download airgap bundle: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("failed to download airgap bundle: %s", resp.Status)
+	}
+
+	// pipe response to a temporary file
+	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
+	f, err := os.Create(airgapBundlePath)
+	if err != nil {
+		t.Fatalf("failed to create temporary file: %v", err)
+	}
+	defer f.Close()
+	size, err := f.ReadFrom(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to write response to temporary file: %v", err)
+	}
+	t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
+
+	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
+
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:     t,
-		Nodes: 1,
-		Image: "debian/12",
+		T:                t,
+		Nodes:            1,
+		Image:            "ubuntu/jammy",
+		WithProxy:        true,
+		AirgapBundlePath: airgapBundlePath,
 	})
 	defer tc.Destroy()
 
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "ca-certificates", "curl", "-y"},
-		{"update-ca-certificates"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node 0: %v", err)
-	}
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
 
-	t.Logf("%s: downloading embedded-cluster airgap on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s?airgap=true", os.Getenv("SHORT_SHA")), os.Getenv("AIRGAP_LICENSE_ID"), "true"}
-	retries := 0 // we may be attempting to download the airgap bundle before it has been built, retry twice if needed
-	for {
-		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			retries++
-
-			if retries >= 3 {
-				t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-				return
-			}
-		} else {
-			break
-		}
+	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 

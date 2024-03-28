@@ -108,6 +108,10 @@ var metadataCommand = &cli.Command{
 			Charts:           airgapCht,
 			Repositories:     airgapRepo,
 		}
+		additionalImages, err := applier.GetAdditionalImages()
+		if err != nil {
+			return fmt.Errorf("unable to get airgap images: %w", err)
+		}
 
 		// Render k0s config to get the images contained within
 		k0sConfig := config.RenderK0sConfig()
@@ -115,6 +119,7 @@ var metadataCommand = &cli.Command{
 			return fmt.Errorf("unable to render k0s config: %w", err)
 		}
 		meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
+		meta.K0sImages = append(meta.K0sImages, additionalImages...)
 
 		data, err := json.MarshalIndent(meta, "", "\t")
 		if err != nil {

@@ -96,6 +96,10 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
+func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
+	return nil
+}
+
 // Outro is executed after the cluster deployment.
 func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()

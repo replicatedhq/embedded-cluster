@@ -44,7 +44,7 @@ var (
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
-var protectedFields = []string{"automation", "embeddedClusterID"}
+var protectedFields = []string{"automation", "embeddedClusterID", "isAirgap"}
 
 const DEFAULT_ADMIN_CONSOLE_NODE_PORT = 30000
 
@@ -182,6 +182,11 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
 		}
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
+		if a.airgapBundle != "" {
+			helmValues["isAirgap"] = "true"
+		} else {
+			helmValues["isAirgap"] = "false"
+		}
 	}
 	values, err := yaml.Marshal(helmValues)
 	if err != nil {
@@ -196,6 +201,10 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 		Order:     5,
 	}
 	return []v1beta1.Chart{chartConfig}, nil, nil
+}
+
+func (a *AdminConsole) GetAdditionalImages() []string {
+	return nil
 }
 
 // Outro waits for the adminconsole to be ready.

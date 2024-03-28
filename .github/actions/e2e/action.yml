@@ -39,10 +39,6 @@ runs:
            external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
            external_ids:ovn-encap-type=geneve                      \
            external_ids:ovn-encap-ip=127.0.0.1
-  - name: Setup Go
-    uses: actions/setup-go@v5
-    with:
-      go-version: "1.21.0"
   - name: Free up runner disk space
     shell: bash
     run: |
