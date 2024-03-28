@@ -504,7 +504,7 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
 	// download airgap bundle
-	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/%s?airgap=true", os.Getenv("SHORT_SHA"))
+	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", os.Getenv("SHORT_SHA"))
 
 	req, err := http.NewRequest("GET", airgapURL, nil)
 	if err != nil {
@@ -517,6 +517,9 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 		t.Fatalf("failed to download airgap bundle: %v", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("failed to download airgap bundle: %s", resp.Status)
+	}
 
 	// pipe response to a temporary file
 	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
@@ -536,7 +539,7 @@ func TestSingleNodeAirgapInstallationDebian12(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                t,
 		Nodes:            1,
-		Image:            "debian/12",
+		Image:            "ubuntu/jammy",
 		WithProxy:        true,
 		AirgapBundlePath: airgapBundlePath,
 	})
