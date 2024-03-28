@@ -127,6 +127,7 @@ jobs:
           - TestOldVersionUpgrade
           - TestMaterialize
           - TestLocalArtifactMirror
+          - TestSingleNodeAirgapInstallationUbuntuJammy
     steps:
       - name: Checkout
         uses: actions/checkout@v4
