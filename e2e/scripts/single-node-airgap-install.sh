@@ -143,6 +143,8 @@ wait_for_installation() {
 main() {
     if ! embedded-cluster install --no-prompt --license /tmp/license.yaml --airgap-bundle /tmp/release.airgap 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
+        kubectl describe pods -A
+        kubectl get pods -A
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
