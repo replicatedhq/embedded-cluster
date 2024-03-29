@@ -58,6 +58,8 @@ spec:
             configMapKeyRef:
               name: embedded-cluster-config
               key: embedded-cluster-version
+        - name: EMBEDDEDCLUSTER_UTILS_IMAGE
+          value: {{ .Values.utilsImage }}
         name: manager
 {{- if .Values.livenessProbe }}
         livenessProbe:
