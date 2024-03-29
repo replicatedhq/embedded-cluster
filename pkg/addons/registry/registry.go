@@ -40,22 +40,12 @@ var helmValues = map[string]interface{}{
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
-	"storage": "hostpath", // this is not a recognized option but gets us past all the storage options
-	"securityContext": map[string]interface{}{
-		"enabled":   true,
-		"runAsUser": 0,
-		"fsGroup":   0,
-	},
+	"storage": "filesystem", // this is not a recognized option but gets us past all the storage options
 	"configData": map[string]interface{}{
 		"auth": map[string]interface{}{
 			"htpasswd": map[string]interface{}{
 				"realm": "Registry",
 				"path":  "/auth/htpasswd",
-			},
-		},
-		"storage": map[string]interface{}{
-			"filesystem": map[string]interface{}{
-				"rootdirectory": "/var/lib/registry",
 			},
 		},
 	},
@@ -64,23 +54,12 @@ var helmValues = map[string]interface{}{
 			"name":      "auth",
 			"mountPath": "/auth",
 		},
-		{
-			"name":      "registry-data",
-			"mountPath": "/var/lib/registry",
-		},
 	},
 	"extraVolumes": []map[string]interface{}{
 		{
 			"name": "auth",
 			"secret": map[string]interface{}{
 				"secretName": "registry-auth",
-			},
-		},
-		{
-			"name": "registry-data",
-			"hostPath": map[string]interface{}{
-				"path": "/var/lib/embedded-cluster/registry",
-				"type": "DirectoryOrCreate",
 			},
 		},
 	},
