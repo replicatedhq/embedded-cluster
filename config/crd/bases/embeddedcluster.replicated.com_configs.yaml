@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.1
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: configs.embeddedcluster.replicated.com
 spec:
   group: embeddedcluster.replicated.com
@@ -21,14 +20,19 @@ spec:
         description: Config is the Schema for the configs API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -55,10 +59,10 @@ spec:
                             order:
                               type: integer
                             timeout:
-                              description: A Duration represents the elapsed time
-                                between two instants as an int64 nanosecond count.
-                                The representation limits the largest representable
-                                duration to approximately 290 years.
+                              description: |-
+                                A Duration represents the elapsed time between two instants
+                                as an int64 nanosecond count. The representation limits the
+                                largest representable duration to approximately 290 years.
                               format: int64
                               type: integer
                             values:
@@ -114,8 +118,9 @@ spec:
                           node role.
                         properties:
                           range:
-                            description: NodeRange contains a min and max or only
-                              one of them (conflicts with Values).
+                            description: |-
+                              NodeRange contains a min and max or only one of them (conflicts
+                              with Values).
                             properties:
                               max:
                                 description: Max is the maximum number of nodes.
@@ -148,8 +153,9 @@ spec:
                             node role.
                           properties:
                             range:
-                              description: NodeRange contains a min and max or only
-                                one of them (conflicts with Values).
+                              description: |-
+                                NodeRange contains a min and max or only one of them (conflicts
+                                with Values).
                               properties:
                                 max:
                                   description: Max is the maximum number of nodes.
@@ -168,14 +174,16 @@ spec:
                     type: array
                 type: object
               unsupportedOverrides:
-                description: UnsupportedOverrides holds the config overrides used
-                  to configure the cluster.
+                description: |-
+                  UnsupportedOverrides holds the config overrides used to configure
+                  the cluster.
                 properties:
                   k0s:
-                    description: K0s holds the overrides used to configure k0s. These
-                      overrides are merged on top of the default k0s configuration.
-                      As the data layout inside this configuration is very dynamic
-                      we have chosen to use a string here.
+                    description: |-
+                      K0s holds the overrides used to configure k0s. These overrides
+                      are merged on top of the default k0s configuration. As the data
+                      layout inside this configuration is very dynamic we have chosen
+                      to use a string here.
                     type: string
                 type: object
               version:
