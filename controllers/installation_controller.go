@@ -619,6 +619,13 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 	}
 	combinedConfigs.Charts = finalChartList
 
+	if in.Spec.AirGap {
+		// if in airgap mode then all charts are already on the node's disk. we just need to
+		// make sure that the helm charts are pointing to the right location on disk and that
+		// we do not have any kind of helm repository configuration.
+		combinedConfigs = patchExtensionsForAirGap(combinedConfigs)
+	}
+
 	existingHelm := &k0sv1beta1.HelmExtensions{}
 	if clusterConfig.Spec != nil && clusterConfig.Spec.Extensions != nil && clusterConfig.Spec.Extensions.Helm != nil {
 		existingHelm = clusterConfig.Spec.Extensions.Helm
@@ -760,8 +767,17 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	}
 
 	k0surl := fmt.Sprintf(
-		"%s/embedded-cluster-public-files/k0s-binaries/%s", in.Spec.MetricsBaseURL, meta.Versions.Kubernetes,
+		"%s/embedded-cluster-public-files/k0s-binaries/%s",
+		in.Spec.MetricsBaseURL,
+		meta.Versions.Kubernetes,
 	)
+	if in.Spec.AirGap {
+		// if we are running in an airgap environment all assets are already present in the
+		// node and are served by the local-artifact-mirror binary listening on localhost
+		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
+		k0surl = "http://127.0.0.1:50000/bin/k0s"
+	}
+
 	plan := apv1b2.Plan{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "autopilot",

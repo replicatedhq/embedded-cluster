@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/k0sproject/dig"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
@@ -261,4 +262,18 @@ func generateDesiredCharts(meta *release.Meta, clusterconfig k0sv1beta1.ClusterC
 		finalChartList = append(finalChartList, chart)
 	}
 	return finalChartList, nil
+}
+
+// patchExtensionsForAirGap makes sure we do not have any external repository reference and also makes
+// sure that all helm charts point to a chart stored on disk as a tgz file. These files are already
+// expected to be present on the disk and, during an upgrade, are laid down on disk by the artifact
+// copy job.
+func patchExtensionsForAirGap(config *k0sv1beta1.HelmExtensions) *k0sv1beta1.HelmExtensions {
+	config.Repositories = nil
+	for idx, chart := range config.Charts {
+		chartName := fmt.Sprintf("%s-%s.tgz", chart.Name, chart.Version)
+		chartPath := filepath.Join("var", "lib", "embedded-cluster", "charts", chartName)
+		config.Charts[idx].ChartName = chartPath
+	}
+	return config
 }
