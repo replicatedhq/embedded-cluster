@@ -233,6 +233,10 @@ ensure_binary_copy() {
         ls -la /var/lib/embedded-cluster/bin
         return 1
     fi
+    if ! /var/lib/embedded-cluster/bin/embedded-cluster version ; then
+        echo "embedded-cluster binary is not executable"
+        return 1
+    fi
 }
 
 main() {
