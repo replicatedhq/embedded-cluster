@@ -225,6 +225,20 @@ ensure_version_metadata_present() {
     fi
 }
 
+# ensure_binary_copy verifies that the installer is copying itself to the default location of
+# banaries in the node.
+ensure_binary_copy() {
+    if ! ls /var/lib/embedded-cluster/bin/embedded-cluster ; then
+        echo "embedded-cluster binary not found on default location"
+        ls -la /var/lib/embedded-cluster/bin
+        return 1
+    fi
+    if ! /var/lib/embedded-cluster/bin/embedded-cluster version ; then
+        echo "embedded-cluster binary is not executable"
+        return 1
+    fi
+}
+
 main() {
     local app_deploy_method="$1"
 
@@ -243,6 +257,10 @@ main() {
     fi
     if ! ensure_version_metadata_present; then
         echo "Failed to check the presence of the version metadata configmap"
+        exit 1
+    fi
+    if ! ensure_binary_copy; then
+        echo "Failed to ensure the embedded binary has been copied to /var/lib/embedded-cluster/bin"
         exit 1
     fi
     if ! install_kots_cli; then
