@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	corev1 "k8s.io/api/core/v1"
@@ -36,13 +37,14 @@ type AddOn interface {
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
 type Applier struct {
-	prompt        bool
-	verbose       bool
-	config        v1beta1.ClusterConfig
-	licenseFile   string
-	onlyDefaults  bool
-	endUserConfig *embeddedclusterv1beta1.Config
-	airgapBundle  string
+	prompt          bool
+	verbose         bool
+	config          v1beta1.ClusterConfig
+	licenseFile     string
+	onlyDefaults    bool
+	endUserConfig   *embeddedclusterv1beta1.Config
+	airgapBundle    string
+	releaseMetadata *types.ReleaseMetadata
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -151,7 +153,7 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return allpf, nil
 }
 
-// load instantiates all enabled addons.
+// load instantiates and returns all addon appliers.
 func (a *Applier) load() ([]AddOn, error) {
 	addons := []AddOn{}
 	obs, err := openebs.New()
@@ -166,8 +168,13 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, reg)
 
-	airgap := a.airgapBundle != ""
-	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, airgap)
+	operatorOptions := embeddedclusteroperator.Options{
+		EndUserConfig:   a.endUserConfig,
+		LicenseFile:     a.licenseFile,
+		Airgap:          a.airgapBundle != "",
+		ReleaseMetadata: a.releaseMetadata,
+	}
+	embedoperator, err := embeddedclusteroperator.New(operatorOptions)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}

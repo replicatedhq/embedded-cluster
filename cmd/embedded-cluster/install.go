@@ -344,6 +344,13 @@ func waitForK0s() error {
 func runOutro(c *cli.Context) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	opts := []addons.Option{}
+
+	metadata, err := gatherVersionMetadata()
+	if err != nil {
+		return fmt.Errorf("unable to gather release metadata: %w", err)
+	}
+	opts = append(opts, addons.WithVersionMetadata(metadata))
+
 	if l := c.String("license"); l != "" {
 		opts = append(opts, addons.WithLicense(l))
 	}
