@@ -75,9 +75,7 @@ func materializeOurselves() error {
 // materializeBinaries materializes all binary files from inside bins directory. If the
 // file already exists a copy of it is made first before overwriting it, this is done
 // because we can't overwrite a running binary. Copies are removed. This function also
-// creates a copy of this binary into the PathToEmbeddedClusterBinary() directory. This
-// function also creates a copy of the embedded cluster binary into a default location
-// so we have this standardized across all installations.
+// creates a copy of this binary into the PathToEmbeddedClusterBinary() directory.
 func materializeBinaries() error {
 	entries, err := binfs.ReadDir("bins")
 	if err != nil {
