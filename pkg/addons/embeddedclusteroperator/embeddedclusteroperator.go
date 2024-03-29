@@ -30,15 +30,17 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL  = "https://url"
-	ChartName = "name"
-	Version   = "v0.0.0"
+	ChartURL   = "https://url"
+	ChartName  = "name"
+	Version    = "v0.0.0"
+	UtilsImage = "busybox:latest"
 )
 
 var helmValues = map[string]interface{}{
 	"kotsVersion":               adminconsole.Version,
 	"embeddedClusterVersion":    defaults.Version,
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
+	"utilsImage":                UtilsImage,
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
@@ -97,7 +99,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
-	return nil
+	return []string{UtilsImage}
 }
 
 // Outro is executed after the cluster deployment.
