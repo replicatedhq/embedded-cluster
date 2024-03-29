@@ -66,21 +66,6 @@ ensure_app_not_upgraded() {
     fi
 }
 
-ensure_version_metadata_present() {
-    if ! kubectl get cm -n embedded-cluster | grep -q version-metadata-; then
-        echo "version metadata configmap not found"
-        kubectl get cm -n embedded-cluster
-        return 1
-    fi
-    local name
-    name=$(kubectl get cm -n embedded-cluster | grep version-metadata- | awk '{print $1}')
-    if ! kubectl get cm -n embedded-cluster "$name" -o yaml | grep -q Versions ; then
-        echo "version metadata configmap does not contain Versions entry"
-        kubectl get cm -n embedded-cluster "$name" -o yaml
-        return 1
-    fi
-}
-
 main() {
     local version="$1"
     sleep 30 # wait for kubectl to become available
@@ -103,11 +88,6 @@ main() {
         exit 1
     fi
     if ! ensure_app_not_upgraded; then
-        exit 1
-    fi
-
-    echo "ensure that versions configmap is present"
-    if ! ensure_version_metadata_present; then
         exit 1
     fi
 }

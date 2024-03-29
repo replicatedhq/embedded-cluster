@@ -207,6 +207,24 @@ check_pod_install_order() {
     fi
 }
 
+# ensure_version_metadata_present verifies if a configmap containig the embedded cluster version
+# metadata is present in the embedded-cluster namespace. this configmap should always exists.
+ensure_version_metadata_present() {
+    echo "ensure that versions configmap is present"
+    if ! kubectl get cm -n embedded-cluster | grep -q version-metadata-; then
+        echo "version metadata configmap not found"
+        kubectl get cm -n embedded-cluster
+        return 1
+    fi
+    local name
+    name=$(kubectl get cm -n embedded-cluster | grep version-metadata- | awk '{print $1}')
+    if ! kubectl get cm -n embedded-cluster "$name" -o yaml | grep -q Versions ; then
+        echo "version metadata configmap does not contain Versions entry"
+        kubectl get cm -n embedded-cluster "$name" -o yaml
+        return 1
+    fi
+}
+
 main() {
     local app_deploy_method="$1"
 
@@ -221,6 +239,10 @@ main() {
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
         echo "Failed to validate that the Admin Console is ready"
+        exit 1
+    fi
+    if ! ensure_version_metadata_present; then
+        echo "Failed to check the presence of the version metadata configmap"
         exit 1
     fi
     if ! install_kots_cli; then
