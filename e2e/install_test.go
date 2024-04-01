@@ -422,7 +422,7 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
 	// download airgap bundle
-	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", os.Getenv("SHORT_SHA"))
+	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/appver-%s?airgap=true", os.Getenv("SHORT_SHA"))
 
 	req, err := http.NewRequest("GET", airgapURL, nil)
 	if err != nil {

@@ -32,7 +32,7 @@ main() {
     sleep 30 # wait for kubectl to become available
 
     echo "upgrading to version ${installation_version}-upgrade"
-    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --deploy-version-label="${installation_version}-upgrade"
+    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --deploy-version-label="appver-${installation_version}-upgrade"
 
     sleep 30
 
