@@ -40,7 +40,13 @@ var helmValues = map[string]interface{}{
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
-	"storage": "filesystem", // this is not a recognized option but gets us past all the storage options
+	"storage": "filesystem",
+	"persistence": map[string]interface{}{
+		"enabled":      true,
+		"size":         "10Gi",
+		"accessMode":   "ReadWriteOnce",
+		"storageClass": "openebs-hostpath",
+	},
 	"configData": map[string]interface{}{
 		"auth": map[string]interface{}{
 			"htpasswd": map[string]interface{}{
