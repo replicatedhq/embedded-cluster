@@ -83,6 +83,15 @@ func (d *Provider) EmbeddedClusterChartsSubDir() string {
 	return path
 }
 
+// EmbeddedClusterImagesSubDir returns the path to the directory where docker images are stored.
+func (d *Provider) EmbeddedClusterImagesSubDir() string {
+	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "images")
+	if err := os.MkdirAll(path, 0755); err != nil {
+		logrus.Fatalf("unable to create embedded-cluster images dir: %s", err)
+	}
+	return path
+}
+
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func (d *Provider) EmbeddedClusterHomeDirectory() string {
@@ -94,12 +103,6 @@ func (d *Provider) EmbeddedClusterHomeDirectory() string {
 // once it is installed.
 func (d *Provider) K0sBinaryPath() string {
 	return "/usr/local/bin/k0s"
-}
-
-// LocalArtifactMirrorPath returns the path where we install the local artifact mirror
-// binary.
-func (d *Provider) LocalArtifactMirrorPath() string {
-	return "/usr/local/bin/local-artifact-mirror"
 }
 
 // PathToEmbeddedClusterBinary is an utility function that returns the full path to a

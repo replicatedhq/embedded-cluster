@@ -49,6 +49,11 @@ func EmbeddedClusterChartsSubDir() string {
 	return def().EmbeddedClusterChartsSubDir()
 }
 
+// EmbeddedClusterImagesSubDir calls EmbeddedClusterImagesSubDir on the default provider.
+func EmbeddedClusterImagesSubDir() string {
+	return def().EmbeddedClusterImagesSubDir()
+}
+
 // EmbeddedClusterLogsSubDir calls EmbeddedClusterLogsSubDir on the default provider.
 func EmbeddedClusterLogsSubDir() string {
 	return def().EmbeddedClusterLogsSubDir()
@@ -57,11 +62,6 @@ func EmbeddedClusterLogsSubDir() string {
 // K0sBinaryPath calls K0sBinaryPath on the default provider.
 func K0sBinaryPath() string {
 	return def().K0sBinaryPath()
-}
-
-// LocalArtifactMirrorPath calls LocalArtifactMirrorPath on the default provider.
-func LocalArtifactMirrorPath() string {
-	return def().LocalArtifactMirrorPath()
 }
 
 // PathToEmbeddedClusterBinary calls PathToEmbeddedClusterBinary on the default provider.

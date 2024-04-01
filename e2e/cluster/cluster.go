@@ -400,7 +400,7 @@ func CopyFilesToNode(in *Input, node string) {
 		},
 		{
 			SourcePath: in.AirgapBundlePath,
-			DestPath:   "/tmp/release.airgap",
+			DestPath:   "/tmp/ec-release.tgz",
 			Mode:       0755,
 		},
 	}

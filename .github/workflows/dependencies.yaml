@@ -23,10 +23,18 @@ jobs:
       run: |
         export VERSION=`curl https://api.github.com/repos/replicatedhq/embedded-cluster-operator/tags | jq -r .[].name | head -1 | tr -d v`
         sed -i "/^EMBEDDED_OPERATOR_CHART_VERSION/c\EMBEDDED_OPERATOR_CHART_VERSION = $VERSION" Makefile
+    - name: Embedded Cluster Operator Utils
+      run: |
+        export VERSION=`curl https://raw.githubusercontent.com/docker-library/busybox/master/versions.json | jq -r .latest.version`
+        sed -i "/^EMBEDDED_OPERATOR_UTILS_IMAGE/c\EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:$VERSION" Makefile
     - name: OpenEBS
       run: |
         export VERSION=`curl https://api.github.com/repos/openebs/charts/releases/latest | jq -r .name | tr -d openebs-`
         sed -i "/^OPENEBS_CHART_VERSION/c\OPENEBS_CHART_VERSION = $VERSION" Makefile
+    - name: OpenEBS utils
+      run: |
+        export VERSION=`curl https://api.github.com/repos/openebs/linux-utils/releases/latest | jq -r .name | tr -d v`
+        sed -i "/^OPENEBS_UTILS_VERSION/c\OPENEBS_UTILS_VERSION = $VERSION" Makefile
     - name: SeaweedFS
       run: |
         export VERSION=`curl https://raw.githubusercontent.com/seaweedfs/seaweedfs/master/k8s/charts/seaweedfs/Chart.yaml | grep version | tr -d 'version: '`

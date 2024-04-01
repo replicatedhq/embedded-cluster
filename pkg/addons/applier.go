@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,17 +32,19 @@ type AddOn interface {
 	GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
 	GetProtectedFields() map[string][]string
+	GetAdditionalImages() []string
 }
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
 type Applier struct {
-	prompt        bool
-	verbose       bool
-	config        v1beta1.ClusterConfig
-	license       *kotsv1beta1.License
-	onlyDefaults  bool
-	endUserConfig *embeddedclusterv1beta1.Config
-	airgap        bool
+	prompt          bool
+	verbose         bool
+	config          v1beta1.ClusterConfig
+	licenseFile     string
+	onlyDefaults    bool
+	endUserConfig   *embeddedclusterv1beta1.Config
+	airgapBundle    string
+	releaseMetadata *types.ReleaseMetadata
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -102,6 +104,19 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 	return regChart, regRepo, nil
 }
 
+func (a *Applier) GetAdditionalImages() ([]string, error) {
+	additionalImages := []string{}
+	addons, err := a.load()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+	for _, addon := range addons {
+		additionalImages = append(additionalImages, addon.GetAdditionalImages()...)
+	}
+
+	return additionalImages, nil
+}
+
 // ProtectedFields returns the protected fields for all the embedded charts.
 func (a *Applier) ProtectedFields() (map[string][]string, error) {
 	protectedFields := map[string][]string{}
@@ -138,7 +153,7 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return allpf, nil
 }
 
-// load instantiates all enabled addons.
+// load instantiates and returns all addon appliers.
 func (a *Applier) load() ([]AddOn, error) {
 	addons := []AddOn{}
 	obs, err := openebs.New()
@@ -147,19 +162,25 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(a.airgap)
+	reg, err := registry.New(a.airgapBundle != "")
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons = append(addons, reg)
 
-	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.license)
+	operatorOptions := embeddedclusteroperator.Options{
+		EndUserConfig:   a.endUserConfig,
+		LicenseFile:     a.licenseFile,
+		Airgap:          a.airgapBundle != "",
+		ReleaseMetadata: a.releaseMetadata,
+	}
+	embedoperator, err := embeddedclusteroperator.New(operatorOptions)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
 	addons = append(addons, embedoperator)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.license, a.airgap)
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgapBundle)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
@@ -228,10 +249,11 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 // NewApplier creates a new Applier instance with all addons registered.
 func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
-		prompt:  true,
-		verbose: true,
-		config:  v1beta1.ClusterConfig{},
-		license: nil,
+		prompt:       true,
+		verbose:      true,
+		config:       v1beta1.ClusterConfig{},
+		licenseFile:  "",
+		airgapBundle: "",
 	}
 	for _, fn := range opts {
 		fn(applier)

@@ -46,7 +46,6 @@ spec:
                 version: 1.108.0-build.1
                 values: |
                   isHelmManaged: false
-                  kotsApplication: default value
                   minimalRBAC: false
                   service:
                     nodePort: 30000
@@ -133,7 +132,7 @@ main() {
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to install embedded-cluster"
+        echo "Failed to validate that the Admin Console is ready"
         exit 1
     fi
     if ! override_applied; then

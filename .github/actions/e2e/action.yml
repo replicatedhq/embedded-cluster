@@ -4,6 +4,9 @@ inputs:
   test-name:
     description: 'individual test to run'
     required: true
+  airgap-license-id:
+    description: 'airgap-enabled license id to use for e2e tests'
+    required: true
   license-id:
     description: 'license id to use for e2e tests'
     required: true
@@ -36,10 +39,6 @@ runs:
            external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
            external_ids:ovn-encap-type=geneve                      \
            external_ids:ovn-encap-ip=127.0.0.1
-  - name: Setup Go
-    uses: actions/setup-go@v5
-    with:
-      go-version: "1.21.0"
   - name: Free up runner disk space
     shell: bash
     run: |
@@ -49,7 +48,8 @@ runs:
   - name: E2E
     shell: bash
     run: |
-      export SHORT_SHA=$(git rev-parse --short=7 HEAD)
+      export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
       export LICENSE_ID=${{ inputs.license-id }}
+      export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
       echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
       make e2e-test TEST_NAME=${{ inputs.test-name }}

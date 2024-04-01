@@ -28,9 +28,7 @@ func TestUnsupportedOverrides(t *testing.T) {
 	}
 	t.Logf("%s: installing embedded-cluster with unsupported overrides on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"unsupported-overrides.sh"}
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Log(stdout)
-		t.Log(stderr)
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 

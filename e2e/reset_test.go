@@ -24,8 +24,7 @@ func TestMultiNodeReset(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, []string{"single-node-install.sh", "ui"}); err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
+	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"single-node-install.sh", "ui"}); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -38,7 +37,6 @@ func TestMultiNodeReset(t *testing.T) {
 		line := []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
 		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 		if err != nil {
-			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 			t.Fatalf("fail to generate controller join token: %s", stdout)
 		}
 		var r nodeJoinResponse
@@ -56,7 +54,6 @@ func TestMultiNodeReset(t *testing.T) {
 	line := []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to generate controller join token: %s", stdout)
 	}
 	var jr nodeJoinResponse
@@ -69,9 +66,7 @@ func TestMultiNodeReset(t *testing.T) {
 	for i, cmd := range controllerCommands {
 		node := i + 1
 		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
-		stdout, stderr, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " "))
-		if err != nil {
-			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
+		if _, _, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " ")); err != nil {
 			t.Fatalf("fail to join node %d as a controller: %v", node, err)
 		}
 		// XXX If we are too aggressive joining nodes we can see the following error being
@@ -86,17 +81,14 @@ func TestMultiNodeReset(t *testing.T) {
 	command := strings.TrimPrefix(jr.Command, "sudo ./")
 	t.Log("worker join token command:", command)
 	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = RunCommandOnNode(t, tc, 3, strings.Split(command, " "))
-	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
+	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log(stdout)
@@ -104,9 +96,8 @@ func TestMultiNodeReset(t *testing.T) {
 	bin := strings.Split(command, " ")[0]
 	// reset worker node
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = RunCommandOnNode(t, tc, 3, []string{bin, "reset", "--no-prompt"})
+	stdout, _, err = RunCommandOnNode(t, tc, 3, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to reset worker node")
 	}
 	t.Log(stdout)
@@ -114,16 +105,14 @@ func TestMultiNodeReset(t *testing.T) {
 	// reset a controller node
 	// this should fail with a prompt to override
 	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "reset", "--no-prompt"})
+	stdout, _, err = RunCommandOnNode(t, tc, 2, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to remove controller node %s:", err)
 	}
 	t.Log(stdout)
 
-	stdout, stderr, err = RunCommandOnNode(t, tc, 0, []string{"check-nodes-removed.sh", "2"})
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-nodes-removed.sh", "2"})
 	if err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to remove worker node %s:", err)
 	}
 	t.Log(stdout)

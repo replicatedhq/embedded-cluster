@@ -13,8 +13,9 @@ import (
 
 const K0sImagePath = "/var/lib/k0s/images/install.tar"
 
-// MaterializeAirgap places the airgap image bundle for k0s
-// this should be located at 'images-amd64.tar.gz' within embedded-cluster.tar.gz within the airgap bundle
+// MaterializeAirgap places the airgap image bundle for k0s and the embedded cluster charts on disk.
+// - image bundle should be located at 'images-amd64.tar' within the embedded-cluster directory within the airgap bundle.
+// - charts should be located at 'charts.tar.gz' within the embedded-cluster directory within the airgap bundle.
 func MaterializeAirgap(airgapReader io.Reader) error {
 	// decompress tarball
 	ungzip, err := gzip.NewReader(airgapReader)

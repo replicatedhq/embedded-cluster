@@ -60,62 +60,10 @@ var metadataCommand = &cli.Command{
 	Usage:  "Print metadata about this release",
 	Hidden: true,
 	Action: func(c *cli.Context) error {
-		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt(), addons.OnlyDefaults()}
-		versions, err := addons.NewApplier(opts...).Versions(config.AdditionalCharts())
+		meta, err := gatherVersionMetadata()
 		if err != nil {
-			return fmt.Errorf("unable to get versions: %w", err)
+			return err
 		}
-		versions["Kubernetes"] = defaults.K0sVersion
-		versions["Installer"] = defaults.Version
-		versions["Troubleshoot"] = defaults.TroubleshootVersion
-		versions["Kubectl"] = defaults.KubectlVersion
-		channelRelease, err := release.GetChannelRelease()
-		if err == nil && channelRelease != nil {
-			versions[defaults.BinaryName()] = channelRelease.VersionLabel
-		}
-		sha, err := goods.K0sBinarySHA256()
-		if err != nil {
-			return fmt.Errorf("unable to get k0s binary sha256: %w", err)
-		}
-		meta := types.ReleaseMetadata{
-			Versions:     versions,
-			K0sSHA:       sha,
-			K0sBinaryURL: defaults.K0sBinaryURL,
-		}
-		applier := addons.NewApplier(opts...)
-		chtconfig, repconfig, err := applier.GenerateHelmConfigs(config.AdditionalCharts(), config.AdditionalRepositories())
-		if err != nil {
-			return fmt.Errorf("unable to apply addons: %w", err)
-		}
-		meta.Configs = k0sconfig.HelmExtensions{
-			ConcurrencyLevel: 1,
-			Charts:           chtconfig,
-			Repositories:     repconfig,
-		}
-		protectedFields, err := applier.ProtectedFields()
-		if err != nil {
-			return fmt.Errorf("unable to get protected fields: %w", err)
-		}
-		meta.Protected = protectedFields
-
-		// Airgap
-		airgapCht, airgapRepo, err := applier.GetAirgapCharts()
-		if err != nil {
-			return fmt.Errorf("unable to get airgap charts: %w", err)
-		}
-		meta.AirgapConfigs = k0sconfig.HelmExtensions{
-			ConcurrencyLevel: 1,
-			Charts:           airgapCht,
-			Repositories:     airgapRepo,
-		}
-
-		// Render k0s config to get the images contained within
-		k0sConfig := config.RenderK0sConfig()
-		if err != nil {
-			return fmt.Errorf("unable to render k0s config: %w", err)
-		}
-		meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
-
 		data, err := json.MarshalIndent(meta, "", "\t")
 		if err != nil {
 			return fmt.Errorf("unable to marshal versions: %w", err)
@@ -123,6 +71,84 @@ var metadataCommand = &cli.Command{
 		fmt.Println(string(data))
 		return nil
 	},
+}
+
+// gatherVersionMetadata returns the release metadata for this version of
+// embedded cluster. Release metadata involves the default versions of the
+// components that are included in the release plus the default values used
+// when deploying them.
+func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
+	applier := addons.NewApplier(
+		addons.WithoutPrompt(),
+		addons.OnlyDefaults(),
+		addons.Quiet(),
+	)
+
+	versions, err := applier.Versions(config.AdditionalCharts())
+	if err != nil {
+		return nil, fmt.Errorf("unable to get versions: %w", err)
+	}
+	versions["Kubernetes"] = defaults.K0sVersion
+	versions["Installer"] = defaults.Version
+	versions["Troubleshoot"] = defaults.TroubleshootVersion
+	versions["Kubectl"] = defaults.KubectlVersion
+
+	channelRelease, err := release.GetChannelRelease()
+	if err == nil && channelRelease != nil {
+		versions[defaults.BinaryName()] = channelRelease.VersionLabel
+	}
+
+	sha, err := goods.K0sBinarySHA256()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get k0s binary sha256: %w", err)
+	}
+
+	meta := types.ReleaseMetadata{
+		Versions:     versions,
+		K0sSHA:       sha,
+		K0sBinaryURL: defaults.K0sBinaryURL,
+	}
+
+	chtconfig, repconfig, err := applier.GenerateHelmConfigs(
+		config.AdditionalCharts(),
+		config.AdditionalRepositories(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to apply addons: %w", err)
+	}
+
+	meta.Configs = k0sconfig.HelmExtensions{
+		ConcurrencyLevel: 1,
+		Charts:           chtconfig,
+		Repositories:     repconfig,
+	}
+
+	protectedFields, err := applier.ProtectedFields()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get protected fields: %w", err)
+	}
+	meta.Protected = protectedFields
+
+	// Airgap
+	airgapCht, airgapRepo, err := applier.GetAirgapCharts()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get airgap charts: %w", err)
+	}
+	meta.AirgapConfigs = k0sconfig.HelmExtensions{
+		ConcurrencyLevel: 1,
+		Charts:           airgapCht,
+		Repositories:     airgapRepo,
+	}
+	additionalImages, err := applier.GetAdditionalImages()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get airgap images: %w", err)
+	}
+
+	// Render k0s config to get the images contained within
+	k0sConfig := config.RenderK0sConfig()
+	meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
+	meta.K0sImages = append(meta.K0sImages, additionalImages...)
+	return &meta, nil
 }
 
 var embeddedDataCommand = &cli.Command{

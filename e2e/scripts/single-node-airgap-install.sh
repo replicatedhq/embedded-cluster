@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euox pipefail
+set -euo pipefail
 
 wait_for_healthy_node() {
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
@@ -79,93 +79,6 @@ wait_for_ingress_pods() {
     done
 }
 
-maybe_install_curl() {
-    if ! command -v curl; then
-        apt-get update
-        apt-get install -y curl
-    fi
-}
-
-install_kots_cli() {
-    maybe_install_curl
-
-    # install kots CLI
-    echo "installing kots cli"
-    local ec_version=
-    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1)
-    curl "https://kots.io/install/$ec_version" | bash
-
-}
-
-deploy_app() {
-    echo "getting apps"
-    # run a no-op kots command to populate the authstring secret
-    kubectl kots get apps -n kotsadm
-    echo "kotsadm version"
-    kubectl kots version -n kotsadm
-    echo "app versions"
-    kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
-
-    echo "exporting authstring"
-    # export the authstring secret
-    local kotsadm_auth_string=
-    kotsadm_auth_string=$(kubectl get secret -n kotsadm kotsadm-authstring -o jsonpath='{.data.kotsadm-authstring}' | base64 -d)
-    echo "kotsadm_auth_string: $kotsadm_auth_string"
-
-    echo "getting kotsadm service IP"
-    # get kotsadm service IP address
-    local kotsadm_ip=
-    kotsadm_ip=$(kubectl get svc -n kotsadm kotsadm -o jsonpath='{.spec.clusterIP}')
-    echo "kotsadm_ip: $kotsadm_ip"
-
-    echo "getting kotsadm service port"
-    # get kotsadm service port
-    local kotsadm_port=
-    kotsadm_port=$(kubectl get svc -n kotsadm kotsadm -o jsonpath='{.spec.ports[?(@.name=="http")].port}')
-    echo "kotsadm_port: $kotsadm_port"
-
-    echo "bypassing cluster management page"
-    # bypass cluster management page
-    curl -k -X POST "http://${kotsadm_ip}:${kotsadm_port}/api/v1/embedded-cluster/management" -H "Authorization: $kotsadm_auth_string"
-    echo "app versions"
-    kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
-
-    echo "providing a config for the app"
-    # provide a config for the app
-    kubectl kots set config embedded-cluster-smoke-test-staging-app -n kotsadm --key="hostname" --value="123" --deploy
-    echo "app versions"
-    kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
-
-    echo "deploying the app"
-    sleep 15
-
-    echo "app versions"
-    kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
-
-    echo "kotsadm logs"
-    kubectl logs -n kotsadm -l app=kotsadm --tail=50
-}
-
-wait_for_nginx_pods() {
-    ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
-    counter=0
-    while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
-            echo "nginx pods did not appear"
-            kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}'
-            kubectl get pods -n kotsadm
-            kubectl logs -n kotsadm -l app=kotsadm
-            return 1
-        fi
-        sleep 5
-        counter=$((counter+1))
-        echo "Waiting for nginx pods"
-        ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
-        kubectl get pods -n nginx 2>&1 || true
-        echo "ready: $ready"
-    done
-}
-
 check_openebs_storage_class() {
     scs=$(kubectl get sc --no-headers | wc -l)
     if [ "$scs" -ne "1" ]; then
@@ -203,24 +116,45 @@ check_pod_install_order() {
     fi
 }
 
-main() {
-    local app_deploy_method="$1"
-
-    if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
-        echo "Expected installation to fail without a license provided"
-        exit 1
+check_airgap_pvc() {
+    if ! kubectl get pvc -n registry --no-headers=true | wc -l | grep -q 1 ; then
+        echo "Failed to find registry pvc"
+        kubectl get pvc -A
+        return 1
     fi
+}
 
-    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
+wait_for_installation() {
+    ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
+    counter=0
+    while [ "$ready" -lt "1" ]; do
+        if [ "$counter" -gt 36 ]; then
+            echo "installation did not become ready"
+            kubectl get installations 2>&1 || true
+            kubectl describe installations 2>&1 || true
+            kubectl get charts -A
+            kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
+            kubectl get secrets -A
+            kubectl describe clusterconfig -A
+            echo "operator logs:"
+            kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
+            return 1
+        fi
+        sleep 5
+        counter=$((counter+1))
+        echo "Waiting for installation"
+        ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
+        kubectl get installations 2>&1 || true
+    done
+}
+
+main() {
+    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml --airgap-bundle /tmp/release.airgap 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
         echo "Failed to validate that the Admin Console is ready"
-        exit 1
-    fi
-    if ! install_kots_cli; then
-        echo "Failed to install kots cli"
         exit 1
     fi
     if ! wait_for_healthy_node; then
@@ -231,12 +165,6 @@ main() {
         echo "Cluster did not respect node config"
         exit 1
     fi
-    if [[ "$app_deploy_method" == "cli" ]]; then
-        if ! deploy_app; then
-            echo "Failed to deploy app"
-            exit 1
-        fi
-    fi
     if ! wait_for_pods_running 900; then
         echo "Failed to wait for pods to be running"
         exit 1
@@ -244,12 +172,6 @@ main() {
     if ! check_openebs_storage_class; then
         echo "Failed to validate if only openebs storage class is present"
         exit 1
-    fi
-    if [[ "$app_deploy_method" == "cli" ]]; then
-        if ! wait_for_nginx_pods; then
-            echo "Failed waiting for the application's nginx pods"
-            exit 1
-        fi
     fi
     if ! wait_for_ingress_pods; then
         echo "Failed waiting for ingress pods"
@@ -261,10 +183,17 @@ main() {
     if ! check_pod_install_order; then
         exit 1
     fi
+    if ! check_airgap_pvc; then
+        exit 1
+    fi
     if ! systemctl status embedded-cluster; then
         echo "Failed to get status of embedded-cluster service"
         exit 1
     fi
+
+#    echo "ensure that installation is installed"
+#    wait_for_installation
+#    kubectl get installations --no-headers | grep -q "Installed"
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

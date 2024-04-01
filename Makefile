@@ -4,15 +4,17 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.108.1
+ADMIN_CONSOLE_CHART_VERSION = 1.108.3-build.1
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.25.0
+EMBEDDED_OPERATOR_CHART_VERSION = 0.25.2
+EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
+OPENEBS_UTILS_VERSION = 4.0.0
 REGISTRY_CHART_URL = https://helm.twun.io
 REGISTRY_CHART_NAME = twuni/docker-registry
 REGISTRY_CHART_VERSION = 2.2.3
@@ -21,6 +23,7 @@ KUBECTL_VERSION = v1.28.7
 K0S_VERSION = v1.28.7+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.84.1
+KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sBinaryURL=$(K0S_BINARY_SOURCE_OVERRIDE) \
@@ -34,9 +37,11 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.UtilsVersion=$(OPENEBS_UTILS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartURL=$(REGISTRY_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartName=$(REGISTRY_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
@@ -81,6 +86,14 @@ pkg/goods/bins/local-artifact-mirror: Makefile
 	mkdir -p pkg/goods/bins
 	CGO_ENABLED=0 go build -o pkg/goods/bins/local-artifact-mirror ./cmd/local-artifact-mirror
 
+pkg/goods/internal/bins/kubectl-kots: Makefile
+	mkdir -p pkg/goods/internal/bins
+	mkdir -p output/tmp/kots
+	curl -L -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz
+	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
+	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots
+	touch pkg/goods/internal/bins/kubectl-kots
+
 output/tmp/release.tar.gz: e2e/kots-release-install/*
 	mkdir -p output/tmp
 	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
@@ -102,7 +115,8 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-preflight \
 	pkg/goods/bins/kubectl \
 	pkg/goods/bins/kubectl-support_bundle \
-	pkg/goods/bins/local-artifact-mirror
+	pkg/goods/bins/local-artifact-mirror \
+	pkg/goods/internal/bins/kubectl-kots
 	
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: static go.mod

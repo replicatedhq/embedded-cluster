@@ -40,11 +40,12 @@ var helmValues = map[string]interface{}{
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
-	"storage": "hostpath", // this is not a recognized option but gets us past all the storage options
-	"securityContext": map[string]interface{}{
-		"enabled":   true,
-		"runAsUser": 0,
-		"fsGroup":   0,
+	"storage": "filesystem",
+	"persistence": map[string]interface{}{
+		"enabled":      true,
+		"size":         "10Gi",
+		"accessMode":   "ReadWriteOnce",
+		"storageClass": "openebs-hostpath",
 	},
 	"configData": map[string]interface{}{
 		"auth": map[string]interface{}{
@@ -53,20 +54,11 @@ var helmValues = map[string]interface{}{
 				"path":  "/auth/htpasswd",
 			},
 		},
-		"storage": map[string]interface{}{
-			"filesystem": map[string]interface{}{
-				"rootdirectory": "/var/lib/registry",
-			},
-		},
 	},
 	"extraVolumeMounts": []map[string]interface{}{
 		{
 			"name":      "auth",
 			"mountPath": "/auth",
-		},
-		{
-			"name":      "registry-data",
-			"mountPath": "/var/lib/registry",
 		},
 	},
 	"extraVolumes": []map[string]interface{}{
@@ -74,13 +66,6 @@ var helmValues = map[string]interface{}{
 			"name": "auth",
 			"secret": map[string]interface{}{
 				"secretName": "registry-auth",
-			},
-		},
-		{
-			"name": "registry-data",
-			"hostPath": map[string]interface{}{
-				"path": "/var/lib/embedded-cluster/registry",
-				"type": "DirectoryOrCreate",
 			},
 		},
 	},
@@ -139,6 +124,10 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	chartConfig.Values = string(valuesStringData)
 
 	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+}
+
+func (o *Registry) GetAdditionalImages() []string {
+	return nil
 }
 
 // Outro is executed after the cluster deployment.
