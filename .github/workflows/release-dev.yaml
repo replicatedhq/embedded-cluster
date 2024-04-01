@@ -19,7 +19,8 @@ jobs:
           go-version: "1.21"
       - name: Build Linux AMD64
         run: |
-          make embedded-cluster-linux-amd64
+          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+          make embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
       - name: Output Metadata
         run: |
