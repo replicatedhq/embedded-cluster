@@ -116,6 +116,14 @@ check_pod_install_order() {
     fi
 }
 
+check_airgap_pvc() {
+    if ! kubectl get pvc -n registry --no-headers=true | wc -l | grep -q 1 ; then
+        echo "Failed to find registry pvc"
+        kubectl get pvc -A
+        return 1
+    fi
+}
+
 wait_for_installation() {
     ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
     counter=0
@@ -173,6 +181,9 @@ main() {
         exit 1
     fi
     if ! check_pod_install_order; then
+        exit 1
+    fi
+    if ! check_airgap_pvc; then
         exit 1
     fi
     if ! systemctl status embedded-cluster; then
