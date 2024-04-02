@@ -153,6 +153,7 @@ func (r *ReleaseData) GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config
 type ChannelRelease struct {
 	VersionLabel string `yaml:"versionLabel"`
 	ChannelID    string `yaml:"channelID"`
+	ChannelSlug  string `yaml:"channelSlug"`
 	AppSlug      string `yaml:"appSlug"`
 }
 

@@ -264,15 +264,22 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	}
 
 	var appVersionLabel string
+	var channelSlug string
 	if channelRelease, err := release.GetChannelRelease(); err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
 	} else if channelRelease != nil {
 		appVersionLabel = channelRelease.VersionLabel
+		channelSlug = channelRelease.ChannelSlug
+	}
+
+	upstreamURI := license.Spec.AppSlug
+	if channelSlug != "" && channelSlug != "stable" {
+		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
 	}
 
 	installArgs := []string{
 		"install",
-		license.Spec.AppSlug,
+		upstreamURI,
 		"--license-file",
 		a.licenseFile,
 		"--namespace",
