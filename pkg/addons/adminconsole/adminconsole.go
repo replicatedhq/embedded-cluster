@@ -286,8 +286,8 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	}
 
 	if _, err := helpers.RunCommand(kotsBinPath, installArgs...); err != nil {
-		loading.Close()
 		loading.Debugf("kubectl-kots %v", installArgs)
+		loading.Close()
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
