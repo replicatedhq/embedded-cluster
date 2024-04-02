@@ -18,7 +18,7 @@ require (
 	github.com/replicatedhq/embedded-cluster-operator v0.25.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
-	github.com/replicatedhq/troubleshoot v0.84.1
+	github.com/replicatedhq/troubleshoot v0.85.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.1
@@ -68,7 +68,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231120223509-83a465c0220f // indirect
 	google.golang.org/grpc v1.60.1 // indirect
 	helm.sh/helm/v3 v3.14.3 // indirect
-	k8s.io/component-base v0.29.2 // indirect
+	k8s.io/component-base v0.29.3 // indirect
 )
 
 require (
@@ -146,8 +146,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
-	k8s.io/apiextensions-apiserver v0.29.2 // indirect
-	k8s.io/client-go v0.29.2 // indirect
+	k8s.io/apiextensions-apiserver v0.29.3 // indirect
+	k8s.io/client-go v0.29.3 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231113174909-778a5567bc1e // indirect
 	k8s.io/utils v0.0.0-20231121161247-cf03d44ff3cf // indirect
