@@ -65,6 +65,7 @@ jobs:
           export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
+          echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
           echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
           echo "versionLabel: \"appver-${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
           cat e2e/kots-release-install/release.yaml
