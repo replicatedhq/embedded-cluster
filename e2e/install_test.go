@@ -471,7 +471,6 @@ func installTestimAndDeploy(t *testing.T, node int, tc *cluster.Output) {
 	}
 
 	t.Logf("%s: accessing kotsadm interface and deploying app", time.Now().Format(time.RFC3339))
-	// TODO: add TESTIM_ACCESS_TOKEN and TESTIM_BRANCH to the environment (branch integration needs to be set up for the project)
 	line = []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "embedded-cluster-deployment"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to access kotsadm interface and state: %v", err)

@@ -27,8 +27,7 @@ main() {
   port_forward_pid=$!
 
   # run the Testim test
-  # TODO: change project to Embedded Cluster project once it's created
-  testim --token=$testim_token --project=wpYAooUimFDgQxY73r17 --grid=Testim-grid --branch=$testim_branch --timeout=3600000 --name=$test_name --tunnel --tunnel-port=3000
+  testim --token=$testim_token --project=wSvaGXFJnnoonKzLxBfX --grid=Testim-grid --branch=$testim_branch --timeout=3600000 --name=$test_name --tunnel --tunnel-port=3000
 
   # kill the port-forward process
   kill $port_forward_pid
