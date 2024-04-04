@@ -82,3 +82,5 @@ If you have made changes to the tests in your Testim branch, you should merge th
 to the master branch in Testim when merging your PR. Similarly, if you rebase your git
 branch from main, you may need to "rebase" your Testim branch (merge changes from master)
 if there have been changes to the tests.
+
+For more details on version control in Testim, refer to the [Testim documentation](https://help.testim.io/docs/version-control-branches).
