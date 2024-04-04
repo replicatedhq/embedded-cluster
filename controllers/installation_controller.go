@@ -778,6 +778,29 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 		k0surl = "http://127.0.0.1:50000/bin/k0s"
 	}
 
+	commands := []apv1b2.PlanCommand{}
+
+	if in.Spec.AirGap {
+		commands = append(commands, apv1b2.PlanCommand{
+			AirgapUpdate: &apv1b2.PlanCommandAirgapUpdate{
+				Version: meta.Versions.Kubernetes,
+				Platforms: map[string]apv1b2.PlanResourceURL{
+					"linux-amd64": {URL: "http://127.0.0.1:50000/images/images-amd64.tar"},
+				},
+			},
+		})
+	}
+
+	commands = append(commands, apv1b2.PlanCommand{
+		K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
+			Version: meta.Versions.Kubernetes,
+			Targets: targets,
+			Platforms: apv1b2.PlanPlatformResourceURLMap{
+				"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},
+			},
+		},
+	})
+
 	plan := apv1b2.Plan{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "autopilot",
@@ -785,17 +808,7 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 		Spec: apv1b2.PlanSpec{
 			Timestamp: "now",
 			ID:        in.Name,
-			Commands: []apv1b2.PlanCommand{
-				{
-					K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
-						Version: meta.Versions.Kubernetes,
-						Targets: targets,
-						Platforms: apv1b2.PlanPlatformResourceURLMap{
-							"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},
-						},
-					},
-				},
-			},
+			Commands:  commands,
 		},
 	}
 	if err := r.Create(ctx, &plan); err != nil {
