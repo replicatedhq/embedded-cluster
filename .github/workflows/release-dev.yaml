@@ -144,3 +144,5 @@ jobs:
           airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
           license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
+          testim-access-token: ${{ secrets.TESTIM_ACCESS_TOKEN }}
+          testim-branch: ${{ github.head_ref == 'main' && 'master' || github.head_ref }}

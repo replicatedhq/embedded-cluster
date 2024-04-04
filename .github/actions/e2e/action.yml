@@ -13,6 +13,12 @@ inputs:
   license:
     description: 'license (b64) to use for e2e tests'
     required: true
+  testim-access-token:
+    description: 'testim access token'
+    required: true
+  testim-branch:
+    description: 'testim branch'
+    required: true
 
 runs:
   using: composite
@@ -52,4 +58,6 @@ runs:
       export LICENSE_ID=${{ inputs.license-id }}
       export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
       echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
+      export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
+      export TESTIM_BRANCH=${{ inputs.testim-branch }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
