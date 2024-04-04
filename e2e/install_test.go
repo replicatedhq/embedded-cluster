@@ -213,7 +213,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "embedded-cluster-join-controller-command"}
+		line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-controller-command"}
 		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
@@ -226,7 +226,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "embedded-cluster-join-worker-command"}
+	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-worker-command"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
@@ -471,7 +471,7 @@ func installTestimAndDeploy(t *testing.T, node int, tc *cluster.Output) {
 	}
 
 	t.Logf("%s: accessing kotsadm interface and deploying app", time.Now().Format(time.RFC3339))
-	line = []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "embedded-cluster-deployment"}
+	line = []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "deploy-kots-application"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to access kotsadm interface and state: %v", err)
 	}
