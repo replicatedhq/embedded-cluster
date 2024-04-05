@@ -71,6 +71,9 @@ type InstallationSpec struct {
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
 	// used at installation time.
 	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
+	// BinaryName holds the name of the binary used to install the cluster.
+	// this will follow the pattern 'appslug-channelslug'
+	BinaryName string `json:"binaryName,omitempty"`
 }
 
 // InstallationStatus defines the observed state of Installation
