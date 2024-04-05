@@ -76,6 +76,11 @@ spec:
                 - helmCharts
                 - images
                 type: object
+              binaryName:
+                description: |-
+                  BinaryName holds the name of the binary used to install the cluster.
+                  this will follow the pattern 'appslug-channelslug'
+                type: string
               clusterID:
                 description: ClusterID holds the cluster, generated during the installation.
                 type: string
