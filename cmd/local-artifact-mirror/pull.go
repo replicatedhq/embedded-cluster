@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -140,7 +141,7 @@ var helmChartsCommand = &cli.Command{
 			return fmt.Errorf("unable to read directory: %w", err)
 		}
 		for _, f := range files {
-			if !contains(newFiles, f.Name()) {
+			if !slices.Contains(newFiles, f.Name()) {
 				fp := filepath.Join(dst, f.Name())
 				logrus.Infof("removing %s", fp)
 				if err := os.RemoveAll(fp); err != nil {
@@ -152,15 +153,6 @@ var helmChartsCommand = &cli.Command{
 		logrus.Infof("helm charts materialized under %s", dst)
 		return nil
 	},
-}
-
-func contains(haystack []string, needle string) bool {
-	for _, h := range haystack {
-		if h == needle {
-			return true
-		}
-	}
-	return false
 }
 
 // binariesCommands pulls the binary artifact from the registry running in the cluster and stores
