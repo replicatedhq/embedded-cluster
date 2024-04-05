@@ -183,6 +183,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			AirGap:                    e.airgap,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
+			BinaryName:                defaults.BinaryName(),
 		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())

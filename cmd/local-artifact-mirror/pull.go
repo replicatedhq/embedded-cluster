@@ -189,6 +189,15 @@ var binariesCommand = &cli.Command{
 		}
 
 		logrus.Infof("embedded cluster binaries materialized")
+
+		targetBinaryName := filepath.Join(defaults.EmbeddedClusterBinsSubDir(), EmbeddedClusterBinaryArtifactName)
+		if in.Spec.BinaryName != "" {
+			targetBinaryName = filepath.Join(defaults.EmbeddedClusterBinsSubDir(), in.Spec.BinaryName)
+		}
+
+		if err := helpers.MoveFile(bin, targetBinaryName); err != nil {
+			return fmt.Errorf("unable to move embedded-cluster binary: %w", err)
+		}
 		return nil
 	},
 }
