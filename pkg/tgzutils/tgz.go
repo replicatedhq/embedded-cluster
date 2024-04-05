@@ -10,17 +10,19 @@ import (
 )
 
 // Decompress decompresses a .tgz file into a directory.
-func Decompress(tgz, dst string) error {
+func Decompress(tgz, dst string) ([]string, error) {
 	fp, err := os.Open(tgz)
 	if err != nil {
-		return fmt.Errorf("unable to open tgz file: %v", err)
+		return nil, fmt.Errorf("unable to open tgz file: %v", err)
 	}
 	defer fp.Close()
 
 	gzreader, err := gzip.NewReader(fp)
 	if err != nil {
-		return fmt.Errorf("unable to create gzip reader: %v", err)
+		return nil, fmt.Errorf("unable to create gzip reader: %v", err)
 	}
+
+	filenames := []string{}
 
 	tarreader := tar.NewReader(gzreader)
 	for {
@@ -28,7 +30,7 @@ func Decompress(tgz, dst string) error {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return fmt.Errorf("unable to read tar header: %v", err)
+			return nil, fmt.Errorf("unable to read tar header: %v", err)
 		}
 
 		switch header.Typeflag {
@@ -36,7 +38,7 @@ func Decompress(tgz, dst string) error {
 			mode := os.FileMode(header.Mode)
 			dst := filepath.Join(dst, header.Name)
 			if err := os.Mkdir(dst, mode); err != nil {
-				return fmt.Errorf("unable to create directory: %v", err)
+				return nil, fmt.Errorf("unable to create directory: %v", err)
 			}
 		case tar.TypeReg:
 			mode := os.FileMode(header.Mode)
@@ -44,18 +46,19 @@ func Decompress(tgz, dst string) error {
 			opts := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 			outfp, err := os.OpenFile(dst, opts, mode)
 			if err != nil {
-				return fmt.Errorf("unable to create file: %v", err)
+				return nil, fmt.Errorf("unable to create file: %v", err)
 			}
 			if _, err := io.Copy(outfp, tarreader); err != nil {
-				return fmt.Errorf("unable to write file: %v", err)
+				return nil, fmt.Errorf("unable to write file: %v", err)
 			}
 			outfp.Close()
 			if err := os.Chmod(dst, os.FileMode(header.Mode)); err != nil {
-				return fmt.Errorf("unable to chmod file: %v", err)
+				return nil, fmt.Errorf("unable to chmod file: %v", err)
 			}
+			filenames = append(filenames, dst)
 		default:
-			return fmt.Errorf("unknown type: %v", header.Typeflag)
+			return nil, fmt.Errorf("unknown type: %v", header.Typeflag)
 		}
 	}
-	return nil
+	return filenames, nil
 }
