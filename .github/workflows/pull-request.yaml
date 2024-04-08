@@ -139,7 +139,7 @@ jobs:
         message: |
           This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app license ID.
           ```
-          curl https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${{ steps.shortsha.outputs.shortsha }} -H "Authorization: <LICENSE ID HERE>" -o embedded-cluster-smoke-test-staging-app-ci.tgz
+          curl https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${{ steps.shortsha.outputs.shortsha }} -H "Authorization: $EC_SMOKE_TEST_LICENSE_ID" -o embedded-cluster-smoke-test-staging-app-ci.tgz
           ```
 
   e2e:
