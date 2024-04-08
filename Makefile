@@ -4,7 +4,7 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.108.3-build.1
+ADMIN_CONSOLE_CHART_VERSION = 1.108.4
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
@@ -23,7 +23,7 @@ REGISTRY_IMAGE_VERSION = 2.8.3
 KUBECTL_VERSION = v1.29.3
 K0S_VERSION = v1.29.2+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.84.1
+TROUBLESHOOT_VERSION = v0.86.0
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
