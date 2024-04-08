@@ -41,6 +41,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -126,6 +128,19 @@ jobs:
           output/bin/embedded-cluster
           output/bin/embedded-cluster-original
           output/bin/embedded-cluster-release-builder
+
+    - name: shortsha
+      run: |
+        export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+        echo "shortsha=${SHORT_SHA}" >> "$GITHUB_ENV"
+    - name: comment download link
+      uses: mshick/add-pr-comment@v2
+      with:
+        message: |
+          This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app license ID.
+          ```
+          curl https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${{ steps.shortsha.outputs.shortsha }} -H "Authorization: <LICENSE ID HERE>" -o embedded-cluster-smoke-test-staging-app-ci.tgz
+          ```
 
   e2e:
     runs-on: ubuntu-latest
