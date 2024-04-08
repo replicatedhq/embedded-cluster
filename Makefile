@@ -11,6 +11,7 @@ EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
 EMBEDDED_OPERATOR_CHART_VERSION = 0.27.0
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
+EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_URL = https://openebs.github.io/charts
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 3.10.0
@@ -38,6 +39,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ImageOverride=$(EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
