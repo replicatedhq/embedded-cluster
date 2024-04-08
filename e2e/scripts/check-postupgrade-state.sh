@@ -25,6 +25,33 @@ wait_for_installation() {
     done
 }
 
+function retry() {
+    local retries=$1
+    shift
+
+    local count=0
+    until "$@"; do
+        exit=$?
+        wait=$((2 ** $count))
+        count=$(($count + 1))
+        if [ $count -lt $retries ]; then
+            echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+            sleep $wait
+        else
+            echo "Retry $count/$retries exited $exit, no more retries left."
+            return $exit
+        fi
+    done
+    return 0
+}
+
+function check_nginx_version {
+    if ! kubectl describe pod -n ingress-nginx | grep -q "4.9.1"; then
+        return 1
+    fi
+    return 0
+}
+
 main() {
     local installation_version=
     installation_version="$1"
@@ -75,7 +102,7 @@ main() {
         exit 1
     fi
     # ensure the new version made it into the pod
-    if ! kubectl describe pod -n ingress-nginx | grep -q "4.9.1" ; then
+    if ! retry 5 check_nginx_version ; then
         echo "4.9.1 not found in ingress-nginx pod"
         kubectl describe pod -n ingress-nginx
         exit 1
