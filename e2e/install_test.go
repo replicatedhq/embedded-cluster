@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,15 +10,6 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 )
-
-type clusterStatusResponse struct {
-	App     string `json:"app"`
-	Cluster string `json:"cluster"`
-}
-
-type nodeJoinResponse struct {
-	Command string `json:"command"`
-}
 
 func TestSingleNodeInstallation(t *testing.T) {
 	t.Parallel()
@@ -37,7 +27,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc)
+	installTestimAndDeploy(t, 0, tc)
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
@@ -217,39 +207,35 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	runPuppeteerAppStatusCheck(t, 0, tc)
+	installTestimAndDeploy(t, 0, tc)
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line := []string{"puppeteer.sh", "generate-controller-join-token.js", "10.0.0.2"}
+		line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-controller-command"}
 		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 		if err != nil {
-			t.Fatalf("fail to generate controller join token: %s", stdout)
+			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
-		var r nodeJoinResponse
-		if err := json.Unmarshal([]byte(stdout), &r); err != nil {
-			t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-			t.Fatalf("fail to parse script response: %v", err)
+		command, err := findJoinCommandInOutput(stdout)
+		if err != nil {
+			t.Fatalf("fail to find the join command in the output: %v", err)
 		}
-		// trim down the "./" and the "sudo" command as those are not needed. we run as
-		// root and the embedded-cluster binary is on the PATH.
-		command := strings.TrimPrefix(r.Command, "sudo ./")
 		controllerCommands = append(controllerCommands, command)
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	line := []string{"puppeteer.sh", "generate-worker-join-token.js", "10.0.0.2"}
+	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-worker-command"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
-		t.Fatalf("fail to generate controller join token: %s", stdout)
+		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
-	var jr nodeJoinResponse
-	if err := json.Unmarshal([]byte(stdout), &jr); err != nil {
-		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
-		t.Fatalf("fail to parse script response: %v", err)
+	command, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
+	t.Log("worker join token command:", command)
 
 	// join the nodes.
 	for i, cmd := range controllerCommands {
@@ -267,8 +253,6 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Logf("node %d joined, sleeping...", node)
 		time.Sleep(30 * time.Second)
 	}
-	command := strings.TrimPrefix(jr.Command, "sudo ./")
-	t.Log("worker join token command:", command)
 	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
@@ -479,14 +463,15 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func runPuppeteerAppStatusCheck(t *testing.T, node int, tc *cluster.Output) {
-	t.Logf("%s: installing puppeteer on node %d", time.Now().Format(time.RFC3339), node)
-	line := []string{"install-puppeteer.sh"}
+func installTestimAndDeploy(t *testing.T, node int, tc *cluster.Output) {
+	t.Logf("%s: installing testim on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"install-testim.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install puppeteer on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to install testim on node %s: %v", tc.Nodes[0], err)
 	}
+
 	t.Logf("%s: accessing kotsadm interface and deploying app", time.Now().Format(time.RFC3339))
-	line = []string{"puppeteer.sh", "deploy-kots-application.js", "10.0.0.2"}
+	line = []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "deploy-kots-application"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to access kotsadm interface and state: %v", err)
 	}

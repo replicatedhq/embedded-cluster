@@ -41,6 +41,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -86,6 +88,7 @@ jobs:
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         echo "# channel release object" > e2e/kots-release-install/release.yaml
         echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
+        echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
         echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
         echo "versionLabel: \"appver-${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
         cat e2e/kots-release-install/release.yaml
@@ -116,6 +119,22 @@ jobs:
         
         rm e2e/kots-release-install/release.yaml
         replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
+
+    - name: Create download link message text
+      run: |
+        export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+        
+        echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
+        echo "\`\`\`" >> download-link.txt
+        echo "curl https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${SHORT_SHA} -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
+        echo "\`\`\`" >> download-link.txt
+        echo "Happy debugging!" >> download-link.txt
+        cat download-link.txt
+
+    - name: comment download link
+      uses: mshick/add-pr-comment@v2
+      with:
+        message-path: download-link.txt
 
     - name: upload binary
       uses: actions/upload-artifact@v4
@@ -166,3 +185,5 @@ jobs:
         airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
         license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
         license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
+        testim-access-token: ${{ secrets.TESTIM_ACCESS_TOKEN }}
+        testim-branch: ${{ github.head_ref == 'main' && 'master' || github.head_ref }}

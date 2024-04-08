@@ -11,8 +11,8 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
@@ -35,10 +35,11 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL   = "https://url"
-	ChartName  = "name"
-	Version    = "v0.0.0"
-	UtilsImage = "busybox:latest"
+	ChartURL      = "https://url"
+	ChartName     = "name"
+	Version       = "v0.0.0"
+	UtilsImage    = "busybox:latest"
+	ImageOverride = ""
 )
 
 var helmValues = map[string]interface{}{
@@ -46,6 +47,21 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterVersion":    defaults.Version,
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
 	"utilsImage":                UtilsImage,
+}
+
+func init() {
+	if ImageOverride != "" {
+		// split ImageOverride into the image and tag
+		parts := strings.Split(ImageOverride, ":")
+		if len(parts) != 2 {
+			panic(fmt.Sprintf("invalid image override: %s", ImageOverride))
+		}
+
+		helmValues["image"] = map[string]interface{}{
+			"repository": parts[0],
+			"tag":        parts[1],
+		}
+	}
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
@@ -183,6 +199,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			AirGap:                    e.airgap,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
+			BinaryName:                defaults.BinaryName(),
 		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())

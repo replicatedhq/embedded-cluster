@@ -3,6 +3,9 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -75,4 +78,26 @@ func RunCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string)
 		return stdout.String(), stderr.String(), err
 	}
 	return stdout.String(), stderr.String(), nil
+}
+
+var commandOutputRegex = regexp.MustCompile(`{"command":"[^"]*"}`)
+
+type nodeJoinResponse struct {
+	Command string `json:"command"`
+}
+
+// findJoinCommandInOutput parses the output of the testim.sh script and returns the join command.
+func findJoinCommandInOutput(stdout string) (string, error) {
+	output := commandOutputRegex.FindString(stdout)
+	if output == "" {
+		return "", fmt.Errorf("failed to find the join command in the output: %s", stdout)
+	}
+	var r nodeJoinResponse
+	if err := json.Unmarshal([]byte(output), &r); err != nil {
+		return "", fmt.Errorf("failed to parse node join response: %v", err)
+	}
+	// trim down the "./" and the "sudo" command as those are not needed. we run as
+	// root and the embedded-cluster binary is on the PATH.
+	command := strings.TrimPrefix(r.Command, "sudo ./")
+	return command, nil
 }

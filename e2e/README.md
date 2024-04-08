@@ -66,3 +66,21 @@ https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-a
 Make sure to update the application yaml files under kots-release-onmerge
 and kots-release-onpr directories if you create a new release of the remote
 application.
+
+### Testim
+
+We use [Testim](https://www.testim.io/) to run end to end tests on the UI. The tests live within the
+"Embedded Cluster" Testim project.
+
+When a git branch is pushed to GitHub, a cooresponding branch is created in
+Testim. The on-PR tests will run against the matching branch in Testim, so if you need
+to make changes to the tests as part of your PR, you should make those updates in your
+Testim branch.
+
+When a PR is merged, the on-merge tests will run against the master branch in Testim.
+If you have made changes to the tests in your Testim branch, you should merge those changes
+to the master branch in Testim when merging your PR. Similarly, if you rebase your git
+branch from main, you may need to "rebase" your Testim branch (merge changes from master)
+if there have been changes to the tests.
+
+For more details on version control in Testim, refer to the [Testim documentation](https://help.testim.io/docs/version-control-branches).

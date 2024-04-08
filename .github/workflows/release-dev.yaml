@@ -65,6 +65,7 @@ jobs:
           export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
+          echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
           echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
           echo "versionLabel: \"appver-${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
           cat e2e/kots-release-install/release.yaml
@@ -143,3 +144,5 @@ jobs:
           airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
           license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
+          testim-access-token: ${{ secrets.TESTIM_ACCESS_TOKEN }}
+          testim-branch: 'master'

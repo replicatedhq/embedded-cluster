@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster-operator/api/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -189,6 +189,15 @@ var binariesCommand = &cli.Command{
 		}
 
 		logrus.Infof("embedded cluster binaries materialized")
+
+		targetBinaryName := filepath.Join(defaults.EmbeddedClusterBinsSubDir(), EmbeddedClusterBinaryArtifactName)
+		if in.Spec.BinaryName != "" {
+			targetBinaryName = filepath.Join(defaults.EmbeddedClusterBinsSubDir(), in.Spec.BinaryName)
+		}
+
+		if err := helpers.MoveFile(bin, targetBinaryName); err != nil {
+			return fmt.Errorf("unable to move embedded-cluster binary: %w", err)
+		}
 		return nil
 	},
 }
