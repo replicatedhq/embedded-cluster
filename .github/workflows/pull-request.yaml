@@ -129,19 +129,18 @@ jobs:
           output/bin/embedded-cluster-original
           output/bin/embedded-cluster-release-builder
 
-    - id: shortsha
-      name: Create short sha for download link
+    - name: Create download link message text
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-        echo "shortsha=${SHORT_SHA}" >> "$GITHUB_ENV"
+        
+        echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app license ID." > download-link.txt
+        echo "```" >> download-link.txt
+        echo "curl https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${SHORT_SHA} -H \"Authorization: $$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
+        echo "```" >> download-link.txt
     - name: comment download link
       uses: mshick/add-pr-comment@v2
       with:
-        message: |
-          This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app license ID.
-          ```
-          curl https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${{ steps.shortsha.outputs.shortsha }} -H "Authorization: $EC_SMOKE_TEST_LICENSE_ID" -o embedded-cluster-smoke-test-staging-app-ci.tgz
-          ```
+        message-path: download-link.txt
 
   e2e:
     runs-on: ubuntu-latest
