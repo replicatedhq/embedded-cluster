@@ -63,7 +63,7 @@ var helmValues = map[string]interface{}{
 	},
 	"embeddedClusterVersion": defaults.Version,
 	"images": map[string]interface{}{
-		"kotsadm": "kotsadm/kotsadm:v2024.4.4-8612e4-nightly",
+		"kotsadm": "ttl.sh/cbodonnell/kotsadm:24h",
 	},
 }
 
