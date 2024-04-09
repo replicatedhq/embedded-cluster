@@ -98,7 +98,8 @@ var copyArtifactsJob = &batchv1.Job{
 							"-c",
 							"/var/lib/embedded-cluster/bin/local-artifact-mirror pull binaries $INSTALLATION\n" +
 								"/var/lib/embedded-cluster/bin/local-artifact-mirror pull images $INSTALLATION\n" +
-								"/var/lib/embedded-cluster/bin/local-artifact-mirror pull helmcharts $INSTALLATION",
+								"/var/lib/embedded-cluster/bin/local-artifact-mirror pull helmcharts $INSTALLATION\n" +
+								"mv /var/lib/embedded-cluster/bin/k0s /var/lib/embedded-cluster/bin/k0s-upgrade",
 						},
 					},
 				},
@@ -812,7 +813,7 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 		// if we are running in an airgap environment all assets are already present in the
 		// node and are served by the local-artifact-mirror binary listening on localhost
 		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
-		k0surl = "http://127.0.0.1:50000/bin/k0s"
+		k0surl = "http://127.0.0.1:50000/bin/k0s-upgrade"
 	}
 
 	commands := []apv1b2.PlanCommand{}
