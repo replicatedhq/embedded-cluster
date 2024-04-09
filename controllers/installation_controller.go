@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -50,6 +51,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
 )
+
+// InstallationNameAnnotation is the annotation we keep in the autopilot plan so we can
+// map 1 to 1 one installation and one plan.
+const InstallationNameAnnotation = "embedded-cluster.replicated.com/installation-name"
 
 // requeueAfter is our default interval for requeueing. If nothing has changed with the
 // cluster nodes or the Installation object we will reconcile once every requeueAfter
@@ -550,7 +555,10 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 
 	// if we have created this plan we just found for the installation we are
 	// reconciling we set the installation state according to the plan state.
-	if plan.Spec.ID == in.Name {
+	// we check both the plan id and an annotation inside the plan. the usage
+	// of the plan id is deprecated in favour of the annotation.
+	annotation := plan.Annotations[InstallationNameAnnotation]
+	if annotation == in.Name || plan.Spec.ID == in.Name {
 		r.SetStateBasedOnPlan(in, plan)
 		return nil
 	}
@@ -839,10 +847,13 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	plan := apv1b2.Plan{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "autopilot",
+			Annotations: map[string]string{
+				InstallationNameAnnotation: in.Name,
+			},
 		},
 		Spec: apv1b2.PlanSpec{
 			Timestamp: "now",
-			ID:        in.Name,
+			ID:        uuid.New().String(),
 			Commands:  commands,
 		},
 	}

@@ -4,6 +4,7 @@ go 1.21.7
 
 require (
 	github.com/go-logr/logr v1.4.1
+	github.com/google/uuid v1.3.0
 	github.com/gosimple/slug v1.14.0
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c
@@ -46,7 +47,6 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
