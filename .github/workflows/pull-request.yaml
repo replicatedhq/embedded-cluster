@@ -125,8 +125,13 @@ jobs:
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         
         echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
+        echo "Online Installer:" >> download-link.txt
         echo "\`\`\`" >> download-link.txt
-        echo "curl https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${SHORT_SHA} -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
+        echo "curl \"https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/appver-${SHORT_SHA}\" -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
+        echo "\`\`\`" >> download-link.txt
+        echo "Airgap Installer:" >> download-link.txt
+        echo "\`\`\`" >> download-link.txt
+        echo "curl \"https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/appver-${SHORT_SHA}?airgap=true\" -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
         echo "\`\`\`" >> download-link.txt
         echo "Happy debugging!" >> download-link.txt
         cat download-link.txt
