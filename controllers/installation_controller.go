@@ -755,6 +755,43 @@ func (r *InstallationReconciler) DetermineUpgradeTargets(ctx context.Context) (a
 	}, nil
 }
 
+// CreateAirgapPlanCommand creates the plan to execute an aigrap upgrade in all nodes. The
+// return of this function is meant to be used as part of an autopilot plan.
+func (r *InstallationReconciler) CreateAirgapPlanCommand(ctx context.Context, in *v1beta1.Installation) (*apv1b2.PlanCommand, error) {
+	meta, err := release.MetadataFor(ctx, in, r.Client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get release bundle: %w", err)
+	}
+
+	var nodes corev1.NodeList
+	if err := r.List(ctx, &nodes); err != nil {
+		return nil, fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	var allNodes []string
+	for _, node := range nodes.Items {
+		allNodes = append(allNodes, node.Name)
+	}
+
+	return &apv1b2.PlanCommand{
+		AirgapUpdate: &apv1b2.PlanCommandAirgapUpdate{
+			Version: meta.Versions.Kubernetes,
+			Platforms: map[string]apv1b2.PlanResourceURL{
+				"linux-amd64": {
+					URL: "http://127.0.0.1:50000/images/images-amd64.tar",
+				},
+			},
+			Workers: apv1b2.PlanCommandTarget{
+				Discovery: apv1b2.PlanCommandTargetDiscovery{
+					Static: &apv1b2.PlanCommandTargetDiscoveryStatic{
+						Nodes: allNodes,
+					},
+				},
+			},
+		},
+	}, nil
+}
+
 // StartUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
 func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.Installation) error {
 	targets, err := r.DetermineUpgradeTargets(ctx)
@@ -781,14 +818,11 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	commands := []apv1b2.PlanCommand{}
 
 	if in.Spec.AirGap {
-		commands = append(commands, apv1b2.PlanCommand{
-			AirgapUpdate: &apv1b2.PlanCommandAirgapUpdate{
-				Version: meta.Versions.Kubernetes,
-				Platforms: map[string]apv1b2.PlanResourceURL{
-					"linux-amd64": {URL: "http://127.0.0.1:50000/images/images-amd64.tar"},
-				},
-			},
-		})
+		command, err := r.CreateAirgapPlanCommand(ctx, in)
+		if err != nil {
+			return fmt.Errorf("failed to create airgap plan command: %w", err)
+		}
+		commands = append(commands, *command)
 	}
 
 	commands = append(commands, apv1b2.PlanCommand{
