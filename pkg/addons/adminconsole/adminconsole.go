@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/k0sproject/dig"
@@ -244,28 +245,50 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
 
+	loading.Closef("Admin Console is ready!")
 	if a.licenseFile == "" {
-		loading.Closef("Admin Console is ready!")
 		return nil
 	}
 
-	loading.Infof("Finalizing")
+	lmsg := "Pushing application images"
+	fn := func(message string) string {
+		switch {
+		case strings.Contains(message, "Validating registry"):
+			lmsg = "Validating image storage configuration"
+		case strings.Contains(message, "Deploying application"):
+			lmsg = "Initializing application deployment"
+		case strings.Contains(message, "Pushing image"):
+			lmsg = message
+		case strings.Contains(message, "Waiting for Admin Console"):
+			lmsg = "Waiting for Admin Console rollout"
+		case strings.Contains(message, "Uploading app archive"):
+			lmsg = "Uploading application archive"
+		case strings.Contains(message, "Waiting for installation"):
+			lmsg = "Waiting for install to complete"
+		case strings.Contains(message, "Application images are ready"):
+			lmsg = message
+		}
+		return lmsg
+	}
 
+	loading = spinner.Start(spinner.WithMask(fn))
 	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
 	if err != nil {
-		loading.Close()
+		loading.CloseWithError()
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
 	defer os.Remove(kotsBinPath)
 
 	license, err := helpers.ParseLicense(a.licenseFile)
 	if err != nil {
+		loading.CloseWithError()
 		return fmt.Errorf("unable to parse license: %w", err)
 	}
 
 	var appVersionLabel string
 	var channelSlug string
 	if channelRelease, err := release.GetChannelRelease(); err != nil {
+		loading.CloseWithError()
 		return fmt.Errorf("unable to get channel release: %w", err)
 	} else if channelRelease != nil {
 		appVersionLabel = channelRelease.VersionLabel
@@ -292,12 +315,12 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		installArgs = append(installArgs, "--airgap-bundle", a.airgapBundle)
 	}
 
-	if _, err := helpers.RunCommand(kotsBinPath, installArgs...); err != nil {
-		loading.Close()
+	if err := helpers.RunCommandWithWriter(loading, kotsBinPath, installArgs...); err != nil {
+		loading.CloseWithError()
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
-	loading.Closef("Admin Console is ready!")
+	loading.Closef("Application images are ready!")
 	a.printSuccessMessage(license.Spec.AppSlug)
 	return nil
 }
