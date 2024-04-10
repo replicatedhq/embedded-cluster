@@ -171,14 +171,18 @@ var binariesCommand = &cli.Command{
 			logrus.Infof("removing temporary directory %s", location)
 			os.RemoveAll(location)
 		}()
-
 		bin := filepath.Join(location, EmbeddedClusterBinaryArtifactName)
-		if err := os.Chmod(bin, 0755); err != nil {
+		namedBin := filepath.Join(location, in.Spec.BinaryName)
+		if err := os.Rename(bin, namedBin); err != nil {
+			return fmt.Errorf("unable to rename binary: %w", err)
+		}
+
+		if err := os.Chmod(namedBin, 0755); err != nil {
 			return fmt.Errorf("unable to change permissions on %s: %w", bin, err)
 		}
 
 		out := bytes.NewBuffer(nil)
-		cmd := exec.Command(bin, "materialize")
+		cmd := exec.Command(namedBin, "materialize")
 		cmd.Stdout = out
 		cmd.Stderr = out
 
@@ -190,14 +194,6 @@ var binariesCommand = &cli.Command{
 
 		logrus.Infof("embedded cluster binaries materialized")
 
-		targetBinaryName := filepath.Join(defaults.EmbeddedClusterBinsSubDir(), EmbeddedClusterBinaryArtifactName)
-		if in.Spec.BinaryName != "" {
-			targetBinaryName = filepath.Join(defaults.EmbeddedClusterBinsSubDir(), in.Spec.BinaryName)
-		}
-
-		if err := helpers.MoveFile(bin, targetBinaryName); err != nil {
-			return fmt.Errorf("unable to move embedded-cluster binary: %w", err)
-		}
 		return nil
 	},
 }
