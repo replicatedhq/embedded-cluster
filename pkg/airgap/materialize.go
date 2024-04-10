@@ -37,7 +37,7 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 		}
 
 		if nextFile.Name == "embedded-cluster/images-amd64.tar" {
-			err = writeOneFile(tarreader, K0sImagePath)
+			err = writeOneFile(tarreader, K0sImagePath, nextFile.Mode)
 			if err != nil {
 				return fmt.Errorf("failed to write k0s images file: %w", err)
 			}
@@ -58,10 +58,9 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 	}
 }
 
-func writeOneFile(reader io.Reader, path string) error {
+func writeOneFile(reader io.Reader, path string, mode int64) error {
 	// setup destination
-	err := os.MkdirAll(filepath.Dir(path), 0755)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -71,13 +70,12 @@ func writeOneFile(reader io.Reader, path string) error {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
 	defer destFile.Close()
-	err = destFile.Chmod(0755)
-	if err != nil {
+
+	if err := destFile.Chmod(os.FileMode(mode)); err != nil {
 		return fmt.Errorf("failed to set destination file permissions: %w", err)
 	}
 
-	_, err = io.Copy(destFile, reader)
-	if err != nil {
+	if _, err := io.Copy(destFile, reader); err != nil {
 		return fmt.Errorf("failed to copy images file: %w", err)
 	}
 	return nil
@@ -103,11 +101,14 @@ func writeChartFiles(reader io.Reader) error {
 			return fmt.Errorf("failed to read airgap file: %w", err)
 		}
 
-		if !nextFile.FileInfo().IsDir() {
-			err = writeOneFile(tarreader, filepath.Join(defaults.EmbeddedClusterChartsSubDir(), nextFile.Name))
-			if err != nil {
-				return fmt.Errorf("failed to write chart file: %w", err)
-			}
+		if nextFile.FileInfo().IsDir() {
+			continue
+		}
+
+		subdir := defaults.EmbeddedClusterChartsSubDir()
+		dst := filepath.Join(subdir, nextFile.Name)
+		if err := writeOneFile(tarreader, dst, nextFile.Mode); err != nil {
+			return fmt.Errorf("failed to write chart file: %w", err)
 		}
 	}
 }
