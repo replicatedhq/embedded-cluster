@@ -313,7 +313,7 @@ var resetCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "reboot",
-			Usage: "Reboot system after reseting the node",
+			Usage: "Reboot system after resetting the node",
 			Value: false,
 		},
 	},
