@@ -313,7 +313,7 @@ var resetCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "reboot",
-			Usage: "Reboot system after reseting the node",
+			Usage: "Reboot system after resetting the node",
 			Value: false,
 		},
 	},
@@ -406,7 +406,13 @@ var resetCommand = &cli.Command{
 
 		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
 			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
-				return err
+				return fmt.Errorf("failed to remove embedded cluster home directory: %w", err)
+			}
+		}
+
+		if _, err := os.Stat("/var/openebs"); err == nil {
+			if err := os.RemoveAll("/var/openebs"); err != nil {
+				return fmt.Errorf("failed to remove openebs storage: %w", err)
 			}
 		}
 
