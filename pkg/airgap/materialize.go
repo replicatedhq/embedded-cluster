@@ -11,7 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
-const K0sImagePath = "/var/lib/k0s/images/install.tar"
+const K0sImagePath = "/var/lib/k0s/images/images-amd64.tar"
 
 // MaterializeAirgap places the airgap image bundle for k0s and the embedded cluster charts on disk.
 // - image bundle should be located at 'images-amd64.tar' within the embedded-cluster directory within the airgap bundle.
