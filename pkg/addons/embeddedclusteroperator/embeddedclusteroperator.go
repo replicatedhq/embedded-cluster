@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"strings"
 	"time"
 
@@ -189,6 +190,22 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		license = l
 	}
 
+	var artifacts *embeddedclusterv1beta1.ArtifactsLocation
+
+	if e.airgap {
+		chann, err := release.GetChannelRelease()
+		if err != nil {
+			return fmt.Errorf("unable to get channel release: %w", err)
+		}
+
+		artifacts = &embeddedclusterv1beta1.ArtifactsLocation{
+			EmbeddedClusterBinary:   getArtifactLocation("embedded-cluster-amd64", chann),
+			EmbeddedClusterMetadata: getArtifactLocation("version-metadata.json", chann),
+			HelmCharts:              getArtifactLocation("charts.tar.gz", chann),
+			Images:                  getArtifactLocation("images-amd64.tar", chann),
+		}
+	}
+
 	installation := embeddedclusterv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
@@ -200,6 +217,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
+			Artifacts:                 artifacts,
 		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
@@ -228,4 +246,8 @@ func New(opts Options) (*EmbeddedClusterOperator, error) {
 		airgap:          opts.Airgap,
 		releaseMetadata: opts.ReleaseMetadata,
 	}, nil
+}
+
+func getArtifactLocation(artifact string, chann *release.ChannelRelease) string {
+	return fmt.Sprintf("%s:5000/%s/embedded-cluster/%s:%s-%d-%s", registry.GetRegistryClusterIP(), chann.AppSlug, artifact, chann.ChannelID, chann.ChannelSequence, chann.VersionLabel)
 }

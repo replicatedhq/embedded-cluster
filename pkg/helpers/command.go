@@ -28,5 +28,6 @@ func RunCommand(bin string, args ...string) (string, error) {
 		}
 		return "", err
 	}
+	logrus.Debugf("command output: %s", stdout.String())
 	return stdout.String(), nil
 }

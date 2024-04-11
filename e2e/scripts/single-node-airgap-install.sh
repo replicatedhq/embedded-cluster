@@ -148,6 +148,22 @@ wait_for_installation() {
     done
 }
 
+pull_files() {
+    current_installation=$(kubectl get installations --no-headers | awk '{print $1}')
+    if ! /var/lib/embedded-cluster/bin/local-artifact-mirror pull binaries $current_installation; then
+        echo "Failed to pull binaries"
+        return 1
+    fi
+    if ! /var/lib/embedded-cluster/bin/local-artifact-mirror pull images $current_installation; then
+        echo "Failed to pull images"
+        return 1
+    fi
+    if ! /var/lib/embedded-cluster/bin/local-artifact-mirror pull helmcharts $current_installation; then
+        echo "Failed to pull helm charts"
+        return 1
+    fi
+}
+
 main() {
     if ! embedded-cluster install --no-prompt --license /tmp/license.yaml --airgap-bundle /tmp/release.airgap 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
@@ -194,6 +210,12 @@ main() {
     echo "ensure that installation is installed"
     wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"
+
+    echo "pulling files"
+    if ! pull_files ; then
+        echo "Failed to pull files"
+        exit 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
