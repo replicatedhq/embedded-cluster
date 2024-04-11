@@ -123,11 +123,11 @@ func TestLineBreak(t *testing.T) {
 	}
 	pb.Close()
 	// we expect the following output:
-	// ✔  test 3 (\n)
-	// ✔  test 8 (\n)
+	// ✔  test 2 (\n)
+	// ✔  test 7 (\n)
 	// ✔  test 99 (\n)
 	assert.Equal(t, strings.Count(buf.String(), "\n"), 3)
-	assert.Contains(t, buf.String(), "test 3")
-	assert.Contains(t, buf.String(), "test 8")
+	assert.Contains(t, buf.String(), "test 2")
+	assert.Contains(t, buf.String(), "test 7")
 	assert.Contains(t, buf.String(), "test 99")
 }
