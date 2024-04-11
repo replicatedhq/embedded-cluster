@@ -12,6 +12,11 @@ var blocks = []string{"◐", "◓", "◑", "◒"}
 // WriteFn is a function that writes a formatted string.
 type WriteFn func(string, ...any) (int, error)
 
+// LineBreakerFn is a function that determines if it is time to break the
+// line thus creating a new spinner line. The previous step is flagged as
+// success.
+type LineBreakerFn func(string) bool
+
 // MaskFn is a function that masks a message. Receives a string and
 // returns a string, the returned string is printed to the terminal.
 type MaskFn func(string) string
@@ -23,6 +28,7 @@ type MessageWriter struct {
 	err    bool
 	printf WriteFn
 	mask   MaskFn
+	lbreak LineBreakerFn
 }
 
 // Write implements io.Writer for the MessageWriter.
@@ -100,19 +106,31 @@ func (m *MessageWriter) loop() {
 		case <-ticker.C:
 			counter++
 		}
+
+		var lbreak bool
+		if m.lbreak != nil {
+			lbreak = m.lbreak(message)
+		}
+
 		if m.mask != nil {
 			message = m.mask(message)
 		}
+
 		pos := counter % len(blocks)
 		if !end {
-			_, _ = m.printf("\033[K\r%s  %s ", blocks[pos], message)
+			prefix, suffix := blocks[pos], ""
+			if lbreak {
+				prefix, suffix = "✔", "\n"
+			}
+			m.printf("\033[K\r%s  %s %s", prefix, message, suffix)
 			continue
 		}
+
 		prefix := "✔"
 		if m.err {
 			prefix = "✗"
 		}
-		_, _ = m.printf("\033[K\r%s  %s\n", prefix, message)
+		m.printf("\033[K\r%s  %s\n", prefix, message)
 		close(m.end)
 		return
 	}
