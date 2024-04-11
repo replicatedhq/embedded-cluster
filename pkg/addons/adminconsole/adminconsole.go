@@ -257,15 +257,19 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 			lmsg = "Validating image storage configuration"
 		case strings.Contains(message, "Deploying application"):
 			lmsg = "Initializing application deployment"
-		case strings.Contains(message, "Pushing image"):
+		case strings.Contains(message, "Pushing application images"):
+			lmsg = message
+		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			lmsg = message
 		case strings.Contains(message, "Waiting for Admin Console"):
-			lmsg = "Waiting for Admin Console rollout"
+			lmsg = "Waiting for Admin Console to report ready"
 		case strings.Contains(message, "Uploading app archive"):
 			lmsg = "Uploading application archive"
 		case strings.Contains(message, "Waiting for installation"):
 			lmsg = "Waiting for install to complete"
-		case strings.Contains(message, "Application images are ready"):
+		case strings.Contains(message, "Waiting for installation to complete"):
+			lmsg = "Finalizing"
+		case strings.Contains(message, "Finished!"):
 			lmsg = message
 		}
 		return lmsg
@@ -320,7 +324,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
-	loading.Closef("Application images are ready!")
+	loading.Closef("Finished!")
 	a.printSuccessMessage(license.Spec.AppSlug)
 	return nil
 }
