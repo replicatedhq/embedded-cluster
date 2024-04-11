@@ -96,6 +96,8 @@ func (m *MessageWriter) loop() {
 	var ticker = time.NewTicker(50 * time.Millisecond)
 	var end bool
 	for {
+		previous := message
+
 		select {
 		case msg, open := <-m.ch:
 			if !open {
@@ -108,7 +110,7 @@ func (m *MessageWriter) loop() {
 		}
 
 		var lbreak bool
-		if m.lbreak != nil {
+		if m.lbreak != nil && previous != message {
 			lbreak = m.lbreak(message)
 		}
 
@@ -118,11 +120,10 @@ func (m *MessageWriter) loop() {
 
 		pos := counter % len(blocks)
 		if !end {
-			prefix, suffix := blocks[pos], ""
 			if lbreak {
-				prefix, suffix = "✔", "\n"
+				m.printf("\033[K\r✔  %s\n", previous)
 			}
-			m.printf("\033[K\r%s  %s %s", prefix, message, suffix)
+			m.printf("\033[K\r%s  %s", blocks[pos], message)
 			continue
 		}
 
