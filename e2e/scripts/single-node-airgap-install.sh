@@ -150,6 +150,7 @@ wait_for_installation() {
 
 pull_files() {
     current_installation=$(kubectl get installations --no-headers | awk '{print $1}')
+    echo "installation_id: $current_installation"
     if ! /var/lib/embedded-cluster/bin/local-artifact-mirror pull binaries $current_installation; then
         echo "Failed to pull binaries"
         return 1
@@ -210,6 +211,10 @@ main() {
     echo "ensure that installation is installed"
     wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"
+
+    echo "get installation debug logs"
+    ls -l /var/lib/embedded-cluster/logs/
+    cat /var/lib/embedded-cluster/logs/*
 
     echo "pulling files"
     if ! pull_files ; then
