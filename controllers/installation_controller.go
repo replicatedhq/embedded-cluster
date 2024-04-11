@@ -104,7 +104,9 @@ var copyArtifactsJob = &batchv1.Job{
 							"/var/lib/embedded-cluster/bin/local-artifact-mirror pull binaries $INSTALLATION\n" +
 								"/var/lib/embedded-cluster/bin/local-artifact-mirror pull images $INSTALLATION\n" +
 								"/var/lib/embedded-cluster/bin/local-artifact-mirror pull helmcharts $INSTALLATION\n" +
-								"mv /var/lib/embedded-cluster/bin/k0s /var/lib/embedded-cluster/bin/k0s-upgrade",
+								"mv /var/lib/embedded-cluster/bin/k0s /var/lib/embedded-cluster/bin/k0s-upgrade\n" +
+								"rm /var/lib/embedded-cluster/images/images-amd64-* || true\n" +
+								"mv /var/lib/embedded-cluster/images/images-amd64.tar /var/lib/k0s/images/images-amd64-${INSTALLATION}.tar",
 						},
 					},
 				},
@@ -782,12 +784,14 @@ func (r *InstallationReconciler) CreateAirgapPlanCommand(ctx context.Context, in
 		allNodes = append(allNodes, node.Name)
 	}
 
+	imageURL := fmt.Sprintf("http://127.0.0.1:50000/images/images-amd64-%s.tar", in.Name)
+
 	return &apv1b2.PlanCommand{
 		AirgapUpdate: &apv1b2.PlanCommandAirgapUpdate{
 			Version: meta.Versions.Kubernetes,
 			Platforms: map[string]apv1b2.PlanResourceURL{
 				"linux-amd64": {
-					URL: "http://127.0.0.1:50000/images/images-amd64.tar",
+					URL: imageURL,
 				},
 			},
 			Workers: apv1b2.PlanCommandTarget{
