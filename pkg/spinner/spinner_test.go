@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,4 +107,27 @@ func TestMask(t *testing.T) {
 	pb.Close()
 	assert.Contains(t, buf.String(), "masked 0")
 	assert.Contains(t, buf.String(), "masked 1")
+}
+
+func TestLineBreak(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	lbreak := func(s string) bool {
+		return s == "test 3" || s == "test 8"
+	}
+	pb := Start(
+		WithWriter(WriteTo(buf)),
+		WithLineBreaker(lbreak),
+	)
+	for i := 0; i < 100; i++ {
+		pb.Infof("test %d", i)
+	}
+	pb.Close()
+	// we expect the following output:
+	// ✔  test 3 (\n)
+	// ✔  test 8 (\n)
+	// ✔  test 99 (\n)
+	assert.Equal(t, strings.Count(buf.String(), "\n"), 3)
+	assert.Contains(t, buf.String(), "test 3")
+	assert.Contains(t, buf.String(), "test 8")
+	assert.Contains(t, buf.String(), "test 99")
 }
