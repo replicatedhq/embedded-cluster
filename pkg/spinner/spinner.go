@@ -115,6 +115,10 @@ func (m *MessageWriter) loop() {
 
 		if m.lbreak != nil && previous != message {
 			if lbreak, lcontent := m.lbreak(message); lbreak {
+				if diff := len(previous) - len(lcontent); diff > 0 {
+					suffix := strings.Repeat(" ", diff)
+					lcontent = fmt.Sprintf("%s%s", lcontent, suffix)
+				}
 				m.printf("\033[K\r✔  %s\n", lcontent)
 			}
 		}
