@@ -238,12 +238,12 @@ func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
 			current = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			current = message
-			if message != previous && finishedPreviousStep(previous) {
+			if current != previous && finishedPreviousStep(previous) {
 				current = "Application images are ready!"
 			}
 		case strings.Contains(message, "Waiting for Admin Console"):
 			current = "Finalizing"
-			if message != previous && finishedPreviousStep(previous) {
+			if current != previous && finishedPreviousStep(previous) {
 				current = "Embedded Cluster artifacts are ready!"
 			}
 		case strings.Contains(message, "Finished!"):
@@ -357,6 +357,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
 	}
 
+	var lbreakfn spinner.LineBreakerFn
 	maskfn := a.MaskKotsOutputForOnline()
 	installArgs := []string{
 		"install",
@@ -372,9 +373,10 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	if a.airgapBundle != "" {
 		installArgs = append(installArgs, "--airgap-bundle", a.airgapBundle)
 		maskfn = a.MaskKotsOutputForAirgap()
+		lbreakfn = a.KostsOutputLineBreaker()
 	}
 
-	loading = spinner.Start(spinner.WithMask(maskfn))
+	loading = spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
 	if err := helpers.RunCommandWithWriter(loading, kotsBinPath, installArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to install the application: %w", err)
