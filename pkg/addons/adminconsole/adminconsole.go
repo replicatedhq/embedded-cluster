@@ -226,8 +226,7 @@ func (a *AdminConsole) MaskKotsOutputForOnline() spinner.MaskFn {
 // function replaces some of the messages being printed to the user so the output looks
 // nicer.
 func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
-
-	current := "Starting the airgap bundle upload process"
+	current := "Uploading air gap bundle"
 	return func(message string) string {
 		switch {
 		case strings.Contains(message, "Pushing application images"):
