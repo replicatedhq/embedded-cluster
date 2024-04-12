@@ -236,20 +236,23 @@ func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
 		switch {
 		case strings.Contains(message, "Pushing application images"):
 			lmsg = message
+			previous = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			lmsg = message
-			if message != lmsg && finishedPreviousStep(previous) {
+			if message != previous && finishedPreviousStep(previous) {
 				lmsg = "Application images are ready!"
 			}
+			previous = message
 		case strings.Contains(message, "Waiting for Admin Console"):
 			lmsg = "Finalizing"
-			if message != lmsg && finishedPreviousStep(previous) {
+			if message != previous && finishedPreviousStep(previous) {
 				lmsg = "Embedded Cluster artifacts are ready!"
 			}
+			previous = message
 		case strings.Contains(message, "Finished!"):
+			previous = message
 			lmsg = message
 		}
-		previous = message
 		return lmsg
 	}
 }
