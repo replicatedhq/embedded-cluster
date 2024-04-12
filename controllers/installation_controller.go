@@ -33,6 +33,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	"github.com/k0sproject/version"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -284,7 +285,8 @@ func (r *InstallationReconciler) CreateArtifactJobForNode(ctx context.Context, i
 		"embedded-cluster/artifacts-config-hash": hash,
 	}
 	job := copyArtifactsJob.DeepCopy()
-	job.Name = fmt.Sprintf("copy-artifacts-%s", node.Name)
+	job.Name = util.NameWithLengthLimit("copy-artifacts-", node.Name)
+
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = node.Name
 	job.Spec.Template.Spec.Containers[0].Env = append(
