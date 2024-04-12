@@ -208,6 +208,48 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 	return nil
 }
 
+// MaskKotsOutputForAirgap masks the kots cli output during airgap installations. This
+// function replaces some of the messages being printed to the user so the output looks
+// cleaner.
+func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
+	lmsg := "Pushing application images"
+	return func(message string) string {
+		switch {
+		case strings.Contains(message, "Validating registry"):
+			lmsg = "Validating image storage configuration"
+		case strings.Contains(message, "Deploying application"):
+			lmsg = "Initializing application deployment"
+		case strings.Contains(message, "Pushing application images"):
+			lmsg = message
+		case strings.Contains(message, "Pushing embedded cluster artifacts"):
+			lmsg = message
+		case strings.Contains(message, "Waiting for Admin Console"):
+			lmsg = "Waiting for Admin Console to report ready"
+		case strings.Contains(message, "Uploading app archive"):
+			lmsg = "Uploading application archive"
+		case strings.Contains(message, "Waiting for installation"):
+			lmsg = "Waiting for install to complete"
+		case strings.Contains(message, "Waiting for installation to complete"):
+			lmsg = "Finalizing"
+		case strings.Contains(message, "Finished!"):
+			lmsg = message
+		}
+		return lmsg
+	}
+}
+
+// MaskKotsOutputForOnline masks the kots cli output during online installations. For
+// online installations we only want to print "Finalizing" until it is done and then
+// print "Finished!".
+func (a *AdminConsole) MaskKotsOutputForOnline() spinner.MaskFn {
+	return func(message string) string {
+		if strings.Contains(message, "Finished") {
+			return message
+		}
+		return "Finalizing"
+	}
+}
+
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
@@ -250,35 +292,8 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return nil
 	}
 
-	lmsg := "Pushing application images"
-	fn := func(message string) string {
-		switch {
-		case strings.Contains(message, "Validating registry"):
-			lmsg = "Validating image storage configuration"
-		case strings.Contains(message, "Deploying application"):
-			lmsg = "Initializing application deployment"
-		case strings.Contains(message, "Pushing application images"):
-			lmsg = message
-		case strings.Contains(message, "Pushing embedded cluster artifacts"):
-			lmsg = message
-		case strings.Contains(message, "Waiting for Admin Console"):
-			lmsg = "Waiting for Admin Console to report ready"
-		case strings.Contains(message, "Uploading app archive"):
-			lmsg = "Uploading application archive"
-		case strings.Contains(message, "Waiting for installation"):
-			lmsg = "Waiting for install to complete"
-		case strings.Contains(message, "Waiting for installation to complete"):
-			lmsg = "Finalizing"
-		case strings.Contains(message, "Finished!"):
-			lmsg = message
-		}
-		return lmsg
-	}
-
-	loading = spinner.Start(spinner.WithMask(fn))
 	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
 	if err != nil {
-		loading.CloseWithError()
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
 	defer os.Remove(kotsBinPath)
@@ -304,6 +319,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
 	}
 
+	maskfn := a.MaskKotsOutputForOnline()
 	installArgs := []string{
 		"install",
 		upstreamURI,
@@ -317,8 +333,10 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	}
 	if a.airgapBundle != "" {
 		installArgs = append(installArgs, "--airgap-bundle", a.airgapBundle)
+		maskfn = a.MaskKotsOutputForAirgap()
 	}
 
+	loading = spinner.Start(spinner.WithMask(maskfn))
 	if err := helpers.RunCommandWithWriter(loading, kotsBinPath, installArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to install the application: %w", err)
