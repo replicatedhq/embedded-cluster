@@ -62,6 +62,8 @@ const InstallationNameAnnotation = "embedded-cluster.replicated.com/installation
 // interval.
 var requeueAfter = time.Hour
 
+const copyArtifactsJobPrefix = "copy-artifacts-"
+
 // copyArtifactsJob is a job we create everytime we need to sync files into all nodes.
 // This job mounts /var/lib/embedded-cluster from the node and uses binaries that are
 // present there. This is not yet a complete version of the job as it misses some env
@@ -285,7 +287,7 @@ func (r *InstallationReconciler) CreateArtifactJobForNode(ctx context.Context, i
 		"embedded-cluster/artifacts-config-hash": hash,
 	}
 	job := copyArtifactsJob.DeepCopy()
-	job.Name = util.NameWithLengthLimit("copy-artifacts-", node.Name)
+	job.Name = util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name)
 
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = node.Name
@@ -381,7 +383,7 @@ func (r *InstallationReconciler) CopyArtifactsToNodes(ctx context.Context, in *v
 	for _, node := range nodes.Items {
 		log.Info("Evaluating job for node", "node", node.Name)
 		nsn := types.NamespacedName{
-			Name:      fmt.Sprintf("copy-artifacts-%s", node.Name),
+			Name:      util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name),
 			Namespace: "embedded-cluster",
 		}
 
