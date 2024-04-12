@@ -149,6 +149,7 @@ e2e-test:
 clean:
 	rm -rf output
 	rm -rf pkg/goods/bins
+	rm -rf pkg/goods/internal/bins
 
 .PHONY: lint
 lint:

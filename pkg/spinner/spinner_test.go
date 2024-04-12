@@ -111,8 +111,14 @@ func TestMask(t *testing.T) {
 
 func TestLineBreak(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	lbreak := func(s string) bool {
-		return s == "test 3" || s == "test 8"
+	lbreak := func(s string) (bool, string) {
+		if s == "test 3" {
+			return true, "ping 2"
+		}
+		if s == "test 8" {
+			return true, "ping 7"
+		}
+		return false, ""
 	}
 	pb := Start(
 		WithWriter(WriteTo(buf)),
@@ -123,11 +129,11 @@ func TestLineBreak(t *testing.T) {
 	}
 	pb.Close()
 	// we expect the following output:
-	// ✔  test 2 (\n)
-	// ✔  test 7 (\n)
+	// ✔  ping 2 (\n)
+	// ✔  ping 7 (\n)
 	// ✔  test 99 (\n)
 	assert.Equal(t, strings.Count(buf.String(), "\n"), 3)
-	assert.Contains(t, buf.String(), "test 2")
-	assert.Contains(t, buf.String(), "test 7")
+	assert.Contains(t, buf.String(), "ping 2")
+	assert.Contains(t, buf.String(), "ping 7")
 	assert.Contains(t, buf.String(), "test 99")
 }
