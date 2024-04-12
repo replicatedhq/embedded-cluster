@@ -106,7 +106,9 @@ var copyArtifactsJob = &batchv1.Job{
 								"/var/lib/embedded-cluster/bin/local-artifact-mirror pull helmcharts $INSTALLATION\n" +
 								"mv /var/lib/embedded-cluster/bin/k0s /var/lib/embedded-cluster/bin/k0s-upgrade\n" +
 								"rm /var/lib/embedded-cluster/images/images-amd64-* || true\n" +
-								"mv /var/lib/embedded-cluster/images/images-amd64.tar /var/lib/k0s/images/images-amd64-${INSTALLATION}.tar",
+								"cd /var/lib/embedded-cluster/images/\n" +
+								"mv images-amd64.tar images-amd64-${INSTALLATION}.tar\n" +
+								"echo 'done'",
 						},
 					},
 				},
