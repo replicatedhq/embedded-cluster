@@ -13,9 +13,9 @@ var blocks = []string{"◐", "◓", "◑", "◒"}
 type WriteFn func(string, ...any) (int, error)
 
 // LineBreakerFn is a function that determines if it is time to break the
-// line thus creating a new spinner line. The previous step is flagged as
-// success.
-type LineBreakerFn func(string) bool
+// line thus creating a new spinner line. Returns a boolean and a string
+// indicating what needs to be printed before the line break.
+type LineBreakerFn func(string) (bool, string)
 
 // MaskFn is a function that masks a message. Receives a string and
 // returns a string, the returned string is printed to the terminal.
@@ -113,16 +113,14 @@ func (m *MessageWriter) loop() {
 			message = m.mask(message)
 		}
 
-		var lbreak bool
 		if m.lbreak != nil && previous != message {
-			lbreak = m.lbreak(message)
+			if lbreak, lcontent := m.lbreak(message); lbreak {
+				m.printf("\033[K\r✔  %s\n", lcontent)
+			}
 		}
 
 		pos := counter % len(blocks)
 		if !end {
-			if lbreak {
-				m.printf("\033[K\r✔  %s\n", previous)
-			}
 			m.printf("\033[K\r%s  %s", blocks[pos], message)
 			continue
 		}

@@ -212,9 +212,33 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 
 // MaskKotsOutputForAirgap masks the kots cli output during airgap installations. This
 // function replaces some of the messages being printed to the user so the output looks
-// cleaner.
+// nicer.
 func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
-	finishedPreviousStep := func(message string) bool {
+
+	current := "Starting the airgap bundle upload process"
+	return func(message string) string {
+		switch {
+		case strings.Contains(message, "Pushing application images"):
+			current = message
+		case strings.Contains(message, "Pushing embedded cluster artifacts"):
+			current = message
+		case strings.Contains(message, "Waiting for Admin Console"):
+			current = "Finalizing"
+		case strings.Contains(message, "Finished!"):
+			current = message
+		}
+		return current
+	}
+}
+
+// KostsOutputLineBreaker creates a line break (new spinner) when some of the messages
+// are printed to the user. For example: after finishing all image uploads we want to
+// have a new spinner for the artifacts upload.
+func (a *AdminConsole) KostsOutputLineBreaker() spinner.LineBreakerFn {
+	// finished is an auxiliary function that evaluates if a message refers to a
+	// step that has been finished. We determine that by inspected if the message
+	// contains %d/%d and both integers are equal.
+	finished := func(message string) bool {
 		matches := CounterRegex.FindStringSubmatch(message)
 		if len(matches) != 3 {
 			return false
@@ -230,61 +254,41 @@ func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
 		return counter == total
 	}
 
-	current := "Starting the airgap bundle upload process"
-	previous := current
-	return func(message string) string {
-		switch {
-		case strings.Contains(message, "Pushing application images"):
-			current = message
-		case strings.Contains(message, "Pushing embedded cluster artifacts"):
-			current = message
-			if current != previous && finishedPreviousStep(previous) {
-				current = "Application images are ready!"
-			}
-		case strings.Contains(message, "Waiting for Admin Console"):
-			current = "Finalizing"
-			if current != previous && finishedPreviousStep(previous) {
-				current = "Embedded Cluster artifacts are ready!"
-			}
-		case strings.Contains(message, "Finished!"):
-			current = message
-		}
-		previous = current
-		return current
-	}
-}
+	var previous string
+	var seen = map[string]bool{}
+	return func(current string) (bool, string) {
+		defer func() {
+			previous = current
+		}()
 
-// KostsOutputLineBreaker creates a line break (new spinner) when some of the messages
-// are printed to the user. For example: after finishing all image uploads we want to
-// have a new spinner for the artifacts upload so when we see "Application images are
-// ready!" we return true to create a new spinner.
-func (a *AdminConsole) KostsOutputLineBreaker() spinner.LineBreakerFn {
-	seen := map[string]bool{}
-	return func(message string) bool {
-		if _, ok := seen[message]; ok {
-			return false
+		// if we have already seen this message we certainly have already assessed
+		// if a break line as necessary or not, on this case we return false so we
+		// do not keep breaking lines indefinitely.
+		if _, ok := seen[current]; ok {
+			return false, ""
 		}
-		seen[message] = true
+		seen[current] = true
 
-		if message == "Application images are ready!" {
-			return true
+		// if the previous message evaluated does not relate to an end of a process
+		// we don't want to break the line. i.e. we only want to break the line when
+		// the previous evaluated message contains %d/%d and both integers are equal.
+		if !finished(previous) {
+			return false, ""
 		}
-		if message == "Embedded Cluster artifacts are ready!" {
-			return true
-		}
-		return false
-	}
-}
 
-// MaskKotsOutputForOnline masks the kots cli output during online installations. For
-// online installations we only want to print "Finalizing" until it is done and then
-// print "Finished!".
-func (a *AdminConsole) MaskKotsOutputForOnline() spinner.MaskFn {
-	return func(message string) string {
-		if strings.Contains(message, "Finished") {
-			return message
+		// if we are printing a message about pushing the embedded cluster artifacts
+		// it means that we have finished with the images and we want to break the line.
+		if strings.Contains(current, "Pushing embedded cluster artifacts") {
+			return true, "Application images are ready!"
 		}
-		return "Finalizing"
+
+		// if we are printing a message about the finalization of the installation it
+		// means that the embedded cluster artifacts are ready and we want to break the
+		// line.
+		if current == "Finalizing" {
+			return true, "Embedded cluster artifacts are ready!"
+		}
+		return false, ""
 	}
 }
 
