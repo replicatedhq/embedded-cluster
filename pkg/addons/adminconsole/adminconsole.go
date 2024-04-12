@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ var (
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
+	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
@@ -212,6 +214,23 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 // function replaces some of the messages being printed to the user so the output looks
 // cleaner.
 func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
+	finishedPreviousStep := func(message string) bool {
+		matches := CounterRegex.FindStringSubmatch(message)
+		if len(matches) != 3 {
+			return false
+		}
+		var counter int
+		if _, err := fmt.Sscanf(matches[1], "%d", &counter); err != nil {
+			return false
+		}
+		var total int
+		if _, err := fmt.Sscanf(matches[2], "%d", &total); err != nil {
+			return false
+		}
+		return counter == total
+	}
+
+	var previous string
 	lmsg := "Starting the airgap bundle upload process"
 	return func(message string) string {
 		switch {
@@ -219,12 +238,41 @@ func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
 			lmsg = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			lmsg = message
+			if message != lmsg && finishedPreviousStep(previous) {
+				lmsg = "Application images are ready!"
+			}
 		case strings.Contains(message, "Waiting for Admin Console"):
 			lmsg = "Finalizing"
+			if message != lmsg && finishedPreviousStep(previous) {
+				lmsg = "Embedded Cluster artifacts are ready!"
+			}
 		case strings.Contains(message, "Finished!"):
 			lmsg = message
 		}
+		previous = message
 		return lmsg
+	}
+}
+
+// KostsOutputLineBreaker creates a line break (new spinner) when some of the messages
+// are printed to the user. For example: after finishing all image uploads we want to
+// have a new spinner for the artifacts upload so when we see "Application images are
+// ready!" we return true to create a new spinner.
+func (a *AdminConsole) KostsOutputLineBreaker() spinner.LineBreakerFn {
+	seen := map[string]bool{}
+	return func(message string) bool {
+		if _, ok := seen[message]; ok {
+			return false
+		}
+		seen[message] = true
+
+		if message == "Application images are ready!" {
+			return true
+		}
+		if message == "Embedded Cluster artifacts are ready!" {
+			return true
+		}
+		return false
 	}
 }
 

@@ -109,13 +109,13 @@ func (m *MessageWriter) loop() {
 			counter++
 		}
 
+		if m.mask != nil {
+			message = m.mask(message)
+		}
+
 		var lbreak bool
 		if m.lbreak != nil && previous != message {
 			lbreak = m.lbreak(message)
-		}
-
-		if m.mask != nil {
-			message = m.mask(message)
 		}
 
 		pos := counter % len(blocks)
