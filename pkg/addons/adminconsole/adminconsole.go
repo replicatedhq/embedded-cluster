@@ -212,24 +212,14 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 // function replaces some of the messages being printed to the user so the output looks
 // cleaner.
 func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
-	lmsg := "Pushing application images"
+	lmsg := "Starting the airgap bundle upload process"
 	return func(message string) string {
 		switch {
-		case strings.Contains(message, "Validating registry"):
-			lmsg = "Validating image storage configuration"
-		case strings.Contains(message, "Deploying application"):
-			lmsg = "Initializing application deployment"
 		case strings.Contains(message, "Pushing application images"):
 			lmsg = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			lmsg = message
 		case strings.Contains(message, "Waiting for Admin Console"):
-			lmsg = "Waiting for Admin Console to report ready"
-		case strings.Contains(message, "Uploading app archive"):
-			lmsg = "Uploading application archive"
-		case strings.Contains(message, "Waiting for installation"):
-			lmsg = "Waiting for install to complete"
-		case strings.Contains(message, "Waiting for installation to complete"):
 			lmsg = "Finalizing"
 		case strings.Contains(message, "Finished!"):
 			lmsg = message
