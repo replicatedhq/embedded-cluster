@@ -210,6 +210,18 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 	return nil
 }
 
+// MaskKotsOutputForOnline masks the kots cli output during online installations. For
+// online installations we only want to print "Finalizing" until it is done and then
+// print "Finished!".
+func (a *AdminConsole) MaskKotsOutputForOnline() spinner.MaskFn {
+	return func(message string) string {
+		if strings.Contains(message, "Finished") {
+			return message
+		}
+		return "Finalizing"
+	}
+}
+
 // MaskKotsOutputForAirgap masks the kots cli output during airgap installations. This
 // function replaces some of the messages being printed to the user so the output looks
 // nicer.
