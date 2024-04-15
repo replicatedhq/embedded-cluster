@@ -231,7 +231,7 @@ func CreateProxy(in *Input) {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "ubuntu/jammy",
+			Alias: "j",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
@@ -510,12 +510,12 @@ func NodeHasInternet(in *Input, node string) {
 		Line:   []string{"/usr/local/bin/check_internet.sh"},
 	}
 	var success bool
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := Run(ctx, in.T, cmd); err != nil {
 			in.T.Logf("Unable to reach internet from %s: %v", node, err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(30 * time.Second)
 			continue
 		}
 		success = true
