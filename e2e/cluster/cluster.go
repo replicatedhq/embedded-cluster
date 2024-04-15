@@ -665,7 +665,7 @@ func PullImage(in *Input) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	remote, err := lxd.ConnectSimpleStreams("https://images.linuxcontainers.org", nil)
+	remote, err := lxd.ConnectSimpleStreams("https://images.lxd.canonical.com", nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to image server: %v", err)
 	}
