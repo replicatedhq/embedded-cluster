@@ -242,10 +242,10 @@ func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
 	}
 }
 
-// KostsOutputLineBreaker creates a line break (new spinner) when some of the messages
+// KotsOutputLineBreaker creates a line break (new spinner) when some of the messages
 // are printed to the user. For example: after finishing all image uploads we want to
 // have a new spinner for the artifacts upload.
-func (a *AdminConsole) KostsOutputLineBreaker() spinner.LineBreakerFn {
+func (a *AdminConsole) KotsOutputLineBreaker() spinner.LineBreakerFn {
 	// finished is an auxiliary function that evaluates if a message refers to a
 	// step that has been finished. We determine that by inspected if the message
 	// contains %d/%d and both integers are equal.
@@ -388,7 +388,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	if a.airgapBundle != "" {
 		installArgs = append(installArgs, "--airgap-bundle", a.airgapBundle)
 		maskfn = a.MaskKotsOutputForAirgap()
-		lbreakfn = a.KostsOutputLineBreaker()
+		lbreakfn = a.KotsOutputLineBreaker()
 	}
 
 	loading = spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
