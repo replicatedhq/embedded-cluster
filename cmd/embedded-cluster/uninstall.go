@@ -319,7 +319,7 @@ var resetCommand = &cli.Command{
 	},
 	Usage: fmt.Sprintf("Uninstall %s from the current node", binName),
 	Action: func(c *cli.Context) error {
-		logrus.Info("This will remove this node from the cluster and completely reset it.")
+		logrus.Info("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
 		logrus.Info("Do not reset another node until this is complete.")
 		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
 			return fmt.Errorf("Aborting")
