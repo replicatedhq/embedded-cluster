@@ -16,7 +16,7 @@ func TestCreateProxiedEnvironment(t *testing.T) {
 		T:                   t,
 		Nodes:               3,
 		WithProxy:           true,
-		Image:               "j",
+		Image:               "ubuntu/jammy",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	t.Log("Proxied infrastructure created")

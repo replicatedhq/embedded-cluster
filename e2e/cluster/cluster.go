@@ -175,10 +175,20 @@ func Run(ctx context.Context, t *testing.T, cmd Command) error {
 	return nil
 }
 
+// imagesMap maps some image names so we can use them in the tests.
+// For example, the letter "j" doesn't say it is an ubuntu/jammy.
+var imagesMap = map[string]string{
+	"ubuntu/jammy": "j",
+}
+
 // NewTestCluster creates a new cluster and returns an object of type Output
 // that can be used to get the created nodes and destroy the cluster when it
 // is no longer needed.
 func NewTestCluster(in *Input) *Output {
+	if name, ok := imagesMap[in.Image]; ok {
+		in.Image = name
+	}
+
 	in.id = uuid.New().String()[:5]
 	in.network = <-networkaddr
 	PullImage(in)
@@ -221,7 +231,7 @@ func CreateProxy(in *Input) {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "j",
+			Alias: "ubuntu/jammy",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
@@ -505,6 +515,7 @@ func NodeHasInternet(in *Input, node string) {
 		defer cancel()
 		if err := Run(ctx, in.T, cmd); err != nil {
 			in.T.Logf("Unable to reach internet from %s: %v", node, err)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 		success = true

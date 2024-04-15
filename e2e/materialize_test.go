@@ -12,7 +12,7 @@ func TestMaterialize(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "j",
+		Image:               "ubuntu/jammy",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
 	defer tc.Destroy()
