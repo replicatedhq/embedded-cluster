@@ -95,7 +95,7 @@ func (a *AdminConsole) askPassword() (string, error) {
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Enter a new Admin Console password:")
+		promptA := prompts.New().Password("Enter an Admin Console password:")
 		promptB := prompts.New().Password("Confirm password:")
 
 		if promptA == promptB {
