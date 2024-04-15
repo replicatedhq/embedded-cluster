@@ -338,7 +338,7 @@ var resetCommand = &cli.Command{
 				return err
 			}
 			if !safeToRemove {
-				return fmt.Errorf("%s\nRun reset command with --force to ignore this", reason)
+				return fmt.Errorf("%s\nRun reset command with --force to ignore this.", reason)
 			}
 		}
 
@@ -378,7 +378,7 @@ var resetCommand = &cli.Command{
 		}
 
 		// reset
-		logrus.Infof("Uninstalling %s...", binName)
+		logrus.Infof("Resetting node...")
 		err = stopAndResetK0s()
 		if !checkErrPrompt(c, err) {
 			return err
