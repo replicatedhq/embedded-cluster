@@ -221,7 +221,7 @@ func CreateProxy(in *Input) {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "ubuntu/jammy",
+			Alias: "j",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
@@ -665,25 +665,40 @@ func PullImage(in *Input) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	remote, err := lxd.ConnectSimpleStreams("https://images.linuxcontainers.org", nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to image server: %v", err)
-	}
-	alias, _, err := remote.GetImageAlias(in.Image)
-	if err != nil {
-		in.T.Fatalf("Failed to get image alias: %v", err)
-	}
-	image, _, err := remote.GetImage(alias.Target)
-	if err != nil {
-		in.T.Fatalf("Failed to get image: %v", err)
-	}
-	op, err := client.CopyImage(remote, *image, &lxd.ImageCopyArgs{CopyAliases: true})
-	if err != nil {
-		in.T.Fatalf("Failed to copy image: %v", err)
-	}
-	if err := op.Wait(); err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			in.T.Fatalf("Failed to wait for image copy: %v", err)
+
+	for _, server := range []string{
+		"https://images.lxd.canonical.com",
+		"https://cloud-images.ubuntu.com/releases",
+	} {
+		in.T.Logf("Pulling %q image from %s", in.Image, server)
+		remote, err := lxd.ConnectSimpleStreams(server, nil)
+		if err != nil {
+			in.T.Fatalf("Failed to connect to image server: %v", err)
 		}
+
+		alias, _, err := remote.GetImageAlias(in.Image)
+		if err != nil {
+			in.T.Logf("Failed to get image alias %s on %s: %v", in.Image, server, err)
+			continue
+		}
+
+		image, _, err := remote.GetImage(alias.Target)
+		if err != nil {
+			in.T.Logf("Failed to get image %s on %s: %v", alias.Target, server, err)
+			continue
+		}
+
+		op, err := client.CopyImage(remote, *image, &lxd.ImageCopyArgs{CopyAliases: true})
+		if err != nil {
+			in.T.Logf("Failed to copy image %s from %s: %v", alias.Target, server, err)
+			continue
+		}
+
+		if err = op.Wait(); err == nil || strings.Contains(err.Error(), "already exists") {
+			return
+		}
+		in.T.Logf("Failed to wait for image copy: %v", err)
 	}
+
+	in.T.Fatalf("Failed to pull image %s (tried in all servers)", in.Image)
 }

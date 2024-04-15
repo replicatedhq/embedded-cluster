@@ -16,7 +16,7 @@ func TestMultiNodeReset(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               4,
-		Image:               "ubuntu/jammy",
+		Image:               "j",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})

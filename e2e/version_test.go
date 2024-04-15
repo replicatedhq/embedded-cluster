@@ -17,7 +17,7 @@ func TestVersion(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		CreateRegularUser:   true,
-		Image:               "ubuntu/jammy",
+		Image:               "j",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()

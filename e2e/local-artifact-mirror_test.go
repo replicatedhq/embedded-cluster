@@ -13,7 +13,7 @@ func TestLocalArtifactMirror(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "ubuntu/jammy",
+		Image:               "j",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
 	defer tc.Destroy()

@@ -16,7 +16,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "ubuntu/jammy",
+		Image:               "j",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -194,7 +194,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               4,
-		Image:               "ubuntu/jammy",
+		Image:               "j",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -293,7 +293,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:     t,
 		Nodes: 1,
-		Image: "ubuntu/jammy",
+		Image: "j",
 	})
 	defer tc.Destroy()
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -328,7 +328,7 @@ func TestResetAndReinstall(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "ubuntu/jammy",
+		Image:               "j",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -371,7 +371,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:     t,
 		Nodes: 1,
-		Image: "ubuntu/jammy",
+		Image: "j",
 	})
 	defer tc.Destroy()
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -441,7 +441,7 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                t,
 		Nodes:            1,
-		Image:            "ubuntu/jammy",
+		Image:            "j",
 		WithProxy:        true,
 		AirgapBundlePath: airgapBundlePath,
 	})
