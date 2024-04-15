@@ -51,8 +51,8 @@ runs:
       sudo rm -rf /usr/local/lib/android
       sudo rm -rf /opt/hostedtoolcache/CodeQL
       sudo rm -rf /opt/hostedtoolcache/Python
-  - name: Setup upterm session
-    uses: lhotari/action-upterm@v1
+#  - name: Setup upterm session
+#   uses: lhotari/action-upterm@v1
   - name: E2E
     shell: bash
     run: |
