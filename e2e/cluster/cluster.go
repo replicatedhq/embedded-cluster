@@ -20,8 +20,7 @@ import (
 var networkaddr chan string
 
 const lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
-const profileConfig = `lxc.apparmor.profile=unconfined
-lxc.cap.drop=
+const profileConfig = `lxc.cap.drop=
 lxc.cgroup.devices.allow=a
 lxc.mount.auto=proc:rw sys:rw
 lxc.mount.entry = /dev/kmsg dev/kmsg none defaults,bind,create=file`

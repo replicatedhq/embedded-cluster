@@ -33,7 +33,7 @@ runs:
     shell: bash
     run: |
       sudo lxd init --auto
-      sudo snap set lxd daemon.group=root
+      sudo snap set lxd daemon.group=adm
       sudo snap restart lxd
       sudo lxd waitready
   - name: Install and configure OVN
