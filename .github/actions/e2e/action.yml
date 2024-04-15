@@ -23,6 +23,11 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Disable apparmor
+    shell: bash
+    run: |
+      sudo systemctl stop apparmor
+      sudo aa-teardown
   - name: Move Docker aside
     shell: bash
     run: |
