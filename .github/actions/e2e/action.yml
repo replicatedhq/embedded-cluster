@@ -23,6 +23,11 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Set AppArmor mode to complain
+    run: |
+      sudo apt-get update -y
+      sudo apt install apparmor-utils -y
+      sudo aa-complain /etc/apparmor.d/*
   - name: Move Docker aside
     shell: bash
     run: |
@@ -51,8 +56,8 @@ runs:
       sudo rm -rf /usr/local/lib/android
       sudo rm -rf /opt/hostedtoolcache/CodeQL
       sudo rm -rf /opt/hostedtoolcache/Python
-  - name: Setup upterm session
-    uses: lhotari/action-upterm@v1
+#  - name: Setup upterm session
+#    uses: lhotari/action-upterm@v1
   - name: E2E
     shell: bash
     run: |
