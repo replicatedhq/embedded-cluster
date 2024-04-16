@@ -24,6 +24,7 @@ runs:
   using: composite
   steps:
   - name: Set AppArmor mode to complain
+    shell: bash
     run: |
       sudo apt-get update -y
       sudo apt install apparmor-utils -y
