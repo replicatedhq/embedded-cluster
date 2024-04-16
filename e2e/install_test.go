@@ -532,28 +532,10 @@ func TestMultiNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 
 	defer func() {
 		stdout, _, err := RunCommandOnNode(t, tc, 0, []string{
-			"kubectl describe pods -n registry",
+			"debug-registry.sh",
 		})
 		if err != nil {
 			t.Logf("error getting registry pod description: %v", err)
-		} else {
-			t.Log(stdout)
-		}
-
-		stdout, _, err = RunCommandOnNode(t, tc, 0, []string{
-			"kubectl logs deploy/registry -n registry",
-		})
-		if err != nil {
-			t.Logf("error getting registry pod logs: %v", err)
-		} else {
-			t.Log(stdout)
-		}
-
-		stdout, _, err = RunCommandOnNode(t, tc, 0, []string{
-			"kubectl logs deploy/registry -n registry -p",
-		})
-		if err != nil {
-			t.Logf("error getting registry pod logs: %v", err)
 		} else {
 			t.Log(stdout)
 		}
