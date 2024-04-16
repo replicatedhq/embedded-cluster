@@ -23,12 +23,6 @@ inputs:
 runs:
   using: composite
   steps:
-  - name: Set AppArmor mode to complain
-    shell: bash
-    run: |
-      sudo apt-get update -y
-      sudo apt install apparmor-utils -y
-      sudo aa-complain /etc/apparmor.d/*
   - name: Move Docker aside
     shell: bash
     run: |
@@ -51,14 +45,18 @@ runs:
            external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
            external_ids:ovn-encap-type=geneve                      \
            external_ids:ovn-encap-ip=127.0.0.1
+  - name: Set AppArmor mode to complain
+    shell: bash
+    run: |
+      sudo apt-get update -y
+      sudo apt install apparmor-utils -y
+      sudo aa-complain /etc/apparmor.d/*
   - name: Free up runner disk space
     shell: bash
     run: |
       sudo rm -rf /usr/local/lib/android
       sudo rm -rf /opt/hostedtoolcache/CodeQL
       sudo rm -rf /opt/hostedtoolcache/Python
-#  - name: Setup upterm session
-#    uses: lhotari/action-upterm@v1
   - name: E2E
     shell: bash
     run: |
@@ -69,3 +67,6 @@ runs:
       export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
       export TESTIM_BRANCH=${{ inputs.testim-branch }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+  - name: Setup upterm session
+    uses: lhotari/action-upterm@v1
+    if: always()
