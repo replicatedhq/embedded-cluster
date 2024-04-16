@@ -510,11 +510,24 @@ func TestMultiNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	})
 	defer tc.Destroy()
 
-	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
-	line := []string{"airgap-prepare.sh"}
-
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
+	if _, _, err = RunCommandOnNode(t, tc, 0, []string{"airgap-prepare.sh"}); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files on node 1", time.Now().Format(time.RFC3339))
+	if _, _, err = RunCommandOnNode(t, tc, 1, []string{"airgap-prepare.sh"}); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[1], err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files on node 2", time.Now().Format(time.RFC3339))
+	if _, _, err = RunCommandOnNode(t, tc, 2, []string{"airgap-prepare.sh"}); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[2], err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files on node 3", time.Now().Format(time.RFC3339))
+	if _, _, err = RunCommandOnNode(t, tc, 3, []string{"airgap-prepare.sh"}); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[3], err)
 	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
@@ -543,7 +556,7 @@ func TestMultiNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	line = []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-worker-command"}
+	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-worker-command"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
