@@ -22,6 +22,8 @@ main() {
       echo "No airgap file found"
       exit 1
     fi
+
+    rm /tmp/ec-release.tgz
 }
 
 main "$@"

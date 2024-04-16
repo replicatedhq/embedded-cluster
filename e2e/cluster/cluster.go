@@ -650,7 +650,6 @@ func CreateProfile(in *Input) {
 					"path": "/",
 					"pool": "default",
 					"type": "disk",
-					"size": "40GB",
 				},
 			},
 		},
