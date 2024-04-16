@@ -530,6 +530,35 @@ func TestMultiNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[3], err)
 	}
 
+	defer func() {
+		stdout, _, err := RunCommandOnNode(t, tc, 0, []string{
+			"kubectl describe pods -n registry",
+		})
+		if err != nil {
+			t.Logf("error getting registry pod description: %v", err)
+		} else {
+			t.Log(stdout)
+		}
+
+		stdout, _, err = RunCommandOnNode(t, tc, 0, []string{
+			"kubectl logs deploy/registry -n registry",
+		})
+		if err != nil {
+			t.Logf("error getting registry pod logs: %v", err)
+		} else {
+			t.Log(stdout)
+		}
+
+		stdout, _, err = RunCommandOnNode(t, tc, 0, []string{
+			"kubectl logs deploy/registry -n registry -p",
+		})
+		if err != nil {
+			t.Logf("error getting registry pod logs: %v", err)
+		} else {
+			t.Log(stdout)
+		}
+	}()
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
