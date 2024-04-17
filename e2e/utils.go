@@ -80,6 +80,30 @@ func RunCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string)
 	return stdout.String(), stderr.String(), nil
 }
 
+// RunCommandOnProxyNode runs a command on the proxy node with a timeout.
+func RunCommandOnProxyNode(t *testing.T, cl *cluster.Output, line []string) (string, string, error) {
+	if cl.Proxy == "" {
+		return "", "", fmt.Errorf("no proxy node found")
+	}
+
+	stdout := &buffer{bytes.NewBuffer(nil)}
+	stderr := &buffer{bytes.NewBuffer(nil)}
+	cmd := cluster.Command{
+		Node:   cl.Proxy,
+		Line:   line,
+		Stdout: stdout,
+		Stderr: stderr,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	if err := cluster.Run(ctx, t, cmd); err != nil {
+		t.Logf("stdout:\n%s", stdout.String())
+		t.Logf("stderr:\n%s", stderr.String())
+		return stdout.String(), stderr.String(), err
+	}
+	return stdout.String(), stderr.String(), nil
+}
+
 var commandOutputRegex = regexp.MustCompile(`{"command":"[^"]*"}`)
 
 type nodeJoinResponse struct {
