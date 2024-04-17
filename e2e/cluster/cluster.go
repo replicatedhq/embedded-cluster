@@ -60,7 +60,6 @@ type Input struct {
 	EmbeddedClusterReleaseBuilderPath string // used to replace the release in the binary
 	AirgapInstallBundlePath           string
 	AirgapUpgradeBundlePath           string
-	KotsCliPath                       string
 	Image                             string
 	network                           string
 	T                                 *testing.T
@@ -416,11 +415,6 @@ func CopyFilesToNode(in *Input, node string) {
 		{
 			SourcePath: in.AirgapUpgradeBundlePath,
 			DestPath:   "/tmp/ec-release-upgrade.tgz",
-			Mode:       0755,
-		},
-		{
-			SourcePath: in.KotsCliPath,
-			DestPath:   "/tmp/kubectl-kots",
 			Mode:       0755,
 		},
 	}
