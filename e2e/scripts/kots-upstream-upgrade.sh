@@ -6,7 +6,7 @@ main() {
     installation_version="$1"
 
     echo "upgrading to version ${installation_version}-upgrade"
-    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --license-file /tmp/license.yaml --airgap-bundle /tmp/release-upgrade.airgap
+    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --airgap-bundle /tmp/upgrade/release.airgap
 }
 
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
