@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -27,7 +28,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	installTestimAndDeploy(t, 0, tc)
+	setupTestim(t, tc)
+	runTestimTest(t, tc, "deploy-kots-application")
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
@@ -207,7 +209,8 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	installTestimAndDeploy(t, 0, tc)
+	setupTestim(t, tc)
+	runTestimTest(t, tc, "deploy-kots-application")
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
@@ -404,9 +407,39 @@ func TestOldVersionUpgrade(t *testing.T) {
 func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	t.Parallel()
 
-	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")))
+
+	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "ubuntu/jammy",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+	})
+	defer tc.Destroy()
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func downloadAirgapBundle(t *testing.T, versionLabel string) string {
 	// download airgap bundle
-	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/appver-%s?airgap=true", os.Getenv("SHORT_SHA"))
+	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
 
 	req, err := http.NewRequest("GET", airgapURL, nil)
 	if err != nil {
@@ -436,16 +469,33 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	}
 	t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
 
-	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
+	return airgapBundlePath
+}
+
+func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
+	t.Parallel()
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")))
+	airgapUpgradeBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")))
+
+	t.Logf("%s: materializing kots cli", time.Now().Format(time.RFC3339))
+	kotsCliTmpPath, err := goods.MaterializeInternalBinary("kubectl-kots")
+	if err != nil {
+		t.Fatalf("failed to materialize kots cli: %v", err)
+	}
+	defer os.Remove(kotsCliTmpPath)
 
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                t,
-		Nodes:            1,
-		Image:            "ubuntu/jammy",
-		WithProxy:        true,
-		AirgapBundlePath: airgapBundlePath,
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "ubuntu/jammy",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+		KotsCliPath:             kotsCliTmpPath,
 	})
-	defer tc.Destroy()
+	// defer tc.Destroy()
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -460,25 +510,59 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func installTestimAndDeploy(t *testing.T, node int, tc *cluster.Output) {
-	t.Logf("%s: installing testim on node %d", time.Now().Format(time.RFC3339), node)
-	line := []string{"install-testim.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install testim on node %s: %v", tc.Nodes[0], err)
-	}
-
-	t.Logf("%s: accessing kotsadm interface and deploying app", time.Now().Format(time.RFC3339))
-	line = []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "deploy-kots-application"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to access kotsadm interface and state: %v", err)
-	}
+	setupTestim(t, tc)
+	runTestimTest(t, tc, "deploy-kots-application")
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
+	// TODO: run testim and deploy upgrade and validate
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func setupTestim(t *testing.T, tc *cluster.Output) {
+	t.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"bypass-kurl-proxy.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy on node %s: %v", tc.Nodes[0], err)
+	}
+
+	line = []string{"install-testim.sh"}
+	if tc.Proxy != "" {
+		t.Logf("%s: installing testim on proxy node", time.Now().Format(time.RFC3339))
+		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+			t.Fatalf("fail to install testim on node %s: %v", tc.Proxy, err)
+		}
+	} else {
+		t.Logf("%s: installing testim on node 0", time.Now().Format(time.RFC3339))
+		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+			t.Fatalf("fail to install testim on node %s: %v", tc.Nodes[0], err)
+		}
+	}
+}
+
+// TODO: make this return stdout, stderr, and err
+func runTestimTest(t *testing.T, tc *cluster.Output, testName string) {
+	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), testName}
+	if tc.Proxy != "" {
+		t.Logf("%s: running testim test %s on proxy node", testName, time.Now().Format(time.RFC3339))
+		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+			t.Fatalf("fail to run testim test %s on proxy node: %v", testName, err)
+		}
+	} else {
+		t.Logf("%s: running testim test %s on node 0", testName, time.Now().Format(time.RFC3339))
+		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+			t.Fatalf("fail to run testim test %s on node %s: %v", testName, tc.Nodes[0], err)
+		}
 	}
 }

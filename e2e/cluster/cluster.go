@@ -58,7 +58,9 @@ type Input struct {
 	LicensePath                       string
 	EmbeddedClusterPath               string
 	EmbeddedClusterReleaseBuilderPath string // used to replace the release in the binary
-	AirgapBundlePath                  string
+	AirgapInstallBundlePath           string
+	AirgapUpgradeBundlePath           string
+	KotsCliPath                       string
 	Image                             string
 	network                           string
 	T                                 *testing.T
@@ -200,15 +202,20 @@ func NewTestCluster(in *Input) *Output {
 			CreateRegularUser(in, node)
 		}
 	}
-	if in.WithProxy {
-		CreateProxy(in)
-	}
-	return &Output{
+	out := &Output{
 		T:       in.T,
 		Nodes:   nodes,
 		network: in.network,
 		id:      in.id,
 	}
+	if in.WithProxy {
+		out.Proxy = CreateProxy(in)
+		CopyFilesToNode(in, out.Proxy)
+		if in.CreateRegularUser {
+			CreateRegularUser(in, out.Proxy)
+		}
+	}
+	return out
 }
 
 // CreateProxy creates a node that attaches to both networks (external and internal),
@@ -216,7 +223,7 @@ func NewTestCluster(in *Input) *Output {
 // sure that all nodes are configured to use the proxy as default gateway. Internet
 // won't work on them by design (exception made for DNS requests and http requests
 // using the proxy). Proxy is accessible from the cluster nodes on 10.0.0.254:3128.
-func CreateProxy(in *Input) {
+func CreateProxy(in *Input) string {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -273,6 +280,7 @@ func CreateProxy(in *Input) {
 		}
 	}
 	ConfigureProxy(in)
+	return name
 }
 
 // ConfigureProxy installs squid and iptables on the target node. Configures the needed
@@ -401,8 +409,18 @@ func CopyFilesToNode(in *Input, node string) {
 			Mode:       0755,
 		},
 		{
-			SourcePath: in.AirgapBundlePath,
+			SourcePath: in.AirgapInstallBundlePath,
 			DestPath:   "/tmp/ec-release.tgz",
+			Mode:       0755,
+		},
+		{
+			SourcePath: in.AirgapUpgradeBundlePath,
+			DestPath:   "/tmp/ec-release-upgrade.tgz",
+			Mode:       0755,
+		},
+		{
+			SourcePath: in.KotsCliPath,
+			DestPath:   "/tmp/kubectl-kots",
 			Mode:       0755,
 		},
 	}

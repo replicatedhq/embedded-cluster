@@ -28,7 +28,8 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	installTestimAndDeploy(t, 0, tc)
+	setupTestim(t, tc)
+	runTestimTest(t, tc, "deploy-kots-application")
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
@@ -47,7 +48,7 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-worker-command"}
+	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH")}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
