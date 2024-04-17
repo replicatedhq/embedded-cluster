@@ -408,7 +408,7 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	t.Parallel()
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	airgapInstallBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")))
+	airgapInstallBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), "/tmp/airgap-bundle.tar.gz")
 
 	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
 
@@ -437,7 +437,7 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func downloadAirgapBundle(t *testing.T, versionLabel string) string {
+func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string) string {
 	// download airgap bundle
 	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
 
@@ -457,7 +457,7 @@ func downloadAirgapBundle(t *testing.T, versionLabel string) string {
 	}
 
 	// pipe response to a temporary file
-	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
+	airgapBundlePath := destPath
 	f, err := os.Create(airgapBundlePath)
 	if err != nil {
 		t.Fatalf("failed to create temporary file: %v", err)
@@ -476,8 +476,8 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	t.Parallel()
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	airgapInstallBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")))
-	airgapUpgradeBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")))
+	airgapInstallBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), "/tmp/airgap-install-bundle.tar.gz")
+	airgapUpgradeBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), "/tmp/airgap-upgrade-bundle.tar.gz")
 
 	t.Logf("%s: materializing kots cli", time.Now().Format(time.RFC3339))
 	kotsCliTmpPath, err := goods.MaterializeInternalBinary("kubectl-kots")
@@ -495,7 +495,7 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 		KotsCliPath:             kotsCliTmpPath,
 	})
-	// defer tc.Destroy()
+	defer tc.Destroy()
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -525,7 +525,7 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
 
-	// TODO: run testim and deploy upgrade and validate
+	runTestimTest(t, tc, "deploy-airgap-upgrade")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -551,16 +551,16 @@ func setupTestim(t *testing.T, tc *cluster.Output) {
 	}
 }
 
-// TODO: make this return stdout, stderr, and err
+// TODO: make this return stdout, stderr, and err to re-use for tests
 func runTestimTest(t *testing.T, tc *cluster.Output, testName string) {
 	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), testName}
 	if tc.Proxy != "" {
-		t.Logf("%s: running testim test %s on proxy node", testName, time.Now().Format(time.RFC3339))
+		t.Logf("%s: running testim test %s on proxy node", time.Now().Format(time.RFC3339), testName)
 		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
 			t.Fatalf("fail to run testim test %s on proxy node: %v", testName, err)
 		}
 	} else {
-		t.Logf("%s: running testim test %s on node 0", testName, time.Now().Format(time.RFC3339))
+		t.Logf("%s: running testim test %s on node 0", time.Now().Format(time.RFC3339), testName)
 		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 			t.Fatalf("fail to run testim test %s on node %s: %v", testName, tc.Nodes[0], err)
 		}

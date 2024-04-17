@@ -52,6 +52,13 @@ spec:
                   https: "443"
                 annotations:
                   test-upgrade-annotation: test-upgrade-value
+              image:
+                digest: ""
+                digestChroot: ""
+              admissionWebhooks:
+                patch:
+                  image:
+                    digest: ""
         - chartname: okgolove/goldpinger
           name: goldpinger
           namespace: goldpinger

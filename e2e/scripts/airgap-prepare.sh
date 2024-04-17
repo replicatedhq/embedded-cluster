@@ -29,20 +29,20 @@ main() {
       mkdir -p upgrade
       tar xzf /tmp/ec-release-upgrade.tgz -C upgrade
 
-      mv upgrade/embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster
-      mv upgrade/license.yaml /tmp/license.yaml
+      mkdir -p /tmp/upgrade
+      mv upgrade/license.yaml /tmp/upgrade/license.yaml
 
       for file in upgrade/*.airgap;
       do
         if [ -e "$file" ]
         then
-          mv "$file" /tmp/release-upgrade.airgap
+          mv "$file" /tmp/upgrade/release.airgap
           break
         fi
       done
 
-      # if there is no file at /tmp/release-upgrade.airgap, this is an error
-      if [ ! -e /tmp/release-upgrade.airgap ]
+      # if there is no file at /tmp/upgrade/release.airgap, this is an error
+      if [ ! -e /tmp/upgrade/release.airgap ]
       then
         echo "No upgrade airgap file found"
         exit 1
