@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -28,8 +27,12 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	setupTestim(t, tc)
-	runTestimTest(t, tc, "deploy-kots-application")
+	if err := setupTestim(t, tc); err != nil {
+		t.Fatalf("fail to setup testim: %v", err)
+	}
+	if _, _, err := runTestimTest(t, tc, "deploy-kots-application"); err != nil {
+		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
+	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
@@ -209,15 +212,18 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	setupTestim(t, tc)
-	runTestimTest(t, tc, "deploy-kots-application")
+	if err := setupTestim(t, tc); err != nil {
+		t.Fatalf("fail to setup testim: %v", err)
+	}
+	if _, _, err := runTestimTest(t, tc, "deploy-kots-application"); err != nil {
+		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
+	}
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-controller-command"}
-		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+		stdout, stderr, err := runTestimTest(t, tc, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -229,10 +235,9 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-worker-command"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err := runTestimTest(t, tc, "get-join-worker-command")
 	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
 	command, err := findJoinCommandInOutput(stdout)
 	if err != nil {
@@ -479,13 +484,6 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	airgapInstallBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), "/tmp/airgap-install-bundle.tar.gz")
 	airgapUpgradeBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), "/tmp/airgap-upgrade-bundle.tar.gz")
 
-	t.Logf("%s: materializing kots cli", time.Now().Format(time.RFC3339))
-	kotsCliTmpPath, err := goods.MaterializeInternalBinary("kubectl-kots")
-	if err != nil {
-		t.Fatalf("failed to materialize kots cli: %v", err)
-	}
-	defer os.Remove(kotsCliTmpPath)
-
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
 		Nodes:                   1,
@@ -493,25 +491,28 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
-		KotsCliPath:             kotsCliTmpPath,
 	})
 	defer tc.Destroy()
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
 
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	setupTestim(t, tc)
-	runTestimTest(t, tc, "deploy-kots-application")
+	if err := setupTestim(t, tc); err != nil {
+		t.Fatalf("fail to setup testim: %v", err)
+	}
+	if _, _, err := runTestimTest(t, tc, "deploy-kots-application"); err != nil {
+		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
+	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
@@ -525,44 +526,49 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
 
-	runTestimTest(t, tc, "deploy-airgap-upgrade")
+	if _, _, err := runTestimTest(t, tc, "deploy-kots-application"); err != nil {
+		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func setupTestim(t *testing.T, tc *cluster.Output) {
+func setupTestim(t *testing.T, tc *cluster.Output) error {
 	t.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"bypass-kurl-proxy.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to bypass kurl-proxy on node %s: %v", tc.Nodes[0], err)
+		return fmt.Errorf("fail to bypass kurl-proxy on node %s: %v", tc.Nodes[0], err)
 	}
 
 	line = []string{"install-testim.sh"}
 	if tc.Proxy != "" {
 		t.Logf("%s: installing testim on proxy node", time.Now().Format(time.RFC3339))
 		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
-			t.Fatalf("fail to install testim on node %s: %v", tc.Proxy, err)
+			return fmt.Errorf("fail to install testim on node %s: %v", tc.Proxy, err)
 		}
 	} else {
 		t.Logf("%s: installing testim on node 0", time.Now().Format(time.RFC3339))
 		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			t.Fatalf("fail to install testim on node %s: %v", tc.Nodes[0], err)
+			return fmt.Errorf("fail to install testim on node %s: %v", tc.Nodes[0], err)
 		}
 	}
+
+	return nil
 }
 
-// TODO: make this return stdout, stderr, and err to re-use for tests
-func runTestimTest(t *testing.T, tc *cluster.Output, testName string) {
+func runTestimTest(t *testing.T, tc *cluster.Output, testName string) (string, string, error) {
 	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), testName}
 	if tc.Proxy != "" {
 		t.Logf("%s: running testim test %s on proxy node", time.Now().Format(time.RFC3339), testName)
-		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
-			t.Fatalf("fail to run testim test %s on proxy node: %v", testName, err)
+		if stdout, stderr, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+			return stdout, stderr, fmt.Errorf("fail to run testim test %s on node %s: %v", testName, tc.Proxy, err)
 		}
 	} else {
 		t.Logf("%s: running testim test %s on node 0", time.Now().Format(time.RFC3339), testName)
 		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			t.Fatalf("fail to run testim test %s on node %s: %v", testName, tc.Nodes[0], err)
+			return "", "", fmt.Errorf("fail to run testim test %s on node %s: %v", testName, tc.Nodes[0], err)
 		}
 	}
+
+	return "", "", nil
 }

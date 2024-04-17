@@ -6,7 +6,6 @@ main() {
 
     mv embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster
     mv license.yaml /tmp/license.yaml
-    mv /tmp/kubectl-kots /usr/local/bin/kubectl-kots
 
     for file in *.airgap;
     do
