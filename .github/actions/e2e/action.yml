@@ -45,12 +45,6 @@ runs:
            external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
            external_ids:ovn-encap-type=geneve                      \
            external_ids:ovn-encap-ip=127.0.0.1
-  - name: Set AppArmor mode to complain
-    shell: bash
-    run: |
-      sudo apt-get update -y
-      sudo apt install apparmor-utils -y
-      sudo aa-complain /etc/apparmor.d/*
   - name: Free up runner disk space
     shell: bash
     run: |
@@ -67,6 +61,6 @@ runs:
       export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
       export TESTIM_BRANCH=${{ inputs.testim-branch }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
-  - name: Setup upterm session
-    uses: lhotari/action-upterm@v1
-    if: always()
+#  - name: Setup upterm session (ssh)
+#    uses: lhotari/action-upterm@v1
+#    if: always()

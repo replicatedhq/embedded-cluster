@@ -21,10 +21,9 @@ var networkaddr chan string
 
 const lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
 const profileConfig = `lxc.apparmor.profile=unconfined
-lxc.cap.drop=
+lxc.mount.auto=proc:rw sys:rw cgroup:rw
 lxc.cgroup.devices.allow=a
-lxc.mount.auto=proc:rw sys:rw
-lxc.mount.entry = /dev/kmsg dev/kmsg none defaults,bind,create=file`
+lxc.cap.drop=`
 const checkInternet = `#!/bin/bash
 timeout 5 bash -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
 if [ $? == 0 ]; then
@@ -236,9 +235,6 @@ func CreateProxy(in *Input) {
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
 			Architecture: "x86_64",
-			Config: map[string]string{
-				"security.privileged": "true",
-			},
 			Devices: map[string]map[string]string{
 				"eth0": {
 					"name":    "eth0",
@@ -249,11 +245,6 @@ func CreateProxy(in *Input) {
 					"name":    "eth1",
 					"network": exnet,
 					"type":    "nic",
-				},
-				"kmsg": {
-					"path":   "/dev/kmsg",
-					"source": "/dev/kmsg",
-					"type":   "unix-char",
 				},
 			},
 			Ephemeral: true,
@@ -547,19 +538,11 @@ func CreateNode(in *Input, i int) string {
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
 			Architecture: "x86_64",
-			Config: map[string]string{
-				"security.privileged": "true",
-			},
 			Devices: map[string]map[string]string{
 				"eth0": {
 					"name":    "eth0",
 					"network": net,
 					"type":    "nic",
-				},
-				"kmsg": {
-					"path":   "/dev/kmsg",
-					"source": "/dev/kmsg",
-					"type":   "unix-char",
 				},
 			},
 			Ephemeral: true,
@@ -649,7 +632,10 @@ func CreateProfile(in *Input) {
 		ProfilePut: api.ProfilePut{
 			Description: fmt.Sprintf("Embedded Cluster test cluster (%s)", in.id),
 			Config: map[string]string{
-				"raw.lxc": profileConfig,
+				"raw.lxc":              profileConfig,
+				"security.nesting":     "true",
+				"security.privileged":  "true",
+				"linux.kernel_modules": "br_netfilter,ip_tables,ip6_tables,netlink_diag,nf_nat,overlay",
 			},
 			Devices: map[string]map[string]string{
 				"eth0": {
@@ -661,6 +647,11 @@ func CreateProfile(in *Input) {
 					"path": "/",
 					"pool": "default",
 					"type": "disk",
+				},
+				"kmsg": {
+					"path":   "/dev/kmsg",
+					"source": "/dev/kmsg",
+					"type":   "unix-char",
 				},
 			},
 		},
