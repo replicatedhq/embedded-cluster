@@ -47,9 +47,6 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	if true {
-		return
-	}
 	defer tc.Destroy()
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
