@@ -118,7 +118,6 @@ jobs:
         sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
         
         rm e2e/kots-release-install/release.yaml
-        rm e2e/kots-release-upgrade/release.yaml
         replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
         replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI-airgap --version "appver-${SHORT_SHA}-upgrade"
 
