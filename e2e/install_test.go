@@ -631,18 +631,22 @@ func setupTestim(t *testing.T, tc *cluster.Output) error {
 }
 
 func runTestimTest(t *testing.T, tc *cluster.Output, testName string) (string, string, error) {
+	var stdout, stderr string
+	var err error
 	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), testName}
 	if tc.Proxy != "" {
 		t.Logf("%s: running testim test %s on proxy node", time.Now().Format(time.RFC3339), testName)
-		if stdout, stderr, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+		stdout, stderr, err = RunCommandOnProxyNode(t, tc, line)
+		if err != nil {
 			return stdout, stderr, fmt.Errorf("fail to run testim test %s on node %s: %v", testName, tc.Proxy, err)
 		}
 	} else {
 		t.Logf("%s: running testim test %s on node 0", time.Now().Format(time.RFC3339), testName)
-		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			return "", "", fmt.Errorf("fail to run testim test %s on node %s: %v", testName, tc.Nodes[0], err)
+		stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+		if err != nil {
+			return stdout, stderr, fmt.Errorf("fail to run testim test %s on node %s: %v", testName, tc.Nodes[0], err)
 		}
 	}
 
-	return "", "", nil
+	return stdout, stderr, nil
 }
