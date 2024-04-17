@@ -630,9 +630,7 @@ func setupTestim(t *testing.T, tc *cluster.Output) error {
 	return nil
 }
 
-func runTestimTest(t *testing.T, tc *cluster.Output, testName string) (string, string, error) {
-	var stdout, stderr string
-	var err error
+func runTestimTest(t *testing.T, tc *cluster.Output, testName string) (stdout, stderr string, err error) {
 	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), testName}
 	if tc.Proxy != "" {
 		t.Logf("%s: running testim test %s on proxy node", time.Now().Format(time.RFC3339), testName)
