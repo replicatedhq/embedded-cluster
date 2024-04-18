@@ -31,6 +31,10 @@ spec:
   - copy:
       collectorName: installer-logs
       path: /var/lib/embedded-cluster/logs/*.log
+  - run:
+      collectorName: network-manager-logs
+      command: journalctl
+      args: [ "--since", "5 minutes ago", "-u", "NetworkManager" ]
   hostAnalyzers:
   - memory:
       checkName: Amount of Memory
@@ -81,6 +85,17 @@ spec:
       - pass:
           when: "true"
           message: Kubernetes API probing is reporting success
+  - textAnalyze:
+      checkName: NetworkManager managing calico interfaces
+      fileName: host-collectors/run-host/network-manager-logs.txt
+      regex: 'device .*cali.+: state change: config'
+      outcomes:
+      - fail:
+          when: "true"
+          message: NetworkManager seems to be managing calico interfaces
+      - pass:
+          when: "false"
+          message: NetworkManager isn't managing calico interfaces
   - hostServices:
       checkName: "Local Artifact Mirror"
       outcomes:
