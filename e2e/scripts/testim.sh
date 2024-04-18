@@ -26,6 +26,8 @@ main() {
   socat TCP-LISTEN:3000,fork TCP:10.0.0.2:30001 &
   socat_pid=$!
 
+  sleep 5
+
   # run the Testim test
   testim --token=$testim_token --project=wSvaGXFJnnoonKzLxBfX --grid=Testim-grid --branch=$testim_branch --timeout=3600000 --name=$test_name --tunnel --tunnel-port=3000
 
