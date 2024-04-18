@@ -7,6 +7,9 @@ main() {
   kubectl get services -A
   kubectl get installations -A
   kubectl get nodes -A
+  kubectl get events -A
+  df -h
+  free -mh
 }
 
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
