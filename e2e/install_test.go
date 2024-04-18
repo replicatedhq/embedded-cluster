@@ -34,8 +34,14 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -72,8 +78,14 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -114,8 +126,14 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -152,8 +170,14 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -322,8 +346,14 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -400,8 +430,14 @@ func TestOldVersionUpgrade(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -459,13 +495,19 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	}
 
 	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"kots-upstream-upgrade.sh", ""}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
 
 	if _, _, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
 		t.Fatalf("fail to run testim test deploy-airgap-upgrade: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
