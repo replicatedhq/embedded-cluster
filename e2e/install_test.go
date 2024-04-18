@@ -538,8 +538,8 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
 
-	if _, _, err := runTestimTest(t, tc, "deploy-kots-application"); err != nil {
-		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
+	if _, _, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
+		t.Fatalf("fail to run testim test deploy-airgap-upgrade: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
