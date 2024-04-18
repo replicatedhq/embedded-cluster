@@ -575,6 +575,16 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	}
 
 	if _, _, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
+		// TODO: remove after debugging tests in CI
+		line = []string{"debug.sh"}
+		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+		if err != nil {
+			t.Logf("stdout: %s", stdout)
+			t.Logf("stderr: %s", stderr)
+			t.Fatalf("fail to run debug script: %v", err)
+		}
+		t.Logf("stdout: %s", stdout)
+		t.Logf("stderr: %s", stderr)
 		t.Fatalf("fail to run testim test deploy-airgap-upgrade: %v", err)
 	}
 
