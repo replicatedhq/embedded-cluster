@@ -156,22 +156,17 @@ var systemdfs embed.FS
 
 // MaterializeCalicoNetworkManagerConfig materializes a configuration file for the network manager.
 // This configuration file instructs the network manager to ignore any interface being managed by
-// the calico network cni. Returns true if the materialization was executed, false otherwise. This
-// function does not materialize if the network manager configuration directory exists.
-func MaterializeCalicoNetworkManagerConfig() (bool, error) {
-	// if not network manager configuration directory is found then we ignore.
-	if _, err := os.Stat("/etc/NetworkManager/conf.d"); err != nil {
-		return false, nil
-	}
+// the calico network cni.
+func MaterializeCalicoNetworkManagerConfig() error {
 	content, err := systemdfs.ReadFile("systemd/calico-network-manager.conf")
 	if err != nil {
-		return false, fmt.Errorf("unable to open network manager config file: %w", err)
+		return fmt.Errorf("unable to open network manager config file: %w", err)
 	}
 	dstpath := "/etc/NetworkManager/conf.d/embedded-cluster.conf"
 	if err := os.WriteFile(dstpath, content, 0644); err != nil {
-		return false, fmt.Errorf("unable to write file: %w", err)
+		return fmt.Errorf("unable to write file: %w", err)
 	}
-	return true, nil
+	return nil
 }
 
 // MaterializeLocalArtifactMirrorUnitFile writes to disk the local-artifact-mirror systemd unit file.

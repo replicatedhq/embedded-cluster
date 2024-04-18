@@ -100,11 +100,6 @@ var joinCommand = &cli.Command{
 	Usage:     fmt.Sprintf("Join the current node to a %s cluster", binName),
 	ArgsUsage: "<url> <token>",
 	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "no-prompt",
-			Usage: "Do not prompt user when it is not necessary",
-			Value: false,
-		},
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",

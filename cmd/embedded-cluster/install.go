@@ -53,32 +53,25 @@ func installAndEnableLocalArtifactMirror() error {
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
 func configureNetworkManager(c *cli.Context) error {
-	active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager")
-	if err != nil {
+	if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
 	} else if !active {
 		logrus.Debugf("NetworkManager is not active, skipping configuration")
 		return nil
 	}
 
-	logrus.Debugf("NetworkManager active, configuring it to ignore calico interfaces")
-	logrus.Infof("NetworkManager is active on this host. We need to configure it to")
-	logrus.Infof("ignore the virtual network interfaces created to keep the application")
-	logrus.Infof("running. This step involves restarting the NetworkManager service.")
-	if !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue ?", true) {
-		return fmt.Errorf("user aborted")
-	}
-
-	logrus.Debugf("creating NetworkManager configuration file")
-	configured, err := goods.MaterializeCalicoNetworkManagerConfig()
-	if err != nil {
-		return fmt.Errorf("unable to materialize configuration: %w", err)
-	} else if !configured {
-		logrus.Warn("Failed to configure NetworkManager, moving on.")
+	dir := "/etc/NetworkManager/conf.d"
+	if _, err := os.Stat(dir); err != nil {
+		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
 		return nil
 	}
 
-	logrus.Debugf("network manager configuration applied, restarting the service")
+	logrus.Debugf("creating NetworkManager config file")
+	if err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
+		return fmt.Errorf("unable to materialize configuration: %w", err)
+	}
+
+	logrus.Debugf("network manager config created, restarting the service")
 	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to restart network manager: %w", err)
 	}
