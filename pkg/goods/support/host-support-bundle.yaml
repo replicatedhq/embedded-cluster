@@ -34,7 +34,7 @@ spec:
   - run:
       collectorName: network-manager-logs
       command: journalctl
-      args: [ "--since", "5 minutes ago", "--no-pager", "-u", "NetworkManager" ]
+      args: [ "--since", "10 minutes ago", "--no-pager", "-u", "NetworkManager" ]
   hostAnalyzers:
   - memory:
       checkName: Amount of Memory
