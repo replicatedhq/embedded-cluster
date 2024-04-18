@@ -64,10 +64,9 @@ spec:
           namespace: goldpinger
           version: 6.1.2
           order: 11
-        ## TODO: bring this back in once the airgap upgrade images issue is resolved
-        # - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
-        #   name: memcached
-        #   namespace: memcached
-        #   values: "abc: xyz"
-        #   order: 4
-        #   version: 6.6.4
+        - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
+          name: memcached
+          namespace: memcached
+          values: "abc: xyz"
+          order: 4
+          version: 6.6.4

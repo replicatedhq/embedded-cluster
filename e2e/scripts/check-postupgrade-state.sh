@@ -75,13 +75,12 @@ main() {
     echo "installations"
     kubectl get installations
 
-    # # TODO: bring the back in once the airgap upgrade images issue is resolved
-    # # ensure that memcached exists
-    # if ! kubectl get ns memcached; then
-    #     echo "no memcached ns found"
-    #     kubectl get ns
-    #     exit 1
-    # fi
+    # ensure that memcached exists
+    if ! kubectl get ns memcached; then
+        echo "no memcached ns found"
+        kubectl get ns
+        exit 1
+    fi
 
     # ensure that new app pods exist
     if ! kubectl get pods -n kotsadm -l app=second; then
