@@ -3,6 +3,7 @@ set -euox pipefail
 
 main() {
   kubectl get pods -A
+  kubectl describe pod kotsadm-0 -n kotsadm
   kubectl get services -A
   kubectl get installations -A
   kubectl get nodes -A
