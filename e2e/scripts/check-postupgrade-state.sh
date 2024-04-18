@@ -53,16 +53,6 @@ function check_nginx_version {
 }
 
 main() {
-    local installation_version=
-    installation_version="$1"
-
-    sleep 30 # wait for kubectl to become available
-
-    echo "upgrading to version ${installation_version}-upgrade"
-    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --deploy-version-label="appver-${installation_version}-upgrade"
-
-    sleep 30
-
     echo "ensure that installation is installed"
     wait_for_installation
 
