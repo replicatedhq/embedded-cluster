@@ -50,17 +50,15 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: "1.21.0"
-    - name: Build Linux AMD64
+    - name: Build Linux AMD64 and Output Metadata
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}"
         tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
+        ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
         make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
         tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
-    - name: Output Metadata
-      run: |
         ./output/bin/embedded-cluster version metadata > metadata.json
-        ./output/bin/embedded-cluster-previous-k0s version metadata > metadata-previous-k0s.json
     - name: Install Replicated CLI
       run: |
         curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
