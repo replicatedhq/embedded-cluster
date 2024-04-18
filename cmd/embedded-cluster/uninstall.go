@@ -410,6 +410,18 @@ var resetCommand = &cli.Command{
 			}
 		}
 
+		if _, err := os.Stat(defaults.PathToK0sContainerdConfig()); err == nil {
+			if err := os.RemoveAll(defaults.PathToK0sContainerdConfig()); err != nil {
+				return fmt.Errorf("failed to remove containerd config: %w", err)
+			}
+		}
+
+		if _, err := os.Stat(systemdUnitFileName()); err == nil {
+			if err := os.Remove(systemdUnitFileName()); err != nil {
+				return fmt.Errorf("failed to remove systemd unit file: %w", err)
+			}
+		}
+
 		if _, err := os.Stat("/var/openebs"); err == nil {
 			if err := os.RemoveAll("/var/openebs"); err != nil {
 				return fmt.Errorf("failed to remove openebs storage: %w", err)
