@@ -53,11 +53,15 @@ jobs:
     - name: Build Linux AMD64
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-        make embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
+        make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}"
+        mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
+        tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster-previous-k0s
+        make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
         tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
     - name: Output Metadata
       run: |
         ./output/bin/embedded-cluster version metadata > metadata.json
+        ./output/bin/embedded-cluster-previous-k0s version metadata > metadata-previous-k0s.json
     - name: Install Replicated CLI
       run: |
         curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
@@ -93,7 +97,9 @@ jobs:
         echo "versionLabel: \"appver-${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
         cat e2e/kots-release-install/release.yaml
         cp output/bin/embedded-cluster output/bin/embedded-cluster-original
-        make embedded-release VERSION="${SHORT_SHA}" # this is done after the metadata.json is generated so as to not include additional charts
+        make -B embedded-release K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}"
+        mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
+        make -B embedded-release VERSION="${SHORT_SHA}" # this is done after the metadata.json is generated so as to not include additional charts
     - name: Cache files for integration test
       env:
         S3_BUCKET: "tf-staging-embedded-cluster-bin"
@@ -105,6 +111,7 @@ jobs:
         export EC_VERSION="v${SHORT_SHA}"
         ./scripts/cache-files.sh
         ./scripts/create-upgrade-release.sh
+        ./scripts/create-previous-k0s-release.sh
 
     - name: Create Airgap Release
       env:
@@ -114,7 +121,8 @@ jobs:
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         echo "${SHORT_SHA}"
-        sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+        # airgap tests install the previous k0s version to ensure an upgrade occurs
+        sed -i "s/__version_string__/${SHORT_SHA}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
         sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
         
         rm e2e/kots-release-install/release.yaml
@@ -150,6 +158,7 @@ jobs:
         path: |
           output/bin/embedded-cluster
           output/bin/embedded-cluster-original
+          output/bin/embedded-cluster-previous-k0s
           output/bin/embedded-cluster-release-builder
 
   e2e:
