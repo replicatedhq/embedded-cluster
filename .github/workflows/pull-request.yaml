@@ -54,8 +54,7 @@ jobs:
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}"
-        mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
-        tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster-previous-k0s
+        tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
         make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
         tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
     - name: Output Metadata
