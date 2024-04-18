@@ -52,13 +52,32 @@ func installAndEnableLocalArtifactMirror() error {
 // configureNetworkManager configures the network manager (if the host is using it) to ignore
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
-func configureNetworkManager() error {
-	if restart, err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
-		return fmt.Errorf("unable to materialize configuration: %w", err)
-	} else if !restart {
-		logrus.Debugf("network manager wasn't detected on the machine")
+func configureNetworkManager(c *cli.Context) error {
+	active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager")
+	if err != nil {
+		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
+	} else if !active {
+		logrus.Debugf("NetworkManager is not active, skipping configuration")
 		return nil
 	}
+
+	logrus.Debugf("NetworkManager active, configuring it to ignore calico interfaces")
+	logrus.Infof("NetworkManager is active on this host. We need to configure it to")
+	logrus.Infof("ignore the virtual network interfaces created to keep the application")
+	logrus.Infof("running. This step involves restarting the NetworkManager service.")
+	if !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue ?", true) {
+		return fmt.Errorf("user aborted")
+	}
+
+	logrus.Debugf("creating NetworkManager configuration file")
+	configured, err := goods.MaterializeCalicoNetworkManagerConfig()
+	if err != nil {
+		return fmt.Errorf("unable to materialize configuration: %w", err)
+	} else if !configured {
+		logrus.Warn("Failed to configure NetworkManager, moving on.")
+		return nil
+	}
+
 	logrus.Debugf("network manager configuration applied, restarting the service")
 	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to restart network manager: %w", err)
@@ -435,7 +454,7 @@ var installCommand = &cli.Command{
 		}
 		metrics.ReportApplyStarted(c)
 		logrus.Debugf("configuring network manager")
-		if err := configureNetworkManager(); err != nil {
+		if err := configureNetworkManager(c); err != nil {
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 		logrus.Debugf("checking license matches")
