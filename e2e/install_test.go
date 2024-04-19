@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -523,8 +524,19 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	t.Parallel()
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	airgapInstallBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), "/tmp/airgap-install-bundle.tar.gz")
-	airgapUpgradeBundlePath := downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), "/tmp/airgap-upgrade-bundle.tar.gz")
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath)
+		wg.Done()
+	}()
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath)
+		wg.Done()
+	}()
+	wg.Wait()
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
