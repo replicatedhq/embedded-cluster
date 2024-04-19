@@ -447,7 +447,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		Nodes:            1,
 		Image:            "ubuntu/jammy",
 		WithProxy:        true,
-		AirgapBundlePath: airgapBundlePath,
+		AirgapInstallBundlePath: airgapBundlePath,
 	})
 	defer tc.Destroy()
 
