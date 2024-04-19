@@ -6,9 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/k0sproject/dig"
@@ -23,8 +21,8 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -210,99 +208,6 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 	return nil
 }
 
-// MaskKotsOutputForOnline masks the kots cli output during online installations. For
-// online installations we only want to print "Finalizing" until it is done and then
-// print "Finished!".
-func (a *AdminConsole) MaskKotsOutputForOnline() spinner.MaskFn {
-	return func(message string) string {
-		if strings.Contains(message, "Finished") {
-			return message
-		}
-		return "Finalizing"
-	}
-}
-
-// MaskKotsOutputForAirgap masks the kots cli output during airgap installations. This
-// function replaces some of the messages being printed to the user so the output looks
-// nicer.
-func (a *AdminConsole) MaskKotsOutputForAirgap() spinner.MaskFn {
-	current := "Uploading air gap bundle"
-	return func(message string) string {
-		switch {
-		case strings.Contains(message, "Pushing application images"):
-			current = message
-		case strings.Contains(message, "Pushing embedded cluster artifacts"):
-			current = message
-		case strings.Contains(message, "Waiting for Admin Console"):
-			current = "Finalizing"
-		case strings.Contains(message, "Finished!"):
-			current = message
-		}
-		return current
-	}
-}
-
-// KostsOutputLineBreaker creates a line break (new spinner) when some of the messages
-// are printed to the user. For example: after finishing all image uploads we want to
-// have a new spinner for the artifacts upload.
-func (a *AdminConsole) KostsOutputLineBreaker() spinner.LineBreakerFn {
-	// finished is an auxiliary function that evaluates if a message refers to a
-	// step that has been finished. We determine that by inspected if the message
-	// contains %d/%d and both integers are equal.
-	finished := func(message string) bool {
-		matches := CounterRegex.FindStringSubmatch(message)
-		if len(matches) != 3 {
-			return false
-		}
-		var counter int
-		if _, err := fmt.Sscanf(matches[1], "%d", &counter); err != nil {
-			return false
-		}
-		var total int
-		if _, err := fmt.Sscanf(matches[2], "%d", &total); err != nil {
-			return false
-		}
-		return counter == total
-	}
-
-	var previous string
-	var seen = map[string]bool{}
-	return func(current string) (bool, string) {
-		defer func() {
-			previous = current
-		}()
-
-		// if we have already seen this message we certainly have already assessed
-		// if a break line as necessary or not, on this case we return false so we
-		// do not keep breaking lines indefinitely.
-		if _, ok := seen[current]; ok {
-			return false, ""
-		}
-		seen[current] = true
-
-		// if the previous message evaluated does not relate to an end of a process
-		// we don't want to break the line. i.e. we only want to break the line when
-		// the previous evaluated message contains %d/%d and both integers are equal.
-		if !finished(previous) {
-			return false, ""
-		}
-
-		// if we are printing a message about pushing the embedded cluster artifacts
-		// it means that we have finished with the images and we want to break the line.
-		if strings.Contains(current, "Pushing embedded cluster artifacts") {
-			return true, "Application images are ready!"
-		}
-
-		// if we are printing a message about the finalization of the installation it
-		// means that the embedded cluster artifacts are ready and we want to break the
-		// line.
-		if current == "Finalizing" {
-			return true, "Embedded cluster artifacts are ready!"
-		}
-		return false, ""
-	}
-}
-
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
@@ -345,59 +250,21 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return nil
 	}
 
-	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
-	if err != nil {
-		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
-	}
-	defer os.Remove(kotsBinPath)
-
 	license, err := helpers.ParseLicense(a.licenseFile)
 	if err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to parse license: %w", err)
 	}
 
-	var appVersionLabel string
-	var channelSlug string
-	if channelRelease, err := release.GetChannelRelease(); err != nil {
-		loading.CloseWithError()
-		return fmt.Errorf("unable to get channel release: %w", err)
-	} else if channelRelease != nil {
-		appVersionLabel = channelRelease.VersionLabel
-		channelSlug = channelRelease.ChannelSlug
+	if err := kotscli.Install(kotscli.InstallOptions{
+		AppSlug:      license.Spec.AppSlug,
+		LicenseFile:  a.licenseFile,
+		Namespace:    a.namespace,
+		AirgapBundle: a.airgapBundle,
+	}); err != nil {
+		return err
 	}
 
-	upstreamURI := license.Spec.AppSlug
-	if channelSlug != "" && channelSlug != "stable" {
-		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
-	}
-
-	var lbreakfn spinner.LineBreakerFn
-	maskfn := a.MaskKotsOutputForOnline()
-	installArgs := []string{
-		"install",
-		upstreamURI,
-		"--license-file",
-		a.licenseFile,
-		"--namespace",
-		a.namespace,
-		"--app-version-label",
-		appVersionLabel,
-		"--exclude-admin-console",
-	}
-	if a.airgapBundle != "" {
-		installArgs = append(installArgs, "--airgap-bundle", a.airgapBundle)
-		maskfn = a.MaskKotsOutputForAirgap()
-		lbreakfn = a.KostsOutputLineBreaker()
-	}
-
-	loading = spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
-	if err := helpers.RunCommandWithWriter(loading, kotsBinPath, installArgs...); err != nil {
-		loading.CloseWithError()
-		return fmt.Errorf("unable to install the application: %w", err)
-	}
-
-	loading.Closef("Finished!")
 	a.printSuccessMessage(license.Spec.AppSlug)
 	return nil
 }
