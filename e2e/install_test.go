@@ -558,7 +558,6 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
-
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
