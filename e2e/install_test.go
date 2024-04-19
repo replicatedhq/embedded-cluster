@@ -521,7 +521,7 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	}
 
 	if _, _, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
-		// TODO: remove after dev
+		// TODO: remove after dev!
 		line = []string{"debug.sh"}
 		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 		if err != nil {
