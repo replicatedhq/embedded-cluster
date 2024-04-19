@@ -13,13 +13,14 @@ import (
 )
 
 var updateCommand = &cli.Command{
-	Name:  "update",
-	Usage: fmt.Sprintf("Update %s", binName),
+	Name:   "update",
+	Usage:  fmt.Sprintf("Update %s", binName),
+	Hidden: true,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:   "airgap-bundle",
-			Usage:  "Path to the airgap bundle.",
-			Hidden: true,
+			Name:     "airgap-bundle",
+			Usage:    "Path to the airgap bundle.",
+			Required: true,
 		},
 	},
 	Before: func(c *cli.Context) error {
