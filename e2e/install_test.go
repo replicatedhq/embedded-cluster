@@ -567,6 +567,11 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+	// remove the airgap bundle after installation
+	line = []string{"rm", "/tmp/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
 
 	if err := setupTestim(t, tc); err != nil {
 		t.Fatalf("fail to setup testim: %v", err)
@@ -591,6 +596,11 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	line = []string{"kots-upstream-upgrade.sh", ""}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+	// remove the airgap bundle after upgrade
+	line = []string{"rm", "/tmp/upgrade/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
 	if _, _, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {

@@ -153,9 +153,6 @@ main() {
         echo "Failed to install embedded-cluster"
         exit 1
     fi
-    # delete the airgap bundle
-    rm /tmp/release.airgap
-
     if ! grep -q "Admin Console is ready!" /tmp/log; then
         echo "Failed to validate that the Admin Console is ready"
         exit 1
