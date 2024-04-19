@@ -6,7 +6,7 @@ main() {
   kubectl describe pod kotsadm-0 -n kotsadm
   kubectl get services -A
   kubectl get installations -A
-  kubectl get nodes -A
+  kubectl get nodes -o yaml
   kubectl get events -A
   df -h
   free -mh
