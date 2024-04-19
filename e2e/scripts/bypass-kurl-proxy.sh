@@ -2,8 +2,22 @@
 set -euox pipefail
 
 main() {
-  kubectl expose pod kotsadm-0 -n kotsadm --type=NodePort --port=30001 --target-port=3000 --name=kotsadm-nodeport
-  kubectl patch svc kotsadm-nodeport -n kotsadm --type='json' -p '[{"op":"replace","path":"/spec/ports/0/nodePort","value":30001}]'
+  # create a nodeport service directly to kotsadm
+  cat <<EOF | kubectl apply -f -
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: kotsadm-nodeport
+    namespace: kotsadm
+  spec:
+    type: NodePort
+    ports:
+    - port: 30001
+      targetPort: 3000
+      nodePort: 30001
+    selector:
+      app: kotsadm
+EOF
 }
 
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
