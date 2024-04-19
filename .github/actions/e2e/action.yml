@@ -67,6 +67,6 @@ runs:
       export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
       export TESTIM_BRANCH=${{ inputs.testim-branch }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
- - name: Setup upterm session (ssh)
-   uses: lhotari/action-upterm@v1
-   if: always()
+  - name: Setup upterm session (ssh)
+    uses: lhotari/action-upterm@v1
+    if: always()
