@@ -230,7 +230,8 @@ func CreateProxy(in *Input) {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "j",
+			Alias: "ubuntu/jammy",
+			// Alias: "j",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
@@ -670,12 +671,18 @@ func PullImage(in *Input) {
 
 	for _, server := range []string{
 		"https://images.lxd.canonical.com",
+		"https://images.linuxcontainers.org",
 		"https://cloud-images.ubuntu.com/releases",
 	} {
 		in.T.Logf("Pulling %q image from %s", in.Image, server)
 		remote, err := lxd.ConnectSimpleStreams(server, nil)
 		if err != nil {
 			in.T.Fatalf("Failed to connect to image server: %v", err)
+		}
+
+		// temporary workaround for the unavailable cloud-images.ubuntu.com.
+		if strings.Contains(server, "linuxcontainers") && in.Image == "j" {
+			in.Image = "ubuntu/jammy"
 		}
 
 		alias, _, err := remote.GetImageAlias(in.Image)
