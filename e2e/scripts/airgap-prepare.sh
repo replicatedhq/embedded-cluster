@@ -16,6 +16,9 @@ main() {
       fi
     done
 
+    # delete the ec airgap release
+    rm /tmp/ec-release.tgz
+
     # if there is no file at /tmp/release.airgap, this is an error
     if [ ! -e /tmp/release.airgap ]
     then
@@ -46,6 +49,9 @@ main() {
         echo "No upgrade airgap file found"
         exit 1
       fi
+
+      # delete the ec upgrade airgap release
+      rm /tmp/ec-release-upgrade.tgz
     fi
 }
 
