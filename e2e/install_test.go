@@ -443,10 +443,10 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
 
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                t,
-		Nodes:            1,
-		Image:            "ubuntu/jammy",
-		WithProxy:        true,
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "ubuntu/jammy",
+		WithProxy:               true,
 		AirgapInstallBundlePath: airgapBundlePath,
 	})
 	defer tc.Destroy()
@@ -595,19 +595,13 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	}
 
 	if _, _, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
-		// TODO: remove after dev
-		line = []string{"debug.sh"}
-		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-		if err != nil {
-			t.Fatalf("fail to run debug script: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
-		}
-		t.Fatalf("fail to run testim test deploy-airgap-upgrade: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+		t.Fatalf("fail to run testim test deploy-airgap-upgrade: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh"}
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
