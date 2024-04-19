@@ -8,3 +8,6 @@ spec:
         - name: hostname
           title: Hostname
           type: text
+        - name: pw
+          title: Password
+          type: password

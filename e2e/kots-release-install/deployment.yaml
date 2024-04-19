@@ -33,3 +33,5 @@ spec:
               value: "{{repl ChannelName }}"
             - name: CONFIG_HOSTNAME
               value: '{{repl ConfigOption "hostname" }}'
+            - name: CONFIG_PASSWORD
+              value: '{{repl ConfigOption "pw" }}'
