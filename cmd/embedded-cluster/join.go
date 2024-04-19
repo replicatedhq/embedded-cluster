@@ -328,10 +328,14 @@ func startK0sService() error {
 	return nil
 }
 
+func systemdUnitFileName() string {
+	return fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
+}
+
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
 func createSystemdUnitFiles(fullcmd string) error {
-	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
+	dst := systemdUnitFileName()
 	if _, err := os.Stat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
 			return err

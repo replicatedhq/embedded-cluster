@@ -178,6 +178,7 @@ jobs:
           - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
           - TestResetAndReinstall
+          - TestResetAndReinstallAirgap
           - TestCollectSupportBundle
           - TestOldVersionUpgrade
           - TestMaterialize
