@@ -132,7 +132,7 @@ deploy_app() {
 
     echo "providing a config for the app"
     # provide a config for the app
-    kubectl kots set config embedded-cluster-smoke-test-staging-app -n kotsadm --key="hostname" --value="123" --deploy
+    kubectl kots set config embedded-cluster-smoke-test-staging-app -n kotsadm --key="hostname" --value="123" --key="pw" --value="mypassword" --deploy
     echo "app versions"
     kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
 
