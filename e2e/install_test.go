@@ -576,7 +576,7 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	}
 
 	t.Logf("%s: installing kots cli on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"install-kots-cli.sh"}
+	line = []string{"install-kots-cli.sh", "http://10.0.0.254:3128"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install kots cli on node %s: %v", tc.Nodes[0], err)
 	}

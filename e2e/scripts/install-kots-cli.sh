@@ -19,7 +19,7 @@ install_kots_cli() {
 }
 
 main() {
-    export HTTP_PROXY=http://10.0.0.254:3128
+    export HTTP_PROXY=$1
     export HTTPS_PROXY=$HTTP_PROXY
     export http_proxy=$HTTP_PROXY
     export https_proxy=$HTTP_PROXY
