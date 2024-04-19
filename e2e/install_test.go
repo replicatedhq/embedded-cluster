@@ -520,7 +520,12 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
 
-	if stdout, stderr, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
+	if _, _, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
+		line = []string{"debug.sh"}
+		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+		if err != nil {
+			t.Fatalf("fail to run debug script: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+		}
 		t.Fatalf("fail to run testim test deploy-airgap-upgrade: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 	}
 
