@@ -230,7 +230,8 @@ func CreateProxy(in *Input) {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "j",
+			Alias: "ubuntu/jammy",
+			// Alias: "j",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
