@@ -21,10 +21,9 @@ var networkaddr chan string
 
 const lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
 const profileConfig = `lxc.apparmor.profile=unconfined
-lxc.cap.drop=
+lxc.mount.auto=proc:rw sys:rw cgroup:rw
 lxc.cgroup.devices.allow=a
-lxc.mount.auto=proc:rw sys:rw
-lxc.mount.entry = /dev/kmsg dev/kmsg none defaults,bind,create=file`
+lxc.cap.drop=`
 const checkInternet = `#!/bin/bash
 timeout 5 bash -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
 if [ $? == 0 ]; then
@@ -175,10 +174,20 @@ func Run(ctx context.Context, t *testing.T, cmd Command) error {
 	return nil
 }
 
+// imagesMap maps some image names so we can use them in the tests.
+// For example, the letter "j" doesn't say it is an ubuntu/jammy.
+var imagesMap = map[string]string{
+	"ubuntu/jammy": "j",
+}
+
 // NewTestCluster creates a new cluster and returns an object of type Output
 // that can be used to get the created nodes and destroy the cluster when it
 // is no longer needed.
 func NewTestCluster(in *Input) *Output {
+	if name, ok := imagesMap[in.Image]; ok {
+		in.Image = name
+	}
+
 	in.id = uuid.New().String()[:5]
 	in.network = <-networkaddr
 	PullImage(in)
@@ -221,14 +230,11 @@ func CreateProxy(in *Input) {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "ubuntu/jammy",
+			Alias: "j",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
 			Architecture: "x86_64",
-			Config: map[string]string{
-				"security.privileged": "true",
-			},
 			Devices: map[string]map[string]string{
 				"eth0": {
 					"name":    "eth0",
@@ -239,11 +245,6 @@ func CreateProxy(in *Input) {
 					"name":    "eth1",
 					"network": exnet,
 					"type":    "nic",
-				},
-				"kmsg": {
-					"path":   "/dev/kmsg",
-					"source": "/dev/kmsg",
-					"type":   "unix-char",
 				},
 			},
 			Ephemeral: true,
@@ -500,11 +501,12 @@ func NodeHasInternet(in *Input, node string) {
 		Line:   []string{"/usr/local/bin/check_internet.sh"},
 	}
 	var success bool
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := Run(ctx, in.T, cmd); err != nil {
 			in.T.Logf("Unable to reach internet from %s: %v", node, err)
+			time.Sleep(30 * time.Second)
 			continue
 		}
 		success = true
@@ -536,19 +538,11 @@ func CreateNode(in *Input, i int) string {
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
 			Architecture: "x86_64",
-			Config: map[string]string{
-				"security.privileged": "true",
-			},
 			Devices: map[string]map[string]string{
 				"eth0": {
 					"name":    "eth0",
 					"network": net,
 					"type":    "nic",
-				},
-				"kmsg": {
-					"path":   "/dev/kmsg",
-					"source": "/dev/kmsg",
-					"type":   "unix-char",
 				},
 			},
 			Ephemeral: true,
@@ -638,7 +632,10 @@ func CreateProfile(in *Input) {
 		ProfilePut: api.ProfilePut{
 			Description: fmt.Sprintf("Embedded Cluster test cluster (%s)", in.id),
 			Config: map[string]string{
-				"raw.lxc": profileConfig,
+				"raw.lxc":              profileConfig,
+				"security.nesting":     "true",
+				"security.privileged":  "true",
+				"linux.kernel_modules": "br_netfilter,ip_tables,ip6_tables,netlink_diag,nf_nat,overlay",
 			},
 			Devices: map[string]map[string]string{
 				"eth0": {
@@ -650,6 +647,11 @@ func CreateProfile(in *Input) {
 					"path": "/",
 					"pool": "default",
 					"type": "disk",
+				},
+				"kmsg": {
+					"path":   "/dev/kmsg",
+					"source": "/dev/kmsg",
+					"type":   "unix-char",
 				},
 			},
 		},
@@ -665,25 +667,40 @@ func PullImage(in *Input) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	remote, err := lxd.ConnectSimpleStreams("https://images.linuxcontainers.org", nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to image server: %v", err)
-	}
-	alias, _, err := remote.GetImageAlias(in.Image)
-	if err != nil {
-		in.T.Fatalf("Failed to get image alias: %v", err)
-	}
-	image, _, err := remote.GetImage(alias.Target)
-	if err != nil {
-		in.T.Fatalf("Failed to get image: %v", err)
-	}
-	op, err := client.CopyImage(remote, *image, &lxd.ImageCopyArgs{CopyAliases: true})
-	if err != nil {
-		in.T.Fatalf("Failed to copy image: %v", err)
-	}
-	if err := op.Wait(); err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			in.T.Fatalf("Failed to wait for image copy: %v", err)
+
+	for _, server := range []string{
+		"https://images.lxd.canonical.com",
+		"https://cloud-images.ubuntu.com/releases",
+	} {
+		in.T.Logf("Pulling %q image from %s", in.Image, server)
+		remote, err := lxd.ConnectSimpleStreams(server, nil)
+		if err != nil {
+			in.T.Fatalf("Failed to connect to image server: %v", err)
 		}
+
+		alias, _, err := remote.GetImageAlias(in.Image)
+		if err != nil {
+			in.T.Logf("Failed to get image alias %s on %s: %v", in.Image, server, err)
+			continue
+		}
+
+		image, _, err := remote.GetImage(alias.Target)
+		if err != nil {
+			in.T.Logf("Failed to get image %s on %s: %v", alias.Target, server, err)
+			continue
+		}
+
+		op, err := client.CopyImage(remote, *image, &lxd.ImageCopyArgs{CopyAliases: true})
+		if err != nil {
+			in.T.Logf("Failed to copy image %s from %s: %v", alias.Target, server, err)
+			continue
+		}
+
+		if err = op.Wait(); err == nil || strings.Contains(err.Error(), "already exists") {
+			return
+		}
+		in.T.Logf("Failed to wait for image copy: %v", err)
 	}
+
+	in.T.Fatalf("Failed to pull image %s (tried in all servers)", in.Image)
 }

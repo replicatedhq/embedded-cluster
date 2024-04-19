@@ -51,6 +51,12 @@ runs:
       sudo rm -rf /usr/local/lib/android
       sudo rm -rf /opt/hostedtoolcache/CodeQL
       sudo rm -rf /opt/hostedtoolcache/Python
+  - name: Set AppArmor mode to complain
+    shell: bash
+    run: |
+      sudo apt-get update -y
+      sudo apt install apparmor-utils -y
+      sudo aa-complain /etc/apparmor.d/*
   - name: E2E
     shell: bash
     run: |
@@ -61,3 +67,6 @@ runs:
       export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
       export TESTIM_BRANCH=${{ inputs.testim-branch }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+#  - name: Setup upterm session (ssh)
+#    uses: lhotari/action-upterm@v1
+#    if: always()

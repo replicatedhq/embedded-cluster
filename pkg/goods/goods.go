@@ -154,6 +154,21 @@ func Materialize() error {
 //go:embed systemd/*
 var systemdfs embed.FS
 
+// MaterializeCalicoNetworkManagerConfig materializes a configuration file for the network manager.
+// This configuration file instructs the network manager to ignore any interface being managed by
+// the calico network cni.
+func MaterializeCalicoNetworkManagerConfig() error {
+	content, err := systemdfs.ReadFile("systemd/calico-network-manager.conf")
+	if err != nil {
+		return fmt.Errorf("unable to open network manager config file: %w", err)
+	}
+	dstpath := "/etc/NetworkManager/conf.d/embedded-cluster.conf"
+	if err := os.WriteFile(dstpath, content, 0644); err != nil {
+		return fmt.Errorf("unable to write file: %w", err)
+	}
+	return nil
+}
+
 // MaterializeLocalArtifactMirrorUnitFile writes to disk the local-artifact-mirror systemd unit file.
 func MaterializeLocalArtifactMirrorUnitFile() error {
 	content, err := systemdfs.ReadFile("systemd/local-artifact-mirror.service")

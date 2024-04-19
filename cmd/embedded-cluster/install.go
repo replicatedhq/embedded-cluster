@@ -49,6 +49,35 @@ func installAndEnableLocalArtifactMirror() error {
 	return nil
 }
 
+// configureNetworkManager configures the network manager (if the host is using it) to ignore
+// the calico interfaces. This function restarts the NetworkManager service if the configuration
+// was changed.
+func configureNetworkManager(c *cli.Context) error {
+	if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
+		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
+	} else if !active {
+		logrus.Debugf("NetworkManager is not active, skipping configuration")
+		return nil
+	}
+
+	dir := "/etc/NetworkManager/conf.d"
+	if _, err := os.Stat(dir); err != nil {
+		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
+		return nil
+	}
+
+	logrus.Debugf("creating NetworkManager config file")
+	if err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
+		return fmt.Errorf("unable to materialize configuration: %w", err)
+	}
+
+	logrus.Debugf("network manager config created, restarting the service")
+	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
+		return fmt.Errorf("unable to restart network manager: %w", err)
+	}
+	return nil
+}
+
 // runPostInstall is a helper function that run things just after the k0s install
 // command ran.
 func runPostInstall() error {
@@ -417,6 +446,10 @@ var installCommand = &cli.Command{
 			return ErrNothingElseToAdd
 		}
 		metrics.ReportApplyStarted(c)
+		logrus.Debugf("configuring network manager")
+		if err := configureNetworkManager(c); err != nil {
+			return fmt.Errorf("unable to configure network manager: %w", err)
+		}
 		logrus.Debugf("checking license matches")
 		if err := checkLicenseMatches(c); err != nil {
 			metricErr := fmt.Errorf("unable to check license: %w", err)
