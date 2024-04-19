@@ -428,6 +428,12 @@ var resetCommand = &cli.Command{
 			}
 		}
 
+		if _, err := os.Stat("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err == nil {
+			if err := os.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
+				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
+			}
+		}
+
 		if c.Bool("reboot") {
 			if _, err := exec.Command("reboot").Output(); err != nil {
 				return err

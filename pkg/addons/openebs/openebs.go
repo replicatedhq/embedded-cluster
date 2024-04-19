@@ -29,6 +29,9 @@ var (
 )
 
 var helmValues = map[string]interface{}{
+	"analytics": map[string]interface{}{
+		"enabled": false,
+	},
 	"ndmOperator": map[string]interface{}{
 		"enabled": false,
 	},
