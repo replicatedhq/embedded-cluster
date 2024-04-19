@@ -546,7 +546,7 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer tc.Destroy()
+	// defer tc.Destroy()
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
