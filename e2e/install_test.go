@@ -508,34 +508,14 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
 
-	if _, _, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
-		// TODO: remove after debugging tests in CI
-		line = []string{"debug.sh"}
-		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-		if err != nil {
-			t.Logf("stdout: %s", stdout)
-			t.Logf("stderr: %s", stderr)
-			t.Fatalf("fail to run debug script: %v", err)
-		}
-		t.Logf("stdout: %s", stdout)
-		t.Logf("stderr: %s", stderr)
-		t.Fatalf("fail to run testim test deploy-airgap-upgrade: %v", err)
+	if stdout, stderr, err := runTestimTest(t, tc, "deploy-airgap-upgrade"); err != nil {
+		t.Fatalf("fail to run testim test deploy-airgap-upgrade: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		// TODO: remove after debugging tests in CI
-		line = []string{"debug.sh"}
-		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-		if err != nil {
-			t.Logf("stdout: %s", stdout)
-			t.Logf("stderr: %s", stderr)
-			t.Fatalf("fail to run debug script: %v", err)
-		}
-		t.Logf("stdout: %s", stdout)
-		t.Logf("stderr: %s", stderr)
-		t.Fatalf("fail to check postupgrade state: %v", err)
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
