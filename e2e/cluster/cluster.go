@@ -197,6 +197,7 @@ func NewTestCluster(in *Input) *Output {
 	nodes := CreateNodes(in)
 	for _, node := range nodes {
 		CopyFilesToNode(in, node)
+		CopyScriptsToNode(in, node)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, node)
 		}
@@ -209,7 +210,7 @@ func NewTestCluster(in *Input) *Output {
 	}
 	if in.WithProxy {
 		out.Proxy = CreateProxy(in)
-		CopyFilesToNode(in, out.Proxy)
+		CopyScriptsToNode(in, out.Proxy)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, out.Proxy)
 		}
@@ -380,8 +381,7 @@ func CreateRegularUser(in *Input, node string) {
 }
 
 // CopyFilesToNode copies the files needed for the cluster to the node. Copies
-// the provided ssh key, the embedded-cluster binary and also all scripts from the
-// scripts directory (they are all placed under /usr/local/bin inside the node).
+// the provided ssh key and the embedded-cluster release files.
 func CopyFilesToNode(in *Input, node string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -418,6 +418,14 @@ func CopyFilesToNode(in *Input, node string) {
 			Mode:       0755,
 		},
 	}
+	for _, file := range files {
+		CopyFileToNode(in, node, file)
+	}
+}
+
+// CopyScriptsToNode copies all scripts from the scripts directory
+// (they are all placed under /usr/local/bin inside the node).
+func CopyScriptsToNode(in *Input, node string) {
 	scriptFiles, err := scripts.FS.ReadDir(".")
 	if err != nil {
 		in.T.Fatalf("Failed to read scripts directory: %v", err)
@@ -436,13 +444,11 @@ func CopyFilesToNode(in *Input, node string) {
 			in.T.Fatalf("Failed to copy script %s: %v", script.Name(), err)
 		}
 		fp.Close()
-		files = append(files, File{
+		file := File{
 			SourcePath: tmp.Name(),
 			DestPath:   fmt.Sprintf("/usr/local/bin/%s", script.Name()),
 			Mode:       0755,
-		})
-	}
-	for _, file := range files {
+		}
 		CopyFileToNode(in, node, file)
 	}
 }

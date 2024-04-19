@@ -462,6 +462,14 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	})
 	defer tc.Destroy()
 
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
+		t.Logf("failed to remove airgap upgrade bundle: %v", err)
+	}
+
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
 
@@ -517,6 +525,16 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		// TODO: remove after debugging tests in CI
+		line = []string{"debug.sh"}
+		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+		if err != nil {
+			t.Logf("stdout: %s", stdout)
+			t.Logf("stderr: %s", stderr)
+			t.Fatalf("fail to run debug script: %v", err)
+		}
+		t.Logf("stdout: %s", stdout)
+		t.Logf("stderr: %s", stderr)
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
