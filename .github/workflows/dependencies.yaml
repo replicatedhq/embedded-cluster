@@ -47,6 +47,10 @@ jobs:
       run: |
         export VERSION=`curl https://api.github.com/repos/distribution/distribution/tags | jq -r '.[].name'  | tr -d v | grep -v alpha | grep -v beta | head -n 1`
         sed -i "/^REGISTRY_IMAGE_VERSION/c\REGISTRY_IMAGE_VERSION = $VERSION" Makefile
+    - name: Velero Chart
+      run: |
+        export VERSION=`curl https://api.github.com/repos/vmware-tanzu/helm-charts/tags | jq -r '.[].name' | grep velero | tr -d 'velero-' | head -n 1`
+        sed -i "/^VELERO_CHART_VERSION/c\VELERO_CHART_VERSION = $VERSION" Makefile
     - name: Kubectl
       run: |
         export VERSION=`curl -L -s https://dl.k8s.io/release/stable.txt`
