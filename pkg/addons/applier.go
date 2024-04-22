@@ -6,9 +6,11 @@ package addons
 import (
 	"context"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -102,6 +104,26 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 	}
 
 	return regChart, regRepo, nil
+}
+
+func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
+	builtinCharts := map[string]k0sconfig.HelmExtensions{}
+
+	vel, err := velero.New(true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	velChart, velRepo, err := vel.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate helm config for velero: %w", err)
+	}
+
+	builtinCharts["velero"] = k0sconfig.HelmExtensions{
+		Repositories: velRepo,
+		Charts:       velChart,
+	}
+
+	return builtinCharts, nil
 }
 
 func (a *Applier) GetAdditionalImages() ([]string, error) {

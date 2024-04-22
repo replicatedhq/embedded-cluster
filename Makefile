@@ -20,6 +20,9 @@ REGISTRY_CHART_URL = https://helm.twun.io
 REGISTRY_CHART_NAME = twuni/docker-registry
 REGISTRY_CHART_VERSION = 2.2.3
 REGISTRY_IMAGE_VERSION = 2.8.3
+VELERO_CHART_URL = https://vmware-tanzu.github.io/helm-charts
+VELERO_CHART_NAME = vmware-tanzu/velero
+VELERO_CHART_VERSION = 6.0.0
 KUBECTL_VERSION = v1.30.0
 K0S_VERSION = v1.29.4+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
@@ -47,7 +50,10 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartURL=$(REGISTRY_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartName=$(REGISTRY_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.ChartURL=$(VELERO_CHART_URL) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.ChartName=$(VELERO_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.Version=$(VELERO_CHART_VERSION)
 
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
