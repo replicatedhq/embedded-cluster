@@ -63,10 +63,12 @@ type Roles struct {
 }
 
 type VeleroBuiltin struct {
-	Enabled bool   `json:"enabled,omitempty"`
-	Values  string `json:"values,omitempty"`
+	Enabled bool   `json:"enabled,omitempty"` // whether to install Velero
+	Values  string `json:"values,omitempty"`  // values that will be merged with the Embedded-Cluster default velero values
 }
 
+// BuiltinExtensions allows vendors to enable/disable additional optional extensions.
+// Today, that only includes Velero.
 type BuiltinExtensions struct {
 	Velero *VeleroBuiltin `json:"velero,omitempty"`
 }
