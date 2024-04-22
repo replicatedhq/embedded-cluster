@@ -616,6 +616,47 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:     t,
+		Nodes: 1,
+		Image: "ubuntu/jammy",
+	})
+	defer tc.Destroy()
+	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-install.sh", "cli"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: ensuring velero is installed", time.Now().Format(time.RFC3339))
+	line = []string{"check-velero-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check velero state: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string) string {
 	// download airgap bundle
 	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
@@ -672,47 +713,6 @@ func setupTestim(t *testing.T, tc *cluster.Output) error {
 	}
 
 	return nil
-}
-
-func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
-	t.Parallel()
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:     t,
-		Nodes: 1,
-		Image: "ubuntu/jammy",
-	})
-	defer tc.Destroy()
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
-	}
-
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "cli"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
-
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
-	}
-
-	t.Logf("%s: ensuring velero is installed", time.Now().Format(time.RFC3339))
-	line = []string{"check-velero-state.sh", os.Getenv("SHORT_SHA")}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check velero state: %v", err)
-	}
-
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 func runTestimTest(t *testing.T, tc *cluster.Output, testName string) (stdout, stderr string, err error) {
