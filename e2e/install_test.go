@@ -520,7 +520,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
+func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	t.Parallel()
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
