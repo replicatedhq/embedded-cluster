@@ -36,20 +36,20 @@ function retry() {
 
 function metadata() {
     if [ -z "${EC_VERSION}" ]; then
-        echo "EC_VERSION unset, not uploading metadata.json"
+        echo "EC_VERSION unset, not uploading metadata-previous-k0s.json"
         return 0
     fi
 
-    # mutate the metadata.json to create a suitable upgrade
-    if [ -f metadata.json ]; then
+    # mutate the metadata-previous-k0s.json to create a suitable upgrade
+    if [ -f metadata-previous-k0s.json ]; then
         sudo apt-get install jq -y
 
-        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "global:\n  labels:\n    embedded-cluster-operator-upgrade-label: embedded-cluster-operator-upgrade-value"' metadata.json > upgrade-metadata.json
-        cat upgrade-metadata.json
+        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "global:\n  labels:\n    embedded-cluster-operator-upgrade-label: embedded-cluster-operator-upgrade-value"' metadata-previous-k0s.json > install-metadata.json
+        cat install-metadata.json
 
-        retry 3 aws s3 cp upgrade-metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
+        retry 3 aws s3 cp install-metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
     else
-        echo "metadata.json not found, skipping upload"
+        echo "metadata-previous-k0s.json not found, skipping upload"
     fi
 
 }
@@ -59,17 +59,17 @@ function embeddedcluster() {
         echo "EC_VERSION unset, not uploading embedded cluster release"
         return 0
     fi
-    # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
+    # check if a file 'embedded-cluster-linux-amd64-previous-k0s.tgz' exists in the directory
     # if it does, upload it as releases/${ec_version}.tgz
-    if [ -f embedded-cluster-linux-amd64.tgz ]; then
-        retry 3 aws s3 cp embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${EC_VERSION}.tgz"
+    if [ -f embedded-cluster-linux-amd64-previous-k0s.tgz ]; then
+        retry 3 aws s3 cp embedded-cluster-linux-amd64-previous-k0s.tgz "s3://${S3_BUCKET}/releases/${EC_VERSION}.tgz"
     else
-        echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
+        echo "embedded-cluster-linux-amd64-previous-k0s.tgz not found, skipping upload"
     fi
 }
 
 function main() {
-    export EC_VERSION="${EC_VERSION}-upgrade"
+    export EC_VERSION="${EC_VERSION}-previous-k0s"
     metadata
     embeddedcluster
 }

@@ -22,6 +22,7 @@ REGISTRY_CHART_VERSION = 2.2.3
 REGISTRY_IMAGE_VERSION = 2.8.3
 KUBECTL_VERSION = v1.30.0
 K0S_VERSION = v1.29.4+k0s.0
+PREVIOUS_K0S_VERSION ?= v1.28.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.87.0
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
@@ -167,3 +168,6 @@ scan:
 		--severity="HIGH,CRITICAL" \
 		--ignore-unfixed \
 		./
+
+print-%:
+	@echo -n $($*)

@@ -58,7 +58,8 @@ type Input struct {
 	LicensePath                       string
 	EmbeddedClusterPath               string
 	EmbeddedClusterReleaseBuilderPath string // used to replace the release in the binary
-	AirgapBundlePath                  string
+	AirgapInstallBundlePath           string
+	AirgapUpgradeBundlePath           string
 	Image                             string
 	network                           string
 	T                                 *testing.T
@@ -196,19 +197,25 @@ func NewTestCluster(in *Input) *Output {
 	nodes := CreateNodes(in)
 	for _, node := range nodes {
 		CopyFilesToNode(in, node)
+		CopyScriptsToNode(in, node)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, node)
 		}
 	}
-	if in.WithProxy {
-		CreateProxy(in)
-	}
-	return &Output{
+	out := &Output{
 		T:       in.T,
 		Nodes:   nodes,
 		network: in.network,
 		id:      in.id,
 	}
+	if in.WithProxy {
+		out.Proxy = CreateProxy(in)
+		CopyScriptsToNode(in, out.Proxy)
+		if in.CreateRegularUser {
+			CreateRegularUser(in, out.Proxy)
+		}
+	}
+	return out
 }
 
 // CreateProxy creates a node that attaches to both networks (external and internal),
@@ -216,7 +223,7 @@ func NewTestCluster(in *Input) *Output {
 // sure that all nodes are configured to use the proxy as default gateway. Internet
 // won't work on them by design (exception made for DNS requests and http requests
 // using the proxy). Proxy is accessible from the cluster nodes on 10.0.0.254:3128.
-func CreateProxy(in *Input) {
+func CreateProxy(in *Input) string {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -272,6 +279,7 @@ func CreateProxy(in *Input) {
 		}
 	}
 	ConfigureProxy(in)
+	return name
 }
 
 // ConfigureProxy installs squid and iptables on the target node. Configures the needed
@@ -372,8 +380,7 @@ func CreateRegularUser(in *Input, node string) {
 }
 
 // CopyFilesToNode copies the files needed for the cluster to the node. Copies
-// the provided ssh key, the embedded-cluster binary and also all scripts from the
-// scripts directory (they are all placed under /usr/local/bin inside the node).
+// the provided ssh key and the embedded-cluster release files.
 func CopyFilesToNode(in *Input, node string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -400,11 +407,24 @@ func CopyFilesToNode(in *Input, node string) {
 			Mode:       0755,
 		},
 		{
-			SourcePath: in.AirgapBundlePath,
+			SourcePath: in.AirgapInstallBundlePath,
 			DestPath:   "/tmp/ec-release.tgz",
 			Mode:       0755,
 		},
+		{
+			SourcePath: in.AirgapUpgradeBundlePath,
+			DestPath:   "/tmp/ec-release-upgrade.tgz",
+			Mode:       0755,
+		},
 	}
+	for _, file := range files {
+		CopyFileToNode(in, node, file)
+	}
+}
+
+// CopyScriptsToNode copies all scripts from the scripts directory
+// (they are all placed under /usr/local/bin inside the node).
+func CopyScriptsToNode(in *Input, node string) {
 	scriptFiles, err := scripts.FS.ReadDir(".")
 	if err != nil {
 		in.T.Fatalf("Failed to read scripts directory: %v", err)
@@ -423,13 +443,11 @@ func CopyFilesToNode(in *Input, node string) {
 			in.T.Fatalf("Failed to copy script %s: %v", script.Name(), err)
 		}
 		fp.Close()
-		files = append(files, File{
+		file := File{
 			SourcePath: tmp.Name(),
 			DestPath:   fmt.Sprintf("/usr/local/bin/%s", script.Name()),
 			Mode:       0755,
-		})
-	}
-	for _, file := range files {
+		}
 		CopyFileToNode(in, node, file)
 	}
 }
