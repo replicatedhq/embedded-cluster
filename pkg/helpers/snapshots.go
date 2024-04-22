@@ -7,6 +7,10 @@ import (
 )
 
 func SnapshotsEnabled(licenseFile string) (bool, error) {
+	if licenseFile == "" {
+		return false, nil
+	}
+
 	lic, err := ParseLicense(licenseFile)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse license: %w", err)
