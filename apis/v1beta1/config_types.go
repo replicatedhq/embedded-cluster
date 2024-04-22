@@ -62,8 +62,18 @@ type Roles struct {
 	Custom     []NodeRole `json:"custom,omitempty"`
 }
 
+type VeleroBuiltin struct {
+	Enabled bool   `json:"enabled,omitempty"`
+	Values  string `json:"values,omitempty"`
+}
+
+type BuiltinExtensions struct {
+	Velero *VeleroBuiltin `json:"velero,omitempty"`
+}
+
 type Extensions struct {
-	Helm *k0sv1beta1.HelmExtensions `json:"helm,omitempty"`
+	Helm    *k0sv1beta1.HelmExtensions `json:"helm,omitempty"`
+	Builtin *BuiltinExtensions         `json:"builtin,omitempty"`
 }
 
 // ConfigSpec defines the desired state of Config
