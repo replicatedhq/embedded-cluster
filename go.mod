@@ -4,7 +4,7 @@ go 1.21.7
 
 require (
 	github.com/go-logr/logr v1.4.1
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.14.0
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c
