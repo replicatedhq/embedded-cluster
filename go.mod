@@ -9,7 +9,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c
 	github.com/k0sproject/version v0.6.0
-	github.com/ohler55/ojg v1.21.4
+	github.com/ohler55/ojg v1.21.5
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
 	github.com/replicatedhq/embedded-cluster-kinds v1.1.2
