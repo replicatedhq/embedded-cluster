@@ -56,6 +56,11 @@ type ArtifactsLocation struct {
 	EmbeddedClusterMetadata string `json:"embeddedClusterMetadata"`
 }
 
+// LicenseInfo holds information about the license used to install the cluster.
+type LicenseInfo struct {
+	IsSnapshotSupported bool `json:"isSnapshotSupported"`
+}
+
 // InstallationSpec defines the desired state of Installation.
 type InstallationSpec struct {
 	// ClusterID holds the cluster, generated during the installation.
@@ -74,6 +79,8 @@ type InstallationSpec struct {
 	// BinaryName holds the name of the binary used to install the cluster.
 	// this will follow the pattern 'appslug-channelslug'
 	BinaryName string `json:"binaryName,omitempty"`
+	// LicenseInfo holds information about the license used to install the cluster.
+	LicenseInfo *LicenseInfo `json:"licenseInfo,omitempty"`
 }
 
 // InstallationStatus defines the observed state of Installation
