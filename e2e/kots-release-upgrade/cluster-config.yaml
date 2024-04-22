@@ -32,6 +32,9 @@ spec:
             extraArgs:
               service-node-port-range: 80-32767
   extensions:
+    builtin:
+      velero:
+        enabled: true
     helm:
       repositories:
         - name: ingress-nginx
