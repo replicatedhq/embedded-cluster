@@ -23,6 +23,7 @@ var (
 	ChartURL  = "https://url"
 	ChartName = "name"
 	Version   = "v0.0.0"
+	VeleroTag = "v0.0.0"
 )
 
 var helmValues = map[string]interface{}{
@@ -31,6 +32,9 @@ var helmValues = map[string]interface{}{
 	"deployNodeAgent":  true,
 	"nodeAgent": map[string]interface{}{
 		"podVolumePath": "/var/lib/k0s/kubelet/pods",
+	},
+	"image": map[string]interface{}{
+		"tag": VeleroTag,
 	},
 }
 
