@@ -24,7 +24,10 @@ var (
 	Version   = "v0.0.0"
 )
 
-var helmValues = map[string]interface{}{}
+var helmValues = map[string]interface{}{
+	"backupsEnabled":   false,
+	"snapshotsEnabled": false,
+}
 
 // Velero manages the installation of the Velero helm chart.
 type Velero struct {
