@@ -458,25 +458,33 @@ func (r *InstallationReconciler) CopyArtifactsToNodes(ctx context.Context, in *v
 	return false, nil
 }
 
+// HasOnlyOneInstallation returns true if only one Installation object exists in the cluster.
+func (r *InstallationReconciler) HasOnlyOneInstallation(ctx context.Context) (bool, error) {
+	var list v1beta1.InstallationList
+	if err := r.List(ctx, &list); err != nil {
+		return false, fmt.Errorf("failed to list installations: %w", err)
+	}
+	return len(list.Items) == 1, nil
+}
+
 // ReconcileK0sVersion reconciles the k0s version in the Installation object status. If the
 // Installation spec.config points to a different version we start an upgrade Plan. If an
 // upgrade plan already exists we make sure the installation status is updated with the
 // latest plan status.
 func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1beta1.Installation) error {
-	// if the installation has no desired version then there isn't much we can do other
-	// than flagging as installed. this will allow the add-ons to be applied.
-	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
-		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "")
-		return nil
+	// starts by checking if this is the unique installation object in the cluster. if
+	// this is true then we don't need to sync anything as this is part of the initial
+	// cluster installation.
+	uniqinst, err := r.HasOnlyOneInstallation(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to find if there are multiple installations: %w", err)
 	}
 
-	// if we are running the desired version sets the kubernetes as installed. the upgrade
-	// process is: 1st) upgrade the k0s cluster and 2nd) update the addons. if we are online
-	// and our version matches the desired version then it means that the k0s upgrade went
-	// through.
-	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
-	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
-	if curstr == desstr {
+	// if the installation has no desired version then there isn't much we can do other
+	// than flagging as installed. if there is also only one installation object in the
+	// cluster then there is no upgrade to be executed, just set it to Installed and
+	// move on.
+	if in.Spec.Config == nil || in.Spec.Config.Version == "" || uniqinst {
 		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "")
 		return nil
 	}
@@ -827,16 +835,18 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 		in.Spec.MetricsBaseURL,
 		meta.Versions.Kubernetes,
 	)
+
+	// we need to assess what commands should autopilot run upon this upgrade. we can have four
+	// different scenarios: 1) we are upgrading only the airgap artifacts, 2) we are upgrading
+	// only k0s binaries, 3) we are upgrading both, 4) we are upgrading neither. we populate the
+	// 'commands' slice with the commands necessary to execute these operations.
+	var commands []apv1b2.PlanCommand
+
 	if in.Spec.AirGap {
 		// if we are running in an airgap environment all assets are already present in the
 		// node and are served by the local-artifact-mirror binary listening on localhost
 		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
 		k0surl = "http://127.0.0.1:50000/bin/k0s-upgrade"
-	}
-
-	commands := []apv1b2.PlanCommand{}
-
-	if in.Spec.AirGap {
 		command, err := r.CreateAirgapPlanCommand(ctx, in)
 		if err != nil {
 			return fmt.Errorf("failed to create airgap plan command: %w", err)
@@ -844,15 +854,28 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 		commands = append(commands, *command)
 	}
 
-	commands = append(commands, apv1b2.PlanCommand{
-		K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
-			Version: meta.Versions.Kubernetes,
-			Targets: targets,
-			Platforms: apv1b2.PlanPlatformResourceURLMap{
-				"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},
+	// if the embedded cluster version has changed we create an upgrade command.
+	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
+	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
+	if curstr != desstr {
+		commands = append(commands, apv1b2.PlanCommand{
+			K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
+				Version: meta.Versions.Kubernetes,
+				Targets: targets,
+				Platforms: apv1b2.PlanPlatformResourceURLMap{
+					"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},
+				},
 			},
-		},
-	})
+		})
+	}
+
+	// if no airgap nor k0s upgrade has been defined it means we are up to date so we set
+	// the installation state to 'Installed' and return. no extra autopilot plan creation
+	// is necessary at this stage.
+	if len(commands) == 0 {
+		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "")
+		return nil
+	}
 
 	plan := apv1b2.Plan{
 		ObjectMeta: metav1.ObjectMeta{
