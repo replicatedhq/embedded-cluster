@@ -648,6 +648,12 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to check velero state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
