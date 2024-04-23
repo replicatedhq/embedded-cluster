@@ -248,6 +248,8 @@ main() {
     fi
 
     if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
+        kubectl get pods -A
+        kubectl get all -n velero
         echo "Failed to install embedded-cluster"
         exit 1
     fi
