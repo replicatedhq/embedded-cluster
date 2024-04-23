@@ -25,6 +25,7 @@ main() {
     sleep 5
 
     kubectl get pods -A
+    kubectl get installations -o yaml
 
     exit 1
 
