@@ -1,6 +1,6 @@
 module github.com/replicatedhq/embedded-cluster-operator
 
-go 1.21.7
+go 1.22.0
 
 require (
 	github.com/go-logr/logr v1.4.1
