@@ -18,7 +18,7 @@ spec:
       path: /var/openebs/local
   - run:
       collectorName: k0s-status
-      command: k0s
+      command: /usr/local/bin/k0s
       args: [ "status" ]
   - run:
       collectorName: k0s-issue-template
@@ -26,7 +26,7 @@ spec:
       args: [ "-c", "uname -srvmo; cat /etc/os-release || lsb_release -a" ]
   - run:
       collectorName: k0s-sysinfo
-      command: k0s
+      command: /usr/local/bin/k0s
       args: [ "sysinfo" ]
   - copy:
       collectorName: installer-logs
