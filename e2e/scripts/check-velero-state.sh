@@ -22,10 +22,11 @@ wait_for_velero_pods() {
 }
 
 main() {
-    sleep 5
+    sleep 50
 
     kubectl get pods -A
     kubectl get installations -o yaml
+    kubectl get charts -A
 
     exit 1
 
