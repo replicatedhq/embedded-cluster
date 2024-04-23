@@ -28,6 +28,9 @@ var helmValues = map[string]interface{}{
 	"backupsEnabled":   false,
 	"snapshotsEnabled": false,
 	"deployNodeAgent":  true,
+	"nodeAgent": map[string]interface{}{
+		"podVolumePath": "/var/lib/k0s/kubelet/pods",
+	},
 }
 
 // Velero manages the installation of the Velero helm chart.
