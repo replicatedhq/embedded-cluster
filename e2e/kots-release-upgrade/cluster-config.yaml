@@ -70,6 +70,14 @@ spec:
         - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
           name: memcached
           namespace: memcached
-          values: "abc: xyz"
+          values: |
+            volumePermissions:
+             resources:
+               requests:
+                 cpu: 25m
+                 memory: 128Mi
+               limits:
+                 cpu: 25m
+                 memory: 256Mi
           order: 4
           version: 6.6.4
