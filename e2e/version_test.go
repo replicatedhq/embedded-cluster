@@ -131,6 +131,26 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
+	expectedVeleroCharts := []string{"velero"}
+	if len(parsed.BuiltinConfigs["velero"].Charts) != len(expectedVeleroCharts) {
+		t.Log(output)
+		t.Fatalf("found %d velero charts in metadata, expected %d", len(parsed.BuiltinConfigs["velero"].Charts), len(expectedVeleroCharts))
+	}
+
+	for _, expectedName := range expectedVeleroCharts {
+		foundName := false
+		for _, foundChart := range parsed.BuiltinConfigs["velero"].Charts {
+			if foundChart.Name == expectedName {
+				foundName = true
+				break
+			}
+		}
+		if !foundName {
+			t.Errorf("failed to find velero chart %s in 'metadata' output", expectedName)
+			failed = true
+		}
+	}
+
 	if failed {
 		t.Log(output)
 		t.FailNow()
