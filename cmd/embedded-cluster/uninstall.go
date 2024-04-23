@@ -434,6 +434,12 @@ var resetCommand = &cli.Command{
 			}
 		}
 
+		if _, err := os.Stat("/usr/local/bin/k0s"); err == nil {
+			if err := os.RemoveAll("/usr/local/bin/k0s"); err != nil {
+				return fmt.Errorf("failed to remove k0s binary: %w", err)
+			}
+		}
+
 		if c.Bool("reboot") {
 			if _, err := exec.Command("reboot").Output(); err != nil {
 				return err
