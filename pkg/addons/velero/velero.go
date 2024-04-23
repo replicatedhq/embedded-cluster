@@ -27,6 +27,7 @@ var (
 var helmValues = map[string]interface{}{
 	"backupsEnabled":   false,
 	"snapshotsEnabled": false,
+	"deployNodeAgent":  true,
 }
 
 // Velero manages the installation of the Velero helm chart.
