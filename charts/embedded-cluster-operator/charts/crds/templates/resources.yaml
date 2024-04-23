@@ -40,6 +40,17 @@ spec:
             properties:
               extensions:
                 properties:
+                  builtin:
+                    description: |-
+                      BuiltinExtensions allows vendors to enable/disable additional optional extensions.
+                      Today, that only includes Velero.
+                    properties:
+                      velero:
+                        properties:
+                          values:
+                            type: string
+                        type: object
+                    type: object
                   helm:
                     description: HelmExtensions specifies settings for cluster helm based extensions
                     properties:
@@ -283,6 +294,17 @@ spec:
                 properties:
                   extensions:
                     properties:
+                      builtin:
+                        description: |-
+                          BuiltinExtensions allows vendors to enable/disable additional optional extensions.
+                          Today, that only includes Velero.
+                        properties:
+                          velero:
+                            properties:
+                              values:
+                                type: string
+                            type: object
+                        type: object
                       helm:
                         description: HelmExtensions specifies settings for cluster helm based extensions
                         properties:
@@ -432,6 +454,14 @@ spec:
                   EndUserK0sConfigOverrides holds the end user k0s config overrides
                   used at installation time.
                 type: string
+              licenseInfo:
+                description: LicenseInfo holds information about the license used to install the cluster.
+                properties:
+                  isSnapshotSupported:
+                    type: boolean
+                required:
+                - isSnapshotSupported
+                type: object
               metricsBaseURL:
                 description: MetricsBaseURL holds the base URL for the metrics server.
                 type: string

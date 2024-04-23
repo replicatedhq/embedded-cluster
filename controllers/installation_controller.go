@@ -523,7 +523,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	// the kubernetes server version reported back is v1.29.1+k0s. i.e. the .1 is
 	// not part of the kubernetes version, it is the k0s version. we trim it down
 	// so we can compare kube with kube version.
-	desiredVersion := meta.Versions.Kubernetes
+	desiredVersion := meta.Versions["Kubernetes"]
 	index := strings.Index(desiredVersion, "k0s")
 	if index == -1 {
 		reason := fmt.Sprintf("Invalid desired version %s", desiredVersion)
@@ -622,7 +622,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 	}
 
 	// skip if the new release has no addon configs - this should not happen in production
-	if meta.Configs == nil || len(meta.Configs.Charts) == 0 {
+	if len(meta.Configs.Charts) == 0 {
 		log.Info("Addons", "configcheck", "no addons")
 		if in.Status.State == v1beta1.InstallationStateKubernetesInstalled {
 			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed")
@@ -802,7 +802,7 @@ func (r *InstallationReconciler) CreateAirgapPlanCommand(ctx context.Context, in
 
 	return &apv1b2.PlanCommand{
 		AirgapUpdate: &apv1b2.PlanCommandAirgapUpdate{
-			Version: meta.Versions.Kubernetes,
+			Version: meta.Versions["Kubernetes"],
 			Platforms: map[string]apv1b2.PlanResourceURL{
 				"linux-amd64": {
 					URL: imageURL,
@@ -833,7 +833,7 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	k0surl := fmt.Sprintf(
 		"%s/embedded-cluster-public-files/k0s-binaries/%s",
 		in.Spec.MetricsBaseURL,
-		meta.Versions.Kubernetes,
+		meta.Versions["Kubernetes"],
 	)
 
 	// we need to assess what commands should autopilot run upon this upgrade. we can have four
@@ -860,7 +860,7 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	if curstr != desstr {
 		commands = append(commands, apv1b2.PlanCommand{
 			K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
-				Version: meta.Versions.Kubernetes,
+			  Version: meta.Versions["Kubernetes"],
 				Targets: targets,
 				Platforms: apv1b2.PlanPlatformResourceURLMap{
 					"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},

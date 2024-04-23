@@ -7,6 +7,7 @@ import (
 	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +28,7 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 		fields      fields
 		in          v1beta1.Installation
 		out         v1beta1.InstallationStatus
-		releaseMeta release.Meta
+		releaseMeta ectypes.ReleaseMetadata
 		updatedHelm *k0sv1beta1.HelmExtensions
 	}{
 		{
@@ -63,7 +64,7 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				State:  v1beta1.InstallationStateInstalled,
 				Reason: "Installed",
 			},
-			releaseMeta: release.Meta{K0sSHA: "abc"},
+			releaseMeta: ectypes.ReleaseMetadata{K0sSHA: "abc"},
 		},
 		{
 			name: "k8s install completed, good version, only config extensions chart",
@@ -89,7 +90,7 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				State:  v1beta1.InstallationStateInstalled,
 				Reason: "Installed",
 			},
-			releaseMeta: release.Meta{K0sSHA: "abc"},
+			releaseMeta: ectypes.ReleaseMetadata{K0sSHA: "abc"},
 		},
 		{
 			name: "k8s install completed, good version, both types of charts, no drift",
@@ -115,8 +116,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				State:  v1beta1.InstallationStateInstalled,
 				Reason: "Addons upgraded",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -190,8 +191,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				State:  v1beta1.InstallationStateHelmChartUpdateFailure,
 				Reason: "failed to update helm charts: exterror",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -254,8 +255,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				State:  v1beta1.InstallationStateHelmChartUpdateFailure,
 				Reason: "failed to update helm charts: metaerror",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -317,8 +318,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 			out: v1beta1.InstallationStatus{
 				State: v1beta1.InstallationStateAddonsInstalling,
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -367,8 +368,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				State:  v1beta1.InstallationStateAddonsInstalling,
 				Reason: "Installing addons",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -432,8 +433,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				State:  v1beta1.InstallationStateInstalled,
 				Reason: "Addons upgraded",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -520,8 +521,8 @@ password: original`,
 				State:  v1beta1.InstallationStateAddonsInstalling,
 				Reason: "Installing addons",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -606,8 +607,8 @@ password: original`,
 				State:  v1beta1.InstallationStatePendingChartCreation,
 				Reason: "Pending charts: [metachart]",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -665,8 +666,8 @@ password: original`,
 				State:  v1beta1.InstallationStatePendingChartCreation,
 				Reason: "Pending charts: [metachart]",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -727,8 +728,8 @@ password: original`,
 				State:  v1beta1.InstallationStateAddonsInstalling,
 				Reason: "Installing addons",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",
@@ -790,8 +791,8 @@ password: original`,
 				State:  v1beta1.InstallationStateInstalled,
 				Reason: "Addons upgraded",
 			},
-			releaseMeta: release.Meta{
-				Configs: &k0sv1beta1.HelmExtensions{
+			releaseMeta: ectypes.ReleaseMetadata{
+				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
 							Name:    "metachart",

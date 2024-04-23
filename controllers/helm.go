@@ -9,10 +9,10 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/ohler55/ojg/jp"
 	"github.com/ohler55/ojg/oj"
+	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
 	"sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
 )
 
 const DEFAULT_VENDOR_CHART_ORDER = 10
@@ -65,11 +65,12 @@ func MergeValues(oldValues, newValues string, protectedValues []string) (string,
 }
 
 // merge the default helm charts and repositories (from meta.Configs) with vendor helm charts (from in.Spec.Config.Extensions.Helm)
-func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.HelmExtensions {
+func mergeHelmConfigs(meta *ectypes.ReleaseMetadata, in *v1beta1.Installation) *k0sv1beta1.HelmExtensions {
 	// merge default helm charts (from meta.Configs) with vendor helm charts (from in.Spec.Config.Extensions.Helm)
 	combinedConfigs := &k0sv1beta1.HelmExtensions{ConcurrencyLevel: 1}
-	if meta != nil && meta.Configs != nil {
-		combinedConfigs = meta.Configs
+	if meta != nil {
+		combinedConfigs.Charts = meta.Configs.Charts
+		combinedConfigs.Repositories = meta.Configs.Repositories
 	}
 	if in != nil && in.Spec.Config != nil && in.Spec.Config.Extensions.Helm != nil {
 		// set the concurrency level to the minimum of our default and the user provided value
@@ -88,6 +89,17 @@ func mergeHelmConfigs(meta *release.Meta, in *v1beta1.Installation) *k0sv1beta1.
 		// append the user provided repositories to the default repositories
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, in.Spec.Config.Extensions.Helm.Repositories...)
 	}
+
+	if in != nil && in.Spec.AirGap {
+		combinedConfigs.Charts = append(combinedConfigs.Charts, meta.AirgapConfigs.Charts...)
+		combinedConfigs.Repositories = append(combinedConfigs.Repositories, meta.AirgapConfigs.Repositories...)
+	}
+
+	if in != nil && in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsSnapshotSupported {
+		combinedConfigs.Charts = append(combinedConfigs.Charts, meta.BuiltinConfigs["velero"].Charts...)
+		combinedConfigs.Repositories = append(combinedConfigs.Repositories, meta.BuiltinConfigs["velero"].Repositories...)
+	}
+
 	// k0s sorts order numbers alphabetically because they're used in file names,
 	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").
 	// We add 100 to the order of each chart to work around this.
@@ -222,7 +234,7 @@ func detectChartCompletion(combinedConfigs *k0sv1beta1.HelmExtensions, installed
 
 // merge the helmcharts in the cluster with the charts we desire to be in the cluster
 // if the chart is already in the cluster, merge the values
-func generateDesiredCharts(meta *release.Meta, clusterconfig k0sv1beta1.ClusterConfig, combinedConfigs *k0sv1beta1.HelmExtensions) ([]k0sv1beta1.Chart, error) {
+func generateDesiredCharts(meta *ectypes.ReleaseMetadata, clusterconfig k0sv1beta1.ClusterConfig, combinedConfigs *k0sv1beta1.HelmExtensions) ([]k0sv1beta1.Chart, error) {
 	// get the protected values from the release metadata
 	protectedValues := map[string][]string{}
 	if meta != nil && meta.Protected != nil {

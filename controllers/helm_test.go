@@ -7,7 +7,7 @@ import (
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
+	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 )
@@ -111,13 +111,15 @@ password: "newpassword"
 
 func Test_mergeHelmConfigs(t *testing.T) {
 	type args struct {
-		meta *release.Meta
+		meta *ectypes.ReleaseMetadata
 		in   v1beta1.Extensions
 	}
 	tests := []struct {
-		name string
-		args args
-		want *k0sv1beta1.HelmExtensions
+		name      string
+		args      args
+		airgap    bool
+		snapshots bool
+		want      *k0sv1beta1.HelmExtensions
 	}{
 		{
 			name: "no meta",
@@ -152,8 +154,8 @@ func Test_mergeHelmConfigs(t *testing.T) {
 		{
 			name: "add new chart + repo",
 			args: args{
-				meta: &release.Meta{
-					Configs: &k0sv1beta1.HelmExtensions{
+				meta: &ectypes.ReleaseMetadata{
+					Configs: k0sv1beta1.HelmExtensions{
 						ConcurrencyLevel: 1,
 						Repositories: []k0sv1beta1.Repository{
 							{
@@ -163,6 +165,13 @@ func Test_mergeHelmConfigs(t *testing.T) {
 						Charts: []k0sv1beta1.Chart{
 							{
 								Name: "origchart",
+							},
+						},
+					},
+					AirgapConfigs: k0sv1beta1.HelmExtensions{
+						Charts: []k0sv1beta1.Chart{
+							{
+								Name: "airgapchart",
 							},
 						},
 					},
@@ -206,6 +215,110 @@ func Test_mergeHelmConfigs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "airgap enabled",
+			airgap: true,
+			args: args{
+				meta: &ectypes.ReleaseMetadata{
+					Configs: k0sv1beta1.HelmExtensions{
+						ConcurrencyLevel: 1,
+						Repositories: []k0sv1beta1.Repository{
+							{
+								Name: "origrepo",
+							},
+						},
+						Charts: []k0sv1beta1.Chart{
+							{
+								Name: "origchart",
+							},
+						},
+					},
+					AirgapConfigs: k0sv1beta1.HelmExtensions{
+						Charts: []k0sv1beta1.Chart{
+							{
+								Name: "airgapchart",
+							},
+						},
+					},
+				},
+				in: v1beta1.Extensions{},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				ConcurrencyLevel: 1,
+				Repositories: []k0sv1beta1.Repository{
+					{
+						Name: "origrepo",
+					},
+				},
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:  "origchart",
+						Order: 100,
+					},
+					{
+						Name:  "airgapchart",
+						Order: 100,
+					},
+				},
+			},
+		},
+		{
+			name:      "snapshots enabled",
+			snapshots: true,
+			args: args{
+				meta: &ectypes.ReleaseMetadata{
+					Configs: k0sv1beta1.HelmExtensions{
+						ConcurrencyLevel: 1,
+						Repositories: []k0sv1beta1.Repository{
+							{
+								Name: "origrepo",
+							},
+						},
+						Charts: []k0sv1beta1.Chart{
+							{
+								Name: "origchart",
+							},
+						},
+					},
+					BuiltinConfigs: map[string]k0sv1beta1.HelmExtensions{
+						"velero": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "velerorepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "velerochart",
+								},
+							},
+						},
+					},
+				},
+				in: v1beta1.Extensions{},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				ConcurrencyLevel: 1,
+				Repositories: []k0sv1beta1.Repository{
+					{
+						Name: "origrepo",
+					},
+					{
+						Name: "velerorepo",
+					},
+				},
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:  "origchart",
+						Order: 100,
+					},
+					{
+						Name:  "velerochart",
+						Order: 100,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -214,6 +327,10 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					Config: &v1beta1.ConfigSpec{
 						Version:    "1.0.0",
 						Extensions: tt.args.in,
+					},
+					AirGap: tt.airgap,
+					LicenseInfo: &v1beta1.LicenseInfo{
+						IsSnapshotSupported: tt.snapshots,
 					},
 				},
 			}
@@ -538,7 +655,7 @@ func Test_detectChartCompletion(t *testing.T) {
 
 func Test_generateDesiredCharts(t *testing.T) {
 	type args struct {
-		meta            *release.Meta
+		meta            *ectypes.ReleaseMetadata
 		clusterconfig   k0sv1beta1.ClusterConfig
 		combinedConfigs *k0sv1beta1.HelmExtensions
 	}
@@ -565,7 +682,7 @@ func Test_generateDesiredCharts(t *testing.T) {
 		{
 			name: "add new chart, change chart values, change chart versions, remove old chart",
 			args: args{
-				meta: &release.Meta{
+				meta: &ectypes.ReleaseMetadata{
 					Protected: map[string][]string{
 						"changethis": {"abc"},
 					},
