@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
@@ -100,6 +101,11 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 
 	loading := spinner.Start()
 	loading.Infof("Waiting for Velero to be ready")
+
+	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "velero"); err != nil {
+		loading.Close()
+		return err
+	}
 
 	loading.Closef("Velero is ready!")
 	return nil
