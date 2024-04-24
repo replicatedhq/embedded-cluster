@@ -23,6 +23,12 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Remove MS repo
+    shell: bash
+    run: |
+      apt-add-repository --list
+      sudo apt-add-repository -y -r deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/22.04/prod jammy main
+      apt-add-repository --list
   - name: Move Docker aside
     shell: bash
     run: |
