@@ -54,9 +54,6 @@ var helmValues = map[string]interface{}{
 			},
 		},
 	},
-	"podLabels": map[string]interface{}{
-		"component": "velero",
-	},
 	"credentials": map[string]interface{}{
 		"existingSecret": credentialsSecretName,
 	},
