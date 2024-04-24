@@ -34,10 +34,7 @@ type UnsupportedOverrides struct {
 	BuiltInExtensions []BuiltInExtension `json:"builtInExtensions,omitempty"`
 }
 
-// BuildInExtension holds the override for a built-in extension (add-on). Name
-// is matched to the extension name in the generated k0s configuration. Values
-// property holds a string containig the `values.yaml` we want to use when
-// merging with the default values.
+// BuildInExtension holds the override for a built-in extension (add-on). 
 type BuiltInExtension struct {
 	Name   string `json:"name"`
 	Values string `json:"values"`
