@@ -20,10 +20,11 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL  = "https://url"
-	ChartName = "name"
-	Version   = "v0.0.0"
-	VeleroTag = "v0.0.0"
+	ChartURL     = "https://url"
+	ChartName    = "name"
+	Version      = "v0.0.0"
+	VeleroTag    = "v0.0.0"
+	AwsPluginTag = "v0.0.0"
 )
 
 var helmValues = map[string]interface{}{
@@ -35,6 +36,19 @@ var helmValues = map[string]interface{}{
 	},
 	"image": map[string]interface{}{
 		"tag": VeleroTag,
+	},
+	"initContainers": []map[string]interface{}{
+		{
+			"name":            "velero-plugin-for-aws",
+			"image":           fmt.Sprintf("velero/velero-plugin-for-aws:%s", AwsPluginTag),
+			"imagePullPolicy": "IfNotPresent",
+			"volumeMounts": []map[string]interface{}{
+				{
+					"mountPath": "/target",
+					"name":      "plugins",
+				},
+			},
+		},
 	},
 }
 
