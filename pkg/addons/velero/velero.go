@@ -51,6 +51,9 @@ var helmValues = map[string]interface{}{
 			},
 		},
 	},
+	"credentials": map[string]interface{}{
+		"name": "cloud-credentials",
+	},
 }
 
 // Velero manages the installation of the Velero helm chart.
