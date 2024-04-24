@@ -36,8 +36,11 @@ type UnsupportedOverrides struct {
 
 // BuildInExtension holds the override for a built-in extension (add-on). 
 type BuiltInExtension struct {
+        // The name of the helm chart to override values of, for instance `embedded-cluster`
 	Name   string `json:"name"`
-	Values string `json:"values"`
+        // YAML-formatted helm values that will override those provided to the chart by Embedded Cluster.
+        // Properties are overridden individually - setting a new value for `images.tag` here will not prevent Embedded Cluster from setting `images.pullPolicy = IfNotPresent`, for example.
+        Values string `json:"values"`
 }
 
 // NodeRange contains a min and max or only one of them.
