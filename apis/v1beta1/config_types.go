@@ -29,6 +29,18 @@ type UnsupportedOverrides struct {
 	// layout inside this configuration is very dynamic we have chosen
 	// to use a string here.
 	K0s string `json:"k0s,omitempty"`
+	// BuiltInExtensions holds overrides for the default add-ons we ship
+	// with k0s.
+	BuiltInExtensions []BuiltInExtension `json:"builtInExtensions,omitempty"`
+}
+
+// BuildInExtension holds the override for a built-in extension (add-on). Name
+// is matched to the extension name in the generated k0s configuration. Values
+// property holds a string containig the `values.yaml` we want to use when
+// merging with the default values.
+type BuiltInExtension struct {
+	Name   string `json:"name"`
+	Values string `json:"values"`
 }
 
 // NodeRange contains a min and max or only one of them.
@@ -62,19 +74,8 @@ type Roles struct {
 	Custom     []NodeRole `json:"custom,omitempty"`
 }
 
-type VeleroBuiltin struct {
-	Values string `json:"values,omitempty"` // values that will be merged with the Embedded-Cluster default velero values
-}
-
-// BuiltinExtensions allows vendors to enable/disable additional optional extensions.
-// Today, that only includes Velero.
-type BuiltinExtensions struct {
-	Velero *VeleroBuiltin `json:"velero,omitempty"`
-}
-
 type Extensions struct {
-	Helm    *k0sv1beta1.HelmExtensions `json:"helm,omitempty"`
-	Builtin *BuiltinExtensions         `json:"builtin,omitempty"`
+	Helm *k0sv1beta1.HelmExtensions `json:"helm,omitempty"`
 }
 
 // ConfigSpec defines the desired state of Config
@@ -100,6 +101,18 @@ type Config struct {
 
 	Spec   ConfigSpec   `json:"spec,omitempty"`
 	Status ConfigStatus `json:"status,omitempty"`
+}
+
+// OverrideForBuiltIn returns the override for the built-in extension with the
+// given name. If no override is found an empty string is returned.
+func (c *Config) OverrideForBuiltIn(bi string) string {
+	for _, ext := range c.Spec.UnsupportedOverrides.BuiltInExtensions {
+		if ext.Name != bi {
+			continue
+		}
+		return ext.Values
+	}
+	return ""
 }
 
 //+kubebuilder:object:root=true
