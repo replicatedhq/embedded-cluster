@@ -29,7 +29,7 @@ KUBECTL_VERSION = v1.30.0
 K0S_VERSION = v1.29.4+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.87.0
+TROUBLESHOOT_VERSION = v0.88.0
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
