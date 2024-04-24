@@ -196,6 +196,7 @@ jobs:
     - name: apt-get
       shell: bash
       run: |
+        apt-add-repository --list
         sudo apt-get update -y
         sudo apt-get install ovn-host ovn-central -y
         sudo apt install apparmor-utils -y
