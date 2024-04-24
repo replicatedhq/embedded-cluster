@@ -1,0 +1,23 @@
+spec:
+  unsupportedOverrides:
+    builtInExtensions:
+    - name: openebs
+      values: |-
+        inner:
+          inner:
+            inner:
+              value: replacement
+config:
+  name: openebs
+  values: |-
+    property: value
+    inner:
+      inner:
+        inner:
+          value: will-be-replaced
+expected: |-
+   property: value
+   inner:
+     inner:
+       inner:
+         value: replacement
