@@ -1,0 +1,21 @@
+spec:
+  unsupportedOverrides:
+    builtInExtensions:
+    - name: openebs
+      values: |-
+        slice:
+        - a
+        - b
+        - c
+config:
+  name: openebs
+  values: |-
+    slice:
+    - x
+    - y
+    - z
+expected: |-
+  slice:
+  - a
+  - b
+  - c

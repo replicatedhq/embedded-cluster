@@ -17,8 +17,12 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
+	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 // UnsupportedOverrides holds the config overrides used to configure
@@ -34,13 +38,15 @@ type UnsupportedOverrides struct {
 	BuiltInExtensions []BuiltInExtension `json:"builtInExtensions,omitempty"`
 }
 
-// BuildInExtension holds the override for a built-in extension (add-on). 
+// BuiltInExtension holds the override for a built-in extension (add-on).
 type BuiltInExtension struct {
-        // The name of the helm chart to override values of, for instance `embedded-cluster`
-	Name   string `json:"name"`
-        // YAML-formatted helm values that will override those provided to the chart by Embedded Cluster.
-        // Properties are overridden individually - setting a new value for `images.tag` here will not prevent Embedded Cluster from setting `images.pullPolicy = IfNotPresent`, for example.
-        Values string `json:"values"`
+	// The name of the helm chart to override values of, for instance `openebs`.
+	Name string `json:"name"`
+	// YAML-formatted helm values that will override those provided to the
+	// chart by Embedded Cluster. Properties are overridden individually -
+	// setting a new value for `images.tag` here will not prevent Embedded
+	// Cluster from setting `images.pullPolicy = IfNotPresent`, for example.
+	Values string `json:"values"`
 }
 
 // NodeRange contains a min and max or only one of them.
@@ -86,6 +92,47 @@ type ConfigSpec struct {
 	Extensions           Extensions           `json:"extensions,omitempty"`
 }
 
+// OverrideForBuiltIn returns the override for the built-in extension with the
+// given name. If no override is found an empty string is returned.
+func (c ConfigSpec) OverrideForBuiltIn(bi string) string {
+	for _, ext := range c.UnsupportedOverrides.BuiltInExtensions {
+		if ext.Name != bi {
+			continue
+		}
+		return ext.Values
+	}
+	return ""
+}
+
+// ApplyEndUserAddOnOverrides applies the end-user provided addon config on top
+// of the provided addon configuration (cfg).
+func (c *ConfigSpec) ApplyEndUserAddOnOverrides(name, cfg string) (string, error) {
+	patch := c.OverrideForBuiltIn(name)
+	if len(cfg) == 0 || len(patch) == 0 {
+		if len(cfg) == 0 {
+			return patch, nil
+		}
+		return cfg, nil
+	}
+	originalJSON, err := k8syaml.YAMLToJSON([]byte(cfg))
+	if err != nil {
+		return "", fmt.Errorf("unable to convert source yaml to json: %w", err)
+	}
+	patchJSON, err := k8syaml.YAMLToJSON([]byte(patch))
+	if err != nil {
+		return "", fmt.Errorf("unable to convert patch yaml to json: %w", err)
+	}
+	result, err := jsonpatch.MergePatch(originalJSON, patchJSON)
+	if err != nil {
+		return "", fmt.Errorf("unable to patch configuration: %w", err)
+	}
+	resultYAML, err := k8syaml.JSONToYAML(result)
+	if err != nil {
+		return "", fmt.Errorf("unable to convert result json to yaml: %w", err)
+	}
+	return string(resultYAML), nil
+}
+
 // ConfigStatus defines the observed state of Config
 type ConfigStatus struct {
 }
@@ -101,18 +148,6 @@ type Config struct {
 
 	Spec   ConfigSpec   `json:"spec,omitempty"`
 	Status ConfigStatus `json:"status,omitempty"`
-}
-
-// OverrideForBuiltIn returns the override for the built-in extension with the
-// given name. If no override is found an empty string is returned.
-func (c *Config) OverrideForBuiltIn(bi string) string {
-	for _, ext := range c.Spec.UnsupportedOverrides.BuiltInExtensions {
-		if ext.Name != bi {
-			continue
-		}
-		return ext.Values
-	}
-	return ""
 }
 
 //+kubebuilder:object:root=true
