@@ -197,6 +197,8 @@ jobs:
       shell: bash
       run: |
         apt-add-repository --list
+        sudo apt-add-repository -y -r deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/22.04/prod jammy main
+        apt-add-repository --list
         sudo apt-get update -y
         sudo apt-get install ovn-host ovn-central -y
         sudo apt install apparmor-utils -y
