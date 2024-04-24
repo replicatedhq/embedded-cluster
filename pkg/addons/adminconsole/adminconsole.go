@@ -60,6 +60,9 @@ var helmValues = map[string]interface{}{
 		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
 	},
 	"embeddedClusterVersion": defaults.Version,
+	"images": map[string]interface{}{
+		"kotsadm": "ttl.sh/cbodonnell/kotsadm:24h",
+	},
 }
 
 func init() {
