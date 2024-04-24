@@ -125,9 +125,9 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("timed out waiting for Velero to deploy: %v", err)
 	}
 
-	if err := kubeutils.WaitForDaemonset(ctx, cli, namespace, "restic"); err != nil {
+	if err := kubeutils.WaitForDaemonset(ctx, cli, namespace, "node-agent"); err != nil {
 		loading.Close()
-		return fmt.Errorf("timed out waiting for restic to deploy: %v", err)
+		return fmt.Errorf("timed out waiting for node-agent to deploy: %v", err)
 	}
 
 	loading.Closef("Velero is ready!")
