@@ -7,6 +7,8 @@ import (
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -14,8 +16,9 @@ import (
 )
 
 const (
-	releaseName = "velero"
-	namespace   = "velero"
+	releaseName           = "velero"
+	namespace             = "velero"
+	credentialsSecretName = "cloud-credentials"
 )
 
 // Overwritten by -ldflags in Makefile
@@ -51,8 +54,11 @@ var helmValues = map[string]interface{}{
 			},
 		},
 	},
+	"podLabels": map[string]interface{}{
+		"component": "velero",
+	},
 	"credentials": map[string]interface{}{
-		"name": "cloud-credentials",
+		"existingSecret": credentialsSecretName,
 	},
 }
 
@@ -123,6 +129,27 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 
 	loading := spinner.Start()
 	loading.Infof("Waiting for Velero to be ready")
+
+	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+		loading.Close()
+		return err
+	}
+
+	credentialsSecret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      credentialsSecretName,
+			Namespace: namespace,
+		},
+		Type: "Opaque",
+	}
+	if err := cli.Create(ctx, &credentialsSecret); err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to create %s secret: %w", credentialsSecretName, err)
+	}
 
 	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "velero"); err != nil {
 		loading.Close()
