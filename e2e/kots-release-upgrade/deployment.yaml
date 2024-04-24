@@ -22,8 +22,8 @@ spec:
           image: nginx:1.25-alpine
           resources:
             limits:
-              memory: '256Mi'
-              cpu: '500m'
+              memory: '64Mi'
+              cpu: '50m'
           env:
             - name: APP_SEQUENCE
               value: "{{repl Cursor }}"

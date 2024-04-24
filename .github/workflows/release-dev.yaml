@@ -137,6 +137,7 @@ jobs:
           - TestMaterialize
           - TestLocalArtifactMirror
           - TestSingleNodeAirgapUpgradeUbuntuJammy
+          - TestInstallSnapshotFromReplicatedApp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -149,6 +150,7 @@ jobs:
         with:
           test-name: '${{ matrix.tests }}'
           airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
+          snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
           license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
           testim-access-token: ${{ secrets.TESTIM_ACCESS_TOKEN }}

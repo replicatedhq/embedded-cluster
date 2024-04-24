@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -19,7 +20,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -104,6 +107,26 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 	return regChart, regRepo, nil
 }
 
+func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
+	builtinCharts := map[string]k0sconfig.HelmExtensions{}
+
+	vel, err := velero.New(true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	velChart, velRepo, err := vel.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate helm config for velero: %w", err)
+	}
+
+	builtinCharts["velero"] = k0sconfig.HelmExtensions{
+		Repositories: velRepo,
+		Charts:       velChart,
+	}
+
+	return builtinCharts, nil
+}
+
 func (a *Applier) GetAdditionalImages() ([]string, error) {
 	additionalImages := []string{}
 	addons, err := a.load()
@@ -179,6 +202,16 @@ func (a *Applier) load() ([]AddOn, error) {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
 	addons = append(addons, embedoperator)
+
+	snapshotsEnabled, err := helpers.SnapshotsEnabled(a.licenseFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to check if snapshots are enabled: %w", err)
+	}
+	vel, err := velero.New(snapshotsEnabled)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	addons = append(addons, vel)
 
 	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgapBundle)
 	if err != nil {
