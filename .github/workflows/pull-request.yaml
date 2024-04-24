@@ -193,6 +193,13 @@ jobs:
       with:
         name: embedded-release
         path: output/bin
+    - name: apt-get
+      shell: bash
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install ovn-host ovn-central -y
+        sudo apt install apparmor-utils -y
+
     - uses: ./.github/actions/e2e
       with:
         test-name: '${{ matrix.tests }}'
