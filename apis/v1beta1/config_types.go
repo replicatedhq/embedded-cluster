@@ -30,7 +30,7 @@ type UnsupportedOverrides struct {
 	// to use a string here.
 	K0s string `json:"k0s,omitempty"`
 	// BuiltInExtensions holds overrides for the default add-ons we ship
-	// with k0s.
+	// with Embedded Cluster.
 	BuiltInExtensions []BuiltInExtension `json:"builtInExtensions,omitempty"`
 }
 
