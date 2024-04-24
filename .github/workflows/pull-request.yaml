@@ -158,7 +158,7 @@ jobs:
           output/bin/embedded-cluster-release-builder
 
   e2e:
-    runs-on: ubuntu-jammy
+    runs-on: ubuntu-latest
     needs:
       - build
     strategy:
