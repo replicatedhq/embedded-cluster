@@ -82,7 +82,7 @@ func (o *Registry) Version() (map[string]string, error) {
 }
 
 func (a *Registry) Name() string {
-	return "Registry"
+	return releaseName
 }
 
 // HostPreflights returns the host preflight objects found inside the Registry
@@ -99,12 +99,12 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
-func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (o *Registry) GenerateHelmConfig(onlyDefaults bool) (*v1beta1.Chart, *v1beta1.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
 
-	chartConfig := v1beta1.Chart{
+	chartConfig := &v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
@@ -112,7 +112,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 		Order:     3,
 	}
 
-	repositoryConfig := v1beta1.Repository{
+	repositoryConfig := &v1beta1.Repository{
 		Name: "twuni",
 		URL:  ChartURL,
 	}
@@ -122,8 +122,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
-
-	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return chartConfig, repositoryConfig, nil
 }
 
 func (o *Registry) GetAdditionalImages() []string {
@@ -193,9 +192,15 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
+type Options struct {
+	IsAirgap bool
+}
+
 // New creates a new Registry addon.
-func New(isAirgap bool) (*Registry, error) {
-	return &Registry{isAirgap: isAirgap}, nil
+func New(opts Options) (*Registry, error) {
+	return &Registry{
+		isAirgap: opts.IsAirgap,
+	}, nil
 }
 
 func GetRegistryPassword() string {

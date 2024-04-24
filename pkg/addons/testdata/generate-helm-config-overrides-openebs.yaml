@@ -1,0 +1,31 @@
+endUserConfig: |
+  apiVersion: embeddedcluster.replicated.com/v1beta1
+  kind: Config
+  spec:
+    unsupportedOverrides:
+      builtInExtensions:
+      - name: openebs
+        values: |-
+          newProperty: newValue
+          analytics:
+            enabled: true
+          localprovisioner:
+            hostpathClass:
+              isDefaultClass: false
+expected:
+  - name: openebs
+    values: |
+      newProperty: newValue
+      analytics:
+        enabled: true
+      ndmOperator:
+        enabled: false
+      helper:
+        imageTag: ""
+      ndm:
+        enabled: false
+      localprovisioner:
+        deviceClass:
+          enabled: false
+        hostpathClass:
+          isDefaultClass: false

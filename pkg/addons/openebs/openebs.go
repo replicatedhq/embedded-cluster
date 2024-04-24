@@ -57,7 +57,7 @@ func (o *OpenEBS) Version() (map[string]string, error) {
 }
 
 func (a *OpenEBS) Name() string {
-	return "OpenEBS"
+	return releaseName
 }
 
 // HostPreflights returns the host preflight objects found inside the OpenEBS
@@ -74,12 +74,12 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
-func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) (*v1beta1.Chart, *v1beta1.Repository, error) {
 	helmValues["helper"] = map[string]interface{}{
 		"imageTag": UtilsVersion,
 	}
 
-	chartConfig := v1beta1.Chart{
+	chartConfig := &v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
@@ -87,7 +87,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 		Order:     1,
 	}
 
-	repositoryConfig := v1beta1.Repository{
+	repositoryConfig := &v1beta1.Repository{
 		Name: "openebs",
 		URL:  ChartURL,
 	}
@@ -98,7 +98,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return chartConfig, repositoryConfig, nil
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {

@@ -81,7 +81,7 @@ func (e *EmbeddedClusterOperator) Version() (map[string]string, error) {
 }
 
 func (a *EmbeddedClusterOperator) Name() string {
-	return "EmbeddedClusterOperator"
+	return releaseName
 }
 
 // HostPreflights returns the host preflight objects found inside the EmbeddedClusterOperator
@@ -98,8 +98,8 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	chartConfig := v1beta1.Chart{
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) (*v1beta1.Chart, *v1beta1.Repository, error) {
+	chartConfig := &v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
@@ -117,7 +117,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return chartConfig, nil, nil
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {

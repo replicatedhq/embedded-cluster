@@ -64,7 +64,7 @@ func (o *Velero) Version() (map[string]string, error) {
 }
 
 func (a *Velero) Name() string {
-	return "Velero"
+	return releaseName
 }
 
 // HostPreflights returns the host preflight objects found inside the Velero
@@ -81,12 +81,12 @@ func (o *Velero) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Velero chart.
-func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (o *Velero) GenerateHelmConfig(onlyDefaults bool) (*v1beta1.Chart, *v1beta1.Repository, error) {
 	if !o.isEnabled {
 		return nil, nil, nil
 	}
 
-	chartConfig := v1beta1.Chart{
+	chartConfig := &v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
@@ -94,7 +94,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 		Order:     3,
 	}
 
-	repositoryConfig := v1beta1.Repository{
+	repositoryConfig := &v1beta1.Repository{
 		Name: "vmware-tanzu",
 		URL:  ChartURL,
 	}
@@ -105,7 +105,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return chartConfig, repositoryConfig, nil
 }
 
 func (o *Velero) GetAdditionalImages() []string {
@@ -135,7 +135,11 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
+type Options struct {
+	IsEnabled bool
+}
+
 // New creates a new Velero addon.
-func New(isEnabled bool) (*Velero, error) {
-	return &Velero{isEnabled: isEnabled}, nil
+func New(opts Options) (*Velero, error) {
+	return &Velero{isEnabled: opts.IsEnabled}, nil
 }
