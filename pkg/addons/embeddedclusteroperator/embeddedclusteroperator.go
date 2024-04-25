@@ -200,6 +200,9 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
+			LicenseInfo: &embeddedclusterv1beta1.LicenseInfo{
+				IsSnapshotSupported: licenseSnapshotSupported(license),
+			},
 		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
@@ -228,4 +231,11 @@ func New(opts Options) (*EmbeddedClusterOperator, error) {
 		airgap:          opts.Airgap,
 		releaseMetadata: opts.ReleaseMetadata,
 	}, nil
+}
+
+func licenseSnapshotSupported(license *kotsv1beta1.License) bool {
+	if license == nil {
+		return false
+	}
+	return license.Spec.IsSnapshotSupported
 }
