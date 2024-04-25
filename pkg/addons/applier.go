@@ -83,21 +83,21 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
-		repositories = append(repositories, addonRepositoryConfig...)
-		if a.endUserConfig != nil {
-			for i, chart := range addonChartConfig {
-				values, err := a.endUserConfig.Spec.ApplyEndUserAddOnOverrides(chart.Name, chart.Values)
-				if err != nil {
-					return nil, nil, fmt.Errorf("unable to apply end user overrides for %s: %w", chart.Name, err)
-				}
-				addonChartConfig[i].Values = values
-			}
-		}
 		charts = append(charts, addonChartConfig...)
+		repositories = append(repositories, addonRepositoryConfig...)
 	}
 
 	// charts required by the application
 	charts = append(charts, additionalCharts...)
+	if a.endUserConfig != nil {
+		for i, chart := range charts {
+			values, err := a.endUserConfig.Spec.ApplyEndUserAddOnOverrides(chart.Name, chart.Values)
+			if err != nil {
+				return nil, nil, fmt.Errorf("unable to apply end user overrides for %s: %w", chart.Name, err)
+			}
+			charts[i].Values = values
+		}
+	}
 	repositories = append(repositories, additionalRepositories...)
 
 	return charts, repositories, nil
