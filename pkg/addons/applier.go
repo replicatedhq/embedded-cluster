@@ -112,6 +112,7 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
 	}
+
 	return regChart, regRepo, nil
 }
 
