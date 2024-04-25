@@ -81,7 +81,7 @@ func (e *EmbeddedClusterOperator) Version() (map[string]string, error) {
 }
 
 func (a *EmbeddedClusterOperator) Name() string {
-	return releaseName
+	return "EmbeddedClusterOperator"
 }
 
 // HostPreflights returns the host preflight objects found inside the EmbeddedClusterOperator
@@ -98,8 +98,8 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) (*v1beta1.Chart, *v1beta1.Repository, error) {
-	chartConfig := &v1beta1.Chart{
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
@@ -117,7 +117,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) (*v1beta
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
-	return chartConfig, nil, nil
+	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
@@ -212,24 +212,15 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	return nil
 }
 
-// Options is the options used when creating a new embedded cluster operator
-// addon installer.
-type Options struct {
-	ReleaseMetadata *types.ReleaseMetadata
-	EndUserConfig   *embeddedclusterv1beta1.Config
-	LicenseFile     string
-	Airgap          bool
-}
-
 // New creates a new EmbeddedClusterOperator addon.
-func New(opts Options) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:       "embedded-cluster",
 		deployName:      "embedded-cluster-operator",
-		endUserConfig:   opts.EndUserConfig,
-		licenseFile:     opts.LicenseFile,
-		airgap:          opts.Airgap,
-		releaseMetadata: opts.ReleaseMetadata,
+		endUserConfig:   endUserConfig,
+		licenseFile:     licenseFile,
+		airgap:          airgapEnabled,
+		releaseMetadata: releaseMetadata,
 	}, nil
 }
 

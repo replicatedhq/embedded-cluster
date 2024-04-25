@@ -110,7 +110,7 @@ func (a *AdminConsole) Version() (map[string]string, error) {
 }
 
 func (a *AdminConsole) Name() string {
-	return releaseName
+	return "AdminConsole"
 }
 
 // GetProtectedFields returns the helm values that are not overwritten when upgrading
@@ -177,7 +177,7 @@ func (a *AdminConsole) addPasswordToHelmValues() error {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) (*v1beta1.Chart, *v1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	if !onlyDefaults {
 		if err := a.addPasswordToHelmValues(); err != nil {
 			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
@@ -193,7 +193,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) (*v1beta1.Chart, *v
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig := &v1beta1.Chart{
+	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
@@ -201,7 +201,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) (*v1beta1.Chart, *v
 		TargetNS:  a.namespace,
 		Order:     5,
 	}
-	return chartConfig, nil, nil
+	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (a *AdminConsole) GetAdditionalImages() []string {
@@ -288,22 +288,14 @@ func (a *AdminConsole) printSuccessMessage(appSlug string) {
 	logrus.Info(successMessage)
 }
 
-type Options struct {
-	Namespace    string
-	UsePrompt    bool
-	K0sConfig    v1beta1.ClusterConfig
-	LicenseFile  string
-	AirgapBundle string
-}
-
 // New creates a new AdminConsole object.
-func New(opts Options) (*AdminConsole, error) {
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig, licenseFile string, airgapBundle string) (*AdminConsole, error) {
 	return &AdminConsole{
-		namespace:    opts.Namespace,
-		useprompt:    opts.UsePrompt,
-		config:       opts.K0sConfig,
-		licenseFile:  opts.LicenseFile,
-		airgapBundle: opts.AirgapBundle,
+		namespace:    ns,
+		useprompt:    useprompt,
+		config:       config,
+		licenseFile:  licenseFile,
+		airgapBundle: airgapBundle,
 	}, nil
 }
 
