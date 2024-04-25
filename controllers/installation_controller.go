@@ -651,6 +651,11 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		combinedConfigs = patchExtensionsForAirGap(combinedConfigs)
 	}
 
+	combinedConfigs, err = applyUserProvidedAddonOverrides(in, combinedConfigs)
+	if err != nil {
+		return fmt.Errorf("failed to apply user provided overrides: %w:", err)
+	}
+
 	existingHelm := &k0sv1beta1.HelmExtensions{}
 	if clusterConfig.Spec != nil && clusterConfig.Spec.Extensions != nil && clusterConfig.Spec.Extensions.Helm != nil {
 		existingHelm = clusterConfig.Spec.Extensions.Helm
@@ -860,7 +865,7 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	if curstr != desstr {
 		commands = append(commands, apv1b2.PlanCommand{
 			K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
-			  Version: meta.Versions["Kubernetes"],
+				Version: meta.Versions["Kubernetes"],
 				Targets: targets,
 				Platforms: apv1b2.PlanPlatformResourceURLMap{
 					"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},

@@ -1100,3 +1100,206 @@ func Test_yamlDiff(t *testing.T) {
 		})
 	}
 }
+
+func Test_applyUserProvidedAddonOverrides(t *testing.T) {
+	tests := []struct {
+		name         string
+		installation *v1beta1.Installation
+		config       *k0sv1beta1.HelmExtensions
+		want         *k0sv1beta1.HelmExtensions
+	}{
+		{
+			name:         "no config",
+			installation: &v1beta1.Installation{},
+			config: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+		},
+		{
+			name: "no override",
+			installation: &v1beta1.Installation{
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						UnsupportedOverrides: v1beta1.UnsupportedOverrides{
+							BuiltInExtensions: []v1beta1.BuiltInExtension{},
+						},
+					},
+				},
+			},
+			config: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+		},
+		{
+			name: "single addition",
+			installation: &v1beta1.Installation{
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						UnsupportedOverrides: v1beta1.UnsupportedOverrides{
+							BuiltInExtensions: []v1beta1.BuiltInExtension{
+								{
+									Name:   "test",
+									Values: "foo: bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			config: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz\nfoo: bar\n",
+					},
+				},
+			},
+		},
+		{
+			name: "single override",
+			installation: &v1beta1.Installation{
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						UnsupportedOverrides: v1beta1.UnsupportedOverrides{
+							BuiltInExtensions: []v1beta1.BuiltInExtension{
+								{
+									Name:   "test",
+									Values: "abc: newvalue",
+								},
+							},
+						},
+					},
+				},
+			},
+			config: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+				},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Values:  "abc: newvalue\n",
+					},
+				},
+			},
+		},
+		{
+			name: "multiple additions and overrides",
+			installation: &v1beta1.Installation{
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						UnsupportedOverrides: v1beta1.UnsupportedOverrides{
+							BuiltInExtensions: []v1beta1.BuiltInExtension{
+								{
+									Name:   "chart0",
+									Values: "added: added\noverridden: overridden",
+								},
+								{
+									Name:   "chart1",
+									Values: "foo: replacement",
+								},
+							},
+						},
+					},
+				},
+			},
+			config: &k0sv1beta1.HelmExtensions{
+				ConcurrencyLevel: 999,
+				Repositories: []k0sv1beta1.Repository{
+					{
+						Name: "repo",
+						URL:  "https://repo",
+					},
+				},
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "chart0",
+						Version: "1.0.0",
+						Values:  "abc: xyz",
+					},
+					{
+						Name:    "chart1",
+						Version: "1.0.0",
+						Values:  "foo: bar",
+					},
+				},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				ConcurrencyLevel: 999,
+				Repositories: []k0sv1beta1.Repository{
+					{
+						Name: "repo",
+						URL:  "https://repo",
+					},
+				},
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:    "chart0",
+						Version: "1.0.0",
+						Values:  "abc: xyz\nadded: added\noverridden: overridden\n",
+					},
+					{
+						Name:    "chart1",
+						Version: "1.0.0",
+						Values:  "foo: replacement\n",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			got, err := applyUserProvidedAddonOverrides(tt.installation, tt.config)
+			req.NoError(err)
+			req.Equal(tt.want, got)
+		})
+	}
+}

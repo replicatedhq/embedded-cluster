@@ -232,6 +232,24 @@ func detectChartCompletion(combinedConfigs *k0sv1beta1.HelmExtensions, installed
 	return incompleteCharts, chartErrors, nil
 }
 
+// applyUserProvidedAddonOverrides applies user-provided overrides to the HelmExtensions spec.
+func applyUserProvidedAddonOverrides(in *v1beta1.Installation, combinedConfigs *k0sv1beta1.HelmExtensions) (*k0sv1beta1.HelmExtensions, error) {
+	if in == nil || in.Spec.Config == nil {
+		return combinedConfigs, nil
+	}
+	patchedConfigs := combinedConfigs.DeepCopy()
+	patchedConfigs.Charts = k0sv1beta1.ChartsSettings{}
+	for _, chart := range combinedConfigs.Charts {
+		newValues, err := in.Spec.Config.ApplyEndUserAddOnOverrides(chart.Name, chart.Values)
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply end user overrides for chart %s: %w", chart.Name, err)
+		}
+		chart.Values = newValues
+		patchedConfigs.Charts = append(patchedConfigs.Charts, chart)
+	}
+	return patchedConfigs, nil
+}
+
 // merge the helmcharts in the cluster with the charts we desire to be in the cluster
 // if the chart is already in the cluster, merge the values
 func generateDesiredCharts(meta *ectypes.ReleaseMetadata, clusterconfig k0sv1beta1.ClusterConfig, combinedConfigs *k0sv1beta1.HelmExtensions) ([]k0sv1beta1.Chart, error) {

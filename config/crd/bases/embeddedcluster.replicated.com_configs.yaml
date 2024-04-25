@@ -41,17 +41,6 @@ spec:
             properties:
               extensions:
                 properties:
-                  builtin:
-                    description: |-
-                      BuiltinExtensions allows vendors to enable/disable additional optional extensions.
-                      Today, that only includes Velero.
-                    properties:
-                      velero:
-                        properties:
-                          values:
-                            type: string
-                        type: object
-                    type: object
                   helm:
                     description: HelmExtensions specifies settings for cluster helm
                       based extensions
@@ -189,6 +178,30 @@ spec:
                   UnsupportedOverrides holds the config overrides used to configure
                   the cluster.
                 properties:
+                  builtInExtensions:
+                    description: |-
+                      BuiltInExtensions holds overrides for the default add-ons we ship
+                      with Embedded Cluster.
+                    items:
+                      description: BuiltInExtension holds the override for a built-in
+                        extension (add-on).
+                      properties:
+                        name:
+                          description: The name of the helm chart to override values
+                            of, for instance `openebs`.
+                          type: string
+                        values:
+                          description: |-
+                            YAML-formatted helm values that will override those provided to the
+                            chart by Embedded Cluster. Properties are overridden individually -
+                            setting a new value for `images.tag` here will not prevent Embedded
+                            Cluster from setting `images.pullPolicy = IfNotPresent`, for example.
+                          type: string
+                      required:
+                      - name
+                      - values
+                      type: object
+                    type: array
                   k0s:
                     description: |-
                       K0s holds the overrides used to configure k0s. These overrides
