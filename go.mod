@@ -28,7 +28,7 @@ require (
 	k8s.io/api v0.30.0
 	k8s.io/apimachinery v0.30.0
 	oras.land/oras-go/v2 v2.5.0
-	sigs.k8s.io/controller-runtime v0.17.3
+	sigs.k8s.io/controller-runtime v0.18.0
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -67,7 +67,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231120223509-83a465c0220f // indirect
 	google.golang.org/grpc v1.60.1 // indirect
 	helm.sh/helm/v3 v3.14.4 // indirect
-	k8s.io/component-base v0.30.0 // indirect
 )
 
 require (
@@ -77,7 +76,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible
-	github.com/evanphx/json-patch/v5 v5.8.0 // indirect
+	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
