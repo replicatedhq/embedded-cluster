@@ -7,6 +7,9 @@ inputs:
   airgap-license-id:
     description: 'airgap-enabled license id to use for e2e tests'
     required: true
+  snapshot-license-id:
+    description: 'snapshot-enabled license id to use for e2e tests'
+    required: true
   license-id:
     description: 'license id to use for e2e tests'
     required: true
@@ -23,6 +26,12 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Remove MS repo
+    shell: bash
+    run: |
+      apt-add-repository --list
+      sudo apt-add-repository -y -r deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/22.04/prod jammy main
+      apt-add-repository --list
   - name: Move Docker aside
     shell: bash
     run: |
@@ -63,6 +72,7 @@ runs:
       export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
       export LICENSE_ID=${{ inputs.license-id }}
       export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
+      export SNAPSHOT_LICENSE_ID=${{ inputs.snapshot-license-id }}
       echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
       export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
       export TESTIM_BRANCH=${{ inputs.testim-branch }}
