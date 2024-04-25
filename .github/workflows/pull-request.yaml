@@ -41,6 +41,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -48,13 +50,14 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: "1.21.0"
-    - name: Build Linux AMD64
+    - name: Build Linux AMD64 and Output Metadata
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-        make embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
+        make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}-previous-k0s"
+        tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
+        ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
+        make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
         tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
-    - name: Output Metadata
-      run: |
         ./output/bin/embedded-cluster version metadata > metadata.json
     - name: Install Replicated CLI
       run: |
@@ -91,7 +94,9 @@ jobs:
         echo "versionLabel: \"appver-${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
         cat e2e/kots-release-install/release.yaml
         cp output/bin/embedded-cluster output/bin/embedded-cluster-original
-        make embedded-release VERSION="${SHORT_SHA}" # this is done after the metadata.json is generated so as to not include additional charts
+        make -B embedded-release K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}-previous-k0s"
+        mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
+        make -B embedded-release VERSION="${SHORT_SHA}" # this is done after the metadata.json is generated so as to not include additional charts
     - name: Cache files for integration test
       env:
         S3_BUCKET: "tf-staging-embedded-cluster-bin"
@@ -103,6 +108,7 @@ jobs:
         export EC_VERSION="v${SHORT_SHA}"
         ./scripts/cache-files.sh
         ./scripts/create-upgrade-release.sh
+        ./scripts/create-previous-k0s-release.sh
 
     - name: Create Airgap Release
       env:
@@ -112,11 +118,34 @@ jobs:
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         echo "${SHORT_SHA}"
-        sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
-        sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+        # airgap tests install the previous k0s version to ensure an upgrade occurs
+        sed -i "s/${SHORT_SHA}/${SHORT_SHA}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
         
         rm e2e/kots-release-install/release.yaml
         replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
+        replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI-airgap --version "appver-${SHORT_SHA}-upgrade"
+
+    - name: Create download link message text
+      run: |
+        export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+        
+        echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
+        echo "" >> download-link.txt
+        echo "Online Installer:" >> download-link.txt
+        echo "\`\`\`" >> download-link.txt
+        echo "curl \"https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/appver-${SHORT_SHA}\" -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
+        echo "\`\`\`" >> download-link.txt
+        echo "Airgap Installer (may take a few minutes before the airgap bundle is built):" >> download-link.txt
+        echo "\`\`\`" >> download-link.txt
+        echo "curl \"https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/appver-${SHORT_SHA}?airgap=true\" -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
+        echo "\`\`\`" >> download-link.txt
+        echo "Happy debugging!" >> download-link.txt
+        cat download-link.txt
+
+    - name: comment download link
+      uses: mshick/add-pr-comment@v2
+      with:
+        message-path: download-link.txt
 
     - name: upload binary
       uses: actions/upload-artifact@v4
@@ -125,6 +154,7 @@ jobs:
         path: |
           output/bin/embedded-cluster
           output/bin/embedded-cluster-original
+          output/bin/embedded-cluster-previous-k0s
           output/bin/embedded-cluster-release-builder
 
   e2e:
@@ -148,11 +178,13 @@ jobs:
           - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
           - TestResetAndReinstall
+          - TestResetAndReinstallAirgap
           - TestCollectSupportBundle
           - TestOldVersionUpgrade
           - TestMaterialize
           - TestLocalArtifactMirror
-          - TestSingleNodeAirgapInstallationUbuntuJammy
+          - TestSingleNodeAirgapUpgradeUbuntuJammy
+          - TestInstallSnapshotFromReplicatedApp
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -161,10 +193,12 @@ jobs:
       with:
         name: embedded-release
         path: output/bin
+
     - uses: ./.github/actions/e2e
       with:
         test-name: '${{ matrix.tests }}'
         airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
+        snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
         license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
         license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
         testim-access-token: ${{ secrets.TESTIM_ACCESS_TOKEN }}

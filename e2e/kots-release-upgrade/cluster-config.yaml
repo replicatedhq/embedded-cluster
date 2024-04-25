@@ -52,14 +52,29 @@ spec:
                   https: "443"
                 annotations:
                   test-upgrade-annotation: test-upgrade-value
+              image:
+                digest: ""
+                digestChroot: ""
+              admissionWebhooks:
+                patch:
+                  image:
+                    digest: ""
         - chartname: okgolove/goldpinger
           name: goldpinger
           namespace: goldpinger
           version: 6.1.2
           order: 11
         - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
-          name: memcached-vendor-chart
+          name: memcached
           namespace: memcached
-          values: "abc: xyz"
+          values: |
+            volumePermissions:
+             resources:
+               requests:
+                 cpu: 25m
+                 memory: 128Mi
+               limits:
+                 cpu: 25m
+                 memory: 256Mi
           order: 4
           version: 6.6.4

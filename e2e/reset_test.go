@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -28,14 +27,18 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	installTestimAndDeploy(t, 0, tc)
+	if err := setupTestim(t, tc); err != nil {
+		t.Fatalf("fail to setup testim: %v", err)
+	}
+	if _, _, err := runTestimTest(t, tc, "deploy-kots-application"); err != nil {
+		t.Fatalf("fail to deploy kots application: %v", err)
+	}
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-controller-command"}
-		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+		stdout, stderr, err := runTestimTest(t, tc, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -47,8 +50,7 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-worker-command"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err := runTestimTest(t, tc, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}

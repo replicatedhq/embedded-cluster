@@ -35,10 +35,11 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL   = "https://url"
-	ChartName  = "name"
-	Version    = "v0.0.0"
-	UtilsImage = "busybox:latest"
+	ChartURL      = "https://url"
+	ChartName     = "name"
+	Version       = "v0.0.0"
+	UtilsImage    = "busybox:latest"
+	ImageOverride = ""
 )
 
 var helmValues = map[string]interface{}{
@@ -46,6 +47,21 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterVersion":    defaults.Version,
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
 	"utilsImage":                UtilsImage,
+}
+
+func init() {
+	if ImageOverride != "" {
+		// split ImageOverride into the image and tag
+		parts := strings.Split(ImageOverride, ":")
+		if len(parts) != 2 {
+			panic(fmt.Sprintf("invalid image override: %s", ImageOverride))
+		}
+
+		helmValues["image"] = map[string]interface{}{
+			"repository": parts[0],
+			"tag":        parts[1],
+		}
+	}
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
@@ -183,6 +199,10 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			AirGap:                    e.airgap,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
+			BinaryName:                defaults.BinaryName(),
+			LicenseInfo: &embeddedclusterv1beta1.LicenseInfo{
+				IsSnapshotSupported: licenseSnapshotSupported(license),
+			},
 		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
@@ -211,4 +231,11 @@ func New(opts Options) (*EmbeddedClusterOperator, error) {
 		airgap:          opts.Airgap,
 		releaseMetadata: opts.ReleaseMetadata,
 	}, nil
+}
+
+func licenseSnapshotSupported(license *kotsv1beta1.License) bool {
+	if license == nil {
+		return false
+	}
+	return license.Spec.IsSnapshotSupported
 }

@@ -34,6 +34,7 @@ func main() {
 			joinCommand,
 			resetCommand,
 			materializeCommand,
+			updateCommand,
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {

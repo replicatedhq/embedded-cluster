@@ -313,13 +313,13 @@ var resetCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "reboot",
-			Usage: "Reboot system after reseting the node",
+			Usage: "Reboot system after resetting the node",
 			Value: false,
 		},
 	},
 	Usage: fmt.Sprintf("Uninstall %s from the current node", binName),
 	Action: func(c *cli.Context) error {
-		logrus.Info("This will remove this node from the cluster and completely reset it.")
+		logrus.Info("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
 		logrus.Info("Do not reset another node until this is complete.")
 		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
 			return fmt.Errorf("Aborting")
@@ -338,7 +338,7 @@ var resetCommand = &cli.Command{
 				return err
 			}
 			if !safeToRemove {
-				return fmt.Errorf("%s\nRun reset command with --force to ignore this", reason)
+				return fmt.Errorf("%s\nRun reset command with --force to ignore this.", reason)
 			}
 		}
 
@@ -378,7 +378,7 @@ var resetCommand = &cli.Command{
 		}
 
 		// reset
-		logrus.Infof("Uninstalling %s...", binName)
+		logrus.Infof("Resetting node...")
 		err = stopAndResetK0s()
 		if !checkErrPrompt(c, err) {
 			return err
@@ -406,7 +406,37 @@ var resetCommand = &cli.Command{
 
 		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
 			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
-				return err
+				return fmt.Errorf("failed to remove embedded cluster home directory: %w", err)
+			}
+		}
+
+		if _, err := os.Stat(defaults.PathToK0sContainerdConfig()); err == nil {
+			if err := os.RemoveAll(defaults.PathToK0sContainerdConfig()); err != nil {
+				return fmt.Errorf("failed to remove containerd config: %w", err)
+			}
+		}
+
+		if _, err := os.Stat(systemdUnitFileName()); err == nil {
+			if err := os.Remove(systemdUnitFileName()); err != nil {
+				return fmt.Errorf("failed to remove systemd unit file: %w", err)
+			}
+		}
+
+		if _, err := os.Stat("/var/openebs"); err == nil {
+			if err := os.RemoveAll("/var/openebs"); err != nil {
+				return fmt.Errorf("failed to remove openebs storage: %w", err)
+			}
+		}
+
+		if _, err := os.Stat("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err == nil {
+			if err := os.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
+				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
+			}
+		}
+
+		if _, err := os.Stat("/usr/local/bin/k0s"); err == nil {
+			if err := os.RemoveAll("/usr/local/bin/k0s"); err != nil {
+				return fmt.Errorf("failed to remove k0s binary: %w", err)
 			}
 		}
 

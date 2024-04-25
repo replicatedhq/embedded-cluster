@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
+	"regexp"
 	"time"
 
 	"github.com/k0sproject/dig"
@@ -21,8 +21,8 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -41,6 +41,7 @@ var (
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
+	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
@@ -92,7 +93,7 @@ func (a *AdminConsole) askPassword() (string, error) {
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Enter a new Admin Console password:")
+		promptA := prompts.New().Password("Enter an Admin Console password:")
 		promptB := prompts.New().Password("Confirm password:")
 
 		if promptA == promptB {
@@ -244,60 +245,26 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
 
+	loading.Closef("Admin Console is ready!")
 	if a.licenseFile == "" {
-		loading.Closef("Admin Console is ready!")
 		return nil
 	}
 
-	loading.Infof("Finalizing")
-
-	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
-	if err != nil {
-		loading.Close()
-		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
-	}
-	defer os.Remove(kotsBinPath)
-
 	license, err := helpers.ParseLicense(a.licenseFile)
 	if err != nil {
+		loading.CloseWithError()
 		return fmt.Errorf("unable to parse license: %w", err)
 	}
 
-	var appVersionLabel string
-	var channelSlug string
-	if channelRelease, err := release.GetChannelRelease(); err != nil {
-		return fmt.Errorf("unable to get channel release: %w", err)
-	} else if channelRelease != nil {
-		appVersionLabel = channelRelease.VersionLabel
-		channelSlug = channelRelease.ChannelSlug
+	if err := kotscli.Install(kotscli.InstallOptions{
+		AppSlug:      license.Spec.AppSlug,
+		LicenseFile:  a.licenseFile,
+		Namespace:    a.namespace,
+		AirgapBundle: a.airgapBundle,
+	}); err != nil {
+		return err
 	}
 
-	upstreamURI := license.Spec.AppSlug
-	if channelSlug != "" && channelSlug != "stable" {
-		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
-	}
-
-	installArgs := []string{
-		"install",
-		upstreamURI,
-		"--license-file",
-		a.licenseFile,
-		"--namespace",
-		a.namespace,
-		"--app-version-label",
-		appVersionLabel,
-		"--exclude-admin-console",
-	}
-	if a.airgapBundle != "" {
-		installArgs = append(installArgs, "--airgap-bundle", a.airgapBundle)
-	}
-
-	if _, err := helpers.RunCommand(kotsBinPath, installArgs...); err != nil {
-		loading.Close()
-		return fmt.Errorf("unable to install the application: %w", err)
-	}
-
-	loading.Closef("Admin Console is ready!")
 	a.printSuccessMessage(license.Spec.AppSlug)
 	return nil
 }

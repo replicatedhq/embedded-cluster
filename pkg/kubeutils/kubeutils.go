@@ -61,6 +61,25 @@ func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) 
 	return nil
 }
 
+// WaitForDaemonset waits for the provided daemonset to be ready.
+func WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := IsDaemonsetReady(ctx, cli, ns, name)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get daemonset %s status: %v", name, err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
+		return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
+	}
+	return nil
+}
+
 func WaitForService(ctx context.Context, cli client.Client, ns, name string) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
@@ -112,4 +131,17 @@ func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string)
 		return false, nil
 	}
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
+}
+
+// IsDaemonsetReady returns true if the daemonset is ready.
+func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
+	var daemonset appsv1.DaemonSet
+	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	if err := cli.Get(ctx, nsn, &daemonset); err != nil {
+		return false, err
+	}
+	if daemonset.Status.DesiredNumberScheduled == daemonset.Status.NumberReady {
+		return true, nil
+	}
+	return false, nil
 }

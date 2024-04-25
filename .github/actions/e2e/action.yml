@@ -7,6 +7,9 @@ inputs:
   airgap-license-id:
     description: 'airgap-enabled license id to use for e2e tests'
     required: true
+  snapshot-license-id:
+    description: 'snapshot-enabled license id to use for e2e tests'
+    required: true
   license-id:
     description: 'license id to use for e2e tests'
     required: true
@@ -23,6 +26,12 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Remove MS repo
+    shell: bash
+    run: |
+      apt-add-repository --list
+      sudo apt-add-repository -y -r deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/22.04/prod jammy main
+      apt-add-repository --list
   - name: Move Docker aside
     shell: bash
     run: |
@@ -51,13 +60,23 @@ runs:
       sudo rm -rf /usr/local/lib/android
       sudo rm -rf /opt/hostedtoolcache/CodeQL
       sudo rm -rf /opt/hostedtoolcache/Python
+  - name: Set AppArmor mode to complain
+    shell: bash
+    run: |
+      sudo apt-get update -y
+      sudo apt install apparmor-utils -y
+      sudo aa-complain /etc/apparmor.d/*
   - name: E2E
     shell: bash
     run: |
       export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
       export LICENSE_ID=${{ inputs.license-id }}
       export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
+      export SNAPSHOT_LICENSE_ID=${{ inputs.snapshot-license-id }}
       echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
       export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
       export TESTIM_BRANCH=${{ inputs.testim-branch }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+#  - name: Setup upterm session (ssh)
+#    uses: lhotari/action-upterm@v1
+#    if: always()

@@ -19,8 +19,19 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginx
+          image: nginx:1.25-alpine
           resources:
             limits:
-              memory: '256Mi'
-              cpu: '500m'
+              memory: '64Mi'
+              cpu: '50m'
+          env:
+            - name: APP_SEQUENCE
+              value: "{{repl Cursor }}"
+            - name: APP_VERSION
+              value: "{{repl VersionLabel }}"
+            - name: APP_CHANNEL
+              value: "{{repl ChannelName }}"
+            - name: CONFIG_HOSTNAME
+              value: '{{repl ConfigOption "hostname" }}'
+            - name: CONFIG_PASSWORD
+              value: '{{repl ConfigOption "pw" }}'
