@@ -1,0 +1,60 @@
+endUserConfig: |
+  apiVersion: embeddedcluster.replicated.com/v1beta1
+  kind: Config
+  spec:
+    unsupportedOverrides:
+      builtInExtensions:
+      - name: docker-registry
+        values: |
+          replicaCount: 3
+          persistence:
+            size: 50Gi
+      - name: openebs
+        values: |-
+          newProperty: newValue
+          analytics:
+            enabled: true
+          localprovisioner:
+            hostpathClass:
+              isDefaultClass: false
+expected:
+  - name: docker-registry
+    values: |
+      configData:
+        auth:
+          htpasswd:
+            path: /auth/htpasswd
+            realm: Registry
+      extraVolumeMounts:
+      - mountPath: /auth
+        name: auth
+      extraVolumes:
+      - name: auth
+        secret:
+          secretName: registry-auth
+      fullnameOverride: registry
+      image:
+        tag: 2.8.3
+      persistence:
+        accessMode: ReadWriteOnce
+        enabled: true
+        size: 50Gi
+        storageClass: openebs-hostpath
+      replicaCount: 3
+      storage: filesystem
+  - name: openebs
+    values: |
+      newProperty: newValue
+      analytics:
+        enabled: true
+      ndmOperator:
+        enabled: false
+      helper:
+        imageTag: ""
+      ndm:
+        enabled: false
+      localprovisioner:
+        deviceClass:
+          enabled: false
+        hostpathClass:
+          isDefaultClass: false
