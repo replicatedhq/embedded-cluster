@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -13,8 +15,6 @@ import (
 	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/google/uuid"
-
-	"github.com/replicatedhq/embedded-cluster/e2e/scripts"
 )
 
 var networkaddr chan string
@@ -72,6 +72,12 @@ type File struct {
 	SourcePath string
 	DestPath   string
 	Mode       int
+}
+
+// Dir holds information about a directory that must be uploaded to a node.
+type Dir struct {
+	SourcePath string
+	DestPath   string
 }
 
 // Output is returned when a cluster is created. Contain a list of all node
@@ -197,7 +203,7 @@ func NewTestCluster(in *Input) *Output {
 	nodes := CreateNodes(in)
 	for _, node := range nodes {
 		CopyFilesToNode(in, node)
-		CopyScriptsToNode(in, node)
+		CopyDirsToNode(in, node)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, node)
 		}
@@ -210,7 +216,7 @@ func NewTestCluster(in *Input) *Output {
 	}
 	if in.WithProxy {
 		out.Proxy = CreateProxy(in)
-		CopyScriptsToNode(in, out.Proxy)
+		CopyDirsToNode(in, out.Proxy)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, out.Proxy)
 		}
@@ -423,33 +429,45 @@ func CopyFilesToNode(in *Input, node string) {
 	}
 }
 
-// CopyScriptsToNode copies all scripts from the scripts directory
-// (they are all placed under /usr/local/bin inside the node).
-func CopyScriptsToNode(in *Input, node string) {
-	scriptFiles, err := scripts.FS.ReadDir(".")
-	if err != nil {
-		in.T.Fatalf("Failed to read scripts directory: %v", err)
+// CopyDirsToNode copies the directories needed to the node.
+func CopyDirsToNode(in *Input, node string) {
+	dirs := []Dir{
+		{
+			SourcePath: "scripts",
+			DestPath:   "/usr/local/bin",
+		},
+		{
+			SourcePath: "playwright",
+			DestPath:   "/tmp/playwright",
+		},
 	}
-	for _, script := range scriptFiles {
-		fp, err := scripts.FS.Open(script.Name())
+	for _, dir := range dirs {
+		CopyDirToNode(in, node, dir)
+	}
+}
+
+// CopyDirToNode copies a single directory to a node.
+func CopyDirToNode(in *Input, node string, dir Dir) {
+	if err := filepath.Walk(dir.SourcePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
-			in.T.Fatalf("Failed to open script %s: %v", script.Name(), err)
+			return err
 		}
-		tmp, err := os.CreateTemp("/tmp", fmt.Sprintf("%s-XXXXX.sh", script.Name()))
+		if info.IsDir() {
+			return nil
+		}
+		relPath, err := filepath.Rel(dir.SourcePath, path)
 		if err != nil {
-			in.T.Fatalf("Failed to create temporary file: %v", err)
+			return fmt.Errorf("failed to get relative path: %v", err)
 		}
-		defer os.Remove(tmp.Name())
-		if _, err := io.Copy(tmp, fp); err != nil {
-			in.T.Fatalf("Failed to copy script %s: %v", script.Name(), err)
-		}
-		fp.Close()
 		file := File{
-			SourcePath: tmp.Name(),
-			DestPath:   fmt.Sprintf("/usr/local/bin/%s", script.Name()),
-			Mode:       0755,
+			SourcePath: path,
+			DestPath:   filepath.Join(dir.DestPath, relPath),
+			Mode:       int(info.Mode()),
 		}
 		CopyFileToNode(in, node, file)
+		return nil
+	}); err != nil {
+		in.T.Fatalf("Failed to walk directory %s: %v", dir.SourcePath, err)
 	}
 }
 
@@ -458,6 +476,12 @@ func CopyFileToNode(in *Input, node string, file File) {
 	if file.SourcePath == "" {
 		in.T.Logf("Skipping file %s: source path is empty", file.DestPath)
 		return
+	}
+	// ensure destination path exists
+	for _, cmd := range [][]string{
+		{"mkdir", "-p", filepath.Dir(file.DestPath)},
+	} {
+		RunCommandOnNode(in, cmd, node)
 	}
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -482,19 +506,19 @@ func CopyFileToNode(in *Input, node string, file File) {
 func CopyFileFromNode(node, source, dest string) error {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to LXD: %v", err)
+		return fmt.Errorf("failed to connect to LXD: %v", err)
 	}
 	content, _, err := client.GetContainerFile(node, source)
 	if err != nil {
-		return fmt.Errorf("Failed to get file %s: %v", source, err)
+		return fmt.Errorf("failed to get file %s: %v", source, err)
 	}
 	fp, err := os.Create(dest)
 	if err != nil {
-		return fmt.Errorf("Failed to create file %s: %v", dest, err)
+		return fmt.Errorf("failed to create file %s: %v", dest, err)
 	}
 	defer fp.Close()
 	if _, err := io.Copy(fp, content); err != nil {
-		return fmt.Errorf("Failed to copy file %s: %v", dest, err)
+		return fmt.Errorf("failed to copy file %s: %v", dest, err)
 	}
 	return nil
 }

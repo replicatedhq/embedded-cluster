@@ -52,6 +52,20 @@ func UpdateHelmConfigs(cfg *k0sconfig.ClusterConfig, opts ...addons.Option) erro
 	if err != nil {
 		return fmt.Errorf("unable to apply addons: %w", err)
 	}
+	return updateHelmConfigs(cfg, chtconfig, repconfig)
+}
+
+// UpdateHelmConfigsForRestore updates the helm config in the provided cluster configuration for a restore operation.
+func UpdateHelmConfigsForRestore(cfg *k0sconfig.ClusterConfig, opts ...addons.Option) error {
+	applier := addons.NewApplier(opts...)
+	chtconfig, repconfig, err := applier.GenerateHelmConfigsForRestore()
+	if err != nil {
+		return fmt.Errorf("unable to apply addons: %w", err)
+	}
+	return updateHelmConfigs(cfg, chtconfig, repconfig)
+}
+
+func updateHelmConfigs(cfg *k0sconfig.ClusterConfig, chtconfig []k0sconfig.Chart, repconfig []k0sconfig.Repository) error {
 	// k0s sorts order numbers alphabetically because they're used in file names,
 	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").
 	// We add 100 to the order of each chart to work around this.

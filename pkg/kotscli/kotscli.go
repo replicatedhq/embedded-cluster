@@ -126,6 +126,56 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 	return nil
 }
 
+type VeleroConfigureOtherS3Options struct {
+	Endpoint        string
+	Region          string
+	Bucket          string
+	Path            string
+	AccessKeyID     string
+	SecretAccessKey string
+	Namespace       string
+}
+
+func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
+	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	veleroConfigureOtherS3Args := []string{
+		"velero",
+		"configure-other-s3",
+		"--endpoint",
+		opts.Endpoint,
+		"--region",
+		opts.Region,
+		"--bucket",
+		opts.Bucket,
+		"--access-key-id",
+		opts.AccessKeyID,
+		"--secret-access-key",
+		opts.SecretAccessKey,
+		"--namespace",
+		opts.Namespace,
+		"--skip-validation",
+	}
+	if opts.Path != "" {
+		veleroConfigureOtherS3Args = append(veleroConfigureOtherS3Args, "--path", opts.Path)
+	}
+
+	loading := spinner.Start()
+	loading.Infof("Configuring backup storage location")
+
+	if _, err := helpers.RunCommand(kotsBinPath, veleroConfigureOtherS3Args...); err != nil {
+		loading.Close()
+		return fmt.Errorf("unable to configure s3: %w", err)
+	}
+
+	loading.Closef("Backup storage location configured!")
+	return nil
+}
+
 // MaskKotsOutputForOnline masks the kots cli output during online installations. For
 // online installations we only want to print "Finalizing" until it is done and then
 // print "Finished!".
