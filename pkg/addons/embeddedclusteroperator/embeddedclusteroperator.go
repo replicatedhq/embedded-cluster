@@ -212,24 +212,15 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	return nil
 }
 
-// Options is the options used when creating a new embedded cluster operator
-// addon installer.
-type Options struct {
-	ReleaseMetadata *types.ReleaseMetadata
-	EndUserConfig   *embeddedclusterv1beta1.Config
-	LicenseFile     string
-	Airgap          bool
-}
-
 // New creates a new EmbeddedClusterOperator addon.
-func New(opts Options) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:       "embedded-cluster",
 		deployName:      "embedded-cluster-operator",
-		endUserConfig:   opts.EndUserConfig,
-		licenseFile:     opts.LicenseFile,
-		airgap:          opts.Airgap,
-		releaseMetadata: opts.ReleaseMetadata,
+		endUserConfig:   endUserConfig,
+		licenseFile:     licenseFile,
+		airgap:          airgapEnabled,
+		releaseMetadata: releaseMetadata,
 	}, nil
 }
 
