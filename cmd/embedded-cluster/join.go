@@ -152,7 +152,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		if err := runHostPreflights(c); err != nil {
+		if err := RunHostPreflights(c); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err

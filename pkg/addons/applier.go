@@ -6,14 +6,12 @@ package addons
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -24,7 +22,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 // AddOn is the interface that all addons must implement.
@@ -52,13 +49,26 @@ type Applier struct {
 
 // Outro runs the outro in all enabled add-ons.
 func (a *Applier) Outro(ctx context.Context) error {
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("unable to create kube client: %w", err)
-	}
 	addons, err := a.load()
 	if err != nil {
 		return fmt.Errorf("unable to load addons: %w", err)
+	}
+	return a.outro(ctx, addons)
+}
+
+// OutroForRestore runs the outro in all enabled add-ons for restore operations.
+func (a *Applier) OutroForRestore(ctx context.Context) error {
+	addons, err := a.loadForRestore()
+	if err != nil {
+		return fmt.Errorf("unable to load addons: %w", err)
+	}
+	return a.outro(ctx, addons)
+}
+
+func (a *Applier) outro(ctx context.Context, addons []AddOn) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 	for _, addon := range addons {
 		if err := addon.Outro(ctx, kcli); err != nil {
@@ -103,6 +113,27 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 	return charts, repositories, nil
 }
 
+// GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
+func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	charts := []v1beta1.Chart{}
+	repositories := []v1beta1.Repository{}
+	addons, err := a.loadForRestore()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+
+	for _, addon := range addons {
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.onlyDefaults)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
+		}
+		charts = append(charts, addonChartConfig...)
+		repositories = append(repositories, addonRepositoryConfig...)
+	}
+
+	return charts, repositories, nil
+}
+
 func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	reg, err := registry.New(true)
 	if err != nil {
@@ -119,7 +150,7 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
 	builtinCharts := map[string]k0sconfig.HelmExtensions{}
 
-	vel, err := velero.New(true)
+	vel, err := velero.New(defaults.VeleroNamespace, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
@@ -171,6 +202,20 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
+	return a.hostPreflights(addons)
+}
+
+// HostPreflightsForRestore reads all embedded host preflights from all add-ons for restore operations
+// and returns them merged in a single HostPreflightSpec for restore operations.
+func (a *Applier) HostPreflightsForRestore() (*v1beta2.HostPreflightSpec, error) {
+	addons, err := a.loadForRestore()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+	return a.hostPreflights(addons)
+}
+
+func (a *Applier) hostPreflights(addons []AddOn) (*v1beta2.HostPreflightSpec, error) {
 	allpf := &v1beta2.HostPreflightSpec{}
 	for _, addon := range addons {
 		hpf, err := addon.HostPreflights()
@@ -210,7 +255,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to check if snapshots are enabled: %w", err)
 	}
-	vel, err := velero.New(snapshotsEnabled)
+	vel, err := velero.New(defaults.VeleroNamespace, snapshotsEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
@@ -221,6 +266,23 @@ func (a *Applier) load() ([]AddOn, error) {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
 	addons = append(addons, aconsole)
+	return addons, nil
+}
+
+// loadForRestore instantiates and returns addon appliers for restore operations.
+func (a *Applier) loadForRestore() ([]AddOn, error) {
+	addons := []AddOn{}
+	obs, err := openebs.New()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create openebs addon: %w", err)
+	}
+	addons = append(addons, obs)
+
+	vel, err := velero.New(defaults.VeleroNamespace, true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	addons = append(addons, vel)
 	return addons, nil
 }
 
@@ -247,39 +309,6 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	}
 
 	return versions, nil
-}
-
-// waitForKubernetes waits until we manage to make a successful connection to the
-// Kubernetes API server.
-func (a *Applier) waitForKubernetes(ctx context.Context) error {
-	loading := spinner.Start()
-	defer func() {
-		loading.Closef("Kubernetes API server is ready")
-	}()
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("unable to create kubernetes client: %w", err)
-	}
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	counter := 1
-	loading.Infof("1/n Waiting for Kubernetes API server to be ready")
-	for {
-		select {
-		case <-ticker.C:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-		counter++
-		if err := kcli.List(ctx, &corev1.NamespaceList{}); err != nil {
-			loading.Infof(
-				"%d/n Waiting for Kubernetes API server to be ready.",
-				counter,
-			)
-			continue
-		}
-		return nil
-	}
 }
 
 // NewApplier creates a new Applier instance with all addons registered.

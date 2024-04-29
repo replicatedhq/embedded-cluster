@@ -99,6 +99,32 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 	return nil
 }
 
+func WaitForNodes(ctx context.Context, cli client.Client) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			var nodes corev1.NodeList
+			if err := cli.List(ctx, &nodes); err != nil {
+				lasterr = fmt.Errorf("unable to list nodes: %v", err)
+				return false, nil
+			}
+			readynodes := 0
+			for _, node := range nodes.Items {
+				for _, condition := range node.Status.Conditions {
+					if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+						readynodes++
+					}
+				}
+			}
+			return readynodes == len(nodes.Items), nil
+		},
+	); err != nil {
+		return fmt.Errorf("timed out waiting for nodes to be ready: %v", lasterr)
+	}
+	return nil
+}
+
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
 	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {

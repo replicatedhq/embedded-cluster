@@ -33,12 +33,14 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if err := setupTestim(t, tc); err != nil {
-		t.Fatalf("fail to setup testim: %v", err)
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := runTestimTest(t, tc, "deploy-kots-application"); err != nil {
-		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
+	pwstdout, pwstderr, err := runPlaywrightTest(t, tc, "deploy-app")
+	if err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s", err, pwstderr)
 	}
+	t.Logf(pwstdout)
 
 	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
@@ -802,6 +804,82 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestSingleNodeDisasterRecovery(t *testing.T) {
+	t.Parallel()
+
+	requiredEnvVars := []string{
+		"DR_AWS_S3_ENDPOINT",
+		"DR_AWS_S3_REGION",
+		"DR_AWS_S3_BUCKET",
+		"DR_AWS_S3_PREFIX",
+		"DR_AWS_ACCESS_KEY_ID",
+		"DR_AWS_SECRET_ACCESS_KEY",
+	}
+	for _, envVar := range requiredEnvVars {
+		if os.Getenv(envVar) == "" {
+			t.Fatalf("missing required environment variable: %s", envVar)
+		}
+	}
+
+	testArgs := []string{}
+	for _, envVar := range requiredEnvVars {
+		testArgs = append(testArgs, os.Getenv(envVar))
+	}
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "ubuntu/jammy",
+		LicensePath:         "snapshot-license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	})
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+			copyPlaywrightReport(t, tc)
+		}
+		tc.Destroy()
+	}()
+
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "expect", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-install.sh", "ui"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	pwstdout, pwstderr, err := runPlaywrightTest(t, tc, "create-backup", testArgs...)
+	if err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v: %s", err, pwstderr)
+	}
+	t.Logf(pwstdout)
+
+	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to reset the installation: %v", err)
+	}
+
+	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	line = append([]string{"restore-installation.exp"}, testArgs...)
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to restore the installation: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
@@ -931,6 +1009,31 @@ func runTestimTest(t *testing.T, tc *cluster.Output, testName string) (stdout, s
 	return stdout, stderr, nil
 }
 
+func setupPlaywright(t *testing.T, tc *cluster.Output) error {
+	t.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"bypass-kurl-proxy.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		return fmt.Errorf("fail to bypass kurl-proxy on node %s: %v", tc.Nodes[0], err)
+	}
+	line = []string{"install-playwright.sh"}
+	t.Logf("%s: installing playwright on node 0", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		return fmt.Errorf("fail to install playwright on node %s: %v", tc.Nodes[0], err)
+	}
+	return nil
+}
+
+func runPlaywrightTest(t *testing.T, tc *cluster.Output, testName string, args ...string) (stdout, stderr string, err error) {
+	t.Logf("%s: running playwright test %s on node 0", time.Now().Format(time.RFC3339), testName)
+	line := []string{"playwright.sh", testName}
+	line = append(line, args...)
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Nodes[0], err)
+	}
+	return stdout, stderr, nil
+}
+
 func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 	t.Logf("%s: generating support bundle", time.Now().Format(time.RFC3339))
 	line := []string{"collect-support-bundle.sh"}
@@ -947,5 +1050,32 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 	t.Logf("%s: copying cluster support bundle to local machine", time.Now().Format(time.RFC3339))
 	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
 		t.Errorf("fail to copy cluster support bundle to local machine: %v", err)
+	}
+}
+
+func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
+	t.Logf("%s: compressing playwright report", time.Now().Format(time.RFC3339))
+	line := []string{"tar", "-czf", "playwright-report.tar.gz", "-C", "/tmp/playwright/playwright-report", "."}
+	if tc.Proxy != "" {
+		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+			t.Errorf("fail to compress playwright report: %v", err)
+			return
+		}
+	} else {
+		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+			t.Errorf("fail to compress playwright report: %v", err)
+			return
+		}
+	}
+
+	t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
+	if tc.Proxy != "" {
+		if err := cluster.CopyFileFromNode(tc.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
+			t.Errorf("fail to copy playwright report to local machine: %v", err)
+		}
+	} else {
+		if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
+			t.Errorf("fail to copy playwright report to local machine: %v", err)
+		}
 	}
 }

@@ -35,6 +35,7 @@ func main() {
 			resetCommand,
 			materializeCommand,
 			updateCommand,
+			restoreCommand,
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {
