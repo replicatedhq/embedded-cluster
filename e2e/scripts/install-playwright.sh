@@ -13,7 +13,8 @@ main() {
     NODE_MAJOR=20
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
     apt-get update && apt-get install nodejs -y
-    npm install -g @testim/testim-cli
+    npm --prefix /tmp/playwright ci
+    npx playwright install --with-deps
 }
 
 main "$@"
