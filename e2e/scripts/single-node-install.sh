@@ -241,8 +241,8 @@ ensure_binary_copy() {
 
 ensure_installation_label() {
     # ensure that the installation has the kots backup label
-    if ! kubectl get installations -l "replicated.com/disaster-recovery=infra" --no-headers; then
-        echo "installation does not have the replicated.com/disaster-recovery=infra label"
+    if ! kubectl get installations -l "replicated.com/disaster-recovery=ec-install" --no-headers; then
+        echo "installation does not have the replicated.com/disaster-recovery=ec-install label"
         kubectl describe installations --no-headers
         return 1
     fi

@@ -193,7 +193,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
 			Labels: map[string]string{
-				"replicated.com/disaster-recovery": "infra",
+				"replicated.com/disaster-recovery": "ec-install",
 			},
 		},
 		Spec: embeddedclusterv1beta1.InstallationSpec{
