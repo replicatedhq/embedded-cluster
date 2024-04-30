@@ -23,9 +23,6 @@ wait_for_installation() {
         ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
         kubectl get installations 2>&1 || true
     done
-
-    # ensure that the installation has the kots backup label
-    kubectl get installations --no-headers -l "kots.io/backup=infrastructure" | grep "Installed"
 }
 
 wait_for_nginx_pods() {

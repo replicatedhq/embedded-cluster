@@ -239,6 +239,15 @@ ensure_binary_copy() {
     fi
 }
 
+ensure_installation_label() {
+    # ensure that the installation has the kots backup label
+    if ! kubectl get installations -l "kots.io/backup=infrastructure" --no-headers; then
+        echo "installation does not have the kots.io/backup=infrastructure label"
+        kubectl describe installations --no-headers
+        return 1
+    fi
+}
+
 main() {
     local app_deploy_method="$1"
 
@@ -303,6 +312,9 @@ main() {
         exit 1
     fi
     if ! check_pod_install_order; then
+        exit 1
+    fi
+    if ! ensure_installation_label; then
         exit 1
     fi
     if ! systemctl status embedded-cluster; then
