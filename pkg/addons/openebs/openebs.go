@@ -29,21 +29,53 @@ var (
 )
 
 var helmValues = map[string]interface{}{
-	"analytics": map[string]interface{}{
-		"enabled": false,
-	},
-	"ndmOperator": map[string]interface{}{
-		"enabled": false,
-	},
-	"ndm": map[string]interface{}{
-		"enabled": false,
-	},
-	"localprovisioner": map[string]interface{}{
-		"deviceClass": map[string]interface{}{
+	"localpv-provisioner": map[string]interface{}{
+		"analytics": map[string]interface{}{
 			"enabled": false,
 		},
 		"hostpathClass": map[string]interface{}{
-			"isDefaultClass": true,
+			"enabled": false,
+		},
+		"localpv": map[string]interface{}{
+			"resources": map[string]interface{}{
+				"requests": map[string]interface{}{
+					"cpu":    "100m",
+					"memory": "128Mi",
+				},
+				"limits": map[string]interface{}{
+					"cpu":    "100m",
+					"memory": "128Mi",
+				},
+			},
+		},
+		"helperPod": map[string]interface{}{
+			"image": map[string]interface{}{
+				"tag": UtilsVersion,
+			},
+		},
+	},
+	"zfs-localpv": map[string]interface{}{
+		"enabled": false,
+	},
+	"lvm-localpv": map[string]interface{}{
+		"enabled": false,
+	},
+	"mayastor": map[string]interface{}{
+		"enabled": false,
+	},
+	"engines": map[string]interface{}{
+		"local": map[string]interface{}{
+			"lvm": map[string]interface{}{
+				"enabled": false,
+			},
+			"zfs": map[string]interface{}{
+				"enabled": false,
+			},
+		},
+		"replicated": map[string]interface{}{
+			"mayastor": map[string]interface{}{
+				"enabled": false,
+			},
 		},
 	},
 }
@@ -75,10 +107,6 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
 func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	helmValues["helper"] = map[string]interface{}{
-		"imageTag": UtilsVersion,
-	}
-
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
