@@ -7,25 +7,47 @@ endUserConfig: |
       - name: openebs
         values: |-
           newProperty: newValue
-          analytics:
-            enabled: true
-          localprovisioner:
+          localpv-provisioner:
+            analytics:
+              enabled: false
             hostpathClass:
               isDefaultClass: false
+            helperPod:
+              image:
+                tag: test
 expected:
   - name: openebs
     values: |
       newProperty: newValue
-      analytics:
-        enabled: true
-      ndmOperator:
-        enabled: false
-      helper:
-        imageTag: ""
-      ndm:
-        enabled: false
-      localprovisioner:
-        deviceClass:
+      localpv-provisioner:
+        analytics:
           enabled: false
         hostpathClass:
+          enabled: true
           isDefaultClass: false
+        localpv:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        helperPod:
+          image:
+            tag: test
+      zfs-localpv:
+        enabled: false
+      lvm-localpv:
+        enabled: false
+      mayastor:
+        enabled: false
+      engines:
+        local:
+          lvm:
+            enabled: false
+          zfs:
+            enabled: false
+        replicated:
+          mayastor:
+            enabled: false

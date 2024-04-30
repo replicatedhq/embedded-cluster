@@ -26,13 +26,21 @@ spec:
                 namespace: openebs
                 order: 1
                 values: |
-                  localprovisioner:
+                  localpv-provisioner:
+                    analytics:
+                      enabled: false
                     hostpathClass:
+                      enabled: true
                       isDefaultClass: true
-                  ndm:
-                    enabled: false
-                  ndmOperator:
-                    enabled: false
+                  engines:
+                    local:
+                      lvm:
+                        enabled: false
+                      zfs:
+                        enabled: false
+                    replicated:
+                      mayastor:
+                        enabled: false
                 version: 4.0.1
               - chartname: oci://registry.replicated.com/library/embedded-cluster-operator
                 name: embedded-cluster-operator
