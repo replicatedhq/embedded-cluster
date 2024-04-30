@@ -546,7 +546,12 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -738,4 +743,24 @@ func runTestimTest(t *testing.T, tc *cluster.Output, testName string) (stdout, s
 	}
 
 	return stdout, stderr, nil
+}
+
+func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
+	t.Logf("%s: generating support bundle", time.Now().Format(time.RFC3339))
+	line := []string{"collect-support-bundle.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Logf("stdout: %s", stdout)
+		t.Logf("stderr: %s", stderr)
+		t.Errorf("fail to generate support bundle: %v", err)
+		return
+	}
+
+	t.Logf("%s: copying host support bundle to local machine", time.Now().Format(time.RFC3339))
+	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/host.tar.gz", "support-bundle-host.tar.gz"); err != nil {
+		t.Errorf("fail to copy host support bundle to local machine: %v", err)
+	}
+	t.Logf("%s: copying cluster support bundle to local machine", time.Now().Format(time.RFC3339))
+	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
+		t.Errorf("fail to copy cluster support bundle to local machine: %v", err)
+	}
 }
