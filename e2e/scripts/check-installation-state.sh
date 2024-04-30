@@ -25,7 +25,7 @@ wait_for_installation() {
     done
 
     # ensure that the installation has the kots backup label
-    kubectl get installations --no-headers -l "kots.io/backup=velero" | grep "Installed"
+    kubectl get installations --no-headers -l "kots.io/backup=infrastructure" | grep "Installed"
 }
 
 wait_for_nginx_pods() {
