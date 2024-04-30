@@ -54,14 +54,6 @@ expected:
         hostpathClass:
           enabled: true
           isDefaultClass: false
-        localpv:
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 100m
-              memory: 128Mi
         helperPod:
           image:
             tag: test

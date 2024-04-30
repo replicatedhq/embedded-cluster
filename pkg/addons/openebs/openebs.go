@@ -37,18 +37,6 @@ var helmValues = map[string]interface{}{
 			"enabled":        true,
 			"isDefaultClass": true,
 		},
-		"localpv": map[string]interface{}{
-			"resources": map[string]interface{}{
-				"requests": map[string]interface{}{
-					"cpu":    "100m",
-					"memory": "128Mi",
-				},
-				"limits": map[string]interface{}{
-					"cpu":    "100m",
-					"memory": "128Mi",
-				},
-			},
-		},
 		"helperPod": map[string]interface{}{
 			"image": map[string]interface{}{
 				"tag": UtilsVersion,
