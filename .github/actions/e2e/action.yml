@@ -77,6 +77,18 @@ runs:
       export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
       export TESTIM_BRANCH=${{ inputs.testim-branch }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+  - name: Upload Host Support Bundle
+    uses: actions/upload-artifact@v4
+    if: ${{ failure() }}
+    with:
+      name: ${{ github.job }}-support-bundle-host.tar.gz
+      path: ./e2e/support-bundle-host.tar.gz
+  - name: Upload Cluster Support Bundle
+    uses: actions/upload-artifact@v4
+    if: ${{ failure() }}
+    with:
+      name: ${{ github.job }}-support-bundle-cluster.tar.gz
+      path: ./e2e/support-bundle-cluster.tar.gz
 #  - name: Setup upterm session (ssh)
 #    uses: lhotari/action-upterm@v1
 #    if: always()

@@ -477,6 +477,27 @@ func CopyFileToNode(in *Input, node string, file File) {
 	}
 }
 
+// CopyFileFromNode copies a file from a node to the host.
+func CopyFileFromNode(node, source, dest string) error {
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to LXD: %v", err)
+	}
+	content, _, err := client.GetContainerFile(node, source)
+	if err != nil {
+		return fmt.Errorf("Failed to get file %s: %v", source, err)
+	}
+	fp, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("Failed to create file %s: %v", dest, err)
+	}
+	defer fp.Close()
+	if _, err := io.Copy(fp, content); err != nil {
+		return fmt.Errorf("Failed to copy file %s: %v", dest, err)
+	}
+	return nil
+}
+
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
 func CreateNodes(in *Input) []string {
