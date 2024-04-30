@@ -47,6 +47,9 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
+	// TODO: remove after validating that this
+	generateAndCopySupportBundle(t, tc)
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -752,7 +755,6 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 		t.Logf("stdout: %s", stdout)
 		t.Logf("stderr: %s", stderr)
 		t.Errorf("fail to generate support bundle: %v", err)
-		return
 	}
 
 	t.Logf("%s: copying host support bundle to local machine", time.Now().Format(time.RFC3339))
