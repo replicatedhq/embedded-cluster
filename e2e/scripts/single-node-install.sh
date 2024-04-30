@@ -241,8 +241,8 @@ ensure_binary_copy() {
 
 ensure_installation_label() {
     # ensure that the installation has the kots backup label
-    if ! kubectl get installations -l "kots.io/embedded-cluster/backup=infrastructure" --no-headers; then
-        echo "installation does not have the kots.io/backup=infrastructure label"
+    if ! kubectl get installations -l "kots.io/embedded-cluster-backup=infrastructure" --no-headers; then
+        echo "installation does not have the kots.io/embedded-cluster-backup=infrastructure label"
         kubectl describe installations --no-headers
         return 1
     fi
