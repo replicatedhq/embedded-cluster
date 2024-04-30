@@ -33,7 +33,7 @@ spec:
                     enabled: false
                   ndmOperator:
                     enabled: false
-                version: 3.10.0
+                version: 4.0.1
               - chartname: oci://registry.replicated.com/library/embedded-cluster-operator
                 name: embedded-cluster-operator
                 namespace: embedded-cluster
@@ -57,7 +57,7 @@ spec:
                 version: 6.6.2
               repositories:
               - name: openebs
-                url: https://openebs.github.io/charts
+                url: https://openebs.github.io/openebs
 "
 
 embed_cluster_config() {
