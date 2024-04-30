@@ -21,7 +21,12 @@ func TestSingleNodeInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -47,8 +52,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
-	// TODO: remove after validating that this
-	generateAndCopySupportBundle(t, tc)
+	// TODO: remove after validating that this works
+	t.Fatal("support bundle generated, failing test")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
