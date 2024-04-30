@@ -57,7 +57,7 @@ spec:
                 version: 6.6.2
               repositories:
               - name: openebs
-                url: https://openebs-archive.github.io/charts
+                url: https://openebs.github.io/charts
 "
 
 embed_cluster_config() {
