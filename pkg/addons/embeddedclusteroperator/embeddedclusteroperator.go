@@ -193,8 +193,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
 			Labels: map[string]string{
-				"kots.io/backup":                "infrastructure",
-				"kots.io/embedded-cluster-type": "installation",
+				"kots.io/embedded-cluster/backup": "infrastructure",
 			},
 		},
 		Spec: embeddedclusterv1beta1.InstallationSpec{
