@@ -249,6 +249,7 @@ main() {
 
     if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
+        kubectl get pods -A
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
