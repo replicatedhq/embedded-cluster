@@ -34,7 +34,8 @@ var helmValues = map[string]interface{}{
 			"enabled": false,
 		},
 		"hostpathClass": map[string]interface{}{
-			"enabled": false,
+			"enabled":        true,
+			"isDefaultClass": true,
 		},
 		"localpv": map[string]interface{}{
 			"resources": map[string]interface{}{
