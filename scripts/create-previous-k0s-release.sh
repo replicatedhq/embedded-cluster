@@ -44,7 +44,6 @@ function metadata() {
     if [ -f metadata-previous-k0s.json ]; then
         sudo apt-get install jq -y
 
-        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "global:\n  labels:\n    embedded-cluster-operator-upgrade-label: embedded-cluster-operator-upgrade-value"' metadata-previous-k0s.json > install-metadata.json
         cat install-metadata.json
 
         retry 3 aws s3 cp install-metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
