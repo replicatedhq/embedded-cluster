@@ -909,7 +909,7 @@ func (r *InstallationReconciler) CoalesceInstallations(
 	ctx context.Context, items []v1beta1.Installation,
 ) *v1beta1.Installation {
 	sort.SliceStable(items, func(i, j int) bool {
-		return items[j].CreationTimestamp.Before(&items[i].CreationTimestamp)
+		return items[j].Name < items[i].Name
 	})
 	if len(items) == 1 || len(items[0].Status.NodesStatus) > 0 {
 		return &items[0]
@@ -930,7 +930,7 @@ func (r *InstallationReconciler) CoalesceInstallations(
 // retry on the next reconcile.
 func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, items []v1beta1.Installation) {
 	sort.SliceStable(items, func(i, j int) bool {
-		return items[j].CreationTimestamp.Before(&items[i].CreationTimestamp)
+		return items[j].Name < items[i].Name
 	})
 	for _, in := range items[1:] {
 		in.Status.NodesStatus = nil
