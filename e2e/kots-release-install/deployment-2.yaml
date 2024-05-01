@@ -4,6 +4,7 @@ metadata:
   name: second
   labels:
     app: second
+    replicated.com/disaster-recovery: app
 spec:
   replicas: 0
   selector:

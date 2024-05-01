@@ -5,6 +5,7 @@ metadata:
   labels:
     app: example
     component: nginx
+    replicated.com/disaster-recovery: app
 spec:
   replicas: 1
   selector:
