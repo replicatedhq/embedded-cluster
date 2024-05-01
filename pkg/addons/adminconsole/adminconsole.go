@@ -316,7 +316,8 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 			Name:      "registry-creds",
 			Namespace: namespace,
 			Labels: map[string]string{
-				"kots.io/kotsadm": "true",
+				"kots.io/kotsadm":                  "true",
+				"replicated.com/disaster-recovery": "infra",
 			},
 		},
 		StringData: map[string]string{
