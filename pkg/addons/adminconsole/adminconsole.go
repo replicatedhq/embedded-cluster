@@ -60,6 +60,10 @@ var helmValues = map[string]interface{}{
 		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
 	},
 	"embeddedClusterVersion": defaults.Version,
+	"labels": map[string]interface{}{
+		"replicated.com/disaster-recovery":       "infra",
+		"replicated.com/disaster-recovery-chart": "kotsadm",
+	},
 }
 
 func init() {
