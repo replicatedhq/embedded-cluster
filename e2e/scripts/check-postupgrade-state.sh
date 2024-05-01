@@ -100,11 +100,11 @@ main() {
 
     # ensure that the embedded-cluster-operator has been updated
     kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator
-    kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator | grep -q embedded-cluster-operator-upgrade-value # ensure new values are present
+    kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator | grep -q "123m" # ensure new values are present
     kubectl describe pod -n embedded-cluster
     # ensure the new value made it into the pod
-    if ! kubectl describe pod -n embedded-cluster | grep -q embedded-cluster-operator-upgrade-value ; then
-        echo "embedded-cluster-operator-upgrade-value not found in embedded-cluster pod"
+    if ! kubectl describe pod -n embedded-cluster | grep -q "123m" ; then
+        echo "CPU request of 123m not found in embedded-cluster pod"
         kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
         exit 1
     fi

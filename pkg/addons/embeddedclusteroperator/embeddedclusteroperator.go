@@ -47,6 +47,12 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterVersion":    defaults.Version,
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
 	"utilsImage":                UtilsImage,
+	"global": map[string]interface{}{
+		"labels": map[string]interface{}{
+			"replicated.com/disaster-recovery":       "infra",
+			"replicated.com/disaster-recovery-chart": "embedded-cluster-operator",
+		},
+	},
 }
 
 func init() {
