@@ -635,20 +635,14 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
 	}
 
-	t.Logf("%s: installing kots cli on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"install-kots-cli.sh", "http://10.0.0.254:3128"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install kots cli on node %s: %v", tc.Nodes[0], err)
-	}
-
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"kots-upstream-upgrade.sh", ""}
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
