@@ -4,14 +4,19 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 
 	"github.com/sirupsen/logrus"
 )
 
+type RunCommandWithWriterOptions struct {
+	Env map[string]string
+}
+
 // RunCommandWithWriter runs a the provided command. The stdout of the command is
 // written to the provider writer.
-func RunCommandWithWriter(to io.Writer, bin string, args ...string) error {
+func RunCommandWithWriter(opts RunCommandWithWriterOptions, to io.Writer, bin string, args ...string) error {
 	fullcmd := append([]string{bin}, args...)
 	logrus.Debugf("running command: %v", fullcmd)
 
@@ -20,6 +25,10 @@ func RunCommandWithWriter(to io.Writer, bin string, args ...string) error {
 	cmd := exec.Command(bin, args...)
 	cmd.Stdout = io.MultiWriter(to, stdout)
 	cmd.Stderr = stderr
+	cmd.Env = os.Environ()
+	for k, v := range opts.Env {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+	}
 	if err := cmd.Run(); err != nil {
 		logrus.Debugf("failed to run command:")
 		logrus.Debugf("stdout: %s", stdout.String())
@@ -36,7 +45,7 @@ func RunCommandWithWriter(to io.Writer, bin string, args ...string) error {
 // logrus package and stdout is returned as a string.
 func RunCommand(bin string, args ...string) (string, error) {
 	stdout := bytes.NewBuffer(nil)
-	if err := RunCommandWithWriter(stdout, bin, args...); err != nil {
+	if err := RunCommandWithWriter(RunCommandWithWriterOptions{}, stdout, bin, args...); err != nil {
 		return "", err
 	}
 	return stdout.String(), nil
