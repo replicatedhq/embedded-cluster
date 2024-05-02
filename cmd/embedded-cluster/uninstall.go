@@ -396,7 +396,7 @@ var resetCommand = &cli.Command{
 
 		lamPath := "/etc/systemd/system/local-artifact-mirror.service"
 		if _, err := os.Stat(lamPath); err == nil {
-			if _, err := helpers.RunCommand(nil, "systemctl", "stop", "local-artifact-mirror"); err != nil {
+			if _, err := helpers.RunCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
 				return err
 			}
 			if err := os.RemoveAll(lamPath); err != nil {

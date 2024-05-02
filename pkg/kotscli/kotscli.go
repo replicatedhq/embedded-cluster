@@ -64,12 +64,14 @@ func Install(opts InstallOptions) error {
 		lbreakfn = KotsOutputLineBreaker()
 	}
 
-	env := map[string]string{
-		"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+	runCommandOptions := helpers.RunCommandWithWriterOptions{
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+		},
 	}
 
 	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
-	if err := helpers.RunCommandWithWriter(env, loading, kotsBinPath, installArgs...); err != nil {
+	if err := helpers.RunCommandWithWriter(runCommandOptions, loading, kotsBinPath, installArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
@@ -106,12 +108,14 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 		lbreakfn = KotsOutputLineBreaker()
 	}
 
-	env := map[string]string{
-		"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+	runCommandOptions := helpers.RunCommandWithWriterOptions{
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+		},
 	}
 
 	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
-	if err := helpers.RunCommandWithWriter(env, loading, kotsBinPath, upstreamUpgradeArgs...); err != nil {
+	if err := helpers.RunCommandWithWriter(runCommandOptions, loading, kotsBinPath, upstreamUpgradeArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to update the application: %w", err)
 	}

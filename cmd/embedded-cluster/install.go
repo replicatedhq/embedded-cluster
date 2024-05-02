@@ -37,13 +37,13 @@ func installAndEnableLocalArtifactMirror() error {
 	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
-	if _, err := helpers.RunCommand(nil, "systemctl", "daemon-reload"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if _, err := helpers.RunCommand(nil, "systemctl", "start", "local-artifact-mirror"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "start", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
-	if _, err := helpers.RunCommand(nil, "systemctl", "enable", "local-artifact-mirror"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
 	return nil
@@ -72,7 +72,7 @@ func configureNetworkManager(c *cli.Context) error {
 	}
 
 	logrus.Debugf("network manager config created, restarting the service")
-	if _, err := helpers.RunCommand(nil, "systemctl", "restart", "NetworkManager"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to restart network manager: %w", err)
 	}
 	return nil
@@ -86,7 +86,7 @@ func runPostInstall() error {
 	if err := os.Symlink(src, dst); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
-	if _, err := helpers.RunCommand(nil, "systemctl", "daemon-reload"); err != nil {
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
 	return installAndEnableLocalArtifactMirror()
@@ -334,10 +334,10 @@ func installK0s() error {
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
-	if _, err := helpers.RunCommand(nil, hstbin, config.InstallFlags()...); err != nil {
+	if _, err := helpers.RunCommand(hstbin, config.InstallFlags()...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
-	if _, err := helpers.RunCommand(nil, hstbin, "start"); err != nil {
+	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
 		return fmt.Errorf("unable to start: %w", err)
 	}
 	return nil
@@ -362,7 +362,7 @@ func waitForK0s() error {
 	if !success {
 		return fmt.Errorf("timeout waiting for %s", defaults.BinaryName())
 	}
-	if _, err := helpers.RunCommand(nil, defaults.K0sBinaryPath(), "status"); err != nil {
+	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
 	}
 	loading.Infof("Node installation finished")
