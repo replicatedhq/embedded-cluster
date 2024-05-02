@@ -4,16 +4,10 @@ set -euox pipefail
 main() {
     local installation_version=
     installation_version="$1"
-
-    if [ -z "$installation_version" ]; then
-        echo "upgrading from airgap bundle"
-        kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --airgap-bundle /tmp/upgrade/release.airgap
-    else
-        echo "upgrading to version ${installation_version}-upgrade from online"
-        kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --deploy-version-label="appver-${installation_version}-upgrade"
-        sleep 30 # wait for the app version to be created
-    fi
-
+    
+    echo "upgrading to version ${installation_version}-upgrade from online"
+    kubectl kots upstream upgrade embedded-cluster-smoke-test-staging-app --namespace kotsadm --deploy-version-label="appver-${installation_version}-upgrade"
+    sleep 30 # wait for the app version to be created
 }
 
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
