@@ -322,7 +322,7 @@ func installK0sBinary() error {
 
 // startK0sService starts the k0s service.
 func startK0sService() error {
-	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "start"); err != nil {
+	if _, err := helpers.RunCommand(nil, defaults.K0sBinaryPath(), "start"); err != nil {
 		return fmt.Errorf("unable to start: %w", err)
 	}
 	return nil
@@ -348,7 +348,7 @@ func createSystemdUnitFiles(fullcmd string) error {
 	if err := os.Symlink(src, dst); err != nil {
 		return err
 	}
-	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
+	if _, err := helpers.RunCommand(nil, "systemctl", "daemon-reload"); err != nil {
 		return err
 	}
 	return installAndEnableLocalArtifactMirror()
@@ -362,7 +362,7 @@ func runK0sInstallCommand(fullcmd string) error {
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
 	}
-	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
+	if _, err := helpers.RunCommand(nil, args[0], args[1:]...); err != nil {
 		return err
 	}
 	return nil
