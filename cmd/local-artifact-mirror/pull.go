@@ -35,7 +35,7 @@ var kubecli client.Client
 // the most up to date images, binaries and helm charts.
 var pullCommand = &cli.Command{
 	Name:  "pull",
-	Usage: "Pull artifacts for an disconnect installation",
+	Usage: "Pull artifacts for an airgap installation",
 	Before: func(c *cli.Context) (err error) {
 		if kubecli, err = kubeutils.KubeClient(); err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
@@ -98,7 +98,7 @@ var imagesCommand = &cli.Command{
 // in the default location.
 var helmChartsCommand = &cli.Command{
 	Name:      "helmcharts",
-	Usage:     "Pull helm chart artifacts for an airgap installation",
+	Usage:     "Pull Helm chart artifacts for an airgap installation",
 	UsageText: `embedded-cluster-operator pull helmcharts <installation-name>`,
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
