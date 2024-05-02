@@ -414,7 +414,7 @@ var installCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "no-prompt",
-			Usage: "Do not prompt user when it is not necessary",
+			Usage: "Disable interactive prompts. Admin console password will be set to password.",
 			Value: false,
 		},
 		&cli.StringFlag{
@@ -440,8 +440,8 @@ var installCommand = &cli.Command{
 			return err
 		} else if installed {
 			logrus.Errorf("An installation has been detected on this machine.")
-			logrus.Infof("If you want to reinstall you need to remove the existing installation")
-			logrus.Infof("first. You can do this by running the following command:")
+			logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
+			logrus.Infof("You can do this by running the following command:")
 			logrus.Infof("\n  sudo ./%s reset\n", binName)
 			return ErrNothingElseToAdd
 		}

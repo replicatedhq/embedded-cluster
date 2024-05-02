@@ -21,7 +21,7 @@ func main() {
 	name := path.Base(os.Args[0])
 	var app = &cli.App{
 		Name:     name,
-		Usage:    "Runs or pulls data for the local artifact mirror",
+		Usage:    "Run or pull data for the local artifact mirror",
 		Commands: []*cli.Command{serveCommand, pullCommand},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {

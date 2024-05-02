@@ -19,7 +19,7 @@ var updateCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     "airgap-bundle",
-			Usage:    "Path to the airgap bundle.",
+			Usage:    "Path to the airgap bundle",
 			Required: true,
 		},
 	},
