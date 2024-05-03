@@ -297,7 +297,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 
 func spinForInstallation(ctx context.Context, cli client.Client) error {
 	installSpin := spinner.Start()
-	installSpin.Infof("Waiting for installation to complete")
+	installSpin.Infof("Waiting for additional components to complete")
 	err := kubeutils.WaitForInstallation(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("unable to wait for installation: %w", err)
