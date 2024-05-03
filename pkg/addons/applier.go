@@ -65,10 +65,6 @@ func (a *Applier) Outro(ctx context.Context) error {
 			return err
 		}
 	}
-	err = kubeutils.SpinForInstallation(ctx, kcli)
-	if err != nil {
-		return fmt.Errorf("unable to wait for installation: %w", err)
-	}
 	return nil
 }
 

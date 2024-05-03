@@ -7,7 +7,6 @@ import (
 	"time"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -102,9 +101,7 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 	return nil
 }
 
-func SpinForInstallation(ctx context.Context, cli client.Client) error {
-	loading := spinner.Start()
-	loading.Infof("Waiting for Installation to complete")
+func WaitForInstallation(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 
@@ -140,8 +137,6 @@ func SpinForInstallation(ctx context.Context, cli client.Client) error {
 	); err != nil {
 		return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
 	}
-
-	loading.Closef("Installation has completed!")
 	return nil
 
 }
