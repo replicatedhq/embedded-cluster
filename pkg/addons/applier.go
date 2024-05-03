@@ -72,8 +72,9 @@ func (a *Applier) Outro(ctx context.Context) error {
 		return err
 	}
 
+	// this is a link to the admin console, and that is only installed if there is a license provided
 	if a.licenseFile != "" {
-		err = printSuccessMessage(a.licenseFile)
+		err = printKotsadmLinkMessage(a.licenseFile)
 		if err != nil {
 			return fmt.Errorf("unable to print success message: %w", err)
 		}
@@ -306,8 +307,8 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-// printSuccessMessage prints the success message when the admin console is online.
-func printSuccessMessage(licenseFile string) error {
+// printKotsadmLinkMessage prints the success message when the admin console is online.
+func printKotsadmLinkMessage(licenseFile string) error {
 	license, err := helpers.ParseLicense(licenseFile)
 	if err != nil {
 		return fmt.Errorf("unable to parse license: %w", err)
