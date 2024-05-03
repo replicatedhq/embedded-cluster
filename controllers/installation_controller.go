@@ -630,19 +630,13 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return nil
 	}
 
-	combinedConfigs := mergeHelmConfigs(meta, in)
+	combinedConfigs := mergeHelmConfigs(ctx, meta, in)
 
 	// fetch the current clusterConfig
 	var clusterConfig k0sv1beta1.ClusterConfig
 	if err := r.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterConfig); err != nil {
 		return fmt.Errorf("failed to get cluster config: %w", err)
 	}
-
-	finalChartList, err := generateDesiredCharts(meta, clusterConfig, combinedConfigs)
-	if err != nil {
-		return err
-	}
-	combinedConfigs.Charts = finalChartList
 
 	if in.Spec.AirGap {
 		// if in airgap mode then all charts are already on the node's disk. we just need to

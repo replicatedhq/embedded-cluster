@@ -1,113 +1,15 @@
 package controllers
 
 import (
+	"context"
 	"testing"
 
-	"github.com/k0sproject/dig"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/stretchr/testify/require"
-	"sigs.k8s.io/yaml"
 )
-
-func Test_mergeValues(t *testing.T) {
-	tests := []struct {
-		name            string
-		oldValues       string
-		newValues       string
-		protectedValues []string
-		want            string
-	}{
-		{
-			name: "combined test",
-			oldValues: `
-  password: "foo"
-  someField: "asdf"
-  other: "text"
-  overridden: "abcxyz"
-  nested:
-    nested:
-       protect: "testval"
-`,
-			newValues: `
-  someField: "newstring"
-  other: "text"
-  overridden: "this is new"
-  nested:
-    nested:
-      newkey: "newval"
-      protect: "newval"
-`,
-			protectedValues: []string{"password", "overridden", "nested.nested.protect"},
-			want: `
-  password: "foo"
-  someField: "newstring"
-  nested:
-    nested:
-      newkey: "newval"
-      protect: "testval"
-  other: "text"
-  overridden: "abcxyz"
-`,
-		},
-		{
-			name:      "empty old values",
-			oldValues: ``,
-			newValues: `
-  someField: "newstring"
-  other: "text"
-  overridden: "this is new"
-  nested:
-    nested:
-      newkey: "newval"
-      protect: "newval"
-`,
-			protectedValues: []string{"password", "overridden", "nested.nested.protect"},
-			want: `
-  someField: "newstring"
-  overridden: "this is new"
-  nested:
-    nested:
-      newkey: "newval"
-      protect: "newval"
-  other: "text"
-`,
-		},
-		{
-			name: "no protected values",
-			oldValues: `
-	  password: "foo"
-	  someField: "asdf"
-`,
-			newValues: `
-password: "newpassword"
-`,
-			protectedValues: []string{},
-			want: `
-password: "newpassword"
-`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
-			got, err := MergeValues(tt.oldValues, tt.newValues, tt.protectedValues)
-			req.NoError(err)
-
-			targetDataMap := dig.Mapping{}
-			err = yaml.Unmarshal([]byte(tt.want), &targetDataMap)
-			req.NoError(err)
-
-			mergedDataMap := dig.Mapping{}
-			err = yaml.Unmarshal([]byte(got), &mergedDataMap)
-			req.NoError(err)
-
-			req.Equal(targetDataMap, mergedDataMap)
-		})
-	}
-}
 
 func Test_mergeHelmConfigs(t *testing.T) {
 	type args struct {
@@ -336,7 +238,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 			}
 
 			req := require.New(t)
-			got := mergeHelmConfigs(tt.args.meta, &installation)
+			got := mergeHelmConfigs(context.TODO(), tt.args.meta, &installation)
 			req.Equal(tt.want, got)
 		})
 	}
@@ -649,134 +551,6 @@ func Test_detectChartCompletion(t *testing.T) {
 			req.NoError(err)
 			req.Equal(tt.wantChartErrors, gotErrors)
 			req.Equal(tt.wantIncompleteCharts, gotIncomplete)
-		})
-	}
-}
-
-func Test_generateDesiredCharts(t *testing.T) {
-	type args struct {
-		meta            *ectypes.ReleaseMetadata
-		clusterconfig   k0sv1beta1.ClusterConfig
-		combinedConfigs *k0sv1beta1.HelmExtensions
-	}
-	tests := []struct {
-		name string
-		args args
-		want []k0sv1beta1.Chart
-	}{
-		{
-			name: "no meta/configs",
-			args: args{
-				meta: nil,
-				clusterconfig: k0sv1beta1.ClusterConfig{
-					Spec: &k0sv1beta1.ClusterSpec{
-						Extensions: &k0sv1beta1.ClusterExtensions{
-							Helm: &k0sv1beta1.HelmExtensions{},
-						},
-					},
-				},
-				combinedConfigs: &k0sv1beta1.HelmExtensions{},
-			},
-			want: []k0sv1beta1.Chart{},
-		},
-		{
-			name: "add new chart, change chart values, change chart versions, remove old chart",
-			args: args{
-				meta: &ectypes.ReleaseMetadata{
-					Protected: map[string][]string{
-						"changethis": {"abc"},
-					},
-				},
-				clusterconfig: k0sv1beta1.ClusterConfig{
-					Spec: &k0sv1beta1.ClusterSpec{
-						Extensions: &k0sv1beta1.ClusterExtensions{
-							Helm: &k0sv1beta1.HelmExtensions{
-								Charts: []k0sv1beta1.Chart{
-									{
-										Name: "removethis",
-									},
-									{
-										Name:   "changethis",
-										Values: "abc: xyz",
-									},
-									{
-										Name:    "newversion",
-										Version: "1.0.0",
-									},
-									{
-										Name:    "change2",
-										Values:  "",
-										Version: "1.0.0",
-									},
-									{
-										Name:    "change3",
-										Values:  "",
-										Version: "1.0.0",
-									},
-								},
-							},
-						},
-					},
-				},
-				combinedConfigs: &k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
-						{
-							Name:   "addthis",
-							Values: "addedval: xyz",
-						},
-						{
-							Name:   "changethis",
-							Values: "key2: val2",
-						},
-						{
-							Name:    "newversion",
-							Version: "2.0.0",
-						},
-						{
-							Name:    "change2",
-							Values:  "abc: 2",
-							Version: "1.0.2",
-						},
-						{
-							Name:    "change3",
-							Version: "1.0.3",
-							Values:  "abc: 3",
-						},
-					},
-				},
-			},
-			want: []k0sv1beta1.Chart{
-				{
-					Name:   "addthis",
-					Values: "addedval: xyz",
-				},
-				{
-					Name:   "changethis",
-					Values: "abc: xyz\nkey2: val2\n",
-				},
-				{
-					Name:    "newversion",
-					Version: "2.0.0",
-				},
-				{
-					Name:    "change2",
-					Values:  "abc: 2",
-					Version: "1.0.2",
-				},
-				{
-					Name:    "change3",
-					Version: "1.0.3",
-					Values:  "abc: 3",
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
-			got, err := generateDesiredCharts(tt.args.meta, tt.args.clusterconfig, tt.args.combinedConfigs)
-			req.NoError(err)
-			req.ElementsMatch(tt.want, got)
 		})
 	}
 }
@@ -1300,6 +1074,88 @@ func Test_applyUserProvidedAddonOverrides(t *testing.T) {
 			got, err := applyUserProvidedAddonOverrides(tt.installation, tt.config)
 			req.NoError(err)
 			req.Equal(tt.want, got)
+		})
+	}
+}
+
+func Test_updateInfraChartsFromInstall(t *testing.T) {
+	type args struct {
+		in     *v1beta1.Installation
+		charts []k0sv1beta1.Chart
+	}
+	tests := []struct {
+		name string
+		args args
+		want []k0sv1beta1.Chart
+	}{
+		{
+			name: "other chart",
+			args: args{
+				in: &v1beta1.Installation{
+					Spec: v1beta1.InstallationSpec{
+						ClusterID: "abc",
+					},
+				},
+				charts: []k0sv1beta1.Chart{
+					{
+						Name:   "test",
+						Values: "abc: xyz",
+					},
+				},
+			},
+			want: []k0sv1beta1.Chart{
+				{
+					Name:   "test",
+					Values: "abc: xyz",
+				},
+			},
+		},
+		{
+			name: "admin console and operator",
+			args: args{
+				in: &v1beta1.Installation{
+					Spec: v1beta1.InstallationSpec{
+						ClusterID:  "testid",
+						BinaryName: "testbin",
+						AirGap:     true,
+					},
+				},
+				charts: []k0sv1beta1.Chart{
+					{
+						Name:   "test",
+						Values: "abc: xyz",
+					},
+					{
+						Name:   "admin-console",
+						Values: "abc: xyz",
+					},
+					{
+						Name:   "embedded-cluster-operator",
+						Values: "this: that",
+					},
+				},
+			},
+			want: []k0sv1beta1.Chart{
+				{
+					Name:   "test",
+					Values: "abc: xyz",
+				},
+				{
+					Name:   "admin-console",
+					Values: "abc: xyz\nembeddedClusterID: testid\nisAirgap: \"true\"\n",
+				},
+				{
+					Name:   "embedded-cluster-operator",
+					Values: "embeddedBinaryName: testbin\nembeddedClusterID: testid\nthis: that\n",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			got := updateInfraChartsFromInstall(context.TODO(), tt.args.in, tt.args.charts)
+			req.ElementsMatch(tt.want, got)
 		})
 	}
 }

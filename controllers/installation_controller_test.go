@@ -410,10 +410,13 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 			},
 		},
 		{
-			name: "k8s install completed, good version, overridden values, both types of charts, no drift",
+			name: "k8s install completed, good version, admin console and operator values, both types of charts, no drift",
 			in: v1beta1.Installation{
 				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
 				Spec: v1beta1.InstallationSpec{
+					ClusterID:  "test cluster ID",
+					BinaryName: "test-binary-name",
+					AirGap:     false,
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
@@ -437,30 +440,49 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				Configs: k0sv1beta1.HelmExtensions{
 					Charts: []k0sv1beta1.Chart{
 						{
-							Name:    "metachart",
+							Name:    "admin-console",
 							Version: "1",
 							Values: `
 abc: xyz
-password: overridden`,
+password: frommeta`,
+						},
+						{
+							Name:    "embedded-cluster-operator",
+							Version: "1",
+							Values: `
+abc: xyz
+password: frommeta`,
 						},
 					},
-				},
-				Protected: map[string][]string{
-					"metachart": {"password"},
 				},
 			},
 			fields: fields{
 				State: []runtime.Object{
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "metachart",
+							Name: "admin-console",
 						},
 						Spec: k0shelmv1beta1.ChartSpec{
-							ReleaseName: "metachart",
+							ReleaseName: "admin-console",
 							Values: `abc: xyz
-password: original`,
+embeddedClusterID: test cluster ID
+isAirgap: "false"
+password: frommeta`,
 						},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1", ValuesHash: "eec6dc8e36073ed2211154bca2d54cdc01acba8f512d46c095c3d7a1ede4b0d6"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1", ValuesHash: "84bc4f42c99204aeafa5349f6b0852a14a169db54082566ccd679ddbe49e27bb"},
+					},
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "embedded-cluster-operator",
+						},
+						Spec: k0shelmv1beta1.ChartSpec{
+							ReleaseName: "embedded-cluster-operator",
+							Values: `abc: xyz
+embeddedBinaryName: test-binary-name
+embeddedClusterID: test cluster ID
+password: frommeta`,
+						},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1", ValuesHash: "2b3f4301ee3da37c75b573e12fc8e0cb0dc81ec1fbf5a1084b9adc198f06bbb0"},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
@@ -479,11 +501,22 @@ password: original`,
 								Helm: &k0sv1beta1.HelmExtensions{
 									Charts: []k0sv1beta1.Chart{
 										{
-											Name:    "metachart",
+											Name:    "admin-console",
 											Version: "1",
 											Values: `
 abc: xyz
-password: original`,
+embeddedClusterID: test cluster ID
+isAirgap: "false"
+password: frommeta`,
+										},
+										{
+											Name:    "embedded-cluster-operator",
+											Version: "1",
+											Values: `
+abc: xyz
+embeddedBinaryName: test-binary-name
+embeddedClusterID: test cluster ID
+password: frommeta`,
 										},
 										{
 											Name:    "extchart",
@@ -532,9 +565,6 @@ abc: xyz
 password: overridden`,
 						},
 					},
-				},
-				Protected: map[string][]string{
-					"metachart": {"password"},
 				},
 			},
 			fields: fields{
