@@ -3,8 +3,11 @@ package kubeutils
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -97,6 +100,50 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 		return fmt.Errorf("timed out waiting for service %s to have an IP: %v", name, lasterr)
 	}
 	return nil
+}
+
+func SpinForInstallation(ctx context.Context, cli client.Client) error {
+	loading := spinner.Start()
+	loading.Infof("Waiting for Installation to complete")
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			var installList embeddedclusterv1beta1.InstallationList
+			if err := cli.List(ctx, &installList); err != nil {
+				lasterr = fmt.Errorf("unable to get installations: %v", err)
+				return false, nil
+			}
+
+			installs := installList.Items
+			if len(installs) == 0 {
+				lasterr = fmt.Errorf("no installations found")
+				return false, nil
+			}
+
+			// sort the installations
+			sort.SliceStable(installs, func(i, j int) bool {
+				return installs[j].Name < installs[i].Name
+			})
+
+			// get the latest installation
+			lastInstall := installs[0]
+
+			// check the status of the installation
+			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateInstalled {
+				return true, nil
+			}
+			// TODO: log the status of the installation
+			return false, nil
+		},
+	); err != nil {
+		return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
+	}
+
+	loading.Closef("Installation has completed!")
+	return nil
+
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
