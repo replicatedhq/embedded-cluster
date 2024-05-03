@@ -269,12 +269,13 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return err
 	}
 
-	loading.Infof("Waiting for installation to complete")
+	installSpin := spinner.Start()
+	installSpin.Infof("Waiting for installation to complete")
 	err = kubeutils.WaitForInstallation(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("unable to wait for installation: %w", err)
 	}
-	loading.Closef("Installation is complete!")
+	installSpin.Closef("Installation is complete!")
 
 	a.printSuccessMessage(license.Spec.AppSlug)
 	return nil
