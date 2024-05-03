@@ -109,6 +109,7 @@ main() {
         exit 1
     fi
 
+    # TODO: validate that labels are added after upgrading from an older version
     echo "ensure that the admin console branding is available"
     kubectl get cm -n kotsadm kotsadm-application-metadata
 
