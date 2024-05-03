@@ -72,9 +72,11 @@ func (a *Applier) Outro(ctx context.Context) error {
 		return err
 	}
 
-	err = printSuccessMessage(a.licenseFile)
-	if err != nil {
-		return fmt.Errorf("unable to print success message: %w", err)
+	if a.licenseFile != "" {
+		err = printSuccessMessage(a.licenseFile)
+		if err != nil {
+			return fmt.Errorf("unable to print success message: %w", err)
+		}
 	}
 	return nil
 }
