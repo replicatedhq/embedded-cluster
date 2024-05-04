@@ -74,7 +74,8 @@ main() {
     kubectl get pods -A
 
     echo "ensure that installation is installed"
-    if version | grep "pre-minio-removal"; then
+    if echo "$version" | grep "pre-minio-removal"; then
+        echo "waiting for installation as this is pre-minio-removal"
         wait_for_installation
     fi
     kubectl get installations --no-headers | grep -q "Installed"
