@@ -249,25 +249,25 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
 
+	if a.licenseFile != "" {
+		license, err := helpers.ParseLicense(a.licenseFile)
+		if err != nil {
+			loading.CloseWithError()
+			return fmt.Errorf("unable to parse license: %w", err)
+		}
+
+		if err := kotscli.Install(kotscli.InstallOptions{
+			AppSlug:      license.Spec.AppSlug,
+			LicenseFile:  a.licenseFile,
+			Namespace:    a.namespace,
+			AirgapBundle: a.airgapBundle,
+		}, loading); err != nil {
+			loading.CloseWithError()
+			return err
+		}
+	}
+
 	loading.Closef("Admin Console is ready!")
-	if a.licenseFile == "" {
-		return nil
-	}
-
-	license, err := helpers.ParseLicense(a.licenseFile)
-	if err != nil {
-		loading.CloseWithError()
-		return fmt.Errorf("unable to parse license: %w", err)
-	}
-
-	if err := kotscli.Install(kotscli.InstallOptions{
-		AppSlug:      license.Spec.AppSlug,
-		LicenseFile:  a.licenseFile,
-		Namespace:    a.namespace,
-		AirgapBundle: a.airgapBundle,
-	}); err != nil {
-		return err
-	}
 
 	return nil
 }

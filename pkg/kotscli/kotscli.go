@@ -24,7 +24,7 @@ type InstallOptions struct {
 	AirgapBundle string
 }
 
-func Install(opts InstallOptions) error {
+func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -64,19 +64,21 @@ func Install(opts InstallOptions) error {
 		lbreakfn = KotsOutputLineBreaker()
 	}
 
-	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
+	msg.SetLineBreaker(lbreakfn)
+	msg.SetMask(maskfn)
+	defer msg.SetMask(nil)
+	defer msg.SetLineBreaker(nil)
+
 	runCommandOptions := helpers.RunCommandOptions{
-		Writer: loading,
+		Writer: msg,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
 	}
 	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...); err != nil {
-		loading.CloseWithError()
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
-	loading.Closef("License validated!")
 	return nil
 }
 

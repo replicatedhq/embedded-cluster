@@ -19,9 +19,19 @@ func WithLineBreaker(lb LineBreakerFn) Option {
 	}
 }
 
+// SetLineBreaker sets the LineBreakerFn for a MessageWriter.
+func (m *MessageWriter) SetLineBreaker(lb LineBreakerFn) {
+	m.lbreak = lb
+}
+
 // WithMask sets the MaskFn on the MessageWriter.
 func WithMask(mfn MaskFn) Option {
 	return func(m *MessageWriter) {
 		m.mask = mfn
 	}
+}
+
+// SetMask sets the MaskFn for a MessageWriter.
+func (m *MessageWriter) SetMask(mfn MaskFn) {
+	m.mask = mfn
 }
