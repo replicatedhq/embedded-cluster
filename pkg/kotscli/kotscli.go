@@ -76,7 +76,7 @@ func Install(opts InstallOptions) error {
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
-	loading.Closef("Finished!")
+	loading.Closef("Finalized!")
 	return nil
 }
 
@@ -129,7 +129,7 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 // print "Finished!".
 func MaskKotsOutputForOnline() spinner.MaskFn {
 	return func(message string) string {
-		if strings.Contains(message, "Finished") {
+		if strings.Contains(message, "Finalized") {
 			return message
 		}
 		return "Finalizing"
