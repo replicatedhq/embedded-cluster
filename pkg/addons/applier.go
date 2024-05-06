@@ -342,6 +342,7 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 	if err != nil {
 		return fmt.Errorf("unable to wait for installation: %w", err)
 	}
+	cancel()
 	installSpin.Closef("Installation is complete!")
 	return nil
 }
