@@ -101,7 +101,7 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 	return nil
 }
 
-func WaitForInstallation(ctx context.Context, cli client.Client) error {
+func WaitForInstallation(ctx context.Context, cli client.Client, ch chan embeddedclusterv1beta1.InstallationStatus) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 
@@ -132,7 +132,11 @@ func WaitForInstallation(ctx context.Context, cli client.Client) error {
 				return true, nil
 			}
 			lasterr = fmt.Errorf("installation state is %q (%q)", lastInstall.Status.State, lastInstall.Status.Reason)
-			// TODO: log the status of the installation
+
+			if ch != nil {
+				ch <- lastInstall.Status
+			}
+
 			return false, nil
 		},
 	); err != nil {
