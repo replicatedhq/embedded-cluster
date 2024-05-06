@@ -91,6 +91,8 @@ type InstallationStatus struct {
 	State string `json:"state,omitempty"`
 	// Reason holds the reason for the current state.
 	Reason string `json:"reason,omitempty"`
+	// PendingCharts holds the list of charts that are being created or updated.
+	PendingCharts []string `json:"pendingCharts,omitempty"`
 }
 
 // SetState sets the installation state and reason.
