@@ -131,6 +131,7 @@ func WaitForInstallation(ctx context.Context, cli client.Client) error {
 			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateInstalled {
 				return true, nil
 			}
+			lasterr = fmt.Errorf("installation state is %q (%q)", lastInstall.Status.State, lastInstall.Status.Reason)
 			// TODO: log the status of the installation
 			return false, nil
 		},
