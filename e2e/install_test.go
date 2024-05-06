@@ -55,12 +55,12 @@ func TestSingleNodeInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
+func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "rockylinux/8",
+		Image:               "almalinux/8",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -332,7 +332,7 @@ func TestInstallWithoutEmbed(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "rockylinux/8",
+		Image:               "almalinux/8",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
