@@ -131,10 +131,10 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 // print "Finished!".
 func MaskKotsOutputForOnline() spinner.MaskFn {
 	return func(message string) string {
-		if strings.Contains(message, "validated") {
+		if strings.Contains(message, "Finished") {
 			return message
 		}
-		return "Validating license"
+		return "Finalizing"
 	}
 }
 
