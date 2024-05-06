@@ -76,7 +76,7 @@ func Install(opts InstallOptions) error {
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
-	loading.Closef("Finalized!")
+	loading.Closef("Finished!")
 	return nil
 }
 
