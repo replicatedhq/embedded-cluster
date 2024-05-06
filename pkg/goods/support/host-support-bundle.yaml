@@ -5,6 +5,7 @@ metadata:
 spec:
   uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/pkg/goods/support/host-support-bundle.yaml
   hostCollectors:
+  - ipv4Interfaces: {}
   - hostServices: {}
   - cpu: {}
   - hostOS: {}
@@ -40,6 +41,14 @@ spec:
       command: journalctl
       args: [ "--since", "2 days ago", "--no-pager", "-u", "k0scontroller.service" ]
   hostAnalyzers:
+  - ipv4Interfaces:
+      outcomes:
+      - fail:
+          when: "count == 0"
+          message: No IPv4 interfaces detected
+      - pass:
+          when: "count >= 1"
+          message: IPv4 interface detected
   - memory:
       checkName: Amount of Memory
       outcomes:
