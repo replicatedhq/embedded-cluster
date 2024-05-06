@@ -76,7 +76,7 @@ func Install(opts InstallOptions) error {
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
 
-	loading.Closef("Finalized!")
+	loading.Closef("License validated!")
 	return nil
 }
 
@@ -129,10 +129,10 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 // print "Finished!".
 func MaskKotsOutputForOnline() spinner.MaskFn {
 	return func(message string) string {
-		if strings.Contains(message, "Finalized") {
+		if strings.Contains(message, "validated") {
 			return message
 		}
-		return "Finalizing"
+		return "Validating license"
 	}
 }
 
