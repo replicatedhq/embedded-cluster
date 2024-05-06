@@ -634,8 +634,9 @@ password: original`,
 				},
 			},
 			out: v1beta1.InstallationStatus{
-				State:  v1beta1.InstallationStatePendingChartCreation,
-				Reason: "Pending charts: [metachart]",
+				State:         v1beta1.InstallationStatePendingChartCreation,
+				Reason:        "Pending charts: [metachart]",
+				PendingCharts: []string{"metachart"},
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
 				Configs: k0sv1beta1.HelmExtensions{
@@ -693,8 +694,9 @@ password: original`,
 				},
 			},
 			out: v1beta1.InstallationStatus{
-				State:  v1beta1.InstallationStatePendingChartCreation,
-				Reason: "Pending charts: [metachart]",
+				State:         v1beta1.InstallationStatePendingChartCreation,
+				Reason:        "Pending charts: [metachart]",
+				PendingCharts: []string{"metachart"},
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
 				Configs: k0sv1beta1.HelmExtensions{

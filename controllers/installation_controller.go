@@ -485,7 +485,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	// cluster then there is no upgrade to be executed, just set it to Installed and
 	// move on.
 	if in.Spec.Config == nil || in.Spec.Config.Version == "" || uniqinst {
-		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "")
+		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
 		return nil
 	}
 
@@ -501,7 +501,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	// fetch the metadata for the desired embedded cluster version.
 	meta, err := release.MetadataFor(ctx, in, r.Client)
 	if err != nil {
-		in.Status.SetState(v1beta1.InstallationStateFailed, err.Error())
+		in.Status.SetState(v1beta1.InstallationStateFailed, err.Error(), nil)
 		return nil
 	}
 
@@ -515,7 +515,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	running, err := version.NewVersion(runningVersion)
 	if err != nil {
 		reason := fmt.Sprintf("Invalid running version %s", runningVersion)
-		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 		return nil
 	}
 
@@ -527,21 +527,21 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	index := strings.Index(desiredVersion, "k0s")
 	if index == -1 {
 		reason := fmt.Sprintf("Invalid desired version %s", desiredVersion)
-		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 		return nil
 	}
 	desiredVersion = desiredVersion[:index+len("k0s")]
 	desired, err := version.NewVersion(desiredVersion)
 	if err != nil {
 		reason := fmt.Sprintf("Invalid desired version %s", in.Spec.Config.Version)
-		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 		return nil
 	}
 
 	// stop here if someone is trying a downgrade. we do not support this, flag the
 	// installation accordingly and returns.
 	if running.GreaterThan(desired) {
-		in.Status.SetState(v1beta1.InstallationStateFailed, "Downgrades not supported")
+		in.Status.SetState(v1beta1.InstallationStateFailed, "Downgrades not supported", nil)
 		return nil
 	}
 
@@ -584,7 +584,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	// issues multiple upgrade requests at the same time.
 	if !autopilot.HasThePlanEnded(plan) {
 		reason := fmt.Sprintf("Another upgrade is in progress (%s)", plan.Spec.ID)
-		in.Status.SetState(v1beta1.InstallationStateWaiting, reason)
+		in.Status.SetState(v1beta1.InstallationStateWaiting, reason, nil)
 		return nil
 	}
 
@@ -601,7 +601,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1beta1.Installation) error {
 	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
 		if in.Status.State == v1beta1.InstallationStateKubernetesInstalled {
-			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed")
+			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed", nil)
 		}
 		return nil
 	}
@@ -617,7 +617,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 
 	meta, err := release.MetadataFor(ctx, in, r.Client)
 	if err != nil {
-		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, err.Error())
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, err.Error(), nil)
 		return nil
 	}
 
@@ -625,7 +625,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 	if len(meta.Configs.Charts) == 0 {
 		log.Info("Addons", "configcheck", "no addons")
 		if in.Status.State == v1beta1.InstallationStateKubernetesInstalled {
-			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed")
+			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed", nil)
 		}
 		return nil
 	}
@@ -680,19 +680,19 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		if len(chartErrorString) > 1024 {
 			chartErrorString = chartErrorString[:1024]
 		}
-		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, chartErrorString)
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, chartErrorString, nil)
 		return nil
 	}
 
 	// If all addons match their target version + values, mark installation as complete
 	if len(pendingCharts) == 0 && !chartDrift {
-		in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded")
+		in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded", nil)
 		return nil
 	}
 
 	if len(pendingCharts) > 0 {
 		// If there are pending charts, mark the installation as pending with a message about the pending charts
-		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts))
+		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts), pendingCharts)
 		return nil
 	}
 
@@ -710,7 +710,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 
 	// Replace the current chart configs with the new chart configs
 	clusterConfig.Spec.Extensions.Helm = combinedConfigs
-	in.Status.SetState(v1beta1.InstallationStateAddonsInstalling, "Installing addons")
+	in.Status.SetState(v1beta1.InstallationStateAddonsInstalling, "Installing addons", nil)
 	log.Info("Updating cluster config with new helm charts", "updated charts", changedCharts)
 	//Update the clusterConfig
 	if err := r.Update(ctx, &clusterConfig); err != nil {
@@ -726,7 +726,7 @@ func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, p
 	reason := autopilot.ReasonForState(plan)
 	switch plan.Status.State {
 	case "":
-		in.Status.SetState(v1beta1.InstallationStateEnqueued, reason)
+		in.Status.SetState(v1beta1.InstallationStateEnqueued, reason, nil)
 	case apcore.PlanIncompleteTargets:
 		fallthrough
 	case apcore.PlanInconsistentTargets:
@@ -738,15 +738,15 @@ func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, p
 	case apcore.PlanMissingSignalNode:
 		fallthrough
 	case apcore.PlanApplyFailed:
-		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 	case apcore.PlanSchedulable:
 		fallthrough
 	case apcore.PlanSchedulableWait:
-		in.Status.SetState(v1beta1.InstallationStateInstalling, reason)
+		in.Status.SetState(v1beta1.InstallationStateInstalling, reason, nil)
 	case apcore.PlanCompleted:
-		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, reason)
+		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, reason, nil)
 	default:
-		in.Status.SetState(v1beta1.InstallationStateFailed, reason)
+		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 	}
 }
 
@@ -872,7 +872,7 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	// the installation state to 'Installed' and return. no extra autopilot plan creation
 	// is necessary at this stage.
 	if len(commands) == 0 {
-		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "")
+		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
 		return nil
 	}
 
@@ -892,7 +892,7 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	if err := r.Create(ctx, &plan); err != nil {
 		return fmt.Errorf("failed to create upgrade plan: %w", err)
 	}
-	in.Status.SetState(v1beta1.InstallationStateEnqueued, "")
+	in.Status.SetState(v1beta1.InstallationStateEnqueued, "", nil)
 	return nil
 }
 
@@ -931,6 +931,7 @@ func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, it
 		in.Status.SetState(
 			v1beta1.InstallationStateObsolete,
 			"This is not the most recent installation object",
+			nil,
 		)
 		r.Status().Update(ctx, &in)
 	}
