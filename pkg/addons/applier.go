@@ -320,7 +320,9 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 					installSpin.Infof("Waiting for additional components to complete installation: %s", meta.Reason)
 				} else {
 					chartNames := ""
-					if len(meta.PendingCharts) == 1 {
+					if len(meta.PendingCharts) == 0 {
+						continue
+					} else if len(meta.PendingCharts) == 1 {
 						// A
 						chartNames = meta.PendingCharts[0]
 					} else if len(meta.PendingCharts) == 2 {
