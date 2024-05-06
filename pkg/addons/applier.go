@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -304,7 +305,10 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 	bgCtx, cancel := context.WithCancel(ctx)
 	ch := make(chan embeddedclusterv1beta1.InstallationStatus)
 	defer cancel()
+	spinMut := sync.Mutex{}
 	go func() {
+		spinMut.Lock()
+		defer spinMut.Unlock()
 		for {
 			select {
 			case <-bgCtx.Done():
@@ -343,6 +347,7 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("unable to wait for installation: %w", err)
 	}
 	cancel()
+	spinMut.Lock() // prevent closing the spinner while we are still writing to it
 	installSpin.Closef("Installation is complete!")
 	return nil
 }
