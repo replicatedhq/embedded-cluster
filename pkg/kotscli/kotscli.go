@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -64,7 +65,13 @@ func Install(opts InstallOptions) error {
 	}
 
 	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
-	if err := helpers.RunCommandWithWriter(loading, kotsBinPath, installArgs...); err != nil {
+	runCommandOptions := helpers.RunCommandOptions{
+		Writer: loading,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+		},
+	}
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to install the application: %w", err)
 	}
@@ -102,7 +109,13 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 	}
 
 	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
-	if err := helpers.RunCommandWithWriter(loading, kotsBinPath, upstreamUpgradeArgs...); err != nil {
+	runCommandOptions := helpers.RunCommandOptions{
+		Writer: loading,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+		},
+	}
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, upstreamUpgradeArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
