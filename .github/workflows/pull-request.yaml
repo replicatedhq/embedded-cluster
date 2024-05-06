@@ -166,7 +166,7 @@ jobs:
       matrix:
         tests:
           - TestSingleNodeInstallation
-          - TestSingleNodeInstallationRockyLinux8
+          - TestSingleNodeInstallationAlmaLinux8
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos8Stream
           - TestVersion
