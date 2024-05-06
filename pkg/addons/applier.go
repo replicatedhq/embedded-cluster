@@ -303,7 +303,6 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 
 	bgCtx, cancel := context.WithCancel(ctx)
 	ch := make(chan embeddedclusterv1beta1.InstallationStatus)
-	defer close(ch)
 	defer cancel()
 	go func() {
 		for {
@@ -314,6 +313,8 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 				if !ok {
 					return // channel closed
 				}
+
+				fmt.Printf("read status %v\n", meta)
 
 				// figure out what to log
 				if meta.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
