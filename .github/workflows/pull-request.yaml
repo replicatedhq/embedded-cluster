@@ -39,3 +39,20 @@ jobs:
         push: true
         tags: |
           ttl.sh/embedded-cluster-operator-image:dev-${{ env.SHORT_SHA }}
+  check-crds:
+    name: Check CRDs
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Make Manifests
+      run: make manifests
+    - name: Check CRDs
+      run: |
+          git diff --exit-code --name-only
+          if [ $? -eq 0 ]; then
+            echo "CRDs are up to date"
+          else
+            echo "CRDs are out of date"
+            exit 1
+          fi

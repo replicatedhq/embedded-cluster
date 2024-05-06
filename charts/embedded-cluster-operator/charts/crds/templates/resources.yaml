@@ -516,6 +516,11 @@ spec:
                   - name
                   type: object
                 type: array
+              pendingCharts:
+                description: PendingCharts holds the list of charts that are being created or updated.
+                items:
+                  type: string
+                type: array
               reason:
                 description: Reason holds the reason for the current state.
                 type: string
