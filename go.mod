@@ -7,7 +7,7 @@ toolchain go1.22.2
 require (
 	github.com/evanphx/json-patch v5.7.0+incompatible
 	github.com/k0sproject/k0s v1.28.5-0.20231116142149-82f76181191c
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	k8s.io/apimachinery v0.30.0
 	sigs.k8s.io/controller-runtime v0.18.1
 	sigs.k8s.io/yaml v1.4.0
