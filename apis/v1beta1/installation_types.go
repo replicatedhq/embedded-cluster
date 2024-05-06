@@ -96,9 +96,10 @@ type InstallationStatus struct {
 }
 
 // SetState sets the installation state and reason.
-func (s *InstallationStatus) SetState(state string, reason string) {
+func (s *InstallationStatus) SetState(state string, reason string, pendingCharts []string) {
 	s.State = state
 	s.Reason = reason
+	s.PendingCharts = pendingCharts
 }
 
 func (s *InstallationStatus) GetKubernetesInstalled() bool {
