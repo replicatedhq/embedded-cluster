@@ -314,8 +314,6 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 					return // channel closed
 				}
 
-				fmt.Printf("read status %v\n", meta)
-
 				// figure out what to log
 				if meta.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
 					installSpin.Infof("Waiting for additional components to complete installation: %s", meta.Reason)

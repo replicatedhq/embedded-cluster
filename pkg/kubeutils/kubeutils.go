@@ -128,7 +128,6 @@ func WaitForInstallation(ctx context.Context, cli client.Client, ch chan embedde
 			lastInstall := installs[0]
 
 			if ch != nil {
-				fmt.Printf("sending status %v\n", lastInstall.Status)
 				ch <- lastInstall.Status
 			}
 
