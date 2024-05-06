@@ -57,9 +57,15 @@ runs:
   - name: Free up runner disk space
     shell: bash
     run: |
+      df -h
+      sudo docker system prune -af
       sudo rm -rf /usr/local/lib/android
       sudo rm -rf /opt/hostedtoolcache/CodeQL
       sudo rm -rf /opt/hostedtoolcache/Python
+      sudo rm -rf /usr/share/dotnet
+      sudo rm -rf /opt/ghc
+      sudo rm -rf /usr/local/share/boost
+      df -h
   - name: Set AppArmor mode to complain
     shell: bash
     run: |
@@ -89,6 +95,6 @@ runs:
     with:
       name: ${{ github.job }}-support-bundle-cluster.tar.gz
       path: ./e2e/support-bundle-cluster.tar.gz
-#  - name: Setup upterm session (ssh)
-#    uses: lhotari/action-upterm@v1
-#    if: always()
+  # - name: Setup upterm session (ssh)
+  #   uses: lhotari/action-upterm@v1
+  #   if: always()
