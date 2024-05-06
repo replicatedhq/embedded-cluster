@@ -31,6 +31,7 @@ main() {
       mkdir -p upgrade
       tar xzf /tmp/ec-release-upgrade.tgz -C upgrade
 
+      mv upgrade/embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster-upgrade
       mkdir -p /tmp/upgrade
       mv upgrade/license.yaml /tmp/upgrade/license.yaml
 

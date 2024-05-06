@@ -21,7 +21,12 @@ func TestSingleNodeInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -50,16 +55,21 @@ func TestSingleNodeInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
+func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "rockylinux/8",
+		Image:               "almalinux/8",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
@@ -103,7 +113,12 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
@@ -151,7 +166,12 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
@@ -228,7 +248,12 @@ func TestMultiNodeInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -307,11 +332,16 @@ func TestInstallWithoutEmbed(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "rockylinux/8",
+		Image:               "almalinux/8",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"default-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -328,7 +358,12 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "ubuntu/jammy",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -371,7 +406,12 @@ func TestResetAndReinstall(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -449,7 +489,12 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapBundlePath,
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -486,7 +531,12 @@ func TestOldVersionUpgrade(t *testing.T) {
 		Nodes: 1,
 		Image: "ubuntu/jammy",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -500,7 +550,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA"))}
+	line = []string{"check-pre-minio-removal-installation-state.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA"))}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -546,7 +596,12 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -580,20 +635,14 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to run testim test deploy-kots-application: %v", err)
 	}
 
-	t.Logf("%s: installing kots cli on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"install-kots-cli.sh", "http://10.0.0.254:3128"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install kots cli on node %s: %v", tc.Nodes[0], err)
-	}
-
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-airgap-installation-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"kots-upstream-upgrade.sh", ""}
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
@@ -623,7 +672,12 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "ubuntu/jammy",
 	})
-	defer tc.Destroy()
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+		}
+		tc.Destroy()
+	}()
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -738,4 +792,23 @@ func runTestimTest(t *testing.T, tc *cluster.Output, testName string) (stdout, s
 	}
 
 	return stdout, stderr, nil
+}
+
+func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
+	t.Logf("%s: generating support bundle", time.Now().Format(time.RFC3339))
+	line := []string{"collect-support-bundle.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Logf("stdout: %s", stdout)
+		t.Logf("stderr: %s", stderr)
+		t.Errorf("fail to generate support bundle: %v", err)
+	}
+
+	t.Logf("%s: copying host support bundle to local machine", time.Now().Format(time.RFC3339))
+	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/host.tar.gz", "support-bundle-host.tar.gz"); err != nil {
+		t.Errorf("fail to copy host support bundle to local machine: %v", err)
+	}
+	t.Logf("%s: copying cluster support bundle to local machine", time.Now().Format(time.RFC3339))
+	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
+		t.Errorf("fail to copy cluster support bundle to local machine: %v", err)
+	}
 }

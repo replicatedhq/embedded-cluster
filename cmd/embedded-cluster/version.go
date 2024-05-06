@@ -160,7 +160,7 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 
 var embeddedDataCommand = &cli.Command{
 	Name:   "embedded-data",
-	Usage:  "read the application data embedded in the cluster",
+	Usage:  "Read the application data embedded in the cluster",
 	Hidden: true,
 	Action: func(context *cli.Context) error {
 		// Application
