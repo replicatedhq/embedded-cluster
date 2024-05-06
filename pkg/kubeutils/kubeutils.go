@@ -127,15 +127,16 @@ func WaitForInstallation(ctx context.Context, cli client.Client, ch chan embedde
 			// get the latest installation
 			lastInstall := installs[0]
 
+			if ch != nil {
+				fmt.Printf("sending status %v\n", lastInstall.Status)
+				ch <- lastInstall.Status
+			}
+
 			// check the status of the installation
 			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateInstalled {
 				return true, nil
 			}
 			lasterr = fmt.Errorf("installation state is %q (%q)", lastInstall.Status.State, lastInstall.Status.Reason)
-
-			if ch != nil {
-				ch <- lastInstall.Status
-			}
 
 			return false, nil
 		},
