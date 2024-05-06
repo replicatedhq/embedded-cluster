@@ -17,6 +17,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
+
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,6 +39,10 @@ const (
 	InstallationStateUnknown                string = "Unknown"
 	InstallationStatePendingChartCreation   string = "PendingChartCreation"
 )
+
+// ConfigSecretEntryName holds the entry name we are looking for in the secret
+// that holds the embedded cluster configuration.
+const ConfigSecretEntryName = "config.yaml"
 
 // NodeStatus is used to keep track of the status of a cluster node, we
 // only hold its name and a hash of the node's status. Whenever the node
@@ -61,6 +69,14 @@ type LicenseInfo struct {
 	IsSnapshotSupported bool `json:"isSnapshotSupported"`
 }
 
+// ConfigSecret holds a reference to secret containing the embedded cluster
+// config. The config found on this secret overrides the configuration found
+// in the InstallationSpec.
+type ConfigSecret struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
 // InstallationSpec defines the desired state of Installation.
 type InstallationSpec struct {
 	// ClusterID holds the cluster, generated during the installation.
@@ -81,6 +97,26 @@ type InstallationSpec struct {
 	BinaryName string `json:"binaryName,omitempty"`
 	// LicenseInfo holds information about the license used to install the cluster.
 	LicenseInfo *LicenseInfo `json:"licenseInfo,omitempty"`
+	// ConfigSecret holds a secret name and namespace. If this is set it means that
+	// the Config for this Installation object must be read from there. This option
+	// superseeds (overrides) the Config field.
+	ConfigSecret *ConfigSecret `json:"configSecret,omitempty"`
+}
+
+// ParseConfigSpecFromSecret reads the embedded cluster configuration from a secret.
+// This function overrides the Config field in the InstallationSpec but does not
+// save it to the cluster.
+func (i *InstallationSpec) ParseConfigSpecFromSecret(secret corev1.Secret) error {
+	data, ok := secret.Data[ConfigSecretEntryName]
+	if !ok {
+		return nil
+	}
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("failed to parse config from secret: %w", err)
+	}
+	i.Config = &config.Spec
+	return nil
 }
 
 // InstallationStatus defines the observed state of Installation
