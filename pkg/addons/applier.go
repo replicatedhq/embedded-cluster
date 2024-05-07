@@ -6,8 +6,6 @@ package addons
 import (
 	"context"
 	"fmt"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -300,53 +298,10 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 	installSpin := spinner.Start()
 	installSpin.Infof("Waiting for additional components to be ready")
 
-	bgCtx, cancel := context.WithCancel(ctx)
-	ch := make(chan embeddedclusterv1beta1.InstallationStatus)
-	defer cancel()
-	spinMut := sync.Mutex{}
-	go func() {
-		spinMut.Lock()
-		defer spinMut.Unlock()
-		for {
-			select {
-			case <-bgCtx.Done():
-				return
-			case meta, ok := <-ch:
-				if !ok {
-					return // channel closed
-				}
-
-				// figure out what to log
-				if meta.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
-					installSpin.Infof("Waiting for additional components to be ready: %s", meta.Reason)
-					continue
-				}
-
-				chartNames := ""
-				if len(meta.PendingCharts) == 0 {
-					continue
-				} else if len(meta.PendingCharts) == 1 {
-					// A
-					chartNames = meta.PendingCharts[0]
-				} else if len(meta.PendingCharts) == 2 {
-					// A and B
-					chartNames = strings.Join(meta.PendingCharts, " and ")
-				} else {
-					// A, B, and C
-					chartNames = strings.Join(meta.PendingCharts[:len(meta.PendingCharts)-1], ", ") + " and " + meta.PendingCharts[len(meta.PendingCharts)-1]
-				}
-
-				installSpin.Infof("Waiting for additional components %s to be ready", chartNames)
-			}
-		}
-	}()
-
-	err := kubeutils.WaitForInstallation(ctx, cli, ch)
+	err := kubeutils.WaitForInstallation(ctx, cli, installSpin)
 	if err != nil {
 		return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 	}
-	cancel()
-	spinMut.Lock() // prevent closing the spinner while we are still writing to it
 	installSpin.Closef("Additional components are ready!")
 	return nil
 }

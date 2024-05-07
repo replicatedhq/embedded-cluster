@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
@@ -12,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 // BackOffToDuration returns the maximum duration of the provided backoff.
@@ -101,7 +104,7 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 	return nil
 }
 
-func WaitForInstallation(ctx context.Context, cli client.Client, ch chan embeddedclusterv1beta1.InstallationStatus) error {
+func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 
@@ -127,8 +130,8 @@ func WaitForInstallation(ctx context.Context, cli client.Client, ch chan embedde
 			// get the latest installation
 			lastInstall := installs[0]
 
-			if ch != nil {
-				ch <- lastInstall.Status
+			if writer != nil {
+				writeStatusMessage(writer, lastInstall.Status)
 			}
 
 			// check the status of the installation
@@ -143,7 +146,29 @@ func WaitForInstallation(ctx context.Context, cli client.Client, ch chan embedde
 		return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
 	}
 	return nil
+}
 
+func writeStatusMessage(writer *spinner.MessageWriter, status embeddedclusterv1beta1.InstallationStatus) {
+	if status.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
+		writer.Infof("Waiting for additional components to be ready: %s", status.Reason)
+		return
+	}
+
+	chartNames := ""
+	if len(status.PendingCharts) == 0 {
+		return
+	} else if len(status.PendingCharts) == 1 {
+		// A
+		chartNames = status.PendingCharts[0]
+	} else if len(status.PendingCharts) == 2 {
+		// A and B
+		chartNames = strings.Join(status.PendingCharts, " and ")
+	} else {
+		// A, B, and C
+		chartNames = strings.Join(status.PendingCharts[:len(status.PendingCharts)-1], ", ") + " and " + status.PendingCharts[len(status.PendingCharts)-1]
+	}
+
+	writer.Infof("Waiting for additional components %s to be ready", chartNames)
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
