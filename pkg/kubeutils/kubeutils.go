@@ -156,12 +156,12 @@ func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1
 		return
 	}
 
-	// remove 'embedded-cluster' from this
+	// remove 'admin-console' from this
 	pendingChartsMap := map[string]struct{}{}
 	for _, chartName := range install.Status.PendingCharts {
 		pendingChartsMap[chartName] = struct{}{}
 	}
-	delete(pendingChartsMap, "embedded-cluster")
+	delete(pendingChartsMap, "admin-console")
 
 	numPendingCharts := len(pendingChartsMap)
 	numDesiredCharts := len(install.Spec.Config.Extensions.Helm.Charts)
