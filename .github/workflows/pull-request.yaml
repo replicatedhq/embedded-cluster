@@ -204,3 +204,27 @@ jobs:
         license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
         testim-access-token: ${{ secrets.TESTIM_ACCESS_TOKEN }}
         testim-branch: ${{ github.head_ref == 'main' && 'master' || github.head_ref }}
+
+
+  # this job will validate that all the tests passed
+  # it is used for the github branch protection rule
+  validate-success:
+    runs-on: ubuntu-20.04
+    needs:
+      - e2e
+      - sanitize
+      - tests
+    if: always()
+    steps:
+      # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
+      - name: fail if e2e job was not successful
+        if: needs.e2e.result != 'success'
+        run: exit 1
+      - name: fail if sanitize job was not successful
+        if: needs.sanitize.result != 'success'
+        run: exit 1
+      - name: fail if tests job was not successful
+        if: needs.tests.result != 'success'
+        run: exit 1
+      - name: succeed if everything else passed
+        run: echo "Validation succeeded"
