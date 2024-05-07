@@ -155,16 +155,20 @@ func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1
 	if install.Spec.Config == nil || install.Spec.Config.Extensions.Helm == nil {
 		return
 	}
+	numDesiredCharts := len(install.Spec.Config.Extensions.Helm.Charts)
 
 	// remove 'admin-console' from this
 	pendingChartsMap := map[string]struct{}{}
 	for _, chartName := range install.Status.PendingCharts {
 		pendingChartsMap[chartName] = struct{}{}
 	}
-	delete(pendingChartsMap, "admin-console")
 
-	numPendingCharts := len(pendingChartsMap)
-	numDesiredCharts := len(install.Spec.Config.Extensions.Helm.Charts)
+	numPendingCharts := 0
+	for _, ch := range install.Spec.Config.Extensions.Helm.Charts {
+		if _, ok := pendingChartsMap[ch.Name]; ok {
+			numPendingCharts++
+		}
+	}
 
 	numCompletedCharts := 0
 	if numDesiredCharts-numPendingCharts > 0 {
@@ -172,7 +176,11 @@ func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1
 		numCompletedCharts = numDesiredCharts - numPendingCharts
 	}
 
-	writer.Infof("Waiting for additional components to be ready (%d/%d)", numCompletedCharts, numDesiredCharts)
+	if numCompletedCharts < numDesiredCharts {
+		writer.Infof("Waiting for additional components to be ready (%d/%d)", numCompletedCharts, numDesiredCharts)
+	} else {
+		writer.Infof("Finalizing additional components")
+	}
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {

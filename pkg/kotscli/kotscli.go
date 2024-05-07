@@ -134,7 +134,7 @@ func MaskKotsOutputForOnline() spinner.MaskFn {
 		if strings.Contains(message, "Finished") {
 			return message
 		}
-		return "Finalizing"
+		return "Finalizing Admin Console"
 	}
 }
 
@@ -150,7 +150,7 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			current = message
 		case strings.Contains(message, "Waiting for Admin Console"):
-			current = "Finalizing"
+			current = "Finalizing Admin Console"
 		case strings.Contains(message, "Finished!"):
 			current = message
 		}
