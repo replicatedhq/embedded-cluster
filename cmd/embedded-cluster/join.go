@@ -181,6 +181,7 @@ var joinCommand = &cli.Command{
 			if err := airgap.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
 				err := fmt.Errorf("unable to add insecure registry: %w", err)
 				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+				return err
 			}
 		}
 
