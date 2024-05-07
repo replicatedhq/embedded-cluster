@@ -14,6 +14,7 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -74,12 +75,9 @@ func (a *Applier) Outro(ctx context.Context) error {
 		return err
 	}
 
-	// this is a link to the admin console, and that is only installed if there is a license provided
-	if a.licenseFile != "" {
-		err = printKotsadmLinkMessage(a.licenseFile)
-		if err != nil {
-			return fmt.Errorf("unable to print success message: %w", err)
-		}
+	err = printKotsadmLinkMessage(a.licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to print success message: %w", err)
 	}
 	return nil
 }
@@ -321,23 +319,24 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 				// figure out what to log
 				if meta.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
 					installSpin.Infof("Waiting for additional components to be ready: %s", meta.Reason)
-				} else {
-					chartNames := ""
-					if len(meta.PendingCharts) == 0 {
-						continue
-					} else if len(meta.PendingCharts) == 1 {
-						// A
-						chartNames = meta.PendingCharts[0]
-					} else if len(meta.PendingCharts) == 2 {
-						// A and B
-						chartNames = strings.Join(meta.PendingCharts, " and ")
-					} else {
-						// A, B, and C
-						chartNames = strings.Join(meta.PendingCharts[:len(meta.PendingCharts)-1], ", ") + " and " + meta.PendingCharts[len(meta.PendingCharts)-1]
-					}
-
-					installSpin.Infof("Waiting for additional components %s to be ready", chartNames)
+					continue
 				}
+
+				chartNames := ""
+				if len(meta.PendingCharts) == 0 {
+					continue
+				} else if len(meta.PendingCharts) == 1 {
+					// A
+					chartNames = meta.PendingCharts[0]
+				} else if len(meta.PendingCharts) == 2 {
+					// A and B
+					chartNames = strings.Join(meta.PendingCharts, " and ")
+				} else {
+					// A, B, and C
+					chartNames = strings.Join(meta.PendingCharts[:len(meta.PendingCharts)-1], ", ") + " and " + meta.PendingCharts[len(meta.PendingCharts)-1]
+				}
+
+				installSpin.Infof("Waiting for additional components %s to be ready", chartNames)
 			}
 		}
 	}()
@@ -354,9 +353,13 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 
 // printKotsadmLinkMessage prints the success message when the admin console is online.
 func printKotsadmLinkMessage(licenseFile string) error {
-	license, err := helpers.ParseLicense(licenseFile)
-	if err != nil {
-		return fmt.Errorf("unable to parse license: %w", err)
+	var err error
+	license := &kotsv1beta1.License{}
+	if licenseFile != "" {
+		license, err = helpers.ParseLicense(licenseFile)
+		if err != nil {
+			return fmt.Errorf("unable to parse license: %w", err)
+		}
 	}
 
 	successColor := "\033[32m"
@@ -370,9 +373,17 @@ func printKotsadmLinkMessage(licenseFile string) error {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	successMessage := fmt.Sprintf("Visit the admin console to configure and install %s: %shttp://%s:%v%s",
-		license.Spec.AppSlug, successColor, ipaddr, adminconsole.DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
-	)
+	var successMessage string
+	if license != nil {
+		successMessage = fmt.Sprintf("Visit the admin console to configure and install %s: %shttp://%s:%v%s",
+			license.Spec.AppSlug, successColor, ipaddr, adminconsole.DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
+		)
+	} else {
+		successMessage = fmt.Sprintf("Visit the admin console to configure and install your application: %shttp://%s:%v%s",
+			successColor, ipaddr, adminconsole.DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
+		)
+
+	}
 	logrus.Info(successMessage)
 
 	return nil

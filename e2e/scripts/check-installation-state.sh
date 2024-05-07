@@ -75,7 +75,7 @@ main() {
 
     echo "ensure that installation is installed"
     if echo "$version" | grep "pre-minio-removal"; then
-        echo "waiting for installation as this is pre-minio-removal"
+        echo "waiting for installation as this is a pre-minio-removal embedded-cluster version (and so the installer doesn't wait for the installation to be ready itself)"
         wait_for_installation
     fi
     kubectl get installations --no-headers | grep -q "Installed"
