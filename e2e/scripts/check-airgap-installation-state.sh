@@ -1,30 +1,6 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
-wait_for_installation() {
-    ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
-    counter=0
-    while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
-            echo "installation did not become ready"
-            kubectl get installations 2>&1 || true
-            kubectl describe installations 2>&1 || true
-            kubectl get charts -A
-            kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
-            kubectl get secrets -A
-            kubectl describe clusterconfig -A
-            echo "operator logs:"
-            kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
-            return 1
-        fi
-        sleep 5
-        counter=$((counter+1))
-        echo "Waiting for installation"
-        ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
-        kubectl get installations 2>&1 || true
-    done
-}
-
 wait_for_nginx_pods() {
     ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
     counter=0
@@ -86,19 +62,18 @@ ensure_app_not_upgraded() {
 
 main() {
     local version="appver-$1"
-    sleep 30 # wait for kubectl to become available
+    sleep 10 # wait for kubectl to become available
 
     echo "pods"
     kubectl get pods -A
 
     echo "ensure that installation is installed"
-    wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"
 
     echo "ensure that the admin console branding is available and has the DR label"
     if ! kubectl get cm -n kotsadm -l replicated.com/disaster-recovery=infra | grep -q kotsadm-application-metadata; then
         echo "kotsadm-application-metadata configmap not found with the DR label"
-        kubectl get cm -n kotsadm
+        kubectl get cm -n kotsadm --show-labels
         kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
         exit 1
     fi

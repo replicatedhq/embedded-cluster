@@ -249,47 +249,27 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
 
-	loading.Closef("Admin Console is ready!")
-	if a.licenseFile == "" {
-		return nil
-	}
-
-	license, err := helpers.ParseLicense(a.licenseFile)
-	if err != nil {
-		loading.CloseWithError()
-		return fmt.Errorf("unable to parse license: %w", err)
-	}
-
-	if err := kotscli.Install(kotscli.InstallOptions{
-		AppSlug:      license.Spec.AppSlug,
-		LicenseFile:  a.licenseFile,
-		Namespace:    a.namespace,
-		AirgapBundle: a.airgapBundle,
-	}); err != nil {
-		return err
-	}
-
-	a.printSuccessMessage(license.Spec.AppSlug)
-	return nil
-}
-
-// printSuccessMessage prints the success message when the admin console is online.
-func (a *AdminConsole) printSuccessMessage(appSlug string) {
-	successColor := "\033[32m"
-	colorReset := "\033[0m"
-	ipaddr := defaults.TryDiscoverPublicIP()
-	if ipaddr == "" {
-		var err error
-		ipaddr, err = defaults.PreferredNodeIPAddress()
+	if a.licenseFile != "" {
+		license, err := helpers.ParseLicense(a.licenseFile)
 		if err != nil {
-			logrus.Errorf("unable to determine node IP address: %v", err)
-			ipaddr = "NODE-IP-ADDRESS"
+			loading.CloseWithError()
+			return fmt.Errorf("unable to parse license: %w", err)
+		}
+
+		if err := kotscli.Install(kotscli.InstallOptions{
+			AppSlug:      license.Spec.AppSlug,
+			LicenseFile:  a.licenseFile,
+			Namespace:    a.namespace,
+			AirgapBundle: a.airgapBundle,
+		}, loading); err != nil {
+			loading.CloseWithError()
+			return err
 		}
 	}
-	successMessage := fmt.Sprintf("Visit the admin console to configure and install %s: %shttp://%s:%v%s",
-		appSlug, successColor, ipaddr, DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
-	)
-	logrus.Info(successMessage)
+
+	loading.Closef("Admin Console is ready!")
+
+	return nil
 }
 
 // New creates a new AdminConsole object.

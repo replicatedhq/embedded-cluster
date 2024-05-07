@@ -12,7 +12,9 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -64,6 +66,16 @@ func (a *Applier) Outro(ctx context.Context) error {
 		if err := addon.Outro(ctx, kcli); err != nil {
 			return err
 		}
+	}
+
+	err = spinForInstallation(ctx, kcli)
+	if err != nil {
+		return err
+	}
+
+	err = printKotsadmLinkMessage(a.licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to print success message: %w", err)
 	}
 	return nil
 }
@@ -280,6 +292,57 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 		}
 		return nil
 	}
+}
+
+func spinForInstallation(ctx context.Context, cli client.Client) error {
+	installSpin := spinner.Start()
+	installSpin.Infof("Waiting for additional components to be ready")
+
+	err := kubeutils.WaitForInstallation(ctx, cli, installSpin)
+	if err != nil {
+		installSpin.CloseWithError()
+		return fmt.Errorf("unable to wait for installation to be ready: %w", err)
+	}
+	installSpin.Closef("Additional components are ready!")
+	return nil
+}
+
+// printKotsadmLinkMessage prints the success message when the admin console is online.
+func printKotsadmLinkMessage(licenseFile string) error {
+	var err error
+	license := &kotsv1beta1.License{}
+	if licenseFile != "" {
+		license, err = helpers.ParseLicense(licenseFile)
+		if err != nil {
+			return fmt.Errorf("unable to parse license: %w", err)
+		}
+	}
+
+	successColor := "\033[32m"
+	colorReset := "\033[0m"
+	ipaddr := defaults.TryDiscoverPublicIP()
+	if ipaddr == "" {
+		var err error
+		ipaddr, err = defaults.PreferredNodeIPAddress()
+		if err != nil {
+			logrus.Errorf("unable to determine node IP address: %v", err)
+			ipaddr = "NODE-IP-ADDRESS"
+		}
+	}
+	var successMessage string
+	if license != nil {
+		successMessage = fmt.Sprintf("Visit the admin console to configure and install %s: %shttp://%s:%v%s",
+			license.Spec.AppSlug, successColor, ipaddr, adminconsole.DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
+		)
+	} else {
+		successMessage = fmt.Sprintf("Visit the admin console to configure and install your application: %shttp://%s:%v%s",
+			successColor, ipaddr, adminconsole.DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
+		)
+
+	}
+	logrus.Info(successMessage)
+
+	return nil
 }
 
 // NewApplier creates a new Applier instance with all addons registered.
