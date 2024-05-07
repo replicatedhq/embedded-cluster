@@ -154,18 +154,30 @@ func writeStatusMessage(writer *spinner.MessageWriter, status embeddedclusterv1b
 		return
 	}
 
+	// remove 'embedded-cluster' from this output
+	pendingChartsMap := map[string]struct{}{}
+	for _, chartName := range status.PendingCharts {
+		pendingChartsMap[chartName] = struct{}{}
+	}
+	delete(pendingChartsMap, "embedded-cluster")
+
+	pendingChartsList := []string{}
+	for chartName := range pendingChartsMap {
+		pendingChartsList = append(pendingChartsList, chartName)
+	}
+
 	chartNames := ""
-	if len(status.PendingCharts) == 0 {
+	if len(pendingChartsList) == 0 {
 		return
-	} else if len(status.PendingCharts) == 1 {
+	} else if len(pendingChartsList) == 1 {
 		// A
-		chartNames = status.PendingCharts[0]
-	} else if len(status.PendingCharts) == 2 {
+		chartNames = pendingChartsList[0]
+	} else if len(pendingChartsList) == 2 {
 		// A and B
-		chartNames = strings.Join(status.PendingCharts, " and ")
+		chartNames = strings.Join(pendingChartsList, " and ")
 	} else {
 		// A, B, and C
-		chartNames = strings.Join(status.PendingCharts[:len(status.PendingCharts)-1], ", ") + " and " + status.PendingCharts[len(status.PendingCharts)-1]
+		chartNames = strings.Join(pendingChartsList[:len(pendingChartsList)-1], ", ") + " and " + pendingChartsList[len(pendingChartsList)-1]
 	}
 
 	writer.Infof("Waiting for additional components %s to be ready", chartNames)
