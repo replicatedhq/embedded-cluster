@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
@@ -131,7 +130,7 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 			lastInstall := installs[0]
 
 			if writer != nil {
-				writeStatusMessage(writer, lastInstall.Status)
+				writeStatusMessage(writer, lastInstall)
 			}
 
 			// check the status of the installation
@@ -148,39 +147,26 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 	return nil
 }
 
-func writeStatusMessage(writer *spinner.MessageWriter, status embeddedclusterv1beta1.InstallationStatus) {
-	if status.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
-		writer.Infof("Waiting for additional components to be ready: %s", status.Reason)
+func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1beta1.Installation) {
+	if install.Status.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
 		return
 	}
 
-	// remove 'embedded-cluster' from this output
+	if install.Spec.Config == nil || install.Spec.Config.Extensions.Helm == nil {
+		return
+	}
+
+	// remove 'embedded-cluster' from this
 	pendingChartsMap := map[string]struct{}{}
-	for _, chartName := range status.PendingCharts {
+	for _, chartName := range install.Status.PendingCharts {
 		pendingChartsMap[chartName] = struct{}{}
 	}
 	delete(pendingChartsMap, "embedded-cluster")
 
-	pendingChartsList := []string{}
-	for chartName := range pendingChartsMap {
-		pendingChartsList = append(pendingChartsList, chartName)
-	}
+	numPendingCharts := len(pendingChartsMap)
+	numDesiredCharts := len(install.Spec.Config.Extensions.Helm.Charts)
 
-	chartNames := ""
-	if len(pendingChartsList) == 0 {
-		return
-	} else if len(pendingChartsList) == 1 {
-		// A
-		chartNames = pendingChartsList[0]
-	} else if len(pendingChartsList) == 2 {
-		// A and B
-		chartNames = strings.Join(pendingChartsList, " and ")
-	} else {
-		// A, B, and C
-		chartNames = strings.Join(pendingChartsList[:len(pendingChartsList)-1], ", ") + " and " + pendingChartsList[len(pendingChartsList)-1]
-	}
-
-	writer.Infof("Waiting for additional components %s to be ready", chartNames)
+	writer.Infof("Waiting for additional components to be ready (%d/%d)", numDesiredCharts-numPendingCharts, numDesiredCharts)
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
