@@ -3,13 +3,18 @@ package kubeutils
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 // BackOffToDuration returns the maximum duration of the provided backoff.
@@ -97,6 +102,73 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 		return fmt.Errorf("timed out waiting for service %s to have an IP: %v", name, lasterr)
 	}
 	return nil
+}
+
+func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			var installList embeddedclusterv1beta1.InstallationList
+			if err := cli.List(ctx, &installList); err != nil {
+				lasterr = fmt.Errorf("unable to get installations: %v", err)
+				return false, nil
+			}
+
+			installs := installList.Items
+			if len(installs) == 0 {
+				lasterr = fmt.Errorf("no installations found")
+				return false, nil
+			}
+
+			// sort the installations
+			sort.SliceStable(installs, func(i, j int) bool {
+				return installs[j].Name < installs[i].Name
+			})
+
+			// get the latest installation
+			lastInstall := installs[0]
+
+			if writer != nil {
+				writeStatusMessage(writer, lastInstall.Status)
+			}
+
+			// check the status of the installation
+			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateInstalled {
+				return true, nil
+			}
+			lasterr = fmt.Errorf("installation state is %q (%q)", lastInstall.Status.State, lastInstall.Status.Reason)
+
+			return false, nil
+		},
+	); err != nil {
+		return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
+	}
+	return nil
+}
+
+func writeStatusMessage(writer *spinner.MessageWriter, status embeddedclusterv1beta1.InstallationStatus) {
+	if status.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
+		writer.Infof("Waiting for additional components to be ready: %s", status.Reason)
+		return
+	}
+
+	chartNames := ""
+	if len(status.PendingCharts) == 0 {
+		return
+	} else if len(status.PendingCharts) == 1 {
+		// A
+		chartNames = status.PendingCharts[0]
+	} else if len(status.PendingCharts) == 2 {
+		// A and B
+		chartNames = strings.Join(status.PendingCharts, " and ")
+	} else {
+		// A, B, and C
+		chartNames = strings.Join(status.PendingCharts[:len(status.PendingCharts)-1], ", ") + " and " + status.PendingCharts[len(status.PendingCharts)-1]
+	}
+
+	writer.Infof("Waiting for additional components %s to be ready", chartNames)
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {

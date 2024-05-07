@@ -68,19 +68,22 @@ ensure_app_not_upgraded() {
 
 main() {
     local version="$1"
-    sleep 30 # wait for kubectl to become available
+    sleep 10 # wait for kubectl to become available
 
     echo "pods"
     kubectl get pods -A
 
     echo "ensure that installation is installed"
-    wait_for_installation
+    if echo "$version" | grep "pre-minio-removal"; then
+        echo "waiting for installation as this is a pre-minio-removal embedded-cluster version (and so the installer doesn't wait for the installation to be ready itself)"
+        wait_for_installation
+    fi
     kubectl get installations --no-headers | grep -q "Installed"
 
     echo "ensure that the admin console branding is available and has the DR label"
     if ! kubectl get cm -n kotsadm -l replicated.com/disaster-recovery=infra | grep -q kotsadm-application-metadata; then
         echo "kotsadm-application-metadata configmap not found with the DR label"
-        kubectl get cm -n kotsadm
+        kubectl get cm -n kotsadm --show-labels
         kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
         exit 1
     fi
