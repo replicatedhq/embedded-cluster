@@ -157,7 +157,6 @@ func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1
 	}
 	numDesiredCharts := len(install.Spec.Config.Extensions.Helm.Charts)
 
-	// remove 'admin-console' from this
 	pendingChartsMap := map[string]struct{}{}
 	for _, chartName := range install.Status.PendingCharts {
 		pendingChartsMap[chartName] = struct{}{}
@@ -169,12 +168,7 @@ func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1
 			numPendingCharts++
 		}
 	}
-
-	numCompletedCharts := 0
-	if numDesiredCharts-numPendingCharts > 0 {
-		// it is possible that infra charts are present here in the pending chart count, so we need to make sure this is not negative
-		numCompletedCharts = numDesiredCharts - numPendingCharts
-	}
+	numCompletedCharts := numDesiredCharts - numPendingCharts
 
 	if numCompletedCharts < numDesiredCharts {
 		writer.Infof("Waiting for additional components to be ready (%d/%d)", numCompletedCharts, numDesiredCharts)
