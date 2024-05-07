@@ -8,6 +8,6 @@ export const deployApp = async (page, expect) => {
   await page.locator('input[type="password"]').fill('password');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.locator('#app')).toContainText('Ready', { timeout: 60000 });
-  await expect(page.locator('#app')).toContainText('Up to date');
+  await expect(page.locator('#app')).toContainText('Up to date', { timeout: 30000 });
   await expect(page.locator('#app')).toContainText('Currently deployed version');
 };

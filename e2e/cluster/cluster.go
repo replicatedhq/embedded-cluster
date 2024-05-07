@@ -506,19 +506,19 @@ func CopyFileToNode(in *Input, node string, file File) {
 func CopyFileFromNode(node, source, dest string) error {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to connect to LXD: %v", err)
+		return fmt.Errorf("failed to connect to LXD: %v", err)
 	}
 	content, _, err := client.GetContainerFile(node, source)
 	if err != nil {
-		return fmt.Errorf("Failed to get file %s: %v", source, err)
+		return fmt.Errorf("failed to get file %s: %v", source, err)
 	}
 	fp, err := os.Create(dest)
 	if err != nil {
-		return fmt.Errorf("Failed to create file %s: %v", dest, err)
+		return fmt.Errorf("failed to create file %s: %v", dest, err)
 	}
 	defer fp.Close()
 	if _, err := io.Copy(fp, content); err != nil {
-		return fmt.Errorf("Failed to copy file %s: %v", dest, err)
+		return fmt.Errorf("failed to copy file %s: %v", dest, err)
 	}
 	return nil
 }

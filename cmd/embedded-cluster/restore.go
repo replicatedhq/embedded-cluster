@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -153,12 +155,34 @@ func runOutroForRestore(c *cli.Context) error {
 	return addons.NewApplier(opts...).OutroForRestore(c.Context)
 }
 
-func isBackupRestorable(backup *velerov1.Backup) (bool, string) {
+func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease) (bool, string) {
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
+	if v := backup.Annotations["kots.io/embedded-cluster-version"]; v != defaults.Version {
+		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, defaults.Version)
+	}
 	if backup.Status.Phase != velerov1.BackupPhaseCompleted {
 		return false, fmt.Sprintf("has a status of %q", backup.Status.Phase)
+	}
+	if _, ok := backup.Annotations["kots.io/apps-versions"]; !ok {
+		return false, "is missing the kots.io/apps-versions annotation"
+	}
+	appsVersions := map[string]string{}
+	if err := json.Unmarshal([]byte(backup.Annotations["kots.io/apps-versions"]), &appsVersions); err != nil {
+		return false, "unable to json parse kots.io/apps-versions annotation"
+	}
+	if len(appsVersions) == 0 {
+		return false, "has no applications"
+	}
+	if len(appsVersions) > 1 {
+		return false, "has more than one application"
+	}
+	if _, ok := appsVersions[rel.AppSlug]; !ok {
+		return false, fmt.Sprintf("does not contain the %q application", rel.AppSlug)
+	}
+	if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
+		return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
 	}
 	return true, ""
 }
@@ -180,6 +204,11 @@ func waitForBackups(ctx context.Context) ([]velerov1.Backup, error) {
 		return nil, fmt.Errorf("unable to create velero client: %w", err)
 	}
 
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get release from binary: %w", err)
+	}
+
 	for i := 0; i < 30; i++ {
 		time.Sleep(5 * time.Second)
 
@@ -197,7 +226,7 @@ func waitForBackups(ctx context.Context) ([]velerov1.Backup, error) {
 		invalidReasons := []string{}
 
 		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup)
+			restorable, reason := isBackupRestorable(&backup, rel)
 			if restorable {
 				validBackups = append(validBackups, backup)
 			} else {

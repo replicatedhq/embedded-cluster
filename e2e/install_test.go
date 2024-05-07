@@ -841,6 +841,15 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		tc.Destroy()
 	}()
 
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "expect", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
+	}
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -863,7 +872,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-installation.sh"}, testArgs...)
+	line = append([]string{"restore-installation.exp"}, testArgs...)
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
@@ -1006,40 +1015,22 @@ func setupPlaywright(t *testing.T, tc *cluster.Output) error {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		return fmt.Errorf("fail to bypass kurl-proxy on node %s: %v", tc.Nodes[0], err)
 	}
-
 	line = []string{"install-playwright.sh"}
-	if tc.Proxy != "" {
-		t.Logf("%s: installing playwright on proxy node", time.Now().Format(time.RFC3339))
-		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
-			return fmt.Errorf("fail to install playwright on node %s: %v", tc.Proxy, err)
-		}
-	} else {
-		t.Logf("%s: installing playwright on node 0", time.Now().Format(time.RFC3339))
-		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			return fmt.Errorf("fail to install playwright on node %s: %v", tc.Nodes[0], err)
-		}
+	t.Logf("%s: installing playwright on node 0", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		return fmt.Errorf("fail to install playwright on node %s: %v", tc.Nodes[0], err)
 	}
-
 	return nil
 }
 
 func runPlaywrightTest(t *testing.T, tc *cluster.Output, testName string, args ...string) (stdout, stderr string, err error) {
+	t.Logf("%s: running playwright test %s on node 0", time.Now().Format(time.RFC3339), testName)
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
-	if tc.Proxy != "" {
-		t.Logf("%s: running playwright test %s on proxy node", time.Now().Format(time.RFC3339), testName)
-		stdout, stderr, err = RunCommandOnProxyNode(t, tc, line)
-		if err != nil {
-			return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Proxy, err)
-		}
-	} else {
-		t.Logf("%s: running playwright test %s on node 0", time.Now().Format(time.RFC3339), testName)
-		stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
-		if err != nil {
-			return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Nodes[0], err)
-		}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Nodes[0], err)
 	}
-
 	return stdout, stderr, nil
 }
 
