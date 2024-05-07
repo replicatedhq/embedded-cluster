@@ -166,7 +166,13 @@ func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1
 	numPendingCharts := len(pendingChartsMap)
 	numDesiredCharts := len(install.Spec.Config.Extensions.Helm.Charts)
 
-	writer.Infof("Waiting for additional components to be ready (%d/%d)", numDesiredCharts-numPendingCharts, numDesiredCharts)
+	numCompletedCharts := 0
+	if numDesiredCharts-numPendingCharts > 0 {
+		// it is possible that infra charts are present here in the pending chart count, so we need to make sure this is not negative
+		numCompletedCharts = numDesiredCharts - numPendingCharts
+	}
+
+	writer.Infof("Waiting for additional components to be ready (%d/%d)", numCompletedCharts, numDesiredCharts)
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
