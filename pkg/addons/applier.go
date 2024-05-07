@@ -300,6 +300,7 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 
 	err := kubeutils.WaitForInstallation(ctx, cli, installSpin)
 	if err != nil {
+		installSpin.CloseWithError()
 		return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 	}
 	installSpin.Closef("Additional components are ready!")
