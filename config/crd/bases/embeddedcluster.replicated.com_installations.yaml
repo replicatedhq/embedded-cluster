@@ -263,6 +263,20 @@ spec:
                   version:
                     type: string
                 type: object
+              configSecret:
+                description: |-
+                  ConfigSecret holds a secret name and namespace. If this is set it means that
+                  the Config for this Installation object must be read from there. This option
+                  superseeds (overrides) the Config field.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
               endUserK0sConfigOverrides:
                 description: |-
                   EndUserK0sConfigOverrides holds the end user k0s config overrides

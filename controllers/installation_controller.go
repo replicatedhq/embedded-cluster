@@ -937,6 +937,23 @@ func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, it
 	}
 }
 
+// ReadClusterConfigSpecFromSecret reads the cluster config from the secret pointed by spec.ConfigSecret
+// if it is set. This overrides the default configuration from spec.Config.
+func (r *InstallationReconciler) ReadClusterConfigSpecFromSecret(ctx context.Context, in *v1beta1.Installation) error {
+	if in.Spec.ConfigSecret == nil {
+		return nil
+	}
+	var secret corev1.Secret
+	nsn := types.NamespacedName{Namespace: in.Spec.ConfigSecret.Namespace, Name: in.Spec.ConfigSecret.Name}
+	if err := r.Get(ctx, nsn, &secret); err != nil {
+		return fmt.Errorf("failed to get config secret: %w", err)
+	}
+	if err := in.Spec.ParseConfigSpecFromSecret(secret); err != nil {
+		return fmt.Errorf("failed to parse config spec from secret: %w", err)
+	}
+	return nil
+}
+
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list
@@ -950,6 +967,9 @@ func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, it
 
 // Reconcile reconcile the installation object.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// we start by fetching all installation objects and coalescing them. we
+	// are going to operate only on the newest one (sorting by installation
+	// name).
 	log := ctrl.LoggerFrom(ctx)
 	var installs v1beta1.InstallationList
 	if err := r.List(ctx, &installs); err != nil {
@@ -968,33 +988,69 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 	in := r.CoalesceInstallations(ctx, items)
+
+	// if this cluster has no id we bail out immediately.
 	if in.Spec.ClusterID == "" {
 		log.Info("No cluster ID found, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
+
+	// if this installation points to a cluster configuration living on
+	// a secret we need to fetch this configuration before moving on.
+	// at this stage we bail out with an error if we can't fetch or
+	// parse the config otherwise we risk moving on with a reconcile
+	// using an erroneous config.
+	if err := r.ReadClusterConfigSpecFromSecret(ctx, in); err != nil {
+		in.Status.SetState(v1beta1.InstallationStateFailed, err.Error(), nil)
+		if err := r.Status().Update(ctx, in); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
+		}
+		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
+	}
+
+	// we create a copy of the installation so we can compare if it
+	// changed its status after the reconcile (this is mostly for
+	// calling back to us with events).
 	before := in.DeepCopy()
+
+	// verify if a new node has been added, removed or changed.
 	events, err := r.ReconcileNodeStatuses(ctx, in)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile node status: %w", err)
 	}
+
+	// if necessary start a k0s upgrade by means of autopilot. this also
+	// keeps the installation in sync with the state of the k0s upgrade.
 	if err := r.ReconcileK0sVersion(ctx, in); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile k0s version: %w", err)
 	}
+
+	// reconcile the add-ons (k0s helm extensions).
 	log.Info("Reconciling addons")
 	if err := r.ReconcileHelmCharts(ctx, in); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
 	}
+
+	// save the installation status. nothing more to do with it.
 	if err := r.Status().Update(ctx, in); err != nil {
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, fmt.Errorf("failed to update status: conflict")
 		}
 		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
 	}
+
+	// now that the status has been updated we can flag all older installation
+	// objects as obsolete. these are not necessary anymore and are kept only
+	// for historic reasons.
 	r.DisableOldInstallations(ctx, items)
+
+	// if we are not in an airgap environment this is the time to call back to
+	// replicated and inform the status of this installation.
 	if !in.Spec.AirGap {
 		r.ReportInstallationChanges(ctx, before, in)
 		r.ReportNodesChanges(ctx, in, events)
 	}
+
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
