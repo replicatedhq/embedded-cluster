@@ -300,7 +300,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context) error {
 
 func spinForInstallation(ctx context.Context, cli client.Client) error {
 	installSpin := spinner.Start()
-	installSpin.Infof("Waiting for additional components to complete installation")
+	installSpin.Infof("Waiting for additional components to be ready")
 
 	bgCtx, cancel := context.WithCancel(ctx)
 	ch := make(chan embeddedclusterv1beta1.InstallationStatus)
@@ -320,7 +320,7 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 
 				// figure out what to log
 				if meta.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
-					installSpin.Infof("Waiting for additional components to complete installation: %s", meta.Reason)
+					installSpin.Infof("Waiting for additional components to be ready: %s", meta.Reason)
 				} else {
 					chartNames := ""
 					if len(meta.PendingCharts) == 0 {
@@ -336,7 +336,7 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 						chartNames = strings.Join(meta.PendingCharts[:len(meta.PendingCharts)-1], ", ") + " and " + meta.PendingCharts[len(meta.PendingCharts)-1]
 					}
 
-					installSpin.Infof("Waiting for additional components %s to complete installation", chartNames)
+					installSpin.Infof("Waiting for additional components %s to be ready", chartNames)
 				}
 			}
 		}
@@ -344,11 +344,11 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 
 	err := kubeutils.WaitForInstallation(ctx, cli, ch)
 	if err != nil {
-		return fmt.Errorf("unable to wait for installation: %w", err)
+		return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 	}
 	cancel()
 	spinMut.Lock() // prevent closing the spinner while we are still writing to it
-	installSpin.Closef("Installation is complete!")
+	installSpin.Closef("Additional components are ready!")
 	return nil
 }
 
