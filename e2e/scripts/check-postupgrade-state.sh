@@ -68,6 +68,8 @@ main() {
     kubectl get secrets -A
     echo "logs kotsadm:"
     kubectl logs -n kotsadm statefulsets/kotsadm -c kotsadm
+    echo "operator logs:"
+    kubectl logs -n embedded-cluster deployments/embedded-cluster-operator
 
     # ensure that memcached exists
     if ! kubectl get ns memcached; then
