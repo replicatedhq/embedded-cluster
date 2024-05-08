@@ -63,7 +63,7 @@ main() {
     echo "charts"
     kubectl get charts -A
     echo "installations"
-    kubectl get installations
+    kubectl get installations -o yaml
 
     # ensure that memcached exists
     if ! kubectl get ns memcached; then
