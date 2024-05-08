@@ -159,7 +159,7 @@ expect {
 }
 
 expect {
-    ".*Please type .* to proceed.*" {
+    -re ".*Please type .* to proceed.*" {
       send "continue\r"
     }
     timeout {
