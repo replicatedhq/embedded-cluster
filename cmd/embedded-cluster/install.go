@@ -246,7 +246,7 @@ func materializeFiles(c *cli.Context) error {
 		}
 	}
 
-	mat.Infof("Host files materialized")
+	mat.Infof("Host files materialized!")
 
 	return nil
 }
@@ -365,7 +365,7 @@ func waitForK0s() error {
 	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
 	}
-	loading.Infof("Node installation finished")
+	loading.Infof("Node installation finished!")
 	return nil
 }
 
