@@ -127,6 +127,17 @@ func (r *ReleaseData) GetApplication() ([]byte, error) {
 	return r.Application, nil
 }
 
+// GetRawEmbeddedClusterConfig returns the cluster config as a raw slice of bytes (no unmarshal
+// is performed). If no cluster config is found, returns nil and no error. This function is
+// specially useful when we want to get the yaml the user has provided through the vendor
+// portal (spacing, comments, etc).
+func GetRawEmbeddedClusterConfig() ([]byte, error) {
+	if err := parseReleaseDataFromBinary(); err != nil {
+		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
+	}
+	return releaseData.EmbeddedClusterConfig, nil
+}
+
 // GetEmbeddedClusterConfig reads the embedded cluster config from the embedded Kots
 // Application Release.
 func GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config, error) {

@@ -19,7 +19,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -174,23 +173,22 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			return fmt.Errorf("unable to create version metadata: %w", err)
 		}
 	}
-
+	var installationName = time.Now().Format("20060102150405")
 	var configSecret *embeddedclusterv1beta1.ConfigSecret
-	if cfg, err := release.GetEmbeddedClusterConfig(); err != nil {
+	if rawcfg, err := release.GetRawEmbeddedClusterConfig(); err != nil {
 		return err
-	} else if cfg != nil {
-		rawconfig, err := k8syaml.Marshal(cfg)
-		if err != nil {
-			return fmt.Errorf("unable to marshal embedded cluster config: %w", err)
-		}
-		secretName := fmt.Sprintf("cluster-config-%s", time.Now().Format("20060102150405"))
+	} else if len(rawcfg) > 0 {
+		secretName := fmt.Sprintf("cluster-config-%s", installationName)
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
 				Namespace: e.namespace,
+				Labels: map[string]string{
+					"replicated.com/disaster-recovery": "ec-install",
+				},
 			},
 			Data: map[string][]byte{
-				embeddedclusterv1beta1.ConfigSecretEntryName: rawconfig,
+				embeddedclusterv1beta1.ConfigSecretEntryName: rawcfg,
 			},
 		}
 		if err := cli.Create(ctx, secret); err != nil {
@@ -217,7 +215,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 
 	installation := embeddedclusterv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: time.Now().Format("20060102150405"),
+			Name: installationName,
 			Labels: map[string]string{
 				"replicated.com/disaster-recovery": "ec-install",
 			},
