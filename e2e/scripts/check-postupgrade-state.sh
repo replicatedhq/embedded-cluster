@@ -62,8 +62,12 @@ main() {
     kubectl get pods -A
     echo "charts"
     kubectl get charts -A
-    echo "installations"
+    echo "installations:"
     kubectl get installations -o yaml
+    echo "secrets:"
+    kubectl get secrets -A
+    echo "logs kotsadm:"
+    kubectl logs -n kotsadm statefulsets/kotsadm -c kotsadm
 
     # ensure that memcached exists
     if ! kubectl get ns memcached; then
