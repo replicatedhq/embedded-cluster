@@ -149,7 +149,7 @@ expect {
 }
 
 expect {
-    -re "Type 'continue' when you are done adding nodes.*" {
+    -re ".*Type .* when you are done adding nodes.*" {
       send "\r"
     }
     timeout {
@@ -159,7 +159,7 @@ expect {
 }
 
 expect {
-    "Please type 'continue' to proceed" {
+    ".*Please type .* to proceed.*" {
       send "continue\r"
     }
     timeout {
