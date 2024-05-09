@@ -19,7 +19,8 @@ func TestMultiNodeReset(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))

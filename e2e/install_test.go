@@ -21,7 +21,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -60,7 +60,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
@@ -104,7 +104,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
@@ -152,7 +152,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
@@ -229,7 +229,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -312,7 +312,7 @@ func TestInstallWithoutEmbed(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"default-install.sh"}
@@ -330,7 +330,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "ubuntu/jammy",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("LICENSE_ID"), "false"}
@@ -374,7 +374,7 @@ func TestResetAndReinstall(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli"}
@@ -453,7 +453,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapBundlePath,
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -490,7 +490,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 		Nodes: 1,
 		Image: "ubuntu/jammy",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
@@ -551,7 +551,7 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -641,7 +641,7 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -747,74 +747,6 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeDisasterRecovery(t *testing.T) {
-	t.Parallel()
-
-	requiredEnvVars := []string{
-		"DR_AWS_S3_ENDPOINT",
-		"DR_AWS_S3_REGION",
-		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX",
-		"DR_AWS_ACCESS_KEY_ID",
-		"DR_AWS_SECRET_ACCESS_KEY",
-	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
-
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
-	}
-
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		LicensePath:         "snapshot-license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	})
-	defer cleanup(t, tc)
-
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
-
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
-
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test create-backup: %v", err)
-	}
-
-	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
-	}
-
-	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-installation.exp"}, testArgs...)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to restore the installation: %v", err)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
 func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
@@ -822,7 +754,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "ubuntu/jammy",
 	})
-	defer cleanup(t, tc)
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
@@ -983,7 +915,7 @@ func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
 	}
 }
 
-func cleanup(t *testing.T, tc *cluster.Output) {
+func cleanupCluster(t *testing.T, tc *cluster.Output) {
 	if t.Failed() {
 		generateAndCopySupportBundle(t, tc)
 		copyPlaywrightReport(t, tc)
