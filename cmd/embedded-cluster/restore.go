@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
@@ -136,6 +137,11 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
 		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
+	if c.String("airgap-bundle") != "" {
+		// update the k0s config to install with airgap
+		airgap.RemapHelm(cfg)
+		airgap.SetAirgapConfig(cfg)
+	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("unable to marshal config: %w", err)
@@ -158,7 +164,7 @@ func runOutroForRestore(c *cli.Context) error {
 	return addons.NewApplier(opts...).OutroForRestore(c.Context)
 }
 
-func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease) (bool, string) {
+func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool) (bool, string) {
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
@@ -187,12 +193,29 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease) (b
 	if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
 		return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
 	}
+
+	if _, ok := backup.Annotations["kots.io/is-airgap"]; !ok {
+		return false, "is missing the kots.io/is-airgap annotation"
+	}
+	airgapLabelValue := backup.Annotations["kots.io/is-airgap"]
+	if isAirgap {
+		if airgapLabelValue != "true" {
+			return false, "is not an airgap backup, but the restore is configured to be airgap"
+		}
+	} else {
+		if airgapLabelValue != "false" {
+			return false, "is an airgap backup, but the restore is configured to be online"
+		}
+	}
+
 	return true, ""
 }
 
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
-func waitForBackups(ctx context.Context) ([]velerov1.Backup, error) {
+func waitForBackups(c *cli.Context) ([]velerov1.Backup, error) {
+	ctx := c.Context
+
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
@@ -232,7 +255,7 @@ func waitForBackups(ctx context.Context) ([]velerov1.Backup, error) {
 		invalidReasons := []string{}
 
 		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup, rel)
+			restorable, reason := isBackupRestorable(&backup, rel, c.String("airgap-bundle") != "")
 			if restorable {
 				validBackups = append(validBackups, backup)
 			} else {
@@ -314,10 +337,11 @@ const (
 	DisasterRecoveryComponentInfra     DisasterRecoveryComponent = "infra"
 	DisasterRecoveryComponentECInstall DisasterRecoveryComponent = "ec-install"
 	DisasterRecoveryComponentApp       DisasterRecoveryComponent = "app"
+	DisasterRecoveryComponentChart     DisasterRecoveryComponent = "chart"
 )
 
 // restoreFromBackup restores a disaster recovery component from a backup.
-func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent DisasterRecoveryComponent) error {
+func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent DisasterRecoveryComponent, chartName string, restoreLabelSelector *metav1.LabelSelector) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
@@ -328,6 +352,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		loading.Infof("Restoring cluster state")
 	case DisasterRecoveryComponentApp:
 		loading.Infof("Restoring application")
+	case DisasterRecoveryComponentChart:
+		loading.Infof("Restoring %s", chartName)
 	}
 
 	cfg, err := k8sconfig.GetConfig()
@@ -340,6 +366,14 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		return fmt.Errorf("unable to create velero client: %w", err)
 	}
 
+	if drComponent != DisasterRecoveryComponentChart {
+		restoreLabelSelector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"replicated.com/disaster-recovery": string(drComponent),
+			},
+		}
+	}
+
 	// define the restore object
 	restore := &velerov1.Restore{
 		ObjectMeta: metav1.ObjectMeta{
@@ -350,12 +384,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			},
 		},
 		Spec: velerov1.RestoreSpec{
-			BackupName: backup.Name,
-			LabelSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"replicated.com/disaster-recovery": string(drComponent),
-				},
-			},
+			BackupName:              backup.Name,
+			LabelSelector:           restoreLabelSelector,
 			RestorePVs:              ptr.To(true),
 			IncludeClusterResources: ptr.To(true),
 		},
@@ -400,6 +430,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		loading.Infof("Cluster state restored!")
 	case DisasterRecoveryComponentApp:
 		loading.Infof("Application restored!")
+	case DisasterRecoveryComponentChart:
+		loading.Infof("%s restored!", strings.ToUpper(chartName[:1])+chartName[1:])
 	}
 
 	return nil
@@ -465,7 +497,13 @@ func waitForAdditionalNodes(ctx context.Context) error {
 var restoreCommand = &cli.Command{
 	Name:  "restore",
 	Usage: fmt.Sprintf("Restore a %s cluster", binName),
-	Flags: []cli.Flag{},
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:   "airgap-bundle",
+			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Hidden: true,
+		},
+	},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("restore command must be run as root")
@@ -482,6 +520,12 @@ var restoreCommand = &cli.Command{
 			logrus.Infof("first. You can do this by running the following command:")
 			logrus.Infof("\n  sudo ./%s reset\n", binName)
 			return ErrNothingElseToAdd
+		}
+		if c.String("airgap-bundle") != "" {
+			logrus.Debugf("checking airgap bundle matches binary")
+			if err := checkAirgapMatches(c); err != nil {
+				return err // we want the user to see the error message without a prefix
+			}
 		}
 
 		logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", binName)
@@ -540,7 +584,7 @@ var restoreCommand = &cli.Command{
 		}
 
 		logrus.Debugf("waiting for backups to become available")
-		backups, err := waitForBackups(c.Context)
+		backups, err := waitForBackups(c)
 		if err != nil {
 			return err
 		}
@@ -561,12 +605,24 @@ var restoreCommand = &cli.Command{
 		}
 
 		logrus.Debugf("restoring infra from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentInfra); err != nil {
+		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentInfra, "", nil); err != nil {
 			return err
 		}
 
+		if c.String("airgap-bundle") != "" {
+			logrus.Debugf("restoring embedded cluster registry from backup %q", backup.Name)
+			err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentChart, "registry", &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "docker-registry",
+				},
+			})
+			if err != nil {
+				return err
+			}
+		}
+
 		logrus.Debugf("restoring embedded cluster installation from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentECInstall); err != nil {
+		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentECInstall, "", nil); err != nil {
 			return err
 		}
 
@@ -576,7 +632,7 @@ var restoreCommand = &cli.Command{
 		}
 
 		logrus.Debugf("restoring app from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentApp); err != nil {
+		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentApp, "", nil); err != nil {
 			return err
 		}
 
