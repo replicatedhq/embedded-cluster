@@ -1,0 +1,190 @@
+#!/usr/bin/env expect
+
+set env(EMBEDDED_CLUSTER_PLAIN_PROMPTS) "true"
+set env(EMBEDDED_CLUSTER_METRICS_BASEURL) "https://staging.replicated.app"
+set env(KUBECONFIG) "/var/lib/k0s/pki/admin.conf"
+set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
+
+set dr_aws_s3_endpoint [lindex $argv 0]
+set dr_aws_s3_region [lindex $argv 1]
+set dr_aws_s3_bucket [lindex $argv 2]
+set dr_aws_s3_prefix [lindex $argv 3]
+set dr_aws_access_key_id [lindex $argv 4]
+set dr_aws_secret_access_key [lindex $argv 5]
+
+spawn embedded-cluster restore --airgap-bundle /tmp/release.airgap
+
+expect {
+    "Enter information to configure access to your backup storage location." {}
+    timeout {
+      puts "\n\nFailed to find introduction."
+      exit 1
+    }
+}
+
+expect {
+    "S3 endpoint:" {
+      send "$dr_aws_s3_endpoint\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'S3 endpoint' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "Region:" {
+      send "$dr_aws_s3_region\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'Region' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "Bucket:" {
+      send "$dr_aws_s3_bucket\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'Bucket' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "Prefix (press Enter to skip):" {
+      send "$dr_aws_s3_prefix\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'Prefix' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "Access key ID:" {
+      send "$dr_aws_access_key_id\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'Access key ID' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "Secret access key:" {
+      send "$dr_aws_secret_access_key\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'Secret access key' prompt."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 210 "Velero is ready!" {}
+    timeout {
+      puts "\n\nFailed to wait for Velero to be ready."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 30 "Backup storage location configured!" {}
+    timeout {
+      puts "\n\nFailed to configure backup storage location."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 30 "Found 1 restorable backup!" {}
+    timeout {
+      puts "\n\nFailed to find a restorable backup."
+      exit 1
+    }
+}
+
+expect {
+    -re "Restore from backup.*\?" {
+      send "Y\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'Restore from backup' prompt."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 60 "Infrastructure restored!" {}
+    timeout {
+      puts "\n\nFailed to restore infrastructure."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 150 "Cluster state restored!" {}
+    timeout {
+      puts "\n\nFailed to restore cluster state."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 60 "Admin Console is ready!" {}
+    timeout {
+      puts "\n\nFailed to wait for admin console to be ready."
+      exit 1
+    }
+}
+
+expect {
+    "Visit the admin console if you need to add nodes to the cluster" {}
+    timeout {
+      puts "\n\nFailed to find admin console URL."
+      exit 1
+    }
+}
+
+expect {
+    "Type 'continue' when you are done adding nodes" {
+      send "\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'done adding nodes' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "Please type 'continue' to proceed" {
+      send "continue\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'type continue to proceed' prompt."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 30 "All nodes are ready!" {}
+    timeout {
+      puts "\n\nFailed to wait for nodes."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 60 "Application restored!" {
+      exit 0
+    }
+    timeout {
+      puts "\n\nFailed to restore application."
+      exit 1
+    }
+}
+
+puts "\n\nCommand exited before finishing all validations."
+exit 1

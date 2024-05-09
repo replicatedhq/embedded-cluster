@@ -16,6 +16,9 @@ inputs:
   license-id:
     description: 'license id to use for e2e tests'
     required: true
+  airgap-snapshot-license-id:
+    description: 'airgap-snapshot-enabled license id to use for e2e tests'
+    required: true
   license:
     description: 'license (b64) to use for e2e tests'
     required: true

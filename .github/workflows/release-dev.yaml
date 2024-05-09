@@ -140,6 +140,7 @@ jobs:
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgradeUbuntuJammy
           - TestSingleNodeDisasterRecovery
+          - TestSingleNodeAirgapDisasterRecovery
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -154,6 +155,7 @@ jobs:
           airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
           snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
           snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
+          airgap-snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_SNAPSHOT_LICENSE_ID }}
           license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
           testim-access-token: ${{ secrets.TESTIM_ACCESS_TOKEN }}

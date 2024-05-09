@@ -579,11 +579,11 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath)
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath)
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	wg.Wait()
@@ -674,11 +674,11 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath)
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath)
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	wg.Wait()
@@ -876,6 +876,104 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
+	t.Parallel()
+
+	requiredEnvVars := []string{
+		"DR_AWS_S3_ENDPOINT",
+		"DR_AWS_S3_REGION",
+		"DR_AWS_S3_BUCKET",
+		"DR_AWS_S3_PREFIX",
+		"DR_AWS_ACCESS_KEY_ID",
+		"DR_AWS_SECRET_ACCESS_KEY",
+	}
+	for _, envVar := range requiredEnvVars {
+		if os.Getenv(envVar) == "" {
+			t.Fatalf("missing required environment variable: %s", envVar)
+		}
+	}
+
+	testArgs := []string{}
+	for _, envVar := range requiredEnvVars {
+		if envVar == "DR_AWS_S3_PREFIX" {
+			testArgs = append(testArgs, os.Getenv(envVar)+"-airgap")
+		} else {
+			testArgs = append(testArgs, os.Getenv(envVar))
+		}
+	}
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "ubuntu/jammy",
+		WithProxy:               false, // TODO figure out how to do some form of airgapping
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+	})
+	defer func() {
+		if t.Failed() {
+			generateAndCopySupportBundle(t, tc)
+			copyPlaywrightReport(t, tc)
+		}
+		tc.Destroy()
+	}()
+
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	// remove the airgap bundle after installation
+	line = []string{"rm", "/tmp/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "expect", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v", err)
+	}
+
+	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to reset the installation: %v", err)
+	}
+
+	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to restore the installation: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
@@ -928,7 +1026,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string) string {
+func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, license string) string {
 	// download airgap bundle
 	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
 
