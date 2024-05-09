@@ -8,7 +8,6 @@ test('deploy airgap upgrade', async ({ page }) => {
   await page.getByRole('button', { name: 'Deploy', exact: true }).click();
   await expect(page.locator('.Modal-body')).toBeVisible();
   await page.getByRole('button', { name: 'Yes, Deploy' }).click();
-  await page.getByRole('button', { name: 'Deploy', exact: true }).click();
   await expect(page.locator('#app')).toContainText('Updating cluster', { timeout: 180000 });
   await expect(page.locator('.Modal-body')).toContainText('Cluster update in progress', { timeout: 300000 });
   await expect(page.locator('#app')).toContainText('Currently deployed version', { timeout: 520000 });
