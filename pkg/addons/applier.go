@@ -67,15 +67,29 @@ func (a *Applier) Outro(ctx context.Context) error {
 			return err
 		}
 	}
-
-	err = spinForInstallation(ctx, kcli)
-	if err != nil {
+	if err := spinForInstallation(ctx, kcli); err != nil {
 		return err
 	}
-
-	err = printKotsadmLinkMessage(a.licenseFile)
-	if err != nil {
+	if err := printKotsadmLinkMessage(a.licenseFile); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
+	}
+	return nil
+}
+
+// OutroForRestore runs the outro in all enabled add-ons for restore operations.
+func (a *Applier) OutroForRestore(ctx context.Context) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	addons, err := a.loadForRestore()
+	if err != nil {
+		return fmt.Errorf("unable to load addons: %w", err)
+	}
+	for _, addon := range addons {
+		if err := addon.Outro(ctx, kcli); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -115,6 +129,28 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 	return charts, repositories, nil
 }
 
+// GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
+func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	charts := []v1beta1.Chart{}
+	repositories := []v1beta1.Repository{}
+	addons, err := a.loadForRestore()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+
+	// charts required for restore
+	for _, addon := range addons {
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.onlyDefaults)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
+		}
+		charts = append(charts, addonChartConfig...)
+		repositories = append(repositories, addonRepositoryConfig...)
+	}
+
+	return charts, repositories, nil
+}
+
 func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	reg, err := registry.New(true)
 	if err != nil {
@@ -131,7 +167,7 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
 	builtinCharts := map[string]k0sconfig.HelmExtensions{}
 
-	vel, err := velero.New(true)
+	vel, err := velero.New(defaults.VeleroNamespace, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
@@ -183,6 +219,20 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
+	return a.hostPreflights(addons)
+}
+
+// HostPreflightsForRestore reads all embedded host preflights from all add-ons for restore operations
+// and returns them merged in a single HostPreflightSpec for restore operations.
+func (a *Applier) HostPreflightsForRestore() (*v1beta2.HostPreflightSpec, error) {
+	addons, err := a.loadForRestore()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+	return a.hostPreflights(addons)
+}
+
+func (a *Applier) hostPreflights(addons []AddOn) (*v1beta2.HostPreflightSpec, error) {
 	allpf := &v1beta2.HostPreflightSpec{}
 	for _, addon := range addons {
 		hpf, err := addon.HostPreflights()
@@ -222,7 +272,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to check if snapshots are enabled: %w", err)
 	}
-	vel, err := velero.New(snapshotsEnabled)
+	vel, err := velero.New(defaults.VeleroNamespace, snapshotsEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
@@ -233,6 +283,23 @@ func (a *Applier) load() ([]AddOn, error) {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
 	addons = append(addons, aconsole)
+	return addons, nil
+}
+
+// loadForRestore instantiates and returns addon appliers for restore operations.
+func (a *Applier) loadForRestore() ([]AddOn, error) {
+	addons := []AddOn{}
+	obs, err := openebs.New()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create openebs addon: %w", err)
+	}
+	addons = append(addons, obs)
+
+	vel, err := velero.New(defaults.VeleroNamespace, true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	addons = append(addons, vel)
 	return addons, nil
 }
 
@@ -320,25 +387,15 @@ func printKotsadmLinkMessage(licenseFile string) error {
 
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
-	ipaddr := defaults.TryDiscoverPublicIP()
-	if ipaddr == "" {
-		var err error
-		ipaddr, err = defaults.PreferredNodeIPAddress()
-		if err != nil {
-			logrus.Errorf("unable to determine node IP address: %v", err)
-			ipaddr = "NODE-IP-ADDRESS"
-		}
-	}
 	var successMessage string
 	if license != nil {
-		successMessage = fmt.Sprintf("Visit the admin console to configure and install %s: %shttp://%s:%v%s",
-			license.Spec.AppSlug, successColor, ipaddr, adminconsole.DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
+		successMessage = fmt.Sprintf("Visit the admin console to configure and install %s: %s%s%s",
+			license.Spec.AppSlug, successColor, adminconsole.GetURL(), colorReset,
 		)
 	} else {
-		successMessage = fmt.Sprintf("Visit the admin console to configure and install your application: %shttp://%s:%v%s",
-			successColor, ipaddr, adminconsole.DEFAULT_ADMIN_CONSOLE_NODE_PORT, colorReset,
+		successMessage = fmt.Sprintf("Visit the admin console to configure and install your application: %s%s%s",
+			successColor, adminconsole.GetURL(), colorReset,
 		)
-
 	}
 	logrus.Info(successMessage)
 

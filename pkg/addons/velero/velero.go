@@ -17,7 +17,6 @@ import (
 
 const (
 	releaseName           = "velero"
-	namespace             = "velero"
 	credentialsSecretName = "cloud-credentials"
 )
 
@@ -61,6 +60,7 @@ var helmValues = map[string]interface{}{
 
 // Velero manages the installation of the Velero helm chart.
 type Velero struct {
+	namespace string
 	isEnabled bool
 }
 
@@ -96,7 +96,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
-		TargetNS:  namespace,
+		TargetNS:  o.namespace,
 		Order:     3,
 	}
 
@@ -127,7 +127,7 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Velero to be ready")
 
-	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+	if err := kubeutils.WaitForNamespace(ctx, cli, o.namespace); err != nil {
 		loading.Close()
 		return err
 	}
@@ -139,7 +139,7 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      credentialsSecretName,
-			Namespace: namespace,
+			Namespace: o.namespace,
 		},
 		Type: "Opaque",
 	}
@@ -148,12 +148,12 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("unable to create %s secret: %w", credentialsSecretName, err)
 	}
 
-	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "velero"); err != nil {
+	if err := kubeutils.WaitForDeployment(ctx, cli, o.namespace, "velero"); err != nil {
 		loading.Close()
 		return fmt.Errorf("timed out waiting for Velero to deploy: %v", err)
 	}
 
-	if err := kubeutils.WaitForDaemonset(ctx, cli, namespace, "node-agent"); err != nil {
+	if err := kubeutils.WaitForDaemonset(ctx, cli, o.namespace, "node-agent"); err != nil {
 		loading.Close()
 		return fmt.Errorf("timed out waiting for node-agent to deploy: %v", err)
 	}
@@ -163,6 +163,9 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new Velero addon.
-func New(isEnabled bool) (*Velero, error) {
-	return &Velero{isEnabled: isEnabled}, nil
+func New(namespace string, isEnabled bool) (*Velero, error) {
+	return &Velero{
+		namespace: namespace,
+		isEnabled: isEnabled,
+	}, nil
 }
