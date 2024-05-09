@@ -40,6 +40,9 @@ var helmValues = map[string]interface{}{
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
+	"podAnnotations": map[string]interface{}{
+		"backup.velero.io/backup-volumes": "data",
+	},
 	"storage": "filesystem",
 	"persistence": map[string]interface{}{
 		"enabled":      true,

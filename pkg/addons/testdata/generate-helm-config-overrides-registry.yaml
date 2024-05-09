@@ -34,3 +34,5 @@ expected:
         storageClass: openebs-hostpath
       replicaCount: 8
       storage: filesystem
+      podAnnotations:
+        backup.velero.io/backup-volumes: data
