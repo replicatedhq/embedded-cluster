@@ -668,10 +668,14 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	// remove the airgap bundle after installation
+	// remove the airgap bundle and binary after installation
 	line = []string{"rm", "/tmp/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
 
 	if err := setupPlaywright(t, tc); err != nil {
@@ -703,10 +707,14 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(workerCommand, " ")); err != nil {
 		t.Fatalf("fail to join worker node to the cluster: %v", err)
 	}
-	// remove the airgap bundle after joining
+	// remove the airgap bundle and binary after joining
 	line = []string{"rm", "/tmp/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on worker node: %v", err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on worker node: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
@@ -728,10 +736,14 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
-	// remove the airgap bundle after upgrade
+	// remove the airgap bundle and binary after upgrade
 	line = []string{"rm", "/tmp/upgrade/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster-upgrade"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster-upgrade binary on node %s: %v", tc.Nodes[0], err)
 	}
 
 	if _, _, err := runPlaywrightTest(t, tc, "deploy-airgap-upgrade"); err != nil {
