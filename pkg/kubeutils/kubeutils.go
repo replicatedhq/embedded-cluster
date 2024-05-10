@@ -104,8 +104,10 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 }
 
 func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	backoff := wait.Backoff{Steps: 60 * 5, Duration: time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
+
+	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
 
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
@@ -175,6 +177,32 @@ func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1
 	} else {
 		writer.Infof("Finalizing additional components")
 	}
+}
+
+func WaitForNodes(ctx context.Context, cli client.Client) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			var nodes corev1.NodeList
+			if err := cli.List(ctx, &nodes); err != nil {
+				lasterr = fmt.Errorf("unable to list nodes: %v", err)
+				return false, nil
+			}
+			readynodes := 0
+			for _, node := range nodes.Items {
+				for _, condition := range node.Status.Conditions {
+					if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+						readynodes++
+					}
+				}
+			}
+			return readynodes == len(nodes.Items), nil
+		},
+	); err != nil {
+		return fmt.Errorf("timed out waiting for nodes to be ready: %v", lasterr)
+	}
+	return nil
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {

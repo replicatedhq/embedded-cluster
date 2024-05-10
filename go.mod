@@ -4,6 +4,7 @@ go 1.22.0
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
+	github.com/aws/aws-sdk-go v1.48.10
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/creack/pty v1.1.21
@@ -21,6 +22,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
+	github.com/vmware-tanzu/velero v1.13.2
 	golang.org/x/crypto v0.23.0
 	golang.org/x/term v0.20.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -43,6 +45,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/ohler55/ojg v1.22.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -147,7 +150,7 @@ require (
 	k8s.io/client-go v0.30.0 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
-	k8s.io/utils v0.0.0-20231121161247-cf03d44ff3cf // indirect
+	k8s.io/utils v0.0.0-20231121161247-cf03d44ff3cf
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )

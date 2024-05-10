@@ -215,59 +215,37 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-	loading.Infof("Waiting for Admin Console to deploy: 0/2 ready")
+	loading.Infof("Waiting for Admin Console to deploy")
+	defer loading.Close()
 
 	if a.airgapBundle != "" {
 		err := createRegistrySecret(ctx, cli, a.namespace)
 		if err != nil {
-			loading.Close()
 			return fmt.Errorf("error creating registry secret: %v", err)
 		}
 	}
 
-	var lasterr error
-	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
-		var count int
-		for _, name := range []string{"kotsadm-rqlite", "kotsadm"} {
-			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, a.namespace, name)
-			if err != nil {
-				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
-				return false, nil
-			}
-			if ready {
-				count++
-			}
-		}
-		loading.Infof("Waiting for Admin Console to deploy: %d/2 ready", count)
-		return count == 2, nil
-	}); err != nil {
-		if lasterr == nil {
-			lasterr = err
-		}
-		loading.Close()
-		return fmt.Errorf("error waiting for admin console: %v", lasterr)
+	if err := WaitForReady(ctx, cli, a.namespace, loading); err != nil {
+		return err
 	}
 
 	if a.licenseFile != "" {
 		license, err := helpers.ParseLicense(a.licenseFile)
 		if err != nil {
-			loading.CloseWithError()
 			return fmt.Errorf("unable to parse license: %w", err)
 		}
-
-		if err := kotscli.Install(kotscli.InstallOptions{
+		installOpts := kotscli.InstallOptions{
 			AppSlug:      license.Spec.AppSlug,
 			LicenseFile:  a.licenseFile,
 			Namespace:    a.namespace,
 			AirgapBundle: a.airgapBundle,
-		}, loading); err != nil {
-			loading.CloseWithError()
+		}
+		if err := kotscli.Install(installOpts, loading); err != nil {
 			return err
 		}
 	}
 
-	loading.Closef("Admin Console is ready!")
+	loading.Infof("Admin Console is ready!")
 
 	return nil
 }
@@ -281,6 +259,49 @@ func New(ns string, useprompt bool, config v1beta1.ClusterConfig, licenseFile st
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
 	}, nil
+}
+
+// WaitForReady waits for the admin console to be ready.
+func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spinner.MessageWriter) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		var count int
+		for _, name := range []string{"kotsadm-rqlite", "kotsadm"} {
+			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, ns, name)
+			if err != nil {
+				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
+				return false, nil
+			}
+			if ready {
+				count++
+			}
+		}
+		if writer != nil {
+			writer.Infof("Waiting for Admin Console to deploy: %d/2 ready", count)
+		}
+		return count == 2, nil
+	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
+		return fmt.Errorf("error waiting for admin console: %v", lasterr)
+	}
+	return nil
+}
+
+// GetURL returns the URL to the admin console.
+func GetURL() string {
+	ipaddr := defaults.TryDiscoverPublicIP()
+	if ipaddr == "" {
+		var err error
+		ipaddr, err = defaults.PreferredNodeIPAddress()
+		if err != nil {
+			logrus.Errorf("unable to determine node IP address: %v", err)
+			ipaddr = "NODE-IP-ADDRESS"
+		}
+	}
+	return fmt.Sprintf("http://%s:%v", ipaddr, DEFAULT_ADMIN_CONSOLE_NODE_PORT)
 }
 
 func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {

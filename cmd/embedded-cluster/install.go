@@ -22,6 +22,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
 // ErrNothingElseToAdd is an error returned when there is nothing else to add to the
@@ -92,14 +93,18 @@ func runPostInstall() error {
 	return installAndEnableLocalArtifactMirror()
 }
 
-// runHostPreflights run the host preflights we found embedded in the binary
+// RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func runHostPreflights(c *cli.Context) error {
+func RunHostPreflights(c *cli.Context) error {
 	hpf, err := addons.NewApplier().HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
+	return runHostPreflights(c, hpf)
+}
+
+func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -246,7 +251,7 @@ func materializeFiles(c *cli.Context) error {
 		}
 	}
 
-	mat.Infof("Host files materialized")
+	mat.Infof("Host files materialized!")
 
 	return nil
 }
@@ -365,7 +370,7 @@ func waitForK0s() error {
 	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
 	}
-	loading.Infof("Node installation finished")
+	loading.Infof("Node installation finished!")
 	return nil
 }
 
@@ -468,7 +473,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("running host preflights")
-		if err := runHostPreflights(c); err != nil {
+		if err := RunHostPreflights(c); err != nil {
 			err := fmt.Errorf("unable to finish preflight checks: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
