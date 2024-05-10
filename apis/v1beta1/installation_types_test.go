@@ -13,6 +13,7 @@ func TestParseConfigSpecFromSecret(t *testing.T) {
 		SecretData map[string]string `yaml:"secret"`
 		ConfigSpec *ConfigSpec       `yaml:"configSpec"`
 		Expected   *ConfigSpec       `yaml:"expected"`
+		Error      string            `yaml:"error"`
 	}
 
 	for tname, tt := range parseTestsYAML[test](t, "config-override-") {
@@ -24,8 +25,12 @@ func TestParseConfigSpecFromSecret(t *testing.T) {
 			for k, v := range tt.SecretData {
 				secret.Data[k] = []byte(v)
 			}
-			err := in.ParseConfigSpecFromSecret(secret)
-			require.NoError(t, err)
+			if err := in.ParseConfigSpecFromSecret(secret); err != nil {
+				require.NotEmpty(t, tt.Error, "unexpected error: %v", err)
+				require.Contains(t, err.Error(), tt.Error)
+				return
+			}
+			require.Empty(t, tt.Error, "expected error: %v", tt.Error)
 			require.Equal(t, tt.Expected, in.Config)
 		})
 	}

@@ -109,7 +109,12 @@ type InstallationSpec struct {
 func (i *InstallationSpec) ParseConfigSpecFromSecret(secret corev1.Secret) error {
 	data, ok := secret.Data[ConfigSecretEntryName]
 	if !ok {
-		return nil
+		return fmt.Errorf(
+			"entry %s not found in secret %s/%s",
+			ConfigSecretEntryName,
+			secret.Namespace,
+			secret.Name,
+		)
 	}
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
