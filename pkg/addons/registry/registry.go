@@ -161,6 +161,9 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-auth",
 			Namespace: namespace,
+			Labels: map[string]string{
+				"app": "docker-registry", // this is the backup/restore label for the registry component
+			},
 		},
 		StringData: map[string]string{
 			"htpasswd": fmt.Sprintf("embedded-cluster:%s", string(hashPassword)),
