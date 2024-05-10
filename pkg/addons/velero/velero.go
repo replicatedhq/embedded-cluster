@@ -115,7 +115,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 }
 
 func (o *Velero) GetAdditionalImages() []string {
-	return nil
+	return []string{fmt.Sprintf("velero/velero-restore-helper:%s", VeleroTag)}
 }
 
 // Outro is executed after the cluster deployment.
