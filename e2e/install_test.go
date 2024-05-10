@@ -1046,7 +1046,7 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
-	req.Header.Set("Authorization", os.Getenv("AIRGAP_LICENSE_ID"))
+	req.Header.Set("Authorization", license)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
