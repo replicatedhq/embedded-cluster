@@ -956,7 +956,7 @@ func (r *InstallationReconciler) ReadClusterConfigSpecFromSecret(ctx context.Con
 
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations/status,verbs=get;update;patch
@@ -1005,6 +1005,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err := r.Status().Update(ctx, in); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
 		}
+		r.DisableOldInstallations(ctx, items)
 		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
 	}
 
@@ -1032,7 +1033,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// save the installation status. nothing more to do with it.
-	if err := r.Status().Update(ctx, in); err != nil {
+	if err := r.Status().Update(ctx, in.DeepCopy()); err != nil {
 		if errors.IsConflict(err) {
 			return ctrl.Result{}, fmt.Errorf("failed to update status: conflict")
 		}

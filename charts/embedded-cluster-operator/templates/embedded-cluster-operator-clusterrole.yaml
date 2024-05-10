@@ -43,6 +43,7 @@ rules:
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - embeddedcluster.replicated.com
   resources:
