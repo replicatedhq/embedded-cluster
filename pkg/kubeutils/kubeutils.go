@@ -104,7 +104,7 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 }
 
 func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	backoff := wait.Backoff{Steps: 60 * 5, Duration: time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
