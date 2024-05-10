@@ -937,11 +937,6 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	// remove the airgap bundle after installation
-	line = []string{"rm", "/tmp/release.airgap"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
-	}
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
