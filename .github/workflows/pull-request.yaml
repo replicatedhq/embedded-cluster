@@ -166,26 +166,26 @@ jobs:
       matrix:
         tests:
           - TestSingleNodeInstallation
-#          - TestSingleNodeInstallationAlmaLinux8
-#          - TestSingleNodeInstallationDebian12
-#          - TestSingleNodeInstallationCentos8Stream
-#          - TestVersion
-#          - TestHostPreflight
-#          - TestUnsupportedOverrides
-#          - TestMultiNodeInstallation
-#          - TestMultiNodeReset
-#          - TestCommandsRequireSudo
-#          - TestInstallWithoutEmbed
-#          - TestInstallFromReplicatedApp
-#          - TestResetAndReinstall
-#          - TestResetAndReinstallAirgap
-#          - TestCollectSupportBundle
-#          - TestOldVersionUpgrade
-#          - TestMaterialize
-#          - TestLocalArtifactMirror
-#          - TestSingleNodeAirgapUpgradeUbuntuJammy
-#          - TestInstallSnapshotFromReplicatedApp
-#          - TestMultiNodeAirgapUpgradeUbuntuJammy
+          - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos8Stream
+          - TestVersion
+          - TestHostPreflight
+          - TestUnsupportedOverrides
+          - TestMultiNodeInstallation
+          - TestMultiNodeReset
+          - TestCommandsRequireSudo
+          - TestInstallWithoutEmbed
+          - TestInstallFromReplicatedApp
+          - TestResetAndReinstall
+          - TestResetAndReinstallAirgap
+          - TestCollectSupportBundle
+          - TestOldVersionUpgrade
+          - TestMaterialize
+          - TestLocalArtifactMirror
+          - TestSingleNodeAirgapUpgradeUbuntuJammy
+          - TestInstallSnapshotFromReplicatedApp
+          - TestMultiNodeAirgapUpgradeUbuntuJammy
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
     steps:
