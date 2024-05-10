@@ -125,6 +125,14 @@ expect {
 }
 
 expect {
+    -timeout 600 "Registry restored!" {}
+    timeout {
+      puts "\n\nFailed to restore registry."
+      exit 1
+    }
+}
+
+expect {
     -timeout 150 "Cluster state restored!" {}
     timeout {
       puts "\n\nFailed to restore cluster state."
