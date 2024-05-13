@@ -22,12 +22,6 @@ inputs:
   license:
     description: 'license (b64) to use for e2e tests'
     required: true
-  testim-access-token:
-    description: 'testim access token'
-    required: true
-  testim-branch:
-    description: 'testim branch'
-    required: true
   dr-aws-access-key-id:
     description: 'Disaster Recovery AWS Access Key ID'
     required: true
@@ -94,8 +88,6 @@ runs:
       export AIRGAP_SNAPSHOT_LICENSE_ID=${{ inputs.airgap-snapshot-license-id }}
       echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
       echo "${{ inputs.snapshot-license }}" | base64 --decode > e2e/snapshot-license.yaml
-      export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
-      export TESTIM_BRANCH=${{ inputs.testim-branch }}
       export DR_AWS_S3_ENDPOINT=https://s3.amazonaws.com
       export DR_AWS_S3_REGION=us-east-1
       export DR_AWS_S3_BUCKET=kots-testim-snapshots
@@ -107,20 +99,20 @@ runs:
     uses: actions/upload-artifact@v4
     if: ${{ failure() }}
     with:
-      name: ${{ github.job }}-support-bundle-host.tar.gz
+      name: ${{ inputs.test-name }}-support-bundle-host.tar.gz
       path: ./e2e/support-bundle-host.tar.gz
   - name: Upload Cluster Support Bundle
     uses: actions/upload-artifact@v4
     if: ${{ failure() }}
     with:
-      name: ${{ github.job }}-support-bundle-cluster.tar.gz
+      name: ${{ inputs.test-name }}-support-bundle-cluster.tar.gz
       path: ./e2e/support-bundle-cluster.tar.gz
   - name: Upload Playwright Report
     id: upload-playwright-report
     uses: actions/upload-artifact@v4
     if: ${{ failure() }}
     with:
-      name: ${{ github.job }}-playwright-report.tar.gz
+      name: ${{ inputs.test-name }}-playwright-report.tar.gz
       path: ./e2e/playwright-report.tar.gz
   - name: Print instructions to view Playwright report
     if: ${{ failure() && steps.upload-playwright-report.outputs.artifact-url != '' }}

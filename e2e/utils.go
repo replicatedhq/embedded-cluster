@@ -104,7 +104,7 @@ type nodeJoinResponse struct {
 	Command string `json:"command"`
 }
 
-// findJoinCommandInOutput parses the output of the testim.sh script and returns the join command.
+// findJoinCommandInOutput parses the output of the playwright.sh script and returns the join command.
 func findJoinCommandInOutput(stdout string) (string, error) {
 	output := commandOutputRegex.FindString(stdout)
 	if output == "" {
