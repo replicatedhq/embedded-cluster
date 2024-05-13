@@ -556,7 +556,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	return waitForDRComponent(ctx, drComponent, restoreName)
 }
 
-// TODO NOW: update kots to detect new restore state cm for adding nodes
+// waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
 func waitForAdditionalNodes(ctx context.Context) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
