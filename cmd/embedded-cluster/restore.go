@@ -337,11 +337,11 @@ const (
 	DisasterRecoveryComponentInfra     DisasterRecoveryComponent = "infra"
 	DisasterRecoveryComponentECInstall DisasterRecoveryComponent = "ec-install"
 	DisasterRecoveryComponentApp       DisasterRecoveryComponent = "app"
-	DisasterRecoveryComponentChart     DisasterRecoveryComponent = "chart"
+	DisasterRecoveryComponentRegistry  DisasterRecoveryComponent = "registry"
 )
 
 // restoreFromBackup restores a disaster recovery component from a backup.
-func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent DisasterRecoveryComponent, chartName string, restoreLabelSelector *metav1.LabelSelector) error {
+func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent DisasterRecoveryComponent) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
@@ -352,8 +352,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		loading.Infof("Restoring cluster state")
 	case DisasterRecoveryComponentApp:
 		loading.Infof("Restoring application")
-	case DisasterRecoveryComponentChart:
-		loading.Infof("Restoring %s", chartName)
+	case DisasterRecoveryComponentRegistry:
+		loading.Infof("Restoring registry")
 	}
 
 	cfg, err := k8sconfig.GetConfig()
@@ -366,12 +366,20 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		return fmt.Errorf("unable to create velero client: %w", err)
 	}
 
-	if drComponent != DisasterRecoveryComponentChart {
+	var restoreLabelSelector *metav1.LabelSelector
+	if drComponent != DisasterRecoveryComponentRegistry {
 		restoreLabelSelector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"replicated.com/disaster-recovery": string(drComponent),
 			},
 		}
+	} else {
+		restoreLabelSelector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "docker-registry",
+			},
+		}
+
 	}
 
 	// define the restore object
@@ -430,8 +438,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		loading.Infof("Cluster state restored!")
 	case DisasterRecoveryComponentApp:
 		loading.Infof("Application restored!")
-	case DisasterRecoveryComponentChart:
-		loading.Infof("%s restored!", strings.ToUpper(chartName[:1])+chartName[1:])
+	case DisasterRecoveryComponentRegistry:
+		loading.Infof("Registry restored!")
 	}
 
 	return nil
@@ -605,24 +613,20 @@ var restoreCommand = &cli.Command{
 		}
 
 		logrus.Debugf("restoring infra from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentInfra, "", nil); err != nil {
+		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentInfra); err != nil {
 			return err
 		}
 
 		if c.String("airgap-bundle") != "" {
 			logrus.Debugf("restoring embedded cluster registry from backup %q", backup.Name)
-			err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentChart, "registry", &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "docker-registry",
-				},
-			})
+			err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentRegistry)
 			if err != nil {
 				return err
 			}
 		}
 
 		logrus.Debugf("restoring embedded cluster installation from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentECInstall, "", nil); err != nil {
+		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentECInstall); err != nil {
 			return err
 		}
 
@@ -632,7 +636,7 @@ var restoreCommand = &cli.Command{
 		}
 
 		logrus.Debugf("restoring app from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentApp, "", nil); err != nil {
+		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentApp); err != nil {
 			return err
 		}
 
