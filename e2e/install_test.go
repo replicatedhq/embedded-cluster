@@ -807,7 +807,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, license string) string {
+func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) string {
 	// download airgap bundle
 	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
 
@@ -815,7 +815,7 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
-	req.Header.Set("Authorization", license)
+	req.Header.Set("Authorization", licenseID)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
