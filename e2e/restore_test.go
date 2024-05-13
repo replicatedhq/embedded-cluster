@@ -84,7 +84,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		"DR_AWS_S3_ENDPOINT",
 		"DR_AWS_S3_REGION",
 		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX",
+		"DR_AWS_S3_PREFIX_AIRGAP",
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
@@ -96,11 +96,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
-		if envVar == "DR_AWS_S3_PREFIX" {
-			testArgs = append(testArgs, os.Getenv(envVar)+"-airgap")
-		} else {
-			testArgs = append(testArgs, os.Getenv(envVar))
-		}
+		testArgs = append(testArgs, os.Getenv(envVar))
 	}
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
