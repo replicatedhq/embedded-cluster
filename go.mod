@@ -6,7 +6,7 @@ toolchain go1.22.2
 
 require (
 	github.com/evanphx/json-patch v5.9.0+incompatible
-	github.com/k0sproject/k0s v1.30.1-0.20240510084816-eb96d7ee8dd0
+	github.com/k0sproject/k0s v1.28.10-0.20240418084644-c99e4b437507
 	github.com/stretchr/testify v1.9.0
 	k8s.io/api v0.30.0
 	k8s.io/apimachinery v0.30.0
@@ -33,8 +33,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
-	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
