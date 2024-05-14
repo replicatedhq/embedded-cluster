@@ -54,10 +54,10 @@ spec:
                 patch:
                   image:
                     digest: ""
-          timeout: 300s
+          timeout: 0
         - chartname: okgolove/goldpinger
           name: goldpinger
           namespace: goldpinger
           version: 6.1.2
           order: 11
-          timeout: 300s
+          timeout: 0
