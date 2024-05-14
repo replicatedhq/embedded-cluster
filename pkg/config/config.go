@@ -9,6 +9,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/controllers"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -95,6 +96,22 @@ func extractK0sConfigPatch(raw string) (string, error) {
 		return "", fmt.Errorf("unable to marshal patch body: %w", err)
 	}
 	return string(data), nil
+}
+
+// ApplyBuiltIndExtensionsOverrides applies the cluster config built in extensions overrides on top
+// of the provided cluster configuration. Returns the changed configuration.
+func ApplyBuiltInExtensionsOverrides(cfg *k0sconfig.ClusterConfig, releaseConfig *embeddedclusterv1beta1.Config) (*k0sconfig.ClusterConfig, error) {
+	if cfg.Spec == nil || cfg.Spec.Extensions == nil || cfg.Spec.Extensions.Helm == nil {
+		return cfg, nil
+	}
+	for i, chart := range cfg.Spec.Extensions.Helm.Charts {
+		values, err := releaseConfig.Spec.ApplyEndUserAddOnOverrides(chart.Name, chart.Values)
+		if err != nil {
+			return nil, fmt.Errorf("unable to apply end user overrides for %s: %w", chart.Name, err)
+		}
+		cfg.Spec.Extensions.Helm.Charts[i].Values = values
+	}
+	return cfg, nil
 }
 
 // PatchK0sConfig patches a K0s config with the provided patch. Returns the patched config,
