@@ -1,0 +1,66 @@
+releaseConfig: |
+  apiVersion: embeddedcluster.replicated.com/v1beta1
+  kind: Config
+  metadata:
+    name: "testconfig"
+  spec:
+    version: 1.1.0+k8s-1.28
+    unsupportedOverrides:
+      builtInExtensions:
+        - name: unknown
+          values: |
+            test: test
+clusterConfig: |
+  apiVersion: k0s.k0sproject.io/v1beta1
+  kind: ClusterConfig
+  spec:
+    extensions:
+      helm:
+        charts:
+        - name: admin-console
+          values: |
+            embeddedClusterID: 8dd4b480-93e7-434f-a8c8-b9c522bed816
+            embeddedClusterVersion: v1.1.0+k8s-1.28
+            isAirgap: "false"
+            isHelmManaged: false
+            kurlProxy:
+              enabled: true
+              nodePort: 30000
+            labels:
+              replicated.com/disaster-recovery: infra
+              replicated.com/disaster-recovery-chart: kotsadm
+            minimalRBAC: false
+            service:
+              enabled: false
+        - name: another-chart
+          values: |
+            test: testing
+            service:
+              enabled: false
+expected: |
+  apiVersion: k0s.k0sproject.io/v1beta1
+  kind: ClusterConfig
+  spec:
+    extensions:
+      helm:
+        charts:
+        - name: admin-console
+          values: |
+            embeddedClusterID: 8dd4b480-93e7-434f-a8c8-b9c522bed816
+            embeddedClusterVersion: v1.1.0+k8s-1.28
+            isAirgap: "false"
+            isHelmManaged: false
+            kurlProxy:
+              enabled: true
+              nodePort: 30000
+            labels:
+              replicated.com/disaster-recovery: infra
+              replicated.com/disaster-recovery-chart: kotsadm
+            minimalRBAC: false
+            service:
+              enabled: false
+        - name: another-chart
+          values: |
+            test: testing
+            service:
+              enabled: false
