@@ -43,6 +43,7 @@ var (
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
 	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
+	Password                = ""
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
@@ -92,7 +93,6 @@ type AdminConsole struct {
 	config       v1beta1.ClusterConfig
 	licenseFile  string
 	airgapBundle string
-	password     string
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -170,7 +170,7 @@ func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	var err error
-	a.password, err = a.askPassword()
+  Password, err = a.askPassword()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to set kotsadm-password: %w", err)
 	}
@@ -207,7 +207,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading.Infof("Waiting for Admin Console to deploy")
 	defer loading.Close()
 
-	createKotsPasswordSecret(ctx, cli, a.namespace, a.password)
+	createKotsPasswordSecret(ctx, cli, a.namespace, Password)
 
 	if a.airgapBundle != "" {
 		err := createRegistrySecret(ctx, cli, a.namespace)
