@@ -218,10 +218,7 @@ func getBackupFromRestoreState(ctx context.Context) (*velerov1.Backup, error) {
 		return nil, fmt.Errorf("no release found in binary")
 	}
 	if restorable, reason := isBackupRestorable(backup, rel); !restorable {
-		return nil, &invalidBackupsError{
-			invalidBackups: []velerov1.Backup{*backup},
-			invalidReasons: []string{reason},
-		}
+		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
 	}
 	return backup, nil
 }
@@ -629,7 +626,7 @@ var restoreCommand = &cli.Command{
 			var err error
 			backupToRestore, err = getBackupFromRestoreState(c.Context)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to resume: %w", err)
 			}
 			if backupToRestore != nil {
 				completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
