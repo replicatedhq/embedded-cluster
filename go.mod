@@ -14,7 +14,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.5-0.20240418091920-5421d2dc4754
-	github.com/replicatedhq/embedded-cluster-kinds v1.1.9
+	github.com/replicatedhq/embedded-cluster-kinds v1.2.1
 	github.com/replicatedhq/embedded-cluster-operator v0.30.3
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20230724164735-f83482cc9cfe
@@ -37,7 +37,7 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/containerd/containerd v1.7.15 // indirect
+	github.com/containerd/containerd v1.7.16 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/frankban/quicktest v1.14.6 // indirect
@@ -134,7 +134,7 @@ require (
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.18.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
