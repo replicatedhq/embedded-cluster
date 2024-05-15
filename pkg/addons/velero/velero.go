@@ -33,9 +33,6 @@ var helmValues = map[string]interface{}{
 	"backupsEnabled":   false,
 	"snapshotsEnabled": false,
 	"deployNodeAgent":  true,
-	"configuration": map[string]interface{}{
-		"uploaderType": "restic",
-	},
 	"nodeAgent": map[string]interface{}{
 		"podVolumePath": "/var/lib/k0s/kubelet/pods",
 	},
