@@ -40,6 +40,9 @@ var helmValues = map[string]interface{}{
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
+	"service": map[string]interface{}{
+		"clusterIP": "10.103.113.120", // TODO: make dynamic based on k0s cluster CIDR range (lower end)
+	},
 	"podAnnotations": map[string]interface{}{
 		"backup.velero.io/backup-volumes": "data",
 	},
