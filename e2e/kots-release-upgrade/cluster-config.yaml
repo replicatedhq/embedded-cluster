@@ -21,6 +21,16 @@ spec:
           final-test-label: final-value
         name: final
   unsupportedOverrides:
+    builtInExtensions:
+      - name: admin-console
+        values: |
+          labels:
+            release-custom-label: release-clustom-value
+      - name: embedded-cluster-operator
+        values: |
+          global:
+            labels:
+              release-custom-label: release-clustom-value
     k0s: |
       config:
         metadata:
