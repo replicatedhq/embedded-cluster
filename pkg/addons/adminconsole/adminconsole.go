@@ -170,7 +170,7 @@ func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	var err error
-  Password, err = a.askPassword()
+	Password, err = a.askPassword()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to set kotsadm-password: %w", err)
 	}
