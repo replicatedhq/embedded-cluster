@@ -299,7 +299,7 @@ func pickBackupToRestore(backups []velerov1.Backup) *velerov1.Backup {
 }
 
 // waitForRestoreCompleted waits for a Velero restore to complete.
-func waitForRestoreCompleted(ctx context.Context, restoreName string, writer *spinner.MessageWriter, msg string) (*velerov1.Restore, error) {
+func waitForRestoreCompleted(ctx context.Context, restoreName string) (*velerov1.Restore, error) {
 	cfg, err := k8sconfig.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get kubernetes config: %w", err)
@@ -327,22 +327,6 @@ func waitForRestoreCompleted(ctx context.Context, restoreName string, writer *sp
 			// in progress
 		}
 
-		pvrs, err := veleroClient.PodVolumeRestores(defaults.VeleroNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("velero.io/restore-name=%s", restoreName),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("unable to list podvolumerestores for restore %s: %w", restoreName, err)
-		}
-
-		totalBytes, bytesDone := int64(0), int64(0)
-		for _, pvr := range pvrs.Items {
-			totalBytes += pvr.Status.Progress.TotalBytes
-			bytesDone += pvr.Status.Progress.BytesDone
-		}
-		if totalBytes > 0 {
-			writer.Infof("%s (%d%%)", msg, (bytesDone*100)/totalBytes)
-		}
-
 		time.Sleep(time.Second)
 	}
 }
@@ -361,18 +345,16 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	loading := spinner.Start()
 	defer loading.Close()
 
-	msg := "Restoring"
 	switch drComponent {
 	case DisasterRecoveryComponentInfra:
-		msg = "Restoring infrastructure"
+		loading.Infof("Restoring infrastructure")
 	case DisasterRecoveryComponentECInstall:
-		msg = "Restoring cluster state"
+		loading.Infof("Restoring cluster state")
 	case DisasterRecoveryComponentApp:
-		msg = "Restoring application"
+		loading.Infof("Restoring application")
 	case DisasterRecoveryComponentRegistry:
-		msg = "Restoring registry"
+		loading.Infof("Restoring registry")
 	}
-	loading.Infof(msg)
 
 	cfg, err := k8sconfig.GetConfig()
 	if err != nil {
@@ -430,7 +412,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	}
 
 	// wait for restore to complete
-	restore, err = waitForRestoreCompleted(ctx, restore.Name, loading, msg)
+	restore, err = waitForRestoreCompleted(ctx, restore.Name)
 	if err != nil {
 		if restore != nil {
 			return fmt.Errorf("restore failed with %d errors and %d warnings.: %w", restore.Status.Errors, restore.Status.Warnings, err)
