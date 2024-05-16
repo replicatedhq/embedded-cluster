@@ -121,6 +121,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		Image:                   "ubuntu/jammy",
 		WithProxy:               false, // TODO figure out how to do some form of airgapping
 		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
 	defer cleanupCluster(t, tc)
 
