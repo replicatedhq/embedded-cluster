@@ -19,7 +19,8 @@ func TestMultiNodeReset(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -27,18 +28,18 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if err := setupTestim(t, tc); err != nil {
-		t.Fatalf("fail to setup testim: %v", err)
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := runTestimTest(t, tc, "deploy-kots-application"); err != nil {
-		t.Fatalf("fail to deploy kots application: %v", err)
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, stderr, err := runTestimTest(t, tc, "get-join-controller-command")
+		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -50,7 +51,7 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runTestimTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}

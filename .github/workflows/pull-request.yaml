@@ -187,6 +187,7 @@ jobs:
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgradeUbuntuJammy
           - TestSingleNodeDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -204,8 +205,6 @@ jobs:
         snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
         license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
         license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
-        testim-access-token: ${{ secrets.TESTIM_ACCESS_TOKEN }}
-        testim-branch: ${{ github.head_ref == 'main' && 'master' || github.head_ref }}
         dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
         dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
 

@@ -17,6 +17,7 @@ func TestCollectSupportBundle(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
