@@ -141,10 +141,21 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 			}
 			lasterr = fmt.Errorf("installation state is %q (%q)", lastInstall.Status.State, lastInstall.Status.Reason)
 
+			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateFailed {
+				return false, fmt.Errorf("installation failed: %s", lastInstall.Status.Reason)
+			}
+
+			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateHelmChartUpdateFailure {
+				return false, fmt.Errorf("helm chart installation failed: %s", lastInstall.Status.Reason)
+			}
+
 			return false, nil
 		},
 	); err != nil {
-		return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
+		if wait.Interrupted(err) {
+			return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
+		}
+		return fmt.Errorf("error waiting for installation: %v", err)
 	}
 	return nil
 }
