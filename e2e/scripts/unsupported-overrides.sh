@@ -58,6 +58,9 @@ spec:
                   service:
                     nodePort: 30000
                     type: NodePort
+                  passwordSecretRef:
+                    name: kotsadm-password
+                    key: passwordBcrypt
               - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
                 name: memcached
                 namespace: embedded-cluster
