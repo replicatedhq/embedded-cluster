@@ -6,8 +6,6 @@ package addons
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
@@ -15,7 +13,6 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -62,6 +59,12 @@ func (a *Applier) Outro(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
+
+	err = a.waitForKubernetes(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("unable to wait for kubernetes: %w", err)
+	}
+
 	for _, addon := range addons {
 		if err := addon.Outro(ctx, kcli); err != nil {
 			return err
@@ -319,37 +322,29 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	return versions, nil
 }
 
-// waitForKubernetes waits until we manage to make a successful connection to the
-// Kubernetes API server.
-func (a *Applier) waitForKubernetes(ctx context.Context) error {
+// waitForKubernetes waits for coredns and metrics-server to be ready in kube-system.
+func (a *Applier) waitForKubernetes(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	defer func() {
-		loading.Closef("Kubernetes API server is ready")
-	}()
-	kcli, err := kubeutils.KubeClient()
+	loading.Infof("Waiting for Kubernetes System Infrastructure to be ready 0/2")
+
+	err := kubeutils.WaitForDeployment(ctx, cli, "kube-system", "coredns")
 	if err != nil {
-		return fmt.Errorf("unable to create kubernetes client: %w", err)
+		loading.Errorf("CoreDNS failed to become healthy, check your /etc/resolv.conf configuration")
+		loading.CloseWithError()
+		return fmt.Errorf("unable to wait for CoreDNS: %w", err)
 	}
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	counter := 1
-	loading.Infof("1/n Waiting for Kubernetes API server to be ready")
-	for {
-		select {
-		case <-ticker.C:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-		counter++
-		if err := kcli.List(ctx, &corev1.NamespaceList{}); err != nil {
-			loading.Infof(
-				"%d/n Waiting for Kubernetes API server to be ready.",
-				counter,
-			)
-			continue
-		}
-		return nil
+
+	loading.Infof("Waiting for Kubernetes System Infrastructure to be ready 1/2")
+
+	err = kubeutils.WaitForDeployment(ctx, cli, "kube-system", "metrics-server")
+	if err != nil {
+		loading.Errorf("Metrics Server failed to become healthy - this may be a firewall or network issue.")
+		loading.CloseWithError()
+		return fmt.Errorf("unable to wait for Metrics Server: %w", err)
 	}
+
+	loading.Closef("Kubernetes System Infrastructure ready")
+	return nil
 }
 
 func spinForInstallation(ctx context.Context, cli client.Client) error {
