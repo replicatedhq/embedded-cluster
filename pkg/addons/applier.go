@@ -322,7 +322,7 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	return versions, nil
 }
 
-// waitForKubernetes waits for codedns and metrics-server to be ready in kube-system.
+// waitForKubernetes waits for coredns and metrics-server to be ready in kube-system.
 func (a *Applier) waitForKubernetes(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Kubernetes System Infrastructure to be ready 0/2")
@@ -330,7 +330,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context, cli client.Client) erro
 	err := kubeutils.WaitForDeployment(ctx, cli, "kube-system", "coredns")
 	if err != nil {
 		loading.Errorf("CoreDNS failed to become healthy, check your /etc/resolv.conf configuration")
-		loading.Close()
+		loading.CloseWithError()
 		return fmt.Errorf("unable to wait for CoreDNS: %w", err)
 	}
 
@@ -339,7 +339,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context, cli client.Client) erro
 	err = kubeutils.WaitForDeployment(ctx, cli, "kube-system", "metrics-server")
 	if err != nil {
 		loading.Errorf("Metrics Server failed to become healthy - this may be a firewall or network issue.")
-		loading.Close()
+		loading.CloseWithError()
 		return fmt.Errorf("unable to wait for Metrics Server: %w", err)
 	}
 
