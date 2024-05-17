@@ -20,7 +20,6 @@ import (
 
 const (
 	releaseName = "docker-registry"
-	namespace   = "registry"
 )
 
 // Overwritten by -ldflags in Makefile
@@ -79,7 +78,8 @@ var helmValues = map[string]interface{}{
 
 // Registry manages the installation of the Registry helm chart.
 type Registry struct {
-	isAirgap bool
+	namespace string
+	isAirgap  bool
 }
 
 // Version returns the version of the Registry chart.
@@ -114,7 +114,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
-		TargetNS:  namespace,
+		TargetNS:  o.namespace,
 		Order:     3,
 	}
 
@@ -145,7 +145,7 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Registry to be ready")
 
-	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+	if err := kubeutils.WaitForNamespace(ctx, cli, o.namespace); err != nil {
 		loading.Close()
 		return err
 	}
@@ -163,7 +163,7 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-auth",
-			Namespace: namespace,
+			Namespace: o.namespace,
 			Labels: map[string]string{
 				"app": "docker-registry", // this is the backup/restore label for the registry component
 			},
@@ -179,16 +179,16 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("unable to create registry-auth secret: %w", err)
 	}
 
-	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "registry"); err != nil {
+	if err := kubeutils.WaitForDeployment(ctx, cli, o.namespace, "registry"); err != nil {
 		loading.Close()
 		return err
 	}
-	if err := kubeutils.WaitForService(ctx, cli, namespace, "registry"); err != nil {
+	if err := kubeutils.WaitForService(ctx, cli, o.namespace, "registry"); err != nil {
 		loading.Close()
 		return err
 	}
 
-	if err := initRegistryClusterIP(ctx, cli); err != nil {
+	if err := InitRegistryClusterIP(ctx, cli, o.namespace); err != nil {
 		loading.Close()
 		return fmt.Errorf("failed to determine registry cluster IP: %w", err)
 	}
@@ -203,8 +203,8 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new Registry addon.
-func New(isAirgap bool) (*Registry, error) {
-	return &Registry{isAirgap: isAirgap}, nil
+func New(namespace string, isAirgap bool) (*Registry, error) {
+	return &Registry{namespace: namespace, isAirgap: isAirgap}, nil
 }
 
 func GetRegistryPassword() string {
@@ -215,7 +215,7 @@ func GetRegistryClusterIP() string {
 	return registryAddress
 }
 
-func initRegistryClusterIP(ctx context.Context, cli client.Client) error {
+func InitRegistryClusterIP(ctx context.Context, cli client.Client, namespace string) error {
 	svc := corev1.Service{}
 	err := cli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &svc)
 	if err != nil {
