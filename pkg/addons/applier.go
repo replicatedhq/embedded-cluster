@@ -338,7 +338,7 @@ func (a *Applier) waitForKubernetes(ctx context.Context, cli client.Client) erro
 
 	err = kubeutils.WaitForDeployment(ctx, cli, "kube-system", "metrics-server")
 	if err != nil {
-		loading.Errorf("Metrics Server failed to become healthy")
+		loading.Errorf("Metrics Server failed to become healthy - this may be a firewall or network issue.")
 		loading.Close()
 		return fmt.Errorf("unable to wait for Metrics Server: %w", err)
 	}
