@@ -209,7 +209,9 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading.Infof("Waiting for Admin Console to deploy")
 	defer loading.Close()
 
-	createKotsPasswordSecret(ctx, cli, a.namespace, Password)
+	if err := createKotsPasswordSecret(ctx, cli, a.namespace, Password); err != nil {
+		return fmt.Errorf("unable to create kots password secret: %w", err)
+	}
 
 	if a.airgapBundle != "" {
 		err := createRegistrySecret(ctx, cli, a.namespace)
@@ -339,7 +341,7 @@ func createKotsPasswordSecret(ctx context.Context, cli client.Client, namespace 
 
 	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
-		return fmt.Errorf("unable to create kotsadm-password secret: %w", err)
+		return fmt.Errorf("unable to generate bcrypt from password: %w", err)
 	}
 
 	kotsPasswordSecret := corev1.Secret{
