@@ -551,20 +551,8 @@ func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryCompone
 		},
 	}
 
-	// delete existing restore object (if exists)
-	err = veleroClient.Restores(defaults.VeleroNamespace).Delete(ctx, restore.Name, metav1.DeleteOptions{})
-	if err != nil && !strings.Contains(err.Error(), "not found") {
-		return fmt.Errorf("unable to delete restore %s: %w", restore.Name, err)
-	}
-
-	// create new restore object
-	restore, err = veleroClient.Restores(defaults.VeleroNamespace).Create(ctx, restore, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("unable to create restore: %w", err)
-	}
-
 	// wait for restore to complete
-	restore, err = waitForRestoreCompleted(ctx, restore.Name)
+	restore, err = waitForRestoreCompleted(ctx, restoreName)
 	if err != nil {
 		if restore != nil {
 			return fmt.Errorf("restore failed with %d errors and %d warnings.: %w", restore.Status.Errors, restore.Status.Warnings, err)
