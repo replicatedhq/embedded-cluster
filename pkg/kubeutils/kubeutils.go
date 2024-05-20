@@ -169,11 +169,11 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 		},
 	); err != nil {
 		if wait.Interrupted(err) {
-      if lasterr != nil {
-		    return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
-		  } else {
-			  return fmt.Errorf("timed out waiting for the installation to finish")
-      }
+			if lasterr != nil {
+				return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
+			} else {
+				return fmt.Errorf("timed out waiting for the installation to finish")
+			}
 		}
 		return fmt.Errorf("error waiting for installation: %v", err)
 	}
