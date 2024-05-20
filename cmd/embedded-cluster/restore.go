@@ -420,14 +420,28 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		return fmt.Errorf("unable to wait for velero restore to complete: %w", err)
 	}
 
-	// wait for embedded cluster installation to reconcile
 	if drComponent == DisasterRecoveryComponentECInstall {
+		// wait for embedded cluster installation to reconcile
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 		if err := kubeutils.WaitForInstallation(ctx, kcli, loading); err != nil {
 			return fmt.Errorf("unable to wait for installation to be ready: %w", err)
+		}
+	} else if drComponent == DisasterRecoveryComponentRegistry {
+		// delete the `registry` service to allow the helm chart reconciliation to re-create it with the desired clusterIP
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			return fmt.Errorf("unable to create kube client: %w", err)
+		}
+		if err := kcli.Delete(ctx, &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "registry",
+				Namespace: defaults.RegistryNamespace,
+			},
+		}); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("unable to delete registry service: %w", err)
 		}
 	}
 

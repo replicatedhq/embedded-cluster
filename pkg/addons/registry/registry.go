@@ -209,12 +209,6 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("failed to add insecure registry: %w", err)
 	}
 
-	// annotate the registry service to be excluded from the Velero backup
-	if err := ExcludeRegistryServiceFromBackup(ctx, cli, o.namespace); err != nil {
-		loading.Close()
-		return fmt.Errorf("failed to exclude registry service from backup: %w", err)
-	}
-
 	loading.Closef("Registry is ready!")
 	return nil
 }
@@ -240,21 +234,5 @@ func InitRegistryClusterIP(ctx context.Context, cli client.Client, namespace str
 	}
 
 	registryAddress = svc.Spec.ClusterIP
-	return nil
-}
-
-func ExcludeRegistryServiceFromBackup(ctx context.Context, cli client.Client, namespace string) error {
-	svc := corev1.Service{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &svc)
-	if err != nil {
-		return fmt.Errorf("failed to get registry service: %w", err)
-	}
-
-	svc.Labels["velero.io/exclude-from-backup"] = "true"
-	err = cli.Update(ctx, &svc)
-	if err != nil {
-		return fmt.Errorf("failed to update registry service: %w", err)
-	}
-
 	return nil
 }
