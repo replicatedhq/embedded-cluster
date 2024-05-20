@@ -493,7 +493,7 @@ func waitForRestoreCompleted(ctx context.Context, restoreName string) (*velerov1
 }
 
 // waitForDRComponent waits for a disaster recovery component to be restored.
-func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryComponent, backup *velerov1.Backup, restoreName string) error {
+func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryComponent, restoreName string) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
@@ -506,39 +506,6 @@ func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryCompone
 		loading.Infof("Restoring application")
 	case DisasterRecoveryComponentRegistry:
 		loading.Infof("Restoring registry")
-	}
-
-	var restoreLabelSelector *metav1.LabelSelector
-	if drComponent != DisasterRecoveryComponentRegistry {
-		restoreLabelSelector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"replicated.com/disaster-recovery": string(drComponent),
-			},
-		}
-	} else {
-		restoreLabelSelector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"app": "docker-registry",
-			},
-		}
-
-	}
-
-	// define the restore object
-	restore := &velerov1.Restore{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: defaults.VeleroNamespace,
-			Name:      fmt.Sprintf("%s.%s", backup.Name, string(drComponent)),
-			Annotations: map[string]string{
-				"kots.io/embedded-cluster": "true",
-			},
-		},
-		Spec: velerov1.RestoreSpec{
-			BackupName:              backup.Name,
-			LabelSelector:           restoreLabelSelector,
-			RestorePVs:              ptr.To(true),
-			IncludeClusterResources: ptr.To(true),
-		},
 	}
 
 	// wait for restore to complete
@@ -637,7 +604,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	}
 
 	// wait for restore to complete
-	return waitForDRComponent(ctx, drComponent, backup, restoreName)
+	return waitForDRComponent(ctx, drComponent, restoreName)
 }
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
