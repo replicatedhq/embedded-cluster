@@ -508,16 +508,6 @@ func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryCompone
 		loading.Infof("Restoring registry")
 	}
 
-	cfg, err := k8sconfig.GetConfig()
-	if err != nil {
-		return fmt.Errorf("unable to get kubernetes config: %w", err)
-	}
-
-	veleroClient, err := veleroclientv1.NewForConfig(cfg)
-	if err != nil {
-		return fmt.Errorf("unable to create velero client: %w", err)
-	}
-
 	var restoreLabelSelector *metav1.LabelSelector
 	if drComponent != DisasterRecoveryComponentRegistry {
 		restoreLabelSelector = &metav1.LabelSelector{
@@ -552,7 +542,7 @@ func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryCompone
 	}
 
 	// wait for restore to complete
-	restore, err = waitForRestoreCompleted(ctx, restoreName)
+	restore, err := waitForRestoreCompleted(ctx, restoreName)
 	if err != nil {
 		if restore != nil {
 			return fmt.Errorf("restore failed with %d errors and %d warnings.: %w", restore.Status.Errors, restore.Status.Warnings, err)
