@@ -126,7 +126,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	if o.config.Spec != nil && o.config.Spec.Network != nil {
 		serviceCIDR = o.config.Spec.Network.ServiceCIDR
 	}
-	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, 10) // TODO: how should we determine _which_ index to use?
+	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, 10)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get cluster IP for registry service: %w", err)
 	}
