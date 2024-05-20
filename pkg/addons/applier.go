@@ -65,7 +65,7 @@ func (a *Applier) Outro(ctx context.Context) error {
 	for _, addon := range addons {
 		if err := addon.Outro(ctx, kcli); err != nil {
 			if len(errCh) != 0 {
-				return fmt.Errorf("unable to run outro for %s with error %w: %w", addon.Name(), err, <-errCh)
+				return fmt.Errorf("failed to run outro for %s with error %w. This may be because %w", addon.Name(), err, <-errCh)
 			}
 			return err
 		}
