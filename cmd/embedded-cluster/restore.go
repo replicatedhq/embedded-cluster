@@ -578,6 +578,21 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 
 	// create a new restore object if it doesn't exist
 	if errors.IsNotFound(err) {
+		var restoreLabelSelector *metav1.LabelSelector
+		if drComponent != DisasterRecoveryComponentRegistry {
+			restoreLabelSelector = &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"replicated.com/disaster-recovery": string(drComponent),
+				},
+			}
+		} else {
+			restoreLabelSelector = &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "docker-registry",
+				},
+			}
+		}
+
 		restore := &velerov1.Restore{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: defaults.VeleroNamespace,
@@ -587,12 +602,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				},
 			},
 			Spec: velerov1.RestoreSpec{
-				BackupName: backup.Name,
-				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"replicated.com/disaster-recovery": string(drComponent),
-					},
-				},
+				BackupName:              backup.Name,
+				LabelSelector:           restoreLabelSelector,
 				RestorePVs:              ptr.To(true),
 				IncludeClusterResources: ptr.To(true),
 			},
