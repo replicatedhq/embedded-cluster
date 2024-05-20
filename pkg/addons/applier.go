@@ -60,17 +60,17 @@ func (a *Applier) Outro(ctx context.Context) error {
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
 
-	errCh := a.waitForKubernetes(ctx, kcli)
+	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
+	defer func() {
+		for len(errCh) > 0 {
+			err := <-errCh
+			logrus.Error(fmt.Errorf("the Kubernetes Infrastructure failed to become ready: %w", err))
+		}
+	}()
 
 	for _, addon := range addons {
 		if err := addon.Outro(ctx, kcli); err != nil {
-			if len(errCh) != 0 {
-				return fmt.Errorf("failed to run outro for %s with error %w. This may be because %w", addon.Name(), err, <-errCh)
-			}
 			return err
-		}
-		if len(errCh) != 0 {
-			return fmt.Errorf("the Kubernetes Infrastructure failed to become ready: %w", <-errCh)
 		}
 	}
 	if err := spinForInstallation(ctx, kcli); err != nil {
@@ -323,28 +323,6 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	}
 
 	return versions, nil
-}
-
-// waitForKubernetes waits for coredns and metrics-server to be ready in kube-system, and returns an error channel.
-// if either of them fails to become healthy, an error is returned via the channel.
-func (a *Applier) waitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
-	errch := make(chan error, 1)
-
-	go func() {
-		err := kubeutils.WaitForDeployment(ctx, cli, "kube-system", "coredns")
-		if err != nil {
-			errch <- fmt.Errorf("CoreDNS failed to become healthy: %w", err)
-		}
-	}()
-
-	go func() {
-		err := kubeutils.WaitForDeployment(ctx, cli, "kube-system", "metrics-server")
-		if err != nil {
-			errch <- fmt.Errorf("Metrics Server failed to become healthy: %w", err)
-		}
-	}()
-
-	return errch
 }
 
 func spinForInstallation(ctx context.Context, cli client.Client) error {
