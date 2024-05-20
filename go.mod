@@ -14,9 +14,9 @@ require (
 	github.com/onsi/gomega v1.33.1
 	github.com/replicatedhq/embedded-cluster-kinds v1.2.1
 	github.com/stretchr/testify v1.9.0
-	k8s.io/api v0.30.0
-	k8s.io/apimachinery v0.30.0
-	k8s.io/client-go v0.30.0
+	k8s.io/api v0.30.1
+	k8s.io/apimachinery v0.30.1
+	k8s.io/client-go v0.30.1
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	oras.land/oras-go/v2 v2.5.0
 	sigs.k8s.io/controller-runtime v0.18.2
