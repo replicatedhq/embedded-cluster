@@ -39,9 +39,6 @@ var helmValues = map[string]interface{}{
 	"image": map[string]interface{}{
 		"tag": ImageVersion,
 	},
-	"service": map[string]interface{}{
-		"clusterIP": "10.103.113.120", // TODO: make dynamic based on k0s cluster CIDR range (lower end)
-	},
 	"podAnnotations": map[string]interface{}{
 		"backup.velero.io/backup-volumes": "data",
 	},
@@ -79,6 +76,7 @@ var helmValues = map[string]interface{}{
 // Registry manages the installation of the Registry helm chart.
 type Registry struct {
 	namespace string
+	config    v1beta1.ClusterConfig
 	isAirgap  bool
 }
 
@@ -121,6 +119,19 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	repositoryConfig := v1beta1.Repository{
 		Name: "twuni",
 		URL:  ChartURL,
+	}
+
+	// use a static cluster IP for the registry service based on the cluster CIDR range
+	serviceCIDR := v1beta1.DefaultNetwork().ServiceCIDR
+	if o.config.Spec != nil && o.config.Spec.Network != nil {
+		serviceCIDR = o.config.Spec.Network.ServiceCIDR
+	}
+	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, 10) // TODO: how should we determine _which_ index to use?
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get cluster IP for registry service: %w", err)
+	}
+	helmValues["service"] = map[string]interface{}{
+		"clusterIP": registryServiceIP.String(),
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
@@ -198,13 +209,19 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("failed to add insecure registry: %w", err)
 	}
 
+	// annotate the registry service to be excluded from the Velero backup
+	if err := ExcludeRegistryServiceFromBackup(ctx, cli, o.namespace); err != nil {
+		loading.Close()
+		return fmt.Errorf("failed to exclude registry service from backup: %w", err)
+	}
+
 	loading.Closef("Registry is ready!")
 	return nil
 }
 
 // New creates a new Registry addon.
-func New(namespace string, isAirgap bool) (*Registry, error) {
-	return &Registry{namespace: namespace, isAirgap: isAirgap}, nil
+func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool) (*Registry, error) {
+	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap}, nil
 }
 
 func GetRegistryPassword() string {
@@ -223,5 +240,21 @@ func InitRegistryClusterIP(ctx context.Context, cli client.Client, namespace str
 	}
 
 	registryAddress = svc.Spec.ClusterIP
+	return nil
+}
+
+func ExcludeRegistryServiceFromBackup(ctx context.Context, cli client.Client, namespace string) error {
+	svc := corev1.Service{}
+	err := cli.Get(ctx, client.ObjectKey{Namespace: namespace, Name: "registry"}, &svc)
+	if err != nil {
+		return fmt.Errorf("failed to get registry service: %w", err)
+	}
+
+	svc.Labels["velero.io/exclude-from-backup"] = "true"
+	err = cli.Update(ctx, &svc)
+	if err != nil {
+		return fmt.Errorf("failed to update registry service: %w", err)
+	}
+
 	return nil
 }

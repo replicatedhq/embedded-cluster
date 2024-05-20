@@ -15,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -430,20 +429,6 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		if err := kubeutils.WaitForInstallation(ctx, kcli, loading); err != nil {
 			return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 		}
-	} else if drComponent == DisasterRecoveryComponentRegistry {
-		// delete the `registry` service to allow the helm chart reconciliation to re-create it with the desired clusterIP
-		kcli, err := kubeutils.KubeClient()
-		if err != nil {
-			return fmt.Errorf("unable to create kube client: %w", err)
-		}
-		if err := kcli.Delete(ctx, &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "registry",
-				Namespace: defaults.RegistryNamespace,
-			},
-		}); err != nil && !errors.IsNotFound(err) {
-			return fmt.Errorf("unable to delete registry service: %w", err)
-		}
 	}
 
 	switch drComponent {
@@ -638,25 +623,20 @@ var restoreCommand = &cli.Command{
 			if err != nil {
 				return err
 			}
+
+			registryAddress, ok := backup.Annotations["kots.io/embedded-registry"]
+			if !ok {
+				return fmt.Errorf("unable to read registry address from backup")
+			}
+
+			if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
+				return fmt.Errorf("failed to add insecure registry: %w", err)
+			}
 		}
 
 		logrus.Debugf("restoring embedded cluster installation from backup %q", backup.Name)
 		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentECInstall); err != nil {
 			return err
-		}
-
-		// TODO: clean this bit up
-		kcli, err := kubeutils.KubeClient()
-		if err != nil {
-			return fmt.Errorf("unable to create kube client: %w", err)
-		}
-
-		if err := registry.InitRegistryClusterIP(c.Context, kcli, defaults.RegistryNamespace); err != nil {
-			return fmt.Errorf("failed to determine registry cluster IP: %w", err)
-		}
-
-		if err := airgap.AddInsecureRegistry(fmt.Sprintf("%s:5000", registry.GetRegistryClusterIP())); err != nil {
-			return fmt.Errorf("failed to add insecure registry: %w", err)
 		}
 
 		logrus.Debugf("waiting for additional nodes to be added")

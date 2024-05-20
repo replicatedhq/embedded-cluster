@@ -27,6 +27,8 @@ expected:
       fullnameOverride: registry
       image:
         tag: 2.8.3
+      service:
+        clusterIP: 10.96.0.11
       persistence:
         accessMode: ReadWriteOnce
         enabled: true
