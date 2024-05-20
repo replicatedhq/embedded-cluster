@@ -69,13 +69,13 @@ type s3BackupStore struct {
 	secretAccessKey string
 }
 
-type DisasterRecoveryComponent string
+type disasterRecoveryComponent string
 
 const (
-	DisasterRecoveryComponentInfra     DisasterRecoveryComponent = "infra"
-	DisasterRecoveryComponentECInstall DisasterRecoveryComponent = "ec-install"
-	DisasterRecoveryComponentApp       DisasterRecoveryComponent = "app"
-	DisasterRecoveryComponentRegistry  DisasterRecoveryComponent = "registry"
+	disasterRecoveryComponentInfra     disasterRecoveryComponent = "infra"
+	disasterRecoveryComponentECInstall disasterRecoveryComponent = "ec-install"
+	disasterRecoveryComponentApp       disasterRecoveryComponent = "app"
+	disasterRecoveryComponentRegistry  disasterRecoveryComponent = "registry"
 )
 
 type invalidBackupsError struct {
@@ -493,18 +493,18 @@ func waitForRestoreCompleted(ctx context.Context, restoreName string) (*velerov1
 }
 
 // waitForDRComponent waits for a disaster recovery component to be restored.
-func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryComponent, restoreName string) error {
+func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryComponent, restoreName string) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
 	switch drComponent {
-	case DisasterRecoveryComponentInfra:
+	case disasterRecoveryComponentInfra:
 		loading.Infof("Restoring infrastructure")
-	case DisasterRecoveryComponentECInstall:
+	case disasterRecoveryComponentECInstall:
 		loading.Infof("Restoring cluster state")
-	case DisasterRecoveryComponentApp:
+	case disasterRecoveryComponentApp:
 		loading.Infof("Restoring application")
-	case DisasterRecoveryComponentRegistry:
+	case disasterRecoveryComponentRegistry:
 		loading.Infof("Restoring registry")
 	}
 
@@ -517,7 +517,7 @@ func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryCompone
 		return fmt.Errorf("unable to wait for velero restore to complete: %w", err)
 	}
 
-	if drComponent == DisasterRecoveryComponentECInstall {
+	if drComponent == disasterRecoveryComponentECInstall {
 		// wait for embedded cluster installation to reconcile
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
@@ -526,7 +526,7 @@ func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryCompone
 		if err := kubeutils.WaitForInstallation(ctx, kcli, loading); err != nil {
 			return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 		}
-	} else if drComponent == DisasterRecoveryComponentRegistry {
+	} else if drComponent == disasterRecoveryComponentRegistry {
 		// delete the `registry` service to allow the helm chart reconciliation to re-create it with the desired clusterIP
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
@@ -543,13 +543,13 @@ func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryCompone
 	}
 
 	switch drComponent {
-	case DisasterRecoveryComponentInfra:
+	case disasterRecoveryComponentInfra:
 		loading.Infof("Infrastructure restored!")
-	case DisasterRecoveryComponentECInstall:
+	case disasterRecoveryComponentECInstall:
 		loading.Infof("Cluster state restored!")
-	case DisasterRecoveryComponentApp:
+	case disasterRecoveryComponentApp:
 		loading.Infof("Application restored!")
-	case DisasterRecoveryComponentRegistry:
+	case disasterRecoveryComponentRegistry:
 		loading.Infof("Registry restored!")
 	}
 
@@ -557,7 +557,7 @@ func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryCompone
 }
 
 // restoreFromBackup restores a disaster recovery component from a backup.
-func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent DisasterRecoveryComponent) error {
+func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
 	cfg, err := k8sconfig.GetConfig()
 	if err != nil {
 		return fmt.Errorf("unable to get kubernetes config: %w", err)
@@ -579,7 +579,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	// create a new restore object if it doesn't exist
 	if errors.IsNotFound(err) {
 		var restoreLabelSelector *metav1.LabelSelector
-		if drComponent != DisasterRecoveryComponentRegistry {
+		if drComponent != disasterRecoveryComponentRegistry {
 			restoreLabelSelector = &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"replicated.com/disaster-recovery": string(drComponent),
@@ -812,13 +812,13 @@ var restoreCommand = &cli.Command{
 			}
 
 			logrus.Debugf("restoring infra from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, DisasterRecoveryComponentInfra); err != nil {
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentInfra); err != nil {
 				return err
 			}
 
 			if c.String("airgap-bundle") != "" {
 				logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
-				err := restoreFromBackup(c.Context, backupToRestore, DisasterRecoveryComponentRegistry)
+				err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentRegistry)
 				if err != nil {
 					return err
 				}
@@ -841,7 +841,7 @@ var restoreCommand = &cli.Command{
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
 			logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, DisasterRecoveryComponentECInstall); err != nil {
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
 				return err
 			}
 			fallthrough
@@ -863,7 +863,7 @@ var restoreCommand = &cli.Command{
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
 			logrus.Debugf("restoring app from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, DisasterRecoveryComponentApp); err != nil {
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentApp); err != nil {
 				return err
 			}
 			logrus.Debugf("resetting restore state")
