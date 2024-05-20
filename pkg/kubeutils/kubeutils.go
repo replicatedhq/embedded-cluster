@@ -40,7 +40,11 @@ func WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
 			return ready, nil
 		},
 	); err != nil {
-		return fmt.Errorf("timed out waiting for namespace %s: %v", ns, lasterr)
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for namespace %s: %v", ns, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for namespace %s", ns)
+		}
 	}
 	return nil
 
@@ -60,7 +64,11 @@ func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) 
 			return ready, nil
 		},
 	); err != nil {
-		return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for %s to deploy", name)
+		}
 	}
 	return nil
 }
@@ -79,7 +87,11 @@ func WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) e
 			return ready, nil
 		},
 	); err != nil {
-		return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for %s to deploy: %v", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for %s to deploy", name)
+		}
 	}
 	return nil
 }
@@ -98,7 +110,11 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 			return svc.Spec.ClusterIP != "", nil
 		},
 	); err != nil {
-		return fmt.Errorf("timed out waiting for service %s to have an IP: %v", name, lasterr)
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for service %s to have an IP: %v", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for service %s to have an IP", name)
+		}
 	}
 	return nil
 }
@@ -153,7 +169,11 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 		},
 	); err != nil {
 		if wait.Interrupted(err) {
-			return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
+			if lasterr != nil {
+				return fmt.Errorf("timed out waiting for the installation to finish: %v", lasterr)
+			} else {
+				return fmt.Errorf("timed out waiting for the installation to finish")
+			}
 		}
 		return fmt.Errorf("error waiting for installation: %v", err)
 	}
@@ -211,7 +231,11 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 			return readynodes == len(nodes.Items), nil
 		},
 	); err != nil {
-		return fmt.Errorf("timed out waiting for nodes to be ready: %v", lasterr)
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for nodes to be ready: %v", lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for nodes to be ready")
+		}
 	}
 	return nil
 }
@@ -261,4 +285,26 @@ func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (
 		return true, nil
 	}
 	return false, nil
+}
+
+// WaitForKubernetes waits for coredns and metrics-server to be ready in kube-system, and returns an error channel.
+// if either of them fails to become healthy, an error is returned via the channel.
+func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
+	errch := make(chan error, 2)
+
+	go func() {
+		err := WaitForDeployment(ctx, cli, "kube-system", "coredns")
+		if err != nil {
+			errch <- fmt.Errorf("CoreDNS failed to become healthy: %w", err)
+		}
+	}()
+
+	go func() {
+		err := WaitForDeployment(ctx, cli, "kube-system", "metrics-server")
+		if err != nil {
+			errch <- fmt.Errorf("Metrics Server failed to become healthy: %w", err)
+		}
+	}()
+
+	return errch
 }
