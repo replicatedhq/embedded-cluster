@@ -30,9 +30,34 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	k8syaml "sigs.k8s.io/yaml"
+)
+
+type ecRestoreState string
+
+const (
+	ecRestoreStateNew              ecRestoreState = "new"
+	ecRestoreStateConfirmBackup    ecRestoreState = "confirm-backup"
+	ecRestoreStateRestoreInfra     ecRestoreState = "restore-infra"
+	ecRestoreStateRestoreECInstall ecRestoreState = "restore-ec-install"
+	ecRestoreStateWaitForNodes     ecRestoreState = "wait-for-nodes"
+	ecRestoreStateRestoreApp       ecRestoreState = "restore-app"
+)
+
+var ecRestoreStates = []ecRestoreState{
+	ecRestoreStateNew,
+	ecRestoreStateConfirmBackup,
+	ecRestoreStateRestoreInfra,
+	ecRestoreStateRestoreECInstall,
+	ecRestoreStateWaitForNodes,
+	ecRestoreStateRestoreApp,
+}
+
+const (
+	ecRestoreStateCMName = "embedded-cluster-restore-state"
 )
 
 type s3BackupStore struct {
@@ -43,6 +68,15 @@ type s3BackupStore struct {
 	accessKeyID     string
 	secretAccessKey string
 }
+
+type DisasterRecoveryComponent string
+
+const (
+	DisasterRecoveryComponentInfra     DisasterRecoveryComponent = "infra"
+	DisasterRecoveryComponentECInstall DisasterRecoveryComponent = "ec-install"
+	DisasterRecoveryComponentApp       DisasterRecoveryComponent = "app"
+	DisasterRecoveryComponentRegistry  DisasterRecoveryComponent = "registry"
+)
 
 type invalidBackupsError struct {
 	invalidBackups []velerov1.Backup
@@ -58,6 +92,137 @@ func (e *invalidBackupsError) Error() string {
 		return fmt.Sprintf("\nFound 1 backup, but it is not restorable:\n%s\n", strings.Join(reasons, "\n"))
 	}
 	return fmt.Sprintf("\nFound %d backups, but none are restorable:\n%s\n", len(e.invalidBackups), strings.Join(reasons, "\n"))
+}
+
+// getECRestoreState returns the current restore state.
+func getECRestoreState(ctx context.Context) ecRestoreState {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return ecRestoreStateNew
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "embedded-cluster",
+			Name:      ecRestoreStateCMName,
+		},
+	}
+	if err := kcli.Get(ctx, types.NamespacedName{Namespace: cm.Namespace, Name: cm.Name}, cm); err != nil {
+		return ecRestoreStateNew
+	}
+	state, ok := cm.Data["state"]
+	if !ok {
+		return ecRestoreStateNew
+	}
+	for _, s := range ecRestoreStates {
+		if s == ecRestoreState(state) {
+			return s
+		}
+	}
+	return ecRestoreStateNew
+}
+
+// setECRestoreState sets the current restore state.
+func setECRestoreState(ctx context.Context, state ecRestoreState, backupName string) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "embedded-cluster",
+		},
+	}
+	if err := kcli.Create(ctx, ns); err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("unable to create namespace: %w", err)
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "embedded-cluster",
+			Name:      ecRestoreStateCMName,
+		},
+		Data: map[string]string{
+			"state": string(state),
+		},
+	}
+	if backupName != "" {
+		cm.Data["backup-name"] = backupName
+	}
+	err = kcli.Create(ctx, cm)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("unable to create config map: %w", err)
+	}
+	if errors.IsAlreadyExists(err) {
+		if err := kcli.Update(ctx, cm); err != nil {
+			return fmt.Errorf("unable to update config map: %w", err)
+		}
+	}
+	return nil
+}
+
+// resetECRestoreState resets the restore state.
+func resetECRestoreState(ctx context.Context) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "embedded-cluster",
+			Name:      ecRestoreStateCMName,
+		},
+	}
+	if err := kcli.Delete(ctx, cm); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("unable to delete config map: %w", err)
+	}
+	return nil
+}
+
+// getBackupFromRestoreState gets the backup defined in the restore state.
+// If no backup is defined in the restore state, it returns nil.
+// It returns an error if a backup is defined in the restore state but:
+//   - is not found by Velero anymore.
+//   - is not restorable by the current binary.
+func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Backup, error) {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create kube client: %w", err)
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "embedded-cluster",
+			Name:      ecRestoreStateCMName,
+		},
+	}
+	if err := kcli.Get(ctx, types.NamespacedName{Namespace: cm.Namespace, Name: cm.Name}, cm); err != nil {
+		return nil, fmt.Errorf("unable to get restore state: %w", err)
+	}
+	backupName, ok := cm.Data["backup-name"]
+	if !ok || backupName == "" {
+		return nil, nil
+	}
+	cfg, err := k8sconfig.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get kubernetes config: %w", err)
+	}
+	veleroClient, err := veleroclientv1.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero client: %w", err)
+	}
+	backup, err := veleroClient.Backups(defaults.VeleroNamespace).Get(ctx, backupName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("unable to get backup: %w", err)
+	}
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get release from binary: %w", err)
+	}
+	if rel == nil {
+		return nil, fmt.Errorf("no release found in binary")
+	}
+	if restorable, reason := isBackupRestorable(backup, rel, isAirgap); !restorable {
+		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
+	}
+	return backup, nil
 }
 
 // newS3BackupStore prompts the user for S3 backup store configuration.
@@ -159,9 +324,7 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 
 // runOutroForRestore calls Outro() in all enabled addons for restore operations by means of Applier.
 func runOutroForRestore(c *cli.Context) error {
-	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
-	opts := []addons.Option{}
-	return addons.NewApplier(opts...).OutroForRestore(c.Context)
+	return addons.NewApplier().OutroForRestore(c.Context)
 }
 
 func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool) (bool, string) {
@@ -213,9 +376,7 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
-func waitForBackups(c *cli.Context) ([]velerov1.Backup, error) {
-	ctx := c.Context
-
+func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
@@ -255,7 +416,7 @@ func waitForBackups(c *cli.Context) ([]velerov1.Backup, error) {
 		invalidReasons := []string{}
 
 		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup, rel, c.String("airgap-bundle") != "")
+			restorable, reason := isBackupRestorable(&backup, rel, isAirgap)
 			if restorable {
 				validBackups = append(validBackups, backup)
 			} else {
@@ -331,17 +492,8 @@ func waitForRestoreCompleted(ctx context.Context, restoreName string) (*velerov1
 	}
 }
 
-type DisasterRecoveryComponent string
-
-const (
-	DisasterRecoveryComponentInfra     DisasterRecoveryComponent = "infra"
-	DisasterRecoveryComponentECInstall DisasterRecoveryComponent = "ec-install"
-	DisasterRecoveryComponentApp       DisasterRecoveryComponent = "app"
-	DisasterRecoveryComponentRegistry  DisasterRecoveryComponent = "registry"
-)
-
-// restoreFromBackup restores a disaster recovery component from a backup.
-func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent DisasterRecoveryComponent) error {
+// waitForDRComponent waits for a disaster recovery component to be restored.
+func waitForDRComponent(ctx context.Context, drComponent DisasterRecoveryComponent, backup *velerov1.Backup, restoreName string) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
@@ -459,27 +611,63 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	return nil
 }
 
+// restoreFromBackup restores a disaster recovery component from a backup.
+func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent DisasterRecoveryComponent) error {
+	cfg, err := k8sconfig.GetConfig()
+	if err != nil {
+		return fmt.Errorf("unable to get kubernetes config: %w", err)
+	}
+
+	veleroClient, err := veleroclientv1.NewForConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("unable to create velero client: %w", err)
+	}
+
+	restoreName := fmt.Sprintf("%s.%s", backup.Name, string(drComponent))
+
+	// check if a restore object already exists
+	_, err = veleroClient.Restores(defaults.VeleroNamespace).Get(ctx, restoreName, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("unable to get restore: %w", err)
+	}
+
+	// create a new restore object if it doesn't exist
+	if errors.IsNotFound(err) {
+		restore := &velerov1.Restore{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: defaults.VeleroNamespace,
+				Name:      restoreName,
+				Annotations: map[string]string{
+					"kots.io/embedded-cluster": "true",
+				},
+			},
+			Spec: velerov1.RestoreSpec{
+				BackupName: backup.Name,
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"replicated.com/disaster-recovery": string(drComponent),
+					},
+				},
+				RestorePVs:              ptr.To(true),
+				IncludeClusterResources: ptr.To(true),
+			},
+		}
+		_, err := veleroClient.Restores(defaults.VeleroNamespace).Create(ctx, restore, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("unable to create restore: %w", err)
+		}
+	}
+
+	// wait for restore to complete
+	return waitForDRComponent(ctx, drComponent, backup, restoreName)
+}
+
+// waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
 func waitForAdditionalNodes(ctx context.Context) error {
-	// the admin console detects this config map and redirects the user to the cluster management page
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
-	waitForNodesCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "embedded-cluster-wait-for-nodes",
-			Namespace: "embedded-cluster",
-		},
-		Data: map[string]string{},
-	}
-	if err := kcli.Create(ctx, waitForNodesCM); err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("unable to create wait-for-nodes config map: %w", err)
-	}
-	defer func() {
-		if err := kcli.Delete(ctx, waitForNodesCM); err != nil && !errors.IsNotFound(err) {
-			logrus.Errorf("unable to delete wait-for-nodes config map: %v", err)
-		}
-	}()
 
 	loading := spinner.Start()
 	loading.Infof("Waiting for Admin Console to deploy")
@@ -530,18 +718,20 @@ var restoreCommand = &cli.Command{
 		if os.Getuid() != 0 {
 			return fmt.Errorf("restore command must be run as root")
 		}
+		os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 		return nil
 	},
 	Action: func(c *cli.Context) error {
-		logrus.Debugf("checking if %s is already installed", binName)
-		if installed, err := isAlreadyInstalled(); err != nil {
-			return err
-		} else if installed {
-			logrus.Errorf("An installation has been detected on this machine.")
-			logrus.Infof("If you want to restore you need to remove the existing installation")
-			logrus.Infof("first. You can do this by running the following command:")
-			logrus.Infof("\n  sudo ./%s reset\n", binName)
-			return ErrNothingElseToAdd
+		logrus.Debugf("getting restore state")
+		state := getECRestoreState(c.Context)
+		logrus.Debugf("restore state is: %q", state)
+
+		if state != ecRestoreStateNew {
+			shouldResume := prompts.New().Confirm("A previous restore operation was detected. Would you like to resume?", true)
+			logrus.Info("")
+			if !shouldResume {
+				state = ecRestoreStateNew
+			}
 		}
 		if c.String("airgap-bundle") != "" {
 			logrus.Debugf("checking airgap bundle matches binary")
@@ -550,117 +740,183 @@ var restoreCommand = &cli.Command{
 			}
 		}
 
-		logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", binName)
-		logrus.Info("Enter information to configure access to your backup storage location.\n")
-		s3Store := newS3BackupStore()
-
-		logrus.Debugf("validating backup store configuration")
-		if err := validateS3BackupStore(s3Store); err != nil {
-			return fmt.Errorf("unable to validate backup store: %w", err)
+		// if the user wants to resume, check if a backup has already been picked.
+		var backupToRestore *velerov1.Backup
+		if state != ecRestoreStateNew {
+			logrus.Debugf("getting backup from restore state")
+			var err error
+			backupToRestore, err = getBackupFromRestoreState(c.Context, c.String("airgap-bundle") != "")
+			if err != nil {
+				return fmt.Errorf("unable to resume: %w", err)
+			}
+			if backupToRestore != nil {
+				completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
+				logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.Name, completionTimestamp)
+			}
 		}
 
-		logrus.Debugf("configuring network manager")
-		if err := configureNetworkManager(c); err != nil {
-			return fmt.Errorf("unable to configure network manager: %w", err)
-		}
-		logrus.Debugf("materializing binaries")
-		if err := materializeFiles(c); err != nil {
-			return fmt.Errorf("unable to materialize binaries: %w", err)
-		}
-		logrus.Debugf("running host preflights")
-		if err := RunHostPreflightsForRestore(c); err != nil {
-			return fmt.Errorf("unable to finish preflight checks: %w", err)
-		}
-		logrus.Debugf("creating k0s configuration file")
-		if err := ensureK0sConfigForRestore(c); err != nil {
-			return fmt.Errorf("unable to create config file: %w", err)
-		}
-		logrus.Debugf("installing k0s")
-		if err := installK0s(); err != nil {
-			return fmt.Errorf("unable update cluster: %w", err)
-		}
-		logrus.Debugf("running post install")
-		if err := runPostInstall(); err != nil {
-			return fmt.Errorf("unable to run post install: %w", err)
-		}
-		logrus.Debugf("waiting for k0s to be ready")
-		if err := waitForK0s(); err != nil {
-			return fmt.Errorf("unable to wait for node: %w", err)
-		}
-		logrus.Debugf("running outro")
-		if err := runOutroForRestore(c); err != nil {
-			return fmt.Errorf("unable to run outro: %w", err)
-		}
+		switch state {
+		case ecRestoreStateNew:
+			logrus.Debugf("checking if %s is already installed", binName)
+			if installed, err := isAlreadyInstalled(); err != nil {
+				return err
+			} else if installed {
+				logrus.Errorf("An installation has been detected on this machine.")
+				logrus.Infof("If you want to restore you need to remove the existing installation")
+				logrus.Infof("first. You can do this by running the following command:")
+				logrus.Infof("\n  sudo ./%s reset\n", binName)
+				return ErrNothingElseToAdd
+			}
 
-		logrus.Debugf("configuring backup storage location")
-		if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
-			Endpoint:        s3Store.endpoint,
-			Region:          s3Store.region,
-			Bucket:          s3Store.bucket,
-			Path:            s3Store.prefix,
-			AccessKeyID:     s3Store.accessKeyID,
-			SecretAccessKey: s3Store.secretAccessKey,
-			Namespace:       defaults.KotsadmNamespace,
-		}); err != nil {
-			return err
-		}
+			logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", binName)
+			logrus.Info("Enter information to configure access to your backup storage location.\n")
+			s3Store := newS3BackupStore()
 
-		logrus.Debugf("waiting for backups to become available")
-		backups, err := waitForBackups(c)
-		if err != nil {
-			return err
-		}
+			logrus.Debugf("validating backup store configuration")
+			if err := validateS3BackupStore(s3Store); err != nil {
+				return fmt.Errorf("unable to validate backup store: %w", err)
+			}
 
-		logrus.Debugf("picking backup to restore")
-		backup := pickBackupToRestore(backups)
-		if backup == nil {
-			return fmt.Errorf("no backups are candidates for restore")
-		}
+			logrus.Debugf("configuring network manager")
+			if err := configureNetworkManager(c); err != nil {
+				return fmt.Errorf("unable to configure network manager: %w", err)
+			}
+			logrus.Debugf("materializing binaries")
+			if err := materializeFiles(c); err != nil {
+				return fmt.Errorf("unable to materialize binaries: %w", err)
+			}
+			logrus.Debugf("running host preflights")
+			if err := RunHostPreflightsForRestore(c); err != nil {
+				return fmt.Errorf("unable to finish preflight checks: %w", err)
+			}
+			logrus.Debugf("creating k0s configuration file")
+			if err := ensureK0sConfigForRestore(c); err != nil {
+				return fmt.Errorf("unable to create config file: %w", err)
+			}
+			logrus.Debugf("installing k0s")
+			if err := installK0s(); err != nil {
+				return fmt.Errorf("unable update cluster: %w", err)
+			}
+			logrus.Debugf("running post install")
+			if err := runPostInstall(); err != nil {
+				return fmt.Errorf("unable to run post install: %w", err)
+			}
+			logrus.Debugf("waiting for k0s to be ready")
+			if err := waitForK0s(); err != nil {
+				return fmt.Errorf("unable to wait for node: %w", err)
+			}
+			logrus.Debugf("running outro")
+			if err := runOutroForRestore(c); err != nil {
+				return fmt.Errorf("unable to run outro: %w", err)
+			}
 
-		logrus.Info("")
-		completionTimestamp := backup.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
-		shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backup.Name, completionTimestamp), true)
-		logrus.Info("")
-		if !shouldRestore {
-			logrus.Infof("Aborting restore...")
-			return nil
-		}
+			logrus.Debugf("configuring velero backup storage location")
+			if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
+				Endpoint:        s3Store.endpoint,
+				Region:          s3Store.region,
+				Bucket:          s3Store.bucket,
+				Path:            s3Store.prefix,
+				AccessKeyID:     s3Store.accessKeyID,
+				SecretAccessKey: s3Store.secretAccessKey,
+				Namespace:       defaults.KotsadmNamespace,
+			}); err != nil {
+				return err
+			}
+			fallthrough
 
-		logrus.Debugf("restoring infra from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentInfra); err != nil {
-			return err
-		}
+		case ecRestoreStateConfirmBackup:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateConfirmBackup)
+			if err := setECRestoreState(c.Context, ecRestoreStateConfirmBackup, ""); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
+			}
 
-		if c.String("airgap-bundle") != "" {
-			logrus.Debugf("restoring embedded cluster registry from backup %q", backup.Name)
-			err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentRegistry)
+			logrus.Debugf("waiting for backups to become available")
+			backups, err := waitForBackups(c.Context, c.String("airgap-bundle") != "")
 			if err != nil {
 				return err
 			}
 
-			registryAddress, ok := backup.Annotations["kots.io/embedded-registry"]
-			if !ok {
-				return fmt.Errorf("unable to read registry address from backup")
+			logrus.Debugf("picking backup to restore")
+			backupToRestore = pickBackupToRestore(backups)
+
+			logrus.Info("")
+			completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
+			shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.Name, completionTimestamp), true)
+			logrus.Info("")
+			if !shouldRestore {
+				logrus.Infof("Aborting restore...")
+				return nil
+			}
+			fallthrough
+
+		case ecRestoreStateRestoreInfra:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreInfra)
+			if err := setECRestoreState(c.Context, ecRestoreStateRestoreInfra, backupToRestore.Name); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
 			}
 
-			if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
-				return fmt.Errorf("failed to add insecure registry: %w", err)
+			logrus.Debugf("restoring infra from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, DisasterRecoveryComponentInfra); err != nil {
+				return err
 			}
-		}
 
-		logrus.Debugf("restoring embedded cluster installation from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentECInstall); err != nil {
-			return err
-		}
+			if c.String("airgap-bundle") != "" {
+				logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
+				err := restoreFromBackup(c.Context, backupToRestore, DisasterRecoveryComponentRegistry)
+				if err != nil {
+					return err
+				}
 
-		logrus.Debugf("waiting for additional nodes to be added")
-		if err := waitForAdditionalNodes(c.Context); err != nil {
-			return err
-		}
+				registryAddress, ok := backupToRestore.Annotations["kots.io/embedded-registry"]
+				if !ok {
+					return fmt.Errorf("unable to read registry address from backup")
+				}
 
-		logrus.Debugf("restoring app from backup %q", backup.Name)
-		if err := restoreFromBackup(c.Context, backup, DisasterRecoveryComponentApp); err != nil {
-			return err
+				if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
+					return fmt.Errorf("failed to add insecure registry: %w", err)
+				}
+			}
+
+			fallthrough
+
+		case ecRestoreStateRestoreECInstall:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECInstall)
+			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
+			}
+			logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, DisasterRecoveryComponentECInstall); err != nil {
+				return err
+			}
+			fallthrough
+
+		case ecRestoreStateWaitForNodes:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateWaitForNodes)
+			if err := setECRestoreState(c.Context, ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
+			}
+			logrus.Debugf("waiting for additional nodes to be added")
+			if err := waitForAdditionalNodes(c.Context); err != nil {
+				return err
+			}
+			fallthrough
+
+		case ecRestoreStateRestoreApp:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreApp)
+			if err := setECRestoreState(c.Context, ecRestoreStateRestoreApp, backupToRestore.Name); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
+			}
+			logrus.Debugf("restoring app from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, DisasterRecoveryComponentApp); err != nil {
+				return err
+			}
+			logrus.Debugf("resetting restore state")
+			if err := resetECRestoreState(c.Context); err != nil {
+				return fmt.Errorf("unable to reset restore state: %w", err)
+			}
+
+		default:
+			return fmt.Errorf("unknown restore state: %q", state)
 		}
 
 		return nil

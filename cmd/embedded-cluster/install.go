@@ -307,6 +307,7 @@ func ensureK0sConfig(c *cli.Context) error {
 
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
 // overrides embedded into the binary and after the ones provided by the user (--overrides).
+// we first apply the k0s config override and then apply the built in overrides.
 func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k0sconfig.ClusterConfig, error) {
 	var err error
 	if embcfg, err := release.GetEmbeddedClusterConfig(); err != nil {
@@ -315,6 +316,9 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s
 		if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
+		}
+		if cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, embcfg); err != nil {
+			return nil, fmt.Errorf("unable to release built in overrides: %w", err)
 		}
 	}
 	if c.String("overrides") == "" {
@@ -327,6 +331,9 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 	overrides := eucfg.Spec.UnsupportedOverrides.K0s
 	if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
 		return nil, fmt.Errorf("unable to apply overrides: %w", err)
+	}
+	if cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, eucfg); err != nil {
+		return nil, fmt.Errorf("unable to end user built in overrides: %w", err)
 	}
 	return cfg, nil
 }

@@ -140,6 +140,7 @@ jobs:
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgradeUbuntuJammy
           - TestSingleNodeDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
     steps:
       - name: Checkout

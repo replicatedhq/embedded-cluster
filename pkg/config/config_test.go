@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -35,6 +37,37 @@ func parseTestsYAML[T any](t *testing.T, prefix string) map[string]T {
 		tests[fpath] = onetest
 	}
 	return tests
+}
+
+func TestApplyBuiltInExtensionsOverrides(t *testing.T) {
+	type test struct {
+		Name          string
+		ReleaseConfig string `yaml:"releaseConfig"`
+		ClusterConfig string `yaml:"clusterConfig"`
+		Expected      string `yaml:"expected"`
+	}
+
+	for tname, tt := range parseTestsYAML[test](t, "builtin-extensions-overrides-") {
+		t.Run(tname, func(t *testing.T) {
+			req := require.New(t)
+
+			var releaseConfig embeddedclusterv1beta1.Config
+			err := k8syaml.Unmarshal([]byte(tt.ReleaseConfig), &releaseConfig)
+			req.NoError(err)
+
+			var clusterConfig k0sconfig.ClusterConfig
+			err = k8syaml.Unmarshal([]byte(tt.ClusterConfig), &clusterConfig)
+			req.NoError(err)
+
+			var expected k0sconfig.ClusterConfig
+			err = k8syaml.Unmarshal([]byte(tt.Expected), &expected)
+			req.NoError(err)
+
+			result, err := ApplyBuiltInExtensionsOverrides(&clusterConfig, &releaseConfig)
+			req.NoError(err)
+			assert.Equal(t, &expected, result)
+		})
+	}
 }
 
 func TestPatchK0sConfig(t *testing.T) {
