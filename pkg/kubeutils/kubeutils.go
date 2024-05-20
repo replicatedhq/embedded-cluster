@@ -290,7 +290,7 @@ func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (
 // WaitForKubernetes waits for coredns and metrics-server to be ready in kube-system, and returns an error channel.
 // if either of them fails to become healthy, an error is returned via the channel.
 func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
-	errch := make(chan error, 1)
+	errch := make(chan error, 2)
 
 	go func() {
 		err := WaitForDeployment(ctx, cli, "kube-system", "coredns")
