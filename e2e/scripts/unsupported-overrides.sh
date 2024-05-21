@@ -51,13 +51,16 @@ spec:
                 name: admin-console
                 namespace: kotsadm
                 order: 3
-                version: 1.108.0-build.1
+                version: 1.109.3
                 values: |
                   isHelmManaged: false
                   minimalRBAC: false
                   service:
                     nodePort: 30000
                     type: NodePort
+                  passwordSecretRef:
+                    name: kotsadm-password
+                    key: passwordBcrypt
               - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
                 name: memcached
                 namespace: embedded-cluster

@@ -684,6 +684,19 @@ var restoreCommand = &cli.Command{
 			if err := waitForK0s(); err != nil {
 				return fmt.Errorf("unable to wait for node: %w", err)
 			}
+
+			kcli, err := kubeutils.KubeClient()
+			if err != nil {
+				return fmt.Errorf("unable to create kube client: %w", err)
+			}
+			errCh := kubeutils.WaitForKubernetes(c.Context, kcli)
+			defer func() {
+				for len(errCh) > 0 {
+					err := <-errCh
+					logrus.Error(fmt.Errorf("infrastructure failed to become ready: %w", err))
+				}
+			}()
+
 			logrus.Debugf("running outro")
 			if err := runOutroForRestore(c); err != nil {
 				return fmt.Errorf("unable to run outro: %w", err)
