@@ -28,7 +28,6 @@ VELERO_AWS_PLUGIN_IMAGE_VERSION = v1.9.2
 KUBECTL_VERSION = v1.30.1
 K0S_VERSION = v1.29.4+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.9+k0s.0
-VELERO_KUBECTL_VERSION = $(shell echo $(K0S_VERSION) | sed 's/v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.92.1
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
@@ -59,8 +58,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.ChartName=$(VELERO_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.Version=$(VELERO_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.VeleroTag=$(VELERO_IMAGE_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.KubectlVersion=$(VELERO_KUBECTL_VERSION)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION)
 
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
