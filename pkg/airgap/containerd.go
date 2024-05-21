@@ -10,9 +10,6 @@ import (
 
 const registryConfigTemplate = `
 [plugins."io.containerd.grpc.v1.cri".registry]
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
-    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."%s"]
-      endpoint = ["http://%s"]
   [plugins."io.containerd.grpc.v1.cri".registry.configs]
     [plugins."io.containerd.grpc.v1.cri".registry.configs."%s".tls]
       insecure_skip_verify = true
@@ -22,7 +19,7 @@ const registryConfigTemplate = `
 // are allowed to be accessed over HTTP.
 func AddInsecureRegistry(registry string) error {
 	parentDir := defaults.PathToK0sContainerdConfig()
-	contents := fmt.Sprintf(registryConfigTemplate, registry, registry, registry)
+	contents := fmt.Sprintf(registryConfigTemplate, registry)
 
 	if err := os.MkdirAll(parentDir, 0755); err != nil {
 		return fmt.Errorf("failed to ensure containerd directory exists: %w", err)

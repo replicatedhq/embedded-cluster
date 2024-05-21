@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/sirupsen/logrus"
+	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -97,14 +100,32 @@ func pullArtifact(ctx context.Context, from string) (string, error) {
 	}
 	defer fs.Close()
 
-	// setup the pull options. XXX we are using a registry over http.
-	repo.Client = &auth.Client{Credential: store.Get}
-	repo.PlainHTTP = true
+	transp, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return "", fmt.Errorf("unable to get default transport")
+	}
+
+	transp = transp.Clone()
+	transp.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	repo.Client = &auth.Client{
+		Client:     &http.Client{Transport: transp},
+		Credential: store.Get,
+	}
 
 	tag := imgref.Reference
+	_, tlserr := oras.Copy(ctx, repo, tag, fs, tag, oras.DefaultCopyOptions)
+	if tlserr == nil {
+		return tmpdir, nil
+	}
+
+	// if we fail to fetch the artifact using https we gonna try once more using plain
+	// http as some versions of the registry were deployed without tls.
+	repo.PlainHTTP = true
+	logrus.Infof("unable to fetch artifact using tls, retrying with http")
 	if _, err := oras.Copy(ctx, repo, tag, fs, tag, oras.DefaultCopyOptions); err != nil {
 		os.RemoveAll(tmpdir)
-		return "", fmt.Errorf("unable to copy: %w", err)
+		err = multierr.Combine(tlserr, err)
+		return "", fmt.Errorf("unable to fetch artifacts with or without tls: %w", err)
 	}
 	return tmpdir, nil
 }
