@@ -13,6 +13,7 @@ import (
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +43,7 @@ var (
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
 	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
+	Password                = ""
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
@@ -63,6 +65,10 @@ var helmValues = map[string]interface{}{
 	"labels": map[string]interface{}{
 		"replicated.com/disaster-recovery":       "infra",
 		"replicated.com/disaster-recovery-chart": "kotsadm",
+	},
+	"passwordSecretRef": map[string]interface{}{
+		"name": "kotsadm-password",
+		"key":  "passwordBcrypt",
 	},
 }
 
@@ -160,31 +166,16 @@ func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 	return nil
 }
 
-// addPasswordToHelmValues adds the adminconsole password to the helm values.
-func (a *AdminConsole) addPasswordToHelmValues() error {
-	curconfig := a.GetCurrentChartConfig()
-	if curconfig == nil {
-		pass, err := a.askPassword()
-		if err != nil {
-			return fmt.Errorf("unable to ask password: %w", err)
-		}
-		helmValues["password"] = pass
-		return nil
-	}
-	pass, err := getPasswordFromConfig(curconfig)
-	if err != nil {
-		return fmt.Errorf("unable to get password from current config: %w", err)
-	}
-	helmValues["password"] = pass
-	return nil
-}
-
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	if !onlyDefaults {
-		if err := a.addPasswordToHelmValues(); err != nil {
-			return nil, nil, fmt.Errorf("unable to add password to helm values: %w", err)
+		if Password == "" {
+			var err error
+			Password, err = a.askPassword()
+			if err != nil {
+				return nil, nil, fmt.Errorf("unable to set kotsadm-password: %w", err)
+			}
 		}
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if a.airgapBundle != "" {
@@ -217,6 +208,10 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Admin Console to deploy")
 	defer loading.Close()
+
+	if err := createKotsPasswordSecret(ctx, cli, a.namespace, Password); err != nil {
+		return fmt.Errorf("unable to create kots password secret: %w", err)
+	}
 
 	if a.airgapBundle != "" {
 		err := createRegistrySecret(ctx, cli, a.namespace)
@@ -330,9 +325,46 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 		},
 		Type: "kubernetes.io/dockerconfigjson",
 	}
+
 	err := cli.Create(ctx, &registryCreds)
 	if err != nil {
 		return fmt.Errorf("unable to create registry-auth secret: %w", err)
+	}
+
+	return nil
+}
+
+func createKotsPasswordSecret(ctx context.Context, cli client.Client, namespace string, password string) error {
+	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+		return err
+	}
+
+	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	if err != nil {
+		return fmt.Errorf("unable to generate bcrypt from password: %w", err)
+	}
+
+	kotsPasswordSecret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kotsadm-password",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"kots.io/kotsadm":                  "true",
+				"replicated.com/disaster-recovery": "infra",
+			},
+		},
+		Data: map[string][]byte{
+			"passwordBcrypt": []byte(passwordBcrypt),
+		},
+	}
+
+	err = cli.Create(ctx, &kotsPasswordSecret)
+	if err != nil {
+		return fmt.Errorf("unable to create kotsadm-password secret: %w", err)
 	}
 
 	return nil
