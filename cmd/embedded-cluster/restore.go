@@ -513,7 +513,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	restore, err := waitForVeleroRestoreCompleted(ctx, restoreName)
 	if err != nil {
 		if restore != nil {
-			return fmt.Errorf("restore failed with %d errors and %d warnings.: %w", restore.Status.Errors, restore.Status.Warnings, err)
+			return fmt.Errorf("restore failed with %d errors and %d warnings: %w", restore.Status.Errors, restore.Status.Warnings, err)
 		}
 		return fmt.Errorf("unable to wait for velero restore to complete: %w", err)
 	}
