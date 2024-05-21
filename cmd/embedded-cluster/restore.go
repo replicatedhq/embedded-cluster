@@ -460,8 +460,8 @@ func pickBackupToRestore(backups []velerov1.Backup) *velerov1.Backup {
 	return latestBackup
 }
 
-// waitForRestoreCompleted waits for a Velero restore to complete.
-func waitForRestoreCompleted(ctx context.Context, restoreName string) (*velerov1.Restore, error) {
+// waitForVeleroRestoreCompleted waits for a Velero restore to complete.
+func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*velerov1.Restore, error) {
 	cfg, err := k8sconfig.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get kubernetes config: %w", err)
@@ -510,7 +510,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	}
 
 	// wait for restore to complete
-	restore, err := waitForRestoreCompleted(ctx, restoreName)
+	restore, err := waitForVeleroRestoreCompleted(ctx, restoreName)
 	if err != nil {
 		if restore != nil {
 			return fmt.Errorf("restore failed with %d errors and %d warnings.: %w", restore.Status.Errors, restore.Status.Warnings, err)
