@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: embedded-cluster-cluster-support-bundle
+  labels:
+    troubleshoot.sh/kind: support-bundle
+    {{- with (include "embedded-cluster-operator.labels" $ | fromYaml) }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+data:
+  support-bundle-spec: |
+    apiVersion: troubleshoot.sh/v1beta2
+    kind: SupportBundle
+    metadata:
+      name: embedded-cluster-logs-collector
+      labels:
+        troubleshoot.sh/kind: support-bundle
+    spec:
+      collectors:
+        - runDaemonSet:
+            name: "k0scontroller"
+            namespace: default
+            podSpec:
+              containers:
+              - image: {{ .Values.utilsImage }}
+                imagePullPolicy: Always
+                args: ["chroot","/host","journalctl","-u","k0scontroller","--no-pager","--since","2 days ago"]
+                name: debugger
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                - mountPath: /host
+                  name: host-root
+              dnsPolicy: ClusterFirst
+              enableServiceLinks: true
+              hostIPC: true
+              hostNetwork: true
+              hostPID: true
+              securityContext: {}
+              tolerations:
+              - operator: Exists
+              volumes:
+              - hostPath:
+                  path: /
+                  type: ""
+                name: host-root
+        - runDaemonSet:
+            name: "k0sworker"
+            namespace: default
+            podSpec:
+              containers:
+              - image: {{ .Values.utilsImage }}
+                imagePullPolicy: Always
+                args: ["chroot","/host","journalctl","-u","k0scontroller","--no-pager","--since","2 days ago"]
+                name: debugger
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                - mountPath: /host
+                  name: host-root
+              dnsPolicy: ClusterFirst
+              enableServiceLinks: true
+              hostIPC: true
+              hostNetwork: true
+              hostPID: true
+              securityContext: {}
+              tolerations:
+              - operator: Exists
+              volumes:
+              - hostPath:
+                  path: /
+                  type: ""
+                name: host-root
