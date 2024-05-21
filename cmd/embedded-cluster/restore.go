@@ -666,7 +666,7 @@ var restoreCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
-			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Usage:  "Path to the airgap bundle. If set, the restore will be completed without internet access.",
 			Hidden: true,
 		},
 	},
