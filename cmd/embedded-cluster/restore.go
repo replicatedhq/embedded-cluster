@@ -42,6 +42,7 @@ const (
 	ecRestoreStateNew              ecRestoreState = "new"
 	ecRestoreStateConfirmBackup    ecRestoreState = "confirm-backup"
 	ecRestoreStateRestoreInfra     ecRestoreState = "restore-infra"
+	ecRestoreStateRestoreRegistry  ecRestoreState = "restore-registry"
 	ecRestoreStateRestoreECInstall ecRestoreState = "restore-ec-install"
 	ecRestoreStateWaitForNodes     ecRestoreState = "wait-for-nodes"
 	ecRestoreStateRestoreApp       ecRestoreState = "restore-app"
@@ -579,16 +580,16 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 	// create a new restore object if it doesn't exist
 	if errors.IsNotFound(err) {
 		var restoreLabelSelector *metav1.LabelSelector
-		if drComponent != disasterRecoveryComponentRegistry {
+		if drComponent == disasterRecoveryComponentRegistry {
 			restoreLabelSelector = &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"replicated.com/disaster-recovery": string(drComponent),
+					"app": "docker-registry",
 				},
 			}
 		} else {
 			restoreLabelSelector = &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": "docker-registry",
+					"replicated.com/disaster-recovery": string(drComponent),
 				},
 			}
 		}
@@ -815,8 +816,15 @@ var restoreCommand = &cli.Command{
 			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentInfra); err != nil {
 				return err
 			}
+			fallthrough
 
+		case ecRestoreStateRestoreRegistry:
 			if c.String("airgap-bundle") != "" {
+				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
+				if err := setECRestoreState(c.Context, ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+
 				logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
 				err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentRegistry)
 				if err != nil {
@@ -832,7 +840,6 @@ var restoreCommand = &cli.Command{
 					return fmt.Errorf("failed to add insecure registry: %w", err)
 				}
 			}
-
 			fallthrough
 
 		case ecRestoreStateRestoreECInstall:
