@@ -64,7 +64,7 @@ func (a *Applier) Outro(ctx context.Context) error {
 	defer func() {
 		for len(errCh) > 0 {
 			err := <-errCh
-			logrus.Error(fmt.Errorf("the Kubernetes Infrastructure failed to become ready: %w", err))
+			logrus.Error(fmt.Errorf("infrastructure failed to become ready: %w", err))
 		}
 	}()
 

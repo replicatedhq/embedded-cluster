@@ -287,24 +287,35 @@ func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (
 	return false, nil
 }
 
-// WaitForKubernetes waits for coredns and metrics-server to be ready in kube-system, and returns an error channel.
+// WaitForKubernetes waits for all deployments to be ready in kube-system, and returns an error channel.
 // if either of them fails to become healthy, an error is returned via the channel.
 func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
-	errch := make(chan error, 2)
+	errch := make(chan error, 1)
 
-	go func() {
-		err := WaitForDeployment(ctx, cli, "kube-system", "coredns")
-		if err != nil {
-			errch <- fmt.Errorf("CoreDNS failed to become healthy: %w", err)
-		}
-	}()
+	// wait until there is at least one deployment in kube-system
+	backoff := wait.Backoff{Steps: 60, Duration: time.Second, Factor: 1.0, Jitter: 0.1}
+	deps := appsv1.DeploymentList{}
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			if err := cli.List(ctx, &deps, client.InNamespace("kube-system")); err != nil {
+				return false, nil
+			}
+			return len(deps.Items) >= 3, nil // coredns, metrics-server, and calico-kube-controllers
+		}); err != nil {
+		errch <- fmt.Errorf("timed out waiting for deployments in kube-system: %w", err)
+		return errch
+	}
 
-	go func() {
-		err := WaitForDeployment(ctx, cli, "kube-system", "metrics-server")
-		if err != nil {
-			errch <- fmt.Errorf("Metrics Server failed to become healthy: %w", err)
-		}
-	}()
+	errch = make(chan error, len(deps.Items))
+
+	for _, dep := range deps.Items {
+		go func(depName string) {
+			err := WaitForDeployment(ctx, cli, "kube-system", depName)
+			if err != nil {
+				errch <- fmt.Errorf("%s failed to become healthy: %w", depName, err)
+			}
+		}(dep.Name)
+	}
 
 	return errch
 }
