@@ -22,11 +22,12 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL     = "https://url"
-	ChartName    = "name"
-	Version      = "v0.0.0"
-	VeleroTag    = "v0.0.0"
-	AwsPluginTag = "v0.0.0"
+	ChartURL       = "https://url"
+	ChartName      = "name"
+	Version        = "v0.0.0"
+	VeleroTag      = "v0.0.0"
+	AwsPluginTag   = "v0.0.0"
+	KubectlVersion = "0.0.0"
 )
 
 var helmValues = map[string]interface{}{
@@ -54,6 +55,11 @@ var helmValues = map[string]interface{}{
 	},
 	"credentials": map[string]interface{}{
 		"existingSecret": credentialsSecretName,
+	},
+	"kubectl": map[string]interface{}{
+		"image": map[string]interface{}{
+			"tag": KubectlVersion,
+		},
 	},
 }
 
