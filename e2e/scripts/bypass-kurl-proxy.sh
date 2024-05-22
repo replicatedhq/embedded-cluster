@@ -9,6 +9,8 @@ main() {
   metadata:
     name: kotsadm-nodeport
     namespace: kotsadm
+    labels:
+      replicated.com/disaster-recovery: infra
   spec:
     type: NodePort
     ports:

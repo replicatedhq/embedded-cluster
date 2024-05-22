@@ -534,11 +534,11 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath)
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath)
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	wg.Wait()
@@ -624,11 +624,11 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath)
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath)
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	wg.Wait()
@@ -807,7 +807,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string) string {
+func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) string {
 	// download airgap bundle
 	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
 
@@ -815,7 +815,7 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string) st
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
 	}
-	req.Header.Set("Authorization", os.Getenv("AIRGAP_LICENSE_ID"))
+	req.Header.Set("Authorization", licenseID)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

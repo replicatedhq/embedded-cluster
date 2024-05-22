@@ -16,6 +16,9 @@ inputs:
   license-id:
     description: 'license id to use for e2e tests'
     required: true
+  airgap-snapshot-license-id:
+    description: 'airgap-snapshot-enabled license id to use for e2e tests'
+    required: true
   license:
     description: 'license (b64) to use for e2e tests'
     required: true
@@ -82,12 +85,14 @@ runs:
       export LICENSE_ID=${{ inputs.license-id }}
       export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
       export SNAPSHOT_LICENSE_ID=${{ inputs.snapshot-license-id }}
+      export AIRGAP_SNAPSHOT_LICENSE_ID=${{ inputs.airgap-snapshot-license-id }}
       echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
       echo "${{ inputs.snapshot-license }}" | base64 --decode > e2e/snapshot-license.yaml
       export DR_AWS_S3_ENDPOINT=https://s3.amazonaws.com
       export DR_AWS_S3_REGION=us-east-1
       export DR_AWS_S3_BUCKET=kots-testim-snapshots
-      export DR_AWS_S3_PREFIX=${{ inputs.test-name }}-${{ github.run_id }}
+      export DR_AWS_S3_PREFIX=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}
+      export DR_AWS_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
       export DR_AWS_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
       export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}

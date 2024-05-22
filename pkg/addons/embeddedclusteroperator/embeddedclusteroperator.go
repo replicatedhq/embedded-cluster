@@ -144,6 +144,9 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("version-metadata-%s", slugver),
 			Namespace: e.namespace,
+			Labels: map[string]string{
+				"replicated.com/disaster-recovery": "ec-install",
+			},
 		},
 		Data: map[string]string{
 			"metadata.json": string(data),
