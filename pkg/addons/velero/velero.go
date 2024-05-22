@@ -122,7 +122,6 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 		helmValues["configuration"] = map[string]interface{}{
 			"extraEnvVars": extraEnvVars,
 		}
-		helmValues["nodeAgent"].(map[string]interface{})["extraEnvVars"] = extraEnvVars
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
