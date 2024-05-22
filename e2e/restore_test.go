@@ -210,7 +210,6 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-
 	if err := setupPlaywright(t, tc); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
@@ -227,7 +226,6 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
-
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
@@ -240,7 +238,6 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
-
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
 	withEnv = WithEnv(map[string]string{
