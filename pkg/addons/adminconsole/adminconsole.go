@@ -184,14 +184,15 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 		} else {
 			helmValues["isAirgap"] = "false"
 		}
-		for k, v := range a.proxyEnv {
-			if _, ok := helmValues["extraEnv"]; !ok {
-				helmValues["extraEnv"] = []map[string]string{}
+		if len(a.proxyEnv) > 0 {
+			extraEnv := []map[string]interface{}{}
+			for k, v := range a.proxyEnv {
+				extraEnv = append(extraEnv, map[string]interface{}{
+					"name":  k,
+					"value": v,
+				})
 			}
-			helmValues["extraEnv"] = append(helmValues["extraEnv"].([]map[string]string), map[string]string{
-				"name":  k,
-				"value": v,
-			})
+			helmValues["extraEnv"] = extraEnv
 		}
 	}
 	values, err := yaml.Marshal(helmValues)

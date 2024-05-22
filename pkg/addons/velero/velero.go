@@ -114,22 +114,15 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 		},
 	}
 
-	for k, v := range o.proxyEnv {
-		if _, ok := helmValues["configuration"]; !ok {
-			helmValues["configuration"] = map[string]interface{}{}
+	if len(o.proxyEnv) > 0 {
+		extraEnvVars := map[string]interface{}{}
+		for k, v := range o.proxyEnv {
+			extraEnvVars[k] = v
 		}
-		if _, ok := helmValues["configuration"].(map[string]interface{})["extraEnvVars"]; !ok {
-			helmValues["configuration"].(map[string]interface{})["extraEnvVars"] = map[string]interface{}{}
+		helmValues["configuration"] = map[string]interface{}{
+			"extraEnvVars": extraEnvVars,
 		}
-		helmValues["configuration"].(map[string]interface{})["extraEnvVars"].(map[string]interface{})[k] = v
-
-		if _, ok := helmValues["nodeAgent"]; !ok {
-			helmValues["nodeAgent"] = map[string]interface{}{}
-		}
-		if _, ok := helmValues["nodeAgent"].(map[string]interface{})["extraEnvVars"]; !ok {
-			helmValues["nodeAgent"].(map[string]interface{})["extraEnvVars"] = map[string]interface{}{}
-		}
-		helmValues["nodeAgent"].(map[string]interface{})["extraEnvVars"].(map[string]interface{})[k] = v
+		helmValues["nodeAgent"].(map[string]interface{})["extraEnvVars"] = extraEnvVars
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
