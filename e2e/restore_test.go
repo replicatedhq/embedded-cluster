@@ -203,8 +203,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
 	withEnv := WithEnv(map[string]string{
-		"HTTP_PROXY":  "http://10.0.0.254:3128",
-		"HTTPS_PROXY": "http://10.0.0.254:3128",
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
@@ -232,8 +232,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		{"apt-get", "install", "expect", "-y"},
 	}
 	withEnv = WithEnv(map[string]string{
-		"http_proxy":  "http://10.0.0.254:3128",
-		"https_proxy": "http://10.0.0.254:3128",
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
 	})
 	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
@@ -241,8 +241,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
 	withEnv = WithEnv(map[string]string{
-		"HTTP_PROXY":  "http://10.0.0.254:3128",
-		"HTTPS_PROXY": "http://10.0.0.254:3128",
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {

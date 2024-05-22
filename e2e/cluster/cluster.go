@@ -230,6 +230,8 @@ func NewTestCluster(in *Input) *Output {
 	return out
 }
 
+const HTTPProxy = "http://10.0.0.254:3128"
+
 // CreateProxy creates a node that attaches to both networks (external and internal),
 // once this is done we install squid and configure it to be a proxy. We also make
 // sure that all nodes are configured to use the proxy as default gateway. Internet
