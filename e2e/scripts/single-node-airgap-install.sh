@@ -125,7 +125,12 @@ check_airgap_pvc() {
 }
 
 main() {
-    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml --airgap-bundle /tmp/release.airgap --proxy 2>&1 | tee /tmp/log ; then
+    local additional_args=
+    if [ -n "$1" ]; then
+        additional_args="$1"
+        echo "Running install with additional args: $additional_args"
+    fi
+    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml --airgap-bundle /tmp/release.airgap $additional_args 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         exit 1
     fi

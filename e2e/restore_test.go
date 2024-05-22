@@ -201,7 +201,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", "--proxy"}
 	withEnv := WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
