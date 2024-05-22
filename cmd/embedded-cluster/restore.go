@@ -332,7 +332,7 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
-	if v := backup.Annotations["kots.io/embedded-cluster-version"]; v != defaults.Version {
+	if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(defaults.Version, "v") {
 		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, defaults.Version)
 	}
 	if backup.Status.Phase != velerov1.BackupPhaseCompleted {
