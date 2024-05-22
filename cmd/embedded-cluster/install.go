@@ -450,7 +450,7 @@ var installCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:   "proxy",
-			Usage:  "Use the system proxy settings for the restore operation. These variables are currently only passed through to Velero and the Admin Console components.",
+			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
 			Hidden: true,
 		},
 	},
