@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
@@ -11,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -104,6 +106,13 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 		URL:  ChartURL,
 	}
 
+	kubectlVersion := semver.MustParse(defaults.K0sVersion)
+	helmValues["kubectl"] = map[string]interface{}{
+		"image": map[string]interface{}{
+			"tag": fmt.Sprintf("%d.%d", kubectlVersion.Major(), kubectlVersion.Minor()),
+		},
+	}
+
 	valuesStringData, err := yaml.Marshal(helmValues)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
@@ -114,7 +123,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 }
 
 func (o *Velero) GetAdditionalImages() []string {
-	return nil
+	return []string{fmt.Sprintf("velero/velero-restore-helper:%s", VeleroTag)}
 }
 
 // Outro is executed after the cluster deployment.

@@ -149,7 +149,7 @@ func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Re
 }
 
 func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	reg, err := registry.New(true)
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
@@ -253,7 +253,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(a.airgapBundle != "")
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, a.airgapBundle != "")
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
