@@ -6,8 +6,7 @@ main() {
     apt-get install -y \
         ca-certificates \
         curl \
-        gnupg \
-        socat
+        gnupg
 
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
     NODE_MAJOR=20

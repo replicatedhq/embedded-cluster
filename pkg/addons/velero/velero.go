@@ -63,6 +63,7 @@ var helmValues = map[string]interface{}{
 type Velero struct {
 	namespace string
 	isEnabled bool
+	proxyEnv  map[string]string
 }
 
 // Version returns the version of the Velero chart.
@@ -111,6 +112,24 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 		"image": map[string]interface{}{
 			"tag": fmt.Sprintf("%d.%d", kubectlVersion.Major(), kubectlVersion.Minor()),
 		},
+	}
+
+	for k, v := range o.proxyEnv {
+		if _, ok := helmValues["configuration"]; !ok {
+			helmValues["configuration"] = map[string]interface{}{}
+		}
+		if _, ok := helmValues["configuration"].(map[string]interface{})["extraEnvVars"]; !ok {
+			helmValues["configuration"].(map[string]interface{})["extraEnvVars"] = map[string]interface{}{}
+		}
+		helmValues["configuration"].(map[string]interface{})["extraEnvVars"].(map[string]interface{})[k] = v
+
+		if _, ok := helmValues["nodeAgent"]; !ok {
+			helmValues["nodeAgent"] = map[string]interface{}{}
+		}
+		if _, ok := helmValues["nodeAgent"].(map[string]interface{})["extraEnvVars"]; !ok {
+			helmValues["nodeAgent"].(map[string]interface{})["extraEnvVars"] = map[string]interface{}{}
+		}
+		helmValues["nodeAgent"].(map[string]interface{})["extraEnvVars"].(map[string]interface{})[k] = v
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
@@ -171,9 +190,10 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new Velero addon.
-func New(namespace string, isEnabled bool) (*Velero, error) {
+func New(namespace string, isEnabled bool, proxyEnv map[string]string) (*Velero, error) {
 	return &Velero{
 		namespace: namespace,
 		isEnabled: isEnabled,
+		proxyEnv:  proxyEnv,
 	}, nil
 }

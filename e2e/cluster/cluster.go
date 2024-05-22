@@ -136,6 +136,7 @@ type Command struct {
 	Stdout      io.WriteCloser
 	Stderr      io.WriteCloser
 	RegularUser bool
+	Env         map[string]string
 }
 
 // Run runs a command in a node.
@@ -144,11 +145,14 @@ func Run(ctx context.Context, t *testing.T, cmd Command) error {
 	if err != nil {
 		t.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	var env map[string]string
+	env := map[string]string{}
 	var uid uint32
 	if cmd.RegularUser {
 		uid = 9999
-		env = map[string]string{"HOME": "/home/user"}
+		env["HOME"] = "/home/user"
+	}
+	for k, v := range cmd.Env {
+		env[k] = v
 	}
 	req := api.InstanceExecPost{
 		Command:     cmd.Line,
@@ -220,6 +224,8 @@ func NewTestCluster(in *Input) *Output {
 		if in.CreateRegularUser {
 			CreateRegularUser(in, out.Proxy)
 		}
+		NodeHasInternet(in, out.Proxy)
+		ConfigureProxy(in)
 	}
 	return out
 }
@@ -284,7 +290,6 @@ func CreateProxy(in *Input) string {
 			in.T.Fatalf("Failed to get proxy state %s: %v", name, err)
 		}
 	}
-	ConfigureProxy(in)
 	return name
 }
 
@@ -295,33 +300,32 @@ func CreateProxy(in *Input) string {
 func ConfigureProxy(in *Input) {
 	// starts by installing dependencies, setting up the second network interface ip
 	// address and configuring iptables to allow dns requests forwarding (nat).
-	// TODO: this was flaky, so we should find an alternative when we need it.
-	// proxyName := fmt.Sprintf("node-%s-proxy", in.id)
-	// for _, cmd := range [][]string{
-	// 	{"apt-get", "update", "-y"},
-	// 	{"apt-get", "install", "-y", "iptables", "squid"},
-	// 	{"ip", "addr", "add", "10.0.0.254/24", "dev", "eth1"},
-	// 	{"ip", "link", "set", "eth1", "up"},
-	// 	{"sysctl", "-w", "net.ipv4.ip_forward=1"},
-	// 	{"iptables", "-t", "nat", "-o", "eth0", "-A", "POSTROUTING", "-p", "udp", "--dport", "53", "-j", "MASQUERADE"},
-	// } {
-	// 	RunCommandOnNode(in, cmd, proxyName)
-	// }
+	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
+	for _, cmd := range [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "-y", "iptables", "squid"},
+		{"ip", "addr", "add", "10.0.0.254/24", "dev", "eth1"},
+		{"ip", "link", "set", "eth1", "up"},
+		{"sysctl", "-w", "net.ipv4.ip_forward=1"},
+		{"iptables", "-t", "nat", "-o", "eth0", "-A", "POSTROUTING", "-p", "udp", "--dport", "53", "-j", "MASQUERADE"},
+	} {
+		RunCommandOnNode(in, cmd, proxyName)
+	}
 
-	// // create a simple squid configuration that allows for localnet access. upload it
-	// // to the proxy in the right location. restart squid to apply the configuration.
-	// tmpfile, err := os.CreateTemp("", "squid-config-*.conf")
-	// if err != nil {
-	// 	in.T.Fatalf("Failed to create temp file: %v", err)
-	// }
-	// defer os.Remove(tmpfile.Name())
-	// if _, err = tmpfile.WriteString("http_access allow localnet\n"); err != nil {
-	// 	in.T.Fatalf("Failed to write to temp file: %v", err)
-	// }
-	// file := File{SourcePath: tmpfile.Name(), DestPath: "/etc/squid/conf.d/ec.conf", Mode: 0644}
-	// tmpfile.Close()
-	// CopyFileToNode(in, proxyName, file)
-	// RunCommandOnNode(in, []string{"systemctl", "restart", "squid"}, proxyName)
+	// create a simple squid configuration that allows for localnet access. upload it
+	// to the proxy in the right location. restart squid to apply the configuration.
+	tmpfile, err := os.CreateTemp("", "squid-config-*.conf")
+	if err != nil {
+		in.T.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+	if _, err = tmpfile.WriteString("http_access allow localnet\n"); err != nil {
+		in.T.Fatalf("Failed to write to temp file: %v", err)
+	}
+	file := File{SourcePath: tmpfile.Name(), DestPath: "/etc/squid/conf.d/ec.conf", Mode: 0644}
+	tmpfile.Close()
+	CopyFileToNode(in, proxyName, file)
+	RunCommandOnNode(in, []string{"systemctl", "restart", "squid"}, proxyName)
 
 	// set the default route on all other nodes to point to the proxy we just created.
 	// this makes it easier to ensure no internet will work on them other than dns and

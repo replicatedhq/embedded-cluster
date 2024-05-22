@@ -93,6 +93,7 @@ type AdminConsole struct {
 	config       v1beta1.ClusterConfig
 	licenseFile  string
 	airgapBundle string
+	proxyEnv     map[string]string
 }
 
 func (a *AdminConsole) askPassword() (string, error) {
@@ -183,6 +184,15 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 		} else {
 			helmValues["isAirgap"] = "false"
 		}
+		for k, v := range a.proxyEnv {
+			if _, ok := helmValues["extraEnv"]; !ok {
+				helmValues["extraEnv"] = []map[string]string{}
+			}
+			helmValues["extraEnv"] = append(helmValues["extraEnv"].([]map[string]string), map[string]string{
+				"name":  k,
+				"value": v,
+			})
+		}
 	}
 	values, err := yaml.Marshal(helmValues)
 	if err != nil {
@@ -246,13 +256,14 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new AdminConsole object.
-func New(ns string, useprompt bool, config v1beta1.ClusterConfig, licenseFile string, airgapBundle string) (*AdminConsole, error) {
+func New(ns string, useprompt bool, config v1beta1.ClusterConfig, licenseFile string, airgapBundle string, proxyEnv map[string]string) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:    ns,
 		useprompt:    useprompt,
 		config:       config,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
+		proxyEnv:     proxyEnv,
 	}, nil
 }
 
