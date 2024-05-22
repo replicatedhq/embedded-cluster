@@ -126,7 +126,7 @@ check_airgap_pvc() {
 
 main() {
     local additional_args=
-    if [ -n "$1" ]; then
+    if [ -n "${1:-}" ]; then
         additional_args="$1"
         echo "Running install with additional args: $additional_args"
     fi
