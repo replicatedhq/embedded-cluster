@@ -102,7 +102,7 @@ func (d *Provider) EmbeddedClusterHomeDirectory() string {
 // does not return the binary just after we materilized it but the path we want it to be
 // once it is installed.
 func (d *Provider) K0sBinaryPath() string {
-	return "/usr/local/bin/k0s"
+	return filepath.Join(d.Base, "/usr/local/bin/k0s")
 }
 
 // PathToEmbeddedClusterBinary is an utility function that returns the full path to a
@@ -112,8 +112,17 @@ func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 	return filepath.Join(d.EmbeddedClusterBinsSubDir(), name)
 }
 
+// PathToWorkerKubeConfig returns the path to the kubeconfig used by the worker nodes when
+// talking to the api server. Note that this kubeconfig may not have all the permissions
+// that the admin kubeconfig has.
+func (d *Provider) PathToWorkerKubeConfig() string {
+	return filepath.Join(d.Base, "/var/lib/k0s/kubelet.conf")
+}
+
+// PathToKubeConfig returns the full path to the kubeconfig file. This file contain auth
+// for the admin of the cluster.
 func (d *Provider) PathToKubeConfig() string {
-	return "/var/lib/k0s/pki/admin.conf"
+	return filepath.Join(d.Base, "/var/lib/k0s/pki/admin.conf")
 }
 
 // PreferredNodeIPAddress returns the ip address the node uses when reaching
@@ -173,17 +182,17 @@ func (d *Provider) TryDiscoverPublicIP() string {
 
 // PathToK0sStatusSocket returns the full path to the k0s status socket.
 func (d *Provider) PathToK0sStatusSocket() string {
-	return "/run/k0s/status.sock"
+	return filepath.Join(d.Base, "/run/k0s/status.sock")
 }
 
 // PathToK0sConfig returns the full path to the k0s configuration file.
 func (d *Provider) PathToK0sConfig() string {
-	return "/etc/k0s/k0s.yaml"
+	return filepath.Join(d.Base, "/etc/k0s/k0s.yaml")
 }
 
 // PathToK0sContainerdConfig returns the full path to the k0s containerd configuration directory
 func (d *Provider) PathToK0sContainerdConfig() string {
-	return "/etc/k0s/containerd.d/"
+	return filepath.Join(d.Base, "/etc/k0s/containerd.d/")
 }
 
 // EmbeddedClusterSupportSubDir returns the path to the directory where embedded-cluster

@@ -10,8 +10,10 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
+	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"go.uber.org/multierr"
 	"golang.org/x/term"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -35,6 +37,23 @@ func handleResize(ch chan os.Signal, tty *os.File) {
 	}
 }
 
+// getKubeConfigPath returns the path to the kubeconfig file for the cluster.
+// it can be either the path to the control plane kubeconfig or the path to the
+// worker kubeconfig. if none exists this returns an error.
+func getKubeConfigPath() (string, error) {
+	paths := []string{defaults.PathToKubeConfig(), defaults.PathToWorkerKubeConfig()}
+	var errs []error
+	for _, path := range paths {
+		_, err := os.Stat(path)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		return path, nil
+	}
+	return "", multierr.Combine(errs...)
+}
+
 var shellCommand = &cli.Command{
 	Name:  "shell",
 	Usage: "Start a shell with access to the cluster",
@@ -45,9 +64,9 @@ var shellCommand = &cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
-		cfgpath := defaults.PathToKubeConfig()
-		if _, err := os.Stat(cfgpath); err != nil {
-			return fmt.Errorf("kubeconfig not found at %s", cfgpath)
+		kcpath, err := getKubeConfigPath()
+		if err != nil {
+			return fmt.Errorf("kubeconfig not found: %w", err)
 		}
 
 		shpath := os.Getenv("SHELL")
@@ -56,11 +75,17 @@ var shellCommand = &cli.Command{
 		}
 
 		fmt.Printf(welcome, defaults.BinaryName())
+		if kcpath == defaults.PathToWorkerKubeConfig() {
+			fmt.Println()
+			color.Yellow("\tWARNING: This is a shell on a worker node, not all operations")
+			color.Yellow("\tare allowed from here. Use the shell on a controller node for")
+			color.Yellow("\tfull access.")
+			fmt.Println()
+		}
 		shell := exec.Command(shpath)
 		shell.Env = os.Environ()
 
 		// get the current working directory
-		var err error
 		shell.Dir, err = os.Getwd()
 		if err != nil {
 			return fmt.Errorf("unable to get current working directory: %w", err)
@@ -87,7 +112,6 @@ var shellCommand = &cli.Command{
 			_ = term.Restore(fd, state)
 		}()
 
-		kcpath := defaults.PathToKubeConfig()
 		config := fmt.Sprintf("export KUBECONFIG=%q\n", kcpath)
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))

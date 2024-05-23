@@ -76,6 +76,12 @@ func PathToLog(name string) string {
 	return def().PathToLog(name)
 }
 
+// PathToWorkerKubeConfig calls PathToWorkerKubeConfig on the default provider.
+func PathToWorkerKubeConfig() string {
+	return def().PathToWorkerKubeConfig()
+}
+
+// PathToKubeConfig calls PathToKubeConfig on the default provider.
 func PathToKubeConfig() string {
 	return def().PathToKubeConfig()
 }
