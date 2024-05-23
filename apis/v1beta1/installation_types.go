@@ -66,7 +66,7 @@ type ArtifactsLocation struct {
 
 // LicenseInfo holds information about the license used to install the cluster.
 type LicenseInfo struct {
-	IsSnapshotSupported bool `json:"isSnapshotSupported"`
+	IsDisasterRecoverySupported bool `json:"isDisasterRecoverySupported"`
 }
 
 // ConfigSecret holds a reference to secret containing the embedded cluster
