@@ -286,10 +286,10 @@ spec:
                 description: LicenseInfo holds information about the license used
                   to install the cluster.
                 properties:
-                  isSnapshotSupported:
+                  isDisasterRecoverySupported:
                     type: boolean
                 required:
-                - isSnapshotSupported
+                - isDisasterRecoverySupported
                 type: object
               metricsBaseURL:
                 description: MetricsBaseURL holds the base URL for the metrics server.

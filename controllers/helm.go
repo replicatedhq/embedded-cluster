@@ -72,7 +72,7 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *v1
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, meta.AirgapConfigs.Repositories...)
 	}
 
-	if in != nil && in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsSnapshotSupported {
+	if in != nil && in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
 		combinedConfigs.Charts = append(combinedConfigs.Charts, meta.BuiltinConfigs["velero"].Charts...)
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, meta.BuiltinConfigs["velero"].Repositories...)
 	}

@@ -17,11 +17,11 @@ func Test_mergeHelmConfigs(t *testing.T) {
 		in   v1beta1.Extensions
 	}
 	tests := []struct {
-		name      string
-		args      args
-		airgap    bool
-		snapshots bool
-		want      *k0sv1beta1.HelmExtensions
+		name             string
+		args             args
+		airgap           bool
+		disasterRecovery bool
+		want             *k0sv1beta1.HelmExtensions
 	}{
 		{
 			name: "no meta",
@@ -165,8 +165,8 @@ func Test_mergeHelmConfigs(t *testing.T) {
 			},
 		},
 		{
-			name:      "snapshots enabled",
-			snapshots: true,
+			name:             "disaster recovery enabled",
+			disasterRecovery: true,
 			args: args{
 				meta: &ectypes.ReleaseMetadata{
 					Configs: k0sv1beta1.HelmExtensions{
@@ -232,7 +232,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					},
 					AirGap: tt.airgap,
 					LicenseInfo: &v1beta1.LicenseInfo{
-						IsSnapshotSupported: tt.snapshots,
+						IsDisasterRecoverySupported: tt.disasterRecovery,
 					},
 				},
 			}
