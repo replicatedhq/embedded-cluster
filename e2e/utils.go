@@ -21,12 +21,20 @@ func (b *buffer) Close() error {
 	return nil
 }
 
+type RunCommandOption func(cmd *cluster.Command)
+
+func WithEnv(env map[string]string) RunCommandOption {
+	return func(cmd *cluster.Command) {
+		cmd.Env = env
+	}
+}
+
 // RunCommandsOnNode runs a series of commands on a node.
-func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]string) error {
+func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]string, opts ...RunCommandOption) error {
 	for _, cmd := range cmds {
 		cmdstr := strings.Join(cmd, " ")
 		t.Logf("running `%s` node %d", cmdstr, node)
-		_, _, err := RunCommandOnNode(t, cl, node, cmd)
+		_, _, err := RunCommandOnNode(t, cl, node, cmd, opts...)
 		if err != nil {
 			return err
 		}
@@ -35,19 +43,22 @@ func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]stri
 }
 
 // RunRegularUserCommandOnNode runs a command on a node as a regular user (not root) with a timeout.
-func RunRegularUserCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string) (string, string, error) {
+func RunRegularUserCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string, opts ...RunCommandOption) (string, string, error) {
 	stdout := &buffer{bytes.NewBuffer(nil)}
 	stderr := &buffer{bytes.NewBuffer(nil)}
-	cmd := cluster.Command{
+	cmd := &cluster.Command{
 		Node:        cl.Nodes[node],
 		Line:        line,
 		Stdout:      stdout,
 		Stderr:      stderr,
 		RegularUser: true,
 	}
+	for _, fn := range opts {
+		fn(cmd)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	if err := cluster.Run(ctx, t, cmd); err != nil {
+	if err := cluster.Run(ctx, t, *cmd); err != nil {
 		t.Logf("stdout:\n%s\nstderr:%s\n", stdout.String(), stderr.String())
 		return stdout.String(), stderr.String(), err
 	}
@@ -55,18 +66,21 @@ func RunRegularUserCommandOnNode(t *testing.T, cl *cluster.Output, node int, lin
 }
 
 // RunCommandOnNode runs a command on a node with a timeout.
-func RunCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string) (string, string, error) {
+func RunCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string, opts ...RunCommandOption) (string, string, error) {
 	stdout := &buffer{bytes.NewBuffer(nil)}
 	stderr := &buffer{bytes.NewBuffer(nil)}
-	cmd := cluster.Command{
+	cmd := &cluster.Command{
 		Node:   cl.Nodes[node],
 		Line:   line,
 		Stdout: stdout,
 		Stderr: stderr,
 	}
+	for _, fn := range opts {
+		fn(cmd)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	if err := cluster.Run(ctx, t, cmd); err != nil {
+	if err := cluster.Run(ctx, t, *cmd); err != nil {
 		t.Logf("stdout:\n%s", stdout.String())
 		t.Logf("stderr:\n%s", stderr.String())
 		return stdout.String(), stderr.String(), err
@@ -75,22 +89,25 @@ func RunCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string)
 }
 
 // RunCommandOnProxyNode runs a command on the proxy node with a timeout.
-func RunCommandOnProxyNode(t *testing.T, cl *cluster.Output, line []string) (string, string, error) {
+func RunCommandOnProxyNode(t *testing.T, cl *cluster.Output, line []string, opts ...RunCommandOption) (string, string, error) {
 	if cl.Proxy == "" {
 		return "", "", fmt.Errorf("no proxy node found")
 	}
 
 	stdout := &buffer{bytes.NewBuffer(nil)}
 	stderr := &buffer{bytes.NewBuffer(nil)}
-	cmd := cluster.Command{
+	cmd := &cluster.Command{
 		Node:   cl.Proxy,
 		Line:   line,
 		Stdout: stdout,
 		Stderr: stderr,
 	}
+	for _, fn := range opts {
+		fn(cmd)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	if err := cluster.Run(ctx, t, cmd); err != nil {
+	if err := cluster.Run(ctx, t, *cmd); err != nil {
 		t.Logf("stdout:\n%s", stdout.String())
 		t.Logf("stderr:\n%s", stderr.String())
 		return stdout.String(), stderr.String(), err

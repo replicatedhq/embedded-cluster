@@ -278,6 +278,9 @@ func ensureK0sConfig(c *cli.Context) error {
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
+	if c.Bool("proxy") {
+		opts = append(opts, addons.WithProxyFromEnv())
+	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -443,6 +446,11 @@ var installCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "proxy",
+			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
 			Hidden: true,
 		},
 	},

@@ -6,6 +6,7 @@ package addons
 import (
 	"context"
 	"fmt"
+
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
@@ -47,6 +48,7 @@ type Applier struct {
 	endUserConfig   *embeddedclusterv1beta1.Config
 	airgapBundle    string
 	releaseMetadata *types.ReleaseMetadata
+	proxyEnv        map[string]string
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -164,7 +166,7 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
 	builtinCharts := map[string]k0sconfig.HelmExtensions{}
 
-	vel, err := velero.New(defaults.VeleroNamespace, true)
+	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
@@ -269,13 +271,13 @@ func (a *Applier) load() ([]AddOn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to check if snapshots are enabled: %w", err)
 	}
-	vel, err := velero.New(defaults.VeleroNamespace, snapshotsEnabled)
+	vel, err := velero.New(defaults.VeleroNamespace, snapshotsEnabled, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
 	addons = append(addons, vel)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgapBundle)
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgapBundle, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
@@ -292,7 +294,7 @@ func (a *Applier) loadForRestore() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	vel, err := velero.New(defaults.VeleroNamespace, true)
+	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}

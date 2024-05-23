@@ -296,6 +296,9 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 	}
 	cfg := config.RenderK0sConfig()
 	opts := []addons.Option{}
+	if c.Bool("proxy") {
+		opts = append(opts, addons.WithProxyFromEnv())
+	}
 	if err := config.UpdateHelmConfigsForRestore(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -668,6 +671,11 @@ var restoreCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the restore will be completed without internet access.",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "proxy",
+			Usage:  "Use the system proxy settings for the restore operation. These variables are currently only passed through to Velero.",
 			Hidden: true,
 		},
 	},
