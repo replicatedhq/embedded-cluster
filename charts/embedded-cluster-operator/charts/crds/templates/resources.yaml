@@ -501,8 +501,6 @@ spec:
                 properties:
                   isDisasterRecoverySupported:
                     type: boolean
-                required:
-                - isDisasterRecoverySupported
                 type: object
               metricsBaseURL:
                 description: MetricsBaseURL holds the base URL for the metrics server.
