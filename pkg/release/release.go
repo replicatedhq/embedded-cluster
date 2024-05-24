@@ -14,7 +14,9 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -35,6 +37,28 @@ func LocalVersionMetadataConfigmap(version string) types.NamespacedName {
 	}
 }
 
+// configureRegistryTLS makes sure that the docker-registry values contains an entry for the
+// tls secret. this function should be called only if the tls secret exists.
+func configureRegistryTLS(meta *ectypes.ReleaseMetadata) (*ectypes.ReleaseMetadata, error) {
+	for i, chart := range meta.AirgapConfigs.Charts {
+		if chart.Name != "docker-registry" {
+			continue
+		}
+		var values map[string]interface{}
+		if err := yaml.Unmarshal([]byte(chart.Values), &values); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal registry chart values: %w", err)
+		}
+		values["tlsSecretName"] = "registry-tls"
+		newValues, err := yaml.Marshal(values)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal new registry chart values: %w", err)
+		}
+		meta.AirgapConfigs.Charts[i].Values = string(newValues)
+		return meta, nil
+	}
+	return meta, nil
+}
+
 // MetadataFor determines from where to read the metadata (from the cluster or remotely) and calls
 // the appropriate function.
 func MetadataFor(ctx context.Context, in *v1beta1.Installation, cli client.Client) (*ectypes.ReleaseMetadata, error) {
@@ -45,6 +69,8 @@ func MetadataFor(ctx context.Context, in *v1beta1.Installation, cli client.Clien
 }
 
 // localMetadataFor reads metadata for a given release. Attempts to read a local config map.
+// If running on airgap environment this function also assess if the registry requires
+// tls or not and customize the release metadata accordingly.
 func localMetadataFor(ctx context.Context, cli client.Client, version string) (*ectypes.ReleaseMetadata, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -65,11 +91,26 @@ func localMetadataFor(ctx context.Context, cli client.Client, version string) (*
 		return nil, fmt.Errorf("metadata.json not found in config map %q", nsn.Name)
 	}
 
-	var meta ectypes.ReleaseMetadata
-	if err := json.Unmarshal([]byte(data), &meta); err != nil {
+	meta := &ectypes.ReleaseMetadata{}
+	if err := json.Unmarshal([]byte(data), meta); err != nil {
 		return nil, fmt.Errorf("failed to decode bundle: %w", err)
 	}
-	cache[version] = &meta
+	cache[version] = meta
+
+	var secret corev1.Secret
+	nsn = types.NamespacedName{Namespace: "registry", Name: "registry-tls"}
+	if err := cli.Get(ctx, nsn, &secret); err != nil {
+		if errors.IsNotFound(err) {
+			return metaFromCache(version)
+		}
+		return nil, fmt.Errorf("failed to get registry tls secret: %w", err)
+	}
+
+	updatedMeta, err := configureRegistryTLS(meta)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure registry tls: %w", err)
+	}
+	cache[version] = updatedMeta
 	return metaFromCache(version)
 }
 
