@@ -243,8 +243,14 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	}
 
 	tlsSecret := &corev1.Secret{
-		TypeMeta:   metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
-		ObjectMeta: metav1.ObjectMeta{Name: tlsSecretName, Namespace: o.namespace},
+		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      tlsSecretName,
+			Namespace: o.namespace,
+			Labels: map[string]string{
+				"app": "docker-registry", // this is the backup/restore label for the registry component
+			},
+		},
 		StringData: map[string]string{"tls.crt": tlsCert, "tls.key": tlsKey},
 		Type:       "Opaque",
 	}
