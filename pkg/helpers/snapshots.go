@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func SnapshotsEnabled(licenseFile string) (bool, error) {
+func DisasterRecoveryEnabled(licenseFile string) (bool, error) {
 	if licenseFile == "" {
 		return false, nil
 	}
@@ -14,8 +14,8 @@ func SnapshotsEnabled(licenseFile string) (bool, error) {
 		return false, fmt.Errorf("failed to parse license: %w", err)
 	}
 
-	// if the license does not have snapshots enabled, return false
-	if !lic.Spec.IsSnapshotSupported {
+	// if the license does not have disaster recovery enabled, return false
+	if !lic.Spec.IsDisasterRecoverySupported {
 		return false, nil
 	}
 

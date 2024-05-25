@@ -213,7 +213,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
 			LicenseInfo: &embeddedclusterv1beta1.LicenseInfo{
-				IsSnapshotSupported: licenseSnapshotSupported(license),
+				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(license),
 			},
 		},
 	}
@@ -236,9 +236,9 @@ func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airga
 	}, nil
 }
 
-func licenseSnapshotSupported(license *kotsv1beta1.License) bool {
+func licenseDisasterRecoverySupported(license *kotsv1beta1.License) bool {
 	if license == nil {
 		return false
 	}
-	return license.Spec.IsSnapshotSupported
+	return license.Spec.IsDisasterRecoverySupported
 }
