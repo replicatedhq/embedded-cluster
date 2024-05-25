@@ -267,11 +267,11 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, embedoperator)
 
-	snapshotsEnabled, err := helpers.SnapshotsEnabled(a.licenseFile)
+	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(a.licenseFile)
 	if err != nil {
-		return nil, fmt.Errorf("unable to check if snapshots are enabled: %w", err)
+		return nil, fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
 	}
-	vel, err := velero.New(defaults.VeleroNamespace, snapshotsEnabled, a.proxyEnv)
+	vel, err := velero.New(defaults.VeleroNamespace, disasterRecoveryEnabled, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
