@@ -282,6 +282,10 @@ spec:
                   EndUserK0sConfigOverrides holds the end user k0s config overrides
                   used at installation time.
                 type: string
+              isHighAvailability:
+                description: IsHighAvailability indicates if the installation is high
+                  availability.
+                type: boolean
               licenseInfo:
                 description: LicenseInfo holds information about the license used
                   to install the cluster.
@@ -294,6 +298,7 @@ spec:
                 type: string
             required:
             - airGap
+            - isHighAvailability
             type: object
           status:
             description: InstallationStatus defines the observed state of Installation
