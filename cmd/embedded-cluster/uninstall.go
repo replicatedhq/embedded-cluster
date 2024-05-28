@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -200,26 +201,51 @@ func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
 	return true, "", nil
 }
 
-// leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
-func (h *hostInfo) leaveEtcdcluster() error {
-
-	// if we're the only etcd member we don't need to leave the cluster
+func (h *hostInfo) isLastEtcdMember() (bool, error) {
 	out, err := exec.Command(k0s, "etcd", "member-list").Output()
 	if err != nil {
-		return err
+		return false, err
 	}
 	memberlist := etcdMembers{}
 	err = json.Unmarshal(out, &memberlist)
 	if err != nil {
-		return err
+		return false, err
 	}
-	if len(memberlist.Members) == 1 && memberlist.Members[h.Hostname] != "" {
+
+	if memberlist.Members[h.Hostname] == "" {
+		return false, nil // this is not a etcd member
+	}
+	if len(memberlist.Members) == 1 {
+		return true, nil // we are an etcd member and the only one
+	}
+	return false, nil // there is more than one etcd member remaining
+}
+
+// leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
+func (h *hostInfo) leaveEtcdcluster() error {
+	// if we're the only etcd member we don't need to leave the cluster
+	lastMember, err := h.isLastEtcdMember()
+	if err != nil {
+		return fmt.Errorf("unable to check if last etcd member: %w", err)
+	}
+	if lastMember {
 		return nil
 	}
 
-	out, err = exec.Command(k0s, "etcd", "leave").CombinedOutput()
+	var lasterr error
+	var out []byte
+	backoff := wait.Backoff{Steps: 5, Duration: time.Second, Factor: 2, Jitter: 0.1}
+	err = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		out, err = exec.Command(k0s, "etcd", "leave").CombinedOutput()
+		if err != nil {
+			lasterr = fmt.Errorf("%w: %s", err, string(out))
+			return false, nil
+		}
+		return true, nil
+
+	})
 	if err != nil {
-		return fmt.Errorf("unable to leave etcd cluster: %w, %s", err, string(out))
+		return fmt.Errorf("unable to leave etcd cluster: %w", lasterr)
 	}
 	return nil
 }
@@ -342,11 +368,19 @@ var resetCommand = &cli.Command{
 			}
 		}
 
-		// drain node
-		logrus.Info("Draining node...")
-		err = currentHost.drainNode()
-		if !checkErrPrompt(c, err) {
+		isLastEtcdHost, err := currentHost.isLastEtcdMember()
+		if err != nil {
 			return err
+		}
+		if isLastEtcdHost {
+			logrus.Info("Not draining node as it is the last etcd member, and doing so would be redundant...")
+		} else {
+			// drain node
+			logrus.Info("Draining node...")
+			err = currentHost.drainNode()
+			if !checkErrPrompt(c, err) {
+				return err
+			}
 		}
 
 		// remove node from cluster
