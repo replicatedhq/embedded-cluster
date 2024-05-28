@@ -116,3 +116,39 @@ func TestMultiNodeReset(t *testing.T) {
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
+
+func TestMultiNodeReset1(t *testing.T) {
+	TestMultiNodeReset(t)
+}
+
+func TestMultiNodeReset2(t *testing.T) {
+	TestMultiNodeReset(t)
+}
+
+func TestMultiNodeReset3(t *testing.T) {
+	TestMultiNodeReset(t)
+}
+
+func TestMultiNodeReset4(t *testing.T) {
+	TestMultiNodeReset(t)
+}
+
+func TestMultiNodeReset5(t *testing.T) {
+	TestMultiNodeReset(t)
+}
+
+func TestMultiNodeReset6(t *testing.T) {
+	TestMultiNodeReset(t)
+}
+
+func TestMultiNodeReset7(t *testing.T) {
+	TestMultiNodeReset(t)
+}
+
+func TestMultiNodeReset8(t *testing.T) {
+	TestMultiNodeReset(t)
+}
+
+func TestMultiNodeReset9(t *testing.T) {
+	TestMultiNodeReset(t)
+}

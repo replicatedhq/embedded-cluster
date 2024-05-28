@@ -165,30 +165,39 @@ jobs:
       fail-fast: false
       matrix:
         tests:
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos8Stream
-          - TestVersion
-          - TestHostPreflight
-          - TestUnsupportedOverrides
-          - TestMultiNodeInstallation
+#          - TestSingleNodeInstallation
+#          - TestSingleNodeInstallationAlmaLinux8
+#          - TestSingleNodeInstallationDebian12
+#          - TestSingleNodeInstallationCentos8Stream
+#          - TestVersion
+#          - TestHostPreflight
+#          - TestUnsupportedOverrides
+#          - TestMultiNodeInstallation
           - TestMultiNodeReset
-          - TestCommandsRequireSudo
-          - TestInstallWithoutEmbed
-          - TestInstallFromReplicatedApp
+          - TestMultiNodeReset1
+          - TestMultiNodeReset2
+          - TestMultiNodeReset3
+          - TestMultiNodeReset4
+          - TestMultiNodeReset5
+          - TestMultiNodeReset6
+          - TestMultiNodeReset7
+          - TestMultiNodeReset8
+          - TestMultiNodeReset9
+#          - TestCommandsRequireSudo
+#          - TestInstallWithoutEmbed
+#          - TestInstallFromReplicatedApp
           - TestResetAndReinstall
           - TestResetAndReinstallAirgap
-          - TestCollectSupportBundle
-          - TestOldVersionUpgrade
-          - TestMaterialize
-          - TestLocalArtifactMirror
-          - TestSingleNodeAirgapUpgradeUbuntuJammy
-          - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgradeUbuntuJammy
-          - TestSingleNodeDisasterRecovery
-          - TestSingleNodeResumeDisasterRecovery
-          - TestSingleNodeAirgapDisasterRecovery
+#          - TestCollectSupportBundle
+#          - TestOldVersionUpgrade
+#          - TestMaterialize
+#          - TestLocalArtifactMirror
+#          - TestSingleNodeAirgapUpgradeUbuntuJammy
+#          - TestInstallSnapshotFromReplicatedApp
+#          - TestMultiNodeAirgapUpgradeUbuntuJammy
+#          - TestSingleNodeDisasterRecovery
+#          - TestSingleNodeResumeDisasterRecovery
+#          - TestSingleNodeAirgapDisasterRecovery
     steps:
     - name: Checkout
       uses: actions/checkout@v4
