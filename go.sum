@@ -27,8 +27,8 @@ github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 h1:K6RDEckDVWvDI9JAJY
 github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
-github.com/k0sproject/k0s v1.28.10-0.20240418084644-c99e4b437507 h1:P0fdgZ7haUEH4dUZHKk0VvgbmaBul0L8cIYrln/ScVI=
-github.com/k0sproject/k0s v1.28.10-0.20240418084644-c99e4b437507/go.mod h1:bJe0YdBjheJhuLsTteYy00PdWOeY/AM4m0WPRtYCBTA=
+github.com/k0sproject/k0s v1.28.9-0.20240405060519-8dc2b806bd9d h1:M6/4gxb2RMBhrk2xny2qzPxHbI1dkp9+7ZUix/Xzp7c=
+github.com/k0sproject/k0s v1.28.9-0.20240405060519-8dc2b806bd9d/go.mod h1:PO3VvTSDo8XZB2a3FW7S0bIk4S84u2sh0mZmP0hpI+Q=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
