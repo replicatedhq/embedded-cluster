@@ -22,6 +22,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
 // ErrNothingElseToAdd is an error returned when there is nothing else to add to the
@@ -49,6 +50,35 @@ func installAndEnableLocalArtifactMirror() error {
 	return nil
 }
 
+// configureNetworkManager configures the network manager (if the host is using it) to ignore
+// the calico interfaces. This function restarts the NetworkManager service if the configuration
+// was changed.
+func configureNetworkManager(c *cli.Context) error {
+	if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
+		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
+	} else if !active {
+		logrus.Debugf("NetworkManager is not active, skipping configuration")
+		return nil
+	}
+
+	dir := "/etc/NetworkManager/conf.d"
+	if _, err := os.Stat(dir); err != nil {
+		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
+		return nil
+	}
+
+	logrus.Debugf("creating NetworkManager config file")
+	if err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
+		return fmt.Errorf("unable to materialize configuration: %w", err)
+	}
+
+	logrus.Debugf("network manager config created, restarting the service")
+	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
+		return fmt.Errorf("unable to restart network manager: %w", err)
+	}
+	return nil
+}
+
 // runPostInstall is a helper function that run things just after the k0s install
 // command ran.
 func runPostInstall() error {
@@ -63,14 +93,18 @@ func runPostInstall() error {
 	return installAndEnableLocalArtifactMirror()
 }
 
-// runHostPreflights run the host preflights we found embedded in the binary
+// RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func runHostPreflights(c *cli.Context) error {
+func RunHostPreflights(c *cli.Context) error {
 	hpf, err := addons.NewApplier().HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
+	return runHostPreflights(c, hpf)
+}
+
+func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -217,7 +251,7 @@ func materializeFiles(c *cli.Context) error {
 		}
 	}
 
-	mat.Infof("Host files materialized")
+	mat.Infof("Host files materialized!")
 
 	return nil
 }
@@ -243,6 +277,9 @@ func ensureK0sConfig(c *cli.Context) error {
 	}
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
+	}
+	if c.Bool("proxy") {
+		opts = append(opts, addons.WithProxyFromEnv())
 	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
@@ -273,6 +310,7 @@ func ensureK0sConfig(c *cli.Context) error {
 
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
 // overrides embedded into the binary and after the ones provided by the user (--overrides).
+// we first apply the k0s config override and then apply the built in overrides.
 func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k0sconfig.ClusterConfig, error) {
 	var err error
 	if embcfg, err := release.GetEmbeddedClusterConfig(); err != nil {
@@ -281,6 +319,9 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s
 		if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
+		}
+		if cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, embcfg); err != nil {
+			return nil, fmt.Errorf("unable to release built in overrides: %w", err)
 		}
 	}
 	if c.String("overrides") == "" {
@@ -293,6 +334,9 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 	overrides := eucfg.Spec.UnsupportedOverrides.K0s
 	if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
 		return nil, fmt.Errorf("unable to apply overrides: %w", err)
+	}
+	if cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, eucfg); err != nil {
+		return nil, fmt.Errorf("unable to end user built in overrides: %w", err)
 	}
 	return cfg, nil
 }
@@ -336,7 +380,7 @@ func waitForK0s() error {
 	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
 	}
-	loading.Infof("Node installation finished")
+	loading.Infof("Node installation finished!")
 	return nil
 }
 
@@ -385,7 +429,7 @@ var installCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "no-prompt",
-			Usage: "Do not prompt user when it is not necessary",
+			Usage: "Disable interactive prompts. Admin console password will be set to password.",
 			Value: false,
 		},
 		&cli.StringFlag{
@@ -404,6 +448,11 @@ var installCommand = &cli.Command{
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
 			Hidden: true,
 		},
+		&cli.BoolFlag{
+			Name:   "proxy",
+			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
+			Hidden: true,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		logrus.Debugf("checking if %s is already installed", binName)
@@ -411,12 +460,16 @@ var installCommand = &cli.Command{
 			return err
 		} else if installed {
 			logrus.Errorf("An installation has been detected on this machine.")
-			logrus.Infof("If you want to reinstall you need to remove the existing installation")
-			logrus.Infof("first. You can do this by running the following command:")
+			logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
+			logrus.Infof("You can do this by running the following command:")
 			logrus.Infof("\n  sudo ./%s reset\n", binName)
 			return ErrNothingElseToAdd
 		}
 		metrics.ReportApplyStarted(c)
+		logrus.Debugf("configuring network manager")
+		if err := configureNetworkManager(c); err != nil {
+			return fmt.Errorf("unable to configure network manager: %w", err)
+		}
 		logrus.Debugf("checking license matches")
 		if err := checkLicenseMatches(c); err != nil {
 			metricErr := fmt.Errorf("unable to check license: %w", err)
@@ -435,7 +488,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("running host preflights")
-		if err := runHostPreflights(c); err != nil {
+		if err := RunHostPreflights(c); err != nil {
 			err := fmt.Errorf("unable to finish preflight checks: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err

@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"strings"
 	"time"
 
@@ -48,6 +47,12 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterVersion":    defaults.Version,
 	"embeddedClusterK0sVersion": defaults.K0sVersion,
 	"utilsImage":                UtilsImage,
+	"global": map[string]interface{}{
+		"labels": map[string]interface{}{
+			"replicated.com/disaster-recovery":       "infra",
+			"replicated.com/disaster-recovery-chart": "embedded-cluster-operator",
+		},
+	},
 }
 
 func init() {
@@ -139,6 +144,9 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("version-metadata-%s", slugver),
 			Namespace: e.namespace,
+			Labels: map[string]string{
+				"replicated.com/disaster-recovery": "ec-install",
+			},
 		},
 		Data: map[string]string{
 			"metadata.json": string(data),
@@ -190,25 +198,12 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		license = l
 	}
 
-	var artifacts *embeddedclusterv1beta1.ArtifactsLocation
-
-	if e.airgap {
-		chann, err := release.GetChannelRelease()
-		if err != nil {
-			return fmt.Errorf("unable to get channel release: %w", err)
-		}
-
-		artifacts = &embeddedclusterv1beta1.ArtifactsLocation{
-			EmbeddedClusterBinary:   getArtifactLocation("embedded-cluster-amd64", chann),
-			EmbeddedClusterMetadata: getArtifactLocation("version-metadata.json", chann),
-			HelmCharts:              getArtifactLocation("charts.tar.gz", chann),
-			Images:                  getArtifactLocation("images-amd64.tar", chann),
-		}
-	}
-
 	installation := embeddedclusterv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
+			Labels: map[string]string{
+				"replicated.com/disaster-recovery": "ec-install",
+			},
 		},
 		Spec: embeddedclusterv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
@@ -217,7 +212,9 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
-			Artifacts:                 artifacts,
+			LicenseInfo: &embeddedclusterv1beta1.LicenseInfo{
+				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(license),
+			},
 		},
 	}
 	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
@@ -227,27 +224,21 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	return nil
 }
 
-// Options is the options used when creating a new embedded cluster operator
-// addon installer.
-type Options struct {
-	ReleaseMetadata *types.ReleaseMetadata
-	EndUserConfig   *embeddedclusterv1beta1.Config
-	LicenseFile     string
-	Airgap          bool
-}
-
 // New creates a new EmbeddedClusterOperator addon.
-func New(opts Options) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:       "embedded-cluster",
 		deployName:      "embedded-cluster-operator",
-		endUserConfig:   opts.EndUserConfig,
-		licenseFile:     opts.LicenseFile,
-		airgap:          opts.Airgap,
-		releaseMetadata: opts.ReleaseMetadata,
+		endUserConfig:   endUserConfig,
+		licenseFile:     licenseFile,
+		airgap:          airgapEnabled,
+		releaseMetadata: releaseMetadata,
 	}, nil
 }
 
-func getArtifactLocation(artifact string, chann *release.ChannelRelease) string {
-	return fmt.Sprintf("%s:5000/%s/embedded-cluster/%s:%s-%d-%s", registry.GetRegistryClusterIP(), chann.AppSlug, artifact, chann.ChannelID, chann.ChannelSequence, chann.VersionLabel)
+func licenseDisasterRecoverySupported(license *kotsv1beta1.License) bool {
+	if license == nil {
+		return false
+	}
+	return license.Spec.IsDisasterRecoverySupported
 }

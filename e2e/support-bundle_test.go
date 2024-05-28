@@ -17,6 +17,7 @@ func TestCollectSupportBundle(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -26,10 +27,18 @@ func TestCollectSupportBundle(t *testing.T) {
 	line = []string{"collect-support-bundle.sh"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
-		t.Fatalf("fail to install collect support bundle on node %s: %v", tc.Nodes[0], err)
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to collect support bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	t.Log("stdout:", stdout)
-	t.Log("stderr:", stderr)
+	line = []string{"validate-support-bundle.sh"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to validate support bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

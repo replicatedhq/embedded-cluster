@@ -44,7 +44,7 @@ function metadata() {
     if [ -f metadata.json ]; then
         sudo apt-get install jq -y
 
-        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "global:\n  labels:\n    embedded-cluster-operator-upgrade-label: embedded-cluster-operator-upgrade-value"' metadata.json > upgrade-metadata.json
+        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' metadata.json > upgrade-metadata.json
         cat upgrade-metadata.json
 
         retry 3 aws s3 cp upgrade-metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
@@ -54,9 +54,24 @@ function metadata() {
 
 }
 
+function embeddedcluster() {
+    if [ -z "${EC_VERSION}" ]; then
+        echo "EC_VERSION unset, not uploading embedded cluster release"
+        return 0
+    fi
+    # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
+    # if it does, upload it as releases/${ec_version}.tgz
+    if [ -f embedded-cluster-linux-amd64.tgz ]; then
+        retry 3 aws s3 cp embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${EC_VERSION}.tgz"
+    else
+        echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
+    fi
+}
+
 function main() {
     export EC_VERSION="${EC_VERSION}-upgrade"
     metadata
+    embeddedcluster
 }
 
 main "$@"

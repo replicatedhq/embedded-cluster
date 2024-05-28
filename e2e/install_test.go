@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,17 +21,29 @@ func TestSingleNodeInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	installTestimAndDeploy(t, 0, tc)
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -38,16 +51,16 @@ func TestSingleNodeInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
+func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "rockylinux/8",
+		Image:               "almalinux/8",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
@@ -67,8 +80,14 @@ func TestSingleNodeInstallationRockyLinux8(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -85,7 +104,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
@@ -109,8 +128,14 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -127,7 +152,7 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
@@ -147,8 +172,14 @@ func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -198,7 +229,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -207,14 +238,18 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	installTestimAndDeploy(t, 0, tc)
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-controller-command"}
-		stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -226,10 +261,9 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	line := []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "get-join-worker-command"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
 	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
 	command, err := findJoinCommandInOutput(stdout)
 	if err != nil {
@@ -274,11 +308,12 @@ func TestInstallWithoutEmbed(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "rockylinux/8",
+		Image:               "almalinux/8",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"default-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -295,7 +330,8 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "ubuntu/jammy",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
+
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -314,8 +350,14 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -332,7 +374,8 @@ func TestResetAndReinstall(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -366,42 +409,7 @@ func TestResetAndReinstall(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestOldVersionUpgrade(t *testing.T) {
-	t.Parallel()
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:     t,
-		Nodes: 1,
-		Image: "ubuntu/jammy",
-	})
-	defer tc.Destroy()
-	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
-	}
-
-	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"pre-minio-removal-install.sh", "cli"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
-	}
-
-	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA"))}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
-	}
-
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
+func TestResetAndReinstallAirgap(t *testing.T) {
 	t.Parallel()
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
@@ -439,13 +447,13 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
 
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                t,
-		Nodes:            1,
-		Image:            "ubuntu/jammy",
-		WithProxy:        true,
-		AirgapBundlePath: airgapBundlePath,
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "ubuntu/jammy",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapBundlePath,
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -460,25 +468,469 @@ func TestSingleNodeAirgapInstallationUbuntuJammy(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
+	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to reset the installation: %v", err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func installTestimAndDeploy(t *testing.T, node int, tc *cluster.Output) {
-	t.Logf("%s: installing testim on node %d", time.Now().Format(time.RFC3339), node)
-	line := []string{"install-testim.sh"}
+func TestOldVersionUpgrade(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:     t,
+		Nodes: 1,
+		Image: "ubuntu/jammy",
+	})
+	defer cleanupCluster(t, tc)
+
+	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install testim on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
 	}
 
-	t.Logf("%s: accessing kotsadm interface and deploying app", time.Now().Format(time.RFC3339))
-	line = []string{"testim.sh", os.Getenv("TESTIM_ACCESS_TOKEN"), os.Getenv("TESTIM_BRANCH"), "deploy-kots-application"}
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"pre-minio-removal-install.sh", "cli"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to access kotsadm interface and state: %v", err)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-pre-minio-removal-installation-state.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA"))}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
+	t.Parallel()
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	wg.Wait()
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "ubuntu/jammy",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	})
+	defer cleanupCluster(t, tc)
+
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
+		t.Logf("failed to remove airgap upgrade bundle: %v", err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	// remove the airgap bundle after installation
+	line = []string{"rm", "/tmp/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+	// remove the airgap bundle after upgrade
+	line = []string{"rm", "/tmp/upgrade/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-airgap-upgrade"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-airgap-upgrade: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
+	t.Parallel()
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	wg.Wait()
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                       t,
+		Nodes:                   2,
+		Image:                   "ubuntu/jammy",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	})
+	defer cleanupCluster(t, tc)
+
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
+		t.Logf("failed to remove airgap upgrade bundle: %v", err)
+	}
+
+	// upgrade airgap bundle is only needed on the first node
+	line := []string{"rm", "/tmp/ec-release-upgrade.tgz"}
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to remove upgrade airgap bundle on node %s: %v", tc.Nodes[1], err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	// remove the airgap bundle and binary after installation
+	line = []string{"rm", "/tmp/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	// generate worker node join command.
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	if err != nil {
+		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	workerCommand, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
+	}
+	t.Log("worker join token command:", workerCommand)
+
+	// join the worker node
+	t.Logf("%s: preparing embedded cluster airgap files on worker node", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on worker node: %v", err)
+	}
+	t.Logf("%s: joining worker node to the cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(workerCommand, " ")); err != nil {
+		t.Fatalf("fail to join worker node to the cluster: %v", err)
+	}
+	// remove the airgap bundle and binary after joining
+	line = []string{"rm", "/tmp/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on worker node: %v", err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on worker node: %v", err)
+	}
+
+	// wait for the nodes to report as ready.
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "2"})
+	if err != nil {
+		t.Fatalf("fail to wait for ready nodes: %v", err)
+	}
+	t.Log(stdout)
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+	// remove the airgap bundle and binary after upgrade
+	line = []string{"rm", "/tmp/upgrade/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster-upgrade"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster-upgrade binary on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-airgap-upgrade"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-airgap-upgrade: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:     t,
+		Nodes: 1,
+		Image: "ubuntu/jammy",
+	})
+	defer cleanupCluster(t, tc)
+
+	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-install.sh", "cli"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
+
+	t.Logf("%s: ensuring velero is installed", time.Now().Format(time.RFC3339))
+	line = []string{"check-velero-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check velero state: %v", err)
+	}
+
+	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run kots upstream upgrade: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) string {
+	// download airgap bundle
+	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
+
+	req, err := http.NewRequest("GET", airgapURL, nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Header.Set("Authorization", licenseID)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("failed to download airgap bundle: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("failed to download airgap bundle: %s", resp.Status)
+	}
+
+	// pipe response to a temporary file
+	airgapBundlePath := destPath
+	f, err := os.Create(airgapBundlePath)
+	if err != nil {
+		t.Fatalf("failed to create temporary file: %v", err)
+	}
+	defer f.Close()
+	size, err := f.ReadFrom(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to write response to temporary file: %v", err)
+	}
+	t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
+
+	return airgapBundlePath
+}
+
+func setupPlaywright(t *testing.T, tc *cluster.Output) error {
+	t.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"bypass-kurl-proxy.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		return fmt.Errorf("fail to bypass kurl-proxy on node %s: %v", tc.Nodes[0], err)
+	}
+
+	line = []string{"install-playwright.sh"}
+	if tc.Proxy != "" {
+		t.Logf("%s: installing playwright on proxy node", time.Now().Format(time.RFC3339))
+		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+			return fmt.Errorf("fail to install playwright on node %s: %v", tc.Proxy, err)
+		}
+	} else {
+		t.Logf("%s: installing playwright on node 0", time.Now().Format(time.RFC3339))
+		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+			return fmt.Errorf("fail to install playwright on node %s: %v", tc.Nodes[0], err)
+		}
+	}
+	return nil
+}
+
+func runPlaywrightTest(t *testing.T, tc *cluster.Output, testName string, args ...string) (stdout, stderr string, err error) {
+	line := []string{"playwright.sh", testName}
+	line = append(line, args...)
+	if tc.Proxy != "" {
+		t.Logf("%s: running playwright test %s on proxy node", time.Now().Format(time.RFC3339), testName)
+		stdout, stderr, err = RunCommandOnProxyNode(t, tc, line)
+		if err != nil {
+			return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Proxy, err)
+		}
+	} else {
+		t.Logf("%s: running playwright test %s on node 0", time.Now().Format(time.RFC3339), testName)
+		stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+		if err != nil {
+			return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Nodes[0], err)
+		}
+	}
+	return stdout, stderr, nil
+}
+
+func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
+	t.Logf("%s: generating support bundle", time.Now().Format(time.RFC3339))
+	line := []string{"collect-support-bundle.sh"}
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Logf("stdout: %s", stdout)
+		t.Logf("stderr: %s", stderr)
+		t.Errorf("fail to generate support bundle: %v", err)
+	}
+
+	t.Logf("%s: copying host support bundle to local machine", time.Now().Format(time.RFC3339))
+	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/host.tar.gz", "support-bundle-host.tar.gz"); err != nil {
+		t.Errorf("fail to copy host support bundle to local machine: %v", err)
+	}
+	t.Logf("%s: copying cluster support bundle to local machine", time.Now().Format(time.RFC3339))
+	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
+		t.Errorf("fail to copy cluster support bundle to local machine: %v", err)
+	}
+}
+
+func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
+	line := []string{"tar", "-czf", "playwright-report.tar.gz", "-C", "/tmp/playwright/playwright-report", "."}
+	if tc.Proxy != "" {
+		t.Logf("%s: compressing playwright report on proxy node", time.Now().Format(time.RFC3339))
+		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+			t.Errorf("fail to compress playwright report on node %s: %v", tc.Proxy, err)
+			return
+		}
+		t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
+		if err := cluster.CopyFileFromNode(tc.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
+			t.Errorf("fail to copy playwright report to local machine: %v", err)
+		}
+	} else {
+		t.Logf("%s: compressing playwright report on node 0", time.Now().Format(time.RFC3339))
+		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+			t.Errorf("fail to compress playwright report on node %s: %v", tc.Nodes[0], err)
+			return
+		}
+		t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
+		if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
+			t.Errorf("fail to copy playwright report to local machine: %v", err)
+		}
+	}
+}
+
+func cleanupCluster(t *testing.T, tc *cluster.Output) {
+	if t.Failed() {
+		generateAndCopySupportBundle(t, tc)
+		copyPlaywrightReport(t, tc)
+	}
+	tc.Destroy()
 }

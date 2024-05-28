@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -13,18 +15,15 @@ import (
 	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/google/uuid"
-
-	"github.com/replicatedhq/embedded-cluster/e2e/scripts"
 )
 
 var networkaddr chan string
 
 const lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
 const profileConfig = `lxc.apparmor.profile=unconfined
-lxc.cap.drop=
+lxc.mount.auto=proc:rw sys:rw cgroup:rw
 lxc.cgroup.devices.allow=a
-lxc.mount.auto=proc:rw sys:rw
-lxc.mount.entry = /dev/kmsg dev/kmsg none defaults,bind,create=file`
+lxc.cap.drop=`
 const checkInternet = `#!/bin/bash
 timeout 5 bash -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
 if [ $? == 0 ]; then
@@ -59,7 +58,8 @@ type Input struct {
 	LicensePath                       string
 	EmbeddedClusterPath               string
 	EmbeddedClusterReleaseBuilderPath string // used to replace the release in the binary
-	AirgapBundlePath                  string
+	AirgapInstallBundlePath           string
+	AirgapUpgradeBundlePath           string
 	Image                             string
 	network                           string
 	T                                 *testing.T
@@ -72,6 +72,12 @@ type File struct {
 	SourcePath string
 	DestPath   string
 	Mode       int
+}
+
+// Dir holds information about a directory that must be uploaded to a node.
+type Dir struct {
+	SourcePath string
+	DestPath   string
 }
 
 // Output is returned when a cluster is created. Contain a list of all node
@@ -130,6 +136,7 @@ type Command struct {
 	Stdout      io.WriteCloser
 	Stderr      io.WriteCloser
 	RegularUser bool
+	Env         map[string]string
 }
 
 // Run runs a command in a node.
@@ -138,11 +145,14 @@ func Run(ctx context.Context, t *testing.T, cmd Command) error {
 	if err != nil {
 		t.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	var env map[string]string
+	env := map[string]string{}
 	var uid uint32
 	if cmd.RegularUser {
 		uid = 9999
-		env = map[string]string{"HOME": "/home/user"}
+		env["HOME"] = "/home/user"
+	}
+	for k, v := range cmd.Env {
+		env[k] = v
 	}
 	req := api.InstanceExecPost{
 		Command:     cmd.Line,
@@ -175,10 +185,20 @@ func Run(ctx context.Context, t *testing.T, cmd Command) error {
 	return nil
 }
 
+// imagesMap maps some image names so we can use them in the tests.
+// For example, the letter "j" doesn't say it is an ubuntu/jammy.
+var imagesMap = map[string]string{
+	"ubuntu/jammy": "j",
+}
+
 // NewTestCluster creates a new cluster and returns an object of type Output
 // that can be used to get the created nodes and destroy the cluster when it
 // is no longer needed.
 func NewTestCluster(in *Input) *Output {
+	if name, ok := imagesMap[in.Image]; ok {
+		in.Image = name
+	}
+
 	in.id = uuid.New().String()[:5]
 	in.network = <-networkaddr
 	PullImage(in)
@@ -187,27 +207,37 @@ func NewTestCluster(in *Input) *Output {
 	nodes := CreateNodes(in)
 	for _, node := range nodes {
 		CopyFilesToNode(in, node)
+		CopyDirsToNode(in, node)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, node)
 		}
 	}
-	if in.WithProxy {
-		CreateProxy(in)
-	}
-	return &Output{
+	out := &Output{
 		T:       in.T,
 		Nodes:   nodes,
 		network: in.network,
 		id:      in.id,
 	}
+	if in.WithProxy {
+		out.Proxy = CreateProxy(in)
+		CopyDirsToNode(in, out.Proxy)
+		if in.CreateRegularUser {
+			CreateRegularUser(in, out.Proxy)
+		}
+		NodeHasInternet(in, out.Proxy)
+		ConfigureProxy(in)
+	}
+	return out
 }
+
+const HTTPProxy = "http://10.0.0.254:3128"
 
 // CreateProxy creates a node that attaches to both networks (external and internal),
 // once this is done we install squid and configure it to be a proxy. We also make
 // sure that all nodes are configured to use the proxy as default gateway. Internet
 // won't work on them by design (exception made for DNS requests and http requests
 // using the proxy). Proxy is accessible from the cluster nodes on 10.0.0.254:3128.
-func CreateProxy(in *Input) {
+func CreateProxy(in *Input) string {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -221,14 +251,11 @@ func CreateProxy(in *Input) {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "ubuntu/jammy",
+			Alias: "j",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
 			Architecture: "x86_64",
-			Config: map[string]string{
-				"security.privileged": "true",
-			},
 			Devices: map[string]map[string]string{
 				"eth0": {
 					"name":    "eth0",
@@ -239,11 +266,6 @@ func CreateProxy(in *Input) {
 					"name":    "eth1",
 					"network": exnet,
 					"type":    "nic",
-				},
-				"kmsg": {
-					"path":   "/dev/kmsg",
-					"source": "/dev/kmsg",
-					"type":   "unix-char",
 				},
 			},
 			Ephemeral: true,
@@ -270,7 +292,7 @@ func CreateProxy(in *Input) {
 			in.T.Fatalf("Failed to get proxy state %s: %v", name, err)
 		}
 	}
-	ConfigureProxy(in)
+	return name
 }
 
 // ConfigureProxy installs squid and iptables on the target node. Configures the needed
@@ -371,8 +393,7 @@ func CreateRegularUser(in *Input, node string) {
 }
 
 // CopyFilesToNode copies the files needed for the cluster to the node. Copies
-// the provided ssh key, the embedded-cluster binary and also all scripts from the
-// scripts directory (they are all placed under /usr/local/bin inside the node).
+// the provided ssh key and the embedded-cluster release files.
 func CopyFilesToNode(in *Input, node string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -399,37 +420,60 @@ func CopyFilesToNode(in *Input, node string) {
 			Mode:       0755,
 		},
 		{
-			SourcePath: in.AirgapBundlePath,
+			SourcePath: in.AirgapInstallBundlePath,
 			DestPath:   "/tmp/ec-release.tgz",
 			Mode:       0755,
 		},
-	}
-	scriptFiles, err := scripts.FS.ReadDir(".")
-	if err != nil {
-		in.T.Fatalf("Failed to read scripts directory: %v", err)
-	}
-	for _, script := range scriptFiles {
-		fp, err := scripts.FS.Open(script.Name())
-		if err != nil {
-			in.T.Fatalf("Failed to open script %s: %v", script.Name(), err)
-		}
-		tmp, err := os.CreateTemp("/tmp", fmt.Sprintf("%s-XXXXX.sh", script.Name()))
-		if err != nil {
-			in.T.Fatalf("Failed to create temporary file: %v", err)
-		}
-		defer os.Remove(tmp.Name())
-		if _, err := io.Copy(tmp, fp); err != nil {
-			in.T.Fatalf("Failed to copy script %s: %v", script.Name(), err)
-		}
-		fp.Close()
-		files = append(files, File{
-			SourcePath: tmp.Name(),
-			DestPath:   fmt.Sprintf("/usr/local/bin/%s", script.Name()),
+		{
+			SourcePath: in.AirgapUpgradeBundlePath,
+			DestPath:   "/tmp/ec-release-upgrade.tgz",
 			Mode:       0755,
-		})
+		},
 	}
 	for _, file := range files {
 		CopyFileToNode(in, node, file)
+	}
+}
+
+// CopyDirsToNode copies the directories needed to the node.
+func CopyDirsToNode(in *Input, node string) {
+	dirs := []Dir{
+		{
+			SourcePath: "scripts",
+			DestPath:   "/usr/local/bin",
+		},
+		{
+			SourcePath: "playwright",
+			DestPath:   "/tmp/playwright",
+		},
+	}
+	for _, dir := range dirs {
+		CopyDirToNode(in, node, dir)
+	}
+}
+
+// CopyDirToNode copies a single directory to a node.
+func CopyDirToNode(in *Input, node string, dir Dir) {
+	if err := filepath.Walk(dir.SourcePath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		relPath, err := filepath.Rel(dir.SourcePath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %v", err)
+		}
+		file := File{
+			SourcePath: path,
+			DestPath:   filepath.Join(dir.DestPath, relPath),
+			Mode:       int(info.Mode()),
+		}
+		CopyFileToNode(in, node, file)
+		return nil
+	}); err != nil {
+		in.T.Fatalf("Failed to walk directory %s: %v", dir.SourcePath, err)
 	}
 }
 
@@ -438,6 +482,12 @@ func CopyFileToNode(in *Input, node string, file File) {
 	if file.SourcePath == "" {
 		in.T.Logf("Skipping file %s: source path is empty", file.DestPath)
 		return
+	}
+	// ensure destination path exists
+	for _, cmd := range [][]string{
+		{"mkdir", "-p", filepath.Dir(file.DestPath)},
+	} {
+		RunCommandOnNode(in, cmd, node)
 	}
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -456,6 +506,27 @@ func CopyFileToNode(in *Input, node string, file File) {
 	if err := client.CreateContainerFile(node, file.DestPath, req); err != nil {
 		in.T.Fatalf("Failed to copy file %s: %v", file.SourcePath, err)
 	}
+}
+
+// CopyFileFromNode copies a file from a node to the host.
+func CopyFileFromNode(node, source, dest string) error {
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		return fmt.Errorf("failed to connect to LXD: %v", err)
+	}
+	content, _, err := client.GetContainerFile(node, source)
+	if err != nil {
+		return fmt.Errorf("failed to get file %s: %v", source, err)
+	}
+	fp, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %v", dest, err)
+	}
+	defer fp.Close()
+	if _, err := io.Copy(fp, content); err != nil {
+		return fmt.Errorf("failed to copy file %s: %v", dest, err)
+	}
+	return nil
 }
 
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
@@ -500,11 +571,12 @@ func NodeHasInternet(in *Input, node string) {
 		Line:   []string{"/usr/local/bin/check_internet.sh"},
 	}
 	var success bool
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := Run(ctx, in.T, cmd); err != nil {
 			in.T.Logf("Unable to reach internet from %s: %v", node, err)
+			time.Sleep(30 * time.Second)
 			continue
 		}
 		success = true
@@ -536,19 +608,11 @@ func CreateNode(in *Input, i int) string {
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
 			Architecture: "x86_64",
-			Config: map[string]string{
-				"security.privileged": "true",
-			},
 			Devices: map[string]map[string]string{
 				"eth0": {
 					"name":    "eth0",
 					"network": net,
 					"type":    "nic",
-				},
-				"kmsg": {
-					"path":   "/dev/kmsg",
-					"source": "/dev/kmsg",
-					"type":   "unix-char",
 				},
 			},
 			Ephemeral: true,
@@ -638,7 +702,10 @@ func CreateProfile(in *Input) {
 		ProfilePut: api.ProfilePut{
 			Description: fmt.Sprintf("Embedded Cluster test cluster (%s)", in.id),
 			Config: map[string]string{
-				"raw.lxc": profileConfig,
+				"raw.lxc":              profileConfig,
+				"security.nesting":     "true",
+				"security.privileged":  "true",
+				"linux.kernel_modules": "br_netfilter,ip_tables,ip6_tables,netlink_diag,nf_nat,overlay",
 			},
 			Devices: map[string]map[string]string{
 				"eth0": {
@@ -650,6 +717,11 @@ func CreateProfile(in *Input) {
 					"path": "/",
 					"pool": "default",
 					"type": "disk",
+				},
+				"kmsg": {
+					"path":   "/dev/kmsg",
+					"source": "/dev/kmsg",
+					"type":   "unix-char",
 				},
 			},
 		},
@@ -665,25 +737,40 @@ func PullImage(in *Input) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	remote, err := lxd.ConnectSimpleStreams("https://images.linuxcontainers.org", nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to image server: %v", err)
-	}
-	alias, _, err := remote.GetImageAlias(in.Image)
-	if err != nil {
-		in.T.Fatalf("Failed to get image alias: %v", err)
-	}
-	image, _, err := remote.GetImage(alias.Target)
-	if err != nil {
-		in.T.Fatalf("Failed to get image: %v", err)
-	}
-	op, err := client.CopyImage(remote, *image, &lxd.ImageCopyArgs{CopyAliases: true})
-	if err != nil {
-		in.T.Fatalf("Failed to copy image: %v", err)
-	}
-	if err := op.Wait(); err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			in.T.Fatalf("Failed to wait for image copy: %v", err)
+
+	for _, server := range []string{
+		"https://images.lxd.canonical.com",
+		"https://cloud-images.ubuntu.com/releases",
+	} {
+		in.T.Logf("Pulling %q image from %s", in.Image, server)
+		remote, err := lxd.ConnectSimpleStreams(server, nil)
+		if err != nil {
+			in.T.Fatalf("Failed to connect to image server: %v", err)
 		}
+
+		alias, _, err := remote.GetImageAlias(in.Image)
+		if err != nil {
+			in.T.Logf("Failed to get image alias %s on %s: %v", in.Image, server, err)
+			continue
+		}
+
+		image, _, err := remote.GetImage(alias.Target)
+		if err != nil {
+			in.T.Logf("Failed to get image %s on %s: %v", alias.Target, server, err)
+			continue
+		}
+
+		op, err := client.CopyImage(remote, *image, &lxd.ImageCopyArgs{CopyAliases: true})
+		if err != nil {
+			in.T.Logf("Failed to copy image %s from %s: %v", alias.Target, server, err)
+			continue
+		}
+
+		if err = op.Wait(); err == nil || strings.Contains(err.Error(), "already exists") {
+			return
+		}
+		in.T.Logf("Failed to wait for image copy: %v", err)
 	}
+
+	in.T.Fatalf("Failed to pull image %s (tried in all servers)", in.Image)
 }

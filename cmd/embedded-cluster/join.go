@@ -152,10 +152,15 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		if err := runHostPreflights(c); err != nil {
+		if err := RunHostPreflights(c); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
+		}
+
+		logrus.Debugf("configuring network manager")
+		if err := configureNetworkManager(c); err != nil {
+			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 
 		logrus.Infof("Saving token to disk")
@@ -176,6 +181,7 @@ var joinCommand = &cli.Command{
 			if err := airgap.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
 				err := fmt.Errorf("unable to add insecure registry: %w", err)
 				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+				return err
 			}
 		}
 
@@ -323,10 +329,14 @@ func startK0sService() error {
 	return nil
 }
 
+func systemdUnitFileName() string {
+	return fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
+}
+
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
 func createSystemdUnitFiles(fullcmd string) error {
-	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
+	dst := systemdUnitFileName()
 	if _, err := os.Stat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
 			return err

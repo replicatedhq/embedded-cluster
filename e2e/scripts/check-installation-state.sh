@@ -26,12 +26,11 @@ wait_for_installation() {
 }
 
 wait_for_nginx_pods() {
-    ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+    ready=$(kubectl get pods -n kotsadm | grep "nginx" | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             echo "nginx pods did not appear"
-            kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}'
             kubectl get pods -n kotsadm
             kubectl logs -n kotsadm -l app=kotsadm
             return 1
@@ -39,7 +38,7 @@ wait_for_nginx_pods() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for nginx pods"
-        ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+        ready=$(kubectl get pods -n kotsadm | grep "nginx" | grep -c Running || true)
         kubectl get pods -n nginx 2>&1 || true
         echo "ready: $ready"
     done
@@ -68,17 +67,25 @@ ensure_app_not_upgraded() {
 
 main() {
     local version="$1"
-    sleep 30 # wait for kubectl to become available
+    sleep 10 # wait for kubectl to become available
 
     echo "pods"
     kubectl get pods -A
 
     echo "ensure that installation is installed"
-    wait_for_installation
+    if echo "$version" | grep "pre-minio-removal"; then
+        echo "waiting for installation as this is a pre-minio-removal embedded-cluster version (and so the installer doesn't wait for the installation to be ready itself)"
+        wait_for_installation
+    fi
     kubectl get installations --no-headers | grep -q "Installed"
 
-    echo "ensure that the admin console branding is available"
-    kubectl get cm -n kotsadm kotsadm-application-metadata
+    echo "ensure that the admin console branding is available and has the DR label"
+    if ! kubectl get cm -n kotsadm -l replicated.com/disaster-recovery=infra | grep -q kotsadm-application-metadata; then
+        echo "kotsadm-application-metadata configmap not found with the DR label"
+        kubectl get cm -n kotsadm --show-labels
+        kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
+        exit 1
+    fi
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"

@@ -26,30 +26,41 @@ spec:
                 namespace: openebs
                 order: 1
                 values: |
-                  localprovisioner:
+                  localpv-provisioner:
+                    analytics:
+                      enabled: false
                     hostpathClass:
+                      enabled: true
                       isDefaultClass: true
-                  ndm:
-                    enabled: false
-                  ndmOperator:
-                    enabled: false
-                version: 3.10.0
+                  engines:
+                    local:
+                      lvm:
+                        enabled: false
+                      zfs:
+                        enabled: false
+                    replicated:
+                      mayastor:
+                        enabled: false
+                version: 4.0.1
               - chartname: oci://registry.replicated.com/library/embedded-cluster-operator
                 name: embedded-cluster-operator
                 namespace: embedded-cluster
                 order: 2
-                version: 0.13.0
+                version: 0.32.2
               - chartname: oci://registry.replicated.com/library/admin-console
                 name: admin-console
                 namespace: kotsadm
                 order: 3
-                version: 1.108.0-build.1
+                version: 1.109.3
                 values: |
                   isHelmManaged: false
                   minimalRBAC: false
                   service:
                     nodePort: 30000
                     type: NodePort
+                  passwordSecretRef:
+                    name: kotsadm-password
+                    key: passwordBcrypt
               - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
                 name: memcached
                 namespace: embedded-cluster
@@ -57,7 +68,7 @@ spec:
                 version: 6.6.2
               repositories:
               - name: openebs
-                url: https://openebs.github.io/charts
+                url: https://openebs.github.io/openebs
 "
 
 embed_cluster_config() {

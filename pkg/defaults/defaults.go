@@ -24,6 +24,8 @@ var (
 )
 
 const KotsadmNamespace = "kotsadm"
+const RegistryNamespace = "registry"
+const VeleroNamespace = "velero"
 
 // def returns a global reference to the default provider. creates one if not
 // already created.

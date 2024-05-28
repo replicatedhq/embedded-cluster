@@ -5,6 +5,7 @@ metadata:
 spec:
   uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/pkg/goods/support/host-support-bundle.yaml
   hostCollectors:
+  - ipv4Interfaces: {}
   - hostServices: {}
   - cpu: {}
   - hostOS: {}
@@ -18,7 +19,7 @@ spec:
       path: /var/openebs/local
   - run:
       collectorName: k0s-status
-      command: k0s
+      command: /usr/local/bin/k0s
       args: [ "status" ]
   - run:
       collectorName: k0s-issue-template
@@ -26,12 +27,28 @@ spec:
       args: [ "-c", "uname -srvmo; cat /etc/os-release || lsb_release -a" ]
   - run:
       collectorName: k0s-sysinfo
-      command: k0s
+      command: /usr/local/bin/k0s
       args: [ "sysinfo" ]
   - copy:
       collectorName: installer-logs
       path: /var/lib/embedded-cluster/logs/*.log
+  - run:
+      collectorName: network-manager-logs
+      command: journalctl
+      args: [ "--since", "10 minutes ago", "--no-pager", "-u", "NetworkManager" ]
+  - run:
+      collectorName: k0scontroller-logs
+      command: journalctl
+      args: [ "--since", "2 days ago", "--no-pager", "-u", "k0scontroller.service" ]
   hostAnalyzers:
+  - ipv4Interfaces:
+      outcomes:
+      - fail:
+          when: "count == 0"
+          message: No IPv4 interfaces detected
+      - pass:
+          when: "count >= 1"
+          message: IPv4 interface detected
   - memory:
       checkName: Amount of Memory
       outcomes:
@@ -81,6 +98,17 @@ spec:
       - pass:
           when: "true"
           message: Kubernetes API probing is reporting success
+  - textAnalyze:
+      checkName: NetworkManager managing calico interfaces
+      fileName: host-collectors/run-host/network-manager-logs.txt
+      regex: 'device .*cali.+: state change: config'
+      outcomes:
+      - fail:
+          when: "true"
+          message: NetworkManager seems to be managing calico interfaces
+      - pass:
+          when: "false"
+          message: NetworkManager isn't managing calico interfaces
   - hostServices:
       checkName: "Local Artifact Mirror"
       outcomes:

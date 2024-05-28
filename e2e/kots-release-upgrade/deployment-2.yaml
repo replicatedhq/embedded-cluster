@@ -4,6 +4,7 @@ metadata:
   name: second
   labels:
     app: second
+    replicated.com/disaster-recovery: app
 spec:
   replicas: 1
   selector:
@@ -16,7 +17,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginx
+          image: nginx:1.25-alpine
           resources:
             limits:
               memory: '32Mi'

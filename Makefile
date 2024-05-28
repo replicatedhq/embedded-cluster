@@ -4,27 +4,34 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.108.5
+ADMIN_CONSOLE_CHART_VERSION = 1.109.6
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.28.0
+EMBEDDED_OPERATOR_CHART_VERSION = 0.32.2
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
-OPENEBS_CHART_URL = https://openebs.github.io/charts
+OPENEBS_CHART_URL = https://openebs.github.io/openebs
 OPENEBS_CHART_NAME = openebs/openebs
-OPENEBS_CHART_VERSION = 3.10.0
+OPENEBS_CHART_VERSION = 4.0.1
 OPENEBS_UTILS_VERSION = 4.0.0
 REGISTRY_CHART_URL = https://helm.twun.io
 REGISTRY_CHART_NAME = twuni/docker-registry
 REGISTRY_CHART_VERSION = 2.2.3
 REGISTRY_IMAGE_VERSION = 2.8.3
-KUBECTL_VERSION = v1.29.3
-K0S_VERSION = v1.29.3+k0s.0
+VELERO_CHART_URL = https://vmware-tanzu.github.io/helm-charts
+VELERO_CHART_NAME = vmware-tanzu/velero
+VELERO_CHART_VERSION = 6.3.0
+VELERO_IMAGE_VERSION = v1.13.2
+VELERO_AWS_PLUGIN_IMAGE_VERSION = v1.9.2
+KUBECTL_VERSION = v1.30.1
+K0S_VERSION = v1.29.4+k0s.0
+PREVIOUS_K0S_VERSION ?= v1.28.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.87.0
+TROUBLESHOOT_VERSION = v0.92.1
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+KOTS_BINARY_URL_OVERRIDE =
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sBinaryURL=$(K0S_BINARY_SOURCE_OVERRIDE) \
@@ -47,7 +54,12 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartURL=$(REGISTRY_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartName=$(REGISTRY_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.ChartURL=$(VELERO_CHART_URL) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.ChartName=$(VELERO_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.Version=$(VELERO_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.VeleroTag=$(VELERO_IMAGE_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION)
 
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
@@ -91,7 +103,11 @@ pkg/goods/bins/local-artifact-mirror: Makefile
 pkg/goods/internal/bins/kubectl-kots: Makefile
 	mkdir -p pkg/goods/internal/bins
 	mkdir -p output/tmp/kots
-	curl -L -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz
+	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
+	    curl -L -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
+	else \
+	    curl -L -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
+	fi
 	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
 	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots
 	touch pkg/goods/internal/bins/kubectl-kots
@@ -149,6 +165,7 @@ e2e-test:
 clean:
 	rm -rf output
 	rm -rf pkg/goods/bins
+	rm -rf pkg/goods/internal/bins
 
 .PHONY: lint
 lint:
@@ -166,3 +183,6 @@ scan:
 		--severity="HIGH,CRITICAL" \
 		--ignore-unfixed \
 		./
+
+print-%:
+	@echo -n $($*)

@@ -132,7 +132,7 @@ deploy_app() {
 
     echo "providing a config for the app"
     # provide a config for the app
-    kubectl kots set config embedded-cluster-smoke-test-staging-app -n kotsadm --key="hostname" --value="123" --deploy
+    kubectl kots set config embedded-cluster-smoke-test-staging-app -n kotsadm --key="hostname" --value="123" --key="pw" --value="mypassword" --deploy
     echo "app versions"
     kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
 
@@ -151,12 +151,11 @@ deploy_app() {
 }
 
 wait_for_nginx_pods() {
-    ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+    ready=$(kubectl get pods -n kotsadm | grep "nginx" | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             echo "nginx pods did not appear"
-            kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}'
             kubectl get pods -n kotsadm
             kubectl logs -n kotsadm -l app=kotsadm
             return 1
@@ -164,7 +163,7 @@ wait_for_nginx_pods() {
         sleep 5
         counter=$((counter+1))
         echo "Waiting for nginx pods"
-        ready=$(kubectl get pods -n kotsadm -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "nginx" | grep -c Running || true)
+        ready=$(kubectl get pods -n kotsadm | grep "nginx" | grep -c Running || true)
         kubectl get pods -n nginx 2>&1 || true
         echo "ready: $ready"
     done
@@ -239,6 +238,30 @@ ensure_binary_copy() {
     fi
 }
 
+ensure_installation_label() {
+    # ensure that the installation has the kots backup label
+    if ! kubectl get installations -l "replicated.com/disaster-recovery=ec-install" --no-headers; then
+        echo "installation does not have the replicated.com/disaster-recovery=ec-install label"
+        kubectl describe installations --no-headers
+        return 1
+    fi
+}
+
+# ensure_release_builtin_overrides verifies if the built in overrides we provide as part
+# of the release have been applied to the helm charts.
+ensure_release_builtin_overrides() {
+    if ! kubectl get charts.helm.k0sproject.io -n kube-system k0s-addon-chart-admin-console -o yaml | grep -q -E "^ +release-custom-label"; then
+        echo "release-custom-label not found in k0s-addon-chart-admin-console"
+        kubectl get charts.helm.k0sproject.io -n kube-system k0s-addon-chart-admin-console -o yaml
+        return 1
+    fi
+    if ! kubectl get charts.helm.k0sproject.io -n kube-system k0s-addon-chart-embedded-cluster-operator -o yaml | grep -q -E "^ +release-custom-label"; then
+        echo "release-custom-label not found in k0s-addon-chart-embedded-cluster-operator"
+        kubectl get charts.helm.k0sproject.io -n kube-system k0s-addon-chart-embedded-cluster-operator -o yaml
+        return 1
+    fi
+}
+
 main() {
     local app_deploy_method="$1"
 
@@ -249,6 +272,8 @@ main() {
 
     if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
+        kubectl get pods -A
+        kubectl get storageclass -A
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
@@ -303,6 +328,12 @@ main() {
         exit 1
     fi
     if ! check_pod_install_order; then
+        exit 1
+    fi
+    if ! ensure_installation_label; then
+        exit 1
+    fi
+    if ! ensure_release_builtin_overrides; then
         exit 1
     fi
     if ! systemctl status embedded-cluster; then

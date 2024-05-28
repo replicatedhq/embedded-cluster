@@ -7,22 +7,37 @@ inputs:
   airgap-license-id:
     description: 'airgap-enabled license id to use for e2e tests'
     required: true
+  snapshot-license-id:
+    description: 'snapshot-enabled license id to use for e2e tests'
+    required: true
+  snapshot-license:
+    description: 'snapshot-enabled license (b64) to use for e2e tests'
+    required: true
   license-id:
     description: 'license id to use for e2e tests'
+    required: true
+  airgap-snapshot-license-id:
+    description: 'airgap-snapshot-enabled license id to use for e2e tests'
     required: true
   license:
     description: 'license (b64) to use for e2e tests'
     required: true
-  testim-access-token:
-    description: 'testim access token'
+  dr-aws-access-key-id:
+    description: 'Disaster Recovery AWS Access Key ID'
     required: true
-  testim-branch:
-    description: 'testim branch'
+  dr-aws-secret-access-key:
+    description: 'Disaster Recovery AWS Secret Access Key'
     required: true
 
 runs:
   using: composite
   steps:
+  - name: Remove MS repo
+    shell: bash
+    run: |
+      apt-add-repository --list
+      sudo apt-add-repository -y -r deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/22.04/prod jammy main
+      apt-add-repository --list
   - name: Move Docker aside
     shell: bash
     run: |
@@ -48,16 +63,74 @@ runs:
   - name: Free up runner disk space
     shell: bash
     run: |
+      df -h
+      sudo docker system prune -af
       sudo rm -rf /usr/local/lib/android
       sudo rm -rf /opt/hostedtoolcache/CodeQL
       sudo rm -rf /opt/hostedtoolcache/Python
+      sudo rm -rf /usr/share/dotnet
+      sudo rm -rf /opt/ghc
+      sudo rm -rf /usr/local/share/boost
+      df -h
+  - name: Set AppArmor mode to complain
+    shell: bash
+    run: |
+      sudo apt-get update -y
+      sudo apt install apparmor-utils -y
+      sudo aa-complain /etc/apparmor.d/*
   - name: E2E
     shell: bash
     run: |
       export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
       export LICENSE_ID=${{ inputs.license-id }}
       export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
+      export SNAPSHOT_LICENSE_ID=${{ inputs.snapshot-license-id }}
+      export AIRGAP_SNAPSHOT_LICENSE_ID=${{ inputs.airgap-snapshot-license-id }}
       echo "${{ inputs.license }}" | base64 --decode > e2e/license.yaml
-      export TESTIM_ACCESS_TOKEN=${{ inputs.testim-access-token }}
-      export TESTIM_BRANCH=${{ inputs.testim-branch }}
+      echo "${{ inputs.snapshot-license }}" | base64 --decode > e2e/snapshot-license.yaml
+      export DR_AWS_S3_ENDPOINT=https://s3.amazonaws.com
+      export DR_AWS_S3_REGION=us-east-1
+      export DR_AWS_S3_BUCKET=kots-testim-snapshots
+      export DR_AWS_S3_PREFIX=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}
+      export DR_AWS_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+      export DR_AWS_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
+      export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+  - name: Upload Host Support Bundle
+    uses: actions/upload-artifact@v4
+    if: ${{ failure() }}
+    with:
+      name: ${{ inputs.test-name }}-support-bundle-host.tar.gz
+      path: ./e2e/support-bundle-host.tar.gz
+  - name: Upload Cluster Support Bundle
+    uses: actions/upload-artifact@v4
+    if: ${{ failure() }}
+    with:
+      name: ${{ inputs.test-name }}-support-bundle-cluster.tar.gz
+      path: ./e2e/support-bundle-cluster.tar.gz
+  - name: Upload Playwright Report
+    id: upload-playwright-report
+    uses: actions/upload-artifact@v4
+    if: ${{ failure() }}
+    with:
+      name: ${{ inputs.test-name }}-playwright-report.tar.gz
+      path: ./e2e/playwright-report.tar.gz
+  - name: Print instructions to view Playwright report
+    if: ${{ failure() && steps.upload-playwright-report.outputs.artifact-url != '' }}
+    run: |
+      echo -e "\e[1;33m┌──────────────────────────────────────────────────────────────────────────────────────────────────────┐\e[0m"
+      echo -e "\e[1;33m                                  To view the Playwright test report:                                   \e[0m"
+      echo -e "\e[1;33m                                                                                                        \e[0m"
+      echo -e "\e[1;33m   1- Download & extract the report from:                                                               \e[0m"
+      echo -e "\e[1;33m                                                                                                        \e[0m"
+      echo -e "\e[1;34m      ${{ steps.upload-playwright-report.outputs.artifact-url }}                                        \e[0m"
+      echo -e "\e[1;33m                                                                                                        \e[0m"
+      echo -e "\e[1;33m   2- From inside the extracted directory, run:                                                         \e[0m"
+      echo -e "\e[1;33m                                                                                                        \e[0m"
+      echo -e "\e[1;32m      npx playwright show-report .                                                                      \e[0m"
+      echo -e "\e[1;33m                                                                                                        \e[0m"
+      echo -e "\e[1;33m└──────────────────────────────────────────────────────────────────────────────────────────────────────┘\e[0m"
+    shell: bash
+  # - name: Setup upterm session (ssh)
+  #   uses: lhotari/action-upterm@v1
+  #   if: always()

@@ -144,6 +144,13 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 		return nil, fmt.Errorf("unable to get airgap images: %w", err)
 	}
 
+	// Additional builtin addons
+	builtinCharts, err := applier.GetBuiltinCharts()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get builtin charts: %w", err)
+	}
+	meta.BuiltinConfigs = builtinCharts
+
 	// Render k0s config to get the images contained within
 	k0sConfig := config.RenderK0sConfig()
 	meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
@@ -153,7 +160,7 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 
 var embeddedDataCommand = &cli.Command{
 	Name:   "embedded-data",
-	Usage:  "read the application data embedded in the cluster",
+	Usage:  "Read the application data embedded in the cluster",
 	Hidden: true,
 	Action: func(context *cli.Context) error {
 		// Application

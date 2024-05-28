@@ -1,6 +1,8 @@
 package addons
 
 import (
+	"os"
+
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
@@ -64,5 +66,18 @@ func WithAirgapBundle(airgapBundle string) Option {
 func WithVersionMetadata(metadata *types.ReleaseMetadata) Option {
 	return func(a *Applier) {
 		a.releaseMetadata = metadata
+	}
+}
+
+// WithProxyFromEnv sets the proxy environment variables to be used during addons installation.
+func WithProxyFromEnv() Option {
+	proxyEnv := map[string]string{
+		"HTTP_PROXY":  os.Getenv("HTTP_PROXY"),
+		"HTTPS_PROXY": os.Getenv("HTTPS_PROXY"),
+		"NO_PROXY":    os.Getenv("NO_PROXY"),
+	}
+
+	return func(a *Applier) {
+		a.proxyEnv = proxyEnv
 	}
 }

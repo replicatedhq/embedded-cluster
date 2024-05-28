@@ -124,30 +124,6 @@ check_airgap_pvc() {
     fi
 }
 
-wait_for_installation() {
-    ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
-    counter=0
-    while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
-            echo "installation did not become ready"
-            kubectl get installations 2>&1 || true
-            kubectl describe installations 2>&1 || true
-            kubectl get charts -A
-            kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx
-            kubectl get secrets -A
-            kubectl describe clusterconfig -A
-            echo "operator logs:"
-            kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
-            return 1
-        fi
-        sleep 5
-        counter=$((counter+1))
-        echo "Waiting for installation"
-        ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
-        kubectl get installations 2>&1 || true
-    done
-}
-
 pull_files() {
     current_installation=$(kubectl get installations --no-headers | awk '{print $1}')
     echo "installation_id: $current_installation"
@@ -166,7 +142,12 @@ pull_files() {
 }
 
 main() {
-    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml --airgap-bundle /tmp/release.airgap 2>&1 | tee /tmp/log ; then
+    local additional_args=
+    if [ -n "${1:-}" ]; then
+        additional_args="$1"
+        echo "Running install with additional args: $additional_args"
+    fi
+    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml --airgap-bundle /tmp/release.airgap $additional_args 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         exit 1
     fi
@@ -209,7 +190,6 @@ main() {
     fi
 
     echo "ensure that installation is installed"
-    wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"
 
     echo "get installation debug logs"

@@ -6,20 +6,23 @@ package addons
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -45,6 +48,7 @@ type Applier struct {
 	endUserConfig   *embeddedclusterv1beta1.Config
 	airgapBundle    string
 	releaseMetadata *types.ReleaseMetadata
+	proxyEnv        map[string]string
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -54,6 +58,39 @@ func (a *Applier) Outro(ctx context.Context) error {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 	addons, err := a.load()
+	if err != nil {
+		return fmt.Errorf("unable to load addons: %w", err)
+	}
+
+	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
+	defer func() {
+		for len(errCh) > 0 {
+			err := <-errCh
+			logrus.Error(fmt.Errorf("infrastructure failed to become ready: %w", err))
+		}
+	}()
+
+	for _, addon := range addons {
+		if err := addon.Outro(ctx, kcli); err != nil {
+			return err
+		}
+	}
+	if err := spinForInstallation(ctx, kcli); err != nil {
+		return err
+	}
+	if err := printKotsadmLinkMessage(a.licenseFile); err != nil {
+		return fmt.Errorf("unable to print success message: %w", err)
+	}
+	return nil
+}
+
+// OutroForRestore runs the outro in all enabled add-ons for restore operations.
+func (a *Applier) OutroForRestore(ctx context.Context) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	addons, err := a.loadForRestore()
 	if err != nil {
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
@@ -91,8 +128,30 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 	return charts, repositories, nil
 }
 
+// GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
+func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Repository, error) {
+	charts := []v1beta1.Chart{}
+	repositories := []v1beta1.Repository{}
+	addons, err := a.loadForRestore()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+
+	// charts required for restore
+	for _, addon := range addons {
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.onlyDefaults)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
+		}
+		charts = append(charts, addonChartConfig...)
+		repositories = append(repositories, addonRepositoryConfig...)
+	}
+
+	return charts, repositories, nil
+}
+
 func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	reg, err := registry.New(true)
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
@@ -102,6 +161,26 @@ func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, erro
 	}
 
 	return regChart, regRepo, nil
+}
+
+func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
+	builtinCharts := map[string]k0sconfig.HelmExtensions{}
+
+	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	velChart, velRepo, err := vel.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate helm config for velero: %w", err)
+	}
+
+	builtinCharts["velero"] = k0sconfig.HelmExtensions{
+		Repositories: velRepo,
+		Charts:       velChart,
+	}
+
+	return builtinCharts, nil
 }
 
 func (a *Applier) GetAdditionalImages() ([]string, error) {
@@ -139,6 +218,20 @@ func (a *Applier) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
+	return a.hostPreflights(addons)
+}
+
+// HostPreflightsForRestore reads all embedded host preflights from all add-ons for restore operations
+// and returns them merged in a single HostPreflightSpec for restore operations.
+func (a *Applier) HostPreflightsForRestore() (*v1beta2.HostPreflightSpec, error) {
+	addons, err := a.loadForRestore()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+	return a.hostPreflights(addons)
+}
+
+func (a *Applier) hostPreflights(addons []AddOn) (*v1beta2.HostPreflightSpec, error) {
 	allpf := &v1beta2.HostPreflightSpec{}
 	for _, addon := range addons {
 		hpf, err := addon.HostPreflights()
@@ -162,29 +255,50 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(a.airgapBundle != "")
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, a.airgapBundle != "")
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons = append(addons, reg)
 
-	operatorOptions := embeddedclusteroperator.Options{
-		EndUserConfig:   a.endUserConfig,
-		LicenseFile:     a.licenseFile,
-		Airgap:          a.airgapBundle != "",
-		ReleaseMetadata: a.releaseMetadata,
-	}
-	embedoperator, err := embeddedclusteroperator.New(operatorOptions)
+	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.releaseMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
 	addons = append(addons, embedoperator)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgapBundle)
+	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(a.licenseFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
+	}
+	vel, err := velero.New(defaults.VeleroNamespace, disasterRecoveryEnabled, a.proxyEnv)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	addons = append(addons, vel)
+
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgapBundle, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
 	addons = append(addons, aconsole)
+	return addons, nil
+}
+
+// loadForRestore instantiates and returns addon appliers for restore operations.
+func (a *Applier) loadForRestore() ([]AddOn, error) {
+	addons := []AddOn{}
+	obs, err := openebs.New()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create openebs addon: %w", err)
+	}
+	addons = append(addons, obs)
+
+	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	addons = append(addons, vel)
 	return addons, nil
 }
 
@@ -213,37 +327,45 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 	return versions, nil
 }
 
-// waitForKubernetes waits until we manage to make a successful connection to the
-// Kubernetes API server.
-func (a *Applier) waitForKubernetes(ctx context.Context) error {
-	loading := spinner.Start()
-	defer func() {
-		loading.Closef("Kubernetes API server is ready")
-	}()
-	kcli, err := kubeutils.KubeClient()
+func spinForInstallation(ctx context.Context, cli client.Client) error {
+	installSpin := spinner.Start()
+	installSpin.Infof("Waiting for additional components to be ready")
+
+	err := kubeutils.WaitForInstallation(ctx, cli, installSpin)
 	if err != nil {
-		return fmt.Errorf("unable to create kubernetes client: %w", err)
+		installSpin.CloseWithError()
+		return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 	}
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	counter := 1
-	loading.Infof("1/n Waiting for Kubernetes API server to be ready")
-	for {
-		select {
-		case <-ticker.C:
-		case <-ctx.Done():
-			return ctx.Err()
+	installSpin.Closef("Additional components are ready!")
+	return nil
+}
+
+// printKotsadmLinkMessage prints the success message when the admin console is online.
+func printKotsadmLinkMessage(licenseFile string) error {
+	var err error
+	license := &kotsv1beta1.License{}
+	if licenseFile != "" {
+		license, err = helpers.ParseLicense(licenseFile)
+		if err != nil {
+			return fmt.Errorf("unable to parse license: %w", err)
 		}
-		counter++
-		if err := kcli.List(ctx, &corev1.NamespaceList{}); err != nil {
-			loading.Infof(
-				"%d/n Waiting for Kubernetes API server to be ready.",
-				counter,
-			)
-			continue
-		}
-		return nil
 	}
+
+	successColor := "\033[32m"
+	colorReset := "\033[0m"
+	var successMessage string
+	if license != nil {
+		successMessage = fmt.Sprintf("Visit the admin console to configure and install %s: %s%s%s",
+			license.Spec.AppSlug, successColor, adminconsole.GetURL(), colorReset,
+		)
+	} else {
+		successMessage = fmt.Sprintf("Visit the admin console to configure and install your application: %s%s%s",
+			successColor, adminconsole.GetURL(), colorReset,
+		)
+	}
+	logrus.Info(successMessage)
+
+	return nil
 }
 
 // NewApplier creates a new Applier instance with all addons registered.
