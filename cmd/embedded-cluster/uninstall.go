@@ -370,7 +370,8 @@ var resetCommand = &cli.Command{
 
 		isLastEtcdHost, err := currentHost.isLastEtcdMember()
 		if err != nil {
-			return err
+			// ignore this error because this will always error on worker nodes - this just means we have to drain the node
+			isLastEtcdHost = false
 		}
 		if isLastEtcdHost {
 			logrus.Info("Not draining node as it is the last etcd member, and doing so would be redundant...")
