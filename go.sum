@@ -71,8 +71,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/k0sproject/dig v0.2.0 h1:cNxEIl96g9kqSMfPSZLhpnZ0P8bWXKv08nxvsMHop5w=
 github.com/k0sproject/dig v0.2.0/go.mod h1:rBcqaQlJpcKdt2x/OE/lPvhGU50u/e95CSm5g/r4s78=
-github.com/k0sproject/k0s v1.28.10-0.20240418084644-c99e4b437507 h1:P0fdgZ7haUEH4dUZHKk0VvgbmaBul0L8cIYrln/ScVI=
-github.com/k0sproject/k0s v1.28.10-0.20240418084644-c99e4b437507/go.mod h1:bJe0YdBjheJhuLsTteYy00PdWOeY/AM4m0WPRtYCBTA=
+github.com/k0sproject/k0s v1.28.9-0.20240405060519-8dc2b806bd9d h1:M6/4gxb2RMBhrk2xny2qzPxHbI1dkp9+7ZUix/Xzp7c=
+github.com/k0sproject/k0s v1.28.9-0.20240405060519-8dc2b806bd9d/go.mod h1:PO3VvTSDo8XZB2a3FW7S0bIk4S84u2sh0mZmP0hpI+Q=
 github.com/k0sproject/version v0.6.0 h1:Wi8wu9j+H36+okIQA47o/YHbzNpKeIYj8IjGdJOdqsI=
 github.com/k0sproject/version v0.6.0/go.mod h1:5/7Js62gDCLBP6mEs0mUcYEEkYneM5qXDKN/hyFlQTM=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
@@ -121,8 +121,8 @@ github.com/prometheus/common v0.45.0 h1:2BGz0eBc2hdMDLnO/8n0jeB3oPrt2D08CekT0lne
 github.com/prometheus/common v0.45.0/go.mod h1:YJmSTw9BoKxJplESWWxlbyttQR4uaEcGyv9MZjVOJsY=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
-github.com/replicatedhq/embedded-cluster-kinds v1.2.3 h1:1gfmGqeY7lplGozv9j3p4G2mvoRdh4fNSGcLB9mZ+fc=
-github.com/replicatedhq/embedded-cluster-kinds v1.2.3/go.mod h1:NIwwkFGoNHIxx+5mHRihvQU6RqZ/xt/A5RzaHpBh2ZY=
+github.com/replicatedhq/embedded-cluster-kinds v1.2.4 h1:jt4iriW2Y1YAhQXf1HH7N8tGj7dNup6im25gMQElnTc=
+github.com/replicatedhq/embedded-cluster-kinds v1.2.4/go.mod h1:YognvIhVsE5CevfCU0XLTMUCIAiXhWyYhwbU0EwCnvA=
 github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDNXVBh4M=
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=

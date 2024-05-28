@@ -7,13 +7,14 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.14.0
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0s v1.28.10-0.20240418084644-c99e4b437507
+	github.com/k0sproject/k0s v1.28.9-0.20240405060519-8dc2b806bd9d
 	github.com/k0sproject/version v0.6.0
 	github.com/ohler55/ojg v1.22.0
 	github.com/onsi/ginkgo/v2 v2.17.3
 	github.com/onsi/gomega v1.33.1
-	github.com/replicatedhq/embedded-cluster-kinds v1.2.3
+	github.com/replicatedhq/embedded-cluster-kinds v1.2.4
 	github.com/stretchr/testify v1.9.0
+	go.uber.org/multierr v1.11.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
@@ -73,7 +74,6 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
-	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb // indirect
 	golang.org/x/net v0.25.0 // indirect
