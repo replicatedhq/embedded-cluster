@@ -368,21 +368,21 @@ var resetCommand = &cli.Command{
 			}
 		}
 
-		isLastEtcdHost, err := currentHost.isLastEtcdMember()
-		if err != nil {
-			// ignore this error because this will always error on worker nodes - this just means we have to drain the node
-			isLastEtcdHost = false
+		//isLastEtcdHost, err := currentHost.isLastEtcdMember()
+		//if err != nil {
+		//	// ignore this error because this will always error on worker nodes - this just means we have to drain the node
+		//	isLastEtcdHost = false
+		//}
+		//if isLastEtcdHost {
+		//	logrus.Info("Not draining node as it is the last etcd member, and doing so would be redundant...")
+		//} else {
+		// drain node
+		logrus.Info("Draining node...")
+		err = currentHost.drainNode()
+		if !checkErrPrompt(c, err) {
+			return err
 		}
-		if isLastEtcdHost {
-			logrus.Info("Not draining node as it is the last etcd member, and doing so would be redundant...")
-		} else {
-			// drain node
-			logrus.Info("Draining node...")
-			err = currentHost.drainNode()
-			if !checkErrPrompt(c, err) {
-				return err
-			}
-		}
+		//}
 
 		// remove node from cluster
 		logrus.Info("Removing node from cluster...")
