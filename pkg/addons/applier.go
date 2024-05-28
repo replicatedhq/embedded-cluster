@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -150,19 +151,8 @@ func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Re
 	return charts, repositories, nil
 }
 
-func (a *Applier) GetAirgapCharts() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	reg, err := registry.New(defaults.RegistryNamespace, a.config, true)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create registry addon: %w", err)
-	}
-	regChart, regRepo, err := reg.GenerateHelmConfig(true)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
-	}
-
-	return regChart, regRepo, nil
-}
-
+// GetBuiltinCharts returns a map of charts that are not applied at install time and instead
+// included in metadata for later use by the operator.
 func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
 	builtinCharts := map[string]k0sconfig.HelmExtensions{}
 
@@ -174,10 +164,48 @@ func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate helm config for velero: %w", err)
 	}
-
 	builtinCharts["velero"] = k0sconfig.HelmExtensions{
 		Repositories: velRepo,
 		Charts:       velChart,
+	}
+
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, true, false)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create registry addon: %w", err)
+	}
+	regChart, regRepo, err := reg.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
+	}
+	builtinCharts["registry"] = k0sconfig.HelmExtensions{
+		Repositories: regRepo,
+		Charts:       regChart,
+	}
+
+	regHA, err := registry.New(defaults.RegistryNamespace, a.config, true, true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create registry addon: %w", err)
+	}
+	regHAChart, regHARepo, err := regHA.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
+	}
+	builtinCharts["registry-ha"] = k0sconfig.HelmExtensions{
+		Repositories: regHARepo,
+		Charts:       regHAChart,
+	}
+
+	seaweed, err := seaweedfs.New(defaults.SeaweedFSNamespace, a.config, true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
+	}
+	seaweedChart, seaweedRepo, err := seaweed.GenerateHelmConfig(true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate helm config for seaweedfs: %w", err)
+	}
+	builtinCharts["seaweedfs"] = k0sconfig.HelmExtensions{
+		Repositories: seaweedRepo,
+		Charts:       seaweedChart,
 	}
 
 	return builtinCharts, nil
@@ -255,7 +283,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.config, a.airgapBundle != "")
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, a.airgapBundle != "", false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}

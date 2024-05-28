@@ -1,0 +1,82 @@
+global:
+  enableReplication: true
+  replicationPlacment: "002"
+master:
+  replicas: 1
+  disableHttp: true
+  volumeSizeLimitMB: 30000
+  data:
+    hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/ssd"
+  logs:
+    hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/storage"
+  config: |-
+    [master.maintenance]
+    # periodically run these scripts are the same as running them from 'weed shell'
+    # note: running 'fs.meta.save' then 'fs.meta.load' will ensure metadata of all filers
+    # are in sync in case of data loss from 1 or more filers
+    scripts = """
+      ec.encode -fullPercent=95 -quietFor=1h
+      ec.rebuild -force
+      ec.balance -force
+      volume.balance -force
+      volume.configure.replication -replication 002 -collectionPattern *
+      volume.fix.replication
+      fs.meta.save -o filer-backup.meta
+      fs.meta.load filer-backup.meta
+    """
+    sleep_minutes = 17          # sleep minutes between each script execution
+volume:
+  # replicas must be at least replication (3) + 1 = 4
+  replicas: 6
+  affinity: |
+    # schedule on control-plane nodes
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+    # schedule on different nodes when possible
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 1
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - seaweedfs
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                - seaweedfs
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                - volume
+            topologyKey: "kubernetes.io/hostname"
+  dataDirs:
+  - name: data
+    type: "persistentVolumeClaim"
+    # openebs-hostpath storage does not limit the size of the volume
+    size: "10Gi"
+    storageClass: "openebs-hostpath"
+    # set this to a high number so we dont have to worry about storage limit (50 * 30GB = 1500GB)
+    maxVolumes: 50
+filer:
+  replicas: 3
+  data:
+    type: "persistentVolumeClaim"
+    # openebs-hostpath storage does not limit the size of the volume
+    size: "1Gi"
+    storageClass: "openebs-hostpath"
+  logs:
+    hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/storage"
+  s3:
+    enabled: true
+    enableAuth: true
+    existingConfigSecret: secret-seaweedfs-s3
+    createBuckets:
+    - name: registry
+      anonymousRead: false

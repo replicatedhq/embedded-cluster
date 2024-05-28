@@ -111,7 +111,7 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
-	expectedAirgapCharts := []string{"docker-registry"}
+	expectedAirgapCharts := []string{}
 	if len(parsed.AirgapConfigs.Charts) != len(expectedAirgapCharts) {
 		t.Log(output)
 		t.Fatalf("found %d airgap charts in metadata, expected %d", len(parsed.AirgapConfigs.Charts), len(expectedAirgapCharts))
@@ -127,6 +127,18 @@ func TestVersion(t *testing.T) {
 		}
 		if !foundName {
 			t.Errorf("failed to find airgap chart %s in 'metadata' output", expectedName)
+			failed = true
+		}
+	}
+
+	expectedBuiltinConfigsCharts := []string{"velero", "seaweedfs", "registry", "registry-ha"}
+	if len(parsed.BuiltinConfigs) != len(expectedBuiltinConfigsCharts) {
+		t.Log(output)
+		t.Fatalf("found %d builtin charts in metadata, expected %d", len(parsed.BuiltinConfigs), len(expectedBuiltinConfigsCharts))
+	}
+	for _, expectedName := range expectedBuiltinConfigsCharts {
+		if _, ok := parsed.BuiltinConfigs[expectedName]; !ok {
+			t.Errorf("failed to find builtin chart %s in 'metadata' output", expectedName)
 			failed = true
 		}
 	}

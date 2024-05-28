@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	releaseName   = "docker-registry"
-	tlsSecretName = "registry-tls"
+	releaseName             = "docker-registry"
+	tlsSecretName           = "registry-tls"
+	seaweedfsS3RWSecretName = "seaweedfs-s3-rw"
 )
 
 // Overwritten by -ldflags in Makefile
@@ -77,11 +78,74 @@ var helmValues = map[string]interface{}{
 	},
 }
 
+var helmValuesHA = map[string]interface{}{
+	"replicaCount":     2,
+	"fullnameOverride": "registry",
+	"image": map[string]interface{}{
+		"tag": ImageVersion,
+	},
+	"storage": "s3",
+	"s3": map[string]interface{}{
+		"region":         "us-east-1",
+		"regionEndpoint": "seaweedfs-s3.seaweedfs.svc.cluster.local:8333",
+		"bucket":         "registry",
+		"rootdirectory":  "/registry",
+		"encrypt":        false,
+		"secure":         false,
+	},
+	"secrets": map[string]interface{}{
+		"s3": map[string]interface{}{
+			"secretRef": seaweedfsS3RWSecretName,
+		},
+	},
+	"configData": map[string]interface{}{
+		"auth": map[string]interface{}{
+			"htpasswd": map[string]interface{}{
+				"realm": "Registry",
+				"path":  "/auth/htpasswd",
+			},
+		},
+	},
+	"extraVolumeMounts": []map[string]interface{}{
+		{
+			"name":      "auth",
+			"mountPath": "/auth",
+		},
+	},
+	"extraVolumes": []map[string]interface{}{
+		{
+			"name": "auth",
+			"secret": map[string]interface{}{
+				"secretName": "registry-auth",
+			},
+		},
+	},
+	"affinity": map[string]interface{}{
+		"podAntiAffinity": map[string]interface{}{
+			"requiredDuringSchedulingIgnoredDuringExecution": []map[string]interface{}{
+				{
+					"labelSelector": map[string]interface{}{
+						"matchExpressions": []map[string]interface{}{
+							{
+								"key":      "app",
+								"operator": "In",
+								"values":   []string{"docker-registry"},
+							},
+						},
+					},
+					"topologyKey": "kubernetes.io/hostname",
+				},
+			},
+		},
+	},
+}
+
 // Registry manages the installation of the Registry helm chart.
 type Registry struct {
 	namespace string
 	config    v1beta1.ClusterConfig
 	isAirgap  bool
+	isHA      bool
 }
 
 // Version returns the version of the Registry chart.
@@ -125,6 +189,13 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 		URL:  ChartURL,
 	}
 
+	var values map[string]interface{}
+	if o.isHA {
+		values = helmValuesHA
+	} else {
+		values = helmValues
+	}
+
 	// use a static cluster IP for the registry service based on the cluster CIDR range
 	serviceCIDR := v1beta1.DefaultNetwork().ServiceCIDR
 	if o.config.Spec != nil && o.config.Spec.Network != nil {
@@ -134,15 +205,15 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get cluster IP for registry service: %w", err)
 	}
-	helmValues["service"] = map[string]interface{}{
+	values["service"] = map[string]interface{}{
 		"clusterIP": registryServiceIP.String(),
 	}
 
 	if !onlyDefaults {
-		helmValues["tlsSecretName"] = tlsSecretName
+		values["tlsSecretName"] = tlsSecretName
 	}
 
-	valuesStringData, err := yaml.Marshal(helmValues)
+	valuesStringData, err := yaml.Marshal(values)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
@@ -274,8 +345,8 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new Registry addon.
-func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool) (*Registry, error) {
-	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap}, nil
+func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool, isHA bool) (*Registry, error) {
+	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap, isHA: isHA}, nil
 }
 
 func GetRegistryPassword() string {
