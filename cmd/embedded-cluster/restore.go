@@ -239,7 +239,7 @@ func newS3BackupStore() *s3BackupStore {
 	store.region = prompts.New().Input("Region:", "", true)
 	store.bucket = prompts.New().Input("Bucket:", "", true)
 	store.prefix = prompts.New().Input("Prefix (press Enter to skip):", "", false)
-	store.accessKeyID = prompts.New().Password("Access key ID:")
+	store.accessKeyID = prompts.New().Input("Access key ID:", "", true)
 	store.secretAccessKey = prompts.New().Password("Secret access key:")
 	logrus.Info("")
 	return store
