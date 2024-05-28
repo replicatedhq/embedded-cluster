@@ -124,7 +124,8 @@ output/bin/embedded-cluster-release-builder:
 embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
-go.mod: Makefile
+.PHONY: go.mod
+go.mod:
 	go get github.com/k0sproject/k0s@$(K0S_VERSION)
 	go mod tidy
 
@@ -135,14 +136,14 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-support_bundle \
 	pkg/goods/bins/local-artifact-mirror \
 	pkg/goods/internal/bins/kubectl-kots
-	
+
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: static go.mod
+embedded-cluster-linux-amd64: static
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 # for testing
 .PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: go.mod
+embedded-cluster-darwin-arm64:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
 
 .PHONY: unit-tests
