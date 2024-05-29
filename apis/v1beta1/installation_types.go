@@ -83,8 +83,8 @@ type InstallationSpec struct {
 	ClusterID string `json:"clusterID,omitempty"`
 	// MetricsBaseURL holds the base URL for the metrics server.
 	MetricsBaseURL string `json:"metricsBaseURL,omitempty"`
-	// IsHighAvailability indicates if the installation is high availability.
-	IsHighAvailability bool `json:"isHighAvailability,omitempty"`
+	// HighAvailability indicates if the installation is high availability.
+	HighAvailability bool `json:"highAvailability,omitempty"`
 	// AirGap indicates if the installation is airgapped.
 	AirGap bool `json:"airGap,omitempty"`
 	// Artifacts holds the location of the airgap bundle.
