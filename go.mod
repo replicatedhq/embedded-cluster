@@ -10,7 +10,7 @@ require (
 	github.com/k0sproject/k0s v1.28.9-0.20240405060519-8dc2b806bd9d
 	github.com/k0sproject/version v0.6.0
 	github.com/ohler55/ojg v1.22.0
-	github.com/onsi/ginkgo/v2 v2.17.3
+	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
 	github.com/replicatedhq/embedded-cluster-kinds v1.3.1
 	github.com/stretchr/testify v1.9.0
