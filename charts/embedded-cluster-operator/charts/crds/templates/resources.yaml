@@ -508,9 +508,6 @@ spec:
               metricsBaseURL:
                 description: MetricsBaseURL holds the base URL for the metrics server.
                 type: string
-            required:
-            - airGap
-            - isHighAvailability
             type: object
           status:
             description: InstallationStatus defines the observed state of Installation
