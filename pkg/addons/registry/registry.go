@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/apis/rbac"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -275,6 +276,85 @@ func (o *Registry) generateRegistryTLS(ctx context.Context, cli client.Client) (
 	return builder.Generate()
 }
 
+func (o *Registry) generateRegistryMigrationRole(ctx context.Context, cli client.Client) error {
+	newRole := rbac.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "registry-data-migration-role",
+			Namespace: o.namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Role",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		Rules: []rbac.PolicyRule{
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments/scale"},
+				Verbs:     []string{"patch"},
+			},
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments"},
+				Verbs:     []string{"get", "list"},
+			},
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"secrets"},
+				Verbs:     []string{"create"},
+			},
+		},
+	}
+	err := cli.Create(ctx, &newRole)
+	if err != nil {
+		return fmt.Errorf("unable to create registry-data-migration-role: %w", err)
+	}
+
+	newServiceAccount := corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "registry-data-migration-serviceaccount",
+			Namespace: o.namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ServiceAccount",
+			APIVersion: "v1",
+		},
+	}
+	err = cli.Create(ctx, &newServiceAccount)
+	if err != nil {
+		return fmt.Errorf("unable to create registry-data-migration-serviceaccount: %w", err)
+	}
+
+	newRoleBinding := rbac.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "registry-data-migration-rolebinding",
+			Namespace: o.namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "RoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		RoleRef: rbac.RoleRef{
+			Kind:     "Role",
+			Name:     "registry-data-migration-role",
+			APIGroup: "rbac.authorization.k8s.io",
+		},
+		Subjects: []rbac.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "registry-data-migration-serviceaccount",
+				Namespace: o.namespace,
+			},
+		},
+	}
+
+	err = cli.Create(ctx, &newRoleBinding)
+	if err != nil {
+		return fmt.Errorf("unable to create registry-data-migration-rolebinding: %w", err)
+	}
+
+	return nil
+}
+
 // Outro is executed after the cluster deployment.
 func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	if !o.isAirgap {
@@ -285,6 +365,11 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 	loading.Infof("Waiting for Registry to be ready")
 
 	if err := kubeutils.WaitForNamespace(ctx, cli, o.namespace); err != nil {
+		loading.CloseWithError()
+		return err
+	}
+
+	if err := o.generateRegistryMigrationRole(ctx, cli); err != nil {
 		loading.CloseWithError()
 		return err
 	}
