@@ -414,9 +414,10 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 			in: v1beta1.Installation{
 				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
 				Spec: v1beta1.InstallationSpec{
-					ClusterID:  "test cluster ID",
-					BinaryName: "test-binary-name",
-					AirGap:     false,
+					ClusterID:        "test cluster ID",
+					BinaryName:       "test-binary-name",
+					AirGap:           false,
+					HighAvailability: false,
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
@@ -467,9 +468,10 @@ password: frommeta`,
 							Values: `abc: xyz
 embeddedClusterID: test cluster ID
 isAirgap: "false"
+isHA: false
 password: frommeta`,
 						},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1", ValuesHash: "84bc4f42c99204aeafa5349f6b0852a14a169db54082566ccd679ddbe49e27bb"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1", ValuesHash: "a785ac98c2dc3e962fa3bf0e38c4d42f2380a204f1fc1a4a30cfe8732750fb9e"},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
@@ -507,6 +509,7 @@ password: frommeta`,
 abc: xyz
 embeddedClusterID: test cluster ID
 isAirgap: "false"
+isHA: false
 password: frommeta`,
 										},
 										{

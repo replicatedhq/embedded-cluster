@@ -18,7 +18,7 @@ import (
 
 const DEFAULT_VENDOR_CHART_ORDER = 10
 
-func setHelmValue(valuesYaml, path, newValue string) (string, error) {
+func setHelmValue(valuesYaml string, path string, newValue interface{}) (string, error) {
 	newValuesMap := dig.Mapping{}
 	if err := yaml.Unmarshal([]byte(valuesYaml), &newValuesMap); err != nil {
 		return "", fmt.Errorf("failed to unmarshal initial values: %w", err)
@@ -109,7 +109,7 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *v1
 	return combinedConfigs
 }
 
-// update the 'admin-console' and 'embedded-cluster-operator' charts to add cluster ID, binary name, and airgap status
+// update the 'admin-console' and 'embedded-cluster-operator' charts to add cluster ID, binary name, airgap status, and HA status
 func updateInfraChartsFromInstall(ctx context.Context, in *v1beta1.Installation, charts k0sv1beta1.ChartsSettings) k0sv1beta1.ChartsSettings {
 	log := ctrl.LoggerFrom(ctx)
 
@@ -129,6 +129,12 @@ func updateInfraChartsFromInstall(ctx context.Context, in *v1beta1.Installation,
 			newVals, err = setHelmValue(newVals, "isAirgap", fmt.Sprintf("%t", in.Spec.AirGap))
 			if err != nil {
 				log.Info("failed to set isAirgap for %s: %v", chart.Name, err)
+				continue
+			}
+
+			newVals, err = setHelmValue(newVals, "isHA", in.Spec.HighAvailability)
+			if err != nil {
+				log.Info("failed to set isHA for %s: %v", chart.Name, err)
 				continue
 			}
 
