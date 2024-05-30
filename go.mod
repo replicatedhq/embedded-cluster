@@ -14,8 +14,8 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.28.10-0.20240418084644-c99e4b437507
-	github.com/replicatedhq/embedded-cluster-kinds v1.2.4
-	github.com/replicatedhq/embedded-cluster-operator v0.32.3
+	github.com/replicatedhq/embedded-cluster-kinds v1.3.1
+	github.com/replicatedhq/embedded-cluster-operator v0.33.1
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240523174825-f4d441adb453
 	github.com/replicatedhq/troubleshoot v0.92.2
@@ -37,7 +37,7 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/containerd/containerd v1.7.16 // indirect
+	github.com/containerd/containerd v1.7.17 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/frankban/quicktest v1.14.6 // indirect

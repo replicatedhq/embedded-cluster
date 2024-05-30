@@ -18,8 +18,8 @@ github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA
 github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj44=
 github.com/cespare/xxhash/v2 v2.2.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
-github.com/containerd/containerd v1.7.16 h1:7Zsfe8Fkj4Wi2My6DXGQ87hiqIrmOXolm72ZEkFU5Mg=
-github.com/containerd/containerd v1.7.16/go.mod h1:NL49g7A/Fui7ccmxV6zkBWwqMgmMxFWzujYCc+JLt7k=
+github.com/containerd/containerd v1.7.17 h1:KjNnn0+tAVQHAoaWRjmdak9WlvnFR/8rU1CHHy8Rm2A=
+github.com/containerd/containerd v1.7.17/go.mod h1:vK+hhT4TIv2uejlcDlbVIc8+h/BqtKLIyNrtCZol8lI=
 github.com/coreos/go-semver v0.3.1 h1:yi21YpKnrx1gt5R+la8n5WgS0kCrsPp33dmEyHReZr4=
 github.com/coreos/go-semver v0.3.1/go.mod h1:irMmmIw/7yzSRPWryHsK7EYSg09caPQL03VsM8rvUec=
 github.com/coreos/go-systemd/v22 v22.5.0 h1:RrqgGjYQKalulkV8NGVIfkXQf6YYmOyiJKk8iXXhfZs=
@@ -251,10 +251,10 @@ github.com/prometheus/common v0.45.0 h1:2BGz0eBc2hdMDLnO/8n0jeB3oPrt2D08CekT0lne
 github.com/prometheus/common v0.45.0/go.mod h1:YJmSTw9BoKxJplESWWxlbyttQR4uaEcGyv9MZjVOJsY=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
-github.com/replicatedhq/embedded-cluster-kinds v1.2.4 h1:jt4iriW2Y1YAhQXf1HH7N8tGj7dNup6im25gMQElnTc=
-github.com/replicatedhq/embedded-cluster-kinds v1.2.4/go.mod h1:YognvIhVsE5CevfCU0XLTMUCIAiXhWyYhwbU0EwCnvA=
-github.com/replicatedhq/embedded-cluster-operator v0.32.3 h1:rkeQsr8Un2tVkXjhrKD4TkL1+Z2awURe95ZYspW3EqI=
-github.com/replicatedhq/embedded-cluster-operator v0.32.3/go.mod h1:TKqiiXrsqwfA8BxVnUXtuTpMpkla9QESep+q0TBglGw=
+github.com/replicatedhq/embedded-cluster-kinds v1.3.1 h1:rLf/rwRUKml/aChk7KRLCef2aX1Fe3leqD5W1e+aihw=
+github.com/replicatedhq/embedded-cluster-kinds v1.3.1/go.mod h1:YognvIhVsE5CevfCU0XLTMUCIAiXhWyYhwbU0EwCnvA=
+github.com/replicatedhq/embedded-cluster-operator v0.33.1 h1:j1IgapXdA03KlfkLCEr9u5intvpA8mvTmDCDgzXXIw0=
+github.com/replicatedhq/embedded-cluster-operator v0.33.1/go.mod h1:BkGj46YnsoBhXR7Hru/YqYUlxiZaWlJcOi7jvczqBNY=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0 h1:Axdni1nYfl5zeOP9g5U79yvN8cRdClyU6hz0wV1Hmdc=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0/go.mod h1:4JmMC2CwMCLxq05GEW3XSPPVotqyamAF/omrbB3pH+c=
 github.com/replicatedhq/kotskinds v0.0.0-20240523174825-f4d441adb453 h1:g8CQQ9R4gjIdoHuBX1LN1hmF3Omq2JfA040JfpfNVC8=
