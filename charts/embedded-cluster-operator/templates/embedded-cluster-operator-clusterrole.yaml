@@ -21,6 +21,14 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - namespaces
   verbs:
   - create
@@ -30,8 +38,11 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - nodes
+  - persistentvolumes
+  - persistentvolumeclaims
+  - pods
   verbs:
+  - delete
   - get
   - list
   - watch
@@ -49,6 +60,7 @@ rules:
   - ""
   resources:
   - secrets
+  - services
   verbs:
   - create
   - delete
@@ -115,4 +127,3 @@ rules:
   - get
   - list
   - watch
-

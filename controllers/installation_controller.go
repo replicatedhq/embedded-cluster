@@ -607,13 +607,24 @@ func (r *InstallationReconciler) ReconcileRegistry(ctx context.Context, in *v1be
 
 	log := ctrl.LoggerFrom(ctx)
 
-	err := registry.EnsureSecrets(ctx, in, r.Client)
+	// fetch the current clusterConfig
+	var clusterConfig k0sv1beta1.ClusterConfig
+	if err := r.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterConfig); err != nil {
+		return fmt.Errorf("failed to get cluster config: %w", err)
+	}
+
+	serviceCIDR := k0sv1beta1.DefaultNetwork().ServiceCIDR
+	if clusterConfig.Spec != nil && clusterConfig.Spec.Network != nil {
+		serviceCIDR = clusterConfig.Spec.Network.ServiceCIDR
+	}
+
+	err := registry.EnsureResources(ctx, in, r.Client, serviceCIDR)
 	if err != nil {
 		// Conditions may be updated so we need to update the status
 		if err := r.Status().Update(ctx, in); err != nil {
 			log.Error(err, "Failed to update installation status")
 		}
-		return fmt.Errorf("failed to ensure registry secrets: %w", err)
+		return fmt.Errorf("failed to ensure registry resources: %w", err)
 	}
 
 	return nil
@@ -1088,6 +1099,7 @@ func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.Installation{}).
 		Owns(&corev1.Secret{}).
+		Owns(&corev1.Service{}).
 		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
 		Watches(&apv1b2.Plan{}, &handler.EnqueueRequestForObject{}).
 		Watches(&k0shelm.Chart{}, &handler.EnqueueRequestForObject{}).
