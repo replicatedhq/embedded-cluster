@@ -91,7 +91,7 @@ var helmValuesHA = map[string]interface{}{
 		"bucket":         "registry",
 		"rootdirectory":  "/registry",
 		"encrypt":        false,
-		"secure":         false,
+		"secure":         false, // This does not work
 	},
 	"secrets": map[string]interface{}{
 		"s3": map[string]interface{}{
@@ -103,6 +103,13 @@ var helmValuesHA = map[string]interface{}{
 			"htpasswd": map[string]interface{}{
 				"realm": "Registry",
 				"path":  "/auth/htpasswd",
+			},
+		},
+		"storage": map[string]interface{}{
+			"s3": map[string]interface{}{
+				// There is a bug in the helm chart that REGISTRY_STORAGE_S3_SECURE is not set if
+				// false yet it defaults to true
+				"secure": false,
 			},
 		},
 	},
