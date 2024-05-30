@@ -13,7 +13,7 @@ require (
 	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0s v1.29.5-0.20240418091920-5421d2dc4754
+	github.com/k0sproject/k0s v1.29.6-0.20240527072442-22f6a125e881
 	github.com/replicatedhq/embedded-cluster-kinds v1.3.2
 	github.com/replicatedhq/embedded-cluster-operator v0.33.2
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
