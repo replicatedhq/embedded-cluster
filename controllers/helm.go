@@ -68,13 +68,33 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *v1
 	}
 
 	if in != nil && in.Spec.AirGap {
-		combinedConfigs.Charts = append(combinedConfigs.Charts, meta.AirgapConfigs.Charts...)
-		combinedConfigs.Repositories = append(combinedConfigs.Repositories, meta.AirgapConfigs.Repositories...)
+		if in.Spec.HighAvailability {
+			seaweedfsConfig, ok := meta.BuiltinConfigs["seaweedfs"]
+			if ok {
+				combinedConfigs.Charts = append(combinedConfigs.Charts, seaweedfsConfig.Charts...)
+				combinedConfigs.Repositories = append(combinedConfigs.Repositories, seaweedfsConfig.Repositories...)
+			}
+
+			registryConfig, ok := meta.BuiltinConfigs["registry-ha"]
+			if ok {
+				combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
+				combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
+			}
+		} else {
+			registryConfig, ok := meta.BuiltinConfigs["registry"]
+			if ok {
+				combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
+				combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
+			}
+		}
 	}
 
 	if in != nil && in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
-		combinedConfigs.Charts = append(combinedConfigs.Charts, meta.BuiltinConfigs["velero"].Charts...)
-		combinedConfigs.Repositories = append(combinedConfigs.Repositories, meta.BuiltinConfigs["velero"].Repositories...)
+		config, ok := meta.BuiltinConfigs["velero"]
+		if ok {
+			combinedConfigs.Charts = append(combinedConfigs.Charts, config.Charts...)
+			combinedConfigs.Repositories = append(combinedConfigs.Repositories, config.Repositories...)
+		}
 	}
 
 	// update the infrastructure charts from the install spec

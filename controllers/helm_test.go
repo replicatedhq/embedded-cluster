@@ -20,6 +20,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 		name             string
 		args             args
 		airgap           bool
+		highAvailability bool
 		disasterRecovery bool
 		want             *k0sv1beta1.HelmExtensions
 	}{
@@ -118,53 +119,6 @@ func Test_mergeHelmConfigs(t *testing.T) {
 			},
 		},
 		{
-			name:   "airgap enabled",
-			airgap: true,
-			args: args{
-				meta: &ectypes.ReleaseMetadata{
-					Configs: k0sv1beta1.HelmExtensions{
-						ConcurrencyLevel: 1,
-						Repositories: []k0sv1beta1.Repository{
-							{
-								Name: "origrepo",
-							},
-						},
-						Charts: []k0sv1beta1.Chart{
-							{
-								Name: "origchart",
-							},
-						},
-					},
-					AirgapConfigs: k0sv1beta1.HelmExtensions{
-						Charts: []k0sv1beta1.Chart{
-							{
-								Name: "airgapchart",
-							},
-						},
-					},
-				},
-				in: v1beta1.Extensions{},
-			},
-			want: &k0sv1beta1.HelmExtensions{
-				ConcurrencyLevel: 1,
-				Repositories: []k0sv1beta1.Repository{
-					{
-						Name: "origrepo",
-					},
-				},
-				Charts: []k0sv1beta1.Chart{
-					{
-						Name:  "origchart",
-						Order: 100,
-					},
-					{
-						Name:  "airgapchart",
-						Order: 100,
-					},
-				},
-			},
-		},
-		{
 			name:             "disaster recovery enabled",
 			disasterRecovery: true,
 			args: args{
@@ -221,6 +175,180 @@ func Test_mergeHelmConfigs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "airgap enabled",
+			airgap: true,
+			args: args{
+				meta: &ectypes.ReleaseMetadata{
+					Configs: k0sv1beta1.HelmExtensions{
+						ConcurrencyLevel: 1,
+						Repositories: []k0sv1beta1.Repository{
+							{
+								Name: "origrepo",
+							},
+						},
+						Charts: []k0sv1beta1.Chart{
+							{
+								Name: "origchart",
+							},
+						},
+					},
+					BuiltinConfigs: map[string]k0sv1beta1.HelmExtensions{
+						"seaweedfs": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "seaweedfsrepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "seaweedfschart",
+									// Values: `{"filer":{"s3":{"existingConfigSecret":"seaweedfs-s3-secret"}}}`,
+								},
+							},
+						},
+						"registry": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "registryrepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "registrychart",
+								},
+							},
+						},
+						"registry-ha": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "registryharepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "registryhachart",
+									// Values: `{"secrets":{"s3":{"secretRef":"registry-s3-secret"}}}`,
+								},
+							},
+						},
+					},
+				},
+				in: v1beta1.Extensions{},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				ConcurrencyLevel: 1,
+				Repositories: []k0sv1beta1.Repository{
+					{
+						Name: "origrepo",
+					},
+					{
+						Name: "registryrepo",
+					},
+				},
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:  "origchart",
+						Order: 100,
+					},
+					{
+						Name:  "registrychart",
+						Order: 100,
+					},
+				},
+			},
+		},
+		{
+			name:             "ha airgap enabled",
+			airgap:           true,
+			highAvailability: true,
+			args: args{
+				meta: &ectypes.ReleaseMetadata{
+					Configs: k0sv1beta1.HelmExtensions{
+						ConcurrencyLevel: 1,
+						Repositories: []k0sv1beta1.Repository{
+							{
+								Name: "origrepo",
+							},
+						},
+						Charts: []k0sv1beta1.Chart{
+							{
+								Name: "origchart",
+							},
+						},
+					},
+					BuiltinConfigs: map[string]k0sv1beta1.HelmExtensions{
+						"seaweedfs": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "seaweedfsrepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "seaweedfschart",
+									// Values: `{"filer":{"s3":{"existingConfigSecret":"seaweedfs-s3-secret"}}}`,
+								},
+							},
+						},
+						"registry": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "registryrepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "registrychart",
+								},
+							},
+						},
+						"registry-ha": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "registryharepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "registryhachart",
+									// Values: `{"secrets":{"s3":{"secretRef":"registry-s3-secret"}}}`,
+								},
+							},
+						},
+					},
+				},
+				in: v1beta1.Extensions{},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				ConcurrencyLevel: 1,
+				Repositories: []k0sv1beta1.Repository{
+					{
+						Name: "origrepo",
+					},
+					{
+						Name: "seaweedfsrepo",
+					},
+					{
+						Name: "registryharepo",
+					},
+				},
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:  "origchart",
+						Order: 100,
+					},
+					{
+						Name:  "seaweedfschart",
+						Order: 100,
+					},
+					{
+						Name:  "registryhachart",
+						Order: 100,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -230,7 +358,8 @@ func Test_mergeHelmConfigs(t *testing.T) {
 						Version:    "1.0.0",
 						Extensions: tt.args.in,
 					},
-					AirGap: tt.airgap,
+					AirGap:           tt.airgap,
+					HighAvailability: tt.highAvailability,
 					LicenseInfo: &v1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: tt.disasterRecovery,
 					},

@@ -33,6 +33,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	"github.com/k0sproject/version"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -597,6 +598,28 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	return nil
 }
 
+// ReconcileRegistry reconciles registry components, ensuring that the necessary secrets are
+// created as well as rebalancing stateful pods when nodes are removed from the cluster.
+func (r *InstallationReconciler) ReconcileRegistry(ctx context.Context, in *v1beta1.Installation) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	metadata, err := release.MetadataFor(ctx, in, r.Client)
+	if err != nil {
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, err.Error(), nil)
+		return nil
+	}
+
+	err = registry.EnsureSecrets(ctx, in, metadata, r.Client)
+	if err != nil {
+		if err := r.Status().Update(ctx, in); err != nil {
+			log.Error(err, "Failed to update installation status")
+		}
+		return fmt.Errorf("failed to ensure registry secrets: %w", err)
+	}
+
+	return nil
+}
+
 // ReconcileHelmCharts reconciles the helm charts from the Installation metadata with the clusterconfig object.
 func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1beta1.Installation) error {
 	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
@@ -1026,6 +1049,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile k0s version: %w", err)
 	}
 
+	// reconcile helm chart dependencies including secrets.
+	if err := r.ReconcileRegistry(ctx, in); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to pre-reconcile helm charts: %w", err)
+	}
+
 	// reconcile the add-ons (k0s helm extensions).
 	log.Info("Reconciling addons")
 	if err := r.ReconcileHelmCharts(ctx, in); err != nil {
@@ -1060,6 +1088,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.Installation{}).
+		Owns(&corev1.Secret{}).
 		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
 		Watches(&apv1b2.Plan{}, &handler.EnqueueRequestForObject{}).
 		Watches(&k0shelm.Chart{}, &handler.EnqueueRequestForObject{}).

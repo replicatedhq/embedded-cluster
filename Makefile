@@ -284,5 +284,5 @@ catalog-push: ## Push a catalog image.
 # Push operator image to ttl.sh
 .PHONY: build-ttl.sh
 build-ttl.sh:
-	docker build -t ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h .
+	docker build --platform linux/amd64 -t ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h .
 	docker push ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
