@@ -23,6 +23,7 @@ clusterConfig: |
             embeddedClusterID: 8dd4b480-93e7-434f-a8c8-b9c522bed816
             embeddedClusterVersion: v1.1.0+k8s-1.28
             isAirgap: "false"
+            isHA: false
             isHelmManaged: false
             kurlProxy:
               enabled: true
@@ -45,6 +46,7 @@ expected: |
             embeddedClusterID: 8dd4b480-93e7-434f-a8c8-b9c522bed816
             embeddedClusterVersion: v1.1.0+k8s-1.28
             isAirgap: "false"
+            isHA: false
             isHelmManaged: false
             kurlProxy:
               enabled: true
