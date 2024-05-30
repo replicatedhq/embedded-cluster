@@ -25,6 +25,9 @@ const (
 	releaseName             = "docker-registry"
 	tlsSecretName           = "registry-tls"
 	seaweedfsS3RWSecretName = "seaweedfs-s3-rw"
+
+	registryLowerBandIPIndex  = 10
+	seaweedfsLowerBandIPIndex = 11
 )
 
 // Overwritten by -ldflags in Makefile
@@ -87,7 +90,7 @@ var helmValuesHA = map[string]interface{}{
 	"storage": "s3",
 	"s3": map[string]interface{}{
 		"region":         "us-east-1",
-		"regionEndpoint": "seaweedfs-s3.seaweedfs.svc.cluster.local:8333",
+		"regionEndpoint": "DYNAMIC",
 		"bucket":         "registry",
 		"rootdirectory":  "/registry",
 		"encrypt":        false,
@@ -208,12 +211,23 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	if o.config.Spec != nil && o.config.Spec.Network != nil {
 		serviceCIDR = o.config.Spec.Network.ServiceCIDR
 	}
-	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, 10)
+	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get cluster IP for registry service: %w", err)
 	}
 	values["service"] = map[string]interface{}{
 		"clusterIP": registryServiceIP.String(),
+	}
+
+	if o.isHA {
+		// HACK: This service has a hardcoded service IP shared by the cli and operator as it is
+		// used by the registry to redirect requests for blobs.
+		seaweedfsServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, seaweedfsLowerBandIPIndex)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get cluster IP for seaweedfs s3 service: %w", err)
+		}
+		s3Config := values["s3"].(map[string]interface{})
+		s3Config["regionEndpoint"] = fmt.Sprintf("%s:8333", seaweedfsServiceIP)
 	}
 
 	if !onlyDefaults {
