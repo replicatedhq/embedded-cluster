@@ -1,6 +1,8 @@
 package registry
 
-import "math/rand"
+import (
+	"math/rand"
+)
 
 var alphabet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
