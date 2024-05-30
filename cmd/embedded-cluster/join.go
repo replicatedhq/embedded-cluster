@@ -394,12 +394,20 @@ func runK0sInstallCommand(fullcmd string) error {
 	return nil
 }
 
-// maybeEnableHA waits for the node to be registered in the k8s cluster and then
-// enables high availability if there are at least 3 nodes.
+// maybeEnableHA checks if the cluster has more than 3 nodes and prompts the user
+// to enable high availability if it is not already enabled.
 func maybeEnableHA(ctx context.Context) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
+	isHA, err := isHAEnabled(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("unable to check if HA is enabled: %w", err)
+	}
+	if isHA {
+		return nil
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -417,6 +425,15 @@ func maybeEnableHA(ctx context.Context) error {
 		return nil
 	}
 	return enableHA(ctx, kcli)
+}
+
+// isHAEnabled checks if high availability is already enabled in the cluster.
+func isHAEnabled(ctx context.Context, kcli client.Client) (bool, error) {
+	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return false, fmt.Errorf("unable to get latest installation: %w", err)
+	}
+	return installation.Spec.HighAvailability, nil
 }
 
 // waitForNode waits for the node to be registered in the k8s cluster.
@@ -459,7 +476,6 @@ func enableHA(ctx context.Context, kcli client.Client) error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Enabling high availability")
-	embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
 	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to get latest installation: %w", err)
