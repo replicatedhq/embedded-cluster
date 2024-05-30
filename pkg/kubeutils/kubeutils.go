@@ -127,25 +127,11 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			var installList embeddedclusterv1beta1.InstallationList
-			if err := cli.List(ctx, &installList); err != nil {
-				lasterr = fmt.Errorf("unable to get installations: %v", err)
+			lastInstall, err := GetLatestInstallation(ctx, cli)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get latest installation: %v", err)
 				return false, nil
 			}
-
-			installs := installList.Items
-			if len(installs) == 0 {
-				lasterr = fmt.Errorf("no installations found")
-				return false, nil
-			}
-
-			// sort the installations
-			sort.SliceStable(installs, func(i, j int) bool {
-				return installs[j].Name < installs[i].Name
-			})
-
-			// get the latest installation
-			lastInstall := installs[0]
 
 			if writer != nil {
 				writeStatusMessage(writer, lastInstall)
@@ -180,7 +166,29 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 	return nil
 }
 
-func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1beta1.Installation) {
+func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
+	var installList embeddedclusterv1beta1.InstallationList
+	if err := cli.List(ctx, &installList); err != nil {
+		return nil, fmt.Errorf("unable to list installations: %v", err)
+	}
+
+	installs := installList.Items
+	if len(installs) == 0 {
+		return nil, fmt.Errorf("no installations found")
+	}
+
+	// sort the installations
+	sort.SliceStable(installs, func(i, j int) bool {
+		return installs[j].Name < installs[i].Name
+	})
+
+	// get the latest installation
+	lastInstall := installs[0]
+
+	return &lastInstall, nil
+}
+
+func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {
 	if install.Status.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
 		return
 	}

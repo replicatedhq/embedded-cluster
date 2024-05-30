@@ -13,17 +13,23 @@ import (
 	"github.com/google/uuid"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
@@ -103,6 +109,11 @@ var joinCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:   "enable-ha",
+			Usage:  "Enable high availability",
 			Hidden: true,
 		},
 	},
@@ -211,6 +222,14 @@ var joinCommand = &cli.Command{
 			err := fmt.Errorf("unable to start service: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
+		}
+
+		if c.Bool("enable-ha") {
+			if err := maybeEnableHA(c.Context); err != nil {
+				err := fmt.Errorf("unable to enable HA: %w", err)
+				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+				return err
+			}
 		}
 
 		metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
@@ -366,5 +385,76 @@ func runK0sInstallCommand(fullcmd string) error {
 	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
 		return err
 	}
+	return nil
+}
+
+// maybeEnableHA waits for the node to be registered in the k8s cluster and then
+// enables high availability if there are at least 3 nodes.
+func maybeEnableHA(ctx context.Context) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("unable to get hostname: %w", err)
+	}
+	numNodes, err := waitForNode(ctx, kcli, hostname)
+	if err != nil {
+		return fmt.Errorf("unable to wait for node: %w", err)
+	}
+	if numNodes < 3 {
+		return nil
+	}
+	shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
+	if !shouldEnableHA {
+		return nil
+	}
+	return enableHA(ctx, kcli)
+}
+
+// waitForNode waits for the node to be registered in the k8s cluster.
+// It returns the total number of nodes in the cluster.
+func waitForNode(ctx context.Context, kcli client.Client, name string) (int, error) {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var nodes corev1.NodeList
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			if err := kcli.List(ctx, &nodes); err != nil {
+				lasterr = fmt.Errorf("unable to list nodes: %v", err)
+				return false, nil
+			}
+			for _, node := range nodes.Items {
+				if node.Name == name {
+					return true, nil
+				}
+			}
+			lasterr = fmt.Errorf("node %s not found", name)
+			return false, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return 0, fmt.Errorf("timed out waiting for node %s: %w", name, lasterr)
+		} else {
+			return 0, fmt.Errorf("timed out waiting for node %s", name)
+		}
+	}
+	return len(nodes.Items), nil
+}
+
+func enableHA(ctx context.Context, kcli client.Client) error {
+	embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
+	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("unable to get latest installation: %w", err)
+	}
+	installation.Spec.HighAvailability = true
+	if err := kcli.Update(ctx, installation); err != nil {
+		return fmt.Errorf("unable to update installation: %w", err)
+	}
+
+	// TODO: how should we wait for HA migration to complete?
+
 	return nil
 }
