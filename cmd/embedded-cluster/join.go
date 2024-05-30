@@ -30,6 +30,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
@@ -121,10 +122,10 @@ var joinCommand = &cli.Command{
 		if os.Getuid() != 0 {
 			return fmt.Errorf("node join command must be run as root")
 		}
-
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}
+		os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 		return nil
 	},
 	Action: func(c *cli.Context) error {
@@ -225,6 +226,11 @@ var joinCommand = &cli.Command{
 		}
 
 		if c.Bool("enable-ha") {
+			if err := waitForK0s(); err != nil {
+				err := fmt.Errorf("unable to wait for node: %w", err)
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
 			if err := maybeEnableHA(c.Context); err != nil {
 				err := fmt.Errorf("unable to enable HA: %w", err)
 				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
@@ -416,6 +422,9 @@ func maybeEnableHA(ctx context.Context) error {
 // waitForNode waits for the node to be registered in the k8s cluster.
 // It returns the total number of nodes in the cluster.
 func waitForNode(ctx context.Context, kcli client.Client, name string) (int, error) {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Waiting for %s node to join the cluster", defaults.BinaryName())
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var nodes corev1.NodeList
 	var lasterr error
@@ -440,10 +449,16 @@ func waitForNode(ctx context.Context, kcli client.Client, name string) (int, err
 			return 0, fmt.Errorf("timed out waiting for node %s", name)
 		}
 	}
+	loading.Infof("Node has joined the cluster!")
 	return len(nodes.Items), nil
 }
 
+// enableHA enables high availability in the installation object
+// and waits for the migration to be complete.
 func enableHA(ctx context.Context, kcli client.Client) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Enabling high availability")
 	embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
 	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
@@ -456,5 +471,6 @@ func enableHA(ctx context.Context, kcli client.Client) error {
 
 	// TODO: how should we wait for HA migration to complete?
 
+	loading.Infof("High availability enabled!")
 	return nil
 }
