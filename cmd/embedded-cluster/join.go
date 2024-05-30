@@ -228,7 +228,7 @@ var joinCommand = &cli.Command{
 		if c.Bool("enable-ha") {
 			if err := waitForK0s(); err != nil {
 				err := fmt.Errorf("unable to wait for node: %w", err)
-				metrics.ReportApplyFinished(c, err)
+				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
 			if err := maybeEnableHA(c.Context); err != nil {
