@@ -289,13 +289,8 @@ func (o *Registry) generateRegistryMigrationRole(ctx context.Context, cli client
 		Rules: []rbac.PolicyRule{
 			{
 				APIGroups: []string{"apps"},
-				Resources: []string{"deployments/scale"},
-				Verbs:     []string{"patch"},
-			},
-			{
-				APIGroups: []string{"apps"},
 				Resources: []string{"deployments"},
-				Verbs:     []string{"get", "list"},
+				Verbs:     []string{"get", "list", "update"},
 			},
 			{
 				APIGroups: []string{"apps"},
