@@ -10,7 +10,6 @@ type ReleaseMetadata struct {
 	K0sBinaryURL   string
 	K0sImages      []string
 	Configs        v1beta1.HelmExtensions            // always applied
-	AirgapConfigs  v1beta1.HelmExtensions            // applied for airgap installations
 	BuiltinConfigs map[string]v1beta1.HelmExtensions // applied if the relevant builtin addon is enabled
 	Protected      map[string][]string
 }
