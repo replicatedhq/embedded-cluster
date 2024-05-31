@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -85,8 +86,8 @@ func Test_ensureSeaweedfsS3Secret(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace:       "seaweedfs",
 						Name:            "secret-seaweedfs-s3",
-						OwnerReferences: []metav1.OwnerReference{ownerReference()},
-						Labels:          labels("s3"),
+						OwnerReferences: []metav1.OwnerReference{testutils.OwnerReference()},
+						Labels:          testutils.Labels("s3"),
 					},
 					Data: map[string][]byte{
 						"seaweedfs_s3_config": []byte(`{"identities":[` +
@@ -123,11 +124,11 @@ func Test_ensureSeaweedfsS3Secret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cli := fake.NewClientBuilder().
-				WithScheme(scheme(t)).
+				WithScheme(testutils.Scheme(t)).
 				WithRuntimeObjects(tt.initRuntimeObjs...).
 				Build()
 
-			_, gotOp, err := ensureSeaweedfsS3Secret(context.Background(), installation(), cli)
+			_, gotOp, err := ensureSeaweedfsS3Secret(context.Background(), testutils.Installation(), cli)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -270,8 +271,8 @@ func Test_ensureRegistryS3Secret(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace:       "registry",
 						Name:            "seaweedfs-s3-rw",
-						OwnerReferences: []metav1.OwnerReference{ownerReference()},
-						Labels:          labels("registry"),
+						OwnerReferences: []metav1.OwnerReference{testutils.OwnerReference()},
+						Labels:          testutils.Labels("registry"),
 					},
 					Data: map[string][]byte{
 						"s3AccessKey": []byte("ACCESSKEY"),
@@ -305,11 +306,11 @@ func Test_ensureRegistryS3Secret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cli := fake.NewClientBuilder().
-				WithScheme(scheme(t)).
+				WithScheme(testutils.Scheme(t)).
 				WithRuntimeObjects(tt.initRuntimeObjs...).
 				Build()
 
-			gotOp, err := ensureRegistryS3Secret(context.Background(), installation(), cli, tt.args.sfsConfig)
+			gotOp, err := ensureRegistryS3Secret(context.Background(), testutils.Installation(), cli, tt.args.sfsConfig)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

@@ -6,13 +6,12 @@ import (
 	"time"
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -33,7 +32,7 @@ func TestEnsureResources(t *testing.T) {
 		{
 			name: "basic",
 			args: args{
-				in: installation(func(in *clusterv1beta1.Installation) {
+				in: testutils.Installation(func(in *clusterv1beta1.Installation) {
 					in.Spec.AirGap = true
 					in.Spec.HighAvailability = true
 					in.Status = clusterv1beta1.InstallationStatus{
@@ -149,7 +148,7 @@ func TestEnsureResources(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cli := fake.NewClientBuilder().
-				WithScheme(scheme(t)).
+				WithScheme(testutils.Scheme(t)).
 				WithRuntimeObjects(tt.initRuntimeObjs...).
 				Build()
 
@@ -163,54 +162,4 @@ func TestEnsureResources(t *testing.T) {
 			tt.assertRuntime(t, cli)
 		})
 	}
-}
-
-func installation(options ...func(*clusterv1beta1.Installation)) *clusterv1beta1.Installation {
-	in := &clusterv1beta1.Installation{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: clusterv1beta1.GroupVersion.String(),
-			Kind:       "Installation",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "embedded-cluster-kinds",
-			Generation: int64(2),
-		},
-		Spec: clusterv1beta1.InstallationSpec{
-			BinaryName: "binary-name",
-			ClusterID:  "cluster-id",
-			Config: &clusterv1beta1.ConfigSpec{
-				Version: "version",
-			},
-		},
-	}
-	for _, option := range options {
-		option(in)
-	}
-	return in
-}
-
-func ownerReference() metav1.OwnerReference {
-	in := installation()
-	return metav1.OwnerReference{
-		APIVersion:         clusterv1beta1.GroupVersion.String(),
-		Kind:               "Installation",
-		Name:               in.GetName(),
-		UID:                in.GetUID(),
-		BlockOwnerDeletion: ptr.To(true),
-		Controller:         ptr.To(true),
-	}
-}
-
-func labels(component string) map[string]string {
-	in := installation()
-	return k8sutil.ApplyCommonLabels(nil, in, component)
-}
-
-func scheme(t *testing.T) *runtime.Scheme {
-	scheme := runtime.NewScheme()
-	err := corev1.AddToScheme(scheme)
-	require.NoError(t, err)
-	err = clusterv1beta1.SchemeBuilder.AddToScheme(scheme)
-	require.NoError(t, err)
-	return scheme
 }

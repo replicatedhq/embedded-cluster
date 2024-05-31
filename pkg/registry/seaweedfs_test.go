@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -96,8 +97,8 @@ func Test_ensureSeaweedfsS3Service(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace:       "seaweedfs",
 						Name:            "ec-seaweedfs-s3",
-						OwnerReferences: []metav1.OwnerReference{ownerReference()},
-						Labels:          labels("s3"),
+						OwnerReferences: []metav1.OwnerReference{testutils.OwnerReference()},
+						Labels:          testutils.Labels("s3"),
 					},
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
@@ -137,11 +138,11 @@ func Test_ensureSeaweedfsS3Service(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cli := fake.NewClientBuilder().
-				WithScheme(scheme(t)).
+				WithScheme(testutils.Scheme(t)).
 				WithRuntimeObjects(tt.initRuntimeObjs...).
 				Build()
 
-			gotOp, err := ensureSeaweedfsS3Service(context.Background(), installation(), cli, tt.args.clusterIP)
+			gotOp, err := ensureSeaweedfsS3Service(context.Background(), testutils.Installation(), cli, tt.args.clusterIP)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
