@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version-file: go.mod
       - name: Build Linux AMD64 and Output Metadata
         run: |
           export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
