@@ -19,7 +19,6 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -225,14 +224,34 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
+		if err := waitForK0s(); err != nil {
+			err := fmt.Errorf("unable to wait for node: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			err := fmt.Errorf("unable to get kube client: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+		embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
+		hostname, err := os.Hostname()
+		if err != nil {
+			err := fmt.Errorf("unable to get hostname: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+		if err := waitForNode(c.Context, kcli, hostname); err != nil {
+			err := fmt.Errorf("unable to wait for node: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
 		if c.Bool("enable-ha") {
-			if err := waitForK0s(); err != nil {
-				err := fmt.Errorf("unable to wait for node: %w", err)
-				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-				return err
-			}
-			if err := maybeEnableHA(c.Context); err != nil {
-				err := fmt.Errorf("unable to enable HA: %w", err)
+			if err := maybeEnableHA(c.Context, kcli); err != nil {
+				err := fmt.Errorf("unable to enable high availability: %w", err)
 				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
@@ -394,30 +413,23 @@ func runK0sInstallCommand(fullcmd string) error {
 	return nil
 }
 
-// maybeEnableHA checks if the cluster has more than 3 nodes and prompts the user
-// to enable high availability if it is not already enabled.
-func maybeEnableHA(ctx context.Context) error {
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("unable to create kube client: %w", err)
-	}
-	embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
-	isHA, err := isHAEnabled(ctx, kcli)
-	if err != nil {
-		return fmt.Errorf("unable to check if HA is enabled: %w", err)
-	}
-	if isHA {
-		return nil
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("unable to get hostname: %w", err)
-	}
-	numNodes, err := waitForNode(ctx, kcli, hostname)
-	if err != nil {
+func waitForNode(ctx context.Context, kcli client.Client, hostname string) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Waiting for node to join the cluster")
+	if err := kubeutils.WaitForNode(ctx, kcli, hostname); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
-	if numNodes < 3 {
+	loading.Infof("Node has joined the cluster!")
+	return nil
+}
+
+func maybeEnableHA(ctx context.Context, kcli client.Client) error {
+	canEnableHA, err := canEnableHA(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
+	}
+	if !canEnableHA {
 		return nil
 	}
 	shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
@@ -427,47 +439,23 @@ func maybeEnableHA(ctx context.Context) error {
 	return enableHA(ctx, kcli)
 }
 
-// isHAEnabled checks if high availability is already enabled in the cluster.
-func isHAEnabled(ctx context.Context, kcli client.Client) (bool, error) {
+// canEnableHA checks if high availability can be enabled in the cluster.
+func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return false, fmt.Errorf("unable to get latest installation: %w", err)
 	}
-	return installation.Spec.HighAvailability, nil
-}
-
-// waitForNode waits for the node to be registered in the k8s cluster.
-// It returns the total number of nodes in the cluster.
-func waitForNode(ctx context.Context, kcli client.Client, name string) (int, error) {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Waiting for %s node to join the cluster", defaults.BinaryName())
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-	var nodes corev1.NodeList
-	var lasterr error
-	if err := wait.ExponentialBackoffWithContext(
-		ctx, backoff, func(ctx context.Context) (bool, error) {
-			if err := kcli.List(ctx, &nodes); err != nil {
-				lasterr = fmt.Errorf("unable to list nodes: %v", err)
-				return false, nil
-			}
-			for _, node := range nodes.Items {
-				if node.Name == name {
-					return true, nil
-				}
-			}
-			lasterr = fmt.Errorf("node %s not found", name)
-			return false, nil
-		},
-	); err != nil {
-		if lasterr != nil {
-			return 0, fmt.Errorf("timed out waiting for node %s: %w", name, lasterr)
-		} else {
-			return 0, fmt.Errorf("timed out waiting for node %s", name)
-		}
+	if installation.Spec.HighAvailability {
+		return false, nil
 	}
-	loading.Infof("Node has joined the cluster!")
-	return len(nodes.Items), nil
+	var nodes corev1.NodeList
+	if err := kcli.List(ctx, &nodes); err != nil {
+		return false, fmt.Errorf("unable to list nodes: %w", err)
+	}
+	if len(nodes.Items) < 3 {
+		return false, nil
+	}
+	return true, nil
 }
 
 // enableHA enables high availability in the installation object
@@ -484,9 +472,9 @@ func enableHA(ctx context.Context, kcli client.Client) error {
 	if err := kcli.Update(ctx, installation); err != nil {
 		return fmt.Errorf("unable to update installation: %w", err)
 	}
-
-	// TODO: how should we wait for HA migration to complete?
-
+	if err := kubeutils.WaitForHAMigration(ctx, kcli); err != nil {
+		return fmt.Errorf("unable to wait for HA migration: %w", err)
+	}
 	loading.Infof("High availability enabled!")
 	return nil
 }

@@ -7,8 +7,10 @@ import (
 	"time"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -218,6 +220,43 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 	}
 }
 
+func WaitForHAMigration(ctx context.Context, cli client.Client) error {
+	backoff := wait.Backoff{Steps: 50, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			lastInstall, err := GetLatestInstallation(ctx, cli)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get latest installation: %v", err)
+				return false, nil
+			}
+			migrationStatus := CheckConditionStatus(lastInstall.Status, registry.RegistryMigrationStatusConditionType)
+			if migrationStatus == metav1.ConditionTrue {
+				return true, nil
+			}
+			lasterr = fmt.Errorf("installation conditions are %v", lastInstall.Status.Conditions)
+			return false, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for HA migration to finish: %v", lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for HA migration")
+		}
+	}
+	return nil
+}
+
+func CheckConditionStatus(inStat embeddedclusterv1beta1.InstallationStatus, conditionName string) metav1.ConditionStatus {
+	for _, cond := range inStat.Conditions {
+		if cond.Type == conditionName {
+			return cond.Status
+		}
+	}
+
+	return ""
+}
+
 func WaitForNodes(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
@@ -243,6 +282,36 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 			return fmt.Errorf("timed out waiting for nodes to be ready: %v", lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for nodes to be ready")
+		}
+	}
+	return nil
+}
+
+// WaitForNode waits for the node to be registered in the k8s cluster.
+// It returns the total number of nodes in the cluster.
+func WaitForNode(ctx context.Context, kcli client.Client, name string) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			var nodes corev1.NodeList
+			if err := kcli.List(ctx, &nodes); err != nil {
+				lasterr = fmt.Errorf("unable to list nodes: %v", err)
+				return false, nil
+			}
+			for _, node := range nodes.Items {
+				if node.Name == name {
+					return true, nil
+				}
+			}
+			lasterr = fmt.Errorf("node %s not found", name)
+			return false, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for node %s: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for node %s", name)
 		}
 	}
 	return nil
