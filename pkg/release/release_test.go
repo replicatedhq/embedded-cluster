@@ -21,13 +21,23 @@ func Test_localMetadataFor(t *testing.T) {
 		"Versions": {
 			"EmbeddedClusterOperator": "v1.0.0"
 		},
-		"AirgapConfigs": {
-			"Charts": [
-				{
-					"Name": "docker-registry",
-					"Values": "{}"
-				}
-			]
+		"BuiltinConfigs": {
+			"registry": {
+				"Charts": [
+					{
+						"Name": "docker-registry",
+						"Values": "ha: false\n"
+					}
+				]
+			},
+			"registry-ha": {
+				"Charts": [
+					{
+						"Name": "docker-registry",
+						"Values": "ha: true\n"
+					}
+				]
+			}
 		}
 	}`
 
@@ -61,11 +71,21 @@ func Test_localMetadataFor(t *testing.T) {
 				Versions: map[string]string{
 					"EmbeddedClusterOperator": "v1.0.0",
 				},
-				AirgapConfigs: v1beta1.HelmExtensions{
-					Charts: v1beta1.ChartsSettings{
-						{
-							Name:   "docker-registry",
-							Values: "{}",
+				BuiltinConfigs: map[string]v1beta1.HelmExtensions{
+					"registry": {
+						Charts: v1beta1.ChartsSettings{
+							{
+								Name:   "docker-registry",
+								Values: "ha: false\n",
+							},
+						},
+					},
+					"registry-ha": {
+						Charts: v1beta1.ChartsSettings{
+							{
+								Name:   "docker-registry",
+								Values: "ha: true\n",
+							},
 						},
 					},
 				},
@@ -97,11 +117,21 @@ func Test_localMetadataFor(t *testing.T) {
 				Versions: map[string]string{
 					"EmbeddedClusterOperator": "v1.0.0",
 				},
-				AirgapConfigs: v1beta1.HelmExtensions{
-					Charts: v1beta1.ChartsSettings{
-						{
-							Name:   "docker-registry",
-							Values: "tlsSecretName: registry-tls\n",
+				BuiltinConfigs: map[string]v1beta1.HelmExtensions{
+					"registry": {
+						Charts: v1beta1.ChartsSettings{
+							{
+								Name:   "docker-registry",
+								Values: "ha: false\ntlsSecretName: registry-tls\n",
+							},
+						},
+					},
+					"registry-ha": {
+						Charts: v1beta1.ChartsSettings{
+							{
+								Name:   "docker-registry",
+								Values: "ha: true\ntlsSecretName: registry-tls\n",
+							},
 						},
 					},
 				},
