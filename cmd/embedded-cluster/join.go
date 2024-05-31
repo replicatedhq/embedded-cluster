@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -449,7 +450,8 @@ func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 		return false, nil
 	}
 	var nodes corev1.NodeList
-	if err := kcli.List(ctx, &nodes); err != nil {
+	opts := &client.ListOptions{LabelSelector: labels.Set(config.ControllerLabels()).AsSelector()}
+	if err := kcli.List(ctx, &nodes, opts); err != nil {
 		return false, fmt.Errorf("unable to list nodes: %w", err)
 	}
 	if len(nodes.Items) < 3 {
