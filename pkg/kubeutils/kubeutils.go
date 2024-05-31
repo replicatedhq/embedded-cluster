@@ -221,7 +221,8 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 }
 
 func WaitForHAMigration(ctx context.Context, cli client.Client) error {
-	backoff := wait.Backoff{Steps: 50, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	// TODO: determine an appropriate timeout
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
