@@ -6,6 +6,7 @@ import (
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +29,27 @@ const (
 	// seaweedfsS3ServiceReadyConditionType represents the condition type that indicates status of
 	// the Seaweedfs service.
 	seaweedfsS3ServiceReadyConditionType = "SeaweedfsS3ServiceReady"
+
+	// seaweedfsLowerBandIPIndex is the index of the seaweedfs service IP in the service CIDR.
+	// HACK: this is shared with the cli and operator as it is used by the registry to redirect requests for blobs.
+	seaweedfsLowerBandIPIndex = 11
 )
+
+func GetSeaweedfsS3Endpoint(serviceCIDR string) (string, error) {
+	ip, err := getSeaweedfsS3ServiceIP(serviceCIDR)
+	if err != nil {
+		return "", fmt.Errorf("get seaweedfs s3 service IP: %w", err)
+	}
+	return fmt.Sprintf("%s:8333", ip), nil
+}
+
+func getSeaweedfsS3ServiceIP(serviceCIDR string) (string, error) {
+	ip, err := util.GetLowerBandIP(serviceCIDR, seaweedfsLowerBandIPIndex)
+	if err != nil {
+		return "", fmt.Errorf("get lower band ip at index %d: %w", seaweedfsLowerBandIPIndex, err)
+	}
+	return ip.String(), nil
+}
 
 func ensureSeaweedfsS3Service(ctx context.Context, in *clusterv1beta1.Installation, cli client.Client, clusterIP string) (controllerutil.OperationResult, error) {
 	op := controllerutil.OperationResultNone

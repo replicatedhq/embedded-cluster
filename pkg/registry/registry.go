@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,10 +17,6 @@ const (
 	// registryNamespace is the namespace where the Registry secret is stored.
 	// This namespace is defined in the chart in the release metadata.
 	registryNamespace = "registry"
-
-	// seaweedfsLowerBandIPIndex is the index of the seaweedfs service IP in the service CIDR.
-	// HACK: this is shared with the cli and operator as it is used by the registry to redirect requests for blobs.
-	seaweedfsLowerBandIPIndex = 11
 )
 
 func EnsureResources(ctx context.Context, in *clusterv1beta1.Installation, cli client.Client, serviceCIDR string) error {
@@ -45,14 +40,14 @@ func EnsureResources(ctx context.Context, in *clusterv1beta1.Installation, cli c
 	}
 	in.Status.SetCondition(getRegistryS3SecretReadyCondition(in, metav1.ConditionTrue, "SecretReady", ""))
 
-	seaweedfsS3ServiceIP, err := util.GetLowerBandIP(serviceCIDR, seaweedfsLowerBandIPIndex)
+	seaweedfsS3ServiceIP, err := getSeaweedfsS3ServiceIP(serviceCIDR)
 	if err != nil {
-		err = fmt.Errorf("get cluster IP for seaweedfs s3 service: %w", err)
+		err = fmt.Errorf("get seaweedfs s3 service IP: %w", err)
 		in.Status.SetCondition(getSeaweedfsS3ServiceReadyCondition(in, metav1.ConditionFalse, "Failed", err.Error()))
 		return err
 	}
 
-	op, err = ensureSeaweedfsS3Service(ctx, in, cli, seaweedfsS3ServiceIP.String())
+	op, err = ensureSeaweedfsS3Service(ctx, in, cli, seaweedfsS3ServiceIP)
 	if err != nil {
 		in.Status.SetCondition(getSeaweedfsS3ServiceReadyCondition(in, metav1.ConditionFalse, "Failed", err.Error()))
 		return fmt.Errorf("ensure seaweedfs s3 service: %w", err)

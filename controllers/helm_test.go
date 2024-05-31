@@ -13,8 +13,9 @@ import (
 
 func Test_mergeHelmConfigs(t *testing.T) {
 	type args struct {
-		meta *ectypes.ReleaseMetadata
-		in   v1beta1.Extensions
+		meta          *ectypes.ReleaseMetadata
+		in            v1beta1.Extensions
+		clusterConfig k0sv1beta1.ClusterConfig
 	}
 	tests := []struct {
 		name             string
@@ -367,7 +368,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 			}
 
 			req := require.New(t)
-			got := mergeHelmConfigs(context.TODO(), tt.args.meta, &installation)
+			got := mergeHelmConfigs(context.TODO(), tt.args.meta, &installation, tt.args.clusterConfig)
 			req.Equal(tt.want, got)
 		})
 	}
@@ -1209,8 +1210,9 @@ func Test_applyUserProvidedAddonOverrides(t *testing.T) {
 
 func Test_updateInfraChartsFromInstall(t *testing.T) {
 	type args struct {
-		in     *v1beta1.Installation
-		charts []k0sv1beta1.Chart
+		in            *v1beta1.Installation
+		clusterConfig k0sv1beta1.ClusterConfig
+		charts        []k0sv1beta1.Chart
 	}
 	tests := []struct {
 		name string
@@ -1280,11 +1282,87 @@ func Test_updateInfraChartsFromInstall(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "docker-registry",
+			args: args{
+				in: &v1beta1.Installation{
+					Spec: v1beta1.InstallationSpec{
+						ClusterID:  "testid",
+						BinaryName: "testbin",
+						AirGap:     true,
+					},
+				},
+				clusterConfig: k0sv1beta1.ClusterConfig{},
+				charts: []k0sv1beta1.Chart{
+					{
+						Name:   "docker-registry",
+						Values: "this: that\nand: another\n",
+					},
+				},
+			},
+			want: []k0sv1beta1.Chart{
+				{
+					Name:   "docker-registry",
+					Values: "this: that\nand: another\n",
+				},
+			},
+		},
+		{
+			name: "docker-registry ha",
+			args: args{
+				in: &v1beta1.Installation{
+					Spec: v1beta1.InstallationSpec{
+						ClusterID:        "testid",
+						BinaryName:       "testbin",
+						AirGap:           true,
+						HighAvailability: true,
+					},
+				},
+				clusterConfig: k0sv1beta1.ClusterConfig{},
+				charts: []k0sv1beta1.Chart{
+					{
+						Name: "docker-registry",
+						Values: `image:
+  tag: 2.8.3
+replicaCount: 2
+s3:
+  bucket: registry
+  encrypt: false
+  region: us-east-1
+  regionEndpoint: DYNAMIC
+  rootdirectory: /registry
+  secure: false
+secrets:
+  s3:
+    secretRef: seaweedfs-s3-rw`,
+					},
+				},
+			},
+			want: []k0sv1beta1.Chart{
+				{
+					Name: "docker-registry",
+					Values: `image:
+  tag: 2.8.3
+replicaCount: 2
+s3:
+  bucket: registry
+  encrypt: false
+  region: us-east-1
+  regionEndpoint: 10.96.0.12:8333
+  rootdirectory: /registry
+  secure: false
+secrets:
+  s3:
+    secretRef: seaweedfs-s3-rw
+`,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			got := updateInfraChartsFromInstall(context.TODO(), tt.args.in, tt.args.charts)
+			got := updateInfraChartsFromInstall(context.TODO(), tt.args.in, tt.args.clusterConfig, tt.args.charts)
 			req.ElementsMatch(tt.want, got)
 		})
 	}
