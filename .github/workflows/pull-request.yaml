@@ -14,7 +14,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version: "1.22"
     - name: Go vet
       run: |
         make vet
@@ -31,7 +31,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version: "1.22"
     - name: Go vet
       run: |
        make vet
@@ -49,7 +49,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version: "1.22"
     - name: Build Linux AMD64 and Output Metadata
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
