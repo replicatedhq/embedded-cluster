@@ -60,6 +60,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.Version=$(VELERO_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.VeleroTag=$(VELERO_IMAGE_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION)
+SYNC_SERVER ?= root@reliabilityrunner-02
 
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
@@ -183,6 +184,12 @@ scan:
 		--severity="HIGH,CRITICAL" \
 		--ignore-unfixed \
 		./
+
+.PHONY: sync
+sync:
+	ssh $(SYNC_SERVER) "sudo mkdir -p /root/go/src/github.com/replicatedhq/embedded-cluster"
+	rsync --rsync-path="sudo rsync" -avz --exclude '.git' \
+		. $(SYNC_SERVER):/root/go/src/github.com/replicatedhq/embedded-cluster
 
 print-%:
 	@echo -n $($*)
