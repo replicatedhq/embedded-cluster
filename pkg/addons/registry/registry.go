@@ -88,7 +88,8 @@ var helmValuesHA = map[string]interface{}{
 	},
 	"storage": "s3",
 	"s3": map[string]interface{}{
-		"region":         "us-east-1",
+		"region": "us-east-1",
+		// regionEndpoint is set by the operator to a hardcoded lower band IP
 		"regionEndpoint": "DYNAMIC",
 		"bucket":         "registry",
 		"rootdirectory":  "/registry",
