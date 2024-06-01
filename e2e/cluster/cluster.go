@@ -25,7 +25,7 @@ lxc.mount.auto=proc:rw sys:rw cgroup:rw
 lxc.cgroup.devices.allow=a
 lxc.cap.drop=`
 const checkInternet = `#!/bin/bash
-timeout 5 bash -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
+timeout 5 bash -c 'cat < /dev/null > /dev/tcp/api.replicated.com/80'
 if [ $? == 0 ]; then
     exit 0
 fi
