@@ -571,19 +571,20 @@ func NodeHasInternet(in *Input, node string) {
 		Line:   []string{"/usr/local/bin/check_internet.sh"},
 	}
 	var success bool
-	for i := 0; i < 10; i++ {
+	var lastErr error
+	for i := 0; i < 60; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := Run(ctx, in.T, cmd); err != nil {
-			in.T.Logf("Unable to reach internet from %s: %v", node, err)
-			time.Sleep(30 * time.Second)
+			lastErr = fmt.Errorf("failed to check internet: %v", err)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 		success = true
 		break
 	}
 	if !success {
-		in.T.Fatalf("Unable to reach internet from %s", node)
+		in.T.Fatalf("Timed out trying to reach internet from %s: %v", node, lastErr)
 	}
 }
 
