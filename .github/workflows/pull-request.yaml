@@ -183,9 +183,9 @@ jobs:
           - TestOldVersionUpgrade
           - TestMaterialize
           - TestLocalArtifactMirror
-          - TestSingleNodeAirgapUpgradeUbuntuJammy
+          - TestSingleNodeAirgapUpgrade
           - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgradeUbuntuJammy
+          - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery

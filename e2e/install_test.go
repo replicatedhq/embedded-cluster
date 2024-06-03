@@ -525,7 +525,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
+func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	t.Parallel()
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
@@ -546,7 +546,7 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
 		Nodes:                   1,
-		Image:                   "ubuntu/jammy",
+		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
@@ -615,7 +615,7 @@ func TestSingleNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
+func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	t.Parallel()
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
@@ -636,12 +636,12 @@ func TestMultiNodeAirgapUpgradeUbuntuJammy(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
 		Nodes:                   2,
-		Image:                   "ubuntu/jammy",
+		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	// defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
