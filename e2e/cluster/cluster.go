@@ -489,6 +489,7 @@ func CopyFileToNode(in *Input, node string, file File) {
 	} {
 		RunCommandOnNode(in, cmd, node)
 	}
+	in.T.Logf("Copying `%s` to node %s", file.DestPath, node)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
