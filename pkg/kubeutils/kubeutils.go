@@ -221,31 +221,18 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 }
 
 func WaitForHAMigration(ctx context.Context, cli client.Client) error {
-	// TODO: determine an appropriate timeout
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-	var lasterr error
-	if err := wait.ExponentialBackoffWithContext(
-		ctx, backoff, func(ctx context.Context) (bool, error) {
-			lastInstall, err := GetLatestInstallation(ctx, cli)
-			if err != nil {
-				lasterr = fmt.Errorf("unable to get latest installation: %v", err)
-				return false, nil
-			}
-			migrationStatus := CheckConditionStatus(lastInstall.Status, registry.RegistryMigrationStatusConditionType)
-			if migrationStatus == metav1.ConditionTrue {
-				return true, nil
-			}
-			lasterr = fmt.Errorf("installation conditions are %v", lastInstall.Status.Conditions)
-			return false, nil
-		},
-	); err != nil {
-		if lasterr != nil {
-			return fmt.Errorf("timed out waiting for HA migration to finish: %v", lasterr)
-		} else {
-			return fmt.Errorf("timed out waiting for HA migration")
+	for {
+		lastInstall, err := GetLatestInstallation(ctx, cli)
+		if err != nil {
+			return fmt.Errorf("unable to get latest installation: %v", err)
 		}
+		migrationStatus := CheckConditionStatus(lastInstall.Status, registry.RegistryMigrationStatusConditionType)
+		if migrationStatus == metav1.ConditionTrue {
+			return nil
+		}
+
+		time.Sleep(5 * time.Second)
 	}
-	return nil
 }
 
 func CheckConditionStatus(inStat embeddedclusterv1beta1.InstallationStatus, conditionName string) metav1.ConditionStatus {
