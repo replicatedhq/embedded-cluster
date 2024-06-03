@@ -225,7 +225,7 @@ func WaitForHAMigration(ctx context.Context, cli client.Client) error {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("context cancelled")
-		default:
+		case <-time.After(5 * time.Second):
 			lastInstall, err := GetLatestInstallation(ctx, cli)
 			if err != nil {
 				return fmt.Errorf("unable to get latest installation: %v", err)
@@ -234,8 +234,6 @@ func WaitForHAMigration(ctx context.Context, cli client.Client) error {
 			if migrationStatus == metav1.ConditionTrue {
 				return nil
 			}
-
-			time.Sleep(5 * time.Second)
 		}
 	}
 }
