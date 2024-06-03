@@ -13,7 +13,6 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
-	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -137,6 +136,7 @@ func TestJoinCommandResponseOverrides(t *testing.T) {
 func Test_canEnableHA(t *testing.T) {
 	scheme := scheme.Scheme
 	embeddedclusterv1beta1.AddToScheme(scheme)
+	controllerLabels := map[string]string{"node-role.kubernetes.io/control-plane": "true"}
 	type args struct {
 		kcli client.Client
 	}
@@ -154,9 +154,9 @@ func Test_canEnableHA(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: false},
 					},
-					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: config.ControllerLabels()}},
-					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: config.ControllerLabels()}},
-					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: config.ControllerLabels()}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
 				).Build(),
 			},
 			want: true,
@@ -169,8 +169,8 @@ func Test_canEnableHA(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: false},
 					},
-					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: config.ControllerLabels()}},
-					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: config.ControllerLabels()}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
 					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3"}},
 				).Build(),
 			},
@@ -184,9 +184,9 @@ func Test_canEnableHA(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
 						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: true},
 					},
-					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: config.ControllerLabels()}},
-					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: config.ControllerLabels()}},
-					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: config.ControllerLabels()}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
 				).Build(),
 			},
 			want: false,

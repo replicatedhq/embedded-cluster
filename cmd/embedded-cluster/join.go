@@ -424,7 +424,7 @@ func waitForNode(ctx context.Context, kcli client.Client, hostname string) error
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for node to join the cluster")
-	if err := kubeutils.WaitForNode(ctx, kcli, hostname); err != nil {
+	if err := kubeutils.WaitForControllerNode(ctx, kcli, hostname); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
 	loading.Infof("Node has joined the cluster!")
@@ -466,6 +466,7 @@ func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	if err := kcli.List(ctx, &nodes, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
 		return false, fmt.Errorf("unable to list nodes: %w", err)
 	}
+	logrus.Infof("Found %d controller nodes", len(nodes.Items))
 	if len(nodes.Items) < 3 {
 		return false, nil
 	}
