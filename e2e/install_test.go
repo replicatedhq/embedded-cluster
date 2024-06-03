@@ -143,12 +143,12 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeInstallationCentos8Stream(t *testing.T) {
+func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "centos/8-Stream",
+		Image:               "centos/9-Stream",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -192,7 +192,7 @@ func TestHostPreflight(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                                 t,
 		Nodes:                             1,
-		Image:                             "centos/8-Stream",
+		Image:                             "centos/9-Stream",
 		LicensePath:                       "license.yaml",
 		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
 		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
