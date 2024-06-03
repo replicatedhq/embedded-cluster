@@ -9,7 +9,9 @@ test('deploy airgap upgrade', async ({ page }) => {
   await expect(page.locator('.Modal-body')).toBeVisible();
   await page.getByRole('button', { name: 'Yes, Deploy' }).click();
   await expect(page.locator('#app')).toContainText('Updating cluster', { timeout: 90000 });
-  await expect(page.locator('.Modal-body')).toContainText('Cluster update in progress', { timeout: 120000 });
+  if (process.env.SKIP_CLUSTER_UPGRADING_CHECK !== 'true') {
+    await expect(page.locator('.Modal-body')).toContainText('Cluster update in progress', { timeout: 120000 });
+  }
   await expect(page.locator('#app')).toContainText('Currently deployed version', { timeout: 600000 });
   await expect(page.locator('#app')).toContainText('Up to date', { timeout: 30000 });
   await expect(page.locator('#app')).toContainText('Ready');
