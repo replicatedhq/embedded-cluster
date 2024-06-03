@@ -231,7 +231,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		if strings.Contains(jcmd.K0sJoinCommand, "worker") {
+		if !strings.Contains(jcmd.K0sJoinCommand, "controller") {
 			metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
 			logrus.Infof("Join finished")
 			return nil
