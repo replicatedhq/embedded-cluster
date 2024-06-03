@@ -466,7 +466,6 @@ func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	if err := kcli.List(ctx, &nodes, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
 		return false, fmt.Errorf("unable to list nodes: %w", err)
 	}
-	logrus.Infof("Found %d controller nodes", len(nodes.Items))
 	if len(nodes.Items) < 3 {
 		return false, nil
 	}
