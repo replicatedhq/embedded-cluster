@@ -7,8 +7,10 @@ import (
 	"time"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -127,25 +129,11 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			var installList embeddedclusterv1beta1.InstallationList
-			if err := cli.List(ctx, &installList); err != nil {
-				lasterr = fmt.Errorf("unable to get installations: %v", err)
+			lastInstall, err := GetLatestInstallation(ctx, cli)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get latest installation: %v", err)
 				return false, nil
 			}
-
-			installs := installList.Items
-			if len(installs) == 0 {
-				lasterr = fmt.Errorf("no installations found")
-				return false, nil
-			}
-
-			// sort the installations
-			sort.SliceStable(installs, func(i, j int) bool {
-				return installs[j].Name < installs[i].Name
-			})
-
-			// get the latest installation
-			lastInstall := installs[0]
 
 			if writer != nil {
 				writeStatusMessage(writer, lastInstall)
@@ -180,7 +168,29 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 	return nil
 }
 
-func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1beta1.Installation) {
+func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
+	var installList embeddedclusterv1beta1.InstallationList
+	if err := cli.List(ctx, &installList); err != nil {
+		return nil, fmt.Errorf("unable to list installations: %v", err)
+	}
+
+	installs := installList.Items
+	if len(installs) == 0 {
+		return nil, fmt.Errorf("no installations found")
+	}
+
+	// sort the installations
+	sort.SliceStable(installs, func(i, j int) bool {
+		return installs[j].Name < installs[i].Name
+	})
+
+	// get the latest installation
+	lastInstall := installs[0]
+
+	return &lastInstall, nil
+}
+
+func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {
 	if install.Status.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
 		return
 	}
@@ -210,6 +220,35 @@ func writeStatusMessage(writer *spinner.MessageWriter, install embeddedclusterv1
 	}
 }
 
+func WaitForHAMigration(ctx context.Context, cli client.Client) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled")
+		default:
+			lastInstall, err := GetLatestInstallation(ctx, cli)
+			if err != nil {
+				return fmt.Errorf("unable to get latest installation: %v", err)
+			}
+			migrationStatus := CheckConditionStatus(lastInstall.Status, registry.RegistryMigrationStatusConditionType)
+			if migrationStatus == metav1.ConditionTrue {
+				return nil
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+func CheckConditionStatus(inStat embeddedclusterv1beta1.InstallationStatus, conditionName string) metav1.ConditionStatus {
+	for _, cond := range inStat.Conditions {
+		if cond.Type == conditionName {
+			return cond.Status
+		}
+	}
+
+	return ""
+}
+
 func WaitForNodes(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
@@ -235,6 +274,37 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 			return fmt.Errorf("timed out waiting for nodes to be ready: %v", lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for nodes to be ready")
+		}
+	}
+	return nil
+}
+
+// WaitForControllerNode waits for a specific controller node to be registered with the cluster.
+func WaitForControllerNode(ctx context.Context, kcli client.Client, name string) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			var nodes corev1.NodeList
+			if err := kcli.List(ctx, &nodes); err != nil {
+				lasterr = fmt.Errorf("unable to list nodes: %v", err)
+				return false, nil
+			}
+			for _, node := range nodes.Items {
+				if node.Name == name {
+					if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
+						return true, nil
+					}
+				}
+			}
+			lasterr = fmt.Errorf("node %s not found", name)
+			return false, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for node %s: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for node %s", name)
 		}
 	}
 	return nil

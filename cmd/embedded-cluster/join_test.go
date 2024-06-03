@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"os"
@@ -11,9 +12,15 @@ import (
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -122,6 +129,131 @@ func TestJoinCommandResponseOverrides(t *testing.T) {
 			userStr := fmt.Sprintf("%+v", user)
 			expectedUserStr := fmt.Sprintf("%+v", expectedUser)
 			assert.Equal(t, expectedUserStr, userStr)
+		})
+	}
+}
+
+func Test_canEnableHA(t *testing.T) {
+	scheme := scheme.Scheme
+	embeddedclusterv1beta1.AddToScheme(scheme)
+	controllerLabels := map[string]string{"node-role.kubernetes.io/control-plane": "true"}
+	type args struct {
+		kcli client.Client
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "high availability is not enabled and there is three or more controller nodes",
+			args: args{
+				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+					&embeddedclusterv1beta1.Installation{
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: false},
+					},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
+				).Build(),
+			},
+			want: true,
+		},
+		{
+			name: "high availability is not enabled and there is not three or more controller nodes",
+			args: args{
+				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+					&embeddedclusterv1beta1.Installation{
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: false},
+					},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3"}},
+				).Build(),
+			},
+			want: false,
+		},
+		{
+			name: "high availability is already enabled",
+			args: args{
+				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+					&embeddedclusterv1beta1.Installation{
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: true},
+					},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
+				).Build(),
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			ctx := context.Background()
+			got, err := canEnableHA(ctx, tt.args.kcli)
+			if tt.wantErr {
+				req.Error(err)
+				return
+			}
+			req.NoError(err)
+			req.Equal(tt.want, got)
+		})
+	}
+}
+
+func Test_enableHA(t *testing.T) {
+	scheme := scheme.Scheme
+	embeddedclusterv1beta1.AddToScheme(scheme)
+	type args struct {
+		kcli client.Client
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "happy path",
+			args: args{
+				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+					&embeddedclusterv1beta1.Installation{
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: false},
+						Status: embeddedclusterv1beta1.InstallationStatus{
+							Conditions: []metav1.Condition{
+								{
+									Type:   registry.RegistryMigrationStatusConditionType,
+									Status: metav1.ConditionTrue,
+									Reason: "MigrationJobCompleted",
+								},
+							},
+						},
+					},
+				).Build(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			ctx := context.Background()
+			err := enableHA(ctx, tt.args.kcli)
+			if tt.wantErr {
+				req.Error(err)
+				return
+			}
+			req.NoError(err)
+			// validate that high availability is enabled
+			var installation embeddedclusterv1beta1.Installation
+			err = tt.args.kcli.Get(ctx, client.ObjectKey{Name: "test-installation"}, &installation)
+			req.NoError(err)
+			req.True(installation.Spec.HighAvailability)
 		})
 	}
 }
