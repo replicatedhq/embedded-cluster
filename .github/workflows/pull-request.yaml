@@ -168,7 +168,6 @@ jobs:
           - TestSingleNodeInstallation
           - TestSingleNodeInstallationAlmaLinux8
           - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos8Stream
           - TestVersion
           - TestHostPreflight
           - TestUnsupportedOverrides

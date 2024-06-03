@@ -192,7 +192,7 @@ func TestHostPreflight(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                                 t,
 		Nodes:                             1,
-		Image:                             "centos/8-Stream",
+		Image:                             "debian/12",
 		LicensePath:                       "license.yaml",
 		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
 		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
