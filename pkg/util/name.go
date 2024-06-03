@@ -12,5 +12,4 @@ func NameWithLengthLimit(prefix, suffix string) string {
 	// remove characters from the middle of the string to reduce the total length to 63 characters
 	newCandidate := candidate[0:31] + candidate[len(candidate)-32:]
 	return newCandidate
-
 }

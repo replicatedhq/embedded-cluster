@@ -65,6 +65,8 @@ const InstallationNameAnnotation = "embedded-cluster.replicated.com/installation
 var requeueAfter = time.Hour
 
 const copyArtifactsJobPrefix = "copy-artifacts-"
+const copyHostPreflightResultsJobPrefix = "copy-host-preflight-results-"
+const ecNamespace = "embedded-cluster"
 
 // copyArtifactsJob is a job we create everytime we need to sync files into all nodes.
 // This job mounts /var/lib/embedded-cluster from the node and uses binaries that are
@@ -72,7 +74,7 @@ const copyArtifactsJobPrefix = "copy-artifacts-"
 // variables and a node selector, those are populated during the reconcile cycle.
 var copyArtifactsJob = &batchv1.Job{
 	ObjectMeta: metav1.ObjectMeta{
-		Namespace: "embedded-cluster",
+		Namespace: ecNamespace,
 	},
 	Spec: batchv1.JobSpec{
 		BackoffLimit: ptr.To[int32](2),
@@ -114,6 +116,67 @@ var copyArtifactsJob = &batchv1.Job{
 								"cd /var/lib/embedded-cluster/images/\n" +
 								"mv images-amd64.tar images-amd64-${INSTALLATION}.tar\n" +
 								"echo 'done'",
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
+// copyHostPreflightResultsJob is a job we create everytime we need to copy
+// host preflight results from a newly added node in the cluster. Host preflight
+// are run on installation, join or restore operations. The results are stored
+// in /var/lib/embedded-cluster/support/host-preflight-results.json. During a
+// reconcile cycle we will populate the node selector, any env variables and labels.
+var copyHostPreflightResultsJob = &batchv1.Job{
+	ObjectMeta: metav1.ObjectMeta{
+		Namespace: ecNamespace,
+	},
+	Spec: batchv1.JobSpec{
+		BackoffLimit:            ptr.To[int32](2),
+		TTLSecondsAfterFinished: ptr.To[int32](0), // we don't want to keep the job around. Delete immediately after it finishes.
+		Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				ServiceAccountName: "embedded-cluster-operator",
+				Volumes: []corev1.Volume{
+					{
+						Name: "host",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/var/lib/embedded-cluster",
+								Type: ptr.To[corev1.HostPathType]("Directory"),
+							},
+						},
+					},
+				},
+				RestartPolicy: corev1.RestartPolicyNever,
+				Containers: []corev1.Container{
+					{
+						Name:  "embedded-cluster-updater",
+						Image: "busybox:latest",
+						Command: []string{
+							"/bin/sh",
+							"-e",
+							"-c",
+							"if [ -f /var/lib/embedded-cluster/support/host-preflight-results.json ]; " +
+								"then " +
+								"/var/lib/embedded-cluster/bin/kubectl create configmap ${HSPF_CM_NAME} " +
+								"--from-file=results.json=/var/lib/embedded-cluster/support/host-preflight-results.json " +
+								"-n embedded-cluster --dry-run=client -oyaml | " +
+								"/var/lib/embedded-cluster/bin/kubectl label -f - embedded-cluster/host-preflight-result=${EC_NODE_NAME} --local -o yaml | " +
+								"/var/lib/embedded-cluster/bin/kubectl apply -f - && " +
+								"/var/lib/embedded-cluster/bin/kubectl annotate configmap ${HSPF_CM_NAME} \"update-timestamp=$(date +'%Y-%m-%dT%H:%M:%SZ')\" --overwrite; " +
+								"else " +
+								"echo '/var/lib/embedded-cluster/support/host-preflight-results.json does not exist'; " +
+								"fi",
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "host",
+								MountPath: "/var/lib/embedded-cluster",
+								ReadOnly:  false,
+							},
 						},
 					},
 				},
@@ -386,7 +449,7 @@ func (r *InstallationReconciler) CopyArtifactsToNodes(ctx context.Context, in *v
 		log.Info("Evaluating job for node", "node", node.Name)
 		nsn := types.NamespacedName{
 			Name:      util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name),
-			Namespace: "embedded-cluster",
+			Namespace: ecNamespace,
 		}
 
 		// we first verify if a job already exists for the node, if not then one is
@@ -696,7 +759,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 
 	combinedConfigs, err = applyUserProvidedAddonOverrides(in, combinedConfigs)
 	if err != nil {
-		return fmt.Errorf("failed to apply user provided overrides: %w:", err)
+		return fmt.Errorf("failed to apply user provided overrides: %w", err)
 	}
 
 	existingHelm := &k0sv1beta1.HelmExtensions{}
@@ -1003,6 +1066,55 @@ func (r *InstallationReconciler) ReadClusterConfigSpecFromSecret(ctx context.Con
 	return nil
 }
 
+// CopyHostPreflightResultsFromNodes copies the preflight results from any new node that is added to the cluster
+// A job is scheduled on the new node and the results copied from a host path
+func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.Context, in *v1beta1.Installation, events *NodeEventsBatch) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	if len(events.NodesAdded) == 0 {
+		log.Info("No new nodes added to the cluster, skipping host preflight results copy job creation")
+		return nil
+	}
+
+	for _, event := range events.NodesAdded {
+		log.Info("Creating job to copy host preflight results from node", "node", event.NodeName, "installation", in.Name)
+
+		job := constructHostPreflightResultsJob(event.NodeName, in.Name)
+
+		// overrides the job image if the environment says so.
+		if img := os.Getenv("EMBEDDEDCLUSTER_UTILS_IMAGE"); img != "" {
+			job.Spec.Template.Spec.Containers[0].Image = img
+		}
+
+		if err := r.Create(ctx, job); err != nil {
+			return fmt.Errorf("failed to create job: %w", err)
+		}
+		log.Info("Copy host preflight results job for node created", "node", event.NodeName, "installation", in.Name)
+	}
+
+	return nil
+}
+
+func constructHostPreflightResultsJob(nodeName, installationName string) *batchv1.Job {
+	labels := map[string]string{
+		"embedded-cluster/node-name":    nodeName,
+		"embedded-cluster/installation": installationName,
+	}
+
+	job := copyHostPreflightResultsJob.DeepCopy()
+	job.Name = util.NameWithLengthLimit(copyHostPreflightResultsJobPrefix, nodeName)
+
+	job.Spec.Template.Labels, job.Labels = labels, labels
+	job.Spec.Template.Spec.NodeName = nodeName
+	job.Spec.Template.Spec.Containers[0].Env = append(
+		job.Spec.Template.Spec.Containers[0].Env,
+		corev1.EnvVar{Name: "EC_NODE_NAME", Value: nodeName},
+		corev1.EnvVar{Name: "HSPF_CM_NAME", Value: util.NameWithLengthLimit(nodeName, "-host-preflight-results")},
+	)
+
+	return job
+}
+
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
@@ -1067,6 +1179,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	events, err := r.ReconcileNodeStatuses(ctx, in)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile node status: %w", err)
+	}
+
+	// Copy host preflight results to a configmap for each node
+	if err := r.CopyHostPreflightResultsFromNodes(ctx, in, events); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to copy host preflight results: %w", err)
 	}
 
 	// if necessary start a k0s upgrade by means of autopilot. this also
