@@ -251,7 +251,7 @@ func CreateProxy(in *Input) string {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "j",
+			Alias: "debian/12",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},

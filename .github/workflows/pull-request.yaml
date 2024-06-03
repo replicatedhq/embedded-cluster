@@ -189,6 +189,7 @@ jobs:
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeHAInstallation
     steps:
     - name: Checkout
       uses: actions/checkout@v4

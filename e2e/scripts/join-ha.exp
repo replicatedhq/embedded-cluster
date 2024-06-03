@@ -1,0 +1,37 @@
+#!/usr/bin/env expect
+
+set env(EMBEDDED_CLUSTER_PLAIN_PROMPTS) "true"
+set env(EMBEDDED_CLUSTER_METRICS_BASEURL) "https://staging.replicated.app"
+set env(KUBECONFIG) "/var/lib/k0s/pki/admin.conf"
+set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
+
+set join_command [lindex $argv 0]
+set join_command "$join_command --enable-ha"
+
+spawn $join_command
+
+expect {
+    -timeout 120 "Node has joined the cluster!" {}
+    timeout {
+      puts "\n\nFailed to find successful node join message."
+      exit 1
+    }
+}
+
+expect {
+    "Do you want to enable high availability?" {
+      send "Y\r"
+    }
+    timeout {
+      puts "\n\nFailed to find high availability prompt."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 180 "High availability enabled!" {}
+    timeout {
+      puts "\n\nFailed to find successful node join message."
+      exit 1
+    }
+}
