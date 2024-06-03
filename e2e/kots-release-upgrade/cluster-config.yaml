@@ -49,7 +49,6 @@ spec:
                 nodefs.available: "1%"
                 imagefs.available: "1%"
                 nodefs.inodesFree: "1%"
-                imagefs.inodesFree: "1%"
   extensions:
     helm:
       repositories:
