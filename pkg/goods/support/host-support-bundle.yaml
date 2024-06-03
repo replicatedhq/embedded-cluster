@@ -11,12 +11,31 @@ spec:
   - hostOS: {}
   - memory: {}
   - blockDevices: {}
+  # Certificates for etcd and k8s apiserver
+  - certificate:
+      collectorName: k8s-api-keypair
+      certificatePath: /var/lib/k0s/pki/k0s-api.crt
+      keyPath: /var/lib/k0s/pki/k0s-api.key
+  - certificate:
+      collectorName: etcd-keypair
+      certificatePath: /var/lib/k0s/pki/etcd/server.crt
+      keyPath: /var/lib/k0s/pki/etcd/server.key
+  # Disk usage for commonly used directories
   - diskUsage:
       collectorName: root-disk-usage
       path: /
   - diskUsage:
       collectorName: openebs-disk-usage
       path: /var/openebs/local
+  - diskUsage:
+      collectorName: tmp
+      path: /tmp
+  # APIserver responds to HTTP queries
+  - http:
+      collectorName: k8s-api-healthz-6443
+      command: "curl"
+      args: ["--cert", "/var/lib/k0s/pki/admin.crt", "--key", "/var/lib/k0s/pki/admin.key", "--cacert", "/var/lib/k0s/pki/ca.crt", "-k", "https://localhost:6443/healthz?verbose"]
+  # Run collectors for system information
   - run:
       collectorName: k0s-status
       command: /usr/local/bin/k0s
@@ -40,6 +59,7 @@ spec:
       collectorName: k0scontroller-logs
       command: journalctl
       args: [ "--since", "2 days ago", "--no-pager", "-u", "k0scontroller.service" ]
+      
   hostAnalyzers:
   - ipv4Interfaces:
       outcomes:
