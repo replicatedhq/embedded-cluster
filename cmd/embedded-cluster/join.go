@@ -478,16 +478,18 @@ func enableHA(ctx context.Context, kcli client.Client) error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Enabling high availability")
-	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to get latest installation: %w", err)
 	}
-	installation.Spec.HighAvailability = true
-	if err := kcli.Update(ctx, installation); err != nil {
+	in.Spec.HighAvailability = true
+	if err := kcli.Update(ctx, in); err != nil {
 		return fmt.Errorf("unable to update installation: %w", err)
 	}
-	if err := kubeutils.WaitForHAMigration(ctx, kcli); err != nil {
-		return fmt.Errorf("unable to wait for HA migration: %w", err)
+	if in.Spec.AirGap {
+		if err := kubeutils.WaitForRegistryHAMigration(ctx, kcli); err != nil {
+			return fmt.Errorf("unable to wait for HA migration: %w", err)
+		}
 	}
 	loading.Infof("High availability enabled!")
 	return nil

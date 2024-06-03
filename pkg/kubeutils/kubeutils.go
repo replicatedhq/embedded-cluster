@@ -220,7 +220,7 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 	}
 }
 
-func WaitForHAMigration(ctx context.Context, cli client.Client) error {
+func WaitForRegistryHAMigration(ctx context.Context, cli client.Client) error {
 	for {
 		select {
 		case <-ctx.Done():

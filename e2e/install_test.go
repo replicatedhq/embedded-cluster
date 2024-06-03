@@ -449,7 +449,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
 		Nodes:                   1,
-		Image:                   "ubuntu/jammy",
+		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapBundlePath,
 	})
@@ -779,6 +779,15 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer cleanupCluster(t, tc)
+
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "expect", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
+	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
