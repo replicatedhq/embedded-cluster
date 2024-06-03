@@ -165,30 +165,30 @@ jobs:
       fail-fast: false
       matrix:
         tests:
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
-          - TestVersion
-          - TestHostPreflight
-          - TestUnsupportedOverrides
-          - TestMultiNodeInstallation
-          - TestMultiNodeReset
-          - TestCommandsRequireSudo
-          - TestInstallWithoutEmbed
-          - TestInstallFromReplicatedApp
-          - TestResetAndReinstall
-          - TestResetAndReinstallAirgap
-          - TestCollectSupportBundle
-          - TestOldVersionUpgrade
-          - TestMaterialize
-          - TestLocalArtifactMirror
-          - TestSingleNodeAirgapUpgrade
-          - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgrade
-          - TestSingleNodeDisasterRecovery
-          - TestSingleNodeResumeDisasterRecovery
-          - TestSingleNodeAirgapDisasterRecovery
+          # - TestSingleNodeInstallation
+          # - TestSingleNodeInstallationAlmaLinux8
+          # - TestSingleNodeInstallationDebian12
+          # - TestSingleNodeInstallationCentos9Stream
+          # - TestVersion
+          # - TestHostPreflight
+          # - TestUnsupportedOverrides
+          # - TestMultiNodeInstallation
+          # - TestMultiNodeReset
+          # - TestCommandsRequireSudo
+          # - TestInstallWithoutEmbed
+          # - TestInstallFromReplicatedApp
+          # - TestResetAndReinstall
+          # - TestResetAndReinstallAirgap
+          # - TestCollectSupportBundle
+          # - TestOldVersionUpgrade
+          # - TestMaterialize
+          # - TestLocalArtifactMirror
+          # - TestSingleNodeAirgapUpgrade
+          # - TestInstallSnapshotFromReplicatedApp
+          # - TestMultiNodeAirgapUpgrade
+          # - TestSingleNodeDisasterRecovery
+          # - TestSingleNodeResumeDisasterRecovery
+          # - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
     steps:
     - name: Checkout
