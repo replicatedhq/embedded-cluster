@@ -780,13 +780,14 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	// install "expect" dependency on node 2 as that's where the HA join command will run.
+	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "expect", "-y"},
 	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
+	if err := RunCommandsOnNode(t, tc, 2, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
 	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
