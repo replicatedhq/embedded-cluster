@@ -586,6 +586,7 @@ func NodeHasInternet(in *Input, node string) {
 	if !success {
 		in.T.Fatalf("Timed out trying to reach internet from %s: %v", node, lastErr)
 	}
+	in.T.Logf("Node %s can reach the internet", node)
 }
 
 // CreateNode creates a single node. The i here is used to create a unique
