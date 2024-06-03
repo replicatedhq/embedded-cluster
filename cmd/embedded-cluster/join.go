@@ -460,8 +460,10 @@ func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 		return false, nil
 	}
 	var nodes corev1.NodeList
-	opts := &client.ListOptions{LabelSelector: labels.Set(config.ControllerLabels()).AsSelector()}
-	if err := kcli.List(ctx, &nodes, opts); err != nil {
+	labelSelector := labels.Set(map[string]string{
+		"node-role.kubernetes.io/control-plane": "true",
+	}).AsSelector()
+	if err := kcli.List(ctx, &nodes, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
 		return false, fmt.Errorf("unable to list nodes: %w", err)
 	}
 	if len(nodes.Items) < 3 {
