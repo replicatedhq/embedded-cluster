@@ -282,7 +282,7 @@ func (o *Registry) generateRegistryMigrationRole(ctx context.Context, cli client
 				Verbs:     []string{"get", "list", "update"},
 			},
 			{
-				APIGroups: []string{"apps"},
+				APIGroups: []string{""},
 				Resources: []string{"secrets"},
 				Verbs:     []string{"create"},
 			},
