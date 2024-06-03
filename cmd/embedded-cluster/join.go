@@ -231,6 +231,12 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
+		if strings.Contains(jcmd.K0sJoinCommand, "worker") {
+			metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
+			logrus.Infof("Join finished")
+			return nil
+		}
+
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
 			err := fmt.Errorf("unable to get kube client: %w", err)
