@@ -144,7 +144,7 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("usage: %s node join <url> <token>", binName)
 		}
 
-		logrus.Infof("Fetching join token remotely")
+		logrus.Debugf("fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
 			return fmt.Errorf("unable to get join token: %w", err)
@@ -158,7 +158,7 @@ var joinCommand = &cli.Command{
 		}
 
 		metrics.ReportJoinStarted(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
-		logrus.Infof("Materializing %s binaries", binName)
+		logrus.Debugf("materializing %s binaries", binName)
 		if err := materializeFiles(c); err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -175,14 +175,14 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 
-		logrus.Infof("Saving token to disk")
+		logrus.Debugf("saving token to disk")
 		if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 			err := fmt.Errorf("unable to save token to disk: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Installing %s binaries", binName)
+		logrus.Debugf("installing %s binaries", binName)
 		if err := installK0sBinary(); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
@@ -197,28 +197,28 @@ var joinCommand = &cli.Command{
 			}
 		}
 
-		logrus.Infof("Joining node to cluster")
+		logrus.Debugf("joining node to cluster")
 		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Applying configuration overrides")
+		logrus.Debugf("applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Creating systemd unit files")
+		logrus.Debugf("creating systemd unit files")
 		if err := createSystemdUnitFiles(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Starting %s service", binName)
+		logrus.Debugf("starting %s service", binName)
 		if err := startK0sService(); err != nil {
 			err := fmt.Errorf("unable to start service: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
@@ -233,7 +233,7 @@ var joinCommand = &cli.Command{
 
 		if !strings.Contains(jcmd.K0sJoinCommand, "controller") {
 			metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
-			logrus.Infof("Join finished")
+			logrus.Debugf("worker node join finished")
 			return nil
 		}
 
@@ -265,7 +265,7 @@ var joinCommand = &cli.Command{
 		}
 
 		metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
-		logrus.Infof("Join finished")
+		logrus.Debugf("controller node join finished")
 		return nil
 	},
 }
@@ -439,10 +439,14 @@ func maybeEnableHA(ctx context.Context, kcli client.Client) error {
 	if !canEnableHA {
 		return nil
 	}
+	logrus.Info("")
+	logrus.Info("When adding a third controller node, you have the option to enable high availability. This will migrate the data so that it is replicated across cluster nodes. Once enabled, you will be unable to have fewer than three controller nodes.")
+	logrus.Info("")
 	shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
 	if !shouldEnableHA {
 		return nil
 	}
+	logrus.Info("")
 	return enableHA(ctx, kcli)
 }
 
