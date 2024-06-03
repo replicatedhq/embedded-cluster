@@ -8,7 +8,7 @@ set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
 set join_command [lindex $argv 0]
 set join_command "$join_command --enable-ha"
 
-spawn $join_command
+spawn {*}$join_command
 
 expect {
     -timeout 120 "Node has joined the cluster!" {}
