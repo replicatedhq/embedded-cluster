@@ -225,7 +225,7 @@ func WaitForHAMigration(ctx context.Context, cli client.Client) error {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("context cancelled")
-		case <-time.After(5 * time.Second):
+		default:
 			lastInstall, err := GetLatestInstallation(ctx, cli)
 			if err != nil {
 				return fmt.Errorf("unable to get latest installation: %v", err)
@@ -234,6 +234,7 @@ func WaitForHAMigration(ctx context.Context, cli client.Client) error {
 			if migrationStatus == metav1.ConditionTrue {
 				return nil
 			}
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
@@ -278,9 +279,8 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-// WaitForNode waits for the node to be registered in the k8s cluster.
-// It returns the total number of nodes in the cluster.
-func WaitForNode(ctx context.Context, kcli client.Client, name string) error {
+// WaitForControllerNode waits for a specific controller node to be registered with the cluster.
+func WaitForControllerNode(ctx context.Context, kcli client.Client, name string) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -292,7 +292,9 @@ func WaitForNode(ctx context.Context, kcli client.Client, name string) error {
 			}
 			for _, node := range nodes.Items {
 				if node.Name == name {
-					return true, nil
+					if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
+						return true, nil
+					}
 				}
 			}
 			lasterr = fmt.Errorf("node %s not found", name)
