@@ -222,16 +222,21 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 
 func WaitForHAMigration(ctx context.Context, cli client.Client) error {
 	for {
-		lastInstall, err := GetLatestInstallation(ctx, cli)
-		if err != nil {
-			return fmt.Errorf("unable to get latest installation: %v", err)
-		}
-		migrationStatus := CheckConditionStatus(lastInstall.Status, registry.RegistryMigrationStatusConditionType)
-		if migrationStatus == metav1.ConditionTrue {
-			return nil
-		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled")
+		default:
+			lastInstall, err := GetLatestInstallation(ctx, cli)
+			if err != nil {
+				return fmt.Errorf("unable to get latest installation: %v", err)
+			}
+			migrationStatus := CheckConditionStatus(lastInstall.Status, registry.RegistryMigrationStatusConditionType)
+			if migrationStatus == metav1.ConditionTrue {
+				return nil
+			}
 
-		time.Sleep(5 * time.Second)
+			time.Sleep(5 * time.Second)
+		}
 	}
 }
 
