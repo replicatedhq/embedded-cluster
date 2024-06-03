@@ -52,6 +52,7 @@ var protectedFields = []string{"automation", "embeddedClusterID", "isAirgap"}
 const DEFAULT_ADMIN_CONSOLE_NODE_PORT = 30000
 
 var helmValues = map[string]interface{}{
+	"isHA":          false,
 	"minimalRBAC":   false,
 	"isHelmManaged": false,
 	"service": map[string]interface{}{
@@ -274,15 +275,21 @@ func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spi
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		var count int
-		for _, name := range []string{"kotsadm-rqlite", "kotsadm"} {
-			ready, err := kubeutils.IsStatefulSetReady(ctx, cli, ns, name)
-			if err != nil {
-				lasterr = fmt.Errorf("error checking status of %s: %v", name, err)
-				return false, nil
-			}
-			if ready {
-				count++
-			}
+		ready, err := kubeutils.IsDeploymentReady(ctx, cli, ns, "kotsadm")
+		if err != nil {
+			lasterr = fmt.Errorf("error checking status of kotsadm: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		ready, err = kubeutils.IsStatefulSetReady(ctx, cli, ns, "kotsadm-rqlite")
+		if err != nil {
+			lasterr = fmt.Errorf("error checking status of kotsadm-rqlite: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
 		}
 		if writer != nil {
 			writer.Infof("Waiting for Admin Console to deploy: %d/2 ready", count)

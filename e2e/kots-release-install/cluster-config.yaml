@@ -38,6 +38,14 @@ spec:
           api:
             extraArgs:
               service-node-port-range: 80-32767
+          workerProfiles:
+          - name: custom-eviction
+            values:
+              evictionHard:
+                memory.available: "10Mi"
+                nodefs.available: "1%"
+                imagefs.available: "1%"
+                nodefs.inodesFree: "1%"
   extensions:
     helm:
       repositories:
