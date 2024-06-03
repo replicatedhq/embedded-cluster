@@ -491,6 +491,9 @@ func enableHA(ctx context.Context, kcli client.Client) error {
 			return fmt.Errorf("unable to wait for HA migration: %w", err)
 		}
 	}
+	if err := kubeutils.WaitForInstallation(ctx, kcli, nil); err != nil {
+		return fmt.Errorf("unable to wait for installation: %w", err)
+	}
 	loading.Infof("High availability enabled!")
 	return nil
 }
