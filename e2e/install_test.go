@@ -201,12 +201,14 @@ func TestHostPreflight(t *testing.T) {
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
-		{"dnf", "install", "-y", "openssh-server", "binutils", "tar"},
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "ca-certificates", "curl", "openssh-server", "-y"},
+		{"update-ca-certificates"},
 		{"systemctl", "enable", "sshd"},
 		{"systemctl", "start", "sshd"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install dependencies on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to install ssh on node 0: %v", err)
 	}
 
 	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
