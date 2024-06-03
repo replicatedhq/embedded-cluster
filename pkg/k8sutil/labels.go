@@ -8,9 +8,11 @@ func ApplyCommonLabels(labels map[string]string, in *clusterv1beta1.Installation
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	labels["app.kubernetes.io/name"] = in.Spec.BinaryName
-	labels["app.kubernetes.io/instance"] = in.Spec.ClusterID
-	labels["app.kubernetes.io/version"] = in.Spec.Config.Version
+	if in != nil {
+		labels["app.kubernetes.io/name"] = in.Spec.BinaryName
+		labels["app.kubernetes.io/instance"] = in.Spec.ClusterID
+		labels["app.kubernetes.io/version"] = in.Spec.Config.Version
+	}
 	labels["app.kubernetes.io/component"] = component
 	labels["app.kubernetes.io/part-of"] = "embedded-cluster"
 	labels["app.kubernetes.io/managed-by"] = "embedded-cluster-operator"

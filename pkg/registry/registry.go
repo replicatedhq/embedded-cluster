@@ -59,6 +59,10 @@ func EnsureResources(ctx context.Context, in *clusterv1beta1.Installation, cli c
 	return nil
 }
 
+func RegistryNamespace() string {
+	return registryNamespace
+}
+
 func ensureRegistryNamespace(ctx context.Context, cli client.Client) error {
 	obj := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{Name: registryNamespace},

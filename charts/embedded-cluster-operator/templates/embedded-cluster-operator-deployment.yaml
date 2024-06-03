@@ -60,6 +60,8 @@ spec:
               key: embedded-cluster-version
         - name: EMBEDDEDCLUSTER_UTILS_IMAGE
           value: {{ .Values.utilsImage }}
+        - name: EMBEDDEDCLUSTER_IMAGE
+          value: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
         name: manager
 {{- if .Values.livenessProbe }}
         livenessProbe:

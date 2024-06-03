@@ -8,13 +8,16 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_mergeHelmConfigs(t *testing.T) {
 	type args struct {
 		meta          *ectypes.ReleaseMetadata
 		in            v1beta1.Extensions
+		conditions    []metav1.Condition
 		clusterConfig k0sv1beta1.ClusterConfig
 	}
 	tests := []struct {
@@ -320,6 +323,13 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					},
 				},
 				in: v1beta1.Extensions{},
+				conditions: []metav1.Condition{
+					{
+						Type:   registry.RegistryMigrationStatusConditionType,
+						Status: metav1.ConditionTrue,
+						Reason: "MigrationJobCompleted",
+					},
+				},
 			},
 			want: &k0sv1beta1.HelmExtensions{
 				ConcurrencyLevel: 1,
@@ -350,6 +360,97 @@ func Test_mergeHelmConfigs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:             "ha airgap enabled, migration incomplete",
+			airgap:           true,
+			highAvailability: true,
+			args: args{
+				meta: &ectypes.ReleaseMetadata{
+					Configs: k0sv1beta1.HelmExtensions{
+						ConcurrencyLevel: 1,
+						Repositories: []k0sv1beta1.Repository{
+							{
+								Name: "origrepo",
+							},
+						},
+						Charts: []k0sv1beta1.Chart{
+							{
+								Name: "origchart",
+							},
+						},
+					},
+					BuiltinConfigs: map[string]k0sv1beta1.HelmExtensions{
+						"seaweedfs": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "seaweedfsrepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "seaweedfschart",
+									// Values: `{"filer":{"s3":{"existingConfigSecret":"seaweedfs-s3-secret"}}}`,
+								},
+							},
+						},
+						"registry": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "registryrepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "registrychart",
+								},
+							},
+						},
+						"registry-ha": {
+							Repositories: []k0sv1beta1.Repository{
+								{
+									Name: "registryharepo",
+								},
+							},
+							Charts: []k0sv1beta1.Chart{
+								{
+									Name: "registryhachart",
+									// Values: `{"secrets":{"s3":{"secretRef":"registry-s3-secret"}}}`,
+								},
+							},
+						},
+					},
+				},
+				in: v1beta1.Extensions{},
+				conditions: []metav1.Condition{
+					{
+						Type:   registry.RegistryMigrationStatusConditionType,
+						Status: metav1.ConditionFalse,
+						Reason: "MigrationInProgress",
+					},
+				},
+			},
+			want: &k0sv1beta1.HelmExtensions{
+				ConcurrencyLevel: 1,
+				Repositories: []k0sv1beta1.Repository{
+					{
+						Name: "origrepo",
+					},
+					{
+						Name: "seaweedfsrepo",
+					},
+				},
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name:  "origchart",
+						Order: 100,
+					},
+					{
+						Name:  "seaweedfschart",
+						Order: 100,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -364,6 +465,9 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					LicenseInfo: &v1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: tt.disasterRecovery,
 					},
+				},
+				Status: v1beta1.InstallationStatus{
+					Conditions: tt.args.conditions,
 				},
 			}
 

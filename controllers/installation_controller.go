@@ -366,6 +366,11 @@ func (r *InstallationReconciler) CreateArtifactJobForNode(ctx context.Context, i
 		job.Spec.Template.Spec.Containers[0].Image = img
 	}
 
+	err = ctrl.SetControllerReference(in, job, r.Client.Scheme())
+	if err != nil {
+		return fmt.Errorf("failed to set controller reference: %w", err)
+	}
+
 	if err := r.Create(ctx, job); err != nil {
 		return fmt.Errorf("failed to create job: %w", err)
 	}
@@ -681,6 +686,7 @@ func (r *InstallationReconciler) ReconcileOpenebs(ctx context.Context, in *v1bet
 // created as well as rebalancing stateful pods when nodes are removed from the cluster.
 func (r *InstallationReconciler) ReconcileRegistry(ctx context.Context, in *v1beta1.Installation) error {
 	if in == nil || !in.Spec.AirGap || !in.Spec.HighAvailability {
+		// do not create registry secrets or rebalance stateful pods if the installation is not HA or not airgapped
 		return nil
 	}
 
@@ -706,6 +712,15 @@ func (r *InstallationReconciler) ReconcileRegistry(ctx context.Context, in *v1be
 		return fmt.Errorf("failed to ensure registry resources: %w", err)
 	}
 
+	err = registry.MigrateRegistryData(ctx, in, r.Client)
+	if err != nil {
+		if err := r.Status().Update(ctx, in); err != nil {
+			log.Error(err, "Failed to update installation status")
+		}
+		return fmt.Errorf("failed to migrate registry data: %w", err)
+
+	}
+
 	return nil
 }
 
@@ -719,9 +734,8 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 	}
 
 	log := ctrl.LoggerFrom(ctx)
-	// skip if the installer has already completed, failed or if the k0s upgrade is still in progress
+	// skip if the installer has already failed or if the k0s upgrade is still in progress
 	if in.Status.State == v1beta1.InstallationStateFailed ||
-		in.Status.State == v1beta1.InstallationStateInstalled ||
 		!in.Status.GetKubernetesInstalled() {
 		log.Info("Skipping helm chart reconciliation", "state", in.Status.State)
 		return nil
@@ -1238,9 +1252,9 @@ func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1beta1.Installation{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Service{}).
+		Owns(&batchv1.Job{}).
 		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
 		Watches(&apv1b2.Plan{}, &handler.EnqueueRequestForObject{}).
 		Watches(&k0shelm.Chart{}, &handler.EnqueueRequestForObject{}).
-		Watches(&batchv1.Job{}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
