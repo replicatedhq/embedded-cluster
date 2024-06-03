@@ -6,7 +6,7 @@ set env(KUBECONFIG) "/var/lib/k0s/pki/admin.conf"
 set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
 
 set join_command [lindex $argv 0]
-set join_command "$join_command --enable-ha"
+set join_command [regsub -all {join} $join_command {join --enable-ha}]
 
 spawn {*}$join_command
 
