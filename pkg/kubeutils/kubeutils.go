@@ -231,7 +231,27 @@ func WaitForRegistryHAMigration(ctx context.Context, cli client.Client) error {
 				return fmt.Errorf("unable to get latest installation: %v", err)
 			}
 			migrationStatus := CheckConditionStatus(lastInstall.Status, registry.RegistryMigrationStatusConditionType)
-			if migrationStatus == metav1.ConditionTrue {
+			haStatus := CheckConditionStatus(lastInstall.Status, "HighAvailability")
+			if migrationStatus == metav1.ConditionTrue && haStatus == metav1.ConditionTrue {
+				return nil
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+func WaitForOnlineHAMigration(ctx context.Context, cli client.Client) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled")
+		default:
+			lastInstall, err := GetLatestInstallation(ctx, cli)
+			if err != nil {
+				return fmt.Errorf("unable to get latest installation: %v", err)
+			}
+			haStatus := CheckConditionStatus(lastInstall.Status, "HighAvailability")
+			if haStatus == metav1.ConditionTrue {
 				return nil
 			}
 			time.Sleep(5 * time.Second)

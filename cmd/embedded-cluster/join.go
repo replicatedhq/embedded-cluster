@@ -493,6 +493,10 @@ func enableHA(ctx context.Context, kcli client.Client) error {
 		if err := kubeutils.WaitForRegistryHAMigration(ctx, kcli); err != nil {
 			return fmt.Errorf("unable to wait for HA migration: %w", err)
 		}
+	} else {
+		if err := kubeutils.WaitForOnlineHAMigration(ctx, kcli); err != nil {
+			return fmt.Errorf("unable to wait for HA migration: %w", err)
+		}
 	}
 	if err := kubeutils.WaitForInstallation(ctx, kcli, nil); err != nil {
 		return fmt.Errorf("unable to wait for installation: %w", err)
