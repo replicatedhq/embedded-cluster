@@ -59,28 +59,8 @@ ensure_app_not_upgraded() {
     fi
 }
 
-function retry() {
-    local retries=$1
-    shift
-
-    local count=0
-    until "$@"; do
-        exit=$?
-        wait=$((2 ** $count))
-        count=$(($count + 1))
-        if [ $count -lt $retries ]; then
-            echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
-            sleep $wait
-        else
-            echo "Retry $count/$retries exited $exit, no more retries left."
-            return $exit
-        fi
-    done
-    return 0
-}
-
 main() {
-    local version="$1"
+    local version="appver-$1"
     sleep 10 # wait for kubectl to become available
 
     echo "pods"
@@ -107,7 +87,7 @@ main() {
         echo "Failed waiting for the application's nginx pods"
         exit 1
     fi
-    if ! retry 5 ensure_app_deployed "$version" ; then
+    if ! ensure_app_deployed "$version"; then
         echo "Failed ensuring app is deployed"
         exit 1
     fi
