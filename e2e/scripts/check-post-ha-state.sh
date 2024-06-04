@@ -63,6 +63,9 @@ main() {
     echo "pods"
     kubectl get pods -A
 
+    kubectl get installations
+    kubectl describe installations
+
     echo "ensure that installation is installed"
     kubectl get installations --no-headers | grep -q "Installed"
 
@@ -79,9 +82,11 @@ main() {
         exit 1
     fi
     if ! ensure_app_deployed "$version"; then
+        echo "Failed ensuring app is deployed"
         exit 1
     fi
     if ! ensure_app_not_upgraded; then
+        echo "Failed ensuring app is not upgraded"
         exit 1
     fi
 

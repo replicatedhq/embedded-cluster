@@ -804,12 +804,28 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
+	// join 3rd node as a worker
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	if err != nil {
+		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	command, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
+	}
+	t.Log("worker join token command:", command)
+	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
+		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
+	}
+
 	// join 1st controller
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
-	command, err := findJoinCommandInOutput(stdout)
+	command, err = findJoinCommandInOutput(stdout)
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
@@ -833,22 +849,6 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	line := append([]string{"join-ha.exp"}, []string{command}...)
 	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
 		t.Fatalf("fail to join node 2 as a controller in ha mode: %v", err)
-	}
-
-	// join 3rd node as a worker
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-worker-command")
-	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("worker join token command:", command)
-	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
