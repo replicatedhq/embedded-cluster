@@ -1078,13 +1078,27 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Logf("failed to remove airgap install bundle: %v", err)
 	}
 
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
+
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
 	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
-	commands := [][]string{
+	commands = [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "expect", "-y"},
 	}
-	withEnv := WithEnv(map[string]string{
+	withEnv = WithEnv(map[string]string{
 		"http_proxy":  cluster.HTTPProxy,
 		"https_proxy": cluster.HTTPProxy,
 	})
