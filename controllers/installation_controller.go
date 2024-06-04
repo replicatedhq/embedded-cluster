@@ -746,20 +746,6 @@ func (r *InstallationReconciler) ReconcileHAStatus(ctx context.Context, in *v1be
 	}
 
 	if in.Spec.AirGap {
-		registryReady, err := k8sutil.GetChartHealth(ctx, r.Client, "docker-registry")
-		if err != nil {
-			return fmt.Errorf("failed to check docker-registry readiness: %w", err)
-		}
-		if !registryReady {
-			in.Status.SetCondition(metav1.Condition{
-				Type:               HAConditionType,
-				Status:             metav1.ConditionFalse,
-				Reason:             "RegistryNotReady",
-				ObservedGeneration: in.Generation,
-			})
-			return nil
-		}
-
 		seaweedReady, err := k8sutil.GetChartHealth(ctx, r.Client, "seaweedfs")
 		if err != nil {
 			return fmt.Errorf("failed to check seaweedfs readiness: %w", err)
@@ -774,6 +760,33 @@ func (r *InstallationReconciler) ReconcileHAStatus(ctx context.Context, in *v1be
 			return nil
 		}
 
+		registryMigrated, err := registry.HasRegistryMigrated(ctx, r.Client)
+		if err != nil {
+			return fmt.Errorf("failed to check registry migration status: %w", err)
+		}
+		if !registryMigrated {
+			in.Status.SetCondition(metav1.Condition{
+				Type:               HAConditionType,
+				Status:             metav1.ConditionFalse,
+				Reason:             "RegistryNotMigrated",
+				ObservedGeneration: in.Generation,
+			})
+			return nil
+		}
+
+		registryReady, err := k8sutil.GetChartHealth(ctx, r.Client, "docker-registry")
+		if err != nil {
+			return fmt.Errorf("failed to check docker-registry readiness: %w", err)
+		}
+		if !registryReady {
+			in.Status.SetCondition(metav1.Condition{
+				Type:               HAConditionType,
+				Status:             metav1.ConditionFalse,
+				Reason:             "RegistryNotReady",
+				ObservedGeneration: in.Generation,
+			})
+			return nil
+		}
 	}
 
 	adminConsole, err := k8sutil.GetChartHealth(ctx, r.Client, "admin-console")
