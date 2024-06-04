@@ -167,30 +167,30 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          # - TestSingleNodeInstallation
-          # - TestSingleNodeInstallationAlmaLinux8
-          # - TestSingleNodeInstallationDebian12
-          # - TestSingleNodeInstallationCentos9Stream
-          # - TestVersion
-          # - TestHostPreflight
-          # - TestUnsupportedOverrides
-          # - TestMultiNodeInstallation
-          # - TestMultiNodeReset
-          # - TestCommandsRequireSudo
-          # - TestInstallWithoutEmbed
-          # - TestInstallFromReplicatedApp
-          # - TestResetAndReinstall
-          # - TestResetAndReinstallAirgap
-          # - TestCollectSupportBundle
-          # - TestOldVersionUpgrade
-          # - TestMaterialize
-          # - TestLocalArtifactMirror
-          # - TestSingleNodeAirgapUpgrade
-          # - TestInstallSnapshotFromReplicatedApp
+          - TestSingleNodeInstallation
+          - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos9Stream
+          - TestVersion
+          - TestHostPreflight
+          - TestUnsupportedOverrides
+          - TestMultiNodeInstallation
+          - TestMultiNodeReset
+          - TestCommandsRequireSudo
+          - TestInstallWithoutEmbed
+          - TestInstallFromReplicatedApp
+          - TestResetAndReinstall
+          - TestResetAndReinstallAirgap
+          - TestCollectSupportBundle
+          - TestOldVersionUpgrade
+          - TestMaterialize
+          - TestLocalArtifactMirror
+          - TestSingleNodeAirgapUpgrade
+          - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgrade
-          # - TestSingleNodeDisasterRecovery
-          # - TestSingleNodeResumeDisasterRecovery
-          # - TestSingleNodeAirgapDisasterRecovery
+          - TestSingleNodeDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
+          - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
           - TestMultiNodeAirgapHAInstallation
           - TestMultiNodeAirgapUpgradeSameK0s

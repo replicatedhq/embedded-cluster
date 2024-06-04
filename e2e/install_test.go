@@ -1046,7 +1046,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	t.Log(stdout)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), "false"}
+	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
@@ -1208,7 +1208,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	t.Log(stdout)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), "true"}
+	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
