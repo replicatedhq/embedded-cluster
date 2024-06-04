@@ -32,6 +32,9 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Setup upterm session (ssh)
+    uses: lhotari/action-upterm@v1
+    if: always()
   - name: Remove MS repo
     shell: bash
     run: |
@@ -131,6 +134,3 @@ runs:
       echo -e "\e[1;33m                                                                                                        \e[0m"
       echo -e "\e[1;33m└──────────────────────────────────────────────────────────────────────────────────────────────────────┘\e[0m"
     shell: bash
-  # - name: Setup upterm session (ssh)
-  #   uses: lhotari/action-upterm@v1
-  #   if: always()
