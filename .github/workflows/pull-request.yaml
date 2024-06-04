@@ -192,6 +192,7 @@ jobs:
           # - TestSingleNodeResumeDisasterRecovery
           # - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
+          - TestMultiNodeAirgapHAInstallation
           - TestMultiNodeAirgapUpgradeSameK0s
     steps:
     - name: Checkout
