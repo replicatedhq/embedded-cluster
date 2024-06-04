@@ -160,13 +160,13 @@ jobs:
           output/bin/embedded-cluster-release-builder
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     needs:
       - build
     strategy:
       fail-fast: false
       matrix:
-        tests:
+        test:
           # - TestSingleNodeInstallation
           # - TestSingleNodeInstallationAlmaLinux8
           # - TestSingleNodeInstallationDebian12
@@ -192,38 +192,11 @@ jobs:
           # - TestSingleNodeResumeDisasterRecovery
           # - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
-          - TestMultiNodeAirgapUpgradeSameK0s
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: download binary
-      uses: actions/download-artifact@v4
-      with:
-        name: embedded-release
-        path: output/bin
-
-    - uses: ./.github/actions/e2e
-      with:
-        test-name: '${{ matrix.tests }}'
-        airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
-        snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
-        snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
-        airgap-snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_SNAPSHOT_LICENSE_ID }}
-        license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
-        license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
-        dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
-        dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-
-  e2e-large-runner:
-    runs-on:
-      group: embedded-cluster
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        tests:
           - TestMultiNodeAirgapHAInstallation
+          - TestMultiNodeAirgapUpgradeSameK0s
+        include:
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -235,7 +208,7 @@ jobs:
 
     - uses: ./.github/actions/e2e
       with:
-        test-name: '${{ matrix.tests }}'
+        test-name: '${{ matrix.test }}'
         airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
         snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
         snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
@@ -251,7 +224,6 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - e2e
-      - e2e-large-runner
       - sanitize
       - tests
     if: always()
@@ -259,9 +231,6 @@ jobs:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
       - name: fail if e2e job was not successful
         if: needs.e2e.result != 'success'
-        run: exit 1
-      - name: fail if e2e-large-runner job was not successful
-        if: needs.e2e-large-runner.result != 'success'
         run: exit 1
       - name: fail if sanitize job was not successful
         if: needs.sanitize.result != 'success'
