@@ -233,6 +233,7 @@ func Test_enableHA(t *testing.T) {
 									Reason: "MigrationJobCompleted",
 								},
 							},
+							State: embeddedclusterv1beta1.InstallationStateInstalled,
 						},
 					},
 				).Build(),
