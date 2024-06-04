@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	k0sHelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
 	batchv1 "k8s.io/api/batch/v1"
@@ -47,7 +46,7 @@ func MigrateRegistryData(ctx context.Context, in *clusterv1beta1.Installation, c
 	}
 
 	// if seaweed hasn't finished deploying yet, return without attempting the migration
-	seaweedDeployed, err := GetSeaweedChartHealth(ctx, cli)
+	seaweedDeployed, err := k8sutil.GetChartHealth(ctx, cli, "seaweedfs")
 	if err != nil {
 		return fmt.Errorf("check seaweed chart health: %w", err)
 	}
@@ -138,36 +137,6 @@ func HasRegistryMigrated(ctx context.Context, cli client.Client) (bool, error) {
 	err = maybeDeleteRegistryJob(ctx, cli)
 	if err != nil {
 		return false, fmt.Errorf("cleanup registry migration job: %w", err)
-	}
-
-	return true, nil
-}
-
-// GetSeaweedChartHealth checks the 'k0s-addon-chart-seaweedfs' chart in the 'kube-system' namespace
-// if
-func GetSeaweedChartHealth(ctx context.Context, cli client.Client) (bool, error) {
-	seaChart := k0sHelmv1beta1.Chart{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: "kube-system", Name: "k0s-addon-chart-seaweedfs"}, &seaChart)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("get seaweed chart: %w", err)
-	}
-
-	// check if the seaweed chart is deployed and healthy
-	// if it is, return true
-	if seaChart.Status.Version == "" {
-		return false, nil
-	}
-	if seaChart.Spec.Version != seaChart.Status.Version {
-		return false, nil
-	}
-	if seaChart.Status.Error != "" {
-		return false, nil
-	}
-	if seaChart.Status.ValuesHash == "" {
-		return false, nil
 	}
 
 	return true, nil
