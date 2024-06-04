@@ -69,14 +69,6 @@ main() {
     echo "ensure that installation is installed"
     kubectl get installations --no-headers | grep -q "Installed"
 
-    echo "ensure that the admin console branding is available and has the DR label"
-    if ! kubectl get cm -n kotsadm -l replicated.com/disaster-recovery=infra | grep -q kotsadm-application-metadata; then
-        echo "kotsadm-application-metadata configmap not found with the DR label"
-        kubectl get cm -n kotsadm --show-labels
-        kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
-        exit 1
-    fi
-
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
         exit 1
@@ -85,6 +77,14 @@ main() {
         exit 1
     fi
     if ! ensure_app_not_upgraded; then
+        exit 1
+    fi
+
+    echo "ensure that the admin console branding is available and has the DR label"
+    if ! kubectl get cm -n kotsadm -l replicated.com/disaster-recovery=infra | grep -q kotsadm-application-metadata; then
+        echo "kotsadm-application-metadata configmap not found with the DR label"
+        kubectl get cm -n kotsadm --show-labels
+        kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
         exit 1
     fi
 }

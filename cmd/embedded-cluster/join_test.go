@@ -12,7 +12,6 @@ import (
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -230,11 +229,6 @@ func Test_enableHA(t *testing.T) {
 						},
 						Status: embeddedclusterv1beta1.InstallationStatus{
 							Conditions: []metav1.Condition{
-								{
-									Type:   registry.RegistryMigrationStatusConditionType,
-									Status: metav1.ConditionTrue,
-									Reason: "MigrationJobCompleted",
-								},
 								{
 									Type:   "HighAvailability",
 									Status: metav1.ConditionTrue,

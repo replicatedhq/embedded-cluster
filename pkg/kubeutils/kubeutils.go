@@ -7,7 +7,6 @@ import (
 	"time"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -220,27 +219,7 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 	}
 }
 
-func WaitForRegistryHAMigration(ctx context.Context, cli client.Client) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context cancelled")
-		default:
-			lastInstall, err := GetLatestInstallation(ctx, cli)
-			if err != nil {
-				return fmt.Errorf("unable to get latest installation: %v", err)
-			}
-			migrationStatus := CheckConditionStatus(lastInstall.Status, registry.RegistryMigrationStatusConditionType)
-			haStatus := CheckConditionStatus(lastInstall.Status, "HighAvailability")
-			if migrationStatus == metav1.ConditionTrue && haStatus == metav1.ConditionTrue {
-				return nil
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}
-}
-
-func WaitForOnlineHAMigration(ctx context.Context, cli client.Client) error {
+func WaitForHAInstallation(ctx context.Context, cli client.Client) error {
 	for {
 		select {
 		case <-ctx.Done():

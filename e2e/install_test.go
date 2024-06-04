@@ -1120,6 +1120,12 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
 	// join a controller
 	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
 	if err != nil {

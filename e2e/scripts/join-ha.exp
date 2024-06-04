@@ -29,7 +29,7 @@ expect {
 }
 
 expect {
-    -timeout 180 "High availability enabled!" {}
+    -timeout 300 "High availability enabled!" {}
     timeout {
       puts "\n\nFailed to find 'high availability enabled' message."
       exit 1
