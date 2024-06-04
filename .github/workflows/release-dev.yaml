@@ -143,6 +143,7 @@ jobs:
           - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
+          - TestMultiNodeAirgapUpgradeSameK0s
     steps:
       - name: Checkout
         uses: actions/checkout@v4

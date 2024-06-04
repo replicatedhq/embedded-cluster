@@ -72,8 +72,15 @@ main() {
         exit 1
     fi
 
+    # ensure that memcached pods exist
+    if ! kubectl get pods -n memcached | grep -q Running ; then
+        echo "no pods found for memcached deployment"
+        kubectl get pods -n memcached
+        exit 1
+    fi
+
     # ensure that new app pods exist
-    if ! kubectl get pods -n kotsadm -l app=second; then
+    if ! kubectl get pods -n kotsadm -l app=second | grep -q Running ; then
         echo "no pods found for second app version"
         kubectl get pods -n kotsadm
         exit 1
