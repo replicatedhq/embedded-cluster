@@ -487,8 +487,6 @@ func enableHA(ctx context.Context, kcli client.Client) error {
 		return fmt.Errorf("unable to update installation: %w", err)
 	}
 
-	time.Sleep(time.Second * 30)
-
 	if in.Spec.AirGap {
 		if err := kubeutils.WaitForRegistryHAMigration(ctx, kcli); err != nil {
 			return fmt.Errorf("unable to wait for HA migration: %w", err)

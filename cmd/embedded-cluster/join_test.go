@@ -219,18 +219,48 @@ func Test_enableHA(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "happy path",
+			name: "happy path airgap",
 			args: args{
 				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 					&embeddedclusterv1beta1.Installation{
 						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
-						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: false},
+						Spec: embeddedclusterv1beta1.InstallationSpec{
+							HighAvailability: false,
+							AirGap:           true,
+						},
 						Status: embeddedclusterv1beta1.InstallationStatus{
 							Conditions: []metav1.Condition{
 								{
 									Type:   registry.RegistryMigrationStatusConditionType,
 									Status: metav1.ConditionTrue,
 									Reason: "MigrationJobCompleted",
+								},
+								{
+									Type:   "HighAvailability",
+									Status: metav1.ConditionTrue,
+								},
+							},
+							State: embeddedclusterv1beta1.InstallationStateInstalled,
+						},
+					},
+				).Build(),
+			},
+		},
+		{
+			name: "happy path online",
+			args: args{
+				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+					&embeddedclusterv1beta1.Installation{
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+						Spec: embeddedclusterv1beta1.InstallationSpec{
+							HighAvailability: false,
+							AirGap:           false,
+						},
+						Status: embeddedclusterv1beta1.InstallationStatus{
+							Conditions: []metav1.Condition{
+								{
+									Type:   "HighAvailability",
+									Status: metav1.ConditionTrue,
 								},
 							},
 							State: embeddedclusterv1beta1.InstallationStateInstalled,
