@@ -788,7 +788,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
 		Nodes:                   2,
-		Image:                   "ubuntu/jammy",
+		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
