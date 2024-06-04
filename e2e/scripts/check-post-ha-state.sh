@@ -41,23 +41,9 @@ ensure_app_not_upgraded() {
     fi
 }
 
-wait_for_ha_rqlite() {
-    timeout=$((SECONDS + 120)) # 2 minutes
-    while true; do
-        ready=$(kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' || true)
-        if [ "$ready" -eq "3" ]; then
-            break
-        fi
-        if [ $SECONDS -gt $timeout ]; then
-            echo "Timeout: rqlite did not reach HA mode within 2 minutes"
-            exit 1
-        fi
-        sleep 5
-    done
-}
-
 main() {
     local version="$1"
+    local is_airgap="$2"
     sleep 10 # wait for kubectl to become available
 
     echo "pods"
@@ -91,7 +77,17 @@ main() {
     fi
 
     # ensure rqlite is running in HA mode
-    wait_for_ha_rqlite
+    kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3
+
+    if [ "$is_airgap" == "true" ]; then
+        # ensure registry is running in HA mode
+        kubectl get deployment -n registry registry -o jsonpath='{.status.readyReplicas}' | grep -q 2
+
+        # ensure seaweedfs components are healthy
+        kubectl get statefulset -n seaweedfs seaweedfs-filer -o jsonpath='{.status.readyReplicas}' | grep -q 3
+        kubectl get statefulset -n seaweedfs seaweedfs-volume -o jsonpath='{.status.readyReplicas}' | grep -q 3
+        kubectl get statefulset -n seaweedfs seaweedfs-master -o jsonpath='{.status.readyReplicas}' | grep -q 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

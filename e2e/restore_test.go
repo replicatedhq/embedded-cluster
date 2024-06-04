@@ -35,7 +35,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "ubuntu/jammy",
+		Image:               "debian/12",
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -103,7 +103,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "ubuntu/jammy",
+		Image:               "debian/12",
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})

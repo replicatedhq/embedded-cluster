@@ -225,7 +225,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               4,
-		Image:               "ubuntu/jammy",
+		Image:               "debian/12",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -328,7 +328,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:     t,
 		Nodes: 1,
-		Image: "ubuntu/jammy",
+		Image: "debian/12",
 	})
 	defer cleanupCluster(t, tc)
 
@@ -370,7 +370,7 @@ func TestResetAndReinstall(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "ubuntu/jammy",
+		Image:               "debian/12",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -488,7 +488,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:     t,
 		Nodes: 1,
-		Image: "ubuntu/jammy",
+		Image: "debian/12",
 	})
 	defer cleanupCluster(t, tc)
 
@@ -924,14 +924,14 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
+	// install "expect" dependency on node 3 as that's where the HA join command will run.
+	t.Logf("%s: installing test dependencies on node 3", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "expect", "-y"},
 	}
-	if err := RunCommandsOnNode(t, tc, 2, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	if err := RunCommandsOnNode(t, tc, 3, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[3], err)
 	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
@@ -948,7 +948,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	// join 3rd node as a worker
+	// join a worker
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
 	if err != nil {
@@ -959,27 +959,12 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
 	t.Log("worker join token command:", command)
-	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
-	}
-
-	// join 1st controller
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
+	t.Logf("%s: joining node 1 to the cluster as a worker", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 as a controller: %v", err)
+		t.Fatalf("fail to join node 1 to the cluster as a worker: %v", err)
 	}
 
-	// join 2st controller in HA mode
+	// join a controller
 	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
@@ -989,10 +974,25 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
 	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 2 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
+	t.Logf("%s: joining node 2 to the cluster (controller)", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 2, strings.Split(command, " ")); err != nil {
+		t.Fatalf("fail to join node 2 as a controller: %v", err)
+	}
+
+	// join another controller in HA mode
+	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	if err != nil {
+		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	command, err = findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
+	}
+	t.Log("controller join token command:", command)
+	t.Logf("%s: joining node 3 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
 	line := append([]string{"join-ha.exp"}, []string{command}...)
-	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
-		t.Fatalf("fail to join node 2 as a controller in ha mode: %v", err)
+	if _, _, err := RunCommandOnNode(t, tc, 3, line); err != nil {
+		t.Fatalf("fail to join node 3 as a controller in ha mode: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
@@ -1004,7 +1004,149 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	t.Log(stdout)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), "false"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check post ha state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// This test creates 4 airgap nodes, installs on the first one and then generate 2 join tokens
+// for controllers and one join token for worker nodes. Joins the nodes as airgap HA and then waits
+// for them to report ready. Runs additional high availability validations afterwards.
+func TestMultiNodeAirgapHAInstallation(t *testing.T) {
+	t.Parallel()
+
+	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                       t,
+		Nodes:                   3,
+		Image:                   "debian/12",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+	})
+	defer cleanupCluster(t, tc)
+
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+
+	// install "expect" dependency on node 2 as that's where the HA join command will run.
+	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "expect", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 2, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	// remove artifacts after installation to save space
+	line = []string{"rm", "/tmp/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	// join a controller
+	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+	if err != nil {
+		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	command, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
+	}
+	t.Log("controller join token command:", command)
+	t.Logf("%s: preparing embedded cluster airgap files on node 1", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node 1: %v", err)
+	}
+	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(command, " ")); err != nil {
+		t.Fatalf("fail to join node 1 as a controller: %v", err)
+	}
+	// remove the airgap bundle and binary after joining
+	line = []string{"rm", "/tmp/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node 1: %v", err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node 1: %v", err)
+	}
+
+	// join another controller in HA mode
+	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	if err != nil {
+		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	command, err = findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
+	}
+	t.Log("controller join token command:", command)
+	t.Logf("%s: preparing embedded cluster airgap files on node 2", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node 2: %v", err)
+	}
+	t.Logf("%s: joining node 2 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
+	line = append([]string{"join-ha.exp"}, []string{command}...)
+	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+		t.Fatalf("fail to join node 2 as a controller in ha mode: %v", err)
+	}
+	// remove the airgap bundle and binary after joining
+	line = []string{"rm", "/tmp/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node 2: %v", err)
+	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node 2: %v", err)
+	}
+
+	// wait for the nodes to report as ready.
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3"})
+	if err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log(stdout)
+
+	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), "true"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
@@ -1017,7 +1159,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:     t,
 		Nodes: 1,
-		Image: "ubuntu/jammy",
+		Image: "debian/12",
 	})
 	defer cleanupCluster(t, tc)
 
