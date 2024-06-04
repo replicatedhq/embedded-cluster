@@ -1071,7 +1071,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	// defer cleanupCluster(t, tc)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
