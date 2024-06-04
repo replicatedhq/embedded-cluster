@@ -41,6 +41,26 @@ ensure_app_not_upgraded() {
     fi
 }
 
+function retry() {
+    local retries=$1
+    shift
+
+    local count=0
+    until "$@"; do
+        exit=$?
+        wait=$((2 ** $count))
+        count=$(($count + 1))
+        if [ $count -lt $retries ]; then
+            echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+            sleep $wait
+        else
+            echo "Retry $count/$retries exited $exit, no more retries left."
+            return $exit
+        fi
+    done
+    return 0
+}
+
 main() {
     local version="$1"
     sleep 10 # wait for kubectl to become available
@@ -54,11 +74,14 @@ main() {
     echo "ensure that installation is installed"
     kubectl get installations --no-headers | grep -q "Installed"
 
+    # ensure rqlite is running in HA mode
+    kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3
+
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
         exit 1
     fi
-    if ! ensure_app_deployed "$version"; then
+    if ! retry 5 ensure_app_deployed "$version" ; then
         echo "Failed ensuring app is deployed"
         exit 1
     fi
@@ -74,9 +97,6 @@ main() {
         kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
         exit 1
     fi
-
-    # ensure rqlite is running in HA mode
-    kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

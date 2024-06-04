@@ -191,6 +191,20 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
+
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
 		t.Logf("failed to remove airgap install bundle: %v", err)
@@ -202,7 +216,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
-	withEnv := WithEnv(map[string]string{
+	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
