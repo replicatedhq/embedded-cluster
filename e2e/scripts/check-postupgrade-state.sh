@@ -120,8 +120,15 @@ main() {
     echo "ensure that the admin console branding is available"
     kubectl get cm -n kotsadm kotsadm-application-metadata
 
-    echo "ensure that the kotsadm statefulset exists"
-    kubectl get statefulset -n kotsadm kotsadm
+    echo "ensure that the kotsadm deployment exists"
+    kubectl get deployment -n kotsadm kotsadm
+
+    echo "ensure the kotsadm statefulset does not exist"
+    if kubectl get statefulset -n kotsadm kotsadm; then
+        echo "kotsadm statefulset found"
+        kubectl get statefulset -n kotsadm kotsadm
+        exit 1
+    fi
 
     echo "ensure the kotsadm-minio statefulset does not exist"
     if kubectl get statefulset -n kotsadm kotsadm-minio; then

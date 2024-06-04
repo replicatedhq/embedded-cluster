@@ -46,13 +46,14 @@ spec:
                 name: embedded-cluster-operator
                 namespace: embedded-cluster
                 order: 2
-                version: 0.33.2
+                version: 0.34.3
               - chartname: oci://registry.replicated.com/library/admin-console
                 name: admin-console
                 namespace: kotsadm
                 order: 3
-                version: 1.109.3
+                version: 1.109.9-build.1
                 values: |
+                  isHA: false
                   isHelmManaged: false
                   minimalRBAC: false
                   service:

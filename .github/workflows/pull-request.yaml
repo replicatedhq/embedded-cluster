@@ -14,7 +14,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version-file: go.mod
     - name: Go vet
       run: |
         make vet
@@ -31,7 +31,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version-file: go.mod
     - name: Go vet
       run: |
        make vet
@@ -49,7 +49,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version-file: go.mod
     - name: Build Linux AMD64 and Output Metadata
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
@@ -160,13 +160,13 @@ jobs:
           output/bin/embedded-cluster-release-builder
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     needs:
       - build
     strategy:
       fail-fast: false
       matrix:
-        tests:
+        test:
           - TestSingleNodeInstallation
           - TestSingleNodeInstallationAlmaLinux8
           - TestSingleNodeInstallationDebian12
@@ -185,13 +185,18 @@ jobs:
           - TestOldVersionUpgrade
           - TestMaterialize
           - TestLocalArtifactMirror
-          - TestSingleNodeAirgapUpgradeUbuntuJammy
+          - TestSingleNodeAirgapUpgrade
           - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgradeUbuntuJammy
+          - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeHAInstallation
+          - TestMultiNodeAirgapHAInstallation
           - TestMultiNodeAirgapUpgradeSameK0s
+        include:
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -203,7 +208,7 @@ jobs:
 
     - uses: ./.github/actions/e2e
       with:
-        test-name: '${{ matrix.tests }}'
+        test-name: '${{ matrix.test }}'
         airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
         snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
         snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}

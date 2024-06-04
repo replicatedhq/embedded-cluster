@@ -251,7 +251,7 @@ func CreateProxy(in *Input) string {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "j",
+			Alias: "debian/12",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
@@ -489,6 +489,7 @@ func CopyFileToNode(in *Input, node string, file File) {
 	} {
 		RunCommandOnNode(in, cmd, node)
 	}
+	in.T.Logf("Copying `%s` to node %s", file.DestPath, node)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -742,7 +743,7 @@ func PullImage(in *Input) {
 
 	for _, server := range []string{
 		"https://images.lxd.canonical.com",
-		"https://cloud-images.ubuntu.com/releases",
+		"https://cloud-images.ubuntu.com/minimal/releases",
 	} {
 		in.T.Logf("Pulling %q image from %s", in.Image, server)
 		remote, err := lxd.ConnectSimpleStreams(server, nil)

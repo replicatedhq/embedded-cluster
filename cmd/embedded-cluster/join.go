@@ -13,17 +13,24 @@ import (
 	"github.com/google/uuid"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
@@ -105,15 +112,20 @@ var joinCommand = &cli.Command{
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
 			Hidden: true,
 		},
+		&cli.BoolFlag{
+			Name:   "enable-ha",
+			Usage:  "Enable high availability",
+			Hidden: true,
+		},
 	},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("node join command must be run as root")
 		}
-
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}
+		os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 		return nil
 	},
 	Action: func(c *cli.Context) error {
@@ -132,7 +144,7 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("usage: %s node join <url> <token>", binName)
 		}
 
-		logrus.Infof("Fetching join token remotely")
+		logrus.Debugf("fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
 			return fmt.Errorf("unable to get join token: %w", err)
@@ -146,7 +158,7 @@ var joinCommand = &cli.Command{
 		}
 
 		metrics.ReportJoinStarted(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
-		logrus.Infof("Materializing %s binaries", binName)
+		logrus.Debugf("materializing %s binaries", binName)
 		if err := materializeFiles(c); err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -163,14 +175,14 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 
-		logrus.Infof("Saving token to disk")
+		logrus.Debugf("saving token to disk")
 		if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 			err := fmt.Errorf("unable to save token to disk: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Installing %s binaries", binName)
+		logrus.Debugf("installing %s binaries", binName)
 		if err := installK0sBinary(); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
@@ -185,36 +197,75 @@ var joinCommand = &cli.Command{
 			}
 		}
 
-		logrus.Infof("Joining node to cluster")
+		logrus.Debugf("joining node to cluster")
 		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Applying configuration overrides")
+		logrus.Debugf("applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Creating systemd unit files")
+		logrus.Debugf("creating systemd unit files")
 		if err := createSystemdUnitFiles(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		logrus.Infof("Starting %s service", binName)
+		logrus.Debugf("starting %s service", binName)
 		if err := startK0sService(); err != nil {
 			err := fmt.Errorf("unable to start service: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
+		if err := waitForK0s(); err != nil {
+			err := fmt.Errorf("unable to wait for node: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
+		if !strings.Contains(jcmd.K0sJoinCommand, "controller") {
+			metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
+			logrus.Debugf("worker node join finished")
+			return nil
+		}
+
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			err := fmt.Errorf("unable to get kube client: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+		embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
+		hostname, err := os.Hostname()
+		if err != nil {
+			err := fmt.Errorf("unable to get hostname: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+		if err := waitForNode(c.Context, kcli, hostname); err != nil {
+			err := fmt.Errorf("unable to wait for node: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
+		if c.Bool("enable-ha") {
+			if err := maybeEnableHA(c.Context, kcli); err != nil {
+				err := fmt.Errorf("unable to enable high availability: %w", err)
+				metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+				return err
+			}
+		}
+
 		metrics.ReportJoinSucceeded(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID)
-		logrus.Infof("Join finished")
+		logrus.Debugf("controller node join finished")
 		return nil
 	},
 }
@@ -366,5 +417,78 @@ func runK0sInstallCommand(fullcmd string) error {
 	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
 		return err
 	}
+	return nil
+}
+
+func waitForNode(ctx context.Context, kcli client.Client, hostname string) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Waiting for node to join the cluster")
+	if err := kubeutils.WaitForControllerNode(ctx, kcli, hostname); err != nil {
+		return fmt.Errorf("unable to wait for node: %w", err)
+	}
+	loading.Infof("Node has joined the cluster!")
+	return nil
+}
+
+func maybeEnableHA(ctx context.Context, kcli client.Client) error {
+	canEnableHA, err := canEnableHA(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
+	}
+	if !canEnableHA {
+		return nil
+	}
+	logrus.Info("")
+	logrus.Info("When adding a third controller node, you have the option to enable high availability. This will migrate the data so that it is replicated across cluster nodes. Once enabled, you must maintain at least three controller nodes.")
+	logrus.Info("")
+	shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
+	if !shouldEnableHA {
+		return nil
+	}
+	logrus.Info("")
+	return enableHA(ctx, kcli)
+}
+
+// canEnableHA checks if high availability can be enabled in the cluster.
+func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
+	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return false, fmt.Errorf("unable to get latest installation: %w", err)
+	}
+	if installation.Spec.HighAvailability {
+		return false, nil
+	}
+	var nodes corev1.NodeList
+	labelSelector := labels.Set(map[string]string{
+		"node-role.kubernetes.io/control-plane": "true",
+	}).AsSelector()
+	if err := kcli.List(ctx, &nodes, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
+		return false, fmt.Errorf("unable to list nodes: %w", err)
+	}
+	if len(nodes.Items) < 3 {
+		return false, nil
+	}
+	return true, nil
+}
+
+// enableHA enables high availability in the installation object
+// and waits for the migration to be complete.
+func enableHA(ctx context.Context, kcli client.Client) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Enabling high availability")
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("unable to get latest installation: %w", err)
+	}
+	in.Spec.HighAvailability = true
+	if err := kcli.Update(ctx, in); err != nil {
+		return fmt.Errorf("unable to update installation: %w", err)
+	}
+	if err := kubeutils.WaitForHAInstallation(ctx, kcli); err != nil {
+		return fmt.Errorf("unable to wait for ha installation: %w", err)
+	}
+	loading.Infof("High availability enabled!")
 	return nil
 }

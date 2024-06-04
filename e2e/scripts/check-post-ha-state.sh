@@ -23,26 +23,8 @@ wait_for_nginx_pods() {
 ensure_app_deployed() {
     local version="$1"
 
-    echo "exporting authstring"
-    # export the authstring secret
-    local kotsadm_auth_string=
-    kotsadm_auth_string=$(kubectl get secret -n kotsadm kotsadm-authstring -o jsonpath='{.data.kotsadm-authstring}' | base64 -d)
-    echo "kotsadm_auth_string: $kotsadm_auth_string"
-
-    echo "getting kotsadm service IP"
-    # get kotsadm service IP address
-    local kotsadm_ip=
-    kotsadm_ip=$(kubectl get svc -n kotsadm kotsadm -o jsonpath='{.spec.clusterIP}')
-    echo "kotsadm_ip: $kotsadm_ip"
-
-    echo "getting kotsadm service port"
-    # get kotsadm service port
-    local kotsadm_port=
-    kotsadm_port=$(kubectl get svc -n kotsadm kotsadm -o jsonpath='{.spec.ports[?(@.name=="http")].port}')
-    echo "kotsadm_port: $kotsadm_port"
-
-    echo "ensuring app version ${version} is deployed"
-    if ! curl -k -X GET "http://${kotsadm_ip}:${kotsadm_port}/api/v1/app/embedded-cluster-smoke-test-staging-app/versions?currentPage=0&pageSize=1" -H "Authorization: $kotsadm_auth_string" | grep -P "(?=.*\"versionLabel\":\"${version}\").*(?=.*\"status\":\"deployed\")"; then
+    kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
+    if ! kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app | grep -q "${version}\W*[01]\W*deployed"; then
         echo "application version ${version} not deployed"
         return 1
     fi
@@ -60,23 +42,31 @@ ensure_app_not_upgraded() {
 }
 
 main() {
-    local version="appver-$1"
+    local version="$1"
     sleep 10 # wait for kubectl to become available
 
     echo "pods"
     kubectl get pods -A
 
+    kubectl get installations
+    kubectl describe installations
+
     echo "ensure that installation is installed"
     kubectl get installations --no-headers | grep -q "Installed"
+
+    # ensure rqlite is running in HA mode
+    kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
         exit 1
     fi
     if ! ensure_app_deployed "$version"; then
+        echo "Failed ensuring app is deployed"
         exit 1
     fi
     if ! ensure_app_not_upgraded; then
+        echo "Failed ensuring app is not upgraded"
         exit 1
     fi
 

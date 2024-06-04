@@ -78,6 +78,10 @@ runs:
       sudo apt-get update -y
       sudo apt install apparmor-utils -y
       sudo aa-complain /etc/apparmor.d/*
+  - name: Setup Go
+    uses: actions/setup-go@v5
+    with:
+      go-version-file: go.mod
   - name: E2E
     shell: bash
     run: |
@@ -133,4 +137,7 @@ runs:
     shell: bash
   # - name: Setup upterm session (ssh)
   #   uses: lhotari/action-upterm@v1
-  #   if: always()
+  #   if: failure()
+  #   with:
+  #     ## If no one connects after 5 minutes, shut down server.
+  #     wait-timeout-minutes: 5
