@@ -561,6 +561,20 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		t.Logf("failed to remove airgap upgrade bundle: %v", err)
 	}
 
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
+
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -649,6 +663,20 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	}
 	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
 		t.Logf("failed to remove airgap upgrade bundle: %v", err)
+	}
+
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
 	}
 
 	// upgrade airgap bundle is only needed on the first node
@@ -794,6 +822,20 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
 	defer cleanupCluster(t, tc)
+
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
