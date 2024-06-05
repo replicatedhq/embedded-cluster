@@ -40,31 +40,34 @@ import (
 type ecRestoreState string
 
 const (
-	ecRestoreStateNew              ecRestoreState = "new"
-	ecRestoreStateConfirmBackup    ecRestoreState = "confirm-backup"
-	ecRestoreStateRestoreInfra     ecRestoreState = "restore-infra"
-	ecRestoreStateRestoreRegistry  ecRestoreState = "restore-registry"
-	ecRestoreStateRestoreECInstall ecRestoreState = "restore-ec-install"
-	ecRestoreStateWaitForNodes     ecRestoreState = "wait-for-nodes"
-	ecRestoreStateRestoreApp       ecRestoreState = "restore-app"
+	ecRestoreStateNew                 ecRestoreState = "new"
+	ecRestoreStateConfirmBackup       ecRestoreState = "confirm-backup"
+	ecRestoreStateRestoreECInstall    ecRestoreState = "restore-ec-install"
+	ecRestoreStateRestoreAdminConsole ecRestoreState = "restore-admin-console"
+	ecRestoreStateWaitForNodes        ecRestoreState = "wait-for-nodes"
+	ecRestoreStateRestoreRegistry     ecRestoreState = "restore-registry"
+	ecRestoreStateRestoreECO          ecRestoreState = "restore-embedded-cluster-operator"
+	ecRestoreStateRestoreApp          ecRestoreState = "restore-app"
 )
 
 var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateNew,
 	ecRestoreStateConfirmBackup,
-	ecRestoreStateRestoreInfra,
 	ecRestoreStateRestoreECInstall,
+	ecRestoreStateRestoreAdminConsole,
 	ecRestoreStateWaitForNodes,
+	ecRestoreStateRestoreRegistry,
+	ecRestoreStateRestoreECO,
 	ecRestoreStateRestoreApp,
 }
 
 const (
-	ecRestoreStateCMName           = "embedded-cluster-restore-state"
-	restoreResourceModifiersCMName = "restore-resource-modifiers"
+	ecRestoreStateCMName    = "embedded-cluster-restore-state"
+	resourceModifiersCMName = "restore-resource-modifiers"
 )
 
-//go:embed assets/restore-resource-modifiers.yaml
-var restoreResourceModifiersYAML string
+//go:embed assets/resource-modifiers.yaml
+var resourceModifiersYAML string
 
 type s3BackupStore struct {
 	endpoint        string
@@ -78,10 +81,11 @@ type s3BackupStore struct {
 type disasterRecoveryComponent string
 
 const (
-	disasterRecoveryComponentInfra     disasterRecoveryComponent = "infra"
-	disasterRecoveryComponentECInstall disasterRecoveryComponent = "ec-install"
-	disasterRecoveryComponentApp       disasterRecoveryComponent = "app"
-	disasterRecoveryComponentRegistry  disasterRecoveryComponent = "registry"
+	disasterRecoveryComponentECInstall    disasterRecoveryComponent = "ec-install"
+	disasterRecoveryComponentAdminConsole disasterRecoveryComponent = "admin-console"
+	disasterRecoveryComponentRegistry     disasterRecoveryComponent = "registry"
+	disasterRecoveryComponentECO          disasterRecoveryComponent = "embedded-cluster-operator"
+	disasterRecoveryComponentApp          disasterRecoveryComponent = "app"
 )
 
 type invalidBackupsError struct {
@@ -509,10 +513,10 @@ func ensureRestoreResourceModifiers(ctx context.Context) error {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: defaults.VeleroNamespace,
-			Name:      restoreResourceModifiersCMName,
+			Name:      resourceModifiersCMName,
 		},
 		Data: map[string]string{
-			"resource-modifiers.yaml": restoreResourceModifiersYAML,
+			"resource-modifiers.yaml": resourceModifiersYAML,
 		},
 	}
 	kcli, err := kubeutils.KubeClient()
@@ -531,14 +535,16 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	defer loading.Close()
 
 	switch drComponent {
-	case disasterRecoveryComponentInfra:
-		loading.Infof("Restoring infrastructure")
 	case disasterRecoveryComponentECInstall:
 		loading.Infof("Restoring cluster state")
-	case disasterRecoveryComponentApp:
-		loading.Infof("Restoring application")
+	case disasterRecoveryComponentAdminConsole:
+		loading.Infof("Restoring Admin Console")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Restoring registry")
+	case disasterRecoveryComponentECO:
+		loading.Infof("Restoring embedded cluster operator")
+	case disasterRecoveryComponentApp:
+		loading.Infof("Restoring application")
 	}
 
 	// wait for restore to complete
@@ -550,7 +556,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		return fmt.Errorf("unable to wait for velero restore to complete: %w", err)
 	}
 
-	if drComponent == disasterRecoveryComponentECInstall {
+	if drComponent == disasterRecoveryComponentECO {
 		// wait for embedded cluster installation to reconcile
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
@@ -576,14 +582,16 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	}
 
 	switch drComponent {
-	case disasterRecoveryComponentInfra:
-		loading.Infof("Infrastructure restored!")
 	case disasterRecoveryComponentECInstall:
 		loading.Infof("Cluster state restored!")
-	case disasterRecoveryComponentApp:
-		loading.Infof("Application restored!")
+	case disasterRecoveryComponentAdminConsole:
+		loading.Infof("Admin Console restored!")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Registry restored!")
+	case disasterRecoveryComponentECO:
+		loading.Infof("Embedded Cluster Operator restored!")
+	case disasterRecoveryComponentApp:
+		loading.Infof("Application restored!")
 	}
 
 	return nil
@@ -611,19 +619,21 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 
 	// create a new restore object if it doesn't exist
 	if errors.IsNotFound(err) {
-		var restoreLabelSelector *metav1.LabelSelector
-		if drComponent == disasterRecoveryComponentRegistry {
-			restoreLabelSelector = &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "docker-registry",
-				},
-			}
-		} else {
-			restoreLabelSelector = &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"replicated.com/disaster-recovery": string(drComponent),
-				},
-			}
+		restoreLabels := map[string]string{}
+		switch drComponent {
+		case disasterRecoveryComponentAdminConsole, disasterRecoveryComponentECO:
+			restoreLabels["replicated.com/disaster-recovery-chart"] = string(drComponent)
+		case disasterRecoveryComponentECInstall, disasterRecoveryComponentApp:
+			restoreLabels["replicated.com/disaster-recovery"] = string(drComponent)
+		case disasterRecoveryComponentRegistry:
+			restoreLabels["app"] = "docker-registry"
+		default:
+			return fmt.Errorf("unknown disaster recovery component: %q", drComponent)
+		}
+
+		// ensure restore resource modifiers
+		if err := ensureRestoreResourceModifiers(ctx); err != nil {
+			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
 		}
 
 		restore := &velerov1.Restore{
@@ -635,13 +645,15 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				},
 			},
 			Spec: velerov1.RestoreSpec{
-				BackupName:              backup.Name,
-				LabelSelector:           restoreLabelSelector,
+				BackupName: backup.Name,
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: restoreLabels,
+				},
 				RestorePVs:              ptr.To(true),
 				IncludeClusterResources: ptr.To(true),
 				ResourceModifier: &corev1.TypedLocalObjectReference{
 					Kind: "ConfigMap",
-					Name: restoreResourceModifiersCMName,
+					Name: resourceModifiersCMName,
 				},
 			},
 		}
@@ -663,7 +675,7 @@ func waitForAdditionalNodes(ctx context.Context) error {
 	}
 
 	loading := spinner.Start()
-	loading.Infof("Waiting for Admin Console to deploy")
+	loading.Infof("Waiting for the Admin Console to deploy")
 	if err := adminconsole.WaitForReady(ctx, kcli, defaults.KotsadmNamespace, loading); err != nil {
 		loading.Close()
 		return fmt.Errorf("unable to wait for admin console: %w", err)
@@ -672,7 +684,7 @@ func waitForAdditionalNodes(ctx context.Context) error {
 
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
-	joinNodesMsg := fmt.Sprintf("\nVisit the admin console if you need to add nodes to the cluster: %s%s%s\n",
+	joinNodesMsg := fmt.Sprintf("\nVisit the Admin Console if you need to add nodes to the cluster: %s%s%s\n",
 		successColor, adminconsole.GetURL(), colorReset,
 	)
 	logrus.Info(joinNodesMsg)
@@ -860,17 +872,24 @@ var restoreCommand = &cli.Command{
 			}
 			fallthrough
 
-		case ecRestoreStateRestoreInfra:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreInfra)
-			if err := setECRestoreState(c.Context, ecRestoreStateRestoreInfra, backupToRestore.Name); err != nil {
+		case ecRestoreStateRestoreECInstall:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECInstall)
+			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
-			logrus.Debugf("ensuring restore resource modifiers")
-			if err := ensureRestoreResourceModifiers(c.Context); err != nil {
-				return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
+			logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
+				return err
 			}
-			logrus.Debugf("restoring infra from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentInfra); err != nil {
+			fallthrough
+
+		case ecRestoreStateRestoreAdminConsole:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreAdminConsole)
+			if err := setECRestoreState(c.Context, ecRestoreStateRestoreAdminConsole, backupToRestore.Name); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
+			}
+			logrus.Debugf("restoring admin console from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
 				return err
 			}
 			fallthrough
@@ -892,31 +911,27 @@ var restoreCommand = &cli.Command{
 				if err := setECRestoreState(c.Context, ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
-
 				logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
-				err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentRegistry)
-				if err != nil {
+				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentRegistry); err != nil {
 					return err
 				}
-
 				registryAddress, ok := backupToRestore.Annotations["kots.io/embedded-registry"]
 				if !ok {
 					return fmt.Errorf("unable to read registry address from backup")
 				}
-
 				if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
 					return fmt.Errorf("failed to add insecure registry: %w", err)
 				}
 			}
 			fallthrough
 
-		case ecRestoreStateRestoreECInstall:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECInstall)
-			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
+		case ecRestoreStateRestoreECO:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECO)
+			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECO, backupToRestore.Name); err != nil {
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
-			logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
+			logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECO); err != nil {
 				return err
 			}
 			fallthrough

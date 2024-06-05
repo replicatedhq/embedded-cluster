@@ -41,7 +41,7 @@ expect {
 }
 
 expect {
-    "Visit the admin console if you need to add nodes to the cluster" {}
+    "Visit the Admin Console if you need to add nodes to the cluster" {}
     timeout {
       puts "\n\nFailed to find admin console URL."
       exit 1

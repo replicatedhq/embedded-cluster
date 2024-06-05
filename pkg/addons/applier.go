@@ -383,11 +383,11 @@ func printKotsadmLinkMessage(licenseFile string) error {
 	colorReset := "\033[0m"
 	var successMessage string
 	if license != nil {
-		successMessage = fmt.Sprintf("Visit the admin console to configure and install %s: %s%s%s",
+		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install %s: %s%s%s",
 			license.Spec.AppSlug, successColor, adminconsole.GetURL(), colorReset,
 		)
 	} else {
-		successMessage = fmt.Sprintf("Visit the admin console to configure and install your application: %s%s%s",
+		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install your application: %s%s%s",
 			successColor, adminconsole.GetURL(), colorReset,
 		)
 	}
