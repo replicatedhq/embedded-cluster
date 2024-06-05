@@ -196,6 +196,8 @@ jobs:
           # - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeHADisasterRecovery
         # include:
+        #   - test: TestMultiNodeAirgapUpgrade
+        #     runner: embedded-cluster
         #   - test: TestMultiNodeAirgapHAInstallation
         #     runner: embedded-cluster
     steps:
