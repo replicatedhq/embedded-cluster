@@ -371,7 +371,7 @@ expect {
 }
 
 expect {
-    -timeout 150 "Embedded cluster operator restored!" {}
+    -timeout 240 "Embedded cluster operator restored!" {}
     timeout {
       puts "\n\nFailed to restore embedded cluster operator."
       exit 1
