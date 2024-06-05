@@ -224,8 +224,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
   labels:
-    replicated.com/disaster-recovery: infra
-    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+    replicated.com/disaster-recovery: ec-install
   name: installations.embeddedcluster.replicated.com
 spec:
   group: embeddedcluster.replicated.com
