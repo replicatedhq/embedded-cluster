@@ -195,6 +195,8 @@ jobs:
           - TestMultiNodeAirgapHAInstallation
           - TestMultiNodeAirgapUpgradeSameK0s
         include:
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
           - test: TestMultiNodeAirgapHAInstallation
             runner: embedded-cluster
     steps:
