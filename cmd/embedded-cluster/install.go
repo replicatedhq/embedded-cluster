@@ -79,20 +79,6 @@ func configureNetworkManager(c *cli.Context) error {
 	return nil
 }
 
-// runPostInstall is a helper function that run things just after the k0s install
-// command ran.
-func runPostInstall() error {
-	src := "/etc/systemd/system/k0scontroller.service"
-	dst := fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
-	if err := os.Symlink(src, dst); err != nil {
-		return fmt.Errorf("failed to create symlink: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
-	}
-	return installAndEnableLocalArtifactMirror()
-}
-
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
@@ -505,9 +491,9 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Debugf("running post install")
-		if err := runPostInstall(); err != nil {
-			err := fmt.Errorf("unable to run post install: %w", err)
+		logrus.Debugf("creating systemd unit files")
+		if err := createSystemdUnitFiles(false); err != nil {
+			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
