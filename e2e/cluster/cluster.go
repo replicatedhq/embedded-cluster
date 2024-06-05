@@ -25,7 +25,7 @@ lxc.mount.auto=proc:rw sys:rw cgroup:rw
 lxc.cgroup.devices.allow=a
 lxc.cap.drop=`
 const checkInternet = `#!/bin/bash
-timeout 5 bash -c 'cat < /dev/null > /dev/tcp/www.replicated.com/80'
+timeout 5 bash -c 'cat < /dev/null > /dev/tcp/api.replicated.com/80'
 if [ $? == 0 ]; then
     exit 0
 fi
@@ -251,7 +251,7 @@ func CreateProxy(in *Input) string {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "j",
+			Alias: "debian/12",
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
@@ -489,6 +489,7 @@ func CopyFileToNode(in *Input, node string, file File) {
 	} {
 		RunCommandOnNode(in, cmd, node)
 	}
+	in.T.Logf("Copying `%s` to node %s", file.DestPath, node)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -571,20 +572,22 @@ func NodeHasInternet(in *Input, node string) {
 		Line:   []string{"/usr/local/bin/check_internet.sh"},
 	}
 	var success bool
-	for i := 0; i < 10; i++ {
+	var lastErr error
+	for i := 0; i < 60; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := Run(ctx, in.T, cmd); err != nil {
-			in.T.Logf("Unable to reach internet from %s: %v", node, err)
-			time.Sleep(30 * time.Second)
+			lastErr = fmt.Errorf("failed to check internet: %v", err)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 		success = true
 		break
 	}
 	if !success {
-		in.T.Fatalf("Unable to reach internet from %s", node)
+		in.T.Fatalf("Timed out trying to reach internet from %s: %v", node, lastErr)
 	}
+	in.T.Logf("Node %s can reach the internet", node)
 }
 
 // CreateNode creates a single node. The i here is used to create a unique
@@ -740,7 +743,7 @@ func PullImage(in *Input) {
 
 	for _, server := range []string{
 		"https://images.lxd.canonical.com",
-		"https://cloud-images.ubuntu.com/releases",
+		"https://cloud-images.ubuntu.com/minimal/releases",
 	} {
 		in.T.Logf("Pulling %q image from %s", in.Image, server)
 		remote, err := lxd.ConnectSimpleStreams(server, nil)

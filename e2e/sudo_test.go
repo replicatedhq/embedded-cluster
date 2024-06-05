@@ -14,7 +14,7 @@ func TestCommandsRequireSudo(t *testing.T) {
 		T:                   t,
 		Nodes:               1,
 		CreateRegularUser:   true,
-		Image:               "ubuntu/jammy",
+		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Destroy()

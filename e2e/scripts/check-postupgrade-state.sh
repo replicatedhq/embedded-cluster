@@ -72,8 +72,15 @@ main() {
         exit 1
     fi
 
+    # ensure that memcached pods exist
+    if ! kubectl get pods -n memcached | grep -q Running ; then
+        echo "no pods found for memcached deployment"
+        kubectl get pods -n memcached
+        exit 1
+    fi
+
     # ensure that new app pods exist
-    if ! kubectl get pods -n kotsadm -l app=second; then
+    if ! kubectl get pods -n kotsadm -l app=second | grep -q Running ; then
         echo "no pods found for second app version"
         kubectl get pods -n kotsadm
         exit 1
@@ -113,8 +120,15 @@ main() {
     echo "ensure that the admin console branding is available"
     kubectl get cm -n kotsadm kotsadm-application-metadata
 
-    echo "ensure that the kotsadm statefulset exists"
-    kubectl get statefulset -n kotsadm kotsadm
+    echo "ensure that the kotsadm deployment exists"
+    kubectl get deployment -n kotsadm kotsadm
+
+    echo "ensure the kotsadm statefulset does not exist"
+    if kubectl get statefulset -n kotsadm kotsadm; then
+        echo "kotsadm statefulset found"
+        kubectl get statefulset -n kotsadm kotsadm
+        exit 1
+    fi
 
     echo "ensure the kotsadm-minio statefulset does not exist"
     if kubectl get statefulset -n kotsadm kotsadm-minio; then
