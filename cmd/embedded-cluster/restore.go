@@ -556,7 +556,16 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		return fmt.Errorf("unable to wait for velero restore to complete: %w", err)
 	}
 
-	if drComponent == disasterRecoveryComponentECO {
+	if drComponent == disasterRecoveryComponentAdminConsole {
+		// wait for admin console to be ready
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			return fmt.Errorf("unable to create kube client: %w", err)
+		}
+		if err := adminconsole.WaitForReady(ctx, kcli, defaults.KotsadmNamespace, loading); err != nil {
+			return fmt.Errorf("unable to wait for admin console: %w", err)
+		}
+	} else if drComponent == disasterRecoveryComponentECO {
 		// wait for embedded cluster operator to reconcile the installation
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
@@ -669,19 +678,6 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
 func waitForAdditionalNodes(ctx context.Context) error {
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("unable to create kube client: %w", err)
-	}
-
-	loading := spinner.Start()
-	loading.Infof("Waiting for the Admin Console to deploy")
-	if err := adminconsole.WaitForReady(ctx, kcli, defaults.KotsadmNamespace, loading); err != nil {
-		loading.Close()
-		return fmt.Errorf("unable to wait for admin console: %w", err)
-	}
-	loading.Closef("Admin Console is ready!")
-
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 	joinNodesMsg := fmt.Sprintf("\nVisit the Admin Console if you need to add nodes to the cluster: %s%s%s\n",
@@ -698,7 +694,12 @@ func waitForAdditionalNodes(ctx context.Context) error {
 		logrus.Info("Please type 'continue' to proceed")
 	}
 
-	loading = spinner.Start()
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	loading := spinner.Start()
 	loading.Infof("Waiting for all nodes to be ready")
 	if err := kubeutils.WaitForNodes(ctx, kcli); err != nil {
 		loading.Close()

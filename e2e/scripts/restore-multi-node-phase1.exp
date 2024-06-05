@@ -117,17 +117,17 @@ expect {
 }
 
 expect {
-    -timeout 60 "Infrastructure restored!" {}
+    -timeout 30 "Cluster state restored!" {}
     timeout {
-      puts "\n\nFailed to restore infrastructure."
+      puts "\n\nFailed to restore cluster state."
       exit 1
     }
 }
 
 expect {
-    -timeout 60 "Admin Console is ready!" {}
+    -timeout 60 "Admin Console restored!" {}
     timeout {
-      puts "\n\nFailed to wait for admin console to be ready."
+      puts "\n\nFailed to restore admin console."
       exit 1
     }
 }
