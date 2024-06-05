@@ -188,7 +188,7 @@ scan:
 .PHONY: sync
 sync:
 	ssh $(SYNC_SERVER) "sudo mkdir -p /root/go/src/github.com/replicatedhq/embedded-cluster"
-	rsync --rsync-path="sudo rsync" -avz --exclude '.git' \
+	rsync --rsync-path="sudo rsync" -avz --exclude '.git' --exclude 'output' --exclude 'pkg/goods/bins' \
 		. $(SYNC_SERVER):/root/go/src/github.com/replicatedhq/embedded-cluster
 
 print-%:

@@ -256,6 +256,34 @@ func materializeFiles(c *cli.Context) error {
 	return nil
 }
 
+// ensureProxyConfig creates a new http-proxy.conf configuration file. The file is saved in the
+// systemd directory (/etc/systemd/system/k0scontroller.service.d/).
+func ensureProxyConfig(c *cli.Context) error {
+	// create the directory
+	dir := "/etc/systemd/system/k0scontroller.service.d"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("unable to create directory: %w", err)
+	}
+
+	// create the file
+	fp, err := os.OpenFile(filepath.Join(dir, "http-proxy.conf"), os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to create proxy file: %w", err)
+	}
+	defer fp.Close()
+
+	// write the file
+	if _, err := fp.WriteString(fmt.Sprintf(`[Service]
+Environment="HTTP_PROXY=%s"
+Environment="HTTPS_PROXY=%s"
+Environment="NO_PROXY=%s"`,
+		c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"))); err != nil {
+		return fmt.Errorf("unable to write proxy file: %w", err)
+	}
+
+	return nil
+}
+
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
@@ -280,6 +308,9 @@ func ensureK0sConfig(c *cli.Context) error {
 	}
 	if c.Bool("proxy") {
 		opts = append(opts, addons.WithProxyFromEnv())
+	}
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
 	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
@@ -448,6 +479,21 @@ var installCommand = &cli.Command{
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "http-proxy",
+			Usage:  "HTTP proxy to use for the installation",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "https-proxy",
+			Usage:  "HTTPS proxy to use for the installation",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "no-proxy",
+			Usage:  "Comma separated list of hosts to bypass the proxy for",
+			Hidden: true,
+		},
 		&cli.BoolFlag{
 			Name:   "proxy",
 			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
@@ -498,6 +544,13 @@ var installCommand = &cli.Command{
 			err := fmt.Errorf("unable to create config file: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
+		}
+		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+			if err := ensureProxyConfig(c); err != nil {
+				err := fmt.Errorf("unable to set proxy configuration: %w", err)
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
 		}
 		logrus.Debugf("installing k0s")
 		if err := installK0s(); err != nil {

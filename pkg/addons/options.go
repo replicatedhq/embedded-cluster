@@ -71,10 +71,15 @@ func WithVersionMetadata(metadata *types.ReleaseMetadata) Option {
 
 // WithProxyFromEnv sets the proxy environment variables to be used during addons installation.
 func WithProxyFromEnv() Option {
+	return WithProxyFromArgs(os.Getenv("HTTP_PROXY"), os.Getenv("HTTPS_PROXY"), os.Getenv("NO_PROXY"))
+}
+
+// WithProxyFromArgs sets the proxy environment variables to be used during addons installation.
+func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string) Option {
 	proxyEnv := map[string]string{
-		"HTTP_PROXY":  os.Getenv("HTTP_PROXY"),
-		"HTTPS_PROXY": os.Getenv("HTTPS_PROXY"),
-		"NO_PROXY":    os.Getenv("NO_PROXY"),
+		"HTTP_PROXY":  httpProxy,
+		"HTTPS_PROXY": httpsProxy,
+		"NO_PROXY":    noProxy,
 	}
 
 	return func(a *Applier) {
