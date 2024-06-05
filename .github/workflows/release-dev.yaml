@@ -145,6 +145,7 @@ jobs:
           - TestMultiNodeHAInstallation
           - TestMultiNodeAirgapHAInstallation
           - TestMultiNodeAirgapUpgradeSameK0s
+          - TestMultiNodeHADisasterRecovery
         include:
           - test: TestMultiNodeAirgapHAInstallation
             runner: embedded-cluster

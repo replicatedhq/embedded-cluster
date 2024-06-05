@@ -15,111 +15,19 @@ set dr_aws_secret_access_key [lindex $argv 5]
 spawn embedded-cluster restore
 
 expect {
-    "Enter information to configure access to your backup storage location." {}
-    timeout {
-      puts "\n\nFailed to find introduction."
-      exit 1
-    }
-}
-
-expect {
-    "S3 endpoint:" {
-      send "$dr_aws_s3_endpoint\r"
-    }
-    timeout {
-      puts "\n\nFailed to find 'S3 endpoint' prompt."
-      exit 1
-    }
-}
-
-expect {
-    "Region:" {
-      send "$dr_aws_s3_region\r"
-    }
-    timeout {
-      puts "\n\nFailed to find 'Region' prompt."
-      exit 1
-    }
-}
-
-expect {
-    "Bucket:" {
-      send "$dr_aws_s3_bucket\r"
-    }
-    timeout {
-      puts "\n\nFailed to find 'Bucket' prompt."
-      exit 1
-    }
-}
-
-expect {
-    "Prefix (press Enter to skip):" {
-      send "$dr_aws_s3_prefix\r"
-    }
-    timeout {
-      puts "\n\nFailed to find 'Prefix' prompt."
-      exit 1
-    }
-}
-
-expect {
-    "Access key ID:" {
-      send "$dr_aws_access_key_id\r"
-    }
-    timeout {
-      puts "\n\nFailed to find 'Access key ID' prompt."
-      exit 1
-    }
-}
-
-expect {
-    "Secret access key:" {
-      send "$dr_aws_secret_access_key\r"
-    }
-    timeout {
-      puts "\n\nFailed to find 'Secret access key' prompt."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 210 "Velero is ready!" {}
-    timeout {
-      puts "\n\nFailed to wait for Velero to be ready."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 30 "Backup storage location configured!" {}
-    timeout {
-      puts "\n\nFailed to configure backup storage location."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 30 "Found 1 restorable backup!" {}
-    timeout {
-      puts "\n\nFailed to find a restorable backup."
-      exit 1
-    }
-}
-
-expect {
-    -re "Restore from backup.*\?" {
+    "A previous restore operation was detected. Would you like to resume?" {
       send "Y\r"
     }
     timeout {
-      puts "\n\nFailed to find 'Restore from backup' prompt."
+      puts "\n\nFailed to find 'previous restore operation was detected' prompt."
       exit 1
     }
 }
 
 expect {
-    -timeout 60 "Infrastructure restored!" {}
+    "Resuming restore from backup" {}
     timeout {
-      puts "\n\nFailed to restore infrastructure."
+      puts "\n\nFailed to find 'resuming restore from backup' message."
       exit 1
     }
 }

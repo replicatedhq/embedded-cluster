@@ -1,0 +1,14 @@
+version: v1
+resourceModifierRules:
+- conditions:
+    groupResource: statefulsets.apps
+    resourceNameRegex: "^kotsadm-rqlite$"
+    namespaces:
+    - kotsadm
+  patches:
+  - operation: replace
+    path: "/spec/replicas"
+    value: 1
+  - operation: replace
+    path: "/spec/template/spec/containers/0/args/2"
+    value: "-bootstrap-expect=1"

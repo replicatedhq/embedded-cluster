@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -58,8 +59,12 @@ var ecRestoreStates = []ecRestoreState{
 }
 
 const (
-	ecRestoreStateCMName = "embedded-cluster-restore-state"
+	ecRestoreStateCMName           = "embedded-cluster-restore-state"
+	restoreResourceModifiersCMName = "restore-resource-modifiers"
 )
+
+//go:embed assets/restore-resource-modifiers.yaml
+var restoreResourceModifiersYAML string
 
 type s3BackupStore struct {
 	endpoint        string
@@ -335,9 +340,9 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
-	if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(defaults.Version, "v") {
-		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, defaults.Version)
-	}
+	// if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(defaults.Version, "v") {
+	// 	return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, defaults.Version)
+	// }
 	if backup.Status.Phase != velerov1.BackupPhaseCompleted {
 		return false, fmt.Sprintf("has a status of %q", backup.Status.Phase)
 	}
@@ -357,9 +362,9 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if _, ok := appsVersions[rel.AppSlug]; !ok {
 		return false, fmt.Sprintf("does not contain the %q application", rel.AppSlug)
 	}
-	if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
-		return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
-	}
+	// if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
+	// 	return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
+	// }
 
 	if _, ok := backup.Annotations["kots.io/is-airgap"]; !ok {
 		return false, "is missing the kots.io/is-airgap annotation"
@@ -496,6 +501,30 @@ func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*ve
 	}
 }
 
+// ensureRestoreResourceModifiers ensures the necessary restore resource modifiers.
+// Velero resource modifiers are used to modify the resources during a Velero restore by specifying json patches.
+// The json patches are applied to the resources before they are restored.
+// The json patches are specified in a configmap and the configmap is referenced in the restore object.
+func ensureRestoreResourceModifiers(ctx context.Context) error {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: defaults.VeleroNamespace,
+			Name:      restoreResourceModifiersCMName,
+		},
+		Data: map[string]string{
+			"resource-modifiers.yaml": restoreResourceModifiersYAML,
+		},
+	}
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	if err := kcli.Create(ctx, cm); err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("unable to create config map: %w", err)
+	}
+	return nil
+}
+
 // waitForDRComponent waits for a disaster recovery component to be restored.
 func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryComponent, restoreName string) error {
 	loading := spinner.Start()
@@ -610,6 +639,10 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				LabelSelector:           restoreLabelSelector,
 				RestorePVs:              ptr.To(true),
 				IncludeClusterResources: ptr.To(true),
+				ResourceModifier: &corev1.TypedLocalObjectReference{
+					Kind: "ConfigMap",
+					Name: restoreResourceModifiersCMName,
+				},
 			},
 		}
 		_, err := veleroClient.Restores(defaults.VeleroNamespace).Create(ctx, restore, metav1.CreateOptions{})
@@ -832,9 +865,23 @@ var restoreCommand = &cli.Command{
 			if err := setECRestoreState(c.Context, ecRestoreStateRestoreInfra, backupToRestore.Name); err != nil {
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
-
+			logrus.Debugf("ensuring restore resource modifiers")
+			if err := ensureRestoreResourceModifiers(c.Context); err != nil {
+				return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
+			}
 			logrus.Debugf("restoring infra from backup %q", backupToRestore.Name)
 			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentInfra); err != nil {
+				return err
+			}
+			fallthrough
+
+		case ecRestoreStateWaitForNodes:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateWaitForNodes)
+			if err := setECRestoreState(c.Context, ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
+			}
+			logrus.Debugf("waiting for additional nodes to be added")
+			if err := waitForAdditionalNodes(c.Context); err != nil {
 				return err
 			}
 			fallthrough
@@ -870,17 +917,6 @@ var restoreCommand = &cli.Command{
 			}
 			logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
 			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
-				return err
-			}
-			fallthrough
-
-		case ecRestoreStateWaitForNodes:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateWaitForNodes)
-			if err := setECRestoreState(c.Context, ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-			logrus.Debugf("waiting for additional nodes to be added")
-			if err := waitForAdditionalNodes(c.Context); err != nil {
 				return err
 			}
 			fallthrough

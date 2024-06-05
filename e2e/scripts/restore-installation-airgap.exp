@@ -125,22 +125,6 @@ expect {
 }
 
 expect {
-    -timeout 150 "Registry restored!" {}
-    timeout {
-      puts "\n\nFailed to restore registry."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 150 "Cluster state restored!" {}
-    timeout {
-      puts "\n\nFailed to restore cluster state."
-      exit 1
-    }
-}
-
-expect {
     -timeout 60 "Admin Console is ready!" {}
     timeout {
       puts "\n\nFailed to wait for admin console to be ready."
@@ -180,6 +164,22 @@ expect {
     -timeout 30 "All nodes are ready!" {}
     timeout {
       puts "\n\nFailed to wait for nodes."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 150 "Registry restored!" {}
+    timeout {
+      puts "\n\nFailed to restore registry."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 150 "Cluster state restored!" {}
+    timeout {
+      puts "\n\nFailed to restore cluster state."
       exit 1
     }
 }

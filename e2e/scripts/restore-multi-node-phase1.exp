@@ -142,46 +142,10 @@ expect {
 
 expect {
     "Type 'continue' when you are done adding nodes" {
-      send "\r"
-    }
-    timeout {
-      puts "\n\nFailed to find 'done adding nodes' prompt."
-      exit 1
-    }
-}
-
-expect {
-    "Please type 'continue' to proceed" {
-      send "continue\r"
-    }
-    timeout {
-      puts "\n\nFailed to find 'type continue to proceed' prompt."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 30 "All nodes are ready!" {}
-    timeout {
-      puts "\n\nFailed to wait for nodes."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 150 "Cluster state restored!" {}
-    timeout {
-      puts "\n\nFailed to restore cluster state."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 60 "Application restored!" {
       exit 0
     }
     timeout {
-      puts "\n\nFailed to restore application."
+      puts "\n\nFailed to find 'done adding nodes' prompt."
       exit 1
     }
 }
