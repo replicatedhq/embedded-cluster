@@ -94,11 +94,13 @@ jobs:
         run: |
           export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
           echo "${SHORT_SHA}"
+          rm e2e/kots-release-install/release.yaml
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
+
           # airgap tests install the previous k0s version to ensure an upgrade occurs
           sed -i "s/${SHORT_SHA}/${SHORT_SHA}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
           
-          rm e2e/kots-release-install/release.yaml
-          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}-previous-k0s"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI-airgap --version "appver-${SHORT_SHA}-upgrade"
 
       - name: upload binary
