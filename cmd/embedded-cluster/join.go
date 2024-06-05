@@ -212,7 +212,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
-		if err := createSystemdUnitFiles(jcmd.K0sJoinCommand); err != nil {
+		if err := createSystemdUnitFiles(strings.Contains(jcmd.K0sJoinCommand, "worker")); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -386,7 +386,7 @@ func systemdUnitFileName() string {
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(fullcmd string) error {
+func createSystemdUnitFiles(isWorker bool) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Stat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -394,14 +394,14 @@ func createSystemdUnitFiles(fullcmd string) error {
 		}
 	}
 	src := "/etc/systemd/system/k0scontroller.service"
-	if strings.Contains(fullcmd, "worker") {
+	if isWorker {
 		src = "/etc/systemd/system/k0sworker.service"
 	}
 	if err := os.Symlink(src, dst); err != nil {
-		return err
+		return fmt.Errorf("failed to create symlink: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return err
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
 	return installAndEnableLocalArtifactMirror()
 }

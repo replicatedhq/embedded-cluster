@@ -808,9 +808,9 @@ var restoreCommand = &cli.Command{
 			if err := installK0s(); err != nil {
 				return fmt.Errorf("unable update cluster: %w", err)
 			}
-			logrus.Debugf("running post install")
-			if err := runPostInstall(); err != nil {
-				return fmt.Errorf("unable to run post install: %w", err)
+			logrus.Debugf("creating systemd unit files")
+			if err := createSystemdUnitFiles(false); err != nil {
+				return fmt.Errorf("unable to create systemd unit files: %w", err)
 			}
 			logrus.Debugf("waiting for k0s to be ready")
 			if err := waitForK0s(); err != nil {
