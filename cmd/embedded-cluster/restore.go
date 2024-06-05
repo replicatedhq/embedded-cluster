@@ -538,7 +538,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	case disasterRecoveryComponentECInstall:
 		loading.Infof("Restoring cluster state")
 	case disasterRecoveryComponentAdminConsole:
-		loading.Infof("Restoring Admin Console")
+		loading.Infof("Restoring the Admin Console")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Restoring registry")
 	case disasterRecoveryComponentECO:
@@ -557,7 +557,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	}
 
 	if drComponent == disasterRecoveryComponentECO {
-		// wait for embedded cluster installation to reconcile
+		// wait for embedded cluster operator to reconcile the installation
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
@@ -589,7 +589,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Registry restored!")
 	case disasterRecoveryComponentECO:
-		loading.Infof("Embedded Cluster Operator restored!")
+		loading.Infof("Embedded cluster operator restored!")
 	case disasterRecoveryComponentApp:
 		loading.Infof("Application restored!")
 	}

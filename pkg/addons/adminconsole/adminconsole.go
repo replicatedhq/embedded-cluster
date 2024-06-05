@@ -202,7 +202,7 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	loading.Infof("Waiting for Admin Console to deploy")
+	loading.Infof("Waiting for the Admin Console to deploy")
 	defer loading.Close()
 
 	if err := createKotsPasswordSecret(ctx, cli, a.namespace, Password); err != nil {
@@ -276,7 +276,7 @@ func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spi
 			count++
 		}
 		if writer != nil {
-			writer.Infof("Waiting for Admin Console to deploy: %d/2 ready", count)
+			writer.Infof("Waiting for the Admin Console to deploy: %d/2 ready", count)
 		}
 		return count == 2, nil
 	}); err != nil {
