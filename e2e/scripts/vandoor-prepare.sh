@@ -6,8 +6,6 @@ main() {
     app_version_label="$1"
     local license_id=
     license_id="$2"
-    local is_airgap=
-    is_airgap="$3"
 
     apt-get update
     apt-get install curl ca-certificates -y

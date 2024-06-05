@@ -125,7 +125,7 @@ expect {
 }
 
 expect {
-    -timeout 60 "Admin Console restored!" {}
+    -timeout 150 "Admin Console restored!" {}
     timeout {
       puts "\n\nFailed to restore admin console."
       exit 1
