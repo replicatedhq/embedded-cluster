@@ -412,7 +412,7 @@ var resetCommand = &cli.Command{
 			}
 		}
 
-		if _, err := os.Stat(systemdUnitFileName()); err == nil {
+		if _, err := os.Lstat(systemdUnitFileName()); err == nil {
 			if err := os.Remove(systemdUnitFileName()); err != nil {
 				return fmt.Errorf("failed to remove systemd unit file: %w", err)
 			}
