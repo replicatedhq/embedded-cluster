@@ -1051,6 +1051,17 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
 
+	bin := strings.Split(command, " ")[0]
+	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "reset", "--no-prompt"})
+	if err != nil {
+		t.Fatalf("fail to remove controller node %s:", err)
+	}
+	if !strings.Contains(stderr, "High-availability clusters must maintain at least three controller nodes") {
+		t.Errorf("reset output does not contain the ha warning")
+		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
