@@ -204,6 +204,15 @@ var joinCommand = &cli.Command{
 			}
 		}
 
+		logrus.Debugf("creating systemd unit files")
+		// both controller and worker nodes will have 'worker' in the join command, but only controllers will have 'enable-worker'
+		// https://github.com/replicatedhq/kots/blob/6a0602f4054d5d5f2d97e649b3303a059f0064d9/pkg/embeddedcluster/node_join.go#L183
+		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "enable-worker"), jcmd.Proxy); err != nil {
+			err := fmt.Errorf("unable to create systemd unit files: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
 		logrus.Debugf("joining node to cluster")
 		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
@@ -214,15 +223,6 @@ var joinCommand = &cli.Command{
 		logrus.Debugf("applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
-		}
-
-		logrus.Debugf("creating systemd unit files")
-		// both controller and worker nodes will have 'worker' in the join command, but only controllers will have 'enable-worker'
-		// https://github.com/replicatedhq/kots/blob/6a0602f4054d5d5f2d97e649b3303a059f0064d9/pkg/embeddedcluster/node_join.go#L183
-		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "enable-worker"), jcmd.Proxy); err != nil {
-			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}

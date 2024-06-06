@@ -773,10 +773,6 @@ var restoreCommand = &cli.Command{
 			if err := ensureK0sConfigForRestore(c); err != nil {
 				return fmt.Errorf("unable to create config file: %w", err)
 			}
-			logrus.Debugf("installing k0s")
-			if err := installK0s(); err != nil {
-				return fmt.Errorf("unable update cluster: %w", err)
-			}
 			var proxy *Proxy
 			if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
 				proxy = &Proxy{
@@ -788,6 +784,10 @@ var restoreCommand = &cli.Command{
 			logrus.Debugf("creating systemd unit files")
 			if err := createSystemdUnitFiles(false, proxy); err != nil {
 				return fmt.Errorf("unable to create systemd unit files: %w", err)
+			}
+			logrus.Debugf("installing k0s")
+			if err := installK0s(); err != nil {
+				return fmt.Errorf("unable update cluster: %w", err)
 			}
 			logrus.Debugf("waiting for k0s to be ready")
 			if err := waitForK0s(); err != nil {

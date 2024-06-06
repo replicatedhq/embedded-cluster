@@ -503,12 +503,6 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Debugf("installing k0s")
-		if err := installK0s(); err != nil {
-			err := fmt.Errorf("unable update cluster: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
 		var proxy *Proxy
 		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
 			proxy = &Proxy{
@@ -520,6 +514,12 @@ var installCommand = &cli.Command{
 		logrus.Debugf("creating systemd unit files")
 		if err := createSystemdUnitFiles(false, proxy); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+		logrus.Debugf("installing k0s")
+		if err := installK0s(); err != nil {
+			err := fmt.Errorf("unable update cluster: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
