@@ -673,6 +673,21 @@ var restoreCommand = &cli.Command{
 			Usage:  "Path to the airgap bundle. If set, the restore will be completed without internet access.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "http-proxy",
+			Usage:  "HTTP proxy to use for the installation",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "https-proxy",
+			Usage:  "HTTPS proxy to use for the installation",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "no-proxy",
+			Usage:  "Comma separated list of hosts to bypass the proxy for",
+			Hidden: true,
+		},
 		&cli.BoolFlag{
 			Name:   "proxy",
 			Usage:  "Use the system proxy settings for the restore operation. These variables are currently only passed through to Velero.",
@@ -762,8 +777,16 @@ var restoreCommand = &cli.Command{
 			if err := installK0s(); err != nil {
 				return fmt.Errorf("unable update cluster: %w", err)
 			}
+			var proxy *Proxy
+			if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+				proxy = &Proxy{
+					HTTPProxy:  c.String("http-proxy"),
+					HTTPSProxy: c.String("https-proxy"),
+					NoProxy:    c.String("no-proxy"),
+				}
+			}
 			logrus.Debugf("creating systemd unit files")
-			if err := createSystemdUnitFiles(false); err != nil {
+			if err := createSystemdUnitFiles(false, proxy); err != nil {
 				return fmt.Errorf("unable to create systemd unit files: %w", err)
 			}
 			logrus.Debugf("waiting for k0s to be ready")

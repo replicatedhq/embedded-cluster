@@ -393,35 +393,6 @@ func systemdUnitFileName() string {
 	return fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
 }
 
-// createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
-// systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(isWorker bool, proxy *Proxy) error {
-	dst := systemdUnitFileName()
-	if _, err := os.Lstat(dst); err == nil {
-		if err := os.Remove(dst); err != nil {
-			return err
-		}
-	}
-	src := "/etc/systemd/system/k0scontroller.service"
-	if proxy != nil {
-		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
-	}
-	if isWorker {
-		src = "/etc/systemd/system/k0sworker.service"
-		if proxy != nil {
-			ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
-		}
-	}
-	if err := os.Symlink(src, dst); err != nil {
-		return fmt.Errorf("failed to create symlink: %w", err)
-	}
-
-	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
-	}
-	return installAndEnableLocalArtifactMirror()
-}
-
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
 func runK0sInstallCommand(fullcmd string) error {

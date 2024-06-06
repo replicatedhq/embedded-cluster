@@ -503,21 +503,22 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-			if err := ensureProxyConfig("/etc/systemd/system/k0scontroller.service.d", c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")); err != nil {
-				err := fmt.Errorf("unable to set proxy configuration: %w", err)
-				metrics.ReportApplyFinished(c, err)
-				return err
-			}
-		}
 		logrus.Debugf("installing k0s")
 		if err := installK0s(); err != nil {
 			err := fmt.Errorf("unable update cluster: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+		var proxy *Proxy
+		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+			proxy = &Proxy{
+				HTTPProxy:  c.String("http-proxy"),
+				HTTPSProxy: c.String("https-proxy"),
+				NoProxy:    c.String("no-proxy"),
+			}
+		}
 		logrus.Debugf("creating systemd unit files")
-		if err := createSystemdUnitFiles(false); err != nil {
+		if err := createSystemdUnitFiles(false, proxy); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
