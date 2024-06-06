@@ -4,6 +4,8 @@ set -euox pipefail
 
 main() {
     expected_nodes="$1"
+    skip_goldpinger="$2"
+
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "$expected_nodes" ]; do
@@ -18,6 +20,10 @@ main() {
         kubectl get nodes || true
     done
     echo "All nodes are ready"
+
+    if [ "$skip_goldpinger" == "true" ]; then
+        exit 0
+    fi
 
     echo "checking that goldpinger has run on all nodes"
     kubectl get pods -n goldpinger
