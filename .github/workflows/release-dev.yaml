@@ -147,6 +147,7 @@ jobs:
           - TestMultiNodeHAInstallation
           - TestMultiNodeAirgapHAInstallation
           - TestMultiNodeAirgapUpgradeSameK0s
+          - TestProxiedEnvironment
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster

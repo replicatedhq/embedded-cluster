@@ -445,9 +445,16 @@ var resetCommand = &cli.Command{
 			}
 		}
 
-		proxyPath := "/etc/systemd/system/k0scontroller.service.d/http-proxy.conf"
-		if _, err := os.Stat(proxyPath); err == nil {
-			if err := os.RemoveAll(proxyPath); err != nil {
+		proxyControllerPath := "/etc/systemd/system/k0scontroller.service.d"
+		if _, err := os.Stat(proxyControllerPath); err == nil {
+			if err := os.RemoveAll(proxyControllerPath); err != nil {
+				return err
+			}
+		}
+
+		proxyWorkerPath := "/etc/systemd/system/k0sworker.service.d"
+		if _, err := os.Stat(proxyWorkerPath); err == nil {
+			if err := os.RemoveAll(proxyWorkerPath); err != nil {
 				return err
 			}
 		}
