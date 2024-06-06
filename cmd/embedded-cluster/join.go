@@ -17,9 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -460,17 +458,11 @@ func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	if installation.Spec.HighAvailability {
 		return false, nil
 	}
-	var nodes corev1.NodeList
-	labelSelector := labels.Set(map[string]string{
-		"node-role.kubernetes.io/control-plane": "true",
-	}).AsSelector()
-	if err := kcli.List(ctx, &nodes, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
-		return false, fmt.Errorf("unable to list nodes: %w", err)
+	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
+	if err != nil {
+		return false, fmt.Errorf("unable to check control plane nodes: %w", err)
 	}
-	if len(nodes.Items) < 3 {
-		return false, nil
-	}
-	return true, nil
+	return ncps >= 3, nil
 }
 
 // enableHA enables high availability in the installation object
