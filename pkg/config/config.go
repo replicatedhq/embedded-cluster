@@ -166,15 +166,18 @@ func InstallFlags() []string {
 	}
 }
 
-// nodeLabels return a slice of string with labels (key=value format) for the node where we
-// are installing the k0s.
-func nodeLabels() []string {
+func ControllerLabels() map[string]string {
 	lmap := additionalControllerLabels()
 	lmap["kots.io/embedded-cluster-role-0"] = getControllerRoleName()
 	lmap["kots.io/embedded-cluster-role"] = "total-1"
+	return lmap
+}
 
+// nodeLabels return a slice of string with labels (key=value format) for the node where we
+// are installing the k0s.
+func nodeLabels() []string {
 	labels := []string{}
-	for k, v := range lmap {
+	for k, v := range ControllerLabels() {
 		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
 	}
 	return labels

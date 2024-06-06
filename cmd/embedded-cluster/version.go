@@ -129,21 +129,6 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	}
 	meta.Protected = protectedFields
 
-	// Airgap
-	airgapCht, airgapRepo, err := applier.GetAirgapCharts()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get airgap charts: %w", err)
-	}
-	meta.AirgapConfigs = k0sconfig.HelmExtensions{
-		ConcurrencyLevel: 1,
-		Charts:           airgapCht,
-		Repositories:     airgapRepo,
-	}
-	additionalImages, err := applier.GetAdditionalImages()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get airgap images: %w", err)
-	}
-
 	// Additional builtin addons
 	builtinCharts, err := applier.GetBuiltinCharts()
 	if err != nil {
@@ -154,7 +139,13 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	// Render k0s config to get the images contained within
 	k0sConfig := config.RenderK0sConfig()
 	meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
+
+	additionalImages, err := applier.GetAdditionalImages()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get airgap images: %w", err)
+	}
 	meta.K0sImages = append(meta.K0sImages, additionalImages...)
+
 	return &meta, nil
 }
 

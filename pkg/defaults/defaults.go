@@ -24,6 +24,7 @@ var (
 )
 
 const KotsadmNamespace = "kotsadm"
+const SeaweedFSNamespace = "seaweedfs"
 const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
 

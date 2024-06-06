@@ -14,11 +14,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
 
@@ -107,16 +107,12 @@ func (h *hostInfo) drainNode() error {
 // it stores any errors in h.KclientError
 func (h *hostInfo) configureKubernetesClient() {
 	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
-	config, err := controllerruntime.GetConfig()
+	client, err := kubeutils.KubeClient()
 	if err != nil {
-		h.KclientError = fmt.Errorf("unable to create cluster client config: %w", err)
+		h.KclientError = fmt.Errorf("unable to create kube client: %w", err)
 		return
 	}
-	h.Kclient, err = client.New(config, client.Options{})
-	if err != nil {
-		h.KclientError = fmt.Errorf("unable to create cluster client: %w", err)
-		return
-	}
+	h.Kclient = client
 	autopilot.AddToScheme(h.Kclient.Scheme())
 	v1beta1.AddToScheme(h.Kclient.Scheme())
 }

@@ -14,7 +14,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version-file: go.mod
     - name: Go vet
       run: |
         make vet
@@ -31,7 +31,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version-file: go.mod
     - name: Go vet
       run: |
        make vet
@@ -49,7 +49,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.21.0"
+        go-version-file: go.mod
     - name: Build Linux AMD64 and Output Metadata
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
@@ -118,11 +118,13 @@ jobs:
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         echo "${SHORT_SHA}"
-        # airgap tests install the previous k0s version to ensure an upgrade occurs
-        sed -i "s/${SHORT_SHA}/${SHORT_SHA}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
-        
         rm e2e/kots-release-install/release.yaml
         replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
+
+        # airgap tests install the previous k0s version to ensure an upgrade occurs
+        sed -i "s/${SHORT_SHA}/${SHORT_SHA}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
+
+        replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}-previous-k0s"
         replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI-airgap --version "appver-${SHORT_SHA}-upgrade"
 
     - name: Create download link message text
@@ -158,17 +160,17 @@ jobs:
           output/bin/embedded-cluster-release-builder
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     needs:
       - build
     strategy:
       fail-fast: false
       matrix:
-        tests:
+        test:
           - TestSingleNodeInstallation
           - TestSingleNodeInstallationAlmaLinux8
           - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos8Stream
+          - TestSingleNodeInstallationCentos9Stream
           - TestVersion
           - TestHostPreflight
           - TestUnsupportedOverrides
@@ -183,12 +185,20 @@ jobs:
           - TestOldVersionUpgrade
           - TestMaterialize
           - TestLocalArtifactMirror
-          - TestSingleNodeAirgapUpgradeUbuntuJammy
+          - TestSingleNodeAirgapUpgrade
           - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgradeUbuntuJammy
+          - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeHAInstallation
+          - TestMultiNodeAirgapHAInstallation
+          - TestMultiNodeAirgapUpgradeSameK0s
+        include:
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -200,7 +210,7 @@ jobs:
 
     - uses: ./.github/actions/e2e
       with:
-        test-name: '${{ matrix.tests }}'
+        test-name: '${{ matrix.test }}'
         airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
         snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
         snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}

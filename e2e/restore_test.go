@@ -35,7 +35,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "ubuntu/jammy",
+		Image:               "debian/12",
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -103,7 +103,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
-		Image:               "ubuntu/jammy",
+		Image:               "debian/12",
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
@@ -172,7 +172,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
 		wg.Done()
 	}()
 	go func() {
@@ -184,12 +184,26 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
 		Nodes:                   1,
-		Image:                   "ubuntu/jammy",
+		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
 	defer cleanupCluster(t, tc)
+
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -202,7 +216,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
-	withEnv := WithEnv(map[string]string{
+	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
@@ -217,7 +231,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA"))}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -227,7 +241,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
+	commands = [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "expect", "-y"},
 	}
@@ -249,7 +263,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
 	t.Logf("%s: checking installation state after restoring app", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA"))}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}

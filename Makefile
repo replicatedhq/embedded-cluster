@@ -4,18 +4,21 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.109.8
+ADMIN_CONSOLE_CHART_VERSION = 1.109.9-build.1
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.33.2
+EMBEDDED_OPERATOR_CHART_VERSION = 0.34.6
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_URL = https://openebs.github.io/openebs
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 4.0.1
 OPENEBS_UTILS_VERSION = 4.0.0
+SEAWEEDFS_CHART_URL = https://seaweedfs.github.io/seaweedfs/helm
+SEAWEEDFS_CHART_NAME = seaweedfs/seaweedfs
+SEAWEEDFS_CHART_VERSION = 3.67.0
 REGISTRY_CHART_URL = https://helm.twun.io
 REGISTRY_CHART_NAME = twuni/docker-registry
 REGISTRY_CHART_VERSION = 2.2.3
@@ -51,6 +54,9 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.UtilsVersion=$(OPENEBS_UTILS_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.ChartURL=$(SEAWEEDFS_CHART_URL) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.ChartName=$(SEAWEEDFS_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.Version=$(SEAWEEDFS_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartURL=$(REGISTRY_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartName=$(REGISTRY_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
@@ -148,7 +154,7 @@ embedded-cluster-darwin-arm64: go.mod
 
 .PHONY: unit-tests
 unit-tests:
-	go test -v $(shell go list ./... | grep -v /e2e)
+	go test -v ./pkg/... ./cmd/...
 
 .PHONY: vet
 vet: static

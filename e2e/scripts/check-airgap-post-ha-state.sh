@@ -66,17 +66,33 @@ main() {
     echo "pods"
     kubectl get pods -A
 
+    kubectl get installations
+    kubectl describe installations
+
     echo "ensure that installation is installed"
     kubectl get installations --no-headers | grep -q "Installed"
+
+    # ensure rqlite is running in HA mode
+    kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3
+
+    # ensure registry is running in HA mode
+    kubectl get deployment -n registry registry -o jsonpath='{.status.readyReplicas}' | grep -q 2
+
+    # ensure seaweedfs components are healthy
+    kubectl get statefulset -n seaweedfs seaweedfs-filer -o jsonpath='{.status.readyReplicas}' | grep -q 3
+    kubectl get statefulset -n seaweedfs seaweedfs-volume -o jsonpath='{.status.readyReplicas}' | grep -q 3
+    kubectl get statefulset -n seaweedfs seaweedfs-master -o jsonpath='{.status.readyReplicas}' | grep -q 1
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
         exit 1
     fi
     if ! ensure_app_deployed "$version"; then
+        echo "Failed ensuring app is deployed"
         exit 1
     fi
     if ! ensure_app_not_upgraded; then
+        echo "Failed ensuring app is not upgraded"
         exit 1
     fi
 

@@ -76,9 +76,6 @@ main() {
     wait_for_installation
     kubectl get installations --no-headers | grep -q "Installed"
 
-    echo "ensure that the admin console branding is available"
-    kubectl get cm -n kotsadm kotsadm-application-metadata
-
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
         exit 1
@@ -89,6 +86,9 @@ main() {
     if ! ensure_app_not_upgraded; then
         exit 1
     fi
+
+    echo "ensure that the admin console branding is available"
+    kubectl get cm -n kotsadm kotsadm-application-metadata
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
