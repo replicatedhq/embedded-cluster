@@ -16,6 +16,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		Nodes:               3,
 		WithProxy:           true,
 		Image:               "debian/12",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer cleanupCluster(t, tc)
