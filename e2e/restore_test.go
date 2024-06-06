@@ -331,7 +331,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	// defer cleanupCluster(t, tc)
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 3 as that's where the HA join command will run.
@@ -341,7 +341,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		{"apt-get", "install", "expect", "-y"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[3], err)
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
 	if err := RunCommandsOnNode(t, tc, 3, commands); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[3], err)
@@ -511,8 +511,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	t.Log(stdout)
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-multi-node-phase2.exp"}, testArgs...)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"restore-multi-node-phase2.exp"}); err != nil {
 		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
 	}
 
