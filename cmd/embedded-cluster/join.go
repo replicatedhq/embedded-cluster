@@ -212,7 +212,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
-		if err := createSystemdUnitFiles(strings.Contains(jcmd.K0sJoinCommand, "worker")); err != nil {
+		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "enable-worker")); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
