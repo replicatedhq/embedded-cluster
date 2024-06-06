@@ -326,7 +326,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
-		Nodes:               4,
+		Nodes:               3,
 		Image:               "debian/12",
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
@@ -343,8 +343,8 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
-	if err := RunCommandsOnNode(t, tc, 3, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[3], err)
+	if err := RunCommandsOnNode(t, tc, 2, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -359,36 +359,20 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	// join a worker
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	// join a controller
+	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
 	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
 	command, err := findJoinCommandInOutput(stdout)
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
-	t.Log("worker join token command:", command)
-	t.Logf("%s: joining node 1 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 to the cluster as a worker: %v", err)
-	}
-
-	// join a controller
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
 	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 2 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 2, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 2 as a controller: %v", err)
+	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(command, " ")); err != nil {
+		t.Fatalf("fail to join node 1 as a controller: %v", err)
 	}
 
 	// join another controller in HA mode
@@ -402,15 +386,15 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
 	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 3 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
+	t.Logf("%s: joining node 2 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
 	line := append([]string{"join-ha.exp"}, []string{command}...)
-	if _, _, err := RunCommandOnNode(t, tc, 3, line); err != nil {
-		t.Fatalf("fail to join node 3 as a controller in ha mode: %v", err)
+	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+		t.Fatalf("fail to join node 2 as a controller in ha mode: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3"})
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -428,10 +412,6 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// reset the cluster
 	line = []string{"reset-installation.sh"}
-	t.Logf("%s: resetting the installation on node 3", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 3, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
-	}
 	t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
@@ -454,23 +434,23 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	// restore phase 1 completes when the prompt for adding nodes is reached.
 	// add the expected nodes to the cluster, then continue to phase 2.
 
-	// join a worker
-	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-worker-command")
+	// join a controller
+	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
 	if err != nil {
-		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
 	command, err = findJoinCommandInOutput(stdout)
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
-	t.Log("worker join token command:", command)
-	t.Logf("%s: joining node 1 to the cluster as a worker", time.Now().Format(time.RFC3339))
+	t.Log("controller join token command:", command)
+	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 1 to the cluster as a worker: %v", err)
+		t.Fatalf("fail to join node 1 as a controller: %v", err)
 	}
 
-	// join a controller
+	// join another controller in non-HA mode
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
 	if err != nil {
@@ -486,32 +466,13 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to join node 2 as a controller: %v", err)
 	}
 
-	// join another controller in non-HA mode
-	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
-	if err != nil {
-		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
-	}
-	command, err = findJoinCommandInOutput(stdout)
-	if err != nil {
-		t.Fatalf("fail to find the join command in the output: %v", err)
-	}
-	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 3 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 3 as a controller: %v", err)
-	}
-
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4", "true"})
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3", "true"})
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log(stdout)
-
-	// TODO NOW: remove this step
-	time.Sleep(180 * time.Second)
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"restore-multi-node-phase2.exp"}); err != nil {
