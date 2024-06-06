@@ -73,7 +73,7 @@ filer:
     size: "1Gi"
     storageClass: "openebs-hostpath"
   # the chart doesn't automatically create a volume mount for the logs PVC...
-  extraVolumeMounts:
+  extraVolumeMounts: |
     - name: seaweedfs-filer-log-volume
       mountPath: "/logs/"
   s3:
