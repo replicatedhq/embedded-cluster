@@ -390,6 +390,14 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	return true, ""
 }
 
+func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
+	ha, ok := backup.Annotations["kots.io/embedded-cluster-is-ha"]
+	if !ok {
+		return false, fmt.Errorf("unable to read high availability status from backup")
+	}
+	return ha == "true", nil
+}
+
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
 func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, error) {
@@ -649,9 +657,15 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			return fmt.Errorf("unknown disaster recovery component: %q", drComponent)
 		}
 
-		// ensure restore resource modifiers
-		if err := ensureRestoreResourceModifiers(ctx); err != nil {
-			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
+		// ensure restore resource modifiers in case of high availability
+		highAvailability, err := isHighAvailabilityBackup(backup)
+		if err != nil {
+			return err
+		}
+		if highAvailability {
+			if err := ensureRestoreResourceModifiers(ctx); err != nil {
+				return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
+			}
 		}
 
 		restore := &velerov1.Restore{
@@ -920,18 +934,24 @@ var restoreCommand = &cli.Command{
 			if err := setECRestoreState(c.Context, ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
-			logrus.Debugf("waiting for additional nodes to be added")
-			ha, ok := backupToRestore.Annotations["kots.io/embedded-cluster-is-ha"]
-			if !ok {
-				return fmt.Errorf("unable to read high availability status from backup")
+			logrus.Debugf("checking if backup is high availability")
+			highAvailability, err := isHighAvailabilityBackup(backupToRestore)
+			if err != nil {
+				return err
 			}
-			if err := waitForAdditionalNodes(c.Context, ha == "true"); err != nil {
+			logrus.Debugf("waiting for additional nodes to be added")
+			if err := waitForAdditionalNodes(c.Context, highAvailability); err != nil {
 				return err
 			}
 			fallthrough
 
 		case ecRestoreStateRestoreSeaweedFS:
-			if c.String("airgap-bundle") != "" {
+			// only restore seaweedfs in case of high availability and airgap
+			highAvailability, err := isHighAvailabilityBackup(backupToRestore)
+			if err != nil {
+				return err
+			}
+			if highAvailability && c.String("airgap-bundle") != "" {
 				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
 				if err := setECRestoreState(c.Context, ecRestoreStateRestoreSeaweedFS, backupToRestore.Name); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
@@ -944,6 +964,7 @@ var restoreCommand = &cli.Command{
 			fallthrough
 
 		case ecRestoreStateRestoreRegistry:
+			// only restore registry in case of airgap
 			if c.String("airgap-bundle") != "" {
 				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
 				if err := setECRestoreState(c.Context, ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
