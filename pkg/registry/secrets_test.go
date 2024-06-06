@@ -87,7 +87,7 @@ func Test_ensureSeaweedfsS3Secret(t *testing.T) {
 						Namespace:       "seaweedfs",
 						Name:            "secret-seaweedfs-s3",
 						OwnerReferences: []metav1.OwnerReference{testutils.OwnerReference()},
-						Labels:          testutils.Labels("s3"),
+						Labels:          applySeaweedFSLabels(nil, "s3", false),
 					},
 					Data: map[string][]byte{
 						"seaweedfs_s3_config": []byte(`{"identities":[` +
@@ -272,7 +272,7 @@ func Test_ensureRegistryS3Secret(t *testing.T) {
 						Namespace:       "registry",
 						Name:            "seaweedfs-s3-rw",
 						OwnerReferences: []metav1.OwnerReference{testutils.OwnerReference()},
-						Labels:          testutils.Labels("registry"),
+						Labels:          applyRegistryLabels(nil, "registry"),
 					},
 					Data: map[string][]byte{
 						"s3AccessKey": []byte("ACCESSKEY"),

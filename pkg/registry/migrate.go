@@ -200,7 +200,7 @@ func newMigrationJob(in *clusterv1beta1.Installation, cli client.Client) (batchv
 		return batchv1.Job{}, fmt.Errorf("set controller reference: %w", err)
 	}
 
-	job.ObjectMeta.Labels = k8sutil.ApplyCommonLabels(job.ObjectMeta.Labels, in, registryDataMigrationJobName)
+	job.ObjectMeta.Labels = applyRegistryLabels(job.ObjectMeta.Labels, registryDataMigrationJobName)
 
 	return job, nil
 }

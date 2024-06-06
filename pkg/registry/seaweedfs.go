@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -69,7 +68,7 @@ func ensureSeaweedfsS3Service(ctx context.Context, in *clusterv1beta1.Installati
 			return fmt.Errorf("set controller reference: %w", err)
 		}
 
-		obj.ObjectMeta.Labels = k8sutil.ApplyCommonLabels(obj.ObjectMeta.Labels, in, "s3")
+		obj.ObjectMeta.Labels = applySeaweedFSLabels(obj.ObjectMeta.Labels, "s3", true)
 
 		obj.Spec.ClusterIP = clusterIP
 		obj.Spec.Ports = []corev1.ServicePort{

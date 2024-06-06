@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,7 +53,7 @@ func ensureSeaweedfsS3Secret(ctx context.Context, in *clusterv1beta1.Installatio
 			return fmt.Errorf("set controller reference: %w", err)
 		}
 
-		obj.ObjectMeta.Labels = k8sutil.ApplyCommonLabels(obj.ObjectMeta.Labels, in, "s3")
+		obj.ObjectMeta.Labels = applySeaweedFSLabels(obj.ObjectMeta.Labels, "s3", false)
 
 		if obj.Data != nil {
 			err := json.Unmarshal(obj.Data["seaweedfs_s3_config"], &config)
@@ -132,7 +131,7 @@ func ensureRegistryS3Secret(ctx context.Context, in *clusterv1beta1.Installation
 			return fmt.Errorf("set controller reference: %w", err)
 		}
 
-		obj.ObjectMeta.Labels = k8sutil.ApplyCommonLabels(obj.ObjectMeta.Labels, in, "registry")
+		obj.ObjectMeta.Labels = applyRegistryLabels(obj.ObjectMeta.Labels, "registry")
 
 		if obj.Data == nil {
 			obj.Data = make(map[string][]byte)

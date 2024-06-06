@@ -98,7 +98,7 @@ func Test_ensureSeaweedfsS3Service(t *testing.T) {
 						Namespace:       "seaweedfs",
 						Name:            "ec-seaweedfs-s3",
 						OwnerReferences: []metav1.OwnerReference{testutils.OwnerReference()},
-						Labels:          testutils.Labels("s3"),
+						Labels:          applySeaweedFSLabels(nil, "s3", true),
 					},
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
