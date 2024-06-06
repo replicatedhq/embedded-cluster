@@ -119,7 +119,7 @@ check_pod_install_order() {
 main() {
     local additional_args=
     if [ -n "${1:-}" ]; then
-        additional_args="$1"
+        additional_args="$*"
         echo "Running install with additional args: $additional_args"
     fi
     if ! embedded-cluster install --no-prompt --license /tmp/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
