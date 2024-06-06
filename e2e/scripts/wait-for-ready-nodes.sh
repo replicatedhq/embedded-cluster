@@ -4,7 +4,7 @@ set -euox pipefail
 
 main() {
     expected_nodes="$1"
-    skip_goldpinger="$2"
+    skip_goldpinger="${2:-}"
 
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
