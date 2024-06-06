@@ -65,6 +65,7 @@ filer:
     # openebs-hostpath storage does not limit the size of the volume
     size: "1Gi"
     storageClass: "openebs-hostpath"
+  # TODO NOW: logdir isn't set when using a PVC...
   # filer logs are important for recovering lost filers (or adding new ones)
   # store them on a persistent volume in order to be able to back them up
   logs:
