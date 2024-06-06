@@ -45,6 +45,7 @@ const (
 	ecRestoreStateRestoreECInstall    ecRestoreState = "restore-ec-install"
 	ecRestoreStateRestoreAdminConsole ecRestoreState = "restore-admin-console"
 	ecRestoreStateWaitForNodes        ecRestoreState = "wait-for-nodes"
+	ecRestoreStateRestoreSeaweedFS    ecRestoreState = "restore-seaweedfs"
 	ecRestoreStateRestoreRegistry     ecRestoreState = "restore-registry"
 	ecRestoreStateRestoreECO          ecRestoreState = "restore-embedded-cluster-operator"
 	ecRestoreStateRestoreApp          ecRestoreState = "restore-app"
@@ -56,6 +57,7 @@ var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateRestoreECInstall,
 	ecRestoreStateRestoreAdminConsole,
 	ecRestoreStateWaitForNodes,
+	ecRestoreStateRestoreSeaweedFS,
 	ecRestoreStateRestoreRegistry,
 	ecRestoreStateRestoreECO,
 	ecRestoreStateRestoreApp,
@@ -83,6 +85,7 @@ type disasterRecoveryComponent string
 const (
 	disasterRecoveryComponentECInstall    disasterRecoveryComponent = "ec-install"
 	disasterRecoveryComponentAdminConsole disasterRecoveryComponent = "admin-console"
+	disasterRecoveryComponentSeaweedFS    disasterRecoveryComponent = "seaweedfs"
 	disasterRecoveryComponentRegistry     disasterRecoveryComponent = "registry"
 	disasterRecoveryComponentECO          disasterRecoveryComponent = "embedded-cluster-operator"
 	disasterRecoveryComponentApp          disasterRecoveryComponent = "app"
@@ -539,6 +542,8 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		loading.Infof("Restoring cluster state")
 	case disasterRecoveryComponentAdminConsole:
 		loading.Infof("Restoring the Admin Console")
+	case disasterRecoveryComponentSeaweedFS:
+		loading.Infof("Restoring seaweedfs")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Restoring registry")
 	case disasterRecoveryComponentECO:
@@ -595,6 +600,8 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		loading.Infof("Cluster state restored!")
 	case disasterRecoveryComponentAdminConsole:
 		loading.Infof("Admin Console restored!")
+	case disasterRecoveryComponentSeaweedFS:
+		loading.Infof("SeaweedFS restored!")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Registry restored!")
 	case disasterRecoveryComponentECO:
@@ -634,6 +641,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			restoreLabels["replicated.com/disaster-recovery-chart"] = string(drComponent)
 		case disasterRecoveryComponentECInstall, disasterRecoveryComponentApp:
 			restoreLabels["replicated.com/disaster-recovery"] = string(drComponent)
+		case disasterRecoveryComponentSeaweedFS:
+			restoreLabels["app.kubernetes.io/name"] = "seaweedfs"
 		case disasterRecoveryComponentRegistry:
 			restoreLabels["app"] = "docker-registry"
 		default:
@@ -677,7 +686,12 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 }
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
-func waitForAdditionalNodes(ctx context.Context) error {
+func waitForAdditionalNodes(ctx context.Context, highAvailability bool) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 	joinNodesMsg := fmt.Sprintf("\nVisit the Admin Console if you need to add nodes to the cluster: %s%s%s\n",
@@ -687,16 +701,22 @@ func waitForAdditionalNodes(ctx context.Context) error {
 
 	for {
 		p := prompts.New().Input("Type 'continue' when you are done adding nodes:", "", false)
-		if p == "continue" {
-			logrus.Info("")
-			break
+		if p != "continue" {
+			logrus.Info("Please type 'continue' to proceed")
+			continue
 		}
-		logrus.Info("Please type 'continue' to proceed")
-	}
-
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("unable to create kube client: %w", err)
+		if highAvailability {
+			ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
+			if err != nil {
+				return fmt.Errorf("unable to check control plane nodes: %w", err)
+			}
+			// TODO NOW: add this to the test
+			if ncps < 3 {
+				logrus.Infof("You need at least 3 control plane nodes for High-availability. You currently have %d.", ncps)
+				continue
+			}
+		}
+		break
 	}
 
 	loading := spinner.Start()
@@ -901,8 +921,25 @@ var restoreCommand = &cli.Command{
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
 			logrus.Debugf("waiting for additional nodes to be added")
-			if err := waitForAdditionalNodes(c.Context); err != nil {
+			ha, ok := backupToRestore.Annotations["kots.io/embedded-cluster-is-ha"]
+			if !ok {
+				return fmt.Errorf("unable to read high availability status from backup")
+			}
+			if err := waitForAdditionalNodes(c.Context, ha == "true"); err != nil {
 				return err
+			}
+			fallthrough
+
+		case ecRestoreStateRestoreSeaweedFS:
+			if c.String("airgap-bundle") != "" {
+				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
+				if err := setECRestoreState(c.Context, ecRestoreStateRestoreSeaweedFS, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+				logrus.Debugf("restoring seaweedfs from backup %q", backupToRestore.Name)
+				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentSeaweedFS); err != nil {
+					return err
+				}
 			}
 			fallthrough
 
