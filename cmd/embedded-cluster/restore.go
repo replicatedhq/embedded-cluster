@@ -726,7 +726,7 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool) error {
 			}
 			// TODO NOW: add this to the test
 			if ncps < 3 {
-				logrus.Infof("You need at least 3 control plane nodes for High-availability. You currently have %d.", ncps)
+				logrus.Infof("You are restoring a high-availability cluster, which requires at least 3 controller nodes. You currently have %d. Please add more controller nodes.", ncps)
 				continue
 			}
 		}
