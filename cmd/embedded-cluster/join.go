@@ -219,7 +219,9 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
-		if err := createSystemdUnitFiles(jcmd.K0sJoinCommand, jcmd.Proxy); err != nil {
+		// both controller and worker nodes will have 'worker' in the join command, but only controllers will have 'enable-worker'
+		// https://github.com/replicatedhq/kots/blob/6a0602f4054d5d5f2d97e649b3303a059f0064d9/pkg/embeddedcluster/node_join.go#L183
+		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "enable-worker"), jcmd.Proxy); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -393,9 +395,9 @@ func systemdUnitFileName() string {
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(fullcmd string, proxy *Proxy) error {
+func createSystemdUnitFiles(isWorker bool, proxy *Proxy) error {
 	dst := systemdUnitFileName()
-	if _, err := os.Stat(dst); err == nil {
+	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
 			return err
 		}
@@ -404,18 +406,18 @@ func createSystemdUnitFiles(fullcmd string, proxy *Proxy) error {
 	if proxy != nil {
 		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
 	}
-	if strings.Contains(fullcmd, "worker") {
+	if isWorker {
 		src = "/etc/systemd/system/k0sworker.service"
 		if proxy != nil {
 			ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
 		}
 	}
 	if err := os.Symlink(src, dst); err != nil {
-		return err
+		return fmt.Errorf("failed to create symlink: %w", err)
 	}
 
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return err
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
 	return installAndEnableLocalArtifactMirror()
 }
