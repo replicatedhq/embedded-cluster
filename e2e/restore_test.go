@@ -331,17 +331,12 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	// defer cleanupCluster(t, tc)
 
-	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
-	// install "expect" dependency on node 3 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies on node 3", time.Now().Format(time.RFC3339))
+	// install "expect" dependency on node 2 as that's where the HA join command will run.
+	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "expect", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
 	if err := RunCommandsOnNode(t, tc, 2, commands); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
@@ -410,19 +405,25 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
-	// reset the cluster
-	line = []string{"reset-installation.sh"}
-	t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
+	// re-create the cluster
+	cleanupCluster(t, tc)
+	tc = cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               3,
+		Image:               "debian/12",
+		LicensePath:         "snapshot-license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	})
+	defer cleanupCluster(t, tc)
+
+	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands = [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "expect", "-y"},
 	}
-	t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
-	}
-	t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
