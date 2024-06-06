@@ -511,7 +511,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	t.Log(stdout)
 
 	// TODO NOW: remove this step
-	time.Sleep(30 * time.Second)
+	time.Sleep(180 * time.Second)
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"restore-multi-node-phase2.exp"}); err != nil {
