@@ -388,7 +388,7 @@ func systemdUnitFileName() string {
 // systemd unit file for the local artifact mirror service.
 func createSystemdUnitFiles(isWorker bool) error {
 	dst := systemdUnitFileName()
-	if _, err := os.Stat(dst); err == nil {
+	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
 			return err
 		}
