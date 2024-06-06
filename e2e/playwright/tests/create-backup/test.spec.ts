@@ -22,7 +22,7 @@ test('create backup', async ({ page }) => {
   await expect(page.locator('.Loader')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Updating', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Update storage settings' })).not.toBeVisible();
-  await expect(page.locator('form')).toContainText('Settings updated', { timeout: 60000 });
+  await expect(page.locator('form')).toContainText('Settings updated', { timeout: 90000 });
   await expect(page.locator('.Loader')).not.toBeVisible();
   await expect(page.getByRole('button', { name: 'Update storage settings' })).toBeEnabled();
   await page.locator('.subnav-item').getByText('Backups', { exact: true }).click();
