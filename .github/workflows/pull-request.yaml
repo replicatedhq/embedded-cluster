@@ -171,7 +171,7 @@ jobs:
           # - TestSingleNodeInstallationAlmaLinux8
           # - TestSingleNodeInstallationDebian12
           # - TestSingleNodeInstallationCentos9Stream
-          # - TestVersion
+          - TestVersion
           # - TestHostPreflight
           # - TestUnsupportedOverrides
           # - TestMultiNodeInstallation
@@ -194,7 +194,7 @@ jobs:
           # - TestMultiNodeHAInstallation
           # - TestMultiNodeAirgapHAInstallation
           # - TestMultiNodeAirgapUpgradeSameK0s
-          - TestMultiNodeHADisasterRecovery
+          # - TestMultiNodeHADisasterRecovery
         # include:
         #   - test: TestMultiNodeAirgapUpgrade
         #     runner: embedded-cluster
