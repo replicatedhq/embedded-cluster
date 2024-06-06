@@ -350,14 +350,17 @@ func createSystemdUnitFiles(fullcmd string, proxy *Proxy) error {
 		}
 	}
 	src := "/etc/systemd/system/k0scontroller.service"
+	if proxy != nil {
+		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
+	}
 	if strings.Contains(fullcmd, "worker") {
 		src = "/etc/systemd/system/k0sworker.service"
+		if proxy != nil {
+			ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
+		}
 	}
 	if err := os.Symlink(src, dst); err != nil {
 		return err
-	}
-	if proxy != nil {
-		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
 	}
 
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
