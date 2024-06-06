@@ -425,6 +425,9 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
 
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-multi-node-phase1.exp"}, testArgs...)
