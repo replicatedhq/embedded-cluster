@@ -26,6 +26,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 )
 
+type Proxy struct {
+	HTTPProxy  string `json:"httpProxy"`
+	HTTPSProxy string `json:"httpsProxy"`
+	NoProxy    string `json:"noProxy"`
+}
+
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
 type JoinCommandResponse struct {
 	K0sJoinCommand            string    `json:"k0sJoinCommand"`
@@ -35,6 +41,7 @@ type JoinCommandResponse struct {
 	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
 	MetricsBaseURL            string    `json:"metricsBaseURL"`
 	AirgapRegistryAddress     string    `json:"airgapRegistryAddress"`
+	Proxy                     *Proxy    `json:"proxy"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -200,7 +207,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Infof("Creating systemd unit files")
-		if err := createSystemdUnitFiles(jcmd.K0sJoinCommand); err != nil {
+		if err := createSystemdUnitFiles(jcmd.K0sJoinCommand, jcmd.Proxy); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -335,7 +342,7 @@ func systemdUnitFileName() string {
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(fullcmd string) error {
+func createSystemdUnitFiles(fullcmd string, proxy *Proxy) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Stat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -349,6 +356,10 @@ func createSystemdUnitFiles(fullcmd string) error {
 	if err := os.Symlink(src, dst); err != nil {
 		return err
 	}
+	if proxy != nil {
+		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
+	}
+
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return err
 	}

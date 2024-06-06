@@ -256,34 +256,6 @@ func materializeFiles(c *cli.Context) error {
 	return nil
 }
 
-// ensureProxyConfig creates a new http-proxy.conf configuration file. The file is saved in the
-// systemd directory (/etc/systemd/system/k0scontroller.service.d/).
-func ensureProxyConfig(c *cli.Context) error {
-	// create the directory
-	dir := "/etc/systemd/system/k0scontroller.service.d"
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("unable to create directory: %w", err)
-	}
-
-	// create the file
-	fp, err := os.OpenFile(filepath.Join(dir, "http-proxy.conf"), os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return fmt.Errorf("unable to create proxy file: %w", err)
-	}
-	defer fp.Close()
-
-	// write the file
-	if _, err := fp.WriteString(fmt.Sprintf(`[Service]
-Environment="HTTP_PROXY=%s"
-Environment="HTTPS_PROXY=%s"
-Environment="NO_PROXY=%s"`,
-		c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"))); err != nil {
-		return fmt.Errorf("unable to write proxy file: %w", err)
-	}
-
-	return nil
-}
-
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
@@ -546,7 +518,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-			if err := ensureProxyConfig(c); err != nil {
+			if err := ensureProxyConfig("/etc/systemd/system/k0scontroller.service.d", c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")); err != nil {
 				err := fmt.Errorf("unable to set proxy configuration: %w", err)
 				metrics.ReportApplyFinished(c, err)
 				return err
