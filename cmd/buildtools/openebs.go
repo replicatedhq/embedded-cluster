@@ -33,7 +33,7 @@ func SetOpenEBSVersion(c *cli.Context) (string, bool, error) {
 	if err != nil {
 		return "", false, fmt.Errorf("unable to get the latest openebs version: %v", err)
 	}
-	logrus.Printf("latest github openebs release: %s\n", latest)
+	logrus.Printf("latest github openebs release: %s", latest)
 
 	original, err := GetMakefileVariable("OPENEBS_CHART_VERSION")
 	if err != nil {

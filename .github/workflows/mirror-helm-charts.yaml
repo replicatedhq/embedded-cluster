@@ -1,7 +1,9 @@
 name: Update Addons
-# XXX change me
 on:
-  - pull_request
+  schedule:
+    # everyday at midnight.
+    - cron: '0 0 * * *'
+  workflow_dispatch: {}
 jobs:
   build:
     name: Build
