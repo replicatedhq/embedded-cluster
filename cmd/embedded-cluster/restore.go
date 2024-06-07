@@ -521,13 +521,20 @@ func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*ve
 // The json patches are applied to the resources before they are restored.
 // The json patches are specified in a configmap and the configmap is referenced in the restore object.
 func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup) error {
-	registryServiceIP, ok := backup.Annotations["kots.io/embedded-registry"]
+	registryServiceHost, ok := backup.Annotations["kots.io/embedded-registry"]
 	if !ok {
 		return fmt.Errorf("unable to get registry service IP from backup")
 	}
+	registryServiceIP := strings.Split(registryServiceHost, ":")[0]
+
+	seaweedFSS3ServiceIP, ok := backup.Annotations["kots.io/embedded-cluster-seaweedfs-s3-ip"]
+	if !ok {
+		return fmt.Errorf("unable to get seaweedfs s3 service IP from backup")
+	}
 
 	modifiersYAML := strings.Replace(resourceModifiersYAML, "__REGISTRY_SERVICE_IP__", registryServiceIP, 1)
-	// TODO NOW: seaweedfs service IP
+	modifiersYAML = strings.Replace(modifiersYAML, "__SEAWEEDFS_S3_SERVICE_IP__", seaweedFSS3ServiceIP, 1)
+
 	// TODO NOW: rqlite arg num
 	logrus.Info(modifiersYAML)
 

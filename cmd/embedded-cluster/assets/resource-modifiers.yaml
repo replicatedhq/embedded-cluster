@@ -21,3 +21,12 @@ resourceModifierRules:
   - operation: replace
     path: "/spec/clusterIP"
     value: "__REGISTRY_SERVICE_IP__"
+- conditions:
+    groupResource: services
+    resourceNameRegex: "^ec-seaweedfs-s3$"
+    namespaces:
+    - seaweedfs
+  patches:
+  - operation: replace
+    path: "/spec/clusterIP"
+    value: "__SEAWEEDFS_S3_SERVICE_IP__"
