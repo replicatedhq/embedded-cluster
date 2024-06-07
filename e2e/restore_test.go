@@ -425,6 +425,11 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
+	// wait for reboot
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
+	time.Sleep(60 * time.Second)
+
+	// begin restoring the cluster
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-multi-node-phase1.exp"}, testArgs...)
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
