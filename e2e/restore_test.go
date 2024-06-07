@@ -335,7 +335,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies on node 3", time.Now().Format(time.RFC3339))
+	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "expect", "-y"},
