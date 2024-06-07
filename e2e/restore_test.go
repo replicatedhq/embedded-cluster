@@ -331,6 +331,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
+	defer cleanupCluster(t, tc)
 
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
 	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
@@ -414,7 +415,6 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))

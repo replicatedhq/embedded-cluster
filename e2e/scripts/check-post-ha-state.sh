@@ -20,6 +20,24 @@ wait_for_nginx_pods() {
     done
 }
 
+maybe_install_curl() {
+    if ! command -v curl; then
+        apt-get update
+        apt-get install -y curl
+    fi
+}
+
+install_kots_cli() {
+    maybe_install_curl
+
+    # install kots CLI
+    echo "installing kots cli"
+    local ec_version=
+    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1)
+    curl "https://kots.io/install/$ec_version" | bash
+
+}
+
 ensure_app_deployed() {
     local version="$1"
 
@@ -59,6 +77,10 @@ main() {
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
+        exit 1
+    fi
+    if ! install_kots_cli; then
+        echo "Failed to install kots cli"
         exit 1
     fi
     if ! ensure_app_deployed "$version"; then
