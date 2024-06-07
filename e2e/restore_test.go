@@ -333,11 +333,15 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
+	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
+	// install "expect" dependency on node 3 as that's where the HA join command will run.
+	t.Logf("%s: installing test dependencies on node 3", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "expect", "-y"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
 	if err := RunCommandsOnNode(t, tc, 2, commands); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
@@ -421,16 +425,6 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
-	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands = [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
-
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-multi-node-phase1.exp"}, testArgs...)
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -439,10 +433,6 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// restore phase 1 completes when the prompt for adding nodes is reached.
 	// add the expected nodes to the cluster, then continue to phase 2.
-
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
 
 	// join a controller
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
