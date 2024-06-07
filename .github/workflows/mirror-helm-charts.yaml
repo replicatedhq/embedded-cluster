@@ -46,5 +46,5 @@ jobs:
         env:
           DESTINATION: oci://ttl.sh/embedded-cluster-charts
         run: |
-          ls -la ./output/artifacts
+          chmod 755 ./output/artifacts/buildtools
           ./output/artifacts/buildtools update --force addon ${{ matrix.addon }}
