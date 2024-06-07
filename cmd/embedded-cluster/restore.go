@@ -520,14 +520,24 @@ func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*ve
 // Velero resource modifiers are used to modify the resources during a Velero restore by specifying json patches.
 // The json patches are applied to the resources before they are restored.
 // The json patches are specified in a configmap and the configmap is referenced in the restore object.
-func ensureRestoreResourceModifiers(ctx context.Context) error {
+func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup) error {
+	registryServiceIP, ok := backup.Annotations["kots.io/embedded-registry"]
+	if !ok {
+		return fmt.Errorf("unable to get registry service IP from backup")
+	}
+
+	modifiersYAML := strings.Replace(resourceModifiersYAML, "__REGISTRY_SERVICE_IP__", registryServiceIP, 1)
+	// TODO NOW: seaweedfs service IP
+	// TODO NOW: rqlite arg num
+	logrus.Info(modifiersYAML)
+
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: defaults.VeleroNamespace,
 			Name:      resourceModifiersCMName,
 		},
 		Data: map[string]string{
-			"resource-modifiers.yaml": resourceModifiersYAML,
+			"resource-modifiers.yaml": modifiersYAML,
 		},
 	}
 	kcli, err := kubeutils.KubeClient()
@@ -587,20 +597,6 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err := kubeutils.WaitForInstallation(ctx, kcli, loading); err != nil {
 			return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 		}
-	} else if drComponent == disasterRecoveryComponentRegistry {
-		// delete the `registry` service to allow the helm chart reconciliation to re-create it with the desired clusterIP
-		kcli, err := kubeutils.KubeClient()
-		if err != nil {
-			return fmt.Errorf("unable to create kube client: %w", err)
-		}
-		if err := kcli.Delete(ctx, &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "registry",
-				Namespace: defaults.RegistryNamespace,
-			},
-		}); err != nil && !errors.IsNotFound(err) {
-			return fmt.Errorf("unable to delete registry service: %w", err)
-		}
 	}
 
 	switch drComponent {
@@ -657,15 +653,9 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			return fmt.Errorf("unknown disaster recovery component: %q", drComponent)
 		}
 
-		// ensure restore resource modifiers in case of high availability
-		highAvailability, err := isHighAvailabilityBackup(backup)
-		if err != nil {
-			return err
-		}
-		if highAvailability {
-			if err := ensureRestoreResourceModifiers(ctx); err != nil {
-				return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
-			}
+		// ensure restore resource modifiers
+		if err := ensureRestoreResourceModifiers(ctx, backup); err != nil {
+			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
 		}
 
 		restore := &velerov1.Restore{

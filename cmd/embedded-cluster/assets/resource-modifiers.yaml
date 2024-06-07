@@ -12,3 +12,12 @@ resourceModifierRules:
   - operation: replace
     path: "/spec/template/spec/containers/0/args/2"
     value: "-bootstrap-expect=1"
+- conditions:
+    groupResource: services
+    resourceNameRegex: "^registry$"
+    namespaces:
+    - registry
+  patches:
+  - operation: replace
+    path: "/spec/clusterIP"
+    value: "__REGISTRY_SERVICE_IP__"
