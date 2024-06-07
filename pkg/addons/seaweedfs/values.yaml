@@ -28,6 +28,8 @@ master:
 volume:
   # replicas must be at least replication (2) + 1 = 3
   replicas: 3
+  podAnnotations:
+    backup.velero.io/backup-volumes: data
   affinity: |
     # schedule on control-plane nodes
     nodeAffinity:
@@ -60,23 +62,18 @@ volume:
     maxVolumes: 50
 filer:
   replicas: 3
+  podAnnotations:
+    backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
   data:
     type: "persistentVolumeClaim"
     # openebs-hostpath storage does not limit the size of the volume
     size: "1Gi"
     storageClass: "openebs-hostpath"
-  # TODO NOW: logdir isn't set when using a PVC...
-  # filer logs are important for recovering lost filers (or adding new ones)
-  # store them on a persistent volume in order to be able to back them up
   logs:
     type: "persistentVolumeClaim"
     # openebs-hostpath storage does not limit the size of the volume
     size: "1Gi"
     storageClass: "openebs-hostpath"
-  # the chart doesn't automatically create a volume mount for the logs PVC...
-  extraVolumeMounts: |
-    - name: seaweedfs-filer-log-volume
-      mountPath: "/logs/"
   s3:
     enabled: true
     enableAuth: true
@@ -84,8 +81,3 @@ filer:
     createBuckets:
     - name: registry
       anonymousRead: false
-# annotations to be added to all pods
-# the seaweedfs chart doesn't support per-component annotations
-# velero doesn't care if a volume isn't found in the pod and just skips it
-podAnnotations:
-  backup.velero.io/backup-volumes: data,data-filer,seaweedfs-filer-log-volume
