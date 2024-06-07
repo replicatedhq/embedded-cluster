@@ -25,7 +25,7 @@ main() {
   fi
 
   export BASE_URL="http://10.0.0.2:30001"
-  cd ~/playwright
+  cd /automation/playwright
   npx playwright test "$test_name"
 }
 

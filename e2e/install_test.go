@@ -1371,7 +1371,7 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 }
 
 func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
-	line := []string{"tar", "-czf", "playwright-report.tar.gz", "-C", "~/playwright/playwright-report", "."}
+	line := []string{"tar", "-czf", "playwright-report.tar.gz", "-C", "/automation/playwright/playwright-report", "."}
 	if tc.Proxy != "" {
 		t.Logf("%s: compressing playwright report on proxy node", time.Now().Format(time.RFC3339))
 		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {

@@ -444,7 +444,7 @@ func CopyDirsToNode(in *Input, node string) {
 		},
 		{
 			SourcePath: "playwright",
-			DestPath:   "~/playwright",
+			DestPath:   "/automation/playwright",
 		},
 	}
 	for _, dir := range dirs {
@@ -489,7 +489,7 @@ func CopyFileToNode(in *Input, node string, file File) {
 	} {
 		RunCommandOnNode(in, cmd, node)
 	}
-	in.T.Logf("Copying `%s` to node %s", file.DestPath, node)
+	in.T.Logf("Copying `%s` to `%s` on node %s", file.SourcePath, file.DestPath, node)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -505,7 +505,7 @@ func CopyFileToNode(in *Input, node string, file File) {
 		Type:    "file",
 	}
 	if err := client.CreateContainerFile(node, file.DestPath, req); err != nil {
-		in.T.Fatalf("Failed to copy file %s: %v", file.SourcePath, err)
+		in.T.Fatalf("Failed to copy file `%s` to `%s` on node %s: %v", file.SourcePath, file.DestPath, node, err)
 	}
 }
 
