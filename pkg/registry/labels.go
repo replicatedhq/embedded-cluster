@@ -11,12 +11,9 @@ func applyRegistryLabels(labels map[string]string, component string) map[string]
 	return labels
 }
 
-func applySeaweedFSLabels(labels map[string]string, component string, excludeFromBackup bool) map[string]string {
+func applySeaweedFSLabels(labels map[string]string, component string) map[string]string {
 	if labels == nil {
 		labels = make(map[string]string)
-	}
-	if excludeFromBackup {
-		labels["velero.io/exclude-from-backup"] = "true"
 	}
 	labels["app.kubernetes.io/name"] = "seaweedfs" // this is the backup/restore label for seaweedfs
 	labels["app.kubernetes.io/component"] = component

@@ -68,7 +68,7 @@ func ensureSeaweedfsS3Service(ctx context.Context, in *clusterv1beta1.Installati
 			return fmt.Errorf("set controller reference: %w", err)
 		}
 
-		obj.ObjectMeta.Labels = applySeaweedFSLabels(obj.ObjectMeta.Labels, "s3", true)
+		obj.ObjectMeta.Labels = applySeaweedFSLabels(obj.ObjectMeta.Labels, "s3")
 
 		obj.Spec.ClusterIP = clusterIP
 		obj.Spec.Ports = []corev1.ServicePort{

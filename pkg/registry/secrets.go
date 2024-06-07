@@ -53,7 +53,7 @@ func ensureSeaweedfsS3Secret(ctx context.Context, in *clusterv1beta1.Installatio
 			return fmt.Errorf("set controller reference: %w", err)
 		}
 
-		obj.ObjectMeta.Labels = applySeaweedFSLabels(obj.ObjectMeta.Labels, "s3", false)
+		obj.ObjectMeta.Labels = applySeaweedFSLabels(obj.ObjectMeta.Labels, "s3")
 
 		if obj.Data != nil {
 			err := json.Unmarshal(obj.Data["seaweedfs_s3_config"], &config)
