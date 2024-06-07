@@ -47,4 +47,4 @@ jobs:
           DESTINATION: oci://ttl.sh/embedded-cluster-charts
         run: |
           ls -la ./output/artifacts
-          ./output/artifacts/buildtools/buildtools update --force addon ${{ matrix.addon }}
+          ./output/artifacts/buildtools update --force addon ${{ matrix.addon }}
