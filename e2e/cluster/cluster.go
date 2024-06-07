@@ -444,7 +444,7 @@ func CopyDirsToNode(in *Input, node string) {
 		},
 		{
 			SourcePath: "playwright",
-			DestPath:   "/tmp/playwright",
+			DestPath:   "~/playwright",
 		},
 	}
 	for _, dir := range dirs {
