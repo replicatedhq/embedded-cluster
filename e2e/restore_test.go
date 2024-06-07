@@ -406,15 +406,20 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
-	// re-create the cluster
-	cleanupCluster(t, tc)
-	tc = cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               3,
-		Image:               "debian/12",
-		LicensePath:         "snapshot-license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	})
+	// reset the cluster
+	line = []string{"reset-installation.sh", "--reboot"}
+	t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+		t.Fatalf("fail to reset the installation: %v", err)
+	}
+	t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+		t.Fatalf("fail to reset the installation: %v", err)
+	}
+	t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to reset the installation: %v", err)
+	}
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
