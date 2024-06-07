@@ -40,11 +40,11 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: buildtools
-          path: /
+          path: ./output/artifacts
       - name: Update ${{ matrix.addon }}
         id: update
         env:
           DESTINATION: oci://ttl.sh/embedded-cluster-charts
         run: |
-          ls -la /buildtools
-          /buildtools/buildtools update --force addon ${{ matrix.addon }}
+          ls -la ./output/artifacts
+          ./output/artifacts/buildtools/buildtools update --force addon ${{ matrix.addon }}
