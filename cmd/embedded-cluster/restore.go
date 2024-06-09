@@ -686,7 +686,14 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				},
 			},
 		}
-		_, err = veleroClient.Restores(defaults.VeleroNamespace).Create(ctx, restore, metav1.CreateOptions{})
+
+		if drComponent == disasterRecoveryComponentAdminConsole {
+			restore.Spec.ExcludedResources = []string{
+				"persistentvolumeclaims",
+			}
+		}
+
+		_, err := veleroClient.Restores(defaults.VeleroNamespace).Create(ctx, restore, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("unable to create restore: %w", err)
 		}
