@@ -535,9 +535,6 @@ func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup
 	modifiersYAML := strings.Replace(resourceModifiersYAML, "__REGISTRY_SERVICE_IP__", registryServiceIP, 1)
 	modifiersYAML = strings.Replace(modifiersYAML, "__SEAWEEDFS_S3_SERVICE_IP__", seaweedFSS3ServiceIP, 1)
 
-	// TODO NOW: rqlite arg num
-	logrus.Info(modifiersYAML)
-
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: defaults.VeleroNamespace,
@@ -660,11 +657,6 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			return fmt.Errorf("unknown disaster recovery component: %q", drComponent)
 		}
 
-		// ensure restore resource modifiers
-		if err := ensureRestoreResourceModifiers(ctx, backup); err != nil {
-			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
-		}
-
 		restore := &velerov1.Restore{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: defaults.VeleroNamespace,
@@ -690,7 +682,13 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		if drComponent == disasterRecoveryComponentAdminConsole {
 			restore.Spec.ExcludedResources = []string{
 				"persistentvolumeclaims",
+				"persistentvolumes",
 			}
+		}
+
+		// ensure restore resource modifiers
+		if err := ensureRestoreResourceModifiers(ctx, backup); err != nil {
+			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
 		}
 
 		_, err := veleroClient.Restores(defaults.VeleroNamespace).Create(ctx, restore, metav1.CreateOptions{})
