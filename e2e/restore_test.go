@@ -528,6 +528,8 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
+	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
+	// install "expect" dependency on node 2 as that's where the HA join command will run.
 	t.Logf("%s: installing test dependencies", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
@@ -539,9 +541,6 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	})
 	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
-	if err := RunCommandsOnNode(t, tc, 1, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[1], err)
 	}
 	if err := RunCommandsOnNode(t, tc, 2, commands, withEnv); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
@@ -657,7 +656,6 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	time.Sleep(60 * time.Second)
 
 	// begin restoring the cluster
-	// initiate the restore on a different node (node 1). this actually covers a specific use case
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-multi-node-airgap-phase1.exp"}, testArgs...)
 	withEnv = WithEnv(map[string]string{
@@ -665,7 +663,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
 	})
-	if _, _, err := RunCommandOnNode(t, tc, 1, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore phase 1 of the installation: %v", err)
 	}
 
@@ -683,9 +681,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
 	t.Log("controller join token command:", command)
-	t.Logf("%s: joining node 0 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 0, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node 0 as a controller: %v", err)
+	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(command, " ")); err != nil {
+		t.Fatalf("fail to join node 1 as a controller: %v", err)
 	}
 
 	// join another controller in non-HA mode
@@ -706,9 +704,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 1, []string{"wait-for-ready-nodes.sh", "3", "true"})
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3", "true"})
 	if err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[1], err)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Log(stdout)
 
@@ -719,13 +717,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
 	})
-	if _, _, err := RunCommandOnNode(t, tc, 1, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after restoring the high availability backup", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), "true"}
-	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
 

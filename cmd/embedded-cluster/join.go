@@ -17,7 +17,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -457,6 +460,11 @@ func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	}
 	if installation.Spec.HighAvailability {
 		return false, nil
+	}
+	if err := kcli.Get(ctx, types.NamespacedName{Name: ecRestoreStateCMName, Namespace: "embedded-cluster"}, &corev1.ConfigMap{}); err == nil {
+		return false, nil // cannot enable HA during a restore
+	} else if !errors.IsNotFound(err) {
+		return false, fmt.Errorf("unable to get restore state configmap: %w", err)
 	}
 	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
 	if err != nil {
