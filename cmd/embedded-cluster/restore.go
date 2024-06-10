@@ -347,9 +347,9 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
-	// if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(defaults.Version, "v") {
-	// 	return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, defaults.Version)
-	// }
+	if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(defaults.Version, "v") {
+		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, defaults.Version)
+	}
 	if backup.Status.Phase != velerov1.BackupPhaseCompleted {
 		return false, fmt.Sprintf("has a status of %q", backup.Status.Phase)
 	}
@@ -369,9 +369,9 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if _, ok := appsVersions[rel.AppSlug]; !ok {
 		return false, fmt.Sprintf("does not contain the %q application", rel.AppSlug)
 	}
-	// if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
-	// 	return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
-	// }
+	if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
+		return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
+	}
 
 	if _, ok := backup.Annotations["kots.io/is-airgap"]; !ok {
 		return false, "is missing the kots.io/is-airgap annotation"
