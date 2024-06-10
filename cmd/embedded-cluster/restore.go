@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -611,7 +612,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		loading.Infof("Restoring application")
 	}
 
-	// wait for restore to complete
+	// wait for velero restore to complete
 	restore, err := waitForVeleroRestoreCompleted(ctx, restoreName)
 	if err != nil {
 		if restore != nil {
@@ -628,6 +629,24 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		}
 		if err := adminconsole.WaitForReady(ctx, kcli, defaults.KotsadmNamespace, loading); err != nil {
 			return fmt.Errorf("unable to wait for admin console: %w", err)
+		}
+	} else if drComponent == disasterRecoveryComponentSeaweedFS {
+		// wait for seaweedfs to be ready
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			return fmt.Errorf("unable to create kube client: %w", err)
+		}
+		if err := seaweedfs.WaitForReady(ctx, kcli, defaults.SeaweedFSNamespace, nil); err != nil {
+			return fmt.Errorf("unable to wait for seaweedfs to be ready: %w", err)
+		}
+	} else if drComponent == disasterRecoveryComponentRegistry {
+		// wait for registry to be ready
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			return fmt.Errorf("unable to create kube client: %w", err)
+		}
+		if err := kubeutils.WaitForDeployment(ctx, kcli, defaults.RegistryNamespace, "registry"); err != nil {
+			return fmt.Errorf("unable to wait for registry to be ready: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentECO {
 		// wait for embedded cluster operator to reconcile the installation
