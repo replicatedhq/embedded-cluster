@@ -372,7 +372,6 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
 		return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
 	}
-
 	if _, ok := backup.Annotations["kots.io/is-airgap"]; !ok {
 		return false, "is missing the kots.io/is-airgap annotation"
 	}
@@ -386,14 +385,13 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 			return false, "is an airgap backup, but the restore is configured to be online"
 		}
 	}
-
 	return true, ""
 }
 
 func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
 	ha, ok := backup.Annotations["kots.io/embedded-cluster-is-ha"]
 	if !ok {
-		return false, fmt.Errorf("unable to read high availability status from backup")
+		return false, fmt.Errorf("high availability annotation not found in backup")
 	}
 	return ha == "true", nil
 }
@@ -516,20 +514,59 @@ func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*ve
 	}
 }
 
+// getRegistryIPFromBackup gets the registry service IP from a backup.
+// It returns an empty string if the backup is not airgapped.
+func getRegistryIPFromBackup(backup *velerov1.Backup) (string, error) {
+	isAirgap, ok := backup.Annotations["kots.io/is-airgap"]
+	if !ok {
+		return "", fmt.Errorf("unable to get airgap status from backup")
+	}
+	if isAirgap != "true" {
+		return "", nil
+	}
+	registryServiceHost, ok := backup.Annotations["kots.io/embedded-registry"]
+	if !ok {
+		return "", fmt.Errorf("embedded registry service IP annotation not found in backup")
+	}
+	return strings.Split(registryServiceHost, ":")[0], nil
+}
+
+// getSeaweedFSS3ServiceIPFromBackup gets the seaweedfs s3 service IP from a backup.
+// It returns an empty string if the backup is not airgapped or not high availability.
+func getSeaweedFSS3ServiceIPFromBackup(backup *velerov1.Backup) (string, error) {
+	isAirgap, ok := backup.Annotations["kots.io/is-airgap"]
+	if !ok {
+		return "", fmt.Errorf("unable to get airgap status from backup")
+	}
+	if isAirgap != "true" {
+		return "", nil
+	}
+	highAvailability, err := isHighAvailabilityBackup(backup)
+	if err != nil {
+		return "", fmt.Errorf("unable to check high availability status: %w", err)
+	}
+	if !highAvailability {
+		return "", nil
+	}
+	swIP, ok := backup.Annotations["kots.io/embedded-cluster-seaweedfs-s3-ip"]
+	if !ok {
+		return "", fmt.Errorf("unable to get seaweedfs s3 service IP from backup")
+	}
+	return swIP, nil
+}
+
 // ensureRestoreResourceModifiers ensures the necessary restore resource modifiers.
 // Velero resource modifiers are used to modify the resources during a Velero restore by specifying json patches.
 // The json patches are applied to the resources before they are restored.
 // The json patches are specified in a configmap and the configmap is referenced in the restore object.
 func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup) error {
-	registryServiceHost, ok := backup.Annotations["kots.io/embedded-registry"]
-	if !ok {
-		return fmt.Errorf("unable to get registry service IP from backup")
+	registryServiceIP, err := getRegistryIPFromBackup(backup)
+	if err != nil {
+		return fmt.Errorf("unable to get registry service IP from backup: %w", err)
 	}
-	registryServiceIP := strings.Split(registryServiceHost, ":")[0]
-
-	seaweedFSS3ServiceIP, ok := backup.Annotations["kots.io/embedded-cluster-seaweedfs-s3-ip"]
-	if !ok {
-		return fmt.Errorf("unable to get seaweedfs s3 service IP from backup")
+	seaweedFSS3ServiceIP, err := getSeaweedFSS3ServiceIPFromBackup(backup)
+	if err != nil {
+		return fmt.Errorf("unable to get seaweedfs s3 service IP from backup: %w", err)
 	}
 
 	modifiersYAML := strings.Replace(resourceModifiersYAML, "__REGISTRY_SERVICE_IP__", registryServiceIP, 1)
