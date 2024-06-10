@@ -1,0 +1,99 @@
+#!/usr/bin/env expect
+
+set env(EMBEDDED_CLUSTER_PLAIN_PROMPTS) "true"
+set env(EMBEDDED_CLUSTER_METRICS_BASEURL) "https://staging.replicated.app"
+set env(KUBECONFIG) "/var/lib/k0s/pki/admin.conf"
+set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
+
+spawn embedded-cluster restore --airgap-bundle /assets/release.airgap --proxy
+
+expect {
+    "A previous restore operation was detected. Would you like to resume?" {
+      send "Y\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'previous restore operation was detected' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "Resuming restore from backup" {}
+    timeout {
+      puts "\n\nFailed to find 'resuming restore from backup' message."
+      exit 1
+    }
+}
+
+expect {
+    "Visit the Admin Console if you need to add nodes to the cluster" {}
+    timeout {
+      puts "\n\nFailed to find admin console URL."
+      exit 1
+    }
+}
+
+expect {
+    "Type 'continue' when you are done adding nodes" {
+      send "\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'done adding nodes' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "Please type 'continue' to proceed" {
+      send "continue\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'type continue to proceed' prompt."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 30 "All nodes are ready!" {}
+    timeout {
+      puts "\n\nFailed to wait for nodes."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 180 "SeaweedFS restored!" {}
+    timeout {
+      puts "\n\nFailed to restore seaweedfs."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 90 "Registry restored!" {}
+    timeout {
+      puts "\n\nFailed to restore registry."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 240 "Embedded cluster operator restored!" {}
+    timeout {
+      puts "\n\nFailed to restore embedded cluster operator."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 60 "Application restored!" {
+      exit 0
+    }
+    timeout {
+      puts "\n\nFailed to restore application."
+      exit 1
+    }
+}
+
+puts "\n\nCommand exited before finishing all validations."
+exit 1

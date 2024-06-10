@@ -4,6 +4,9 @@ inputs:
   test-name:
     description: 'individual test to run'
     required: true
+  is-large-runner:
+    description: 'Whether the test is running on a large runner'
+    required: true
   airgap-license-id:
     description: 'airgap-enabled license id to use for e2e tests'
     required: true
@@ -61,6 +64,7 @@ runs:
            external_ids:ovn-encap-type=geneve                      \
            external_ids:ovn-encap-ip=127.0.0.1
   - name: Free up runner disk space
+    if: ${{ inputs.is-large-runner == 'false' }}
     shell: bash
     run: |
       df -h

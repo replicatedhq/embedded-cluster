@@ -587,7 +587,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	// remove the airgap bundle after installation
-	line = []string{"rm", "/tmp/release.airgap"}
+	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
@@ -611,7 +611,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle after upgrade
-	line = []string{"rm", "/tmp/upgrade/release.airgap"}
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
@@ -680,7 +680,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	}
 
 	// upgrade airgap bundle is only needed on the first node
-	line := []string{"rm", "/tmp/ec-release-upgrade.tgz"}
+	line := []string{"rm", "/assets/ec-release-upgrade.tgz"}
 	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
 		t.Fatalf("fail to remove upgrade airgap bundle on node %s: %v", tc.Nodes[1], err)
 	}
@@ -697,7 +697,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	// remove artifacts after installation to save space
-	line = []string{"rm", "/tmp/release.airgap"}
+	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
@@ -740,7 +740,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		t.Fatalf("fail to join worker node to the cluster: %v", err)
 	}
 	// remove artifacts after joining to save space
-	line = []string{"rm", "/tmp/release.airgap"}
+	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on worker node: %v", err)
 	}
@@ -773,7 +773,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle and binary after upgrade
-	line = []string{"rm", "/tmp/upgrade/release.airgap"}
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
@@ -846,7 +846,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	// upgrade airgap bundle is only needed on the first node
-	line := []string{"rm", "/tmp/ec-release-upgrade.tgz"}
+	line := []string{"rm", "/assets/ec-release-upgrade.tgz"}
 	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
 		t.Fatalf("fail to remove upgrade airgap bundle on node %s: %v", tc.Nodes[1], err)
 	}
@@ -863,7 +863,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	// remove the airgap bundle and binary after installation
-	line = []string{"rm", "/tmp/release.airgap"}
+	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
@@ -902,7 +902,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		t.Fatalf("fail to join worker node to the cluster: %v", err)
 	}
 	// remove the airgap bundle and binary after joining
-	line = []string{"rm", "/tmp/release.airgap"}
+	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on worker node: %v", err)
 	}
@@ -931,7 +931,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle and binary after upgrade
-	line = []string{"rm", "/tmp/upgrade/release.airgap"}
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1129,7 +1129,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	// remove artifacts after installation to save space
-	line = []string{"rm", "/tmp/release.airgap"}
+	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1171,7 +1171,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to join node 1 as a controller: %v", err)
 	}
 	// remove the airgap bundle and binary after joining
-	line = []string{"rm", "/tmp/release.airgap"}
+	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node 1: %v", err)
 	}
@@ -1201,7 +1201,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to join node 2 as a controller in ha mode: %v", err)
 	}
 	// remove the airgap bundle and binary after joining
-	line = []string{"rm", "/tmp/release.airgap"}
+	line = []string{"rm", "/assets/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node 2: %v", err)
 	}

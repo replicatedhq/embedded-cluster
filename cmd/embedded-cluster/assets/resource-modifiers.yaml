@@ -1,5 +1,8 @@
 version: v1
 resourceModifierRules:
+# convert kotsadm components (rqlite) to non-HA mode
+# as kotsadm will always be restored to a single node
+# because it is used during the restore process to add nodes
 - conditions:
     groupResource: statefulsets.apps
     resourceNameRegex: "^kotsadm-rqlite$"
@@ -12,3 +15,40 @@ resourceModifierRules:
   - operation: replace
     path: "/spec/template/spec/containers/0/args/2"
     value: "-bootstrap-expect=1"
+# decouple kotsadm components PVCs from nodes
+# this allows the PVCs to be created on the correct nodes
+# when restoring HA kotsadm to a single node and then converting it to HA again
+- conditions:
+    groupResource: persistentvolumeclaims
+    resourceNameRegex: "kotsadm-rqlite"
+    namespaces:
+    - kotsadm
+  mergePatches:
+  - patchData: |
+      {
+        "metadata": {
+          "annotations": {
+            "volume.kubernetes.io/selected-node": null
+          }
+        }
+      }
+# preserve the registry service IP from the original cluster
+- conditions:
+    groupResource: services
+    resourceNameRegex: "^registry$"
+    namespaces:
+    - registry
+  patches:
+  - operation: replace
+    path: "/spec/clusterIP"
+    value: "__REGISTRY_SERVICE_IP__"
+# preserve the seaweedfs s3 service IP from the original cluster
+- conditions:
+    groupResource: services
+    resourceNameRegex: "^ec-seaweedfs-s3$"
+    namespaces:
+    - seaweedfs
+  patches:
+  - operation: replace
+    path: "/spec/clusterIP"
+    value: "__SEAWEEDFS_S3_SERVICE_IP__"

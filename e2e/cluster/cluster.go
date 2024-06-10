@@ -406,7 +406,7 @@ func CopyFilesToNode(in *Input, node string) {
 	files := []File{
 		{
 			SourcePath: in.LicensePath,
-			DestPath:   "/tmp/license.yaml",
+			DestPath:   "/assets/license.yaml",
 			Mode:       0644,
 		},
 		{
@@ -421,12 +421,12 @@ func CopyFilesToNode(in *Input, node string) {
 		},
 		{
 			SourcePath: in.AirgapInstallBundlePath,
-			DestPath:   "/tmp/ec-release.tgz",
+			DestPath:   "/assets/ec-release.tgz",
 			Mode:       0755,
 		},
 		{
 			SourcePath: in.AirgapUpgradeBundlePath,
-			DestPath:   "/tmp/ec-release-upgrade.tgz",
+			DestPath:   "/assets/ec-release-upgrade.tgz",
 			Mode:       0755,
 		},
 	}
