@@ -886,9 +886,9 @@ password: original`,
 
 			release.CacheMeta("goodver", tt.releaseMeta)
 
-			sch, err := k0shelmv1beta1.SchemeBuilder.Build()
-			req.NoError(err)
-			req.NoError(k0sv1beta1.AddToScheme(sch))
+			sch := runtime.NewScheme()
+			req.NoError(k0sv1beta1.Install(sch))
+			req.NoError(k0shelmv1beta1.Install(sch))
 			fakeCli := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(tt.fields.State...).Build()
 
 			r := &InstallationReconciler{
@@ -896,7 +896,7 @@ password: original`,
 				Discovery: tt.fields.Discovery,
 				Scheme:    tt.fields.Scheme,
 			}
-			err = r.ReconcileHelmCharts(context.Background(), &tt.in)
+			err := r.ReconcileHelmCharts(context.Background(), &tt.in)
 			req.NoError(err)
 			req.Equal(tt.out, tt.in.Status)
 
