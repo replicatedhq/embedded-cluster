@@ -679,14 +679,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			},
 		}
 
-		if drComponent == disasterRecoveryComponentAdminConsole {
-			restore.Spec.ExcludedResources = []string{
-				"persistentvolumeclaims",
-				"persistentvolumes",
-			}
-		}
-
-		// ensure restore resource modifiers
+		// ensure restore resource modifiers first
 		if err := ensureRestoreResourceModifiers(ctx, backup); err != nil {
 			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
 		}
