@@ -14,6 +14,7 @@ main() {
     curl "https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/appver-${app_version_label}" -H "Authorization: ${license_id}" -o ec-release.tgz
     tar xzf ec-release.tgz
 
+    mkdir -p /assets
     mv embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster
     mv license.yaml /assets/license.yaml
 }
