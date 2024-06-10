@@ -16,8 +16,8 @@ resourceModifierRules:
     path: "/spec/template/spec/containers/0/args/2"
     value: "-bootstrap-expect=1"
 # decouple kotsadm components PVCs from nodes
-# this is to allow HA kotsadm to be restored to a single node
-# and ensure that PVCs get bound to the correct nodes when kotsadm becomes HA again
+# this allows the PVCs to be created on the correct nodes
+# when restoring HA kotsadm to a single node and then converting it to HA again
 - conditions:
     groupResource: persistentvolumeclaims
     resourceNameRegex: "kotsadm-rqlite"
@@ -32,6 +32,7 @@ resourceModifierRules:
           }
         }
       }
+# preserve the registry service IP from the original cluster
 - conditions:
     groupResource: services
     resourceNameRegex: "^registry$"
@@ -41,6 +42,7 @@ resourceModifierRules:
   - operation: replace
     path: "/spec/clusterIP"
     value: "__REGISTRY_SERVICE_IP__"
+# preserve the seaweedfs s3 service IP from the original cluster
 - conditions:
     groupResource: services
     resourceNameRegex: "^ec-seaweedfs-s3$"

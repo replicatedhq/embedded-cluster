@@ -142,6 +142,24 @@ expect {
 
 expect {
     "Type 'continue' when you are done adding nodes" {
+      send "continue\r"
+    }
+    timeout {
+      puts "\n\nFailed to find 'done adding nodes' prompt."
+      exit 1
+    }
+}
+
+expect {
+    "You are restoring a high-availability cluster, which requires at least 3 controller nodes. You currently have 1. Please add more controller nodes." {}
+    timeout {
+      puts "\n\nFailed to find '3 controllers required' warning"
+      exit 1
+    }
+}
+
+expect {
+    "Type 'continue' when you are done adding nodes" {
       exit 0
     }
     timeout {
