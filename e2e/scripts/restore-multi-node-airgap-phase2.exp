@@ -5,7 +5,7 @@ set env(EMBEDDED_CLUSTER_METRICS_BASEURL) "https://staging.replicated.app"
 set env(KUBECONFIG) "/var/lib/k0s/pki/admin.conf"
 set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
 
-spawn embedded-cluster restore --airgap-bundle /tmp/release.airgap --proxy
+spawn embedded-cluster restore --airgap-bundle /assets/release.airgap --proxy
 
 expect {
     "A previous restore operation was detected. Would you like to resume?" {

@@ -15,7 +15,7 @@ main() {
     tar xzf ec-release.tgz
 
     mv embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster
-    mv license.yaml /tmp/license.yaml
+    mv license.yaml /assets/license.yaml
 }
 
 main "$@"

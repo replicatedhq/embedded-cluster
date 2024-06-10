@@ -284,7 +284,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle after upgrade
-	line = []string{"rm", "/tmp/upgrade/release.airgap"}
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
