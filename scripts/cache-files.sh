@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eo pipefail
+set -euo pipefail
 
 function require() {
     if [ -z "$2" ]; then
@@ -54,10 +54,10 @@ function k0sbin() {
     # if the override is set, the binary will have been added to the bucket through another process
     if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
         echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
-        curl -L -o "${k0s_version}" "${k0s_override}"
+        curl --fail-with-body -L -o "${k0s_version}" "${k0s_override}"
     else
         # download the k0s binary from official sources
-        curl -L -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
+        curl --fail-with-body -L -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
     fi
 
     # upload the binary to the bucket
@@ -80,7 +80,7 @@ function operatorbin() {
     fi
 
     # download the operator binary from github
-    curl -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/${operator_version}/manager"
+    curl --fail-with-body -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
 
     # upload the binary to the bucket
     retry 3 aws s3 cp "${operator_version}" "s3://${S3_BUCKET}/operator-binaries/${operator_version}"
