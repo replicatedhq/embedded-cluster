@@ -114,7 +114,7 @@ test: manifests fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: manifests fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	CGO_ENABLED=0 go build -o bin/manager main.go
 
 .PHONY: run
 run: manifests fmt vet ## Run a controller from your host.

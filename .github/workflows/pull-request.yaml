@@ -11,7 +11,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.22.0"
+        go-version-file: go.mod
     - name: Go vet
       run: |
        make vet
@@ -29,7 +29,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.22.0"
+        go-version-file: go.mod
     - name: Build
       run: |
         make build VERSION=dev-${{ env.SHORT_SHA }}
