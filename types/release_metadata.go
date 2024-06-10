@@ -8,7 +8,7 @@ type ReleaseMetadata struct {
 	Versions       map[string]string
 	K0sSHA         string
 	K0sBinaryURL   string
-	BinaryURLs     map[string]string
+	BinaryURLs     map[string]string // key is the binary name, value is the URL
 	K0sImages      []string
 	Configs        v1beta1.HelmExtensions            // always applied
 	BuiltinConfigs map[string]v1beta1.HelmExtensions // applied if the relevant builtin addon is enabled
