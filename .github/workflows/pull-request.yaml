@@ -194,7 +194,7 @@ jobs:
           # - TestMultiNodeHAInstallation
           # - TestMultiNodeAirgapHAInstallation
           # - TestMultiNodeAirgapUpgradeSameK0s
-          # - TestMultiNodeHADisasterRecovery
+          - TestMultiNodeHADisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
         include:
         #   - test: TestMultiNodeAirgapUpgrade
