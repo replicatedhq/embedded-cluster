@@ -528,9 +528,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	// install "expect" dependency on node 1 as that's where the restore process will be initiated.
-	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
+	t.Logf("%s: installing test dependencies", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "expect", "curl", "-y"},
@@ -539,8 +537,11 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		"http_proxy":  cluster.HTTPProxy,
 		"https_proxy": cluster.HTTPProxy,
 	})
-	if err := RunCommandsOnNode(t, tc, 1, commands, withEnv); err != nil {
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
+	}
+	if err := RunCommandsOnNode(t, tc, 1, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[1], err)
 	}
 	if err := RunCommandsOnNode(t, tc, 2, commands, withEnv); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
