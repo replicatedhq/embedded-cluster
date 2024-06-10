@@ -20,7 +20,7 @@ var addonCommand = &cli.Command{
 
 var updateAddonCommand = &cli.Command{
 	Name:  "addon",
-	Usage: "Update an embedded cluster addon",
+	Usage: "Update an embedded cluster addon by copying the chart to the Replicated registry and setting the version in the Makefile",
 	Subcommands: []*cli.Command{
 		updateOpenEBSAddonCommand,
 		updateSeaweedFSAddonCommand,
