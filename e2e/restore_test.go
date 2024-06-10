@@ -689,8 +689,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// begin restoring the cluster
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-multi-node-phase1.exp"}, testArgs...)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	line = append([]string{"restore-multi-node-airgap-phase1.exp"}, testArgs...)
+	withEnv = WithEnv(map[string]string{
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
+		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+	})
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore phase 1 of the installation: %v", err)
 	}
 
@@ -738,7 +743,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Log(stdout)
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"restore-multi-node-phase2.exp"}); err != nil {
+	line = []string{"restore-multi-node-airgap-phase2.exp"}
+	withEnv = WithEnv(map[string]string{
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
+		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+	})
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
 	}
 
