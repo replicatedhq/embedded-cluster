@@ -148,10 +148,13 @@ jobs:
           - TestMultiNodeAirgapHAInstallation
           - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeHADisasterRecovery
+          - TestMultiNodeAirgapHADisasterRecovery
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHADisasterRecovery
             runner: embedded-cluster
     steps:
       - name: Checkout
