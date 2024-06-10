@@ -204,6 +204,9 @@ func (h *Helm) Push(path, dst string) error {
 	return up.UploadTo(path, dst)
 }
 
+// normalizeVersion is used to convert a semver from string into a semver.Version.
+// If the version does not include a patch version this functions appends a .0 at
+// the end of it before parsing. This is intended for sorting version strings.
 func normalizeVersion(version string) (*semver.Version, error) {
 	parts := strings.Split(version, ".")
 	for len(parts) < 3 {
