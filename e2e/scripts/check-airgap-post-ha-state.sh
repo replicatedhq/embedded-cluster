@@ -61,7 +61,7 @@ ensure_app_not_upgraded() {
 
 main() {
     local version="appver-$1"
-    local from_restore="$2"
+    local from_restore="${2:-}"
     sleep 10 # wait for kubectl to become available
 
     echo "pods"
