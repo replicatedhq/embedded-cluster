@@ -215,7 +215,7 @@ jobs:
     - uses: ./.github/actions/e2e
       with:
         test-name: '${{ matrix.test }}'
-        is-large-runner: '${{ matrix.runner == "embedded-cluster" }}'
+        is-large-runner: ${{ matrix.runner == 'embedded-cluster' }}
         airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
         snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
         snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
