@@ -61,6 +61,7 @@ ensure_app_not_upgraded() {
 
 main() {
     local version="appver-$1"
+    local from_restore="$2"
     sleep 10 # wait for kubectl to become available
 
     echo "pods"
@@ -82,6 +83,14 @@ main() {
     kubectl get statefulset -n seaweedfs seaweedfs-filer -o jsonpath='{.status.readyReplicas}' | grep -q 3
     kubectl get statefulset -n seaweedfs seaweedfs-volume -o jsonpath='{.status.readyReplicas}' | grep -q 3
     kubectl get statefulset -n seaweedfs seaweedfs-master -o jsonpath='{.status.readyReplicas}' | grep -q 1
+
+    if [ "$from_restore" == "true" ]; then
+        # ensure volumes were restored
+        kubectl get podvolumerestore -n velero | grep kotsadm | grep -c backup | grep -q 1
+        kubectl get podvolumerestore -n velero | grep seaweedfs-filer | grep -c data-filer | grep -q 3
+        kubectl get podvolumerestore -n velero | grep seaweedfs-filer | grep -c seaweedfs-filer-log-volume | grep -q 3
+        kubectl get podvolumerestore -n velero | grep seaweedfs-volume | grep -c data | grep -q 3
+    fi
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"

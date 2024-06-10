@@ -51,7 +51,7 @@ spec:
                 name: admin-console
                 namespace: kotsadm
                 order: 3
-                version: 1.109.10-build.1
+                version: 1.109.12
                 values: |
                   isHA: false
                   isHelmManaged: false

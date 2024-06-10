@@ -517,7 +517,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after restoring the high availability backup", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), "true"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
@@ -743,7 +743,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after restoring the high availability backup", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), "true"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}

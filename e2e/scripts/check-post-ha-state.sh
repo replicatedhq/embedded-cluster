@@ -43,6 +43,7 @@ ensure_app_not_upgraded() {
 
 main() {
     local version="$1"
+    local from_restore="$2"
     sleep 10 # wait for kubectl to become available
 
     echo "pods"
@@ -56,6 +57,11 @@ main() {
 
     # ensure rqlite is running in HA mode
     kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3
+
+    if [ "$from_restore" == "true" ]; then
+        # ensure volumes were restored
+        kubectl get podvolumerestore -n velero | grep kotsadm | grep -c backup | grep -q 1
+    fi
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
