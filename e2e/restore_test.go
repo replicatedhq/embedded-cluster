@@ -549,7 +549,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
-	downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+	downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_SNAPSHOT_LICENSE_ID"))
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
