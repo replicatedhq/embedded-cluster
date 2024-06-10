@@ -183,7 +183,7 @@ print-%:
 
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image:
-	docker build -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f Dockerfile .
+	docker build --platform linux/amd64 -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f deploy/local-artifact-mirror/Dockerfile .
 
 .PHONY: push-local-artifact-mirror-image
 push-local-artifact-mirror-image:
