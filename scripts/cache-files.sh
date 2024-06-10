@@ -64,6 +64,28 @@ function k0sbin() {
     retry 3 aws s3 cp "${k0s_version}" "s3://${S3_BUCKET}/k0s-binaries/${k0s_version}"
 }
 
+function operatorbin() {
+    # first, figure out what version of operator is in the current build
+    local operator_version=
+    operator_version=$(awk '/^EMBEDDED_OPERATOR_CHART_VERSION/{print $3}' Makefile)
+
+    # check if the binary already exists in the bucket
+    local operator_binary_exists=
+    operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}" || true)
+
+    # if the binary already exists, we don't need to upload it again
+    if [ -n "${operator_binary_exists}" ]; then
+        echo "operator binary ${operator_version} already exists in bucket ${S3_BUCKET}, skipping upload"
+        return 0
+    fi
+
+    # download the operator binary from github
+    curl -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/${operator_version}/manager"
+
+    # upload the binary to the bucket
+    retry 3 aws s3 cp "${operator_version}" "s3://${S3_BUCKET}/operator-binaries/${operator_version}"
+}
+
 function metadata() {
     if [ -z "${EC_VERSION}" ]; then
         echo "EC_VERSION unset, not uploading metadata.json"
@@ -100,6 +122,7 @@ function main() {
     k0sbin
     metadata
     embeddedcluster
+    operatorbin
 }
 
 main "$@"
