@@ -603,7 +603,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	case disasterRecoveryComponentAdminConsole:
 		loading.Infof("Restoring the Admin Console")
 	case disasterRecoveryComponentSeaweedFS:
-		loading.Infof("Restoring seaweedfs")
+		loading.Infof("Restoring registry data")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Restoring registry")
 	case disasterRecoveryComponentECO:
@@ -665,7 +665,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	case disasterRecoveryComponentAdminConsole:
 		loading.Infof("Admin Console restored!")
 	case disasterRecoveryComponentSeaweedFS:
-		loading.Infof("SeaweedFS restored!")
+		loading.Infof("Registry data restored!")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Registry restored!")
 	case disasterRecoveryComponentECO:

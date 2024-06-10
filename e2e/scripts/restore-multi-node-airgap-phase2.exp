@@ -62,7 +62,7 @@ expect {
 }
 
 expect {
-    -timeout 210 "SeaweedFS restored!" {}
+    -timeout 210 "Registry data restored!" {}
     timeout {
       puts "\n\nFailed to restore seaweedfs."
       exit 1
