@@ -111,11 +111,14 @@ function kotsbin() {
     fi
 
     # download the kots binary from github
-    echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kotsadm-nominio.tar.gz"
-    curl --fail-with-body -L -o "${kots_version}" "https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kotsadm-nominio.tar.gz"
+    echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kots_linux_amd64.tar.gz"
+    curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kots_linux_amd64.tar.gz"
+
+    # decompress the bundle, as we only care about the binary and not the sbom/license/readme
+    tar -xvf kots_linux_amd64.tar.gz
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp "${kots_version}" "s3://${S3_BUCKET}/kots-binaries/${kots_version}"
+    retry 3 aws s3 cp "kots" "s3://${S3_BUCKET}/kots-binaries/${kots_version}"
 }
 
 function metadata() {
