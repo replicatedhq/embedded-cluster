@@ -4,6 +4,8 @@ set -euox pipefail
 
 main() {
     expected_nodes="$1"
+    is_restore="${2:-}"
+
     ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
     counter=0
     while [ "$ready" -lt "$expected_nodes" ]; do
@@ -18,6 +20,11 @@ main() {
         kubectl get nodes || true
     done
     echo "All nodes are ready"
+
+    if [ "$is_restore" == "true" ]; then
+        # this is a restore operation where the app hasn't been restored yet, so goldpinger won't exist
+        exit 0
+    fi
 
     echo "checking that goldpinger has run on all nodes"
     kubectl get pods -n goldpinger

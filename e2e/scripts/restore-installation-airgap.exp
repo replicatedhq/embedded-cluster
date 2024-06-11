@@ -12,7 +12,7 @@ set dr_aws_s3_prefix [lindex $argv 3]
 set dr_aws_access_key_id [lindex $argv 4]
 set dr_aws_secret_access_key [lindex $argv 5]
 
-spawn embedded-cluster restore --airgap-bundle /tmp/release.airgap --proxy
+spawn embedded-cluster restore --airgap-bundle /assets/release.airgap --proxy
 
 expect {
     "Enter information to configure access to your backup storage location." {}
@@ -117,23 +117,7 @@ expect {
 }
 
 expect {
-    -timeout 60 "Infrastructure restored!" {}
-    timeout {
-      puts "\n\nFailed to restore infrastructure."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 150 "Registry restored!" {}
-    timeout {
-      puts "\n\nFailed to restore registry."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 150 "Cluster state restored!" {}
+    -timeout 30 "Cluster state restored!" {}
     timeout {
       puts "\n\nFailed to restore cluster state."
       exit 1
@@ -141,15 +125,15 @@ expect {
 }
 
 expect {
-    -timeout 60 "Admin Console is ready!" {}
+    -timeout 150 "Admin Console restored!" {}
     timeout {
-      puts "\n\nFailed to wait for admin console to be ready."
+      puts "\n\nFailed to restore admin console."
       exit 1
     }
 }
 
 expect {
-    "Visit the admin console if you need to add nodes to the cluster" {}
+    "Visit the Admin Console if you need to add nodes to the cluster" {}
     timeout {
       puts "\n\nFailed to find admin console URL."
       exit 1
@@ -180,6 +164,22 @@ expect {
     -timeout 30 "All nodes are ready!" {}
     timeout {
       puts "\n\nFailed to wait for nodes."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 150 "Registry restored!" {}
+    timeout {
+      puts "\n\nFailed to restore registry."
+      exit 1
+    }
+}
+
+expect {
+    -timeout 240 "Embedded cluster operator restored!" {}
+    timeout {
+      puts "\n\nFailed to restore embedded cluster operator."
       exit 1
     }
 }

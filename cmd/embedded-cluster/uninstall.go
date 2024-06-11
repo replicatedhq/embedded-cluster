@@ -15,7 +15,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -314,16 +313,11 @@ func maybePrintHAWarning(c *cli.Context) error {
 		return nil
 	}
 
-	opts := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(
-			labels.Set{"node-role.kubernetes.io/control-plane": "true"},
-		),
+	ncps, err := kubeutils.NumOfControlPlaneNodes(c.Context, kubecli)
+	if err != nil {
+		return fmt.Errorf("unable to check control plane nodes: %w", err)
 	}
-	var nodes corev1.NodeList
-	if err := kubecli.List(c.Context, &nodes, opts); err != nil {
-		return fmt.Errorf("unable to list nodes: %w", err)
-	}
-	if len(nodes.Items) == 3 {
+	if ncps == 3 {
 		logrus.Warn(haWarningMessage)
 		logrus.Info("")
 	}
