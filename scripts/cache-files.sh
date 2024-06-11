@@ -57,6 +57,7 @@ function k0sbin() {
         curl --fail-with-body -L -o "${k0s_version}" "${k0s_override}"
     else
         # download the k0s binary from official sources
+        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
         curl --fail-with-body -L -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
     fi
 
@@ -80,6 +81,7 @@ function operatorbin() {
     fi
 
     # download the operator binary from github
+    echo "downloading embedded cluster operator binary from https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
     curl --fail-with-body -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
 
     # upload the binary to the bucket
@@ -109,7 +111,8 @@ function kotsbin() {
     fi
 
     # download the kots binary from github
-    curl --fail-with-body -L -o "${kots_version}" "https://github.com/replicatedhq/kotsadm/releases/download/v${kots_version}/kotsadm-nominio.tar.gz"
+    echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kotsadm-nominio.tar.gz"
+    curl --fail-with-body -L -o "${kots_version}" "https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kotsadm-nominio.tar.gz"
 
     # upload the binary to the bucket
     retry 3 aws s3 cp "${kots_version}" "s3://${S3_BUCKET}/kots-binaries/${kots_version}"
@@ -149,10 +152,10 @@ function embeddedcluster() {
 # the embedded cluster release does not exist for CI builds
 function main() {
     k0sbin
-    metadata
-    embeddedcluster
     operatorbin
     kotsbin
+    metadata
+    embeddedcluster
 }
 
 main "$@"
