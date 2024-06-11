@@ -14,7 +14,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.6-0.20240527072442-22f6a125e881
-	github.com/replicatedhq/embedded-cluster-kinds v1.3.4
+	github.com/replicatedhq/embedded-cluster-kinds v1.3.7
 	github.com/replicatedhq/embedded-cluster-operator v0.34.9
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240523174825-f4d441adb453
@@ -23,14 +23,14 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
 	github.com/vmware-tanzu/velero v1.13.2
-	golang.org/x/crypto v0.23.0
-	golang.org/x/term v0.20.0
+	golang.org/x/crypto v0.24.0
+	golang.org/x/term v0.21.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
 	oras.land/oras-go/v2 v2.5.0
-	sigs.k8s.io/controller-runtime v0.18.3
+	sigs.k8s.io/controller-runtime v0.18.4
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -133,10 +133,10 @@ require (
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
