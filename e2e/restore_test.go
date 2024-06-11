@@ -500,7 +500,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		"DR_AWS_S3_ENDPOINT",
 		"DR_AWS_S3_REGION",
 		"DR_AWS_S3_BUCKET",
-		"DR_AWS_S3_PREFIX",
+		"DR_AWS_S3_PREFIX_AIRGAP",
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
