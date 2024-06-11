@@ -11,6 +11,7 @@ main() {
     namespace: kotsadm
     labels:
       replicated.com/disaster-recovery: infra
+      replicated.com/disaster-recovery-chart: admin-console
   spec:
     type: NodePort
     ports:

@@ -3,10 +3,14 @@ package seaweedfs
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -95,6 +99,49 @@ func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
 // New creates a new SeaweedFS addon.
 func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool) (*SeaweedFS, error) {
 	return &SeaweedFS{namespace: namespace, config: config, isAirgap: isAirgap}, nil
+}
+
+// WaitForReady waits for SeaweedFS to be ready.
+func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spinner.MessageWriter) error {
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		var count int
+		ready, err := kubeutils.IsStatefulSetReady(ctx, cli, ns, "seaweedfs-filer")
+		if err != nil {
+			lasterr = fmt.Errorf("error checking status of seaweedfs-filer: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		ready, err = kubeutils.IsStatefulSetReady(ctx, cli, ns, "seaweedfs-master")
+		if err != nil {
+			lasterr = fmt.Errorf("error checking status of seaweedfs-master: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		ready, err = kubeutils.IsStatefulSetReady(ctx, cli, ns, "seaweedfs-volume")
+		if err != nil {
+			lasterr = fmt.Errorf("error checking status of seaweedfs-volume: %v", err)
+			return false, nil
+		}
+		if ready {
+			count++
+		}
+		if writer != nil {
+			writer.Infof("Waiting for SeaweedFS to deploy: %d/3 ready", count)
+		}
+		return count == 3, nil
+	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
+		return fmt.Errorf("error waiting for admin console: %v", lasterr)
+	}
+	return nil
 }
 
 func init() {

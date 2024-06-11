@@ -199,7 +199,7 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 			current = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			current = message
-		case strings.Contains(message, "Waiting for Admin Console"):
+		case strings.Contains(message, "Waiting for the Admin Console"):
 			current = "Finalizing Admin Console"
 		case strings.Contains(message, "Finished!"):
 			current = message
