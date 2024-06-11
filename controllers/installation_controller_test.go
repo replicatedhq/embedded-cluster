@@ -887,8 +887,8 @@ password: original`,
 			release.CacheMeta("goodver", tt.releaseMeta)
 
 			sch := runtime.NewScheme()
-			req.NoError(k0sv1beta1.Install(sch))
-			req.NoError(k0shelmv1beta1.Install(sch))
+			req.NoError(k0sv1beta1.AddToScheme(sch))
+			req.NoError(k0shelmv1beta1.AddToScheme(sch))
 			fakeCli := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(tt.fields.State...).Build()
 
 			r := &InstallationReconciler{
