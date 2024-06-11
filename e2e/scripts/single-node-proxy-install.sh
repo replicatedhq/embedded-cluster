@@ -122,7 +122,7 @@ main() {
         additional_args="$*"
         echo "Running install with additional args: $additional_args"
     fi
-    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         exit 1
     fi
