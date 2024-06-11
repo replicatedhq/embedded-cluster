@@ -4,7 +4,6 @@ import { login, deployApp } from '../shared';
 test('create backup', async ({ page }) => {
   test.setTimeout(5 * 60 * 1000); // 5 minutes
   await login(page);
-  await deployApp(page, expect);
   await page.locator('.NavItem').getByText('Disaster Recovery', { exact: true }).click();
   await expect(page.getByText('Backup settings')).toBeVisible();
   await page.getByPlaceholder('Bucket name').click();
@@ -23,7 +22,7 @@ test('create backup', async ({ page }) => {
   await expect(page.locator('.Loader')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Updating', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Update storage settings' })).not.toBeVisible();
-  await expect(page.locator('form')).toContainText('Settings updated', { timeout: 60000 });
+  await expect(page.locator('form')).toContainText('Settings updated', { timeout: 90000 });
   await expect(page.locator('.Loader')).not.toBeVisible();
   await expect(page.getByRole('button', { name: 'Update storage settings' })).toBeEnabled();
   await page.locator('.subnav-item').getByText('Backups', { exact: true }).click();

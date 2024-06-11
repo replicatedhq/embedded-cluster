@@ -142,7 +142,7 @@ expect {
 
 expect {
     "Type 'continue' when you are done adding nodes" {
-      send "\r"
+      send "continue\r"
     }
     timeout {
       puts "\n\nFailed to find 'done adding nodes' prompt."
@@ -151,37 +151,19 @@ expect {
 }
 
 expect {
-    "Please type 'continue' to proceed" {
-      send "continue\r"
-    }
+    "You are restoring a high-availability cluster, which requires at least 3 controller nodes. You currently have 1. Please add more controller nodes." {}
     timeout {
-      puts "\n\nFailed to find 'type continue to proceed' prompt."
+      puts "\n\nFailed to find '3 controllers required' warning"
       exit 1
     }
 }
 
 expect {
-    -timeout 30 "All nodes are ready!" {}
-    timeout {
-      puts "\n\nFailed to wait for nodes."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 240 "Embedded cluster operator restored!" {}
-    timeout {
-      puts "\n\nFailed to restore embedded cluster operator."
-      exit 1
-    }
-}
-
-expect {
-    -timeout 60 "Application restored!" {
+    "Type 'continue' when you are done adding nodes" {
       exit 0
     }
     timeout {
-      puts "\n\nFailed to restore application."
+      puts "\n\nFailed to find 'done adding nodes' prompt."
       exit 1
     }
 }

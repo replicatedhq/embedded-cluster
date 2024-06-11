@@ -190,6 +190,24 @@ func Test_canEnableHA(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "high availability is not enabled and there is three or more controller nodes but a restore is in progress",
+			args: args{
+				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+					&embeddedclusterv1beta1.Installation{
+						ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: false},
+					},
+					&corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{Name: ecRestoreStateCMName, Namespace: "embedded-cluster"},
+					},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
+					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3", Labels: controllerLabels}},
+				).Build(),
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

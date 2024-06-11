@@ -30,7 +30,7 @@ clusterConfig: |
               nodePort: 30000
             labels:
               replicated.com/disaster-recovery: infra
-              replicated.com/disaster-recovery-chart: kotsadm
+              replicated.com/disaster-recovery-chart: admin-console
             minimalRBAC: false
             service:
               enabled: false
@@ -53,7 +53,7 @@ expected: |
               nodePort: 40000
             labels:
               replicated.com/disaster-recovery: infra
-              replicated.com/disaster-recovery-chart: kotsadm
+              replicated.com/disaster-recovery-chart: admin-console
             minimalRBAC: false
             service:
               enabled: false

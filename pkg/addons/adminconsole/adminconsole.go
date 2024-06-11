@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/k0sproject/dig"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
@@ -67,7 +66,7 @@ var helmValues = map[string]interface{}{
 	"embeddedClusterVersion": defaults.Version,
 	"labels": map[string]interface{}{
 		"replicated.com/disaster-recovery":       "infra",
-		"replicated.com/disaster-recovery-chart": "kotsadm",
+		"replicated.com/disaster-recovery-chart": "admin-console",
 	},
 	"passwordSecretRef": map[string]interface{}{
 		"name": "kotsadm-password",
@@ -138,21 +137,6 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return release.GetHostPreflights()
 }
 
-// getPasswordFromConfig returns the adminconsole password from the provided chart config.
-func getPasswordFromConfig(chart *v1beta1.Chart) (string, error) {
-	if chart.Values == "" {
-		return "", nil
-	}
-	values := dig.Mapping{}
-	if err := yaml.Unmarshal([]byte(chart.Values), &values); err != nil {
-		return "", fmt.Errorf("unable to unmarshal values: %w", err)
-	}
-	if password, ok := values["password"].(string); ok {
-		return password, nil
-	}
-	return "", nil
-}
-
 // GetCurrentChartConfig returns the current adminconsole chart config from the cluster config.
 func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 	if a.config.Spec == nil || a.config.Spec.Extensions == nil {
@@ -220,7 +204,7 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	loading.Infof("Waiting for Admin Console to deploy")
+	loading.Infof("Waiting for the Admin Console to deploy")
 	defer loading.Close()
 
 	if err := createKotsPasswordSecret(ctx, cli, a.namespace, Password); err != nil {
@@ -294,7 +278,7 @@ func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spi
 			count++
 		}
 		if writer != nil {
-			writer.Infof("Waiting for Admin Console to deploy: %d/2 ready", count)
+			writer.Infof("Waiting for the Admin Console to deploy: %d/2 ready", count)
 		}
 		return count == 2, nil
 	}); err != nil {
@@ -352,8 +336,9 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 			Name:      "registry-creds",
 			Namespace: namespace,
 			Labels: map[string]string{
-				"kots.io/kotsadm":                  "true",
-				"replicated.com/disaster-recovery": "infra",
+				"kots.io/kotsadm":                        "true",
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "admin-console",
 			},
 		},
 		StringData: map[string]string{
@@ -389,8 +374,9 @@ func createKotsPasswordSecret(ctx context.Context, cli client.Client, namespace 
 			Name:      "kotsadm-password",
 			Namespace: namespace,
 			Labels: map[string]string{
-				"kots.io/kotsadm":                  "true",
-				"replicated.com/disaster-recovery": "infra",
+				"kots.io/kotsadm":                        "true",
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "admin-console",
 			},
 		},
 		Data: map[string][]byte{
