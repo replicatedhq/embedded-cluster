@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -80,8 +81,28 @@ type Roles struct {
 	Custom     []NodeRole `json:"custom,omitempty"`
 }
 
+// Chart single helm addon
+type Chart struct {
+	Name      string `json:"name"`
+	ChartName string `json:"chartname"`
+	Version   string `json:"version"`
+	Values    string `json:"values"`
+	TargetNS  string `json:"namespace"`
+	// Timeout specifies the timeout for how long to wait for the chart installation to finish.
+	// A duration string is a sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+	Timeout time.Duration `json:"timeout"`
+	Order   int           `json:"order"`
+}
+
+// Helm contains helm extension settings
+type Helm struct {
+	ConcurrencyLevel int                             `json:"concurrencyLevel"`
+	Repositories     k0sv1beta1.RepositoriesSettings `json:"repositories"`
+	Charts           []Chart                         `json:"charts"`
+}
+
 type Extensions struct {
-	Helm *k0sv1beta1.HelmExtensions `json:"helm,omitempty"`
+	Helm `json:"helm,omitempty"`
 }
 
 // ConfigSpec defines the desired state of Config
