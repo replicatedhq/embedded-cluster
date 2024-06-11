@@ -18,8 +18,9 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -205,9 +206,8 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
-		// both controller and worker nodes will have 'worker' in the join command, but only controllers will have 'enable-worker'
-		// https://github.com/replicatedhq/kots/blob/6a0602f4054d5d5f2d97e649b3303a059f0064d9/pkg/embeddedcluster/node_join.go#L183
-		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "enable-worker"), jcmd.Proxy); err != nil {
+		// both controller and worker nodes will have 'worker' in the join command
+		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.Proxy); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -446,17 +446,16 @@ func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	if installation.Spec.HighAvailability {
 		return false, nil
 	}
-	var nodes corev1.NodeList
-	labelSelector := labels.Set(map[string]string{
-		"node-role.kubernetes.io/control-plane": "true",
-	}).AsSelector()
-	if err := kcli.List(ctx, &nodes, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
-		return false, fmt.Errorf("unable to list nodes: %w", err)
+	if err := kcli.Get(ctx, types.NamespacedName{Name: ecRestoreStateCMName, Namespace: "embedded-cluster"}, &corev1.ConfigMap{}); err == nil {
+		return false, nil // cannot enable HA during a restore
+	} else if !errors.IsNotFound(err) {
+		return false, fmt.Errorf("unable to get restore state configmap: %w", err)
 	}
-	if len(nodes.Items) < 3 {
-		return false, nil
+	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
+	if err != nil {
+		return false, fmt.Errorf("unable to check control plane nodes: %w", err)
 	}
-	return true, nil
+	return ncps >= 3, nil
 }
 
 // enableHA enables high availability in the installation object

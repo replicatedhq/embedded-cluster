@@ -14,7 +14,13 @@ jobs:
         with:
           fetch-depth: 0
       - name: Extract tag name
-        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: |
+          # remove the "refs/tags/" prefix to get the tag that was pushed
+          export RAW_TAG=${GITHUB_REF#refs/tags/}
+          # add a 'v' prefix to the tag if it doesn't already have one
+          export V_TAG=$(echo "$RAW_TAG" | sed 's/^[^v]/v&/')
+          # store the tag name in a github environment variable for later steps
+          echo "TAG_NAME=${V_TAG}" >> $GITHUB_ENV
       - name: Set up Go
         uses: actions/setup-go@v5
         with:

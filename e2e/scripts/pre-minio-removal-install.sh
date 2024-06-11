@@ -210,7 +210,7 @@ main() {
         exit 1
     fi
 
-    if ! embedded-cluster install --no-prompt --license /tmp/license.yaml 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         exit 1
     fi
