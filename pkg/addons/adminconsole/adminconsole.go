@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/k0sproject/dig"
@@ -42,6 +43,7 @@ var (
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
+	BinaryVersionOverride   = ""
 	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
 	Password                = ""
 )
@@ -316,6 +318,21 @@ func GetURL() string {
 		}
 	}
 	return fmt.Sprintf("http://%s:%v", ipaddr, DEFAULT_ADMIN_CONSOLE_NODE_PORT)
+}
+
+func GetKotsBinVer() string {
+	if BinaryVersionOverride != "" {
+		return BinaryVersionOverride
+	}
+
+	// check for '-build.0' suffixes on the version
+	// these are part of the helm chart version, but not the kots version
+	if strings.Contains(Version, "-build") {
+		return strings.Split(Version, "-build")[0]
+	}
+
+	// remove possible '-alpha' suffixes on the version
+	return strings.TrimSuffix(Version, "-alpha")
 }
 
 func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {

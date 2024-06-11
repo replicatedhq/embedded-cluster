@@ -51,7 +51,7 @@ function k0sbin() {
         return 0
     fi
 
-    # if the override is set, the binary will have been added to the bucket through another process
+    # if the override is set, we should download this binary and upload it to the bucket so as not to require end users hit the override url
     if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
         echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
         curl --fail-with-body -L -o "${k0s_version}" "${k0s_override}"
@@ -84,6 +84,35 @@ function operatorbin() {
 
     # upload the binary to the bucket
     retry 3 aws s3 cp "${operator_version}" "s3://${S3_BUCKET}/operator-binaries/${operator_version}"
+}
+
+function kotsbin() {
+    # first, figure out what version of kots is in the current build
+    local kots_version=
+    kots_version=$(awk '/^ADMIN_CONSOLE_BINARY_VERSION_OVERRIDE/{print $3}' Makefile)
+    if [ -z "${kots_version}" ]; then
+        kots_version=$(awk '/^ADMIN_CONSOLE_CHART_VERSION/{print $3}' Makefile)
+        # check for a '-build.n' suffix
+        kots_version=$(echo "${kots_version}" | sed 's/-build\.[0-9]*//')
+        # check for a '-alpha' suffix
+        kots_version=$(echo "${kots_version}" | sed 's/-alpha//')
+    fi
+
+    # check if the binary already exists in the bucket
+    local kots_binary_exists=
+    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}" || true)
+
+    # if the binary already exists, we don't need to upload it again
+    if [ -n "${kots_binary_exists}" ]; then
+        echo "kots binary ${kots_version} already exists in bucket ${S3_BUCKET}, skipping upload"
+        return 0
+    fi
+
+    # download the kots binary from github
+    curl --fail-with-body -L -o "${kots_version}" "https://github.com/replicatedhq/kotsadm/releases/download/v${kots_version}/kotsadm-nominio.tar.gz"
+
+    # upload the binary to the bucket
+    retry 3 aws s3 cp "${kots_version}" "s3://${S3_BUCKET}/kots-binaries/${kots_version}"
 }
 
 function metadata() {
@@ -123,6 +152,7 @@ function main() {
     metadata
     embeddedcluster
     operatorbin
+    kotsbin
 }
 
 main "$@"
