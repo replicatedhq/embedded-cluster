@@ -117,8 +117,10 @@ func (h *hostInfo) configureKubernetesClient() {
 		return
 	}
 	h.Kclient = client
-	autopilot.Install(h.Kclient.Scheme())
-	v1beta1.Install(h.Kclient.Scheme())
+	//lint:ignore TODO use Install when we're past 1.30
+	autopilot.AddToScheme(h.Kclient.Scheme())
+	//lint:ignore TODO use Install when we're past 1.30
+	v1beta1.AddToScheme(h.Kclient.Scheme())
 }
 
 // getHostName fetches the hostname for the node
