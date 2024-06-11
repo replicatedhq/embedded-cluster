@@ -35,6 +35,7 @@ K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.92.1
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 KOTS_BINARY_URL_OVERRIDE =
+LOCAL_ARTIFACT_MIRROR_IMAGE ?= ttl.sh/$(shell whoami)/embedded-cluster-local-artifact-mirror:24h
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sBinaryURL=$(K0S_BINARY_SOURCE_OVERRIDE) \
@@ -192,3 +193,7 @@ scan:
 
 print-%:
 	@echo -n $($*)
+
+.PHONY: local-artifact-mirror-image
+local-artifact-mirror-image:
+	docker build -t $(LOCAL_ARTIFACT_MIRROR_IMAGE) -f Dockerfile .
