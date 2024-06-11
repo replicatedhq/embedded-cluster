@@ -8,6 +8,7 @@ type ReleaseMetadata struct {
 	Versions       map[string]string
 	K0sSHA         string
 	K0sBinaryURL   string
+	Artifacts      map[string]string // key is the artifact name, value is the URL it can be retrieved from
 	K0sImages      []string
 	Configs        v1beta1.HelmExtensions            // always applied
 	BuiltinConfigs map[string]v1beta1.HelmExtensions // applied if the relevant builtin addon is enabled
