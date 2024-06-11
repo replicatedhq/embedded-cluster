@@ -79,6 +79,7 @@ type EmbeddedClusterOperator struct {
 	licenseFile     string
 	airgap          bool
 	releaseMetadata *types.ReleaseMetadata
+	proxyEnv        map[string]string
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -116,6 +117,16 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 	if !onlyDefaults {
 		helmValues["embeddedBinaryName"] = defaults.BinaryName()
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
+		if len(e.proxyEnv) > 0 {
+			extraEnv := []map[string]interface{}{}
+			for k, v := range e.proxyEnv {
+				extraEnv = append(extraEnv, map[string]interface{}{
+					"name":  k,
+					"value": v,
+				})
+			}
+			helmValues["extraEnv"] = extraEnv
+		}
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
@@ -225,7 +236,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata, proxyEnv map[string]string) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:       "embedded-cluster",
 		deployName:      "embedded-cluster-operator",
@@ -233,6 +244,7 @@ func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airga
 		licenseFile:     licenseFile,
 		airgap:          airgapEnabled,
 		releaseMetadata: releaseMetadata,
+		proxyEnv:        proxyEnv,
 	}, nil
 }
 

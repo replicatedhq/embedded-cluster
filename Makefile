@@ -7,11 +7,11 @@ ADMIN_CONSOLE_CHART_NAME = admin-console
 ADMIN_CONSOLE_CHART_VERSION = 1.109.12
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
-EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
+EMBEDDED_OPERATOR_CHART_URL = oci://ttl.sh
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.34.9
+EMBEDDED_OPERATOR_CHART_VERSION = 0.35.0
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
-EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
+EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE = ttl.sh/embedded-cluster-operator-image:dev-a7b9557
 OPENEBS_CHART_URL = https://openebs.github.io/openebs
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 4.0.1
@@ -190,5 +190,11 @@ scan:
 		--ignore-unfixed \
 		./
 
+.PHONY: sync
+sync:
+	ssh $(SYNC_SERVER) "sudo mkdir -p /root/go/src/github.com/replicatedhq/embedded-cluster"
+	rsync --rsync-path="sudo rsync" -avz --exclude '.git' --exclude 'output' --exclude 'pkg/goods/bins' \
+		. $(SYNC_SERVER):/root/go/src/github.com/replicatedhq/embedded-cluster
+		
 print-%:
 	@echo -n $($*)
