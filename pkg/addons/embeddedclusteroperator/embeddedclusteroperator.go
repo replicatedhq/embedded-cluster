@@ -164,12 +164,12 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 // the installation object.
 func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
+	loading.Infof("Deploying cluster operator")
 	if err := kubeutils.WaitForDeployment(ctx, cli, e.namespace, e.deployName); err != nil {
 		loading.Close()
 		return err
 	}
-	loading.Closef("Embedded Cluster Operator is ready!")
+	loading.Closef("Cluster operator is ready")
 
 	if e.releaseMetadata != nil {
 		if err := e.createVersionMetadataConfigmap(ctx, cli); err != nil {

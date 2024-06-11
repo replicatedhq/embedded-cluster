@@ -605,11 +605,11 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	case disasterRecoveryComponentSeaweedFS:
 		loading.Infof("Restoring registry data")
 	case disasterRecoveryComponentRegistry:
-		loading.Infof("Restoring registry")
+		loading.Infof("Restoring the registry")
 	case disasterRecoveryComponentECO:
-		loading.Infof("Restoring embedded cluster operator")
+		loading.Infof("Restoring %s operator", defaults.BinaryName())
 	case disasterRecoveryComponentApp:
-		loading.Infof("Restoring application")
+		loading.Infof("Restoring the application")
 	}
 
 	// wait for velero restore to complete

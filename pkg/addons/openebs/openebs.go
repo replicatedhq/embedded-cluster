@@ -125,7 +125,7 @@ func (o *OpenEBS) GetAdditionalImages() []string {
 // Outro is executed after the cluster deployment.
 func (o *OpenEBS) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	loading.Infof("Waiting for Storage to be ready")
+	loading.Infof("Deploying storage")
 	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "openebs-localpv-provisioner"); err != nil {
 		loading.Close()
 		return err

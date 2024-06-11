@@ -99,20 +99,24 @@ type AdminConsole struct {
 func (a *AdminConsole) askPassword() (string, error) {
 	defaultPass := "password"
 	if !a.useprompt {
-		logrus.Info("Admin Console password set to: password")
+		logrus.Info("\nThe Admin Console password is set to 'password'\n")
 		return defaultPass, nil
 	}
+
+	logrus.Info("")
+
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Enter an Admin Console password:")
+		promptA := prompts.New().Password("Enter the password you'll use to access the Admin Console:")
 		promptB := prompts.New().Password("Confirm password:")
 
 		if promptA == promptB {
+			logrus.Info("")
 			return promptA, nil
 		}
-		logrus.Info("Passwords don't match, please try again.")
+		logrus.Info("Passwords don't match. Please try again.")
 	}
-	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
+	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
 }
 
 // Version returns the embedded admin console version.
@@ -202,7 +206,7 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 // Outro waits for the adminconsole to be ready.
 func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading := spinner.Start()
-	loading.Infof("Waiting for the Admin Console to deploy")
+	loading.Infof("Deploying the Admin Console")
 	defer loading.Close()
 
 	if err := createKotsPasswordSecret(ctx, cli, a.namespace, Password); err != nil {
@@ -236,7 +240,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 		}
 	}
 
-	loading.Infof("Admin Console is ready!")
+	loading.Infof("The Admin Console is ready!")
 
 	return nil
 }
@@ -276,7 +280,7 @@ func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spi
 			count++
 		}
 		if writer != nil {
-			writer.Infof("Waiting for the Admin Console to deploy: %d/2 ready", count)
+			writer.Infof("Deploying the Admin Console (%d/2 ready)", count)
 		}
 		return count == 2, nil
 	}); err != nil {

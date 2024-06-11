@@ -11,7 +11,6 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -79,9 +78,9 @@ func (a *Applier) Outro(ctx context.Context) error {
 	if err := spinForInstallation(ctx, kcli); err != nil {
 		return err
 	}
-	if err := printKotsadmLinkMessage(a.licenseFile); err != nil {
-		return fmt.Errorf("unable to print success message: %w", err)
-	}
+
+	logrus.Infof("\nVisit the Admin Console to configure and install %s: %s%s%s", defaults.BinaryName(), "\033[32m", adminconsole.GetURL(), "\033[0m")
+
 	return nil
 }
 
@@ -357,7 +356,7 @@ func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string,
 
 func spinForInstallation(ctx context.Context, cli client.Client) error {
 	installSpin := spinner.Start()
-	installSpin.Infof("Waiting for additional components to be ready")
+	installSpin.Infof("Deploying additional components")
 
 	err := kubeutils.WaitForInstallation(ctx, cli, installSpin)
 	if err != nil {
@@ -365,34 +364,6 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 		return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 	}
 	installSpin.Closef("Additional components are ready!")
-	return nil
-}
-
-// printKotsadmLinkMessage prints the success message when the admin console is online.
-func printKotsadmLinkMessage(licenseFile string) error {
-	var err error
-	license := &kotsv1beta1.License{}
-	if licenseFile != "" {
-		license, err = helpers.ParseLicense(licenseFile)
-		if err != nil {
-			return fmt.Errorf("unable to parse license: %w", err)
-		}
-	}
-
-	successColor := "\033[32m"
-	colorReset := "\033[0m"
-	var successMessage string
-	if license != nil {
-		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install %s: %s%s%s",
-			license.Spec.AppSlug, successColor, adminconsole.GetURL(), colorReset,
-		)
-	} else {
-		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install your application: %s%s%s",
-			successColor, adminconsole.GetURL(), colorReset,
-		)
-	}
-	logrus.Info(successMessage)
-
 	return nil
 }
 

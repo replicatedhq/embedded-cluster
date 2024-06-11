@@ -184,7 +184,7 @@ func MaskKotsOutputForOnline() spinner.MaskFn {
 		if strings.Contains(message, "Finished") {
 			return message
 		}
-		return "Finalizing Admin Console"
+		return "Finalizing the Admin Console"
 	}
 }
 
@@ -197,10 +197,10 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 		switch {
 		case strings.Contains(message, "Pushing application images"):
 			current = message
-		case strings.Contains(message, "Pushing embedded cluster artifacts"):
+		case strings.Contains(message, "Pushing additional artifacts"):
 			current = message
 		case strings.Contains(message, "Waiting for the Admin Console"):
-			current = "Finalizing Admin Console"
+			current = "Finalizing the Admin Console"
 		case strings.Contains(message, "Finished!"):
 			current = message
 		}
@@ -255,7 +255,7 @@ func KotsOutputLineBreaker() spinner.LineBreakerFn {
 
 		// if we are printing a message about pushing the embedded cluster artifacts
 		// it means that we have finished with the images and we want to break the line.
-		if strings.Contains(current, "Pushing embedded cluster artifacts") {
+		if strings.Contains(current, "Pushing additional artifacts") {
 			return true, "Application images are ready!"
 		}
 
@@ -263,7 +263,7 @@ func KotsOutputLineBreaker() spinner.LineBreakerFn {
 		// means that the embedded cluster artifacts are ready and we want to break the
 		// line.
 		if current == "Finalizing" {
-			return true, "Embedded cluster artifacts are ready!"
+			return true, "Additional artifacts are ready!"
 		}
 		return false, ""
 	}

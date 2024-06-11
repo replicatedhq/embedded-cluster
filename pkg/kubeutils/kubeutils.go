@@ -214,7 +214,7 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 	numCompletedCharts := numDesiredCharts - numPendingCharts
 
 	if numCompletedCharts < numDesiredCharts {
-		writer.Infof("Waiting for additional components to be ready (%d/%d)", numCompletedCharts, numDesiredCharts)
+		writer.Infof("Deploying additional components (%d/%d ready)", numCompletedCharts, numDesiredCharts)
 	} else {
 		writer.Infof("Finalizing additional components")
 	}

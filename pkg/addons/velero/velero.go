@@ -144,7 +144,7 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
 	}
 
 	loading := spinner.Start()
-	loading.Infof("Waiting for Velero to be ready")
+	loading.Infof("Deploying Velero")
 
 	if err := kubeutils.WaitForNamespace(ctx, cli, o.namespace); err != nil {
 		loading.Close()

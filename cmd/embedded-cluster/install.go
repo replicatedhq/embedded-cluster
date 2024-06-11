@@ -216,14 +216,12 @@ func checkAirgapMatches(c *cli.Context) error {
 func materializeFiles(c *cli.Context) error {
 	mat := spinner.Start()
 	defer mat.Close()
-	mat.Infof("Materializing files")
+	mat.Infof("Initializing")
 
 	if err := goods.Materialize(); err != nil {
 		return fmt.Errorf("unable to materialize binaries: %w", err)
 	}
 	if c.String("airgap-bundle") != "" {
-		mat.Infof("Materializing airgap installation files")
-
 		// read file from path
 		rawfile, err := os.Open(c.String("airgap-bundle"))
 		if err != nil {
@@ -237,7 +235,7 @@ func materializeFiles(c *cli.Context) error {
 		}
 	}
 
-	mat.Infof("Host files materialized!")
+	mat.Infof("Initialized!")
 
 	return nil
 }
@@ -349,7 +347,7 @@ func installK0s() error {
 func waitForK0s() error {
 	loading := spinner.Start()
 	defer loading.Close()
-	loading.Infof("Waiting for %s node to be ready", defaults.BinaryName())
+	loading.Infof("Deploying %s node", defaults.BinaryName())
 	var success bool
 	for i := 0; i < 30; i++ {
 		time.Sleep(2 * time.Second)
@@ -366,7 +364,7 @@ func waitForK0s() error {
 	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
 	}
-	loading.Infof("Node installation finished!")
+	loading.Infof("%s node deployed!", defaults.BinaryName())
 	return nil
 }
 

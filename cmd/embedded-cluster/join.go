@@ -137,7 +137,7 @@ var joinCommand = &cli.Command{
 			logrus.Errorf("An installation has been detected on this machine.")
 			logrus.Infof("If you want to reinstall you need to remove the existing installation")
 			logrus.Infof("first. You can do this by running the following command:")
-			logrus.Infof("\n  sudo ./%s reset\n", binName)
+			logrus.Infof("\n  sudo ./%s reset", binName)
 			return ErrNothingElseToAdd
 		}
 
@@ -425,11 +425,11 @@ func runK0sInstallCommand(fullcmd string) error {
 func waitForNode(ctx context.Context, kcli client.Client, hostname string) error {
 	loading := spinner.Start()
 	defer loading.Close()
-	loading.Infof("Waiting for node to join the cluster")
+	loading.Infof("Waiting for node to be ready")
 	if err := kubeutils.WaitForControllerNode(ctx, kcli, hostname); err != nil {
 		return fmt.Errorf("unable to wait for node: %w", err)
 	}
-	loading.Infof("Node has joined the cluster!")
+	loading.Infof("Node is ready!")
 	return nil
 }
 
@@ -442,7 +442,9 @@ func maybeEnableHA(ctx context.Context, kcli client.Client) error {
 		return nil
 	}
 	logrus.Info("")
-	logrus.Info("When adding a third controller node, you have the option to enable high availability. This will migrate the data so that it is replicated across cluster nodes. Once enabled, you must maintain at least three controller nodes.")
+	logrus.Info("When adding a third or more controller node, you can enable high availability.")
+	logrus.Info("This will migrate the data so that it is replicated across cluster nodes.")
+	logrus.Info("Once enabled, you must maintain at least three controller nodes.")
 	logrus.Info("")
 	shouldEnableHA := prompts.New().Confirm("Do you want to enable high availability?", false)
 	if !shouldEnableHA {

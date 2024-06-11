@@ -276,7 +276,7 @@ main() {
         kubectl get storageclass -A
         exit 1
     fi
-    if ! grep -q "Admin Console is ready!" /tmp/log; then
+    if ! grep -q "The Admin Console is ready!" /tmp/log; then
         echo "Failed to validate that the Admin Console is ready"
         exit 1
     fi
