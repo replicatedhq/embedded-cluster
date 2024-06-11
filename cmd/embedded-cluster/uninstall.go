@@ -117,8 +117,8 @@ func (h *hostInfo) configureKubernetesClient() {
 		return
 	}
 	h.Kclient = client
-	autopilot.AddToScheme(h.Kclient.Scheme())
-	v1beta1.AddToScheme(h.Kclient.Scheme())
+	autopilot.Install(h.Kclient.Scheme())
+	v1beta1.Install(h.Kclient.Scheme())
 }
 
 // getHostName fetches the hostname for the node
