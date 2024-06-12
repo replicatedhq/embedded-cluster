@@ -65,6 +65,13 @@ type ArtifactsLocation struct {
 	EmbeddedClusterMetadata string `json:"embeddedClusterMetadata"`
 }
 
+// ProxySpec holds the proxy configuration.
+type ProxySpec struct {
+	HTTPProxy  string `json:"httpProxy,omitempty"`
+	HTTPSProxy string `json:"httpsProxy,omitempty"`
+	NoProxy    string `json:"noProxy,omitempty"`
+}
+
 // LicenseInfo holds information about the license used to install the cluster.
 type LicenseInfo struct {
 	IsDisasterRecoverySupported bool `json:"isDisasterRecoverySupported,omitempty"`
@@ -90,6 +97,8 @@ type InstallationSpec struct {
 	AirGap bool `json:"airGap,omitempty"`
 	// Artifacts holds the location of the airgap bundle.
 	Artifacts *ArtifactsLocation `json:"artifacts,omitempty"`
+	// Proxy holds the proxy configuration.
+	Proxy *ProxySpec `json:"proxy,omitempty"`
 	// Config holds the configuration used at installation time.
 	Config *ConfigSpec `json:"config,omitempty"`
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
