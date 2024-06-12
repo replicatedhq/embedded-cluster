@@ -106,15 +106,14 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	}
 
 	artifacts := map[string]string{
-		"kots":     fmt.Sprintf("kots-binaries/%s", adminconsole.GetKotsBinVer()),
+		"kots":     fmt.Sprintf("kots-binaries/%s", adminconsole.KotsVersion),
 		"operator": fmt.Sprintf("operator-binaries/%s", embeddedclusteroperator.Version),
 	}
 
 	meta := types.ReleaseMetadata{
-		Versions:     versions,
-		K0sSHA:       sha,
-		K0sBinaryURL: defaults.K0sBinaryURL,
-		Artifacts:    artifacts,
+		Versions:  versions,
+		K0sSHA:    sha,
+		Artifacts: artifacts,
 	}
 
 	chtconfig, repconfig, err := applier.GenerateHelmConfigs(
