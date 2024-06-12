@@ -169,6 +169,7 @@ jobs:
         test:
           - TestSingleNodeInstallation
           - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
           - TestVersion
