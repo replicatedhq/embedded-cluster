@@ -86,23 +86,28 @@ type Chart struct {
 	Name      string `json:"name"`
 	ChartName string `json:"chartname"`
 	Version   string `json:"version"`
+	// +kubebuilder:validation:Optional
 	Values    string `json:"values"`
 	TargetNS  string `json:"namespace"`
 	// Timeout specifies the timeout for how long to wait for the chart installation to finish.
-	// A duration string is a sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+	// +kubebuilder:validation:Optional
 	Timeout time.Duration `json:"timeout"`
+	// +kubebuilder:validation:Optional
 	Order   int           `json:"order"`
 }
 
 // Helm contains helm extension settings
 type Helm struct {
+	// +kubebuilder:validation:Optional
 	ConcurrencyLevel int                             `json:"concurrencyLevel"`
+	// +kubebuilder:validation:Optional
 	Repositories     k0sv1beta1.RepositoriesSettings `json:"repositories"`
+	// +kubebuilder:validation:Optional
 	Charts           []Chart                         `json:"charts"`
 }
 
 type Extensions struct {
-	Helm `json:"helm,omitempty"`
+	Helm *Helm `json:"helm,omitempty"`
 }
 
 // ConfigSpec defines the desired state of Config
