@@ -21,6 +21,9 @@ var (
 	// is empty then it means we have shipped the official k0s binary. This
 	// is set at compile time via ldflags.
 	K0sBinaryURL = ""
+	// LocalArtifactMirrorImage holds a reference to where the lam image for
+	// this version of embedded-cluster is stored. Set at compile time.
+	LocalArtifactMirrorImage = ""
 )
 
 const KotsadmNamespace = "kotsadm"
