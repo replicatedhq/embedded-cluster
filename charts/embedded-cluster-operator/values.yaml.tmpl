@@ -15,6 +15,10 @@ image:
 kubeProxyImage: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
 utilsImage: busybox:latest
 
+extraEnv: []
+#  - name: HTTP_PROXY
+#    value: http://proxy.example.com
+
 resources:
   limits:
     cpu: 500m
