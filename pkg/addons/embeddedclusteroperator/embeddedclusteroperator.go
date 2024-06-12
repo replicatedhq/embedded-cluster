@@ -211,11 +211,6 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 
 	// Configure proxy
 	var proxySpec *embeddedclusterv1beta1.ProxySpec
-	proxySpec = &embeddedclusterv1beta1.ProxySpec{
-		HTTPProxy:  "",
-		HTTPSProxy: "",
-		NoProxy:    "",
-	}
 	if len(e.proxyEnv) > 0 {
 		proxySpec = &embeddedclusterv1beta1.ProxySpec{
 			HTTPProxy:  e.proxyEnv["HTTP_PROXY"],
