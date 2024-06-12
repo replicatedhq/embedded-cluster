@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -39,27 +41,36 @@ import (
 type ecRestoreState string
 
 const (
-	ecRestoreStateNew              ecRestoreState = "new"
-	ecRestoreStateConfirmBackup    ecRestoreState = "confirm-backup"
-	ecRestoreStateRestoreInfra     ecRestoreState = "restore-infra"
-	ecRestoreStateRestoreRegistry  ecRestoreState = "restore-registry"
-	ecRestoreStateRestoreECInstall ecRestoreState = "restore-ec-install"
-	ecRestoreStateWaitForNodes     ecRestoreState = "wait-for-nodes"
-	ecRestoreStateRestoreApp       ecRestoreState = "restore-app"
+	ecRestoreStateNew                 ecRestoreState = "new"
+	ecRestoreStateConfirmBackup       ecRestoreState = "confirm-backup"
+	ecRestoreStateRestoreECInstall    ecRestoreState = "restore-ec-install"
+	ecRestoreStateRestoreAdminConsole ecRestoreState = "restore-admin-console"
+	ecRestoreStateWaitForNodes        ecRestoreState = "wait-for-nodes"
+	ecRestoreStateRestoreSeaweedFS    ecRestoreState = "restore-seaweedfs"
+	ecRestoreStateRestoreRegistry     ecRestoreState = "restore-registry"
+	ecRestoreStateRestoreECO          ecRestoreState = "restore-embedded-cluster-operator"
+	ecRestoreStateRestoreApp          ecRestoreState = "restore-app"
 )
 
 var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateNew,
 	ecRestoreStateConfirmBackup,
-	ecRestoreStateRestoreInfra,
 	ecRestoreStateRestoreECInstall,
+	ecRestoreStateRestoreAdminConsole,
 	ecRestoreStateWaitForNodes,
+	ecRestoreStateRestoreSeaweedFS,
+	ecRestoreStateRestoreRegistry,
+	ecRestoreStateRestoreECO,
 	ecRestoreStateRestoreApp,
 }
 
 const (
-	ecRestoreStateCMName = "embedded-cluster-restore-state"
+	ecRestoreStateCMName    = "embedded-cluster-restore-state"
+	resourceModifiersCMName = "restore-resource-modifiers"
 )
+
+//go:embed assets/resource-modifiers.yaml
+var resourceModifiersYAML string
 
 type s3BackupStore struct {
 	endpoint        string
@@ -73,10 +84,12 @@ type s3BackupStore struct {
 type disasterRecoveryComponent string
 
 const (
-	disasterRecoveryComponentInfra     disasterRecoveryComponent = "infra"
-	disasterRecoveryComponentECInstall disasterRecoveryComponent = "ec-install"
-	disasterRecoveryComponentApp       disasterRecoveryComponent = "app"
-	disasterRecoveryComponentRegistry  disasterRecoveryComponent = "registry"
+	disasterRecoveryComponentECInstall    disasterRecoveryComponent = "ec-install"
+	disasterRecoveryComponentAdminConsole disasterRecoveryComponent = "admin-console"
+	disasterRecoveryComponentSeaweedFS    disasterRecoveryComponent = "seaweedfs"
+	disasterRecoveryComponentRegistry     disasterRecoveryComponent = "registry"
+	disasterRecoveryComponentECO          disasterRecoveryComponent = "embedded-cluster-operator"
+	disasterRecoveryComponentApp          disasterRecoveryComponent = "app"
 )
 
 type invalidBackupsError struct {
@@ -360,7 +373,6 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
 		return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
 	}
-
 	if _, ok := backup.Annotations["kots.io/is-airgap"]; !ok {
 		return false, "is missing the kots.io/is-airgap annotation"
 	}
@@ -374,8 +386,15 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 			return false, "is an airgap backup, but the restore is configured to be online"
 		}
 	}
-
 	return true, ""
+}
+
+func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
+	ha, ok := backup.Annotations["kots.io/embedded-cluster-is-ha"]
+	if !ok {
+		return false, fmt.Errorf("high availability annotation not found in backup")
+	}
+	return ha == "true", nil
 }
 
 // waitForBackups waits for backups to become available.
@@ -496,23 +515,104 @@ func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*ve
 	}
 }
 
+// getRegistryIPFromBackup gets the registry service IP from a backup.
+// It returns an empty string if the backup is not airgapped.
+func getRegistryIPFromBackup(backup *velerov1.Backup) (string, error) {
+	isAirgap, ok := backup.Annotations["kots.io/is-airgap"]
+	if !ok {
+		return "", fmt.Errorf("unable to get airgap status from backup")
+	}
+	if isAirgap != "true" {
+		return "", nil
+	}
+	registryServiceHost, ok := backup.Annotations["kots.io/embedded-registry"]
+	if !ok {
+		return "", fmt.Errorf("embedded registry service IP annotation not found in backup")
+	}
+	return strings.Split(registryServiceHost, ":")[0], nil
+}
+
+// getSeaweedFSS3ServiceIPFromBackup gets the seaweedfs s3 service IP from a backup.
+// It returns an empty string if the backup is not airgapped or not high availability.
+func getSeaweedFSS3ServiceIPFromBackup(backup *velerov1.Backup) (string, error) {
+	isAirgap, ok := backup.Annotations["kots.io/is-airgap"]
+	if !ok {
+		return "", fmt.Errorf("unable to get airgap status from backup")
+	}
+	if isAirgap != "true" {
+		return "", nil
+	}
+	highAvailability, err := isHighAvailabilityBackup(backup)
+	if err != nil {
+		return "", fmt.Errorf("unable to check high availability status: %w", err)
+	}
+	if !highAvailability {
+		return "", nil
+	}
+	swIP, ok := backup.Annotations["kots.io/embedded-cluster-seaweedfs-s3-ip"]
+	if !ok {
+		return "", fmt.Errorf("unable to get seaweedfs s3 service IP from backup")
+	}
+	return swIP, nil
+}
+
+// ensureRestoreResourceModifiers ensures the necessary restore resource modifiers.
+// Velero resource modifiers are used to modify the resources during a Velero restore by specifying json patches.
+// The json patches are applied to the resources before they are restored.
+// The json patches are specified in a configmap and the configmap is referenced in the restore object.
+func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup) error {
+	registryServiceIP, err := getRegistryIPFromBackup(backup)
+	if err != nil {
+		return fmt.Errorf("unable to get registry service IP from backup: %w", err)
+	}
+	seaweedFSS3ServiceIP, err := getSeaweedFSS3ServiceIPFromBackup(backup)
+	if err != nil {
+		return fmt.Errorf("unable to get seaweedfs s3 service IP from backup: %w", err)
+	}
+
+	modifiersYAML := strings.Replace(resourceModifiersYAML, "__REGISTRY_SERVICE_IP__", registryServiceIP, 1)
+	modifiersYAML = strings.Replace(modifiersYAML, "__SEAWEEDFS_S3_SERVICE_IP__", seaweedFSS3ServiceIP, 1)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: defaults.VeleroNamespace,
+			Name:      resourceModifiersCMName,
+		},
+		Data: map[string]string{
+			"resource-modifiers.yaml": modifiersYAML,
+		},
+	}
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	if err := kcli.Create(ctx, cm); err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("unable to create config map: %w", err)
+	}
+	return nil
+}
+
 // waitForDRComponent waits for a disaster recovery component to be restored.
 func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryComponent, restoreName string) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
 	switch drComponent {
-	case disasterRecoveryComponentInfra:
-		loading.Infof("Restoring infrastructure")
 	case disasterRecoveryComponentECInstall:
 		loading.Infof("Restoring cluster state")
-	case disasterRecoveryComponentApp:
-		loading.Infof("Restoring application")
+	case disasterRecoveryComponentAdminConsole:
+		loading.Infof("Restoring the Admin Console")
+	case disasterRecoveryComponentSeaweedFS:
+		loading.Infof("Restoring registry data")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Restoring registry")
+	case disasterRecoveryComponentECO:
+		loading.Infof("Restoring embedded cluster operator")
+	case disasterRecoveryComponentApp:
+		loading.Infof("Restoring application")
 	}
 
-	// wait for restore to complete
+	// wait for velero restore to complete
 	restore, err := waitForVeleroRestoreCompleted(ctx, restoreName)
 	if err != nil {
 		if restore != nil {
@@ -521,8 +621,35 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		return fmt.Errorf("unable to wait for velero restore to complete: %w", err)
 	}
 
-	if drComponent == disasterRecoveryComponentECInstall {
-		// wait for embedded cluster installation to reconcile
+	if drComponent == disasterRecoveryComponentAdminConsole {
+		// wait for admin console to be ready
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			return fmt.Errorf("unable to create kube client: %w", err)
+		}
+		if err := adminconsole.WaitForReady(ctx, kcli, defaults.KotsadmNamespace, loading); err != nil {
+			return fmt.Errorf("unable to wait for admin console: %w", err)
+		}
+	} else if drComponent == disasterRecoveryComponentSeaweedFS {
+		// wait for seaweedfs to be ready
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			return fmt.Errorf("unable to create kube client: %w", err)
+		}
+		if err := seaweedfs.WaitForReady(ctx, kcli, defaults.SeaweedFSNamespace, nil); err != nil {
+			return fmt.Errorf("unable to wait for seaweedfs to be ready: %w", err)
+		}
+	} else if drComponent == disasterRecoveryComponentRegistry {
+		// wait for registry to be ready
+		kcli, err := kubeutils.KubeClient()
+		if err != nil {
+			return fmt.Errorf("unable to create kube client: %w", err)
+		}
+		if err := kubeutils.WaitForDeployment(ctx, kcli, defaults.RegistryNamespace, "registry"); err != nil {
+			return fmt.Errorf("unable to wait for registry to be ready: %w", err)
+		}
+	} else if drComponent == disasterRecoveryComponentECO {
+		// wait for embedded cluster operator to reconcile the installation
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
@@ -530,31 +657,21 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err := kubeutils.WaitForInstallation(ctx, kcli, loading); err != nil {
 			return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 		}
-	} else if drComponent == disasterRecoveryComponentRegistry {
-		// delete the `registry` service to allow the helm chart reconciliation to re-create it with the desired clusterIP
-		kcli, err := kubeutils.KubeClient()
-		if err != nil {
-			return fmt.Errorf("unable to create kube client: %w", err)
-		}
-		if err := kcli.Delete(ctx, &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "registry",
-				Namespace: defaults.RegistryNamespace,
-			},
-		}); err != nil && !errors.IsNotFound(err) {
-			return fmt.Errorf("unable to delete registry service: %w", err)
-		}
 	}
 
 	switch drComponent {
-	case disasterRecoveryComponentInfra:
-		loading.Infof("Infrastructure restored!")
 	case disasterRecoveryComponentECInstall:
 		loading.Infof("Cluster state restored!")
-	case disasterRecoveryComponentApp:
-		loading.Infof("Application restored!")
+	case disasterRecoveryComponentAdminConsole:
+		loading.Infof("Admin Console restored!")
+	case disasterRecoveryComponentSeaweedFS:
+		loading.Infof("Registry data restored!")
 	case disasterRecoveryComponentRegistry:
 		loading.Infof("Registry restored!")
+	case disasterRecoveryComponentECO:
+		loading.Infof("Embedded cluster operator restored!")
+	case disasterRecoveryComponentApp:
+		loading.Infof("Application restored!")
 	}
 
 	return nil
@@ -582,19 +699,18 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 
 	// create a new restore object if it doesn't exist
 	if errors.IsNotFound(err) {
-		var restoreLabelSelector *metav1.LabelSelector
-		if drComponent == disasterRecoveryComponentRegistry {
-			restoreLabelSelector = &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "docker-registry",
-				},
-			}
-		} else {
-			restoreLabelSelector = &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"replicated.com/disaster-recovery": string(drComponent),
-				},
-			}
+		restoreLabels := map[string]string{}
+		switch drComponent {
+		case disasterRecoveryComponentAdminConsole, disasterRecoveryComponentECO:
+			restoreLabels["replicated.com/disaster-recovery-chart"] = string(drComponent)
+		case disasterRecoveryComponentECInstall, disasterRecoveryComponentApp:
+			restoreLabels["replicated.com/disaster-recovery"] = string(drComponent)
+		case disasterRecoveryComponentSeaweedFS:
+			restoreLabels["app.kubernetes.io/name"] = "seaweedfs"
+		case disasterRecoveryComponentRegistry:
+			restoreLabels["app"] = "docker-registry"
+		default:
+			return fmt.Errorf("unknown disaster recovery component: %q", drComponent)
 		}
 
 		restore := &velerov1.Restore{
@@ -606,12 +722,24 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				},
 			},
 			Spec: velerov1.RestoreSpec{
-				BackupName:              backup.Name,
-				LabelSelector:           restoreLabelSelector,
+				BackupName: backup.Name,
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: restoreLabels,
+				},
 				RestorePVs:              ptr.To(true),
 				IncludeClusterResources: ptr.To(true),
+				ResourceModifier: &corev1.TypedLocalObjectReference{
+					Kind: "ConfigMap",
+					Name: resourceModifiersCMName,
+				},
 			},
 		}
+
+		// ensure restore resource modifiers first
+		if err := ensureRestoreResourceModifiers(ctx, backup); err != nil {
+			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
+		}
+
 		_, err := veleroClient.Restores(defaults.VeleroNamespace).Create(ctx, restore, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("unable to create restore: %w", err)
@@ -623,37 +751,39 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 }
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
-func waitForAdditionalNodes(ctx context.Context) error {
+func waitForAdditionalNodes(ctx context.Context, highAvailability bool) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	loading := spinner.Start()
-	loading.Infof("Waiting for Admin Console to deploy")
-	if err := adminconsole.WaitForReady(ctx, kcli, defaults.KotsadmNamespace, loading); err != nil {
-		loading.Close()
-		return fmt.Errorf("unable to wait for admin console: %w", err)
-	}
-	loading.Closef("Admin Console is ready!")
-
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
-	joinNodesMsg := fmt.Sprintf("\nVisit the admin console if you need to add nodes to the cluster: %s%s%s\n",
+	joinNodesMsg := fmt.Sprintf("\nVisit the Admin Console if you need to add nodes to the cluster: %s%s%s\n",
 		successColor, adminconsole.GetURL(), colorReset,
 	)
 	logrus.Info(joinNodesMsg)
 
 	for {
 		p := prompts.New().Input("Type 'continue' when you are done adding nodes:", "", false)
-		if p == "continue" {
-			logrus.Info("")
-			break
+		if p != "continue" {
+			logrus.Info("Please type 'continue' to proceed")
+			continue
 		}
-		logrus.Info("Please type 'continue' to proceed")
+		if highAvailability {
+			ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
+			if err != nil {
+				return fmt.Errorf("unable to check control plane nodes: %w", err)
+			}
+			if ncps < 3 {
+				logrus.Infof("You are restoring a high-availability cluster, which requires at least 3 controller nodes. You currently have %d. Please add more controller nodes.", ncps)
+				continue
+			}
+		}
+		break
 	}
 
-	loading = spinner.Start()
+	loading := spinner.Start()
 	loading.Infof("Waiting for all nodes to be ready")
 	if err := kubeutils.WaitForNodes(ctx, kcli); err != nil {
 		loading.Close()
@@ -762,9 +892,9 @@ var restoreCommand = &cli.Command{
 			if err := installK0s(); err != nil {
 				return fmt.Errorf("unable update cluster: %w", err)
 			}
-			logrus.Debugf("running post install")
-			if err := runPostInstall(); err != nil {
-				return fmt.Errorf("unable to run post install: %w", err)
+			logrus.Debugf("creating systemd unit files")
+			if err := createSystemdUnitFiles(false); err != nil {
+				return fmt.Errorf("unable to create systemd unit files: %w", err)
 			}
 			logrus.Debugf("waiting for k0s to be ready")
 			if err := waitForK0s(); err != nil {
@@ -827,42 +957,6 @@ var restoreCommand = &cli.Command{
 			}
 			fallthrough
 
-		case ecRestoreStateRestoreInfra:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreInfra)
-			if err := setECRestoreState(c.Context, ecRestoreStateRestoreInfra, backupToRestore.Name); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-
-			logrus.Debugf("restoring infra from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentInfra); err != nil {
-				return err
-			}
-			fallthrough
-
-		case ecRestoreStateRestoreRegistry:
-			if c.String("airgap-bundle") != "" {
-				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
-				if err := setECRestoreState(c.Context, ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
-					return fmt.Errorf("unable to set restore state: %w", err)
-				}
-
-				logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
-				err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentRegistry)
-				if err != nil {
-					return err
-				}
-
-				registryAddress, ok := backupToRestore.Annotations["kots.io/embedded-registry"]
-				if !ok {
-					return fmt.Errorf("unable to read registry address from backup")
-				}
-
-				if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
-					return fmt.Errorf("failed to add insecure registry: %w", err)
-				}
-			}
-			fallthrough
-
 		case ecRestoreStateRestoreECInstall:
 			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECInstall)
 			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
@@ -874,13 +968,79 @@ var restoreCommand = &cli.Command{
 			}
 			fallthrough
 
+		case ecRestoreStateRestoreAdminConsole:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreAdminConsole)
+			if err := setECRestoreState(c.Context, ecRestoreStateRestoreAdminConsole, backupToRestore.Name); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
+			}
+			logrus.Debugf("restoring admin console from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
+				return err
+			}
+			fallthrough
+
 		case ecRestoreStateWaitForNodes:
 			logrus.Debugf("setting restore state to %q", ecRestoreStateWaitForNodes)
 			if err := setECRestoreState(c.Context, ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
+			logrus.Debugf("checking if backup is high availability")
+			highAvailability, err := isHighAvailabilityBackup(backupToRestore)
+			if err != nil {
+				return err
+			}
 			logrus.Debugf("waiting for additional nodes to be added")
-			if err := waitForAdditionalNodes(c.Context); err != nil {
+			if err := waitForAdditionalNodes(c.Context, highAvailability); err != nil {
+				return err
+			}
+			fallthrough
+
+		case ecRestoreStateRestoreSeaweedFS:
+			// only restore seaweedfs in case of high availability and airgap
+			highAvailability, err := isHighAvailabilityBackup(backupToRestore)
+			if err != nil {
+				return err
+			}
+			if highAvailability && c.String("airgap-bundle") != "" {
+				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
+				if err := setECRestoreState(c.Context, ecRestoreStateRestoreSeaweedFS, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+				logrus.Debugf("restoring seaweedfs from backup %q", backupToRestore.Name)
+				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentSeaweedFS); err != nil {
+					return err
+				}
+			}
+			fallthrough
+
+		case ecRestoreStateRestoreRegistry:
+			// only restore registry in case of airgap
+			if c.String("airgap-bundle") != "" {
+				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
+				if err := setECRestoreState(c.Context, ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+				logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
+				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentRegistry); err != nil {
+					return err
+				}
+				registryAddress, ok := backupToRestore.Annotations["kots.io/embedded-registry"]
+				if !ok {
+					return fmt.Errorf("unable to read registry address from backup")
+				}
+				if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
+					return fmt.Errorf("failed to add insecure registry: %w", err)
+				}
+			}
+			fallthrough
+
+		case ecRestoreStateRestoreECO:
+			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECO)
+			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECO, backupToRestore.Name); err != nil {
+				return fmt.Errorf("unable to set restore state: %w", err)
+			}
+			logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECO); err != nil {
 				return err
 			}
 			fallthrough

@@ -3,7 +3,7 @@ set -euox pipefail
 
 main() {
     echo "upgrading from airgap bundle"
-    embedded-cluster-upgrade update --airgap-bundle /tmp/upgrade/release.airgap
+    embedded-cluster-upgrade update --airgap-bundle /assets/upgrade/release.airgap
 }
 
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf

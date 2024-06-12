@@ -18,8 +18,9 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -212,7 +213,8 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
-		if err := createSystemdUnitFiles(jcmd.K0sJoinCommand); err != nil {
+		// both controller and worker nodes will have 'worker' in the join command
+		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller")); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -386,22 +388,22 @@ func systemdUnitFileName() string {
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(fullcmd string) error {
+func createSystemdUnitFiles(isWorker bool) error {
 	dst := systemdUnitFileName()
-	if _, err := os.Stat(dst); err == nil {
+	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
 			return err
 		}
 	}
 	src := "/etc/systemd/system/k0scontroller.service"
-	if strings.Contains(fullcmd, "worker") {
+	if isWorker {
 		src = "/etc/systemd/system/k0sworker.service"
 	}
 	if err := os.Symlink(src, dst); err != nil {
-		return err
+		return fmt.Errorf("failed to create symlink: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return err
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
 	return installAndEnableLocalArtifactMirror()
 }
@@ -459,17 +461,16 @@ func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	if installation.Spec.HighAvailability {
 		return false, nil
 	}
-	var nodes corev1.NodeList
-	labelSelector := labels.Set(map[string]string{
-		"node-role.kubernetes.io/control-plane": "true",
-	}).AsSelector()
-	if err := kcli.List(ctx, &nodes, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
-		return false, fmt.Errorf("unable to list nodes: %w", err)
+	if err := kcli.Get(ctx, types.NamespacedName{Name: ecRestoreStateCMName, Namespace: "embedded-cluster"}, &corev1.ConfigMap{}); err == nil {
+		return false, nil // cannot enable HA during a restore
+	} else if !errors.IsNotFound(err) {
+		return false, fmt.Errorf("unable to get restore state configmap: %w", err)
 	}
-	if len(nodes.Items) < 3 {
-		return false, nil
+	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
+	if err != nil {
+		return false, fmt.Errorf("unable to check control plane nodes: %w", err)
 	}
-	return true, nil
+	return ncps >= 3, nil
 }
 
 // enableHA enables high availability in the installation object

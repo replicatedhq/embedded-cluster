@@ -2,7 +2,9 @@
 set -euox pipefail
 
 main() {
-    if ! embedded-cluster reset --no-prompt | tee /tmp/log ; then
+    local additional_flags=("$@")
+
+    if ! embedded-cluster reset --no-prompt "${additional_flags[@]}" | tee /tmp/log ; then
         echo "Failed to uninstall embedded-cluster"
         exit 1
     fi
@@ -16,4 +18,4 @@ main() {
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
 export PATH=$PATH:/var/lib/embedded-cluster/bin
-main
+main "$@"

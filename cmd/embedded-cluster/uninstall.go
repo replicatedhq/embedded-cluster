@@ -11,6 +11,7 @@ import (
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/etcd"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -54,6 +55,8 @@ var (
 	binName = defaults.BinaryName()
 	k0s     = "/usr/local/bin/k0s"
 )
+
+var haWarningMessage = "WARNING: High-availability clusters must maintain at least three controller nodes, but resetting this node will leave only two. This can lead to a loss of functionality and non-recoverable failures. You should re-add a third node as soon as possible."
 
 // deleteNode removes the node from the cluster
 func (h *hostInfo) deleteNode(ctx context.Context) error {
@@ -287,6 +290,38 @@ func checkErrPrompt(c *cli.Context, err error) bool {
 	return prompts.New().Confirm("Do you want to continue anyway?", false)
 }
 
+// maybePrintHAWarning prints a warning message when the user is running a reset a node
+// in a high availability cluster and there are only 3 control nodes.
+func maybePrintHAWarning(c *cli.Context) error {
+	kubeconfig := defaults.PathToKubeConfig()
+	if _, err := os.Stat(kubeconfig); err != nil {
+		return nil
+	}
+
+	os.Setenv("KUBECONFIG", kubeconfig)
+	kubecli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	embeddedclusterv1beta1.AddToScheme(kubecli.Scheme())
+
+	if in, err := kubeutils.GetLatestInstallation(c.Context, kubecli); err != nil {
+		return fmt.Errorf("unable to get installation: %w", err)
+	} else if !in.Spec.HighAvailability {
+		return nil
+	}
+
+	ncps, err := kubeutils.NumOfControlPlaneNodes(c.Context, kubecli)
+	if err != nil {
+		return fmt.Errorf("unable to check control plane nodes: %w", err)
+	}
+	if ncps == 3 {
+		logrus.Warn(haWarningMessage)
+		logrus.Info("")
+	}
+	return nil
+}
+
 var resetCommand = &cli.Command{
 	Name: "reset",
 	Before: func(c *cli.Context) error {
@@ -315,6 +350,10 @@ var resetCommand = &cli.Command{
 	},
 	Usage: fmt.Sprintf("Remove %s from the current node", binName),
 	Action: func(c *cli.Context) error {
+		if err := maybePrintHAWarning(c); err != nil && !c.Bool("force") {
+			return err
+		}
+
 		logrus.Info("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
 		logrus.Info("Do not reset another node until this is complete.")
 		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
@@ -412,7 +451,7 @@ var resetCommand = &cli.Command{
 			}
 		}
 
-		if _, err := os.Stat(systemdUnitFileName()); err == nil {
+		if _, err := os.Lstat(systemdUnitFileName()); err == nil {
 			if err := os.Remove(systemdUnitFileName()); err != nil {
 				return fmt.Errorf("failed to remove systemd unit file: %w", err)
 			}
