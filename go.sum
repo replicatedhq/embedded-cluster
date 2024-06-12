@@ -159,8 +159,8 @@ github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4d
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/k0sproject/dig v0.2.0 h1:cNxEIl96g9kqSMfPSZLhpnZ0P8bWXKv08nxvsMHop5w=
 github.com/k0sproject/dig v0.2.0/go.mod h1:rBcqaQlJpcKdt2x/OE/lPvhGU50u/e95CSm5g/r4s78=
-github.com/k0sproject/k0s v1.28.9-0.20240405060519-8dc2b806bd9d h1:M6/4gxb2RMBhrk2xny2qzPxHbI1dkp9+7ZUix/Xzp7c=
-github.com/k0sproject/k0s v1.28.9-0.20240405060519-8dc2b806bd9d/go.mod h1:PO3VvTSDo8XZB2a3FW7S0bIk4S84u2sh0mZmP0hpI+Q=
+github.com/k0sproject/k0s v1.29.6-0.20240527072442-22f6a125e881 h1:AQpfVqdjBzPRoCoZsnIK13N8nZm3MxD8TK0kzuMyIek=
+github.com/k0sproject/k0s v1.29.6-0.20240527072442-22f6a125e881/go.mod h1:BMvJa5DUWtFJ0Ur0413XaJAhdE7xNkOt1oTqbift7nE=
 github.com/k0sproject/version v0.6.0 h1:Wi8wu9j+H36+okIQA47o/YHbzNpKeIYj8IjGdJOdqsI=
 github.com/k0sproject/version v0.6.0/go.mod h1:5/7Js62gDCLBP6mEs0mUcYEEkYneM5qXDKN/hyFlQTM=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNUXsshfwJMBgNA0RU6/i7WVaAegv3PtuIHPMs=
