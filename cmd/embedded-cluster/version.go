@@ -152,6 +152,9 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 		return nil, fmt.Errorf("unable to get airgap images: %w", err)
 	}
 	meta.K0sImages = append(meta.K0sImages, additionalImages...)
+	meta.Artifacts = map[string]string{
+		"local-artifact-mirror-image": defaults.LocalArtifactMirrorImage,
+	}
 
 	return &meta, nil
 }
