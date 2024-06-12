@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eo pipefail
+set -euo pipefail
 
 function require() {
     if [ -z "$2" ]; then
@@ -51,17 +51,76 @@ function k0sbin() {
         return 0
     fi
 
-    # if the override is set, the binary will have been added to the bucket through another process
+    # if the override is set, we should download this binary and upload it to the bucket so as not to require end users hit the override url
     if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
         echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
-        curl -L -o "${k0s_version}" "${k0s_override}"
+        curl --fail-with-body -L -o "${k0s_version}" "${k0s_override}"
     else
         # download the k0s binary from official sources
-        curl -L -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
+        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
+        curl --fail-with-body -L -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
     fi
 
     # upload the binary to the bucket
     retry 3 aws s3 cp "${k0s_version}" "s3://${S3_BUCKET}/k0s-binaries/${k0s_version}"
+}
+
+function operatorbin() {
+    # first, figure out what version of operator is in the current build
+    local operator_version=
+    operator_version=$(awk '/^EMBEDDED_OPERATOR_CHART_VERSION/{print $3}' Makefile)
+
+    # check if the binary already exists in the bucket
+    local operator_binary_exists=
+    operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}" || true)
+
+    # if the binary already exists, we don't need to upload it again
+    if [ -n "${operator_binary_exists}" ]; then
+        echo "operator binary ${operator_version} already exists in bucket ${S3_BUCKET}, skipping upload"
+        return 0
+    fi
+
+    # download the operator binary from github
+    echo "downloading embedded cluster operator binary from https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
+    curl --fail-with-body -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
+
+    # upload the binary to the bucket
+    retry 3 aws s3 cp "${operator_version}" "s3://${S3_BUCKET}/operator-binaries/${operator_version}"
+}
+
+function kotsbin() {
+    # first, figure out what version of kots is in the current build
+    local kots_version=
+    kots_version=$(awk '/^ADMIN_CONSOLE_CHART_VERSION/{print $3}' Makefile)
+    kots_version=$(echo "${kots_version}" | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+
+    local kots_override=
+    kots_override=$(awk '/^KOTS_BINARY_URL_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
+
+    # check if the binary already exists in the bucket
+    local kots_binary_exists=
+    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}" || true)
+
+    # if the binary already exists, we don't need to upload it again
+    if [ -n "${kots_binary_exists}" ]; then
+        echo "kots binary ${kots_version} already exists in bucket ${S3_BUCKET}, skipping upload"
+        return 0
+    fi
+
+    if [ -n "${kots_override}" ] && [ "${kots_override}" != '' ]; then
+        echo "KOTS_BINARY_URL_OVERRIDE is set to '${kots_override}', using that source"
+        curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "${kots_override}"
+    else
+        # download the kots binary from github
+        echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kots_linux_amd64.tar.gz"
+        curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kots_linux_amd64.tar.gz"
+    fi
+
+    # decompress the bundle, as we only care about the binary and not the sbom/license/readme
+    tar -xvf kots_linux_amd64.tar.gz
+
+    # upload the binary to the bucket
+    retry 3 aws s3 cp "kots" "s3://${S3_BUCKET}/kots-binaries/${kots_version}"
 }
 
 function metadata() {
@@ -98,6 +157,8 @@ function embeddedcluster() {
 # the embedded cluster release does not exist for CI builds
 function main() {
     k0sbin
+    operatorbin
+    kotsbin
     metadata
     embeddedcluster
 }

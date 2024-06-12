@@ -16,11 +16,6 @@ var (
 	KubectlVersion = "0.0.0"
 	// provider holds a global reference to the default provider.
 	provider *Provider
-	// K0sBinaryURL holds an alternative URL from where to download the k0s
-	// binary that has been embedded in this version of the binary. If this
-	// is empty then it means we have shipped the official k0s binary. This
-	// is set at compile time via ldflags.
-	K0sBinaryURL = ""
 	// LocalArtifactMirrorImage holds a reference to where the lam image for
 	// this version of embedded-cluster is stored. Set at compile time.
 	LocalArtifactMirrorImage = ""

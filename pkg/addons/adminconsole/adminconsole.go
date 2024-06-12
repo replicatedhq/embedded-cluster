@@ -41,6 +41,7 @@ var (
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
+	KotsVersion             = ""
 	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
 	Password                = ""
 )
