@@ -38,9 +38,7 @@ jobs:
 
       - name: Build and push local-artifact-mirror image (production)
         run: |
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.replicated.com/library/embedded-cluster-local-artifact-mirror:${TAG_NAME}
-          make local-artifact-mirror-image
-          docker push ${LOCAL_ARTIFACT_MIRROR_IMAGE}
+          make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
 
       - name: Login to Registry
         uses: docker/login-action@v2
@@ -51,9 +49,8 @@ jobs:
 
       - name: Build and push local-artifact-mirror image (staging)
         run: |
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror:${TAG_NAME}
-          make local-artifact-mirror-image
-          docker push ${LOCAL_ARTIFACT_MIRROR_IMAGE}
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
+          make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
 
       - name: Build linux-amd64
         run: |

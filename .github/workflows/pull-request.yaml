@@ -64,14 +64,14 @@ jobs:
     - name: Build and push local-artifact-mirror image
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror:${SHORT_SHA}
-        make local-artifact-mirror-image
-        docker push ${LOCAL_ARTIFACT_MIRROR_IMAGE}
+        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
+        make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}"
+        make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
 
     - name: Build Linux AMD64 and Output Metadata
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror:${SHORT_SHA}
+        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
         make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}-previous-k0s"
         tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
         ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
@@ -107,7 +107,7 @@ jobs:
     - name: Build CI binary
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror:${SHORT_SHA}
+        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
         echo "# channel release object" > e2e/kots-release-install/release.yaml
         echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
         echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
