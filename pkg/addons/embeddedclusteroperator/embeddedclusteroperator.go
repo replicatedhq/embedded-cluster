@@ -209,6 +209,16 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 		license = l
 	}
 
+	// Configure proxy
+	var proxySpec *embeddedclusterv1beta1.ProxySpec
+	if len(e.proxyEnv) > 0 {
+		proxySpec = &embeddedclusterv1beta1.ProxySpec{
+			HTTPProxy:  e.proxyEnv["HTTP_PROXY"],
+			HTTPSProxy: e.proxyEnv["HTTPS_PROXY"],
+			NoProxy:    e.proxyEnv["NO_PROXY"],
+		}
+	}
+
 	installation := embeddedclusterv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
@@ -220,6 +230,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            metrics.BaseURL(license),
 			AirGap:                    e.airgap,
+			Proxy:                     proxySpec,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
