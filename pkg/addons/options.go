@@ -2,10 +2,12 @@ package addons
 
 import (
 	"os"
+	"strings"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 // Option sets and option on an Applier reference.
@@ -79,7 +81,7 @@ func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string) Opti
 	proxyEnv := map[string]string{
 		"HTTP_PROXY":  httpProxy,
 		"HTTPS_PROXY": httpsProxy,
-		"NO_PROXY":    noProxy,
+		"NO_PROXY":    strings.Join(append(defaults.DefaultNoProxy, noProxy), ","),
 	}
 
 	return func(a *Applier) {

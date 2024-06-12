@@ -231,7 +231,7 @@ func NewTestCluster(in *Input) *Output {
 }
 
 const HTTPProxy = "http://10.0.0.254:3128"
-const NOProxy = "localhost,127.0.0.1,10.0.0.0/8,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node"
+const NOProxy = "10.0.0.0/8"
 
 // CreateProxy creates a node that attaches to both networks (external and internal),
 // once this is done we install squid and configure it to be a proxy. We also make

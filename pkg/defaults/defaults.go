@@ -21,6 +21,11 @@ var (
 	LocalArtifactMirrorImage = ""
 )
 
+// Holds the default no proxy values.
+var (
+	DefaultNoProxy = []string{"localhost", "127.0.0.1", ".default", ".local", ".svc", "kubernetes", "kotsadm-rqlite", "10.0.0.0/8"}
+)
+
 const KotsadmNamespace = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
 const RegistryNamespace = "registry"

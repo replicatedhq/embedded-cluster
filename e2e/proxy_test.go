@@ -13,7 +13,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	t.Parallel()
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
-		Nodes:               3,
+		Nodes:               4,
 		WithProxy:           true,
 		Image:               "debian/12",
 		LicensePath:         "license.yaml",

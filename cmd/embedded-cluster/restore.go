@@ -908,7 +908,7 @@ var restoreCommand = &cli.Command{
 				proxy = &Proxy{
 					HTTPProxy:  c.String("http-proxy"),
 					HTTPSProxy: c.String("https-proxy"),
-					NoProxy:    c.String("no-proxy"),
+					NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
 				}
 			}
 			logrus.Debugf("creating systemd unit files")

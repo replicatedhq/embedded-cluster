@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -511,7 +512,7 @@ var installCommand = &cli.Command{
 			proxy = &Proxy{
 				HTTPProxy:  c.String("http-proxy"),
 				HTTPSProxy: c.String("https-proxy"),
-				NoProxy:    c.String("no-proxy"),
+				NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
 			}
 		}
 		logrus.Debugf("creating systemd unit files")
