@@ -134,7 +134,8 @@ embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 go.mod: Makefile
-	go get github.com/k0sproject/k0s@$(K0S_VERSION)
+ 	CURVERSION=$(awk '/^K0S_VERSION/{split($3,a,"-"); print a[1]}' Makefile)
+	go get github.com/k0sproject/k0s@$(CURVERSION)
 	go mod tidy
 
 .PHONY: static
