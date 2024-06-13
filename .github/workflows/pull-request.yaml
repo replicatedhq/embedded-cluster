@@ -72,7 +72,7 @@ jobs:
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
-        make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}-previous-k0s"
+        make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) K0S_BINARY_SOURCE_OVERRIDE=$(make print-PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE) VERSION="${SHORT_SHA}-previous-k0s"
         tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
         ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
         make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
