@@ -45,6 +45,8 @@ function metadata() {
         sudo apt-get install jq -y
 
         jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' metadata.json > upgrade-metadata.json
+        sed -i 's/"Installer": "'"${EC_VERSION_ORIG_NOV}"'",/"Installer": "'"${EC_VERSION_NOV}"'",/g' upgrade-metadata.json
+        sed -i 's/embeddedClusterVersion: '"${EC_VERSION_ORIG_NOV}"'/embeddedClusterVersion: '"${EC_VERSION_NOV}"'/g' upgrade-metadata.json
         cat upgrade-metadata.json
 
         retry 3 aws s3 cp upgrade-metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
@@ -69,6 +71,10 @@ function embeddedcluster() {
 }
 
 function main() {
+    export EC_VERSION_ORIG_NOV
+    # shellcheck disable=SC2001
+    EC_VERSION_ORIG_NOV="$(echo "$EC_VERSION" | sed 's/^v//')"
+    export EC_VERSION_NOV="${EC_VERSION_ORIG_NOV}-upgrade"
     export EC_VERSION="${EC_VERSION}-upgrade"
     metadata
     embeddedcluster
