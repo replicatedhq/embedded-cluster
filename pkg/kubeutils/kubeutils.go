@@ -125,8 +125,6 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 	backoff := wait.Backoff{Steps: 60 * 5, Duration: time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 
-	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
-
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
 			lastInstall, err := GetLatestInstallation(ctx, cli)
