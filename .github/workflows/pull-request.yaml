@@ -67,6 +67,7 @@ jobs:
         export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
         make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}"
         make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
+        make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-upgrade"
 
     - name: Build Linux AMD64 and Output Metadata
       run: |
@@ -75,6 +76,9 @@ jobs:
         make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}-previous-k0s"
         tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
         ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
+        make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}-upgrade"
+        tar -C output/bin -czvf embedded-cluster-linux-amd64-upgrade.tgz embedded-cluster
+        ./output/bin/embedded-cluster version metadata > metadata-upgrade.json
         make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
         tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
         ./output/bin/embedded-cluster version metadata > metadata.json
