@@ -18,14 +18,11 @@ func createSystemdUnitFiles(isWorker bool, proxy *Proxy) error {
 		}
 	}
 	src := "/etc/systemd/system/k0scontroller.service"
-	if proxy != nil {
-		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
-	}
 	if isWorker {
 		src = "/etc/systemd/system/k0sworker.service"
-		if proxy != nil {
-			ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
-		}
+	}
+	if proxy != nil {
+		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
 	}
 	if err := os.Symlink(src, dst); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
