@@ -77,7 +77,7 @@ main() {
     fi
 
     echo "ensure that the admin console branding is available and has the DR label"
-    if ! kubectl get cm -n kotsadm -l replicated.com/disaster-recovery=infra | grep -q kotsadm-application-metadata; then
+    if ! kubectl get cm -n kotsadm kotsadm-application-metadata --show-labels | grep -q 'replicated.com/disaster-recovery=infra'; then
         echo "kotsadm-application-metadata configmap not found with the DR label"
         kubectl get cm -n kotsadm --show-labels
         kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
