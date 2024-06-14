@@ -225,6 +225,8 @@ jobs:
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHADisasterRecovery
             runner: embedded-cluster
+          - test: TestSingleNodeAirgapDisasterRecovery
+            runner: embedded-cluster
     steps:
     - name: Checkout
       uses: actions/checkout@v4
