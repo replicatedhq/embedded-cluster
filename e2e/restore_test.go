@@ -562,7 +562,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+		"NO_PROXY":    cluster.NOProxy,
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
@@ -661,7 +661,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+		"NO_PROXY":    cluster.NOProxy,
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore phase 1 of the installation: %v", err)
@@ -715,7 +715,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+		"NO_PROXY":    cluster.NOProxy,
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
