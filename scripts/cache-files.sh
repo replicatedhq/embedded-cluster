@@ -93,6 +93,7 @@ function kotsbin() {
     local kots_version=
     kots_version=$(awk '/^ADMIN_CONSOLE_CHART_VERSION/{print $3}' Makefile)
     kots_version=$(echo "${kots_version}" | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+    kots_version=$(echo "v${kots_version}") #reinclude 'v' in kots version string
 
     local kots_override=
     kots_override=$(awk '/^KOTS_BINARY_URL_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
@@ -112,8 +113,8 @@ function kotsbin() {
         curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "${kots_override}"
     else
         # download the kots binary from github
-        echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kots_linux_amd64.tar.gz"
-        curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/v${kots_version}/kots_linux_amd64.tar.gz"
+        echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
+        curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
     fi
 
     # decompress the bundle, as we only care about the binary and not the sbom/license/readme
