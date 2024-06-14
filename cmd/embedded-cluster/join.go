@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
@@ -245,7 +244,6 @@ var joinCommand = &cli.Command{
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
 		hostname, err := os.Hostname()
 		if err != nil {
 			err := fmt.Errorf("unable to get hostname: %w", err)

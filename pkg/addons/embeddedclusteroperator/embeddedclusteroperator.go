@@ -217,7 +217,6 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			},
 		},
 	}
-	embeddedclusterv1beta1.AddToScheme(cli.Scheme())
 	if err := cli.Create(ctx, &installation); err != nil {
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
