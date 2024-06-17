@@ -13,6 +13,8 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
@@ -103,10 +105,16 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 		return nil, fmt.Errorf("unable to get k0s binary sha256: %w", err)
 	}
 
+	artifacts := map[string]string{
+		"kots":                        fmt.Sprintf("kots-binaries/%s", adminconsole.KotsVersion),
+		"operator":                    fmt.Sprintf("operator-binaries/%s", embeddedclusteroperator.Version),
+		"local-artifact-mirror-image": defaults.LocalArtifactMirrorImage,
+	}
+
 	meta := types.ReleaseMetadata{
-		Versions:     versions,
-		K0sSHA:       sha,
-		K0sBinaryURL: defaults.K0sBinaryURL,
+		Versions:  versions,
+		K0sSHA:    sha,
+		Artifacts: artifacts,
 	}
 
 	chtconfig, repconfig, err := applier.GenerateHelmConfigs(

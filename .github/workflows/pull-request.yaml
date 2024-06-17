@@ -50,15 +50,39 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Registry
+      uses: docker/login-action@v2
+      with:
+        registry: registry.staging.replicated.com
+        username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
+        password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
+
+    - name: Build and push local-artifact-mirror image
+      run: |
+        export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
+        make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}"
+        make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
+        make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-upgrade"
+
     - name: Build Linux AMD64 and Output Metadata
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
         make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}-previous-k0s"
         tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
         ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
+        make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}-upgrade"
+        tar -C output/bin -czvf embedded-cluster-linux-amd64-upgrade.tgz embedded-cluster
+        ./output/bin/embedded-cluster version metadata > metadata-upgrade.json
         make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
         tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
         ./output/bin/embedded-cluster version metadata > metadata.json
+
     - name: Install Replicated CLI
       run: |
         curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
@@ -87,6 +111,7 @@ jobs:
     - name: Build CI binary
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+        export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
         echo "# channel release object" > e2e/kots-release-install/release.yaml
         echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
         echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
@@ -169,6 +194,7 @@ jobs:
         test:
           - TestSingleNodeInstallation
           - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
           - TestVersion
@@ -202,6 +228,8 @@ jobs:
           - test: TestMultiNodeAirgapHAInstallation
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHADisasterRecovery
+            runner: embedded-cluster
+          - test: TestSingleNodeAirgapDisasterRecovery
             runner: embedded-cluster
     steps:
     - name: Checkout

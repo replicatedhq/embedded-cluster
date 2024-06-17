@@ -40,7 +40,6 @@ var pullCommand = &cli.Command{
 		if kubecli, err = kubeutils.KubeClient(); err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
-		v1beta1.AddToScheme(kubecli.Scheme())
 		return nil
 	},
 	Subcommands: []*cli.Command{binariesCommand, imagesCommand, helmChartsCommand},

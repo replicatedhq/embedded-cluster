@@ -9,7 +9,7 @@ ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.34.9
+EMBEDDED_OPERATOR_CHART_VERSION = 0.35.2
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_URL = https://openebs.github.io/openebs
@@ -35,16 +35,19 @@ K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.92.1
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 KOTS_BINARY_URL_OVERRIDE =
+LOCAL_ARTIFACT_MIRROR_IMAGE ?= registry.replicated.com/library/embedded-cluster-local-artifact-mirror
+LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION = ${LOCAL_ARTIFACT_MIRROR_IMAGE}:$(subst +,-,$(VERSION))
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sBinaryURL=$(K0S_BINARY_SOURCE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.KubectlVersion=$(KUBECTL_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.MigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
@@ -192,3 +195,14 @@ scan:
 
 print-%:
 	@echo -n $($*)
+
+.PHONY: build-local-artifact-mirror-image
+build-local-artifact-mirror-image:
+	docker build -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f Dockerfile .
+
+.PHONY: push-local-artifact-mirror-image
+push-local-artifact-mirror-image:
+	docker push $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION)
+
+.PHONY: build-and-push-local-artifact-mirror-image
+build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image

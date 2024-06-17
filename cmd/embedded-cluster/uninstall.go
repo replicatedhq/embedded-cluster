@@ -11,7 +11,6 @@ import (
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/etcd"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -116,8 +115,6 @@ func (h *hostInfo) configureKubernetesClient() {
 		return
 	}
 	h.Kclient = client
-	autopilot.AddToScheme(h.Kclient.Scheme())
-	v1beta1.AddToScheme(h.Kclient.Scheme())
 }
 
 // getHostName fetches the hostname for the node
@@ -303,7 +300,6 @@ func maybePrintHAWarning(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
-	embeddedclusterv1beta1.AddToScheme(kubecli.Scheme())
 
 	if in, err := kubeutils.GetLatestInstallation(c.Context, kubecli); err != nil {
 		return fmt.Errorf("unable to get installation: %w", err)

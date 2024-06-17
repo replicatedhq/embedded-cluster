@@ -143,6 +143,23 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
+	expectedArtifacts := []string{"kots", "operator", "local-artifact-mirror-image"}
+	if len(parsed.Artifacts) != len(expectedArtifacts) {
+		t.Log(output)
+		t.Fatalf("found %d artifacts in metadata, expected %d", len(parsed.Artifacts), len(expectedArtifacts))
+	}
+
+	for _, expectedName := range expectedArtifacts {
+		if _, ok := parsed.Artifacts[expectedName]; !ok {
+			t.Errorf("failed to find artifact %s in 'metadata' output", expectedName)
+			failed = true
+		}
+		if len(parsed.Artifacts[expectedName]) == 0 {
+			t.Errorf("artifact %s is empty in 'metadata' output", expectedName)
+			failed = true
+		}
+	}
+
 	if failed {
 		t.Log(output)
 		t.FailNow()
