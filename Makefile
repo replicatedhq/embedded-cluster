@@ -9,7 +9,7 @@ ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.35.2
+EMBEDDED_OPERATOR_CHART_VERSION = 0.36.0
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_URL = https://openebs.github.io/openebs
@@ -29,9 +29,11 @@ VELERO_CHART_VERSION = 6.3.0
 VELERO_IMAGE_VERSION = v1.13.2
 VELERO_AWS_PLUGIN_IMAGE_VERSION = v1.9.2
 KUBECTL_VERSION = v1.30.1
-K0S_VERSION = v1.29.5+k0s.0
+K0S_VERSION = v1.29.5+k0s.0-ec.0
+K0S_GO_VERSION = v1.29.5+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.8+k0s.0
-K0S_BINARY_SOURCE_OVERRIDE =
+K0S_BINARY_SOURCE_OVERRIDE = https://ec-k0s-binaries.s3.amazonaws.com/k0s-v1.29.5%2Bk0s.0-ec.0
+PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.92.1
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 KOTS_BINARY_URL_OVERRIDE =
@@ -134,7 +136,7 @@ embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 go.mod: Makefile
-	go get github.com/k0sproject/k0s@$(K0S_VERSION)
+	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
 
 .PHONY: static

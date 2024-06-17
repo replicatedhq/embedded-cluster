@@ -435,6 +435,20 @@ var resetCommand = &cli.Command{
 			}
 		}
 
+		proxyControllerPath := "/etc/systemd/system/k0scontroller.service.d"
+		if _, err := os.Stat(proxyControllerPath); err == nil {
+			if err := os.RemoveAll(proxyControllerPath); err != nil {
+				return err
+			}
+		}
+
+		proxyWorkerPath := "/etc/systemd/system/k0sworker.service.d"
+		if _, err := os.Stat(proxyWorkerPath); err == nil {
+			if err := os.RemoveAll(proxyWorkerPath); err != nil {
+				return err
+			}
+		}
+
 		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
 			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
 				return fmt.Errorf("failed to remove embedded cluster home directory: %w", err)

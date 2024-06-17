@@ -2,10 +2,12 @@ package addons
 
 import (
 	"os"
+	"strings"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 // Option sets and option on an Applier reference.
@@ -71,10 +73,15 @@ func WithVersionMetadata(metadata *types.ReleaseMetadata) Option {
 
 // WithProxyFromEnv sets the proxy environment variables to be used during addons installation.
 func WithProxyFromEnv() Option {
+	return WithProxyFromArgs(os.Getenv("HTTP_PROXY"), os.Getenv("HTTPS_PROXY"), os.Getenv("NO_PROXY"))
+}
+
+// WithProxyFromArgs sets the proxy environment variables to be used during addons installation.
+func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string) Option {
 	proxyEnv := map[string]string{
-		"HTTP_PROXY":  os.Getenv("HTTP_PROXY"),
-		"HTTPS_PROXY": os.Getenv("HTTPS_PROXY"),
-		"NO_PROXY":    os.Getenv("NO_PROXY"),
+		"HTTP_PROXY":  httpProxy,
+		"HTTPS_PROXY": httpsProxy,
+		"NO_PROXY":    strings.Join(append(defaults.DefaultNoProxy, noProxy), ","),
 	}
 
 	return func(a *Applier) {

@@ -42,7 +42,7 @@ $ make e2e-tests
 
 ### Running individual tests
 
-You an run a single test with:
+You can run a single test with:
 
 ```
 $ make e2e-test TEST_NAME=TestSomething

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -267,6 +268,9 @@ func ensureK0sConfig(c *cli.Context) error {
 	if c.Bool("proxy") {
 		opts = append(opts, addons.WithProxyFromEnv())
 	}
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+	}
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -394,6 +398,9 @@ func runOutro(c *cli.Context) error {
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+	}
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
@@ -432,6 +439,21 @@ var installCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "http-proxy",
+			Usage:  "HTTP proxy to use for the installation",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "https-proxy",
+			Usage:  "HTTPS proxy to use for the installation",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "no-proxy",
+			Usage:  "Comma separated list of hosts to bypass the proxy for",
 			Hidden: true,
 		},
 		&cli.BoolFlag{
@@ -485,15 +507,23 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Debugf("installing k0s")
-		if err := installK0s(); err != nil {
-			err := fmt.Errorf("unable update cluster: %w", err)
+		var proxy *Proxy
+		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+			proxy = &Proxy{
+				HTTPProxy:  c.String("http-proxy"),
+				HTTPSProxy: c.String("https-proxy"),
+				NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
+			}
+		}
+		logrus.Debugf("creating systemd unit files")
+		if err := createSystemdUnitFiles(false, proxy); err != nil {
+			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Debugf("creating systemd unit files")
-		if err := createSystemdUnitFiles(false); err != nil {
-			err := fmt.Errorf("unable to create systemd unit files: %w", err)
+		logrus.Debugf("installing k0s")
+		if err := installK0s(); err != nil {
+			err := fmt.Errorf("unable update cluster: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
