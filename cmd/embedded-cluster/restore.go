@@ -806,17 +806,17 @@ var restoreCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:   "http-proxy",
 			Usage:  "HTTP proxy to use for the installation",
-			Hidden: true,
+			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "https-proxy",
 			Usage:  "HTTPS proxy to use for the installation",
-			Hidden: true,
+			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "no-proxy",
 			Usage:  "Comma separated list of hosts to bypass the proxy for",
-			Hidden: true,
+			Hidden: false,
 		},
 		&cli.BoolFlag{
 			Name:   "proxy",
