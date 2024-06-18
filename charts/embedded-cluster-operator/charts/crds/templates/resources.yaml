@@ -283,6 +283,10 @@ spec:
               artifacts:
                 description: Artifacts holds the location of the airgap bundle.
                 properties:
+                  additionalArtifacts:
+                    additionalProperties:
+                      type: string
+                    type: object
                   embeddedClusterBinary:
                     type: string
                   embeddedClusterMetadata:
