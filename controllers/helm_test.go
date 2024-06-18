@@ -1426,6 +1426,36 @@ func Test_updateInfraChartsFromInstall(t *testing.T) {
 			},
 		},
 		{
+			name: "velero with proxy",
+			args: args{
+				in: &v1beta1.Installation{
+					Spec: v1beta1.InstallationSpec{
+						ClusterID:        "testid",
+						BinaryName:       "testbin",
+						AirGap:           false,
+						HighAvailability: false,
+						Proxy: &v1beta1.ProxySpec{
+							HTTPProxy:  "http://proxy",
+							HTTPSProxy: "https://proxy",
+							NoProxy:    "noproxy",
+						},
+					},
+				},
+				charts: []k0sv1beta1.Chart{
+					{
+						Name:   "velero",
+						Values: "abc: xyz\nconfiguration:\n  extraEnvVars: {}\n",
+					},
+				},
+			},
+			want: []k0sv1beta1.Chart{
+				{
+					Name:   "velero",
+					Values: "abc: xyz\nconfiguration:\n  extraEnvVars:\n    HTTP_PROXY: http://proxy\n    HTTPS_PROXY: https://proxy\n    NO_PROXY: noproxy\n",
+				},
+			},
+		},
+		{
 			name: "docker-registry",
 			args: args{
 				in: &v1beta1.Installation{

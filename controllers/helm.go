@@ -204,6 +204,24 @@ func updateInfraChartsFromInstall(ctx context.Context, in *v1beta1.Installation,
 
 			charts[i].Values = newVals
 		}
+		if chart.Name == "velero" {
+			if in.Spec.Proxy != nil {
+				extraEnvVars := map[string]interface{}{
+					"extraEnvVars": map[string]string{
+						"HTTP_PROXY":  in.Spec.Proxy.HTTPProxy,
+						"HTTPS_PROXY": in.Spec.Proxy.HTTPSProxy,
+						"NO_PROXY":    in.Spec.Proxy.NoProxy,
+					},
+				}
+
+				newVals, err := setHelmValue(chart.Values, "configuration", extraEnvVars)
+				if err != nil {
+					log.Error(err, "failed to set helm values extraEnvVars", "chart", chart.Name)
+					continue
+				}
+				charts[i].Values = newVals
+			}
+		}
 	}
 	return charts
 }
