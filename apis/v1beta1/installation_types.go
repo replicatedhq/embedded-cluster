@@ -59,10 +59,11 @@ type NodeStatus struct {
 // the cluster, authentication for the registry is read from the cluster
 // at execution time so they do not need to be provided here.
 type ArtifactsLocation struct {
-	Images                  string `json:"images"`
-	HelmCharts              string `json:"helmCharts"`
-	EmbeddedClusterBinary   string `json:"embeddedClusterBinary"`
-	EmbeddedClusterMetadata string `json:"embeddedClusterMetadata"`
+	Images                  string            `json:"images"`
+	HelmCharts              string            `json:"helmCharts"`
+	EmbeddedClusterBinary   string            `json:"embeddedClusterBinary"`
+	EmbeddedClusterMetadata string            `json:"embeddedClusterMetadata"`
+	AdditionalArtifacts     map[string]string `json:"additionalArtifacts,omitempty"`
 }
 
 // ProxySpec holds the proxy configuration.
