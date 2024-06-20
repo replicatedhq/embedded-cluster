@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -33,7 +32,7 @@ type AddOn interface {
 	Version() (map[string]string, error)
 	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error)
+	GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []v1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
 	GetProtectedFields() map[string][]string
 	GetAdditionalImages() []string
@@ -104,8 +103,8 @@ func (a *Applier) OutroForRestore(ctx context.Context) error {
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, additionalRepositories []v1beta1.Repository) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	charts := []v1beta1.Chart{}
+func (a *Applier) GenerateHelmConfigs(additionalCharts []embeddedclusterv1beta1.Chart, additionalRepositories []v1beta1.Repository) ([]embeddedclusterv1beta1.Chart, []v1beta1.Repository, error) {
+	charts := []embeddedclusterv1beta1.Chart{}
 	repositories := []v1beta1.Repository{}
 	addons, err := a.load()
 	if err != nil {
@@ -130,8 +129,8 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 }
 
 // GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
-func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	charts := []v1beta1.Chart{}
+func (a *Applier) GenerateHelmConfigsForRestore() ([]embeddedclusterv1beta1.Chart, []v1beta1.Repository, error) {
+	charts := []embeddedclusterv1beta1.Chart{}
 	repositories := []v1beta1.Repository{}
 	addons, err := a.loadForRestore()
 	if err != nil {
@@ -153,8 +152,8 @@ func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Re
 
 // GetBuiltinCharts returns a map of charts that are not applied at install time and instead
 // included in metadata for later use by the operator.
-func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
-	builtinCharts := map[string]k0sconfig.HelmExtensions{}
+func (a *Applier) GetBuiltinCharts() (map[string]embeddedclusterv1beta1.Helm, error) {
+	builtinCharts := map[string]embeddedclusterv1beta1.Helm{}
 
 	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
 	if err != nil {
@@ -164,7 +163,7 @@ func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate helm config for velero: %w", err)
 	}
-	builtinCharts["velero"] = k0sconfig.HelmExtensions{
+	builtinCharts["velero"] = embeddedclusterv1beta1.Helm{
 		Repositories: velRepo,
 		Charts:       velChart,
 	}
@@ -177,7 +176,7 @@ func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
 	}
-	builtinCharts["registry"] = k0sconfig.HelmExtensions{
+	builtinCharts["registry"] = embeddedclusterv1beta1.Helm{
 		Repositories: regRepo,
 		Charts:       regChart,
 	}
@@ -190,7 +189,7 @@ func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
 	}
-	builtinCharts["registry-ha"] = k0sconfig.HelmExtensions{
+	builtinCharts["registry-ha"] = embeddedclusterv1beta1.Helm{
 		Repositories: regHARepo,
 		Charts:       regHAChart,
 	}
@@ -203,7 +202,7 @@ func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate helm config for seaweedfs: %w", err)
 	}
-	builtinCharts["seaweedfs"] = k0sconfig.HelmExtensions{
+	builtinCharts["seaweedfs"] = embeddedclusterv1beta1.Helm{
 		Repositories: seaweedRepo,
 		Charts:       seaweedChart,
 	}
@@ -331,7 +330,7 @@ func (a *Applier) loadForRestore() ([]AddOn, error) {
 }
 
 // Versions returns a map with the version of each addon that will be applied.
-func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string, error) {
+func (a *Applier) Versions(additionalCharts []embeddedclusterv1beta1.Chart) (map[string]string, error) {
 	addons, err := a.load()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)

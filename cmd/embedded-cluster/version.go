@@ -8,7 +8,7 @@ import (
 
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/k0sproject/k0s/pkg/airgap"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/urfave/cli/v2"
 
@@ -117,7 +117,7 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 		return nil, fmt.Errorf("unable to apply addons: %w", err)
 	}
 
-	meta.Configs = k0sconfig.HelmExtensions{
+	meta.Configs = eckinds.Helm{
 		ConcurrencyLevel: 1,
 		Charts:           chtconfig,
 		Repositories:     repconfig,

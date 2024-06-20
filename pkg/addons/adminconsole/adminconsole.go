@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -154,7 +155,7 @@ func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1beta1.Repository, error) {
 	if !onlyDefaults {
 		if Password == "" {
 			var err error
@@ -184,7 +185,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig := v1beta1.Chart{
+	chartConfig := eckinds.Chart{
 		Name:      releaseName,
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
 		Version:   Version,
@@ -192,7 +193,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 		TargetNS:  a.namespace,
 		Order:     5,
 	}
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
 func (a *AdminConsole) GetAdditionalImages() []string {

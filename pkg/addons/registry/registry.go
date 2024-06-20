@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
@@ -182,12 +183,12 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
-func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1beta1.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
 
-	chartConfig := v1beta1.Chart{
+	chartConfig := eckinds.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
 		Version:   Version,
@@ -230,7 +231,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []eckinds.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
 }
 
 func (o *Registry) GetAdditionalImages() []string {
