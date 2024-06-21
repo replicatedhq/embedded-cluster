@@ -249,8 +249,8 @@ github.com/replicatedhq/embedded-cluster-operator v0.36.0 h1:bVfprWclxojJx3bj+86
 github.com/replicatedhq/embedded-cluster-operator v0.36.0/go.mod h1:ARYlOmWODaibFtX04e4x5eeymYJmhLzpVC7hJfBt2Es=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0 h1:Axdni1nYfl5zeOP9g5U79yvN8cRdClyU6hz0wV1Hmdc=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0/go.mod h1:4JmMC2CwMCLxq05GEW3XSPPVotqyamAF/omrbB3pH+c=
-github.com/replicatedhq/kotskinds v0.0.0-20240621084729-1eb1e3eac6f2 h1:xL4u2RHhMaGDgz7Lol5MhVYLnWahV3sCJZbfebpPao0=
-github.com/replicatedhq/kotskinds v0.0.0-20240621084729-1eb1e3eac6f2/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
+github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4 h1:nsNSod6wpFpaMUq1IqnU4y2XWQd2FEKtdr02UB2udkk=
+github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
 github.com/replicatedhq/troubleshoot v0.93.1 h1:JWdyk8TH//PUaDpUGhlcQIH4YVIWXoDbee6aOMTfOOk=
 github.com/replicatedhq/troubleshoot v0.93.1/go.mod h1:2GQAYOwWL0YMNkc5WOkA54/6AicoHwoSxyzhkzSmFM4=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=

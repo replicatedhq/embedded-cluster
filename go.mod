@@ -17,7 +17,7 @@ require (
 	github.com/replicatedhq/embedded-cluster-kinds v1.3.9
 	github.com/replicatedhq/embedded-cluster-operator v0.36.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
-	github.com/replicatedhq/kotskinds v0.0.0-20240621084729-1eb1e3eac6f2
+	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.93.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0

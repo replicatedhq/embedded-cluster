@@ -30,6 +30,7 @@ func Test_checkLicenseMatches(t *testing.T) {
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+  isEmbeddedClusterDownloadEnabled: true
   `,
 			wantErr: "a license was provided but no release was found in binary, please rerun without the license flag",
 		},
@@ -40,6 +41,7 @@ spec:
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+  isEmbeddedClusterDownloadEnabled: true
   `,
 		},
 		{
@@ -49,6 +51,7 @@ spec:
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+  isEmbeddedClusterDownloadEnabled: true
   entitlements:
     expires_at:
       description: License Expiration
@@ -66,6 +69,7 @@ spec:
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+  isEmbeddedClusterDownloadEnabled: true
   entitlements:
     expires_at:
       description: License Expiration
@@ -82,6 +86,7 @@ spec:
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+  isEmbeddedClusterDownloadEnabled: true
   entitlements:
     expires_at:
       description: License Expiration
@@ -90,6 +95,17 @@ spec:
       value: "2124-06-03T00:00:00Z"
       valueType: String
   `,
+		},
+		{
+			name:       "embedded cluster not enabled, with release",
+			useRelease: true,
+			licenseContents: `
+spec:
+  appSlug: embedded-cluster-smoke-test-staging-app
+  channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+  isEmbeddedClusterDownloadEnabled: false
+  `,
+			wantErr: "license does not have embedded cluster enabled, please provide a valid license",
 		},
 	}
 	for _, tt := range tests {

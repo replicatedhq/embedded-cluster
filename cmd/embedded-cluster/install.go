@@ -184,6 +184,10 @@ func checkLicenseMatches(licenseFile string) error {
 		}
 	}
 
+	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
+		return fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+	}
+
 	return nil
 }
 
