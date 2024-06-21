@@ -235,39 +235,9 @@ func (r *ReleaseData) parse() error {
 }
 
 // SetReleaseDataForTests should only be called from tests. It sets the release information based on the supplied data.
-func SetReleaseDataForTests(data map[string][]byte) error {
+func SetReleaseDataForTests(rd *ReleaseData) error {
 	mtx.Lock()
 	defer mtx.Unlock()
-
-	buf := bytes.NewBuffer([]byte{})
-	gw := gzip.NewWriter(buf)
-	tw := tar.NewWriter(gw)
-	for name, content := range data {
-		err := tw.WriteHeader(&tar.Header{
-			Name: "name",
-			Size: int64(len(content)),
-		})
-		if err != nil {
-			return fmt.Errorf("unable to write header for %s: %w", name, err)
-		}
-		_, err = tw.Write(content)
-		if err != nil {
-			return fmt.Errorf("unable to write content for %s: %w", name, err)
-		}
-	}
-	err := tw.Close()
-	if err != nil {
-		return fmt.Errorf("unable to close tar writer: %w", err)
-	}
-	err = gw.Close()
-	if err != nil {
-		return fmt.Errorf("unable to close gzip writer: %w", err)
-	}
-
-	rd, err := NewReleaseDataFrom(buf.Bytes())
-	if err != nil {
-		return fmt.Errorf("unable to set release data for tests: %w", err)
-	}
 	releaseData = rd
 	return nil
 }

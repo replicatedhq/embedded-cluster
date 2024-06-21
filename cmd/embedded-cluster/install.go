@@ -136,7 +136,7 @@ func isAlreadyInstalled() (bool, error) {
 	}
 }
 
-func checkLicenseMatches(c *cli.Context) error {
+func checkLicenseMatches(licenseFile string) error {
 	rel, err := release.GetChannelRelease()
 	if err != nil {
 		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
@@ -146,20 +146,20 @@ func checkLicenseMatches(c *cli.Context) error {
 	// 1. no release and no license, which is OK
 	// 2. no license and a release, which is not OK
 	// 3. a license and no release, which is not OK
-	if rel == nil && c.String("license") == "" {
+	if rel == nil && licenseFile == "" {
 		// no license and no release, this is OK
 		return nil
-	} else if rel == nil && c.String("license") != "" {
+	} else if rel == nil && licenseFile != "" {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
 		return fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
-	} else if rel != nil && c.String("license") == "" {
+	} else if rel != nil && licenseFile == "" {
 		// release is present but no license, this is not OK
 		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
-	license, err := helpers.ParseLicense(c.String("license"))
+	license, err := helpers.ParseLicense(licenseFile)
 	if err != nil {
-		return fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", c.String("license"), err)
+		return fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
 	}
 
 	// Check if the license matches the application version data
@@ -171,6 +171,17 @@ func checkLicenseMatches(c *cli.Context) error {
 		// if the channel is different, we will not be able to install the pinned vendor application version within kots
 		// this may result in an immediate k8s upgrade after installation, which is undesired
 		return fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+	}
+
+	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
+		// read the expiration date, and check it against the current date
+		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
+		if err != nil {
+			return fmt.Errorf("unable to parse expiration date: %w", err)
+		}
+		if time.Now().After(expiration) {
+			return fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+		}
 	}
 
 	return nil
@@ -479,7 +490,7 @@ var installCommand = &cli.Command{
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 		logrus.Debugf("checking license matches")
-		if err := checkLicenseMatches(c); err != nil {
+		if err := checkLicenseMatches(c.String("license")); err != nil {
 			metricErr := fmt.Errorf("unable to check license: %w", err)
 			metrics.ReportApplyFinished(c, metricErr)
 			return err // do not return the metricErr, as we want the user to see the error message without a prefix
