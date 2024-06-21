@@ -72,7 +72,7 @@ function operatorbin() {
 
     # check if the binary already exists in the bucket
     local operator_binary_exists=
-    operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}" || true)
+    operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}.tar.gz" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${operator_binary_exists}" ]; then
@@ -105,7 +105,7 @@ function kotsbin() {
 
     # check if the binary already exists in the bucket
     local kots_binary_exists=
-    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}" || true)
+    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}.tar.gz" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${kots_binary_exists}" ]; then
