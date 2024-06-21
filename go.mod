@@ -1,6 +1,7 @@
 module github.com/replicatedhq/embedded-cluster
 
 go 1.22.0
+toolchain go1.22.4
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -18,7 +19,7 @@ require (
 	github.com/replicatedhq/embedded-cluster-operator v0.36.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
-	github.com/replicatedhq/troubleshoot v0.93.1
+	github.com/replicatedhq/troubleshoot v0.93.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
