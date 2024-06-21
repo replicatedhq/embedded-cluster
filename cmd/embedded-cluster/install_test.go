@@ -121,14 +121,17 @@ spec:
 			_, err = licenseFile.Write([]byte(tt.licenseContents))
 			req.NoError(err)
 
-			releaseData := []byte(``)
+			dataMap := map[string][]byte{}
 			if tt.useRelease {
-				releaseData, err = os.ReadFile("../../pkg/release/testdata/release.tar.gz")
-				req.NoError(err)
+				dataMap["release.yaml"] = []byte(`
+# channel release object
+channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+channelSlug: "CI"
+appSlug: "embedded-cluster-smoke-test-staging-app"
+versionLabel: testversion
+`)
 			}
-			rel, err := release.NewReleaseDataFrom(releaseData)
-			req.NoError(err)
-			err = release.SetReleaseDataForTests(rel)
+			err = release.SetReleaseDataForTests(dataMap)
 			req.NoError(err)
 
 			if tt.licenseContents != "" {
