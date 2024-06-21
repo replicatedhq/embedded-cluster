@@ -129,6 +129,7 @@ spec:
 			rel, err := release.NewReleaseDataFrom(releaseData)
 			req.NoError(err)
 			err = release.SetReleaseDataForTests(rel)
+			req.NoError(err)
 
 			if tt.licenseContents != "" {
 				err = checkLicenseMatches(filepath.Join(tmpdir, "license.yaml"))
