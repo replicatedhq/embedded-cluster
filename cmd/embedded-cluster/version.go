@@ -106,8 +106,8 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	}
 
 	artifacts := map[string]string{
-		"kots":                        fmt.Sprintf("kots-binaries/%s", adminconsole.KotsVersion),
-		"operator":                    fmt.Sprintf("operator-binaries/%s", embeddedclusteroperator.Version),
+		"kots":                        fmt.Sprintf("kots-binaries/%s.tar.gz", adminconsole.KotsVersion),
+		"operator":                    fmt.Sprintf("operator-binaries/%s.tar.gz", embeddedclusteroperator.Version),
 		"local-artifact-mirror-image": defaults.LocalArtifactMirrorImage,
 	}
 
