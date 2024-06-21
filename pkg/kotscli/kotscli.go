@@ -133,9 +133,8 @@ func AdminConsolePushImages(opts AdminConsolePushImagesOptions) error {
 	}
 	defer os.Remove(kotsBinPath)
 
-	// TODO: mask and line break functions
-	// maskfn := MaskKotsOutputForAirgap()
-	// lbreakfn := KotsOutputLineBreaker()
+	maskfn := MaskKotsOutputForAirgap()
+	lbreakfn := KotsOutputLineBreaker()
 	pushImagesArgs := []string{
 		"admin-console",
 		"push-images",
@@ -147,10 +146,7 @@ func AdminConsolePushImages(opts AdminConsolePushImagesOptions) error {
 		opts.RegistryPassword,
 	}
 
-	loading := spinner.Start(
-	// spinner.WithMask(maskfn),
-	// spinner.WithLineBreaker(lbreakfn),
-	)
+	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
 	runCommandOptions := helpers.RunCommandOptions{
 		Writer: loading,
 		Env: map[string]string{
@@ -178,9 +174,8 @@ func AirgapUpload(opts AirgapUploadOptions) error {
 	}
 	defer os.Remove(kotsBinPath)
 
-	// TODO: mask and line break functions
-	// maskfn := MaskKotsOutputForAirgap()
-	// lbreakfn := KotsOutputLineBreaker()
+	maskfn := MaskKotsOutputForAirgap()
+	lbreakfn := KotsOutputLineBreaker()
 	airgapUploadArgs := []string{
 		"airgap-upload",
 		opts.AppSlug,
@@ -188,10 +183,7 @@ func AirgapUpload(opts AirgapUploadOptions) error {
 		opts.AirgapBundle,
 	}
 
-	loading := spinner.Start(
-	// spinner.WithMask(maskfn),
-	// spinner.WithLineBreaker(lbreakfn),
-	)
+	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
 	runCommandOptions := helpers.RunCommandOptions{
 		Writer: loading,
 		Env: map[string]string{
