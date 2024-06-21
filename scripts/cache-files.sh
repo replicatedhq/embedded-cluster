@@ -123,7 +123,7 @@ function kotsbin() {
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp "kots" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
+    retry 3 aws s3 cp "kots_linux_amd64.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
 }
 
 function metadata() {
