@@ -72,7 +72,7 @@ function operatorbin() {
 
     # check if the binary already exists in the bucket
     local operator_binary_exists=
-    operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}" || true)
+    operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}.tar.gz" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${operator_binary_exists}" ]; then
@@ -84,8 +84,13 @@ function operatorbin() {
     echo "downloading embedded cluster operator binary from https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
     curl --fail-with-body -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
 
+    chmod +x "${operator_version}"
+
+    # compress the operator binary
+    tar -czf "${operator_version}.tar.gz" "${operator_version}"
+
     # upload the binary to the bucket
-    retry 3 aws s3 cp "${operator_version}" "s3://${S3_BUCKET}/operator-binaries/${operator_version}"
+    retry 3 aws s3 cp "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
 }
 
 function kotsbin() {
@@ -100,7 +105,7 @@ function kotsbin() {
 
     # check if the binary already exists in the bucket
     local kots_binary_exists=
-    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}" || true)
+    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}.tar.gz" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${kots_binary_exists}" ]; then
@@ -117,11 +122,8 @@ function kotsbin() {
         curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
     fi
 
-    # decompress the bundle, as we only care about the binary and not the sbom/license/readme
-    tar -xvf kots_linux_amd64.tar.gz
-
     # upload the binary to the bucket
-    retry 3 aws s3 cp "kots" "s3://${S3_BUCKET}/kots-binaries/${kots_version}"
+    retry 3 aws s3 cp "kots_linux_amd64.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
 }
 
 function metadata() {
