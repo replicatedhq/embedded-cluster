@@ -7,8 +7,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
@@ -46,10 +48,37 @@ var updateCommand = &cli.Command{
 			return fmt.Errorf("no channel release found")
 		}
 
+		if c.String("airgap-bundle") != "" {
+			kcli, err := kubeutils.KubeClient()
+			if err != nil {
+				return fmt.Errorf("failed to create kube client: %w", err)
+			}
+
+			creds, err := adminconsole.GetEmbeddedRegistryCredentials(c.Context, kcli)
+			if err != nil {
+				return fmt.Errorf("failed to get embedded registry credentials: %w", err)
+			}
+
+			if err := kotscli.AdminConsolePushImages(kotscli.AdminConsolePushImagesOptions{
+				AirgapBundle:     c.String("airgap-bundle"),
+				RegistryHost:     fmt.Sprintf("%s/%s", creds.Hostname, rel.AppSlug),
+				RegistryUsername: creds.Username,
+				RegistryPassword: creds.Password,
+			}); err != nil {
+				return err
+			}
+			if err := kotscli.AirgapUpload(kotscli.AirgapUploadOptions{
+				AppSlug:      rel.AppSlug,
+				AirgapBundle: c.String("airgap-bundle"),
+			}); err != nil {
+				return err
+			}
+			return nil
+		}
+
 		if err := kotscli.UpstreamUpgrade(kotscli.UpstreamUpgradeOptions{
-			AppSlug:      rel.AppSlug,
-			Namespace:    defaults.KotsadmNamespace,
-			AirgapBundle: c.String("airgap-bundle"),
+			AppSlug:   rel.AppSlug,
+			Namespace: defaults.KotsadmNamespace,
 		}); err != nil {
 			return err
 		}

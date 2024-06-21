@@ -83,9 +83,8 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 }
 
 type UpstreamUpgradeOptions struct {
-	AppSlug      string
-	Namespace    string
-	AirgapBundle string
+	AppSlug   string
+	Namespace string
 }
 
 func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
@@ -95,7 +94,6 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 	}
 	defer os.Remove(kotsBinPath)
 
-	var lbreakfn spinner.LineBreakerFn
 	maskfn := MaskKotsOutputForOnline()
 	upstreamUpgradeArgs := []string{
 		"upstream",
@@ -104,13 +102,8 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 		"--namespace",
 		opts.Namespace,
 	}
-	if opts.AirgapBundle != "" {
-		upstreamUpgradeArgs = append(upstreamUpgradeArgs, "--airgap-bundle", opts.AirgapBundle)
-		maskfn = MaskKotsOutputForAirgap()
-		lbreakfn = KotsOutputLineBreaker()
-	}
 
-	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
+	loading := spinner.Start(spinner.WithMask(maskfn))
 	runCommandOptions := helpers.RunCommandOptions{
 		Writer: loading,
 		Env: map[string]string{
@@ -120,6 +113,94 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, upstreamUpgradeArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to update the application: %w", err)
+	}
+
+	loading.Closef("Finished!")
+	return nil
+}
+
+type AdminConsolePushImagesOptions struct {
+	AirgapBundle     string
+	RegistryHost     string
+	RegistryUsername string
+	RegistryPassword string
+}
+
+func AdminConsolePushImages(opts AdminConsolePushImagesOptions) error {
+	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	// TODO: mask and line break functions
+	// maskfn := MaskKotsOutputForAirgap()
+	// lbreakfn := KotsOutputLineBreaker()
+	pushImagesArgs := []string{
+		"admin-console",
+		"push-images",
+		opts.AirgapBundle,
+		opts.RegistryHost,
+		"--registry-username",
+		opts.RegistryUsername,
+		"--registry-password",
+		opts.RegistryPassword,
+	}
+
+	loading := spinner.Start(
+	// spinner.WithMask(maskfn),
+	// spinner.WithLineBreaker(lbreakfn),
+	)
+	runCommandOptions := helpers.RunCommandOptions{
+		Writer: loading,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+		},
+	}
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, pushImagesArgs...); err != nil {
+		loading.CloseWithError()
+		return fmt.Errorf("unable to push images: %w", err)
+	}
+
+	loading.Closef("Finished!")
+	return nil
+}
+
+type AirgapUploadOptions struct {
+	AppSlug      string
+	AirgapBundle string
+}
+
+func AirgapUpload(opts AirgapUploadOptions) error {
+	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	// TODO: mask and line break functions
+	// maskfn := MaskKotsOutputForAirgap()
+	// lbreakfn := KotsOutputLineBreaker()
+	airgapUploadArgs := []string{
+		"airgap-upload",
+		opts.AppSlug,
+		"--airgap-bundle",
+		opts.AirgapBundle,
+	}
+
+	loading := spinner.Start(
+	// spinner.WithMask(maskfn),
+	// spinner.WithLineBreaker(lbreakfn),
+	)
+	runCommandOptions := helpers.RunCommandOptions{
+		Writer: loading,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
+		},
+	}
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUploadArgs...); err != nil {
+		loading.CloseWithError()
+		return fmt.Errorf("unable to upload airgap bundle: %w", err)
 	}
 
 	loading.Closef("Finished!")

@@ -5,6 +5,7 @@ package adminconsole
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -374,4 +376,53 @@ func createKotsPasswordSecret(ctx context.Context, cli client.Client, namespace 
 	}
 
 	return nil
+}
+
+type EmbeddedRegistryCredentials struct {
+	Hostname string
+	Username string
+	Password string
+}
+
+func GetEmbeddedRegistryCredentials(ctx context.Context, kcli client.Client) (*EmbeddedRegistryCredentials, error) {
+	nsn := types.NamespacedName{Name: "registry-creds", Namespace: "kotsadm"}
+	var secret corev1.Secret
+	if err := kcli.Get(ctx, nsn, &secret); err != nil {
+		return nil, fmt.Errorf("unable to get secret: %w", err)
+	}
+
+	dockerJson, ok := secret.Data[".dockerconfigjson"]
+	if !ok {
+		return nil, fmt.Errorf("no .dockerconfigjson in registry-creds secret")
+	}
+
+	type dockerRegistryAuth struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Auth     string `json:"auth"`
+	}
+	dockerConfig := struct {
+		Auths map[string]dockerRegistryAuth `json:"auths"`
+	}{}
+
+	if err := json.Unmarshal(dockerJson, &dockerConfig); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal .dockerconfigjson: %w", err)
+	}
+
+	var creds *EmbeddedRegistryCredentials
+	for host, auth := range dockerConfig.Auths {
+		if auth.Username == "embedded-cluster" {
+			creds = &EmbeddedRegistryCredentials{
+				Hostname: host,
+				Username: auth.Username,
+				Password: auth.Password,
+			}
+		}
+	}
+
+	if creds == nil {
+		return nil, fmt.Errorf("no embedded-cluster credentials found in .dockerconfigjson")
+	}
+
+	return creds, nil
 }
