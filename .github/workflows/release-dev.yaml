@@ -175,6 +175,7 @@ jobs:
           - TestProxiedEnvironment
           - TestMultiNodeHADisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
+          - TestCustomCIDR
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
