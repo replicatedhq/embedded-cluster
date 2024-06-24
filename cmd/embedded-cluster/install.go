@@ -536,7 +536,7 @@ var installCommand = &cli.Command{
 		logrus.Debugf("creating k0s configuration file")
 		var cfg *k0sconfig.ClusterConfig
 		var err error
-		if err, cfg = ensureK0sConfig(c); err != nil {
+		if cfg, err = ensureK0sConfig(c); err != nil {
 			err := fmt.Errorf("unable to create config file: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
