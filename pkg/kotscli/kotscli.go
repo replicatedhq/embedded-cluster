@@ -82,32 +82,29 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 	return nil
 }
 
-type UpstreamUpgradeOptions struct {
+type AirgapUpdateOptions struct {
 	AppSlug      string
 	Namespace    string
 	AirgapBundle string
 }
 
-func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
+func AirgapUpdate(opts AirgapUpdateOptions) error {
 	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
 	defer os.Remove(kotsBinPath)
 
-	var lbreakfn spinner.LineBreakerFn
-	maskfn := MaskKotsOutputForOnline()
-	upstreamUpgradeArgs := []string{
-		"upstream",
-		"upgrade",
+	maskfn := MaskKotsOutputForAirgap()
+	lbreakfn := KotsOutputLineBreaker()
+
+	airgapUpdateArgs := []string{
+		"airgap-update",
 		opts.AppSlug,
 		"--namespace",
 		opts.Namespace,
-	}
-	if opts.AirgapBundle != "" {
-		upstreamUpgradeArgs = append(upstreamUpgradeArgs, "--airgap-bundle", opts.AirgapBundle)
-		maskfn = MaskKotsOutputForAirgap()
-		lbreakfn = KotsOutputLineBreaker()
+		"--airgap-bundle",
+		opts.AirgapBundle,
 	}
 
 	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
@@ -117,7 +114,7 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
 	}
-	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, upstreamUpgradeArgs...); err != nil {
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
