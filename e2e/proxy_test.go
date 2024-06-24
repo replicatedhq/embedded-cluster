@@ -120,8 +120,8 @@ func TestCustomCIDR(t *testing.T) {
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-proxy-install.sh"}
-	line = append(line, "--pod-cidr", "192.168.0.0/22")
-	line = append(line, "--service-cidr", "192.168.4.0/22")
+	line = append(line, "--pod-cidr", "192.168.0.0/20")
+	line = append(line, "--service-cidr", "192.168.32.0/20")
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
