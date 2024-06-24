@@ -324,6 +324,12 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 		airgap.RemapHelm(cfg)
 		airgap.SetAirgapConfig(cfg)
 	}
+	if c.String("pod-cidr") != "" {
+		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+	}
+	if c.String("service-cidr") != "" {
+		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("unable to marshal config: %w", err)
@@ -822,6 +828,16 @@ var restoreCommand = &cli.Command{
 			Name:   "proxy",
 			Usage:  "Use the system proxy settings for the restore operation. These variables are currently only passed through to Velero.",
 			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "pod-cidr",
+			Usage:  "pod CIDR range to use for the installation",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "service-cidr",
+			Usage:  "service CIDR range to use for the installation",
+			Hidden: false,
 		},
 	},
 	Before: func(c *cli.Context) error {
