@@ -1,0 +1,245 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: HostPreflight
+metadata:
+  name: ec-cluster-preflight
+spec:
+  collectors:
+    - diskUsage:
+        collectorName: root-disk-usage
+        path: /
+    - memory: {}
+    - cpu: {}
+    - time: {}
+    - ipv4Interfaces: {}
+    - kernelConfigs: {}
+  analyzers:
+    - cpu:
+        checkName: 'Number of CPUs in the system'
+        outcomes:
+          - fail:
+              when: 'count < 2'
+              message: At least 2 CPU cores is required
+          - pass:
+              message: This node has at least 2 CPU cores
+    - diskUsage:
+        checkName: Root disk usage
+        collectorName: root-disk-usage
+        outcomes:
+          - fail:
+              when: 'total < 40Gi'
+              message: The disk containing directory / has less than 40Gi of total space
+          - fail:
+              when: 'used/total > 80%'
+              message: The disk containing directory / is more than 80% full
+          - fail:
+              when: 'available < 10Gi'
+              message: The disk containing directory / has less than 10Gi of disk space available
+          - pass:
+              message: The disk containing directory / has sufficient space
+    - memory:
+        checkName: Amount of memory on the system
+        outcomes:
+          - fail:
+              when: '< 2G'
+              message: At least 2G of memory is recommended
+          - pass:
+              message: The system has at least 2G of memory
+    - ipv4Interfaces:
+        outcomes:
+          - fail:
+              when: 'count == 0'
+              message: No IPv4 interfaces detected
+          - pass:
+              when: 'count >= 1'
+              message: IPv4 interface detected
+    - time:
+        checkName: 'Time synchronization'
+        outcomes:
+          - fail:
+              when: 'ntp == unsynchronized+inactive'
+              message: 'System clock is not synchronized'
+          - fail:
+              when: 'ntp == unsynchronized+active'
+              message: System clock not yet synchronized
+          - pass:
+              when: 'ntp == synchronized+active'
+              message: 'System clock is synchronized'
+    # Ensure https://docs.k0sproject.io/head/external-runtime-deps/?h=config_cgroups#linux-kernel-configuration requirements are met
+    # Commented out until https://github.com/replicatedhq/troubleshoot/issues/1563 is resolved
+    # Leave this here cause it took a while to write
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_CGROUPS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "CGROUPS (Control Group support) kernel config is available"
+    #       - fail:
+    #           message: "CGROUPS (Control Group support) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_CGROUP_FREEZER=y
+    #     outcomes:
+    #       - pass:
+    #           message: "CGROUP_FREEZER (Freezer cgroup subsystem) kernel config is available"
+    #       - fail:
+    #           message: "CGROUP_FREEZER (Freezer cgroup subsystem) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_CGROUP_PIDS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "CGROUP_PIDS (PIDs cgroup subsystem) kernel config is available"
+    #       - fail:
+    #           message: "CGROUP_PIDS (PIDs cgroup subsystem) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_CGROUP_DEVICE=y
+    #     outcomes:
+    #       - pass:
+    #           message: "CGROUP_DEVICE (Device controller for cgroups) kernel config is available"
+    #       - fail:
+    #           message: "CGROUP_DEVICE (Device controller for cgroups) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_CPUSETS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "CPUSETS (Cpuset support) kernel config is available"
+    #       - fail:
+    #           message: "CPUSETS (Cpuset support) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_CGROUP_CPUACCT=y
+    #     outcomes:
+    #       - pass:
+    #           message: "CGROUP_CPUACCT (Simple CPU accounting cgroup subsystem) kernel config is available"
+    #       - fail:
+    #           message: "CGROUP_CPUACCT (Simple CPU accounting cgroup subsystem) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_MEMCG=y
+    #     outcomes:
+    #       - pass:
+    #           message: "MEMCG (Memory Resource Controller for Control Groups) kernel config is available"
+    #       - fail:
+    #           message: "MEMCG (Memory Resource Controller for Control Groups) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_CGROUP_SCHED=y
+    #     outcomes:
+    #       - pass:
+    #           message: "CGROUP_SCHED (Group CPU scheduler) kernel config is available"
+    #       - fail:
+    #           message: "CGROUP_SCHED (Group CPU scheduler) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_FAIR_GROUP_SCHED=y
+    #     outcomes:
+    #       - pass:
+    #           message: "FAIR_GROUP_SCHED (Group scheduling for SCHED_OTHER) kernel config is available"
+    #       - fail:
+    #           message: "FAIR_GROUP_SCHED (Group scheduling for SCHED_OTHER) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_NAMESPACES=y
+    #     outcomes:
+    #       - pass:
+    #           message: "NAMESPACES (Namespaces support) kernel config is available"
+    #       - fail:
+    #           message: "NAMESPACES (Namespaces support) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_UTS_NS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "UTS_NS (UTS namespace) kernel config is available"
+    #       - fail:
+    #           message: "UTS_NS (UTS namespace) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_IPC_NS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "IPC_NS (IPC namespace) kernel config is available"
+    #       - fail:
+    #           message: "IPC_NS (IPC namespace) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_PID_NS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "PID_NS (PID namespace) kernel config is available"
+    #       - fail:
+    #           message: "PID_NS (PID namespace) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_NET_NS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "NET_NS (Network namespace) kernel config is available"
+    #       - fail:
+    #           message: "NET_NS (Network namespace) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_NET=y
+    #     outcomes:
+    #       - pass:
+    #           message: "NET (Networking support) kernel config is available"
+    #       - fail:
+    #           message: "NET (Networking support) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_INET=y
+    #     outcomes:
+    #       - pass:
+    #           message: "INET (TCP/IP networking) kernel config is available"
+    #       - fail:
+    #           message: "INET (TCP/IP networking) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_NETFILTER=y
+    #     outcomes:
+    #       - pass:
+    #           message: "NETFILTER (Network packet filtering framework (Netfilter)) kernel config is available"
+    #       - fail:
+    #           message: "NETFILTER (Network packet filtering framework (Netfilter)) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_NETFILTER_XTABLES=y
+    #     outcomes:
+    #       - pass:
+    #           message: "NETFILTER_XTABLES (Netfilter Xtables support) kernel config is available"
+    #       - fail:
+    #           message: "NETFILTER_XTABLES (Netfilter Xtables support) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_NETFILTER_XT_TARGET_REDIRECT=y
+    #     outcomes:
+    #       - pass:
+    #           message: "NETFILTER_XT_TARGET_REDIRECT (REDIRECT target support) kernel config is available"
+    #       - fail:
+    #           message: "NETFILTER_XT_TARGET_REDIRECT (REDIRECT target support) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_NETFILTER_XT_MATCH_COMMENT=y
+    #     outcomes:
+    #       - pass:
+    #           message: "NETFILTER_XT_MATCH_COMMENT (\"comment\" match support) kernel config is available"
+    #       - fail:
+    #           message: "NETFILTER_XT_MATCH_COMMENT (\"comment\" match support) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_EXT4_FS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "EXT4_FS (The Extended 4 (ext4) filesystem) kernel config is available"
+    #       - fail:
+    #           message: "EXT4_FS (The Extended 4 (ext4) filesystem) kernel config is missing"
+    # - kernelConfigs:
+    #     selectedConfigs:
+    #       - CONFIG_PROC_FS=y
+    #     outcomes:
+    #       - pass:
+    #           message: "PROC_FS (/proc file system support) kernel config is available"
+    #       - fail:
+    #           message: "PROC_FS (/proc file system support) kernel config is missing"
