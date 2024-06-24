@@ -36,7 +36,7 @@ K0S_BINARY_SOURCE_OVERRIDE = https://ec-k0s-binaries.s3.amazonaws.com/k0s-v1.29.
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.92.1
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-KOTS_BINARY_URL_OVERRIDE = https://e1af-68-154-24-14.ngrok-free.app/kots_linux_amd64.tar.gz
+KOTS_BINARY_URL_OVERRIDE =
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= registry.replicated.com/library/embedded-cluster-local-artifact-mirror
 LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION = ${LOCAL_ARTIFACT_MIRROR_IMAGE}:$(subst +,-,$(VERSION))
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \

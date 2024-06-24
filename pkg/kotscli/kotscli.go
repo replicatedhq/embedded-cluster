@@ -295,6 +295,8 @@ func MaskKotsOutputForPushImages() spinner.MaskFn {
 			current = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			current = message
+		case strings.Contains(message, "Finished!"):
+			current = "Embedded cluster artifacts are ready!"
 		}
 		return current
 	}
