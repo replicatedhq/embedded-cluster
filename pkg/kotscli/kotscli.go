@@ -174,8 +174,8 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 }
 
 // MaskKotsOutputForOnline masks the kots cli output during online installations. For
-// online installations we only want to print "Finalizing" until it is done and then
-// print "Finished!".
+// online installations we only want to print "Finalizing Admin Console" until it is done
+// and then print "Finished!".
 func MaskKotsOutputForOnline() spinner.MaskFn {
 	return func(message string) string {
 		if strings.Contains(message, "Finished") {
@@ -189,12 +189,14 @@ func MaskKotsOutputForOnline() spinner.MaskFn {
 // function replaces some of the messages being printed to the user so the output looks
 // nicer.
 func MaskKotsOutputForAirgap() spinner.MaskFn {
-	current := "Uploading air gap bundle"
+	current := "Extracting air gap bundle"
 	return func(message string) string {
 		switch {
 		case strings.Contains(message, "Pushing application images"):
 			current = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
+			current = message
+		case strings.Contains(message, "Uploading airgap update"):
 			current = message
 		case strings.Contains(message, "Waiting for the Admin Console"):
 			current = "Finalizing Admin Console"
@@ -259,7 +261,7 @@ func KotsOutputLineBreaker() spinner.LineBreakerFn {
 		// if we are printing a message about the finalization of the installation it
 		// means that the embedded cluster artifacts are ready and we want to break the
 		// line.
-		if current == "Finalizing" {
+		if strings.Contains(current, "Finalizing") {
 			return true, "Embedded cluster artifacts are ready!"
 		}
 		return false, ""
