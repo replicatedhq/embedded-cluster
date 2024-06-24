@@ -7,12 +7,14 @@ import (
 	"reflect"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestGetEmbeddedRegistryCredentials(t *testing.T) {
 	type args struct {
-		ctx  context.Context
 		kcli client.Client
 	}
 	tests := []struct {
@@ -21,11 +23,52 @@ func TestGetEmbeddedRegistryCredentials(t *testing.T) {
 		want    *EmbeddedRegistryCredentials
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "happy path",
+			args: args{
+				kcli: fake.NewClientBuilder().WithObjects(
+					&corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{Name: "registry-creds", Namespace: "kotsadm"},
+						Data: map[string][]byte{
+							".dockerconfigjson": []byte(`{"auths":{"test-host":{"username":"embedded-cluster","password":"test-password"}}}`),
+						},
+					},
+				).Build(),
+			},
+			want: &EmbeddedRegistryCredentials{
+				Hostname: "test-host",
+				Username: "embedded-cluster",
+				Password: "test-password",
+			},
+			wantErr: false,
+		},
+		{
+			name: "no embedded-cluster credentials",
+			args: args{
+				kcli: fake.NewClientBuilder().WithObjects(
+					&corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{Name: "registry-creds", Namespace: "kotsadm"},
+						Data: map[string][]byte{
+							".dockerconfigjson": []byte(`{"auths":{"test-host":{"username":"not-embedded-cluster","password":"test-password"}}}`),
+						},
+					},
+				).Build(),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "no registry creds secret",
+			args: args{
+				kcli: fake.NewClientBuilder().Build(),
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetEmbeddedRegistryCredentials(tt.args.ctx, tt.args.kcli)
+			got, err := GetEmbeddedRegistryCredentials(context.Background(), tt.args.kcli)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetEmbeddedRegistryCredentials() error = %v, wantErr %v", err, tt.wantErr)
 				return
