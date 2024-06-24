@@ -69,6 +69,7 @@ var updateCommand = &cli.Command{
 			}
 			if err := kotscli.AirgapUpload(kotscli.AirgapUploadOptions{
 				AppSlug:      rel.AppSlug,
+				Namespace:    defaults.KotsadmNamespace,
 				AirgapBundle: c.String("airgap-bundle"),
 			}); err != nil {
 				return err

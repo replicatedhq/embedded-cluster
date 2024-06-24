@@ -133,7 +133,7 @@ func AdminConsolePushImages(opts AdminConsolePushImagesOptions) error {
 	}
 	defer os.Remove(kotsBinPath)
 
-	maskfn := MaskKotsOutputForAirgap()
+	maskfn := MaskKotsOutputForPushImages()
 	lbreakfn := KotsOutputLineBreaker()
 	pushImagesArgs := []string{
 		"admin-console",
@@ -164,6 +164,7 @@ func AdminConsolePushImages(opts AdminConsolePushImagesOptions) error {
 
 type AirgapUploadOptions struct {
 	AppSlug      string
+	Namespace    string
 	AirgapBundle string
 }
 
@@ -179,6 +180,8 @@ func AirgapUpload(opts AirgapUploadOptions) error {
 	airgapUploadArgs := []string{
 		"airgap-upload",
 		opts.AppSlug,
+		"--namespace",
+		opts.Namespace,
 		"--airgap-bundle",
 		opts.AirgapBundle,
 	}
@@ -275,6 +278,22 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 		case strings.Contains(message, "Waiting for the Admin Console"):
 			current = "Finalizing Admin Console"
 		case strings.Contains(message, "Finished!"):
+			current = message
+		}
+		return current
+	}
+}
+
+// MaskKotsOutputForPushImages masks the kots cli output when pushing airgap images. This
+// function replaces some of the messages being printed to the user so the output looks
+// nicer.
+func MaskKotsOutputForPushImages() spinner.MaskFn {
+	current := "Processing air gap bundle"
+	return func(message string) string {
+		switch {
+		case strings.Contains(message, "Pushing application images"):
+			current = message
+		case strings.Contains(message, "Pushing embedded cluster artifacts"):
 			current = message
 		}
 		return current
