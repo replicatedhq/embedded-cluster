@@ -88,6 +88,17 @@ func RunHostPreflights(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
+
+	chpfs, err := preflights.GetClusterHostPreflights(c.Context)
+	if err != nil {
+		return fmt.Errorf("unable to get cluster host preflights: %w", err)
+	}
+
+	for _, h := range chpfs {
+		hpf.Collectors = append(hpf.Collectors, h.Spec.Collectors...)
+		hpf.Analyzers = append(hpf.Analyzers, h.Spec.Analyzers...)
+	}
+
 	return runHostPreflights(c, hpf)
 }
 
@@ -96,25 +107,61 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		return nil
 	}
 	pb := spinner.Start()
-	pb.Infof("Running host preflights on node")
+	if c.Bool("skip-host-preflights") {
+		pb.Infof("Skipping host preflights")
+		pb.Close()
+		return nil
+	}
+	pb.Infof("Running host preflights")
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		pb.CloseWithError()
 		return fmt.Errorf("host preflights failed: %w", err)
 	}
-	if output.HasFail() {
+
+	err = output.SaveToDisk()
+	if err != nil {
 		pb.CloseWithError()
-		output.PrintTable()
+		return fmt.Errorf("failed to save preflights output: %w", err)
+	}
+
+	if output.HasFail() {
+		s := "failures"
+		if len(output.Fail) == 1 {
+			s = "failure"
+		}
+		msg := fmt.Sprintf("Host preflights have %d %s", len(output.Fail), s)
+		if output.HasWarn() {
+			s = "warnings"
+			if len(output.Warn) == 1 {
+				s = "warning"
+			}
+			msg += fmt.Sprintf(" and %d %s", len(output.Warn), s)
+		}
+
+		pb.Errorf(msg)
+		pb.CloseWithError()
+		output.PrintTableWithoutInfo()
 		return fmt.Errorf("preflights haven't passed on the host")
 	}
-	if !output.HasWarn() || c.Bool("no-prompt") {
+	if !output.HasWarn() {
 		pb.Close()
-		output.PrintTable()
 		return nil
 	}
+	if c.Bool("no-prompt") {
+		// We have warnings but we are not in interactive mode
+		// so we just print the warnings and continue
+		pb.Close()
+		output.PrintTableWithoutInfo()
+		return nil
+	}
+	s := "warnings"
+	if len(output.Warn) == 1 {
+		s = "warning"
+	}
+	pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
 	pb.CloseWithError()
-	output.PrintTable()
-	logrus.Infof("Host preflights have warnings")
+	output.PrintTableWithoutInfo()
 	if !prompts.New().Confirm("Do you want to continue ?", false) {
 		return fmt.Errorf("user aborted")
 	}
@@ -397,7 +444,7 @@ func waitForK0s() error {
 }
 
 // runOutro calls Outro() in all enabled addons by means of Applier.
-func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig) error {
+func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd string) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	opts := []addons.Option{}
 
@@ -420,10 +467,31 @@ func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig) error {
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
+	opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
 		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
 	return addons.NewApplier(opts...).Outro(c.Context)
+}
+
+func askAdminConsolePassword(c *cli.Context) (string, error) {
+	defaultPass := "password"
+	if c.Bool("no-prompt") {
+		logrus.Infof("Admin Console password set to: %s", defaultPass)
+		return defaultPass, nil
+	}
+	maxTries := 3
+	for i := 0; i < maxTries; i++ {
+		promptA := prompts.New().Password("Enter an Admin Console password:")
+		promptB := prompts.New().Password("Confirm password:")
+
+		if promptA == promptB {
+			// TODO: Should we add extra password validation here? e.g length, complexity etc
+			return promptA, nil
+		}
+		logrus.Info("Passwords don't match, please try again.")
+	}
+	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
 }
 
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
@@ -493,6 +561,11 @@ var installCommand = &cli.Command{
 			Usage:  "service CIDR range to use for the installation",
 			Hidden: false,
 		},
+		&cli.BoolFlag{
+			Name:  "skip-host-preflights",
+			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Value: false,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		logrus.Debugf("checking if %s is already installed", binName)
@@ -527,6 +600,11 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+		adminConsolePwd, err := askAdminConsolePassword(c)
+		if err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
 		logrus.Debugf("running host preflights")
 		if err := RunHostPreflights(c); err != nil {
 			err := fmt.Errorf("unable to finish preflight checks: %w", err)
@@ -535,7 +613,6 @@ var installCommand = &cli.Command{
 		}
 		logrus.Debugf("creating k0s configuration file")
 		var cfg *k0sconfig.ClusterConfig
-		var err error
 		if cfg, err = ensureK0sConfig(c); err != nil {
 			err := fmt.Errorf("unable to create config file: %w", err)
 			metrics.ReportApplyFinished(c, err)
@@ -568,7 +645,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("running outro")
-		if err := runOutro(c, cfg); err != nil {
+		if err := runOutro(c, cfg, adminConsolePwd); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

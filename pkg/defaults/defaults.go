@@ -80,6 +80,7 @@ func PathToLog(name string) string {
 	return def().PathToLog(name)
 }
 
+// PathToKubeConfig calls PathToKubeConfig on the default provider.
 func PathToKubeConfig() string {
 	return def().PathToKubeConfig()
 }
