@@ -578,13 +578,13 @@ var installCommand = &cli.Command{
 				return err // we want the user to see the error message without a prefix
 			}
 		}
-		logrus.Debugf("materializing binaries")
-		if err := materializeFiles(c); err != nil {
+		adminConsolePwd, err := askAdminConsolePassword(c)
+		if err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		adminConsolePwd, err := askAdminConsolePassword(c)
-		if err != nil {
+		logrus.Debugf("materializing binaries")
+		if err := materializeFiles(c); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
