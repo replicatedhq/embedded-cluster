@@ -32,8 +32,9 @@ main() {
     counter=0
     while [ "$goldpinger_ready" -lt "$expected_nodes" ]; do
         echo "goldpinger is running on $goldpinger_ready nodes, expected $expected_nodes"
-        if [ "$counter" -gt 16 ]; then
+        if [ "$counter" -gt 32 ]; then
             echo "Timed out waiting for goldpinger to be running on $expected_nodes nodes"
+            kubectl get pods -n goldpinger
             exit 1
         fi
         sleep 5
