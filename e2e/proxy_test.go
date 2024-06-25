@@ -186,7 +186,7 @@ func TestCustomCIDR(t *testing.T) {
 
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.129.[0-9]*.[0-9]", "^10.128.[0-9]*.[0-9]"})
 	if err != nil {
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
