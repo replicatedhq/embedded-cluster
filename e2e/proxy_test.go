@@ -133,8 +133,8 @@ func TestCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	// generate all node join commands (2 for controllers and 1 for worker).
-	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
+	// generate all node join commands (1 for controller and 1 for worker).
+	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
@@ -144,6 +144,7 @@ func TestCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
 	controllerCommand := command
+	t.Log("controller join token command:", command)
 
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-worker-command")

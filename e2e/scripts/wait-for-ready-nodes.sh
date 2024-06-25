@@ -10,14 +10,14 @@ main() {
     counter=0
     while [ "$ready" -lt "$expected_nodes" ]; do
         echo "Waiting for nodes to be ready ($ready/$expected_nodes)"
-        if [ "$counter" -gt 36 ]; then
+        if [ "$counter" -gt 48 ]; then
             echo "Timed out waiting for $expected_nodes nodes to be ready"
             exit 1
         fi
         sleep 5
         counter=$((counter+1))
         ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-        kubectl get nodes || true
+        kubectl get nodes -o wide || true
     done
     echo "All nodes are ready"
 

@@ -6,6 +6,8 @@ main() {
     local service_cidr="$2"
     sleep 10 # wait for kubectl to become available
 
+    echo "nodes:"
+    kubectl get nodes -o wide
     echo "pods cidr: $pod_cidr"
     kubectl get pods -A -o wide
     echo "services cidr: $service_cidr"
