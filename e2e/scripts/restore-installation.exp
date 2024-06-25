@@ -12,7 +12,7 @@ set dr_aws_s3_prefix [lindex $argv 3]
 set dr_aws_access_key_id [lindex $argv 4]
 set dr_aws_secret_access_key [lindex $argv 5]
 
-spawn embedded-cluster restore
+spawn embedded-cluster restore --skip-host-preflights
 
 expect {
     "Enter information to configure access to your backup storage location." {}

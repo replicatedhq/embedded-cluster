@@ -249,7 +249,7 @@ func TestHostPreflight(t *testing.T) {
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
-		{"dnf", "install", "-y", "openssh-server", "binutils", "tar"},
+		{"dnf", "install", "-y", "openssh-server", "binutils", "tar", "fio"},
 		{"systemctl", "enable", "sshd"},
 		{"systemctl", "start", "sshd"},
 	}
