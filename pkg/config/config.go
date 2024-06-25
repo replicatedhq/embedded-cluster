@@ -41,9 +41,6 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
 	cfg.Spec.Telemetry.Enabled = false
-	cfg.Spec.Network.Calico = &k0sconfig.Calico{
-		IPAutodetectionMethod: "kubernetes-internal-ip",
-	}
 	return cfg
 }
 

@@ -323,6 +323,8 @@ func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 	if c.String("service-cidr") != "" {
 		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	}
+	fmt.Printf("Pod CIDR: %q\n", cfg.Spec.Network.PodCIDR)
+	fmt.Printf("Service CIDR: %q\n", cfg.Spec.Network.ServiceCIDR)
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
