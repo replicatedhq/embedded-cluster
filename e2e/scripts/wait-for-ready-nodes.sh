@@ -26,14 +26,22 @@ main() {
         exit 0
     fi
 
-    echo "checking that goldpinger has run on all nodes"
+    echo "checking that goldpinger is running on all nodes"
     kubectl get pods -n goldpinger
-    local goldpinger_running_count=
-    goldpinger_running_count=$(kubectl get pods --no-headers -n goldpinger | wc -l)
-    if [ "$goldpinger_running_count" -lt "$expected_nodes" ]; then
+    goldpinger_ready=$(kubectl get pods --no-headers -n goldpinger | grep 'Running' | grep '1/1' | wc -l)
+    counter=0
+    while [ "$goldpinger_ready" -lt "$expected_nodes" ]; do
         echo "goldpinger is running on $goldpinger_running_count nodes, expected $expected_nodes"
-        exit 1
-    fi
+        if [ "$counter" -gt 16 ]; then
+            echo "Timed out waiting for goldpinger to be running on $expected_nodes nodes"
+            exit 1
+        fi
+        sleep 5
+        counter=$((counter+1))
+        goldpinger_ready=$(kubectl get pods --no-headers -n goldpinger | grep 'Running' | grep '1/1' | wc -l)
+        kubectl get pods -n goldpinger || true
+    done
+    echo "goldpinger is running on all nodes"
 
     exit 0
 }
