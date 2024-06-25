@@ -2,11 +2,13 @@
 set -euox pipefail
 
 main() {
+    local pod_cidr="$1"
+    local service_cidr="$2"
     sleep 10 # wait for kubectl to become available
 
-    echo "pods"
+    echo "pods cidr: $pod_cidr"
     kubectl get pods -A -o wide
-    echo "services"
+    echo "services cidr: $service_cidr"
     kubectl get services -A
 }
 
