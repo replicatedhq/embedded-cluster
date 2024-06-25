@@ -31,7 +31,7 @@ main() {
     goldpinger_ready=$(kubectl get pods --no-headers -n goldpinger | grep 'Running' | grep '1/1' | wc -l)
     counter=0
     while [ "$goldpinger_ready" -lt "$expected_nodes" ]; do
-        echo "goldpinger is running on $goldpinger_running_count nodes, expected $expected_nodes"
+        echo "goldpinger is running on $goldpinger_ready nodes, expected $expected_nodes"
         if [ "$counter" -gt 16 ]; then
             echo "Timed out waiting for goldpinger to be running on $expected_nodes nodes"
             exit 1
