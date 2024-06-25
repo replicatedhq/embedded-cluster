@@ -17,7 +17,7 @@ require (
 	github.com/replicatedhq/embedded-cluster-kinds v1.3.9
 	github.com/replicatedhq/embedded-cluster-operator v0.36.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
-	github.com/replicatedhq/kotskinds v0.0.0-20240523174825-f4d441adb453
+	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.93.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
@@ -27,8 +27,8 @@ require (
 	golang.org/x/term v0.21.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.30.1
-	k8s.io/apimachinery v0.30.1
+	k8s.io/api v0.30.2
+	k8s.io/apimachinery v0.30.2
 	oras.land/oras-go/v2 v2.5.0
 	sigs.k8s.io/controller-runtime v0.18.4
 	sigs.k8s.io/yaml v1.4.0
@@ -144,7 +144,7 @@ require (
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	k8s.io/apiextensions-apiserver v0.30.1 // indirect
-	k8s.io/client-go v0.30.1
+	k8s.io/client-go v0.30.2
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20231121161247-cf03d44ff3cf

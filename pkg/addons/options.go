@@ -88,3 +88,10 @@ func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string) Opti
 		a.proxyEnv = proxyEnv
 	}
 }
+
+// WithAdminConsolePassword sets the password for the admin console
+func WithAdminConsolePassword(password string) Option {
+	return func(a *Applier) {
+		a.adminConsolePwd = password
+	}
+}

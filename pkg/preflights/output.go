@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/jedib0t/go-pretty/table"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,6 +32,20 @@ func (o Output) HasWarn() bool {
 
 // PrintTable prints the preflight output in a table format.
 func (o Output) PrintTable() {
+	o.printTable()
+}
+
+// PrintTableWithoutInfo prints the preflight output in a table format without info results.
+func (o Output) PrintTableWithoutInfo() {
+	withoutInfo := Output{
+		Warn: o.Warn,
+		Fail: o.Fail,
+	}
+
+	withoutInfo.printTable()
+}
+
+func (o Output) printTable() {
 	tb := table.NewWriter()
 	add := tb.AppendRow
 	tb.AppendHeader(table.Row{"Status", "Title", "Message"})
@@ -44,6 +60,23 @@ func (o Output) PrintTable() {
 	}
 	tb.SortBy([]table.SortBy{{Name: "Status", Mode: table.Asc}})
 	logrus.Infof("%s\n", tb.Render())
+}
+
+func (o Output) SaveToDisk() error {
+	// Store results on disk of the host that ran the preflights
+	data, err := json.MarshalIndent(o, "", "  ")
+	if err != nil {
+		return fmt.Errorf("unable to marshal preflight results: %w", err)
+	}
+
+	// If we ever want to store multiple preflight results
+	// we can add a timestamp to the filename.
+	path := defaults.PathToEmbeddedClusterSupportFile("host-preflight-results.json")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("unable to write preflight results to %s: %w", path, err)
+	}
+
+	return nil
 }
 
 // OutputFromReader reads the provided reader and returns a Output

@@ -88,6 +88,17 @@ func RunHostPreflights(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
+
+	chpfs, err := preflights.GetClusterHostPreflights(c.Context)
+	if err != nil {
+		return fmt.Errorf("unable to get cluster host preflights: %w", err)
+	}
+
+	for _, h := range chpfs {
+		hpf.Collectors = append(hpf.Collectors, h.Spec.Collectors...)
+		hpf.Analyzers = append(hpf.Analyzers, h.Spec.Analyzers...)
+	}
+
 	return runHostPreflights(c, hpf)
 }
 
@@ -96,25 +107,61 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		return nil
 	}
 	pb := spinner.Start()
-	pb.Infof("Running host preflights on node")
+	if c.Bool("skip-host-preflights") {
+		pb.Infof("Skipping host preflights")
+		pb.Close()
+		return nil
+	}
+	pb.Infof("Running host preflights")
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		pb.CloseWithError()
 		return fmt.Errorf("host preflights failed: %w", err)
 	}
-	if output.HasFail() {
+
+	err = output.SaveToDisk()
+	if err != nil {
 		pb.CloseWithError()
-		output.PrintTable()
+		return fmt.Errorf("failed to save preflights output: %w", err)
+	}
+
+	if output.HasFail() {
+		s := "failures"
+		if len(output.Fail) == 1 {
+			s = "failure"
+		}
+		msg := fmt.Sprintf("Host preflights have %d %s", len(output.Fail), s)
+		if output.HasWarn() {
+			s = "warnings"
+			if len(output.Warn) == 1 {
+				s = "warning"
+			}
+			msg += fmt.Sprintf(" and %d %s", len(output.Warn), s)
+		}
+
+		pb.Errorf(msg)
+		pb.CloseWithError()
+		output.PrintTableWithoutInfo()
 		return fmt.Errorf("preflights haven't passed on the host")
 	}
-	if !output.HasWarn() || c.Bool("no-prompt") {
+	if !output.HasWarn() {
 		pb.Close()
-		output.PrintTable()
 		return nil
 	}
+	if c.Bool("no-prompt") {
+		// We have warnings but we are not in interactive mode
+		// so we just print the warnings and continue
+		pb.Close()
+		output.PrintTableWithoutInfo()
+		return nil
+	}
+	s := "warnings"
+	if len(output.Warn) == 1 {
+		s = "warning"
+	}
+	pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
 	pb.CloseWithError()
-	output.PrintTable()
-	logrus.Infof("Host preflights have warnings")
+	output.PrintTableWithoutInfo()
 	if !prompts.New().Confirm("Do you want to continue ?", false) {
 		return fmt.Errorf("user aborted")
 	}
@@ -136,7 +183,7 @@ func isAlreadyInstalled() (bool, error) {
 	}
 }
 
-func checkLicenseMatches(c *cli.Context) error {
+func checkLicenseMatches(licenseFile string) error {
 	rel, err := release.GetChannelRelease()
 	if err != nil {
 		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
@@ -146,20 +193,20 @@ func checkLicenseMatches(c *cli.Context) error {
 	// 1. no release and no license, which is OK
 	// 2. no license and a release, which is not OK
 	// 3. a license and no release, which is not OK
-	if rel == nil && c.String("license") == "" {
+	if rel == nil && licenseFile == "" {
 		// no license and no release, this is OK
 		return nil
-	} else if rel == nil && c.String("license") != "" {
+	} else if rel == nil && licenseFile != "" {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
 		return fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
-	} else if rel != nil && c.String("license") == "" {
+	} else if rel != nil && licenseFile == "" {
 		// release is present but no license, this is not OK
 		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
-	license, err := helpers.ParseLicense(c.String("license"))
+	license, err := helpers.ParseLicense(licenseFile)
 	if err != nil {
-		return fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", c.String("license"), err)
+		return fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
 	}
 
 	// Check if the license matches the application version data
@@ -171,6 +218,21 @@ func checkLicenseMatches(c *cli.Context) error {
 		// if the channel is different, we will not be able to install the pinned vendor application version within kots
 		// this may result in an immediate k8s upgrade after installation, which is undesired
 		return fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+	}
+
+	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
+		// read the expiration date, and check it against the current date
+		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
+		if err != nil {
+			return fmt.Errorf("unable to parse expiration date: %w", err)
+		}
+		if time.Now().After(expiration) {
+			return fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+		}
+	}
+
+	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
+		return fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
 	}
 
 	return nil
@@ -375,7 +437,7 @@ func waitForK0s() error {
 }
 
 // runOutro calls Outro() in all enabled addons by means of Applier.
-func runOutro(c *cli.Context) error {
+func runOutro(c *cli.Context, adminConsolePwd string) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	opts := []addons.Option{}
 
@@ -398,10 +460,31 @@ func runOutro(c *cli.Context) error {
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
+	opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
 		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
 	}
 	return addons.NewApplier(opts...).Outro(c.Context)
+}
+
+func askAdminConsolePassword(c *cli.Context) (string, error) {
+	defaultPass := "password"
+	if c.Bool("no-prompt") {
+		logrus.Infof("Admin Console password set to: %s", defaultPass)
+		return defaultPass, nil
+	}
+	maxTries := 3
+	for i := 0; i < maxTries; i++ {
+		promptA := prompts.New().Password("Enter an Admin Console password:")
+		promptB := prompts.New().Password("Confirm password:")
+
+		if promptA == promptB {
+			// TODO: Should we add extra password validation here? e.g length, complexity etc
+			return promptA, nil
+		}
+		logrus.Info("Passwords don't match, please try again.")
+	}
+	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
 }
 
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
@@ -461,6 +544,11 @@ var installCommand = &cli.Command{
 			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
 			Hidden: true,
 		},
+		&cli.BoolFlag{
+			Name:  "skip-host-preflights",
+			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Value: false,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		logrus.Debugf("checking if %s is already installed", binName)
@@ -479,7 +567,7 @@ var installCommand = &cli.Command{
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 		logrus.Debugf("checking license matches")
-		if err := checkLicenseMatches(c); err != nil {
+		if err := checkLicenseMatches(c.String("license")); err != nil {
 			metricErr := fmt.Errorf("unable to check license: %w", err)
 			metrics.ReportApplyFinished(c, metricErr)
 			return err // do not return the metricErr, as we want the user to see the error message without a prefix
@@ -492,6 +580,11 @@ var installCommand = &cli.Command{
 		}
 		logrus.Debugf("materializing binaries")
 		if err := materializeFiles(c); err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+		adminConsolePwd, err := askAdminConsolePassword(c)
+		if err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
@@ -534,7 +627,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("running outro")
-		if err := runOutro(c); err != nil {
+		if err := runOutro(c, adminConsolePwd); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
