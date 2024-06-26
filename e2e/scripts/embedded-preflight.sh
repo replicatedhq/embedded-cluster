@@ -124,10 +124,13 @@ embed_preflight() {
 }
 
 has_applied_host_preflight() {
-    if ! grep -q "Port 24 is available" /tmp/log ; then
+    if ! grep -q "Another process was already listening on port 22" /tmp/log ; then
         return 1
     fi
-    if ! grep -q "Another process was already listening on port 22" /tmp/log ; then
+}
+
+has_stored_host_preflight_results() {
+    if [ ! -f /var/lib/embedded-cluster/support/host-preflight-results.json ]; then
         return 1
     fi
 }
@@ -151,29 +154,40 @@ wait_for_healthy_node() {
 main() {
     cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"
-    if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
+    if /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /tmp/log
-        echo "Expected installation to fail"
+        echo "preflight_with_failure: Expected installation to fail"
         exit 1
     fi
     if ! has_applied_host_preflight; then
-        echo "Install hasn't applied host preflight"
+        echo "preflight_with_failure: Install hasn't applied host preflight"
         cat /tmp/log
         exit 1
     fi
+    if ! has_stored_host_preflight_results; then
+        echo "preflight_with_failure: Install hasn't stored host preflight results to disk"
+        cat /tmp/log
+        exit 1
+    fi
+    rm /var/lib/embedded-cluster/support/host-preflight-results.json
     mv /tmp/log /tmp/log-failure
     embed_preflight "$preflight_with_warning"
-    if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
+    if ! /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
-        echo "Failed to install embedded-cluster"
+        echo "preflight_with_warning: Failed to install embedded-cluster"
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "Failed to validate that the Admin Console is ready"
+        echo "preflight_with_warning: Failed to validate that the Admin Console is ready"
         exit 1
     fi
     if ! has_applied_host_preflight; then
-        echo "Install hasn't applied host preflight"
+        echo "preflight_with_warning: Install hasn't applied host preflight"
+        cat /tmp/log
+        exit 1
+    fi
+    if ! has_stored_host_preflight_results; then
+        echo "preflight_with_warning: Install hasn't stored host preflight results to disk"
         cat /tmp/log
         exit 1
     fi

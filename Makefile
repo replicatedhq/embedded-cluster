@@ -12,7 +12,7 @@ EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
 EMBEDDED_OPERATOR_CHART_VERSION = 0.36.2
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
-EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE = 
+EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_URL = https://openebs.github.io/openebs
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 4.0.1
@@ -35,7 +35,7 @@ K0S_GO_VERSION = v1.29.5+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.8+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE = https://ec-k0s-binaries.s3.amazonaws.com/k0s-v1.29.5%2Bk0s.0-ec.0
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.92.1
+TROUBLESHOOT_VERSION = v0.93.1
 KOTS_VERSION = alpha
 KOTS_BINARY_URL_OVERRIDE = https://33cf-2607-fb91-338-41e-e14c-c69b-2793-6bc.ngrok-free.app/kots
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= registry.replicated.com/library/embedded-cluster-local-artifact-mirror
@@ -137,6 +137,7 @@ output/bin/embedded-cluster-release-builder:
 embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
+.PHONY: go.mod
 go.mod: Makefile
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
@@ -148,7 +149,7 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-support_bundle \
 	pkg/goods/bins/local-artifact-mirror \
 	pkg/goods/internal/bins/kubectl-kots
-	
+
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: static go.mod
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster

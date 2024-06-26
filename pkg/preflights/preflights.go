@@ -4,6 +4,7 @@ package preflights
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -31,6 +32,10 @@ func SerializeSpec(spec *v1beta2.HostPreflightSpec) ([]byte, error) {
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
 func Run(ctx context.Context, spec *v1beta2.HostPreflightSpec) (*Output, error) {
+	// Deduplicate collectors and analyzers before running preflights
+	spec.Collectors = dedup(spec.Collectors)
+	spec.Analyzers = dedup(spec.Analyzers)
+
 	fpath, err := saveHostPreflightFile(spec)
 	if err != nil {
 		return nil, fmt.Errorf("unable to save preflight locally: %w", err)
@@ -65,4 +70,27 @@ func saveHostPreflightFile(spec *v1beta2.HostPreflightSpec) (string, error) {
 		return "", fmt.Errorf("unable to write host preflight spec: %w", err)
 	}
 	return tmpfile.Name(), nil
+}
+
+func dedup[T any](objs []T) []T {
+	seen := make(map[string]bool)
+	out := []T{}
+
+	if len(objs) == 0 {
+		return objs
+	}
+
+	for _, o := range objs {
+		data, err := json.Marshal(o)
+		if err != nil {
+			out = append(out, o)
+			continue
+		}
+		key := string(data)
+		if _, ok := seen[key]; !ok {
+			out = append(out, o)
+			seen[key] = true
+		}
+	}
+	return out
 }

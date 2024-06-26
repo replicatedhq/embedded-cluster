@@ -124,6 +124,11 @@ var joinCommand = &cli.Command{
 			Usage:  "Enable high availability",
 			Hidden: true,
 		},
+		&cli.BoolFlag{
+			Name:  "skip-host-preflights",
+			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Value: false,
+		},
 	},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {

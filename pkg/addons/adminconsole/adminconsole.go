@@ -25,7 +25,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -44,7 +43,6 @@ var (
 	KurlProxyImageOverride  = ""
 	KotsVersion             = ""
 	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
-	Password                = ""
 )
 
 // protectedFields are helm values that are not overwritten when upgrading the addon.
@@ -97,30 +95,11 @@ func init() {
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
 	namespace    string
-	useprompt    bool
+	password     string
 	config       v1beta1.ClusterConfig
 	licenseFile  string
 	airgapBundle string
 	proxyEnv     map[string]string
-}
-
-func (a *AdminConsole) askPassword() (string, error) {
-	defaultPass := "password"
-	if !a.useprompt {
-		logrus.Info("Admin Console password set to: password")
-		return defaultPass, nil
-	}
-	maxTries := 3
-	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Enter an Admin Console password:")
-		promptB := prompts.New().Password("Confirm password:")
-
-		if promptA == promptB {
-			return promptA, nil
-		}
-		logrus.Info("Passwords don't match, please try again.")
-	}
-	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
 }
 
 // Version returns the embedded admin console version.
@@ -164,13 +143,6 @@ func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 // the disk.
 func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	if !onlyDefaults {
-		if Password == "" {
-			var err error
-			Password, err = a.askPassword()
-			if err != nil {
-				return nil, nil, fmt.Errorf("unable to set kotsadm-password: %w", err)
-			}
-		}
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if a.airgapBundle != "" {
 			helmValues["isAirgap"] = "true"
@@ -213,7 +185,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 	loading.Infof("Waiting for the Admin Console to deploy")
 	defer loading.Close()
 
-	if err := createKotsPasswordSecret(ctx, cli, a.namespace, Password); err != nil {
+	if err := createKotsPasswordSecret(ctx, cli, a.namespace, a.password); err != nil {
 		return fmt.Errorf("unable to create kots password secret: %w", err)
 	}
 
@@ -250,10 +222,10 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new AdminConsole object.
-func New(ns string, useprompt bool, config v1beta1.ClusterConfig, licenseFile string, airgapBundle string, proxyEnv map[string]string) (*AdminConsole, error) {
+func New(ns, password string, config v1beta1.ClusterConfig, licenseFile string, airgapBundle string, proxyEnv map[string]string) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:    ns,
-		useprompt:    useprompt,
+		password:     password,
 		config:       config,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
