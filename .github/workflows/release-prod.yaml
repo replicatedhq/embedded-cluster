@@ -67,7 +67,7 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="$TAG_NAME"
-          make cache-files
+          ./scripts/cache-files.sh
       - name: Cache Prod Files
         env:
           S3_BUCKET: "tf-embedded-cluster-binaries"
@@ -76,7 +76,7 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="$TAG_NAME"
-          make cache-files
+          ./scripts/cache-files.sh
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
         with:
