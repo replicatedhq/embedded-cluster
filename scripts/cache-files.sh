@@ -62,7 +62,7 @@ function k0sbin() {
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp "${k0s_version}" "s3://${S3_BUCKET}/k0s-binaries/${k0s_version}"
+    retry 3 aws s3 cp --no-progress "${k0s_version}" "s3://${S3_BUCKET}/k0s-binaries/${k0s_version}"
 }
 
 function operatorbin() {
@@ -102,7 +102,7 @@ function operatorbin() {
     tar -czf "${operator_version}.tar.gz" operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
 }
 
 function kotsbin() {
@@ -136,7 +136,7 @@ function kotsbin() {
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp "kots_linux_amd64.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "kots_linux_amd64.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
 }
 
 function metadata() {
@@ -148,7 +148,7 @@ function metadata() {
     # check if a file 'metadata.json' exists in the directory
     # if it does, upload it as metadata/${ec_version}.json
     if [ -f metadata.json ]; then
-        retry 3 aws s3 cp metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
+        retry 3 aws s3 cp --no-progress metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
     else
         echo "metadata.json not found, skipping upload"
     fi
@@ -163,7 +163,7 @@ function embeddedcluster() {
     # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
     # if it does, upload it as releases/${ec_version}.tgz
     if [ -f embedded-cluster-linux-amd64.tgz ]; then
-        retry 3 aws s3 cp embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${EC_VERSION}.tgz"
+        retry 3 aws s3 cp --no-progress embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${EC_VERSION}.tgz"
     else
         echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
     fi
