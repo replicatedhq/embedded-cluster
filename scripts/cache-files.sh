@@ -73,10 +73,6 @@ function operatorbin() {
     local operator_override=
     operator_override=$(awk '/^EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
 
-    if [ -n "${operator_version_override}" ]; then
-        operator_version="${operator_version_override}"
-    fi
-
     if [ -n "${operator_override}" ] && [ "${operator_override}" != '' ]; then
         if ! echo "${operator_version}" | grep -q "-" ; then
             echo "EMBEDDED_OPERATOR_CHART_VERSION is not a pre-release version, but EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE is set. This is likely a mistake."
