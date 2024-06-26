@@ -34,7 +34,8 @@ main() {
         echo "goldpinger is running on $goldpinger_ready nodes, expected $expected_nodes"
         if [ "$counter" -gt 48 ]; then
             echo "Timed out waiting for goldpinger to be running on $expected_nodes nodes"
-            kubectl get pods -n goldpinger
+            kubectl get nodes -o wide
+            kubectl get pods -n goldpinger -o wide
             kubectl describe pods -n goldpinger
             exit 1
         fi
