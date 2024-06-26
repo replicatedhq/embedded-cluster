@@ -221,10 +221,10 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("applying configuration overrides")
-		if err := applyJoinOverrides(jcmd); err != nil {
-			err := fmt.Errorf("unable to apply join overrides: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-		}
+		//if err := applyJoinOverrides(jcmd); err != nil {
+		//	err := fmt.Errorf("unable to apply join overrides: %w", err)
+		//	metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+		//}
 
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
