@@ -70,6 +70,9 @@ function operatorbin() {
     local operator_version=
     operator_version=$(awk '/^EMBEDDED_OPERATOR_CHART_VERSION/{print $3}' Makefile)
 
+    local operator_override=
+    operator_override=$(awk '/^EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
+
     # check if the binary already exists in the bucket
     local operator_binary_exists=
     operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}.tar.gz" || true)
@@ -80,9 +83,14 @@ function operatorbin() {
         return 0
     fi
 
-    # download the operator binary from github
-    echo "downloading embedded cluster operator binary from https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
-    curl --fail-with-body -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
+    if [ -n "${operator_override}" ] && [ "${operator_override}" != '' ]; then
+        echo "EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE is set to '${operator_override}', using that source"
+        curl --fail-with-body -L -o "${operator_version}" "${operator_override}"
+    else
+        # download the operator binary from github
+        echo "downloading embedded cluster operator binary from https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
+        curl --fail-with-body -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
+    fi
 
     chmod +x "${operator_version}"
 
