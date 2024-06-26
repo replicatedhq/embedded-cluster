@@ -73,6 +73,13 @@ type ProxySpec struct {
 	NoProxy    string `json:"noProxy,omitempty"`
 }
 
+// NetworkSpec holds the network configuration.
+type NetworkSpec struct {
+	PodCIDR       string `json:"podCIDR,omitempty"`
+	ServiceCIDR   string `json:"serviceCIDR,omitempty"`
+	NodePortRange string `json:"nodePortRange,omitempty"`
+}
+
 // LicenseInfo holds information about the license used to install the cluster.
 type LicenseInfo struct {
 	IsDisasterRecoverySupported bool `json:"isDisasterRecoverySupported,omitempty"`
@@ -100,6 +107,8 @@ type InstallationSpec struct {
 	Artifacts *ArtifactsLocation `json:"artifacts,omitempty"`
 	// Proxy holds the proxy configuration.
 	Proxy *ProxySpec `json:"proxy,omitempty"`
+	// Network holds the network configuration.
+	Network *NetworkSpec `json:"network,omitempty"`
 	// Config holds the configuration used at installation time.
 	Config *ConfigSpec `json:"config,omitempty"`
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
@@ -112,7 +121,7 @@ type InstallationSpec struct {
 	LicenseInfo *LicenseInfo `json:"licenseInfo,omitempty"`
 	// ConfigSecret holds a secret name and namespace. If this is set it means that
 	// the Config for this Installation object must be read from there. This option
-	// superseeds (overrides) the Config field.
+	// supersedes (overrides) the Config field.
 	ConfigSecret *ConfigSecret `json:"configSecret,omitempty"`
 }
 
