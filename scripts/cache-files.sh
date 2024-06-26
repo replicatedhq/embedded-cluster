@@ -79,7 +79,7 @@ function operatorbin() {
             exit 1
         fi
         echo "EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE is set to '${operator_override}', using that source"
-        curl --fail-with-body -L -o "${operator_version}" "${operator_override}"
+        curl --fail-with-body -L -o operator "${operator_override}"
     else
         # check if the binary already exists in the bucket
         local operator_binary_exists=
@@ -93,13 +93,13 @@ function operatorbin() {
 
         # download the operator binary from github
         echo "downloading embedded cluster operator binary from https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
-        curl --fail-with-body -L -o "${operator_version}" "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
+        curl --fail-with-body -L -o operator "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
     fi
 
-    chmod +x "${operator_version}"
+    chmod +x operator
 
     # compress the operator binary
-    tar -czf "${operator_version}.tar.gz" "${operator_version}"
+    tar -czf "${operator_version}.tar.gz" operator
 
     # upload the binary to the bucket
     retry 3 aws s3 cp "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
