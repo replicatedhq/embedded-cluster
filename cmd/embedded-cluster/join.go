@@ -325,7 +325,7 @@ func applyJoinOverrides(jcmd *JoinCommandResponse) error {
 		return fmt.Errorf("unable to read node config: %w", err)
 	}
 
-	fmt.Printf("data: \n%s\n", data)
+	logrus.Debugf("data: \n%s\n", data)
 	return nil
 
 	//finalcfg := k0sconfig.ClusterConfig{}
