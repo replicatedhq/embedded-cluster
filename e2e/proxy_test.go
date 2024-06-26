@@ -143,7 +143,7 @@ func TestCustomCIDR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to find the join command in the output: %v", err)
 	}
-	//controllerCommand := command
+	controllerCommand := command
 	t.Log("controller join token command:", command)
 
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
@@ -158,9 +158,9 @@ func TestCustomCIDR(t *testing.T) {
 	t.Log("worker join token command:", command)
 
 	// join the nodes.
-	t.Logf("%s: joining node %d to the cluster (worker)", time.Now().Format(time.RFC3339), 1)
-	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(command, " ")); err != nil {
-		t.Fatalf("fail to join node %d as a worker: %v", 1, err)
+	t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), 1)
+	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(controllerCommand, " ")); err != nil {
+		t.Fatalf("fail to join node %d as a controller: %v", 1, err)
 	}
 	// XXX If we are too aggressive joining nodes we can see the following error being
 	// thrown by kotsadm on its log (and we get a 500 back):
@@ -261,11 +261,11 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	t.Log("worker join token command:", command)
 
 	// join the nodes.
-	for i, _ := range controllerCommands {
+	for i, cmd := range controllerCommands {
 		node := i + 1
-		t.Logf("%s: joining node %d to the cluster (worker)", time.Now().Format(time.RFC3339), node)
-		if _, _, err := RunCommandOnNode(t, tc, node, strings.Split(command, " ")); err != nil {
-			t.Fatalf("fail to join node %d as a worker: %v", node, err)
+		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
+		if _, _, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " ")); err != nil {
+			t.Fatalf("fail to join node %d as a controller: %v", node, err)
 		}
 		// XXX If we are too aggressive joining nodes we can see the following error being
 		// thrown by kotsadm on its log (and we get a 500 back):
