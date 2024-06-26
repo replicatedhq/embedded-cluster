@@ -221,6 +221,11 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("applying configuration overrides")
+		if err := applyJoinOverrides(jcmd); err != nil {
+			err := fmt.Errorf("unable to apply join overrides: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+		}
+
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
@@ -305,6 +310,46 @@ func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
 		defaults.PathToK0sConfig(), string(data),
 	); err != nil {
 		return fmt.Errorf("unable to patch config with embedded data: %w", err)
+	}
+	return nil
+}
+
+func applyJoinOverrides(jcmd *JoinCommandResponse) error {
+	configPath := defaults.PathToK0sConfig()
+
+	if _, err := os.Stat(configPath); err != nil {
+		return fmt.Errorf("unable to find node config: %w", err)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("unable to read node config: %w", err)
+	}
+
+	finalcfg := k0sconfig.ClusterConfig{}
+	if err := k8syaml.Unmarshal(data, &finalcfg); err != nil {
+		return fmt.Errorf("unable to unmarshal node config: %w", err)
+	}
+
+	if jcmd.Network != nil {
+		if finalcfg.Spec == nil {
+			finalcfg.Spec = &k0sconfig.ClusterSpec{}
+		}
+		if jcmd.Network.PodCIDR != "" {
+			finalcfg.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
+		}
+	}
+
+	out, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("unable to open node config file for writing: %w", err)
+	}
+	defer out.Close()
+	data, err = k8syaml.Marshal(finalcfg)
+	if err != nil {
+		return fmt.Errorf("unable to marshal node config: %w", err)
+	}
+	if _, err := out.Write(data); err != nil {
+		return fmt.Errorf("unable to write node config: %w", err)
 	}
 	return nil
 }
