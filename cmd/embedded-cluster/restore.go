@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
@@ -924,9 +925,9 @@ var restoreCommand = &cli.Command{
 			if err := ensureK0sConfigForRestore(c); err != nil {
 				return fmt.Errorf("unable to create config file: %w", err)
 			}
-			var proxy *Proxy
+			var proxy *ecv1beta1.ProxySpec
 			if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-				proxy = &Proxy{
+				proxy = &ecv1beta1.ProxySpec{
 					HTTPProxy:  c.String("http-proxy"),
 					HTTPSProxy: c.String("https-proxy"),
 					NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),

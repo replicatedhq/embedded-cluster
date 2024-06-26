@@ -8,6 +8,7 @@ import (
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -620,9 +621,9 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		var proxy *Proxy
+		var proxy *ecv1beta1.ProxySpec
 		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-			proxy = &Proxy{
+			proxy = &ecv1beta1.ProxySpec{
 				HTTPProxy:  c.String("http-proxy"),
 				HTTPSProxy: c.String("https-proxy"),
 				NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR), ","),
