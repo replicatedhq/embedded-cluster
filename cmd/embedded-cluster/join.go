@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
@@ -33,22 +34,17 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
-type Proxy struct {
-	HTTPProxy  string `json:"httpProxy"`
-	HTTPSProxy string `json:"httpsProxy"`
-	NoProxy    string `json:"noProxy"`
-}
-
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
 type JoinCommandResponse struct {
-	K0sJoinCommand            string    `json:"k0sJoinCommand"`
-	K0sToken                  string    `json:"k0sToken"`
-	ClusterID                 uuid.UUID `json:"clusterID"`
-	K0sUnsupportedOverrides   string    `json:"k0sUnsupportedOverrides"`
-	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
-	MetricsBaseURL            string    `json:"metricsBaseURL"`
-	AirgapRegistryAddress     string    `json:"airgapRegistryAddress"`
-	Proxy                     *Proxy    `json:"proxy"`
+	K0sJoinCommand            string                 `json:"k0sJoinCommand"`
+	K0sToken                  string                 `json:"k0sToken"`
+	ClusterID                 uuid.UUID              `json:"clusterID"`
+	K0sUnsupportedOverrides   string                 `json:"k0sUnsupportedOverrides"`
+	EndUserK0sConfigOverrides string                 `json:"endUserK0sConfigOverrides"`
+	MetricsBaseURL            string                 `json:"metricsBaseURL"`
+	AirgapRegistryAddress     string                 `json:"airgapRegistryAddress"`
+	Proxy                     *ecv1beta1.ProxySpec   `json:"proxy"`
+	Network                   *ecv1beta1.NetworkSpec `json:"network"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
