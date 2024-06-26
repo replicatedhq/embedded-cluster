@@ -337,6 +337,9 @@ func applyJoinOverrides(jcmd *JoinCommandResponse) error {
 		if jcmd.Network.PodCIDR != "" {
 			finalcfg.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
 		}
+		if jcmd.Network.ServiceCIDR != "" {
+			finalcfg.Spec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
+		}
 	}
 
 	out, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
