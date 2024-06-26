@@ -51,6 +51,7 @@ type Applier struct {
 	airgapBundle    string
 	releaseMetadata *types.ReleaseMetadata
 	proxyEnv        map[string]string
+	network         *embeddedclusterv1beta1.NetworkSpec
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -290,7 +291,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, reg)
 
-	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.releaseMetadata, a.proxyEnv)
+	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.releaseMetadata, a.proxyEnv, a.network)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}

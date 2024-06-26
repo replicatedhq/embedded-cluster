@@ -95,3 +95,10 @@ func WithAdminConsolePassword(password string) Option {
 		a.adminConsolePwd = password
 	}
 }
+
+// WithNetwork sets the network configuration for the cluster
+func WithNetwork(network *embeddedclusterv1beta1.NetworkSpec) Option {
+	return func(a *Applier) {
+		a.network = network
+	}
+}
