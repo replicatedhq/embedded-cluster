@@ -131,7 +131,7 @@ jobs:
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
         export EC_VERSION="v${SHORT_SHA}"
-        ./scripts/cache-files.sh
+        make cache-files
         ./scripts/create-upgrade-release.sh
         ./scripts/create-previous-k0s-release.sh
 

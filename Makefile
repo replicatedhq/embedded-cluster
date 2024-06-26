@@ -212,3 +212,8 @@ push-local-artifact-mirror-image:
 
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
+
+.PHONY: cache-files
+cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
+cache-files:
+	./scripts/cache-files.sh
