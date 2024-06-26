@@ -196,3 +196,8 @@ build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image pu
 .PHONY: buildtools
 buildtools:
 	go build -o ./output/bin/buildtools ./cmd/buildtools
+
+.PHONY: cache-files
+cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
+cache-files:
+	./scripts/cache-files.sh
