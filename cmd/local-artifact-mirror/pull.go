@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -128,8 +129,24 @@ var helmChartsCommand = &cli.Command{
 		dst := defaults.EmbeddedClusterChartsSubDir()
 		src := filepath.Join(location, HelmChartsArtifactName)
 		logrus.Infof("uncompressing %s", src)
-		if err := tgzutils.Decompress(src, dst); err != nil {
+		newFiles, err := tgzutils.Decompress(src, dst)
+		if err != nil {
 			return fmt.Errorf("unable to uncompress helm charts: %w", err)
+		}
+
+		// check which files are present in the directory but not newFiles, and remove them
+		files, err := os.ReadDir(dst)
+		if err != nil {
+			return fmt.Errorf("unable to read directory: %w", err)
+		}
+		for _, f := range files {
+			if !slices.Contains(newFiles, f.Name()) {
+				fp := filepath.Join(dst, f.Name())
+				logrus.Infof("removing %s", fp)
+				if err := os.RemoveAll(fp); err != nil {
+					return fmt.Errorf("unable to remove file: %w", err)
+				}
+			}
 		}
 
 		logrus.Infof("helm charts materialized under %s", dst)
