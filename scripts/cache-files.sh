@@ -75,6 +75,7 @@ function operatorbin() {
     operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}.tar.gz" || true)
 
     # if the binary already exists, we don't need to upload it again
+    # even if we did upload it again, cloudflare caches the file so its not guaranteed you will get the new file
     if [ -n "${operator_binary_exists}" ]; then
         echo "operator binary ${operator_version} already exists in bucket ${S3_BUCKET}, skipping upload"
         return 0
