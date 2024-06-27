@@ -214,18 +214,13 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("joining node to cluster")
-		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
+		if err := runK0sInstallCommand(jcmd.K0sJoinCommand, jcmd.Network); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Debugf("applying configuration overrides")
-		if err := applyJoinOverrides(jcmd); err != nil {
-			err := fmt.Errorf("unable to apply join overrides: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-		}
-
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
@@ -314,52 +309,6 @@ func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
 	return nil
 }
 
-func applyJoinOverrides(jcmd *JoinCommandResponse) error {
-	configPath := defaults.PathToK0sConfig()
-
-	if _, err := os.Stat(configPath); err != nil {
-		return fmt.Errorf("unable to find node config: %w", err)
-	}
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return fmt.Errorf("unable to read node config: %w", err)
-	}
-
-	logrus.Debugf("data: \n%s\n", data)
-	return nil
-
-	//finalcfg := k0sconfig.ClusterConfig{}
-	//if err := k8syaml.Unmarshal(data, &finalcfg); err != nil {
-	//	return fmt.Errorf("unable to unmarshal node config: %w", err)
-	//}
-	//
-	//if jcmd.Network != nil {
-	//	if finalcfg.Spec == nil {
-	//		finalcfg.Spec = &k0sconfig.ClusterSpec{}
-	//	}
-	//	if jcmd.Network.PodCIDR != "" {
-	//		finalcfg.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
-	//	}
-	//	if jcmd.Network.ServiceCIDR != "" {
-	//		finalcfg.Spec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
-	//	}
-	//}
-	//
-	//out, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
-	//if err != nil {
-	//	return fmt.Errorf("unable to open node config file for writing: %w", err)
-	//}
-	//defer out.Close()
-	//data, err = k8syaml.Marshal(finalcfg)
-	//if err != nil {
-	//	return fmt.Errorf("unable to marshal node config: %w", err)
-	//}
-	//if _, err := out.Write(data); err != nil {
-	//	return fmt.Errorf("unable to write node config: %w", err)
-	//}
-	//return nil
-}
-
 // patchK0sConfig patches the created k0s config with the unsupported overrides passed in.
 func patchK0sConfig(path string, patch string) error {
 	if len(patch) == 0 {
@@ -445,12 +394,16 @@ func systemdUnitFileName() string {
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
-func runK0sInstallCommand(fullcmd string) error {
+func runK0sInstallCommand(fullcmd string, network *ecv1beta1.NetworkSpec) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
 	}
+	if network != nil && network.PodCIDR != "" {
+		args = append(args, "--cidr-range", network.PodCIDR)
+	}
+
 	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
 		return err
 	}
