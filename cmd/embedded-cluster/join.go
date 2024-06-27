@@ -220,12 +220,12 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		logrus.Debugf("applying configuration overrides")
-		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
-			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
-		}
+		//logrus.Debugf("applying configuration overrides")
+		//if err := applyJoinConfigurationOverrides(jcmd); err != nil {
+		//	err := fmt.Errorf("unable to apply configuration overrides: %w", err)
+		//	metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+		//	return err
+		//}
 
 		logrus.Debugf("starting %s service", binName)
 		if err := startK0sService(); err != nil {
