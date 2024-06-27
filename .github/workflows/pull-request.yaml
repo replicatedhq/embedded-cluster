@@ -7,7 +7,7 @@ concurrency:
 jobs:
   sanitize:
     name: Sanitize
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
         version: v1.54
   tests:
     name: Unit tests
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -40,7 +40,7 @@ jobs:
         make unit-tests
   build:
     name: Build
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
