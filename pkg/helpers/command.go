@@ -53,5 +53,6 @@ func RunCommand(bin string, args ...string) (string, error) {
 	if err := RunCommandWithOptions(RunCommandOptions{Writer: stdout}, bin, args...); err != nil {
 		return "", err
 	}
+	logrus.Debugf("command output: %s", stdout.String())
 	return stdout.String(), nil
 }

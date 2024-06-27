@@ -151,10 +151,11 @@ func (r *ReleaseData) GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config
 
 // ChannelRelease contains information about a specific app release inside a channel.
 type ChannelRelease struct {
-	VersionLabel string `yaml:"versionLabel"`
-	ChannelID    string `yaml:"channelID"`
-	ChannelSlug  string `yaml:"channelSlug"`
-	AppSlug      string `yaml:"appSlug"`
+	VersionLabel    string `yaml:"versionLabel"`
+	ChannelID       string `yaml:"channelID"`
+	ChannelSlug     string `yaml:"channelSlug"`
+	AppSlug         string `yaml:"appSlug"`
+	ChannelSequence int64  `yaml:"channelSequence"`
 }
 
 // GetChannelRelease reads the embedded channel release object. If no channel release
