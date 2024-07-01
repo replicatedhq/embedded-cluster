@@ -340,6 +340,10 @@ func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
 		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
+	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}))
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -445,7 +449,7 @@ func waitForK0s() error {
 }
 
 // runOutro calls Outro() in all enabled addons by means of Applier.
-func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd string, net *ecv1beta1.NetworkSpec) error {
+func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd string) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	opts := []addons.Option{}
 
@@ -472,7 +476,10 @@ func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd stri
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
 		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
-	opts = append(opts, addons.WithNetwork(net))
+	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}))
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
@@ -628,10 +635,6 @@ var installCommand = &cli.Command{
 				NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR), ","),
 			}
 		}
-		network := &ecv1beta1.NetworkSpec{
-			PodCIDR:     cfg.Spec.Network.PodCIDR,
-			ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
-		}
 		logrus.Debugf("creating systemd unit files")
 		if err := createSystemdUnitFiles(false, proxy); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
@@ -651,7 +654,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("running outro")
-		if err := runOutro(c, cfg, adminConsolePwd, network); err != nil {
+		if err := runOutro(c, cfg, adminConsolePwd); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
