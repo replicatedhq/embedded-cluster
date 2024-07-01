@@ -5,116 +5,189 @@ metadata:
 spec:
   uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/pkg/goods/support/host-support-bundle.yaml
   hostCollectors:
-  - ipv4Interfaces: {}
-  - hostServices: {}
-  - cpu: {}
-  - hostOS: {}
-  - memory: {}
-  - blockDevices: {}
-  - diskUsage:
-      collectorName: root-disk-usage
-      path: /
-  - diskUsage:
-      collectorName: openebs-disk-usage
-      path: /var/openebs/local
-  - run:
-      collectorName: k0s-status
-      command: /usr/local/bin/k0s
-      args: [ "status" ]
-  - run:
-      collectorName: k0s-issue-template
-      command: sh
-      args: [ "-c", "uname -srvmo; cat /etc/os-release || lsb_release -a" ]
-  - run:
-      collectorName: k0s-sysinfo
-      command: /usr/local/bin/k0s
-      args: [ "sysinfo" ]
-  - copy:
-      collectorName: installer-logs
-      path: /var/lib/embedded-cluster/logs/*.log
-  - run:
-      collectorName: network-manager-logs
-      command: journalctl
-      args: [ "--since", "10 minutes ago", "--no-pager", "-u", "NetworkManager" ]
-  - run:
-      collectorName: k0scontroller-logs
-      command: journalctl
-      args: [ "--since", "2 days ago", "--no-pager", "-u", "k0scontroller.service" ]
+    - ipv4Interfaces: {}
+    - hostServices: {}
+    - cpu: {}
+    - hostOS: {}
+    - memory: {}
+    - blockDevices: {}
+    # Certificates for etcd and k8s apiserver
+    - certificate:
+        collectorName: k8s-api-keypair
+        certificatePath: /var/lib/k0s/pki/k0s-api.crt
+        keyPath: /var/lib/k0s/pki/k0s-api.key
+    - certificate:
+        collectorName: etcd-keypair
+        certificatePath: /var/lib/k0s/pki/etcd/server.crt
+        keyPath: /var/lib/k0s/pki/etcd/server.key
+    # Disk usage for commonly used directories
+    - diskUsage:
+        collectorName: root-disk-usage
+        path: /
+    - diskUsage:
+        collectorName: openebs-disk-usage
+        path: /var/openebs/local
+    - diskUsage:
+        collectorName: tmp
+        path: /tmp
+    # APIserver and etcd health endpoints
+    - run:
+        collectorName: k8s-api-healthz-6443
+        command: 'curl'
+        args:
+          [
+            '--cert',
+            '/var/lib/k0s/pki/admin.crt',
+            '--key',
+            '/var/lib/k0s/pki/admin.key',
+            '--cacert',
+            '/var/lib/k0s/pki/ca.crt',
+            '-i',
+            'https://localhost:6443/healthz?verbose',
+          ]
+    - run:
+        collectorName: etcd-healthz-2379
+        command: 'curl'
+        args:
+          [
+            '--cert',
+            '/var/lib/k0s/pki/apiserver-etcd-client.crt',
+            '--key',
+            '/var/lib/k0s/pki/apiserver-etcd-client.key',
+            '--cacert',
+            '/var/lib/k0s/pki/etcd/ca.crt',
+            '-i',
+            'http://localhost:2379/health',
+          ]
+    # Run collectors for system information & metrics
+    - run:
+        collectorName: free
+        command: free
+        args: ['-h']
+    - run:
+        collectorName: top
+        command: top
+        args: ['-b', '-n', '1']
+    - run:
+        collectorName: df
+        command: df
+        args: ['-h']
+    - run:
+        collectorName: iostat
+        command: iostat
+        args: ['-x']
+    - run:
+        collectorName: vmstat
+        command: vmstat
+        args: ['1', '5']
+    - run:
+        collectorName: uptime
+        command: uptime
+    - run:
+        collectorName: k0s-version
+        command: /usr/local/bin/k0s
+        args: ['version']
+    - run:
+        collectorName: k0s-status
+        command: /usr/local/bin/k0s
+        args: ['status']
+    - run:
+        collectorName: k0s-issue-template
+        command: sh
+        args: ['-c', 'uname -srvmo; cat /etc/os-release || lsb_release -a']
+    - run:
+        collectorName: k0s-sysinfo
+        command: /usr/local/bin/k0s
+        args: ['sysinfo']
+    - copy:
+        collectorName: installer-logs
+        path: /var/lib/embedded-cluster/logs/*.log
+    - run:
+        collectorName: network-manager-logs
+        command: journalctl
+        args:
+          ['--since', '10 minutes ago', '--no-pager', '-u', 'NetworkManager']
+    - run:
+        collectorName: k0scontroller-logs
+        command: journalctl
+        args:
+          ['--since', '2 days ago', '--no-pager', '-u', 'k0scontroller.service']
+
   hostAnalyzers:
-  - ipv4Interfaces:
-      outcomes:
-      - fail:
-          when: "count == 0"
-          message: No IPv4 interfaces detected
-      - pass:
-          when: "count >= 1"
-          message: IPv4 interface detected
-  - memory:
-      checkName: Amount of Memory
-      outcomes:
-      - warn:
-          when: "< 2G"
-          message: At least 2G of memory is recommended
-      - pass:
-          message: The system has at least 2G of memory
-  - diskUsage:
-      checkName: Root disk usage
-      collectorName: root-disk-usage
-      outcomes:
-      - fail:
-          when: "total < 40Gi"
-          message: The disk containing directory / has less than 40Gi of total space
-      - warn:
-          when: "used/total > 80%"
-          message: The disk containing directory / is more than 80% full
-      - warn:
-          when: "available < 10Gi"
-          message: The disk containing directory / has less than 10Gi of disk space available
-      - pass:
-          message: The disk containing directory / has sufficient space
-  - diskUsage:
-      checkName: OpenEBS disk usage
-      collectorName: openebs-disk-usage
-      outcomes:
-      - fail:
-          when: "total < 40Gi"
-          message: The disk containing OpenEBS volumes has less than 40Gi of space
-      - warn:
-          when: "used/total > 80%"
-          message: The disk containing OpenEBS volumes is more than 80% full
-      - warn:
-          when: "available < 10Gi"
-          message:  The disk containing OpenEBS volumes has less than 10Gi of disk space available
-      - pass:
-          message: The disk containing directory OpenEBS volumes has sufficient space
-  - textAnalyze:
-      checkName: Kubernetes API probing
-      fileName: host-collectors/run-host/k0s-status.txt
-      regex: 'Kube-api probing successful: true'
-      outcomes:
-      - fail:
-          when: "false"
-          message: Kubernetes API probing is reporting a failure
-      - pass:
-          when: "true"
-          message: Kubernetes API probing is reporting success
-  - textAnalyze:
-      checkName: NetworkManager managing calico interfaces
-      fileName: host-collectors/run-host/network-manager-logs.txt
-      regex: 'device .*cali.+: state change: config'
-      outcomes:
-      - fail:
-          when: "true"
-          message: NetworkManager seems to be managing calico interfaces
-      - pass:
-          when: "false"
-          message: NetworkManager isn't managing calico interfaces
-  - hostServices:
-      checkName: "Local Artifact Mirror"
-      outcomes:
-      - fail:
-          when: "local-artifact-mirror != active"
-          message: Local Artifact Mirror isn't active
-      - pass:
-          when:  "local-artifact-mirror = active"
-          message: Local Artifact Mirror is active
+    - ipv4Interfaces:
+        outcomes:
+          - fail:
+              when: 'count == 0'
+              message: No IPv4 interfaces detected
+          - pass:
+              when: 'count >= 1'
+              message: IPv4 interface detected
+    - memory:
+        checkName: Amount of Memory
+        outcomes:
+          - warn:
+              when: '< 2G'
+              message: At least 2G of memory is recommended
+          - pass:
+              message: The system has at least 2G of memory
+    - diskUsage:
+        checkName: Root disk usage
+        collectorName: root-disk-usage
+        outcomes:
+          - fail:
+              when: 'total < 40Gi'
+              message: The disk containing directory / has less than 40Gi of total space
+          - warn:
+              when: 'used/total > 80%'
+              message: The disk containing directory / is more than 80% full
+          - warn:
+              when: 'available < 10Gi'
+              message: The disk containing directory / has less than 10Gi of disk space available
+          - pass:
+              message: The disk containing directory / has sufficient space
+    - diskUsage:
+        checkName: OpenEBS disk usage
+        collectorName: openebs-disk-usage
+        outcomes:
+          - fail:
+              when: 'total < 40Gi'
+              message: The disk containing OpenEBS volumes has less than 40Gi of space
+          - warn:
+              when: 'used/total > 80%'
+              message: The disk containing OpenEBS volumes is more than 80% full
+          - warn:
+              when: 'available < 10Gi'
+              message: The disk containing OpenEBS volumes has less than 10Gi of disk space available
+          - pass:
+              message: The disk containing directory OpenEBS volumes has sufficient space
+    - textAnalyze:
+        checkName: Kubernetes API probing
+        fileName: host-collectors/run-host/k0s-status.txt
+        regex: 'Kube-api probing successful: true'
+        outcomes:
+          - fail:
+              when: 'false'
+              message: Kubernetes API probing is reporting a failure
+          - pass:
+              when: 'true'
+              message: Kubernetes API probing is reporting success
+    - textAnalyze:
+        checkName: NetworkManager managing calico interfaces
+        fileName: host-collectors/run-host/network-manager-logs.txt
+        regex: 'device .*cali.+: state change: config'
+        outcomes:
+          - fail:
+              when: 'true'
+              message: NetworkManager seems to be managing calico interfaces
+          - pass:
+              when: 'false'
+              message: NetworkManager isn't managing calico interfaces
+    - hostServices:
+        checkName: 'Local Artifact Mirror'
+        outcomes:
+          - fail:
+              when: 'local-artifact-mirror != active'
+              message: Local Artifact Mirror isn't active
+          - pass:
+              when: 'local-artifact-mirror = active'
+              message: Local Artifact Mirror is active
