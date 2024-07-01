@@ -46,7 +46,7 @@ var updateCommand = &cli.Command{
 			return fmt.Errorf("no channel release found")
 		}
 
-		if err := kotscli.UpstreamUpgrade(kotscli.UpstreamUpgradeOptions{
+		if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
 			AppSlug:      rel.AppSlug,
 			Namespace:    defaults.KotsadmNamespace,
 			AirgapBundle: c.String("airgap-bundle"),

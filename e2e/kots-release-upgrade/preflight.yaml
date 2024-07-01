@@ -1,0 +1,34 @@
+apiVersion: troubleshoot.replicated.com/v1beta1
+kind: Preflight
+metadata:
+  name: preflight-checks
+spec:
+  analyzers:
+    - clusterVersion:
+        outcomes:
+          - fail:
+              when: "< 1.28.0"
+              message: The application requires at Kubernetes 1.28.0 or later, and recommends 1.29.0.
+              uri: https://www.kubernetes.io
+          - warn:
+              when: "< 1.29.0"
+              message: Your cluster meets the minimum version of Kubernetes, but we recommend you update to 1.29.0 or later.
+              uri: https://kubernetes.io
+          - pass:
+              message: Your cluster meets the recommended and required versions of Kubernetes.
+    - customResourceDefinition:
+        customResourceDefinitionName: installations.embeddedcluster.replicated.com
+        checkName: Embedded Cluster Installation CRD exists
+        outcomes:
+          - fail:
+              message: The Embedded Cluster Installation CRD is not installed in the cluster. Please install the Embedded Cluster Operator.
+          - pass:
+              message: The Embedded Cluster Installation CRD is installed in the cluster.
+    - customResourceDefinition:
+        customResourceDefinitionName: configs.embeddedcluster.replicated.com
+        checkName: Embedded Cluster Config CRD exists
+        outcomes:
+          - fail:
+              message: The Embedded Cluster Config CRD is not installed in the cluster. Please install the Embedded Cluster Operator.
+          - pass:
+              message: The Embedded Cluster Config CRD is installed in the cluster.
