@@ -339,9 +339,10 @@ var resetCommand = &cli.Command{
 			Value: false,
 		},
 		&cli.BoolFlag{
-			Name:  "force",
-			Usage: "Ignore errors encountered when resetting the node (implies --no-prompt)",
-			Value: false,
+			Name:    "force",
+			Aliases: []string{"f"},
+			Usage:   "Ignore errors encountered when resetting the node (implies --no-prompt)",
+			Value:   false,
 		},
 		&cli.BoolFlag{
 			Name:  "reboot",
