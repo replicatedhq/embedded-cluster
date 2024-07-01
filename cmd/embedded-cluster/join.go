@@ -412,9 +412,6 @@ func runK0sInstallCommand(fullcmd string, network *ecv1beta1.NetworkSpec) error 
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
 	}
-	if network != nil && network.PodCIDR != "" {
-		args = append(args, "--cidr-range", network.PodCIDR)
-	}
 
 	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
 		return err
