@@ -296,18 +296,16 @@ spec:
 			return fmt.Errorf("unable to patch k0s config with CIDRs: %w", err)
 		}
 
-		err = patchK0sConfig("/etc/k0s/k0s.yaml", fmt.Sprintf(`
-apiVersion: k0s.k0sproject.io/v1beta1
-kind: ClusterConfig
-metadata:
-  name: k0s
-spec:
-  network:
-    podCIDR: %s
-    serviceCIDR: %s
-`, jcmd.Network.PodCIDR, jcmd.Network.ServiceCIDR))
+		clusterSpec := k0sconfig.DefaultClusterSpec()
+		clusterSpec.Network.PodCIDR = jcmd.Network.PodCIDR
+		clusterSpec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
+		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
 		if err != nil {
-			return fmt.Errorf("unable to patch k0s etc config with CIDRs: %w", err)
+			return fmt.Errorf("unable to marshal cluster spec: %w", err)
+		}
+		err = os.WriteFile("/etc/k0s/k0s.yaml", clusterSpecYaml, 0644)
+		if err != nil {
+			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
 		}
 
 		// remove /var/lib/k0s/pki/server.crt and /var/lib/k0s/pki/server.key so that they are generated with the correct service IP
