@@ -4,12 +4,14 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.109.13
-ADMIN_CONSOLE_IMAGE_OVERRIDE =
+ADMIN_CONSOLE_CHART_VERSION = 1.110.0
+ADMIN_CONSOLE_IMAGE_OVERRIDE = ttl.sh/ethan/kotsadm:24h
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
+ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE = ttl.sh/ethan/kurl-proxy:24h
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.36.2
+EMBEDDED_OPERATOR_CHART_VERSION = 0.37.0-build.1
+EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_URL = https://openebs.github.io/openebs
@@ -35,8 +37,8 @@ PREVIOUS_K0S_VERSION ?= v1.28.8+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE = https://ec-k0s-binaries.s3.amazonaws.com/k0s-v1.29.5%2Bk0s.0-ec.0
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.93.1
-KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-KOTS_BINARY_URL_OVERRIDE =
+KOTS_VERSION = alpha
+KOTS_BINARY_URL_OVERRIDE = https://repldev-ethan-test.s3.amazonaws.com/kots.tar.gz
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= registry.replicated.com/library/embedded-cluster-local-artifact-mirror
 LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION = ${LOCAL_ARTIFACT_MIRROR_IMAGE}:$(subst +,-,$(VERSION))
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
@@ -49,6 +51,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.MigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
@@ -201,7 +204,7 @@ print-%:
 
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image:
-	docker build -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f Dockerfile .
+	docker build --platform linux/amd64 -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f deploy/local-artifact-mirror/Dockerfile .
 
 .PHONY: push-local-artifact-mirror-image
 push-local-artifact-mirror-image:
@@ -209,3 +212,4 @@ push-local-artifact-mirror-image:
 
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
+
