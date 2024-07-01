@@ -286,24 +286,15 @@ var joinCommand = &cli.Command{
 
 func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 	if jcmd.Network != nil {
-		err := patchK0sConfig(defaults.PathToK0sConfig(), fmt.Sprintf(`
-spec:
-  network:
-    podCIDR: %s
-    serviceCIDR: %s
-`, jcmd.Network.PodCIDR, jcmd.Network.ServiceCIDR))
-		if err != nil {
-			return fmt.Errorf("unable to patch k0s config with CIDRs: %w", err)
-		}
-
-		clusterSpec := k0sconfig.DefaultClusterSpec()
-		clusterSpec.Network.PodCIDR = jcmd.Network.PodCIDR
-		clusterSpec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
+		clusterSpec := k0sconfig.DefaultClusterConfig()
+		clusterSpec.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
+		clusterSpec.Spec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
 		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
+
 		if err != nil {
 			return fmt.Errorf("unable to marshal cluster spec: %w", err)
 		}
-		err = os.WriteFile("/etc/k0s/k0s.yaml", clusterSpecYaml, 0644)
+		err = os.WriteFile(defaults.PathToK0sConfig(), clusterSpecYaml, 0644)
 		if err != nil {
 			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
 		}
