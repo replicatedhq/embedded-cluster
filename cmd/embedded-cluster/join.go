@@ -296,6 +296,20 @@ spec:
 			return fmt.Errorf("unable to patch k0s config with CIDRs: %w", err)
 		}
 
+		err = patchK0sConfig("/etc/k0s/k0s.yaml", fmt.Sprintf(`
+apiVersion: k0s.k0sproject.io/v1beta1
+kind: ClusterConfig
+metadata:
+  name: k0s
+spec:
+  network:
+    podCIDR: %s
+    serviceCIDR: %s
+`, jcmd.Network.PodCIDR, jcmd.Network.ServiceCIDR))
+		if err != nil {
+			return fmt.Errorf("unable to patch k0s etc config with CIDRs: %w", err)
+		}
+
 		// remove /var/lib/k0s/pki/server.crt and /var/lib/k0s/pki/server.key so that they are generated with the correct service IP
 		err = os.Remove("/var/lib/k0s/pki/server.crt")
 		if err != nil { //&& !os.IsNotExist(err) {
