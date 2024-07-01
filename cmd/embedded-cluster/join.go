@@ -214,7 +214,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("joining node to cluster")
-		if err := runK0sInstallCommand(jcmd.K0sJoinCommand, jcmd.Network); err != nil {
+		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -301,13 +301,13 @@ func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 
 		// remove /var/lib/k0s/pki/server.crt and /var/lib/k0s/pki/server.key so that they are generated with the correct service IP
 		err = os.Remove("/var/lib/k0s/pki/server.crt")
-		if err != nil { //&& !os.IsNotExist(err) {
-			return fmt.Errorf("unable to remove server.crt: %w", err)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("unable to remove /var/lib/k0s/pki/server.crt: %w", err)
 		}
 
 		err = os.Remove("/var/lib/k0s/pki/server.key")
-		if err != nil { //&& !os.IsNotExist(err) {
-			return fmt.Errorf("unable to remove server.key: %w", err)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("unable to remove /var/lib/k0s/pki/server.key: %w", err)
 		}
 	}
 	return nil
@@ -429,7 +429,7 @@ func systemdUnitFileName() string {
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
-func runK0sInstallCommand(fullcmd string, network *ecv1beta1.NetworkSpec) error {
+func runK0sInstallCommand(fullcmd string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 	if strings.Contains(fullcmd, "controller") {
