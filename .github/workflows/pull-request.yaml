@@ -83,6 +83,10 @@ jobs:
         tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
         ./output/bin/embedded-cluster version metadata > metadata.json
 
+        # XXX we are going to upload this "raw" binary to the bucket together with the
+        # compressed version. this is done for sake of performance evaluations.
+        cp -Rfp output/bin/embedded-cluster embedded-cluster-linux-amd64
+
     - name: Install Replicated CLI
       run: |
         curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \

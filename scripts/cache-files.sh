@@ -154,6 +154,14 @@ function embeddedcluster() {
     else
         echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
     fi
+
+    # check if a file 'embedded-cluster-linux-amd64' exists in the directory if it
+    # does, upload it as releases/${ec_version}.
+    if [ -f embedded-cluster-linux-amd64 ]; then
+        retry 3 aws s3 cp embedded-cluster-linux-amd64 "s3://${S3_BUCKET}/releases/${EC_VERSION}"
+    else
+        echo "embedded-cluster-linux-amd64 not found, skipping upload"
+    fi
 }
 
 # there are three files to be uploaded for each release - the k0s binary, the metadata file, and the embedded-cluster release
