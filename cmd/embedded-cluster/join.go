@@ -220,6 +220,12 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
+		logrus.Debugf("overriding network configuration")
+		if err := applyNetworkConfiguration(jcmd); err != nil {
+			err := fmt.Errorf("unable to apply network configuration: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+		}
+
 		logrus.Debugf("applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
@@ -278,9 +284,7 @@ var joinCommand = &cli.Command{
 	},
 }
 
-// applyJoinConfigurationOverrides applies both config overrides received from the kots api.
-// Applies first the EmbeddedOverrides and then the EndUserOverrides.
-func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
+func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 	if jcmd.Network != nil {
 		err := patchK0sConfig(defaults.PathToK0sConfig(), fmt.Sprintf(`
 spec:
@@ -292,7 +296,12 @@ spec:
 			return fmt.Errorf("unable to patch k0s config with CIDRs: %w", err)
 		}
 	}
+	return nil
+}
 
+// applyJoinConfigurationOverrides applies both config overrides received from the kots api.
+// Applies first the EmbeddedOverrides and then the EndUserOverrides.
+func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
 	patch, err := jcmd.EmbeddedOverrides()
 	if err != nil {
 		return fmt.Errorf("unable to get embedded overrides: %w", err)
