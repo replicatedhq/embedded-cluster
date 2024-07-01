@@ -295,6 +295,17 @@ spec:
 		if err != nil {
 			return fmt.Errorf("unable to patch k0s config with CIDRs: %w", err)
 		}
+
+		// remove /var/lib/k0s/pki/server.crt and /var/lib/k0s/pki/server.key so that they are generated with the correct service IP
+		err = os.Remove("/var/lib/k0s/pki/server.crt")
+		if err != nil { //&& !os.IsNotExist(err) {
+			return fmt.Errorf("unable to remove server.crt: %w", err)
+		}
+
+		err = os.Remove("/var/lib/k0s/pki/server.key")
+		if err != nil { //&& !os.IsNotExist(err) {
+			return fmt.Errorf("unable to remove server.key: %w", err)
+		}
 	}
 	return nil
 }
