@@ -4,7 +4,7 @@ ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
 ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.109.14
+ADMIN_CONSOLE_CHART_VERSION = 1.110.0
 ADMIN_CONSOLE_IMAGE_OVERRIDE = ttl.sh/ethan/kotsadm:24h
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE = ttl.sh/ethan/kurl-proxy:24h
@@ -212,3 +212,4 @@ push-local-artifact-mirror-image:
 
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
+
