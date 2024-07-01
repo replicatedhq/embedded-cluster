@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
@@ -157,6 +158,7 @@ type Registry struct {
 	config    v1beta1.ClusterConfig
 	isAirgap  bool
 	isHA      bool
+	net       *embeddedclusterv1beta1.NetworkSpec
 }
 
 // Version returns the version of the Registry chart.
@@ -211,6 +213,9 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	serviceCIDR := v1beta1.DefaultNetwork().ServiceCIDR
 	if o.config.Spec != nil && o.config.Spec.Network != nil {
 		serviceCIDR = o.config.Spec.Network.ServiceCIDR
+	}
+	if o.net != nil && o.net.ServiceCIDR != "" {
+		serviceCIDR = o.net.ServiceCIDR
 	}
 	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
 	if err != nil {
@@ -435,8 +440,8 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new Registry addon.
-func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool, isHA bool) (*Registry, error) {
-	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap, isHA: isHA}, nil
+func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool, isHA bool, net *embeddedclusterv1beta1.NetworkSpec) (*Registry, error) {
+	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap, isHA: isHA, net: net}, nil
 }
 
 func GetRegistryPassword() string {

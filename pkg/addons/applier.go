@@ -171,7 +171,7 @@ func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error
 		Charts:       velChart,
 	}
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.config, true, false)
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, true, false, a.network)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
@@ -184,7 +184,7 @@ func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error
 		Charts:       regChart,
 	}
 
-	regHA, err := registry.New(defaults.RegistryNamespace, a.config, true, true)
+	regHA, err := registry.New(defaults.RegistryNamespace, a.config, true, true, a.network)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
@@ -285,7 +285,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.config, a.airgapBundle != "", false)
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, a.airgapBundle != "", false, a.network)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
