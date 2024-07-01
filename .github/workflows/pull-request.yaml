@@ -34,7 +34,7 @@ jobs:
       run: |
         make build VERSION=dev-${{ env.SHORT_SHA }}
     - name: Docker Image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         push: true
         tags: |
