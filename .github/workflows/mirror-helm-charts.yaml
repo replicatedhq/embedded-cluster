@@ -63,4 +63,5 @@ jobs:
             type::chore
           draft: false
           base: "main"
-          body-path: /tmp/log
+          body: |
+            Automated changes by the [cron-mirror-helm-charts](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/mirror-helm-charts.yaml) GitHub action
