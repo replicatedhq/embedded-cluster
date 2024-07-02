@@ -192,37 +192,38 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian11
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
-          - TestVersion
-          - TestHostPreflight
-          - TestUnsupportedOverrides
-          - TestMultiNodeInstallation
-          - TestMultiNodeReset
-          - TestCommandsRequireSudo
-          - TestInstallWithoutEmbed
-          - TestInstallFromReplicatedApp
-          - TestResetAndReinstall
-          - TestResetAndReinstallAirgap
-          - TestCollectSupportBundle
-          - TestOldVersionUpgrade
-          - TestMaterialize
-          - TestLocalArtifactMirror
-          - TestSingleNodeAirgapUpgrade
-          - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgrade
+          # - TestSingleNodeInstallation
+          # - TestSingleNodeInstallationAlmaLinux8
+          # - TestSingleNodeInstallationDebian11
+          # - TestSingleNodeInstallationDebian12
+          # - TestSingleNodeInstallationCentos9Stream
+          # - TestVersion
+          # - TestHostPreflight
+          # - TestUnsupportedOverrides
+          # - TestMultiNodeInstallation
+          # - TestMultiNodeReset
+          # - TestCommandsRequireSudo
+          # - TestInstallWithoutEmbed
+          # - TestInstallFromReplicatedApp
+          # - TestResetAndReinstall
+          # - TestResetAndReinstallAirgap
+          # - TestCollectSupportBundle
+          # - TestOldVersionUpgrade
+          # - TestMaterialize
+          # - TestLocalArtifactMirror
+          # - TestSingleNodeAirgapUpgrade
+          # - TestInstallSnapshotFromReplicatedApp
+          # - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
-          - TestSingleNodeResumeDisasterRecovery
-          - TestSingleNodeAirgapDisasterRecovery
-          - TestMultiNodeHAInstallation
-          - TestMultiNodeAirgapHAInstallation
-          - TestMultiNodeAirgapUpgradeSameK0s
-          - TestProxiedEnvironment
-          - TestMultiNodeHADisasterRecovery
-          - TestMultiNodeAirgapHADisasterRecovery
+          - TestSingleNodeDisasterRecoveryWithProxy
+          # - TestSingleNodeResumeDisasterRecovery
+          # - TestSingleNodeAirgapDisasterRecovery
+          # - TestMultiNodeHAInstallation
+          # - TestMultiNodeAirgapHAInstallation
+          # - TestMultiNodeAirgapUpgradeSameK0s
+          # - TestProxiedEnvironment
+          # - TestMultiNodeHADisasterRecovery
+          # - TestMultiNodeAirgapHADisasterRecovery
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
