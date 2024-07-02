@@ -8,6 +8,7 @@ import (
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -308,15 +309,21 @@ func materializeFiles(c *cli.Context) error {
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
-func ensureK0sConfig(c *cli.Context) error {
+func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
-		return fmt.Errorf("configuration file already exists")
+		return nil, fmt.Errorf("configuration file already exists")
 	}
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
-		return fmt.Errorf("unable to create directory: %w", err)
+		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
+	if c.String("pod-cidr") != "" {
+		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+	}
+	if c.String("service-cidr") != "" {
+		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+	}
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -331,14 +338,18 @@ func ensureK0sConfig(c *cli.Context) error {
 		opts = append(opts, addons.WithProxyFromEnv())
 	}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
+	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}))
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
-		return fmt.Errorf("unable to update helm configs: %w", err)
+		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
 	var err error
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
-		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
+		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 	if c.String("airgap-bundle") != "" {
 		// update the k0s config to install with airgap
@@ -347,17 +358,18 @@ func ensureK0sConfig(c *cli.Context) error {
 	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("unable to marshal config: %w", err)
+		return nil, fmt.Errorf("unable to marshal config: %w", err)
 	}
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return fmt.Errorf("unable to create config file: %w", err)
+		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
 	defer fp.Close()
 	if _, err := fp.Write(data); err != nil {
-		return fmt.Errorf("unable to write config file: %w", err)
+		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
-	return nil
+
+	return cfg, nil
 }
 
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
@@ -437,7 +449,7 @@ func waitForK0s() error {
 }
 
 // runOutro calls Outro() in all enabled addons by means of Applier.
-func runOutro(c *cli.Context, adminConsolePwd string) error {
+func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd string) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	opts := []addons.Option{}
 
@@ -462,8 +474,12 @@ func runOutro(c *cli.Context, adminConsolePwd string) error {
 	}
 	opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
+	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}))
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
@@ -544,6 +560,16 @@ var installCommand = &cli.Command{
 			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "pod-cidr",
+			Usage:  "pod CIDR range to use for the installation",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "service-cidr",
+			Usage:  "service CIDR range to use for the installation",
+			Hidden: false,
+		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
 			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
@@ -595,17 +621,18 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("creating k0s configuration file")
-		if err := ensureK0sConfig(c); err != nil {
+		var cfg *k0sconfig.ClusterConfig
+		if cfg, err = ensureK0sConfig(c); err != nil {
 			err := fmt.Errorf("unable to create config file: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		var proxy *Proxy
+		var proxy *ecv1beta1.ProxySpec
 		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-			proxy = &Proxy{
+			proxy = &ecv1beta1.ProxySpec{
 				HTTPProxy:  c.String("http-proxy"),
 				HTTPSProxy: c.String("https-proxy"),
-				NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
+				NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR), ","),
 			}
 		}
 		logrus.Debugf("creating systemd unit files")
@@ -627,7 +654,7 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("running outro")
-		if err := runOutro(c, adminConsolePwd); err != nil {
+		if err := runOutro(c, cfg, adminConsolePwd); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

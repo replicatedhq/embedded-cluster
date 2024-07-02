@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
@@ -323,6 +324,12 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 		// update the k0s config to install with airgap
 		airgap.RemapHelm(cfg)
 		airgap.SetAirgapConfig(cfg)
+	}
+	if c.String("pod-cidr") != "" {
+		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+	}
+	if c.String("service-cidr") != "" {
+		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
@@ -823,6 +830,16 @@ var restoreCommand = &cli.Command{
 			Usage:  "Use the system proxy settings for the restore operation. These variables are currently only passed through to Velero.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "pod-cidr",
+			Usage:  "pod CIDR range to use for the installation",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "service-cidr",
+			Usage:  "service CIDR range to use for the installation",
+			Hidden: false,
+		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
 			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
@@ -908,9 +925,9 @@ var restoreCommand = &cli.Command{
 			if err := ensureK0sConfigForRestore(c); err != nil {
 				return fmt.Errorf("unable to create config file: %w", err)
 			}
-			var proxy *Proxy
+			var proxy *ecv1beta1.ProxySpec
 			if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-				proxy = &Proxy{
+				proxy = &ecv1beta1.ProxySpec{
 					HTTPProxy:  c.String("http-proxy"),
 					HTTPSProxy: c.String("https-proxy"),
 					NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),

@@ -3,8 +3,6 @@
 // these should not happen in the first place.
 package defaults
 
-import "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-
 var (
 	// Version holds the EmbeddedCluster version.
 	Version = "v0.0.0"
@@ -25,7 +23,7 @@ var (
 
 // Holds the default no proxy values.
 var (
-	DefaultNoProxy = []string{"localhost", "127.0.0.1", ".default", ".local", ".svc", "kubernetes", "kotsadm-rqlite", v1beta1.DefaultNetwork().ServiceCIDR, v1beta1.DefaultNetwork().PodCIDR}
+	DefaultNoProxy = []string{"localhost", "127.0.0.1", ".default", ".local", ".svc", "kubernetes", "kotsadm-rqlite"}
 )
 
 const KotsadmNamespace = "kotsadm"
