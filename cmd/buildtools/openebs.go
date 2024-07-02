@@ -70,7 +70,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring new openebs chart version %s", newver)
-		if err := MirrorChart("openebs", "openebs", newver); err != nil {
+		if err := MirrorChart("openebs", "openebs", newver, c.Bool("force")); err != nil {
 			return fmt.Errorf("unable to mirror openebs chart: %v", err)
 		}
 

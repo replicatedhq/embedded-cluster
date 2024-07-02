@@ -26,7 +26,7 @@ var updateRegistryAddonCommand = &cli.Command{
 			return nil
 		}
 
-		if err := MirrorChart("twuni", "docker-registry", latest); err != nil {
+		if err := MirrorChart("twuni", "docker-registry", latest, c.Bool("force")); err != nil {
 			return fmt.Errorf("unable to mirror chart: %w", err)
 		}
 

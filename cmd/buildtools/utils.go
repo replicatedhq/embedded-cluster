@@ -107,7 +107,7 @@ func LatestChartVersion(repo, name string) (string, error) {
 	return hcli.Latest(repo, name)
 }
 
-func MirrorChart(repo, name, ver string) error {
+func MirrorChart(repo, name, ver string, force bool) error {
 	hcli, err := NewHelm()
 	if err != nil {
 		return fmt.Errorf("unable to create helm: %w", err)
@@ -134,16 +134,18 @@ func MirrorChart(repo, name, ver string) error {
 	}
 
 	dst := os.Getenv("DESTINATION")
-	logrus.Infof("verifying if destination tag already exists")
-	tmpf, err := hcli.Pull(dst, name, ver)
-	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
-		return fmt.Errorf("unable to verify if tag already exists: %w", err)
-	} else if err == nil {
-		os.Remove(tmpf)
-		logrus.Warnf("cowardly refusing to override dst (tag %s already exist)", ver)
-		return nil
+	if !force {
+		logrus.Infof("verifying if destination tag already exists")
+		tmpf, err := hcli.Pull(dst, name, ver)
+		if err != nil && !strings.HasSuffix(err.Error(), "not found") {
+			return fmt.Errorf("unable to verify if tag already exists: %w", err)
+		} else if err == nil {
+			os.Remove(tmpf)
+			logrus.Warnf("cowardly refusing to override dst (tag %s already exist)", ver)
+			return nil
+		}
+		logrus.Infof("destination tag does not exist")
 	}
-	logrus.Infof("destination tag does not exist")
 
 	logrus.Infof("pushing %s chart to %s", name, dst)
 	if err := hcli.Push(chpath, dst); err != nil {
