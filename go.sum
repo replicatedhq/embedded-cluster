@@ -245,8 +245,8 @@ github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
 github.com/replicatedhq/embedded-cluster-kinds v1.4.2-ash h1:BqJTIm+pk7rK9NcfD1DwZyJQdihHg6S3AJi7aiWBtFA=
 github.com/replicatedhq/embedded-cluster-kinds v1.4.2-ash/go.mod h1:AwopUvvGcaWO4mn9DkbPj5RnLuOy756CNLrcaAlmjMo=
-github.com/replicatedhq/embedded-cluster-operator v1.38.0-ash h1:EwLR+ZHYJPGZ58rhRjSbCfV6idTU9l1f35WXUYY1LuA=
-github.com/replicatedhq/embedded-cluster-operator v1.38.0-ash/go.mod h1:1Z43GMhPuXdwVtzzkczAR7vPAqRjN5f9RSBYHXXY48E=
+github.com/replicatedhq/embedded-cluster-operator v1.38.0-alpha.1 h1:xZ3WxMRdGmNuyugWyXF73twrFuSOFeQx8q3jj41R3K8=
+github.com/replicatedhq/embedded-cluster-operator v1.38.0-alpha.1/go.mod h1:1Z43GMhPuXdwVtzzkczAR7vPAqRjN5f9RSBYHXXY48E=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0 h1:Axdni1nYfl5zeOP9g5U79yvN8cRdClyU6hz0wV1Hmdc=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0/go.mod h1:4JmMC2CwMCLxq05GEW3XSPPVotqyamAF/omrbB3pH+c=
 github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4 h1:nsNSod6wpFpaMUq1IqnU4y2XWQd2FEKtdr02UB2udkk=
