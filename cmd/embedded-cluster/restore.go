@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -234,7 +235,12 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 	if rel == nil {
 		return nil, fmt.Errorf("no release found in binary")
 	}
-	if restorable, reason := isBackupRestorable(backup, rel, isAirgap); !restorable {
+	net, err := getConfiguredNetwork()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get configured network: %w", err)
+	}
+
+	if restorable, reason := isBackupRestorable(backup, rel, isAirgap, *net); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
 	}
 	return backup, nil
@@ -351,7 +357,7 @@ func runOutroForRestore(c *cli.Context) error {
 	return addons.NewApplier().OutroForRestore(c.Context)
 }
 
-func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool) (bool, string) {
+func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, net ecv1beta1.NetworkSpec) (bool, string) {
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
@@ -393,6 +399,18 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 			return false, "is an airgap backup, but the restore is configured to be online"
 		}
 	}
+
+	if _, ok := backup.Annotations["kots.io/embedded-cluster-pod-cidr"]; !ok {
+		// kots.io/embedded-cluster-pod-cidr and kots.io/embedded-cluster-service-cidr should both exist if one does
+		podCIDR := backup.Annotations["kots.io/embedded-cluster-pod-cidr"]
+		serviceCIDR := backup.Annotations["kots.io/embedded-cluster-service-cidr"]
+
+		if podCIDR != "" || serviceCIDR != "" {
+			if podCIDR != net.PodCIDR || serviceCIDR != net.ServiceCIDR {
+				return false, fmt.Sprintf("has a different network configuration than the current cluster, please run with '--pod-cidr %s --service-cidr %s'", podCIDR, serviceCIDR)
+			}
+		}
+	}
 	return true, ""
 }
 
@@ -429,6 +447,11 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		return nil, fmt.Errorf("no release found in binary")
 	}
 
+	net, err := getConfiguredNetwork()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get configured network: %w", err)
+	}
+
 	for i := 0; i < 30; i++ {
 		time.Sleep(5 * time.Second)
 
@@ -446,7 +469,7 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		invalidReasons := []string{}
 
 		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup, rel, isAirgap)
+			restorable, reason := isBackupRestorable(&backup, rel, isAirgap, *net)
 			if restorable {
 				validBackups = append(validBackups, backup)
 			} else {
@@ -487,6 +510,26 @@ func pickBackupToRestore(backups []velerov1.Backup) *velerov1.Backup {
 		}
 	}
 	return latestBackup
+}
+
+// getConfiguredNetwork reads the k0s config and returns the network configuration.
+func getConfiguredNetwork() (*ecv1beta1.NetworkSpec, error) {
+	cfgBytes, err := os.ReadFile(defaults.PathToK0sConfig())
+	if err != nil {
+		return nil, fmt.Errorf("unable to read k0s config file: %w", err)
+	}
+
+	cfg := &v1beta1.ClusterConfig{}
+	if err := json.Unmarshal(cfgBytes, cfg); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal k0s config: %w", err)
+	}
+
+	net := &ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}
+
+	return net, nil
 }
 
 // waitForVeleroRestoreCompleted waits for a Velero restore to complete.
