@@ -111,7 +111,7 @@ type Extensions struct {
 	Helm *Helm `json:"helm,omitempty"`
 }
 
-func ConvertTo[T any](e Helm ,t T) (T, error) {
+func ConvertTo[T any](e Helm, t T) (T, error) {
 	j, err := json.Marshal(e)
 	if err != nil {
 		return t, fmt.Errorf("unable to convert extensions: %w", err)
@@ -124,7 +124,7 @@ func ConvertTo[T any](e Helm ,t T) (T, error) {
 	return t, nil
 }
 
-func ConvertFrom[T any](e k0sv1beta1.HelmExtensions ,t T) (T, error) {
+func ConvertFrom[T any](e k0sv1beta1.HelmExtensions, t T) (T, error) {
 	j, err := json.Marshal(e)
 	if err != nil {
 		return t, fmt.Errorf("unable to convert extensions: %w", err)
