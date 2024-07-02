@@ -24,7 +24,7 @@ if {$num_args > 6} {
   set additional_args [join $args_after_sixth " "]
 }
 
-spawn embedded-cluster restore --skip-host-preflights $additional_args
+spawn embedded-cluster restore $additional_args --skip-host-preflights
 
 expect {
     "Enter information to configure access to your backup storage location." {}

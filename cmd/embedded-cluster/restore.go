@@ -805,12 +805,12 @@ var restoreCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:   "http-proxy",
-			Usage:  "HTTP proxy to use for the installation",
+			Usage:  "HTTP proxy to use for the restore",
 			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "https-proxy",
-			Usage:  "HTTPS proxy to use for the installation",
+			Usage:  "HTTPS proxy to use for the restore",
 			Hidden: false,
 		},
 		&cli.StringFlag{
