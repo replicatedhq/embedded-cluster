@@ -46,7 +46,24 @@ jobs:
       - name: Update ${{ matrix.addon }}
         id: update
         env:
-          DESTINATION: oci://ttl.sh/embedded-cluster-charts
+          REGISTRY_SERVER: registry.replicated.com
+          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME_PRODUCTION }}
+          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD_PRODUCTION }}
+          DESTINATION: oci://registry.replicated.com/embedded-cluster-charts
         run: |
           chmod 755 ./output/artifacts/buildtools
-          ./output/artifacts/buildtools update --force addon ${{ matrix.addon }}
+          ./output/artifacts/buildtools update addon ${{ matrix.addon }} >/tmp/log 2>&1
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+          commit-message: updated ${{ matrix.addon }} version
+          title: Update ${{ matrix.addon }} version
+          branch: automation/update-makefile-${{ matrix.addon }}
+          delete-branch: true
+          labels: |
+            automated-pr
+            type::chore
+          draft: false
+          base: "main"
+          body-path: /tmp/log
