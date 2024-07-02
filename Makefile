@@ -209,3 +209,7 @@ push-local-artifact-mirror-image:
 
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
+
+.PHONY: buildtools
+buildtools:
+	go build -o ./output/bin/buildtools ./cmd/buildtools
