@@ -49,7 +49,7 @@ jobs:
           DESTINATION: oci://registry.replicated.com/embedded-cluster-charts
         run: |
           chmod 755 ./output/artifacts/buildtools
-          ./output/artifacts/buildtools update addon ${{ matrix.addon }}
+          ./output/artifacts/buildtools update addon --force ${{ matrix.addon }}
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
