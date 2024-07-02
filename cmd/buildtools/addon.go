@@ -10,7 +10,7 @@ var addonCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "force",
-			Usage: "Force the update of the addons",
+			Usage: "Pushes the addon chart even if no new version was found",
 		},
 	},
 	Subcommands: []*cli.Command{

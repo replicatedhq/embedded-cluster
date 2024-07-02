@@ -48,6 +48,7 @@ var updateVeleroAddonCommand = &cli.Command{
 		if err := SetMakefileVariable("VELERO_CHART_VERSION", latest); err != nil {
 			return fmt.Errorf("unable to set velero chart version: %w", err)
 		}
+		logrus.Infof("successfully updated velero addon")
 
 		return nil
 	},

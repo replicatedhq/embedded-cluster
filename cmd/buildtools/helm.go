@@ -70,7 +70,8 @@ func NewHelm() (*Helm, error) {
 	if err != nil {
 		return nil, err
 	}
-	regcli, err := registry.NewClient()
+	writer := logrus.New().Writer()
+	regcli, err := registry.NewClient(registry.ClientOptWriter(writer))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry client: %w", err)
 	}
@@ -197,9 +198,9 @@ func (h *Helm) RegistryAuth(server, user, pass string) error {
 
 func (h *Helm) Push(path, dst string) error {
 	up := uploader.ChartUploader{
-		Out:            os.Stdout,
-		Pushers:        pushers,
-		RegistryClient: h.regcli,
+		Out:     os.Stdout,
+		Pushers: pushers,
+		Options: []pusher.Option{pusher.WithRegistryClient(h.regcli)},
 	}
 	return up.UploadTo(path, dst)
 }

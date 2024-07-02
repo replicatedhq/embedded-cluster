@@ -107,15 +107,15 @@ func LatestChartVersion(repo, name string) (string, error) {
 	return hcli.Latest(repo, name)
 }
 
-func MirrorChart(repo, name, version string) error {
+func MirrorChart(repo, name, ver string) error {
 	hcli, err := NewHelm()
 	if err != nil {
 		return fmt.Errorf("unable to create helm: %w", err)
 	}
 	defer hcli.Close()
 
-	logrus.Infof("pulling %s chart version %s", name, version)
-	chpath, err := hcli.Pull(repo, name, version)
+	logrus.Infof("pulling %s chart version %s", name, ver)
+	chpath, err := hcli.Pull(repo, name, ver)
 	if err != nil {
 		return fmt.Errorf("unable to pull %s: %w", name, err)
 	}
@@ -134,11 +134,22 @@ func MirrorChart(repo, name, version string) error {
 	}
 
 	dst := os.Getenv("DESTINATION")
+	logrus.Infof("verifying if destination tag already exists")
+	tmpf, err := hcli.Pull(dst, name, ver)
+	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
+		return fmt.Errorf("unable to verify if tag already exists: %w", err)
+	} else if err == nil {
+		os.Remove(tmpf)
+		logrus.Warnf("cowardly refusing to override dst (tag %s already exist)", ver)
+		return nil
+	}
+	logrus.Infof("destination tag does not exist")
+
 	logrus.Infof("pushing %s chart to %s", name, dst)
 	if err := hcli.Push(chpath, dst); err != nil {
 		return fmt.Errorf("unable to push openebs: %w", err)
 	}
-	remote := fmt.Sprintf("%s/%s:%s", dst, name, version)
+	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
 	logrus.Infof("pushed openebs chart: %s", remote)
 	return nil
 }

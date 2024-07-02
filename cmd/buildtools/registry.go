@@ -43,6 +43,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		if err := SetMakefileVariable("REGISTRY_IMAGE_VERSION", latest); err != nil {
 			return fmt.Errorf("unable to patch makefile: %w", err)
 		}
+		logrus.Infof("successfully updated registry addon")
 
 		return nil
 	},

@@ -32,6 +32,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		if err := SetMakefileVariable("SEAWEEDFS_CHART_VERSION", latest); err != nil {
 			return fmt.Errorf("unable to set seaweedfs chart version: %w", err)
 		}
+		logrus.Infof("successfully updated seaweed addon")
 
 		return nil
 	},
