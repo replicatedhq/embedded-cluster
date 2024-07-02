@@ -298,17 +298,6 @@ func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 		if err != nil {
 			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
 		}
-		//
-		//// remove /var/lib/k0s/pki/server.crt and /var/lib/k0s/pki/server.key so that they are generated with the correct service IP
-		//err = os.Remove("/var/lib/k0s/pki/server.crt")
-		//if err != nil && !os.IsNotExist(err) {
-		//	return fmt.Errorf("unable to remove /var/lib/k0s/pki/server.crt: %w", err)
-		//}
-		//
-		//err = os.Remove("/var/lib/k0s/pki/server.key")
-		//if err != nil && !os.IsNotExist(err) {
-		//	return fmt.Errorf("unable to remove /var/lib/k0s/pki/server.key: %w", err)
-		//}
 	}
 	return nil
 }
