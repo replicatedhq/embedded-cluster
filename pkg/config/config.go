@@ -74,18 +74,17 @@ func updateHelmConfigs(cfg *k0sconfig.ClusterConfig, chtconfig []embeddedcluster
 		chtconfig[k].Order += 100
 	}
 
+	helm := embeddedclusterv1beta1.Helm{
+		Charts:       chtconfig,
+		Repositories: repconfig,
+	}
 
-  helm := embeddedclusterv1beta1.Helm{
-    Charts: chtconfig,
-    Repositories: repconfig,
-  }
-
-  convertedHelm := &k0sconfig.HelmExtensions{}
-  var err error
-  convertedHelm, err = embeddedclusterv1beta1.ConvertTo(helm, convertedHelm)
-  if err != nil {
-    return err
-  }
+	convertedHelm := &k0sconfig.HelmExtensions{}
+	var err error
+	convertedHelm, err = embeddedclusterv1beta1.ConvertTo(helm, convertedHelm)
+	if err != nil {
+		return err
+	}
 
 	cfg.Spec.Extensions = &k0sconfig.ClusterExtensions{
 		Helm: convertedHelm,
