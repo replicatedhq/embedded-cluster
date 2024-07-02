@@ -521,6 +521,7 @@ func getConfiguredNetwork() (*ecv1beta1.NetworkSpec, error) {
 
 	cfg := &v1beta1.ClusterConfig{}
 	if err := json.Unmarshal(cfgBytes, cfg); err != nil {
+		fmt.Printf("cfg:\n%s\n", cfgBytes)
 		return nil, fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
 
