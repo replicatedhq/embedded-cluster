@@ -1,0 +1,42 @@
+kots-app.yaml: |-
+  apiVersion: kots.io/v1beta1
+  kind: Application
+  metadata:
+    name: nginx
+  spec:
+    title: Embedded Cluster Smoke Test App
+    icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
+    statusInformers:
+      - deployment/nginx
+    ports:
+      - serviceName: "nginx"
+        servicePort: 80
+        localPort: 8888
+        applicationUrl: "http://nginx"
+config.yaml: |-
+  apiVersion: embeddedcluster.replicated.com/v1beta1
+  kind: Config
+  metadata:
+    name: "testconfig"
+  spec:
+    roles:
+      controller:
+        labels:
+          controller-label: controller-label-value
+        name: controller-test
+      custom:
+        - labels:
+            abc-test-label: abc-test-label-value
+            abc-test-label-two: abc-test-label-value-2
+          name: abc
+        - labels:
+            xyz-test-label: xyz-value
+          name: xyz
+    unsupportedOverrides:
+      k0s: |
+        config:
+          metadata:
+            name: foo
+          spec:
+            telemetry:
+              enabled: false
