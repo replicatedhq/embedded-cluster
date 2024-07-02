@@ -162,7 +162,12 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", cluster.NOProxy)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	withEnv = WithEnv(map[string]string{
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
+		"NO_PROXY":    cluster.NOProxy,
+	})
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
 
