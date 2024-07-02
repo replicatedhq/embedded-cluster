@@ -13,18 +13,16 @@ set dr_aws_access_key_id [lindex $argv 4]
 set dr_aws_secret_access_key [lindex $argv 5]
 
 # Capture any additional arguments and add them to the restore command.
-# Combine all arguments into an array
-args=("$@")
-
 # Get the number of arguments
-num_args=$#
+set num_args [llength $argv]
 
 # Check if there are more than 6 arguments, arg 0 to 5 are for s3 config.
-additional_args=""
-if [ $num_args -gt 6 ]; then
+set additional_args ""
+if {$num_args > 6} {
   # Create a string with all arguments after the sixth one
-  additional_args="${args[@]:6}"
-fi
+  set args_after_sixth [lrange $argv 6 end]
+  set additional_args [join $args_after_sixth " "]
+}
 
 spawn embedded-cluster restore --skip-host-preflights $additional_args
 
