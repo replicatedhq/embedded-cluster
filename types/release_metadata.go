@@ -13,4 +13,8 @@ type ReleaseMetadata struct {
 	Configs        v1beta1.Helm            // always applied
 	BuiltinConfigs map[string]v1beta1.Helm // applied if the relevant builtin addon is enabled
 	Protected      map[string][]string
+
+	// Deprecated: AirgapConfigs exists for historical compatibility and should not
+	// be used. This field has been replaced by the BuiltinConfigs field.
+	AirgapConfigs v1beta1.HelmExtensions
 }

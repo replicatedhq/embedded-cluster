@@ -59,10 +59,25 @@ type NodeStatus struct {
 // the cluster, authentication for the registry is read from the cluster
 // at execution time so they do not need to be provided here.
 type ArtifactsLocation struct {
-	Images                  string `json:"images"`
-	HelmCharts              string `json:"helmCharts"`
-	EmbeddedClusterBinary   string `json:"embeddedClusterBinary"`
-	EmbeddedClusterMetadata string `json:"embeddedClusterMetadata"`
+	Images                  string            `json:"images"`
+	HelmCharts              string            `json:"helmCharts"`
+	EmbeddedClusterBinary   string            `json:"embeddedClusterBinary"`
+	EmbeddedClusterMetadata string            `json:"embeddedClusterMetadata"`
+	AdditionalArtifacts     map[string]string `json:"additionalArtifacts,omitempty"`
+}
+
+// ProxySpec holds the proxy configuration.
+type ProxySpec struct {
+	HTTPProxy  string `json:"httpProxy,omitempty"`
+	HTTPSProxy string `json:"httpsProxy,omitempty"`
+	NoProxy    string `json:"noProxy,omitempty"`
+}
+
+// NetworkSpec holds the network configuration.
+type NetworkSpec struct {
+	PodCIDR       string `json:"podCIDR,omitempty"`
+	ServiceCIDR   string `json:"serviceCIDR,omitempty"`
+	NodePortRange string `json:"nodePortRange,omitempty"`
 }
 
 // LicenseInfo holds information about the license used to install the cluster.
@@ -90,6 +105,10 @@ type InstallationSpec struct {
 	AirGap bool `json:"airGap,omitempty"`
 	// Artifacts holds the location of the airgap bundle.
 	Artifacts *ArtifactsLocation `json:"artifacts,omitempty"`
+	// Proxy holds the proxy configuration.
+	Proxy *ProxySpec `json:"proxy,omitempty"`
+	// Network holds the network configuration.
+	Network *NetworkSpec `json:"network,omitempty"`
 	// Config holds the configuration used at installation time.
 	Config *ConfigSpec `json:"config,omitempty"`
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
@@ -102,7 +121,7 @@ type InstallationSpec struct {
 	LicenseInfo *LicenseInfo `json:"licenseInfo,omitempty"`
 	// ConfigSecret holds a secret name and namespace. If this is set it means that
 	// the Config for this Installation object must be read from there. This option
-	// superseeds (overrides) the Config field.
+	// supersedes (overrides) the Config field.
 	ConfigSecret *ConfigSecret `json:"configSecret,omitempty"`
 }
 
