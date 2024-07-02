@@ -46,7 +46,7 @@ jobs:
           REGISTRY_SERVER: registry.replicated.com
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME_PRODUCTION }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD_PRODUCTION }}
-          DESTINATION: oci://registry.replicated.com/embedded-cluster-charts
+          DESTINATION: oci://registry.replicated.com/ec-charts
         run: |
           chmod 755 ./output/artifacts/buildtools
           ./output/artifacts/buildtools update --force addon ${{ matrix.addon }}
