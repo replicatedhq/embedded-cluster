@@ -49,13 +49,13 @@ jobs:
           DESTINATION: oci://registry.replicated.com/embedded-cluster-charts
         run: |
           chmod 755 ./output/artifacts/buildtools
-          ./output/artifacts/buildtools update addon ${{ matrix.addon }} 2>&1 | tee /tmp/log
+          ./output/artifacts/buildtools update addon ${{ matrix.addon }}
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
           commit-message: updated ${{ matrix.addon }} version
-          title: Update ${{ matrix.addon }} version
+          title: "feat: update ${{ matrix.addon }} version"
           branch: automation/update-makefile-${{ matrix.addon }}
           delete-branch: true
           labels: |
