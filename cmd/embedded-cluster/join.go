@@ -213,13 +213,6 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		logrus.Debugf("joining node to cluster")
-		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
-			err := fmt.Errorf("unable to join node to cluster: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
-		}
-
 		logrus.Debugf("overriding network configuration")
 		if err := applyNetworkConfiguration(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply network configuration: %w", err)
@@ -229,6 +222,13 @@ var joinCommand = &cli.Command{
 		logrus.Debugf("applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
+		logrus.Debugf("joining node to cluster")
+		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
+			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
@@ -298,17 +298,17 @@ func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 		if err != nil {
 			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
 		}
-
-		// remove /var/lib/k0s/pki/server.crt and /var/lib/k0s/pki/server.key so that they are generated with the correct service IP
-		err = os.Remove("/var/lib/k0s/pki/server.crt")
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("unable to remove /var/lib/k0s/pki/server.crt: %w", err)
-		}
-
-		err = os.Remove("/var/lib/k0s/pki/server.key")
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("unable to remove /var/lib/k0s/pki/server.key: %w", err)
-		}
+		//
+		//// remove /var/lib/k0s/pki/server.crt and /var/lib/k0s/pki/server.key so that they are generated with the correct service IP
+		//err = os.Remove("/var/lib/k0s/pki/server.crt")
+		//if err != nil && !os.IsNotExist(err) {
+		//	return fmt.Errorf("unable to remove /var/lib/k0s/pki/server.crt: %w", err)
+		//}
+		//
+		//err = os.Remove("/var/lib/k0s/pki/server.key")
+		//if err != nil && !os.IsNotExist(err) {
+		//	return fmt.Errorf("unable to remove /var/lib/k0s/pki/server.key: %w", err)
+		//}
 	}
 	return nil
 }
