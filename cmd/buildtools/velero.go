@@ -41,7 +41,7 @@ var updateVeleroAddonCommand = &cli.Command{
 			return nil
 		}
 
-		if err := MirrorChart("vmware-tanzu", "velero", latest, c.Bool("force")); err != nil {
+		if err := MirrorChart("vmware-tanzu", "velero", latest); err != nil {
 			return fmt.Errorf("unable to mirror velero chart: %w", err)
 		}
 

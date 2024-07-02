@@ -25,7 +25,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 			return nil
 		}
 
-		if err := MirrorChart("seaweedfs", "seaweedfs", latest, c.Bool("force")); err != nil {
+		if err := MirrorChart("seaweedfs", "seaweedfs", latest); err != nil {
 			return fmt.Errorf("unable to mirror seaweedfs chart: %w", err)
 		}
 
