@@ -20,11 +20,11 @@ set num_args [llength $argv]
 set additional_args ""
 if {$num_args > 6} {
   # Create a string with all arguments after the sixth one
-  set args_after_sixth [lrange $argv 6 end]
-  set additional_args [join $args_after_sixth " "]
+  set additional_args [lrange $argv 6 end]
 }
 
-spawn embedded-cluster restore $additional_args --skip-host-preflights
+set cmd [concat embedded-cluster-smoke-test-staging-app restore --skip-host-preflights $additional_args]
+eval spawn $cmd
 
 expect {
     "Enter information to configure access to your backup storage location." {}
