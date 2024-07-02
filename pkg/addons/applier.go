@@ -42,6 +42,7 @@ type AddOn interface {
 type Applier struct {
 	prompt          bool
 	verbose         bool
+	adminConsolePwd string // admin console password
 	config          v1beta1.ClusterConfig
 	licenseFile     string
 	onlyDefaults    bool
@@ -288,7 +289,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, reg)
 
-	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.releaseMetadata)
+	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.releaseMetadata, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
@@ -304,7 +305,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, vel)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.prompt, a.config, a.licenseFile, a.airgapBundle, a.proxyEnv)
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.adminConsolePwd, a.config, a.licenseFile, a.airgapBundle, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}

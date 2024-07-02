@@ -803,10 +803,30 @@ var restoreCommand = &cli.Command{
 			Usage:  "Path to the airgap bundle. If set, the restore will be completed without internet access.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "http-proxy",
+			Usage:  "HTTP proxy to use for the installation",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "https-proxy",
+			Usage:  "HTTPS proxy to use for the installation",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "no-proxy",
+			Usage:  "Comma separated list of hosts to bypass the proxy for",
+			Hidden: false,
+		},
 		&cli.BoolFlag{
 			Name:   "proxy",
 			Usage:  "Use the system proxy settings for the restore operation. These variables are currently only passed through to Velero.",
 			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:  "skip-host-preflights",
+			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Value: false,
 		},
 	},
 	Before: func(c *cli.Context) error {
@@ -888,13 +908,21 @@ var restoreCommand = &cli.Command{
 			if err := ensureK0sConfigForRestore(c); err != nil {
 				return fmt.Errorf("unable to create config file: %w", err)
 			}
+			var proxy *Proxy
+			if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+				proxy = &Proxy{
+					HTTPProxy:  c.String("http-proxy"),
+					HTTPSProxy: c.String("https-proxy"),
+					NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
+				}
+			}
+			logrus.Debugf("creating systemd unit files")
+			if err := createSystemdUnitFiles(false, proxy); err != nil {
+				return fmt.Errorf("unable to create systemd unit files: %w", err)
+			}
 			logrus.Debugf("installing k0s")
 			if err := installK0s(); err != nil {
 				return fmt.Errorf("unable update cluster: %w", err)
-			}
-			logrus.Debugf("creating systemd unit files")
-			if err := createSystemdUnitFiles(false); err != nil {
-				return fmt.Errorf("unable to create systemd unit files: %w", err)
 			}
 			logrus.Debugf("waiting for k0s to be ready")
 			if err := waitForK0s(); err != nil {

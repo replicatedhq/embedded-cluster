@@ -3,6 +3,8 @@
 // these should not happen in the first place.
 package defaults
 
+import "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+
 var (
 	// Version holds the EmbeddedCluster version.
 	Version = "v0.0.0"
@@ -16,11 +18,14 @@ var (
 	KubectlVersion = "0.0.0"
 	// provider holds a global reference to the default provider.
 	provider *Provider
-	// K0sBinaryURL holds an alternative URL from where to download the k0s
-	// binary that has been embedded in this version of the binary. If this
-	// is empty then it means we have shipped the official k0s binary. This
-	// is set at compile time via ldflags.
-	K0sBinaryURL = ""
+	// LocalArtifactMirrorImage holds a reference to where the lam image for
+	// this version of embedded-cluster is stored. Set at compile time.
+	LocalArtifactMirrorImage = ""
+)
+
+// Holds the default no proxy values.
+var (
+	DefaultNoProxy = []string{"localhost", "127.0.0.1", ".default", ".local", ".svc", "kubernetes", "kotsadm-rqlite", v1beta1.DefaultNetwork().ServiceCIDR, v1beta1.DefaultNetwork().PodCIDR}
 )
 
 const KotsadmNamespace = "kotsadm"
@@ -77,6 +82,7 @@ func PathToLog(name string) string {
 	return def().PathToLog(name)
 }
 
+// PathToKubeConfig calls PathToKubeConfig on the default provider.
 func PathToKubeConfig() string {
 	return def().PathToKubeConfig()
 }

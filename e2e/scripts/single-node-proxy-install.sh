@@ -116,21 +116,13 @@ check_pod_install_order() {
     fi
 }
 
-check_airgap_pvc() {
-    if ! kubectl get pvc -n registry --no-headers=true | wc -l | grep -q 1 ; then
-        echo "Failed to find registry pvc"
-        kubectl get pvc -A
-        return 1
-    fi
-}
-
 main() {
     local additional_args=
     if [ -n "${1:-}" ]; then
-        additional_args="$1"
+        additional_args="$*"
         echo "Running install with additional args: $additional_args"
     fi
-    if ! embedded-cluster install --no-prompt --skip-host-preflights --license /assets/license.yaml --airgap-bundle /assets/release.airgap $additional_args 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         exit 1
     fi
@@ -162,9 +154,6 @@ main() {
         exit 1
     fi
     if ! check_pod_install_order; then
-        exit 1
-    fi
-    if ! check_airgap_pvc; then
         exit 1
     fi
     if ! systemctl status embedded-cluster; then

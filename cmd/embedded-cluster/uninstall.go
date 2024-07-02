@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,7 +12,6 @@ import (
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/etcd"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -116,8 +116,6 @@ func (h *hostInfo) configureKubernetesClient() {
 		return
 	}
 	h.Kclient = client
-	autopilot.AddToScheme(h.Kclient.Scheme())
-	v1beta1.AddToScheme(h.Kclient.Scheme())
 }
 
 // getHostName fetches the hostname for the node
@@ -303,9 +301,12 @@ func maybePrintHAWarning(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
-	embeddedclusterv1beta1.AddToScheme(kubecli.Scheme())
 
 	if in, err := kubeutils.GetLatestInstallation(c.Context, kubecli); err != nil {
+		if errors.Is(err, kubeutils.ErrNoInstallations{}) {
+			return nil // no installations found, not an HA cluster - just an incomplete install
+		}
+
 		return fmt.Errorf("unable to get installation: %w", err)
 	} else if !in.Spec.HighAvailability {
 		return nil
@@ -338,9 +339,10 @@ var resetCommand = &cli.Command{
 			Value: false,
 		},
 		&cli.BoolFlag{
-			Name:  "force",
-			Usage: "Ignore errors encountered when resetting the node (implies --no-prompt)",
-			Value: false,
+			Name:    "force",
+			Aliases: []string{"f"},
+			Usage:   "Ignore errors encountered when resetting the node (implies --no-prompt)",
+			Value:   false,
 		},
 		&cli.BoolFlag{
 			Name:  "reboot",
@@ -435,6 +437,20 @@ var resetCommand = &cli.Command{
 				return err
 			}
 			if err := os.RemoveAll(lamPath); err != nil {
+				return err
+			}
+		}
+
+		proxyControllerPath := "/etc/systemd/system/k0scontroller.service.d"
+		if _, err := os.Stat(proxyControllerPath); err == nil {
+			if err := os.RemoveAll(proxyControllerPath); err != nil {
+				return err
+			}
+		}
+
+		proxyWorkerPath := "/etc/systemd/system/k0sworker.service.d"
+		if _, err := os.Stat(proxyWorkerPath); err == nil {
+			if err := os.RemoveAll(proxyWorkerPath); err != nil {
 				return err
 			}
 		}

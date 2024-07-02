@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
@@ -34,6 +33,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
+type Proxy struct {
+	HTTPProxy  string `json:"httpProxy"`
+	HTTPSProxy string `json:"httpsProxy"`
+	NoProxy    string `json:"noProxy"`
+}
+
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
 type JoinCommandResponse struct {
 	K0sJoinCommand            string    `json:"k0sJoinCommand"`
@@ -43,6 +48,7 @@ type JoinCommandResponse struct {
 	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
 	MetricsBaseURL            string    `json:"metricsBaseURL"`
 	AirgapRegistryAddress     string    `json:"airgapRegistryAddress"`
+	Proxy                     *Proxy    `json:"proxy"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -117,6 +123,11 @@ var joinCommand = &cli.Command{
 			Name:   "enable-ha",
 			Usage:  "Enable high availability",
 			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:  "skip-host-preflights",
+			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Value: false,
 		},
 	},
 	Before: func(c *cli.Context) error {
@@ -198,6 +209,14 @@ var joinCommand = &cli.Command{
 			}
 		}
 
+		logrus.Debugf("creating systemd unit files")
+		// both controller and worker nodes will have 'worker' in the join command
+		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.Proxy); err != nil {
+			err := fmt.Errorf("unable to create systemd unit files: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
 		logrus.Debugf("joining node to cluster")
 		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
@@ -208,14 +227,6 @@ var joinCommand = &cli.Command{
 		logrus.Debugf("applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
-		}
-
-		logrus.Debugf("creating systemd unit files")
-		// both controller and worker nodes will have 'worker' in the join command
-		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller")); err != nil {
-			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
@@ -245,7 +256,6 @@ var joinCommand = &cli.Command{
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
-		embeddedclusterv1beta1.AddToScheme(kcli.Scheme())
 		hostname, err := os.Hostname()
 		if err != nil {
 			err := fmt.Errorf("unable to get hostname: %w", err)
@@ -384,28 +394,6 @@ func startK0sService() error {
 
 func systemdUnitFileName() string {
 	return fmt.Sprintf("/etc/systemd/system/%s.service", defaults.BinaryName())
-}
-
-// createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
-// systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(isWorker bool) error {
-	dst := systemdUnitFileName()
-	if _, err := os.Lstat(dst); err == nil {
-		if err := os.Remove(dst); err != nil {
-			return err
-		}
-	}
-	src := "/etc/systemd/system/k0scontroller.service"
-	if isWorker {
-		src = "/etc/systemd/system/k0sworker.service"
-	}
-	if err := os.Symlink(src, dst); err != nil {
-		return fmt.Errorf("failed to create symlink: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
-	}
-	return installAndEnableLocalArtifactMirror()
 }
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots

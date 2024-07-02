@@ -44,7 +44,7 @@ function metadata() {
     if [ -f metadata.json ]; then
         sudo apt-get install jq -y
 
-        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' metadata.json > upgrade-metadata.json
+        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' metadata-upgrade.json > upgrade-metadata.json
         cat upgrade-metadata.json
 
         retry 3 aws s3 cp upgrade-metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
