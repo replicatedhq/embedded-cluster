@@ -400,7 +400,7 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 		}
 	}
 
-	if _, ok := backup.Annotations["kots.io/embedded-cluster-pod-cidr"]; !ok {
+	if _, ok := backup.Annotations["kots.io/embedded-cluster-pod-cidr"]; ok {
 		// kots.io/embedded-cluster-pod-cidr and kots.io/embedded-cluster-service-cidr should both exist if one does
 		podCIDR := backup.Annotations["kots.io/embedded-cluster-pod-cidr"]
 		serviceCIDR := backup.Annotations["kots.io/embedded-cluster-service-cidr"]
@@ -410,8 +410,6 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 				return false, fmt.Sprintf("has a different network configuration than the current cluster, please run with '--pod-cidr %s --service-cidr %s'", podCIDR, serviceCIDR)
 			}
 		}
-	} else {
-		fmt.Printf("Pod CIDR and Service CIDR are not set in backup %s with annotations %v\n", backup.Name, backup.Annotations)
 	}
 	return true, ""
 }
