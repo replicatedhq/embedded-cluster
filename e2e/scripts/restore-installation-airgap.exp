@@ -11,8 +11,10 @@ set dr_aws_s3_bucket [lindex $argv 2]
 set dr_aws_s3_prefix [lindex $argv 3]
 set dr_aws_access_key_id [lindex $argv 4]
 set dr_aws_secret_access_key [lindex $argv 5]
+set dr_pod_cidr [lindex $argv 6]
+set dr_service_cidr [lindex $argv 7]
 
-spawn embedded-cluster restore --skip-host-preflights --airgap-bundle /assets/release.airgap --proxy
+spawn embedded-cluster restore --skip-host-preflights --airgap-bundle /assets/release.airgap --proxy --pod-cidr $dr_pod_cidr --service-cidr $dr_service_cidr
 
 expect {
     "Enter information to configure access to your backup storage location." {}
