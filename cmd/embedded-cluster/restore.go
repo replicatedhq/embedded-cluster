@@ -411,7 +411,7 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 			}
 		}
 	} else {
-		fmt.Printf("Pod CIDR and Service CIDR are not set in backup %s\n", backup.Name)
+		fmt.Printf("Pod CIDR and Service CIDR are not set in backup %s with annotations %v\n", backup.Name, backup.Annotations)
 	}
 	return true, ""
 }
