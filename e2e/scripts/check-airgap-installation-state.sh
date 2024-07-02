@@ -89,6 +89,7 @@ main() {
     fi
 
     kubectl get installations -o yaml
+    kubectl get backups -A -o yaml
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
