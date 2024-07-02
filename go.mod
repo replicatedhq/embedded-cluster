@@ -14,8 +14,8 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.6-0.20240527072442-22f6a125e881
-	github.com/replicatedhq/embedded-cluster-kinds v1.3.9
-	github.com/replicatedhq/embedded-cluster-operator v0.36.0
+	github.com/replicatedhq/embedded-cluster-kinds v1.4.2-ash
+	github.com/replicatedhq/embedded-cluster-operator v0.38.0-build.1
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.93.1
@@ -46,7 +46,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/ohler55/ojg v1.22.0 // indirect
+	github.com/ohler55/ojg v1.22.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect
@@ -143,7 +143,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
-	k8s.io/apiextensions-apiserver v0.30.1 // indirect
+	k8s.io/apiextensions-apiserver v0.30.2 // indirect
 	k8s.io/client-go v0.30.2
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
