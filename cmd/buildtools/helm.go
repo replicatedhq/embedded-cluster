@@ -5,10 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 
-	"github.com/coreos/go-semver/semver"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/downloader"
@@ -151,23 +148,10 @@ func (h *Helm) Latest(reponame, chart string) (string, error) {
 			return "", fmt.Errorf("chart %s has no versions", chart)
 		}
 
-		var outerr error
-		sort.Slice(versions, func(i, j int) bool {
-			v1, err1 := normalizeVersion(versions[i].Version)
-			v2, err2 := normalizeVersion(versions[j].Version)
-			if err1 != nil || err2 != nil {
-				if outerr == nil {
-					outerr = fmt.Errorf("%s, %s", err1, err2)
-				}
-				return false
-			}
-			return v1.LessThan(*v2)
-		})
-
-		if outerr != nil {
-			return "", fmt.Errorf("unable to sort versions: %w", outerr)
+		if len(versions) == 0 {
+			return "", fmt.Errorf("chart %s has no versions", chart)
 		}
-		return versions[len(versions)-1].Version, nil
+		return versions[0].Version, nil
 	}
 	return "", fmt.Errorf("repository %s not found", reponame)
 }
@@ -203,16 +187,4 @@ func (h *Helm) Push(path, dst string) error {
 		Options: []pusher.Option{pusher.WithRegistryClient(h.regcli)},
 	}
 	return up.UploadTo(path, dst)
-}
-
-// normalizeVersion is used to convert a semver from string into a semver.Version.
-// If the version does not include a patch version this functions appends a .0 at
-// the end of it before parsing. This is intended for sorting version strings.
-func normalizeVersion(version string) (*semver.Version, error) {
-	parts := strings.Split(version, ".")
-	for len(parts) < 3 {
-		parts = append(parts, "0")
-	}
-	paddedVersion := strings.Join(parts, ".")
-	return semver.NewVersion(paddedVersion)
 }
