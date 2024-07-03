@@ -376,8 +376,8 @@ github.com/redis/go-redis/extra/redisotel/v9 v9.0.5 h1:EfpWLLCyXw8PSM2/XNJLjI3Pb
 github.com/redis/go-redis/extra/redisotel/v9 v9.0.5/go.mod h1:WZjPDy7VNzn77AAfnAfVjZNvfJTYfPetfZk5yoSTLaQ=
 github.com/redis/go-redis/v9 v9.5.2 h1:L0L3fcSNReTRGyZ6AqAEN0K56wYeYAwapBIhkvh0f3E=
 github.com/redis/go-redis/v9 v9.5.2/go.mod h1:hdY0cQFCN4fnSYT6TkisLufl/4W5UIXyv0b/CLO2V2M=
-github.com/replicatedhq/embedded-cluster-kinds v1.3.9 h1:DpqPiprt2ScSdMMh4u7g8zCe896io+zTARZqAC9Zam8=
-github.com/replicatedhq/embedded-cluster-kinds v1.3.9/go.mod h1:AwopUvvGcaWO4mn9DkbPj5RnLuOy756CNLrcaAlmjMo=
+github.com/replicatedhq/embedded-cluster-kinds v1.4.3 h1:ACAL6eSRUSPhMxcLwr7JZSJ4yVUJs5OJ1d6zeIl658s=
+github.com/replicatedhq/embedded-cluster-kinds v1.4.3/go.mod h1:AwopUvvGcaWO4mn9DkbPj5RnLuOy756CNLrcaAlmjMo=
 github.com/replicatedhq/embedded-cluster-operator v0.36.0 h1:bVfprWclxojJx3bj+86wfmHoxpTpZsinSj3pWNI8gSE=
 github.com/replicatedhq/embedded-cluster-operator v0.36.0/go.mod h1:ARYlOmWODaibFtX04e4x5eeymYJmhLzpVC7hJfBt2Es=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0 h1:Axdni1nYfl5zeOP9g5U79yvN8cRdClyU6hz0wV1Hmdc=

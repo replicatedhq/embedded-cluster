@@ -6,7 +6,6 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/aws/aws-sdk-go v1.54.1
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
-	github.com/coreos/go-semver v0.3.1
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/creack/pty v1.1.21
 	github.com/fatih/color v1.17.0
@@ -16,7 +15,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.6-0.20240527072442-22f6a125e881
-	github.com/replicatedhq/embedded-cluster-kinds v1.3.9
+	github.com/replicatedhq/embedded-cluster-kinds v1.4.3
 	github.com/replicatedhq/embedded-cluster-operator v0.36.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
@@ -45,6 +44,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/containerd v1.7.17 // indirect
 	github.com/containerd/log v0.1.0 // indirect
+	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/cli v26.1.3+incompatible // indirect
