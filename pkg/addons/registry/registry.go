@@ -23,17 +23,15 @@ import (
 )
 
 const (
-	releaseName             = "docker-registry"
-	tlsSecretName           = "registry-tls"
-	seaweedfsS3RWSecretName = "seaweedfs-s3-rw"
-
+	chartURL                 = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/docker-registry"
+	releaseName              = "docker-registry"
+	tlsSecretName            = "registry-tls"
+	seaweedfsS3RWSecretName  = "seaweedfs-s3-rw"
 	registryLowerBandIPIndex = 10
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL     = "https://url"
-	ChartName    = "name"
 	Version      = "v0.0.0"
 	ImageVersion = "2.8.3"
 )
@@ -189,15 +187,10 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: ChartName,
+		ChartName: chartURL,
 		Version:   Version,
 		TargetNS:  o.namespace,
 		Order:     3,
-	}
-
-	repositoryConfig := v1beta1.Repository{
-		Name: "twuni",
-		URL:  ChartURL,
 	}
 
 	var values map[string]interface{}
@@ -230,7 +223,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (o *Registry) GetAdditionalImages() []string {
