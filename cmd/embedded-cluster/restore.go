@@ -319,8 +319,14 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 	if c.Bool("proxy") {
 		opts = append(opts, addons.WithProxyFromEnv())
 	}
+	if c.String("pod-cidr") != "" {
+		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+	}
+	if c.String("service-cidr") != "" {
+		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+	}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
 	if err := config.UpdateHelmConfigsForRestore(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
@@ -333,12 +339,6 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 		// update the k0s config to install with airgap
 		airgap.RemapHelm(cfg)
 		airgap.SetAirgapConfig(cfg)
-	}
-	if c.String("pod-cidr") != "" {
-		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
-	}
-	if c.String("service-cidr") != "" {
-		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
@@ -359,7 +359,7 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 func runOutroForRestore(c *cli.Context) error {
 	opts := []addons.Option{}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), "", ""))
 	}
 	return addons.NewApplier(opts...).OutroForRestore(c.Context)
 }
