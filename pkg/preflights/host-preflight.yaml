@@ -40,7 +40,7 @@ spec:
           - fail:
               when: 'total < 40Gi'
               message: The filesystem at the path /var/lib/embedded-cluster has less than 40Gi of total space
-          - warn:
+          - fail:
               when: 'used/total > 90%'
               message: The filesystem at the path /var/lib/embedded-cluster is more than 80% full
           - pass:
@@ -67,7 +67,7 @@ spec:
           - fail:
               when: 'total < 5Gi'
               message: The filesystem at the path /opt/openebs has less than 40Gi of total space
-          - warn:
+          - fail:
               when: 'used/total > 80%'
               message: The filesystem at the path /opt/openebs is more than 80% full
           - pass:
@@ -79,7 +79,7 @@ spec:
           - fail:
               when: 'total < 5Gi'
               message: The filesystem at the path /tmp has less than 40Gi of total space
-          - warn:
+          - fail:
               when: 'used/total > 90%'
               message: The filesystem at the path /tmp is more than 80% full
           - pass:
