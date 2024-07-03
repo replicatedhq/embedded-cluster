@@ -48,7 +48,8 @@ func GetMakefileVariable(name string) (string, error) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !strings.HasPrefix(line, name) {
+		re := regexp.MustCompile(fmt.Sprintf("^%s ?= ?", regexp.QuoteMeta(name)))
+		if !re.MatchString(line) {
 			continue
 		}
 		slices := strings.Split(line, "=")
