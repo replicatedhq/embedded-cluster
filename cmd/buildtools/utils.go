@@ -30,13 +30,8 @@ func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error)
 		return "", fmt.Errorf("no tags found")
 	}
 	for _, tag := range tags {
-		if strings.Contains(tag.GetName(), "alpha") {
-			continue
-		}
-		if strings.Contains(tag.GetName(), "beta") {
-			continue
-		}
-		if strings.Contains(tag.GetName(), "rc") {
+		// "-" indicates this is a pre-release version
+		if strings.Contains(tag.GetName(), "-") {
 			continue
 		}
 		return tag.GetName(), nil
