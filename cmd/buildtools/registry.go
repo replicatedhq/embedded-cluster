@@ -14,7 +14,17 @@ var updateRegistryAddonCommand = &cli.Command{
 	UsageText: environmentUsageText,
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating registry addon")
-		latest, err := LatestChartVersion("twuni", "docker-registry")
+
+		latest, err := GetLatestGitHubTag(c.Context, "distribution", "distribution")
+		if err != nil {
+			return fmt.Errorf("unable to fetch distribution tag: %w", err)
+		}
+		latest = strings.TrimPrefix(latest, "v")
+		if err := SetMakefileVariable("REGISTRY_IMAGE_VERSION", latest); err != nil {
+			return fmt.Errorf("unable to patch makefile: %w", err)
+		}
+
+		latest, err = LatestChartVersion("twuni", "docker-registry")
 		if err != nil {
 			return fmt.Errorf("unable to get the latest registry version: %v", err)
 		}
@@ -34,17 +44,7 @@ var updateRegistryAddonCommand = &cli.Command{
 			return fmt.Errorf("unable to patch makefile: %w", err)
 		}
 
-		latest, err = GetLatestGitHubTag(c.Context, "distribution", "distribution")
-		if err != nil {
-			return fmt.Errorf("unable to fetch distribution tag: %w", err)
-		}
-		latest = strings.TrimPrefix(latest, "v")
-
-		if err := SetMakefileVariable("REGISTRY_IMAGE_VERSION", latest); err != nil {
-			return fmt.Errorf("unable to patch makefile: %w", err)
-		}
 		logrus.Infof("successfully updated registry addon")
-
 		return nil
 	},
 }

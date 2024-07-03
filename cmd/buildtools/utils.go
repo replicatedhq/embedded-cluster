@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/google/go-github/v62/github"
@@ -68,6 +69,7 @@ func SetMakefileVariable(name, value string) error {
 	}
 	defer file.Close()
 
+	var found int
 	var lines []string
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -79,6 +81,14 @@ func SetMakefileVariable(name, value string) error {
 		}
 		line := fmt.Sprintf("%s = %s", name, value)
 		lines = append(lines, line)
+		found++
+	}
+
+	if found != 1 {
+		if found == 0 {
+			return fmt.Errorf("variable %s not found in ./Makefile", name)
+		}
+		return fmt.Errorf("variable %s found %d times in ./Makefile", name, found)
 	}
 
 	wfile, err := os.OpenFile("./Makefile", os.O_WRONLY|os.O_TRUNC, 0644)
