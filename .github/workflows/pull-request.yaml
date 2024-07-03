@@ -217,6 +217,7 @@ jobs:
 #          - TestMultiNodeAirgapUpgrade
 #          - TestSingleNodeDisasterRecovery
 #          - TestSingleNodeResumeDisasterRecovery
+          - TestSingleNodeDisasterRecoveryWithProxy
           - TestSingleNodeAirgapDisasterRecovery
 #          - TestMultiNodeHAInstallation
 #          - TestMultiNodeAirgapHAInstallation

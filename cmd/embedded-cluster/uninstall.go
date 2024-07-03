@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -302,6 +303,10 @@ func maybePrintHAWarning(c *cli.Context) error {
 	}
 
 	if in, err := kubeutils.GetLatestInstallation(c.Context, kubecli); err != nil {
+		if errors.Is(err, kubeutils.ErrNoInstallations{}) {
+			return nil // no installations found, not an HA cluster - just an incomplete install
+		}
+
 		return fmt.Errorf("unable to get installation: %w", err)
 	} else if !in.Spec.HighAvailability {
 		return nil
@@ -334,9 +339,10 @@ var resetCommand = &cli.Command{
 			Value: false,
 		},
 		&cli.BoolFlag{
-			Name:  "force",
-			Usage: "Ignore errors encountered when resetting the node (implies --no-prompt)",
-			Value: false,
+			Name:    "force",
+			Aliases: []string{"f"},
+			Usage:   "Ignore errors encountered when resetting the node (implies --no-prompt)",
+			Value:   false,
 		},
 		&cli.BoolFlag{
 			Name:  "reboot",
