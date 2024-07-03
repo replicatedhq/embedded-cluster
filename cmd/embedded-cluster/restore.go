@@ -312,6 +312,9 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 	if c.Bool("proxy") {
 		opts = append(opts, addons.WithProxyFromEnv())
 	}
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+	}
 	if err := config.UpdateHelmConfigsForRestore(cfg, opts...); err != nil {
 		return fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -341,7 +344,11 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 
 // runOutroForRestore calls Outro() in all enabled addons for restore operations by means of Applier.
 func runOutroForRestore(c *cli.Context) error {
-	return addons.NewApplier().OutroForRestore(c.Context)
+	opts := []addons.Option{}
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+	}
+	return addons.NewApplier(opts...).OutroForRestore(c.Context)
 }
 
 func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool) (bool, string) {
@@ -805,12 +812,12 @@ var restoreCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:   "http-proxy",
-			Usage:  "HTTP proxy to use for the installation",
+			Usage:  "HTTP proxy to use for the restore",
 			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "https-proxy",
-			Usage:  "HTTPS proxy to use for the installation",
+			Usage:  "HTTPS proxy to use for the restore",
 			Hidden: false,
 		},
 		&cli.StringFlag{
