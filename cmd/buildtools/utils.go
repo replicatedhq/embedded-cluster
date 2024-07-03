@@ -76,7 +76,8 @@ func SetMakefileVariable(name, value string) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		text := scanner.Text()
-		if !strings.HasPrefix(text, name) {
+		re := regexp.MustCompile(fmt.Sprintf("^%s ?= ?", regexp.QuoteMeta(name)))
+		if !re.MatchString(text) {
 			lines = append(lines, text)
 			continue
 		}
