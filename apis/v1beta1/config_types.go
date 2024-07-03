@@ -84,17 +84,17 @@ type Roles struct {
 
 // Chart single helm addon
 type Chart struct {
-	Name      string `json:"name"`
-	ChartName string `json:"chartname"`
-	Version   string `json:"version"`
+	Name      string `json:"name,omitempty"`
+	ChartName string `json:"chartname,omitempty"`
+	Version   string `json:"version,omitempty"`
 	// +kubebuilder:validation:Optional
-	Values   string `json:"values"`
-	TargetNS string `json:"namespace"`
+	Values   string `json:"values,omitempty"`
+	TargetNS string `json:"namespace,omitempty"`
 	// Timeout specifies the timeout for how long to wait for the chart installation to finish.
 	// +kubebuilder:validation:Optional
-	Timeout time.Duration `json:"timeout"`
+	Timeout time.Duration `json:"timeout,omitempty"`
 	// +kubebuilder:validation:Optional
-	Order int `json:"order"`
+	Order int `json:"order,omitempty"`
 }
 
 // Helm contains helm extension settings
