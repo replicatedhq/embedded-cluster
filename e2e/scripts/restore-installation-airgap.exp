@@ -11,10 +11,20 @@ set dr_aws_s3_bucket [lindex $argv 2]
 set dr_aws_s3_prefix [lindex $argv 3]
 set dr_aws_access_key_id [lindex $argv 4]
 set dr_aws_secret_access_key [lindex $argv 5]
-set dr_pod_cidr [lindex $argv 6]
-set dr_service_cidr [lindex $argv 7]
 
-spawn embedded-cluster restore --skip-host-preflights --airgap-bundle /assets/release.airgap --proxy --pod-cidr $dr_pod_cidr --service-cidr $dr_service_cidr
+# Capture any additional arguments and add them to the restore command.
+# Get the number of arguments
+set num_args [llength $argv]
+
+# Check if there are more than 6 arguments, arg 0 to 5 are for s3 config.
+set additional_args ""
+if {$num_args > 6} {
+  # Create a string with all arguments after the sixth one
+  set additional_args [lrange $argv 6 end]
+}
+
+set cmd [concat embedded-cluster restore --skip-host-preflights --airgap-bundle /assets/release.airgap --proxy $additional_args]
+eval spawn cmd
 
 expect {
     "Enter information to configure access to your backup storage location." {}
