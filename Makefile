@@ -15,10 +15,10 @@ EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_URL = https://openebs.github.io/openebs
 OPENEBS_CHART_NAME = openebs/openebs
 OPENEBS_CHART_VERSION = 4.0.1
-OPENEBS_UTILS_VERSION = 4.0.0
+OPENEBS_UTILS_VERSION = 4.1.0
 SEAWEEDFS_CHART_URL = https://seaweedfs.github.io/seaweedfs/helm
 SEAWEEDFS_CHART_NAME = seaweedfs/seaweedfs
-SEAWEEDFS_CHART_VERSION = 3.68.0
+SEAWEEDFS_CHART_VERSION = 4.0.0
 REGISTRY_CHART_URL = https://helm.twun.io
 REGISTRY_CHART_NAME = twuni/docker-registry
 REGISTRY_CHART_VERSION = 2.2.3
@@ -209,3 +209,7 @@ push-local-artifact-mirror-image:
 
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
+
+.PHONY: buildtools
+buildtools:
+	go build -o ./output/bin/buildtools ./cmd/buildtools
