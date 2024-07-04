@@ -413,9 +413,6 @@ func installK0s() error {
 // waitForK0s waits for the k0s API to be available. We wait for the k0s socket to
 // appear in the system and until the k0s status command to finish.
 func waitForK0s() error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Waiting for %s node to be ready", defaults.BinaryName())
 	var success bool
 	for i := 0; i < 30; i++ {
 		time.Sleep(2 * time.Second)
@@ -431,6 +428,28 @@ func waitForK0s() error {
 	}
 	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
+	}
+	return nil
+}
+
+// installAndWaitForK0s installs the k0s binary and waits for it to be ready
+func installAndWaitForK0s(c *cli.Context) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Installing %s node", defaults.BinaryName())
+
+	logrus.Debugf("installing k0s")
+	if err := installK0s(); err != nil {
+		err := fmt.Errorf("unable update cluster: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return err
+	}
+	loading.Infof("Waiting for %s node to be ready", defaults.BinaryName())
+	logrus.Debugf("waiting for k0s to be ready")
+	if err := waitForK0s(); err != nil {
+		err := fmt.Errorf("unable to wait for node: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return err
 	}
 	loading.Infof("Node installation finished!")
 	return nil
@@ -614,16 +633,7 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Debugf("installing k0s")
-		if err := installK0s(); err != nil {
-			err := fmt.Errorf("unable update cluster: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		logrus.Debugf("waiting for k0s to be ready")
-		if err := waitForK0s(); err != nil {
-			err := fmt.Errorf("unable to wait for node: %w", err)
-			metrics.ReportApplyFinished(c, err)
+		if err := installAndWaitForK0s(c); err != nil {
 			return err
 		}
 		logrus.Debugf("running outro")
