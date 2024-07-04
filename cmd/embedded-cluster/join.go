@@ -109,6 +109,30 @@ func getJoinToken(ctx context.Context, baseURL, shortToken string) (*JoinCommand
 	return &command, nil
 }
 
+// startAndWaitForK0s starts the k0s service and waits for the node to be ready.
+func startAndWaitForK0s(c *cli.Context, jcmd *JoinCommandResponse) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Installing %s node", binName)
+	logrus.Debugf("starting %s service", binName)
+	if err := startK0sService(); err != nil {
+		err := fmt.Errorf("unable to start service: %w", err)
+		metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+		return err
+	}
+
+	loading.Infof("Waiting for %s node to be ready", binName)
+	logrus.Debugf("waiting for k0s to be ready")
+	if err := waitForK0s(); err != nil {
+		err := fmt.Errorf("unable to wait for node: %w", err)
+		metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+		return err
+	}
+
+	loading.Infof("Node installation finished!")
+	return nil
+}
+
 var joinCommand = &cli.Command{
 	Name:      "join",
 	Usage:     fmt.Sprintf("Join the current node to a %s cluster", binName),
@@ -231,16 +255,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		logrus.Debugf("starting %s service", binName)
-		if err := startK0sService(); err != nil {
-			err := fmt.Errorf("unable to start service: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
-		}
-
-		if err := waitForK0s(); err != nil {
-			err := fmt.Errorf("unable to wait for node: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+		if err := startAndWaitForK0s(c, jcmd); err != nil {
 			return err
 		}
 
