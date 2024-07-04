@@ -437,6 +437,26 @@ func installAndWaitForK0s(c *cli.Context) error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", defaults.BinaryName())
+	logrus.Debugf("creating k0s configuration file")
+	if err := ensureK0sConfig(c); err != nil {
+		err := fmt.Errorf("unable to create config file: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return err
+	}
+	var proxy *Proxy
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		proxy = &Proxy{
+			HTTPProxy:  c.String("http-proxy"),
+			HTTPSProxy: c.String("https-proxy"),
+			NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
+		}
+	}
+	logrus.Debugf("creating systemd unit files")
+	if err := createSystemdUnitFiles(false, proxy); err != nil {
+		err := fmt.Errorf("unable to create systemd unit files: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return err
+	}
 
 	logrus.Debugf("installing k0s")
 	if err := installK0s(); err != nil {
@@ -610,26 +630,6 @@ var installCommand = &cli.Command{
 		logrus.Debugf("running host preflights")
 		if err := RunHostPreflights(c); err != nil {
 			err := fmt.Errorf("unable to finish preflight checks: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		logrus.Debugf("creating k0s configuration file")
-		if err := ensureK0sConfig(c); err != nil {
-			err := fmt.Errorf("unable to create config file: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		var proxy *Proxy
-		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-			proxy = &Proxy{
-				HTTPProxy:  c.String("http-proxy"),
-				HTTPSProxy: c.String("https-proxy"),
-				NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
-			}
-		}
-		logrus.Debugf("creating systemd unit files")
-		if err := createSystemdUnitFiles(false, proxy); err != nil {
-			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
