@@ -24,7 +24,7 @@ if {$num_args > 6} {
 }
 
 set cmd [concat embedded-cluster restore --skip-host-preflights --airgap-bundle /assets/release.airgap --proxy $additional_args]
-eval spawn cmd
+eval spawn $cmd
 
 expect {
     "Enter information to configure access to your backup storage location." {}
