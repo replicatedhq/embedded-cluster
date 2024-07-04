@@ -135,7 +135,7 @@ func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	if !onlyDefaults {
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if a.airgapBundle != "" {

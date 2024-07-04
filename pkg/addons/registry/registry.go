@@ -183,7 +183,7 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
-func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1beta1.Repository, error) {
+func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
@@ -196,7 +196,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1b
 		Order:     3,
 	}
 
-	repositoryConfig := v1beta1.Repository{
+	repositoryConfig := eckinds.Repository{
 		Name: "twuni",
 		URL:  ChartURL,
 	}
@@ -231,7 +231,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1b
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []eckinds.Chart{chartConfig}, []eckinds.Repository{repositoryConfig}, nil
 }
 
 func (o *Registry) GetAdditionalImages() []string {

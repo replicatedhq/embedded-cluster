@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -105,7 +104,7 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []v1beta1.Repository, error) {
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
 	chartConfig := embeddedclusterv1beta1.Chart{
 		Name:      releaseName,
 		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),

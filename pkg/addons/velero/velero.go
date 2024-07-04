@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
@@ -90,7 +89,7 @@ func (o *Velero) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Velero chart.
-func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1beta1.Repository, error) {
+func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	if !o.isEnabled {
 		return nil, nil, nil
 	}
@@ -103,7 +102,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1bet
 		Order:     3,
 	}
 
-	repositoryConfig := v1beta1.Repository{
+	repositoryConfig := eckinds.Repository{
 		Name: "vmware-tanzu",
 		URL:  ChartURL,
 	}
@@ -131,7 +130,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1bet
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []eckinds.Chart{chartConfig}, []eckinds.Repository{repositoryConfig}, nil
 }
 
 func (o *Velero) GetAdditionalImages() []string {

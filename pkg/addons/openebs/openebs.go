@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
@@ -96,7 +95,7 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
-func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1beta1.Repository, error) {
+func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	chartConfig := eckinds.Chart{
 		Name:      releaseName,
 		ChartName: ChartName,
@@ -105,7 +104,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1be
 		Order:     1,
 	}
 
-	repositoryConfig := v1beta1.Repository{
+	repositoryConfig := eckinds.Repository{
 		Name: "openebs",
 		URL:  ChartURL,
 	}
@@ -116,7 +115,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1be
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []eckinds.Chart{chartConfig}, []eckinds.Repository{repositoryConfig}, nil
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {

@@ -60,7 +60,7 @@ func (o *SeaweedFS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the SeaweedFS chart.
-func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1beta1.Repository, error) {
+func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
@@ -73,7 +73,7 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1
 		Order:     2,
 	}
 
-	repositoryConfig := v1beta1.Repository{
+	repositoryConfig := eckinds.Repository{
 		Name: "seaweedfs",
 		URL:  ChartURL,
 	}
@@ -84,7 +84,7 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []v1
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []eckinds.Chart{chartConfig}, []eckinds.Repository{repositoryConfig}, nil
 }
 
 func (o *SeaweedFS) GetAdditionalImages() []string {

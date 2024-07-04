@@ -32,7 +32,7 @@ type AddOn interface {
 	Version() (map[string]string, error)
 	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []v1beta1.Repository, error)
+	GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
 	GetProtectedFields() map[string][]string
 	GetAdditionalImages() []string
@@ -104,9 +104,9 @@ func (a *Applier) OutroForRestore(ctx context.Context) error {
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs(additionalCharts []embeddedclusterv1beta1.Chart, additionalRepositories []v1beta1.Repository) ([]embeddedclusterv1beta1.Chart, []v1beta1.Repository, error) {
+func (a *Applier) GenerateHelmConfigs(additionalCharts []embeddedclusterv1beta1.Chart, additionalRepositories []embeddedclusterv1beta1.Repository) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
 	charts := []embeddedclusterv1beta1.Chart{}
-	repositories := []v1beta1.Repository{}
+	repositories := []embeddedclusterv1beta1.Repository{}
 	addons, err := a.load()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
@@ -130,9 +130,9 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []embeddedclusterv1beta1.
 }
 
 // GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
-func (a *Applier) GenerateHelmConfigsForRestore() ([]embeddedclusterv1beta1.Chart, []v1beta1.Repository, error) {
+func (a *Applier) GenerateHelmConfigsForRestore() ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
 	charts := []embeddedclusterv1beta1.Chart{}
-	repositories := []v1beta1.Repository{}
+	repositories := []embeddedclusterv1beta1.Repository{}
 	addons, err := a.loadForRestore()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
