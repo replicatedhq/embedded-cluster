@@ -125,6 +125,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		return fmt.Errorf("failed to save preflights output: %w", err)
 	}
 
+	// Failures found
 	if output.HasFail() {
 		s := "failures"
 		if len(output.Fail) == 1 {
@@ -144,27 +145,31 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		output.PrintTableWithoutInfo()
 		return fmt.Errorf("preflights haven't passed on the host")
 	}
-	if !output.HasWarn() {
-		pb.Close()
-		return nil
-	}
-	if c.Bool("no-prompt") {
-		// We have warnings but we are not in interactive mode
-		// so we just print the warnings and continue
-		pb.Close()
+
+	// Warnings found
+	if output.HasWarn() {
+		s := "warnings"
+		if len(output.Warn) == 1 {
+			s = "warning"
+		}
+		pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
+		if c.Bool("no-prompt") {
+			// We have warnings but we are not in interactive mode
+			// so we just print the warnings and continue
+			pb.Close()
+			output.PrintTableWithoutInfo()
+			return nil
+		}
+		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return nil
+		if !prompts.New().Confirm("Do you want to continue ?", false) {
+			return fmt.Errorf("user aborted")
+		}
 	}
-	s := "warnings"
-	if len(output.Warn) == 1 {
-		s = "warning"
-	}
-	pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
-	pb.CloseWithError()
-	output.PrintTableWithoutInfo()
-	if !prompts.New().Confirm("Do you want to continue ?", false) {
-		return fmt.Errorf("user aborted")
-	}
+
+	// No failures or warnings
+	pb.Infof("Host preflights succeeded!")
+	pb.Close()
 	return nil
 }
 
