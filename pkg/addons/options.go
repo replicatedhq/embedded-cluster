@@ -72,8 +72,8 @@ func WithVersionMetadata(metadata *types.ReleaseMetadata) Option {
 }
 
 // WithProxyFromEnv sets the proxy environment variables to be used during addons installation.
-func WithProxyFromEnv() Option {
-	return WithProxyFromArgs(os.Getenv("HTTP_PROXY"), os.Getenv("HTTPS_PROXY"), os.Getenv("NO_PROXY"), v1beta1.DefaultNetwork().PodCIDR, v1beta1.DefaultNetwork().ServiceCIDR)
+func WithProxyFromEnv(podCIDR, serviceCIDR string) Option {
+	return WithProxyFromArgs(os.Getenv("HTTP_PROXY"), os.Getenv("HTTPS_PROXY"), os.Getenv("NO_PROXY"), podCIDR, serviceCIDR)
 }
 
 // WithProxyFromArgs sets the proxy environment variables to be used during addons installation.

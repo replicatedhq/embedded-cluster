@@ -340,7 +340,7 @@ func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
 	if c.Bool("proxy") {
-		opts = append(opts, addons.WithProxyFromEnv())
+		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
 		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))

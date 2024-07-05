@@ -316,14 +316,14 @@ func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
 	}
 	cfg := config.RenderK0sConfig()
 	opts := []addons.Option{}
-	if c.Bool("proxy") {
-		opts = append(opts, addons.WithProxyFromEnv())
-	}
 	if c.String("pod-cidr") != "" {
 		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	}
 	if c.String("service-cidr") != "" {
 		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+	}
+	if c.Bool("proxy") {
+		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
 		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
