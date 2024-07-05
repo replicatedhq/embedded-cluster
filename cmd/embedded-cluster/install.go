@@ -125,6 +125,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		return fmt.Errorf("failed to save preflights output: %w", err)
 	}
 
+	// Failures found
 	if output.HasFail() {
 		s := "failures"
 		if len(output.Fail) == 1 {
@@ -144,27 +145,31 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		output.PrintTableWithoutInfo()
 		return fmt.Errorf("preflights haven't passed on the host")
 	}
-	if !output.HasWarn() {
-		pb.Close()
-		return nil
-	}
-	if c.Bool("no-prompt") {
-		// We have warnings but we are not in interactive mode
-		// so we just print the warnings and continue
-		pb.Close()
+
+	// Warnings found
+	if output.HasWarn() {
+		s := "warnings"
+		if len(output.Warn) == 1 {
+			s = "warning"
+		}
+		pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
+		if c.Bool("no-prompt") {
+			// We have warnings but we are not in interactive mode
+			// so we just print the warnings and continue
+			pb.Close()
+			output.PrintTableWithoutInfo()
+			return nil
+		}
+		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return nil
+		if !prompts.New().Confirm("Do you want to continue ?", false) {
+			return fmt.Errorf("user aborted")
+		}
 	}
-	s := "warnings"
-	if len(output.Warn) == 1 {
-		s = "warning"
-	}
-	pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
-	pb.CloseWithError()
-	output.PrintTableWithoutInfo()
-	if !prompts.New().Confirm("Do you want to continue ?", false) {
-		return fmt.Errorf("user aborted")
-	}
+
+	// No failures or warnings
+	pb.Infof("Host preflights succeeded!")
+	pb.Close()
 	return nil
 }
 
@@ -413,9 +418,6 @@ func installK0s() error {
 // waitForK0s waits for the k0s API to be available. We wait for the k0s socket to
 // appear in the system and until the k0s status command to finish.
 func waitForK0s() error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Waiting for %s node to be ready", defaults.BinaryName())
 	var success bool
 	for i := 0; i < 30; i++ {
 		time.Sleep(2 * time.Second)
@@ -431,6 +433,48 @@ func waitForK0s() error {
 	}
 	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
 		return fmt.Errorf("unable to get status: %w", err)
+	}
+	return nil
+}
+
+// installAndWaitForK0s installs the k0s binary and waits for it to be ready
+func installAndWaitForK0s(c *cli.Context) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Installing %s node", defaults.BinaryName())
+	logrus.Debugf("creating k0s configuration file")
+	if err := ensureK0sConfig(c); err != nil {
+		err := fmt.Errorf("unable to create config file: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return err
+	}
+	var proxy *Proxy
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		proxy = &Proxy{
+			HTTPProxy:  c.String("http-proxy"),
+			HTTPSProxy: c.String("https-proxy"),
+			NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
+		}
+	}
+	logrus.Debugf("creating systemd unit files")
+	if err := createSystemdUnitFiles(false, proxy); err != nil {
+		err := fmt.Errorf("unable to create systemd unit files: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return err
+	}
+
+	logrus.Debugf("installing k0s")
+	if err := installK0s(); err != nil {
+		err := fmt.Errorf("unable update cluster: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return err
+	}
+	loading.Infof("Waiting for %s node to be ready", defaults.BinaryName())
+	logrus.Debugf("waiting for k0s to be ready")
+	if err := waitForK0s(); err != nil {
+		err := fmt.Errorf("unable to wait for node: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return err
 	}
 	loading.Infof("Node installation finished!")
 	return nil
@@ -594,36 +638,7 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Debugf("creating k0s configuration file")
-		if err := ensureK0sConfig(c); err != nil {
-			err := fmt.Errorf("unable to create config file: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		var proxy *Proxy
-		if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-			proxy = &Proxy{
-				HTTPProxy:  c.String("http-proxy"),
-				HTTPSProxy: c.String("https-proxy"),
-				NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
-			}
-		}
-		logrus.Debugf("creating systemd unit files")
-		if err := createSystemdUnitFiles(false, proxy); err != nil {
-			err := fmt.Errorf("unable to create systemd unit files: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		logrus.Debugf("installing k0s")
-		if err := installK0s(); err != nil {
-			err := fmt.Errorf("unable update cluster: %w", err)
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		logrus.Debugf("waiting for k0s to be ready")
-		if err := waitForK0s(); err != nil {
-			err := fmt.Errorf("unable to wait for node: %w", err)
-			metrics.ReportApplyFinished(c, err)
+		if err := installAndWaitForK0s(c); err != nil {
 			return err
 		}
 		logrus.Debugf("running outro")

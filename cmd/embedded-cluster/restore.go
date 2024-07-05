@@ -801,6 +801,39 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool) error {
 	return nil
 }
 
+func installAndWaitForRestoredK0sNode(c *cli.Context) error {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Installing %s node", binName)
+	logrus.Debugf("creating k0s configuration file")
+	if err := ensureK0sConfigForRestore(c); err != nil {
+		return fmt.Errorf("unable to create config file: %w", err)
+	}
+	var proxy *Proxy
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		proxy = &Proxy{
+			HTTPProxy:  c.String("http-proxy"),
+			HTTPSProxy: c.String("https-proxy"),
+			NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
+		}
+	}
+	logrus.Debugf("creating systemd unit files")
+	if err := createSystemdUnitFiles(false, proxy); err != nil {
+		return fmt.Errorf("unable to create systemd unit files: %w", err)
+	}
+	logrus.Debugf("installing k0s")
+	if err := installK0s(); err != nil {
+		return fmt.Errorf("unable update cluster: %w", err)
+	}
+	loading.Infof("Waiting for %s node to be ready", binName)
+	logrus.Debugf("waiting for k0s to be ready")
+	if err := waitForK0s(); err != nil {
+		return fmt.Errorf("unable to wait for node: %w", err)
+	}
+	loading.Infof("Node installation finished!")
+	return nil
+}
+
 var restoreCommand = &cli.Command{
 	Name:  "restore",
 	Usage: fmt.Sprintf("Restore a %s cluster", binName),
@@ -911,29 +944,8 @@ var restoreCommand = &cli.Command{
 			if err := RunHostPreflightsForRestore(c); err != nil {
 				return fmt.Errorf("unable to finish preflight checks: %w", err)
 			}
-			logrus.Debugf("creating k0s configuration file")
-			if err := ensureK0sConfigForRestore(c); err != nil {
-				return fmt.Errorf("unable to create config file: %w", err)
-			}
-			var proxy *Proxy
-			if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-				proxy = &Proxy{
-					HTTPProxy:  c.String("http-proxy"),
-					HTTPSProxy: c.String("https-proxy"),
-					NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
-				}
-			}
-			logrus.Debugf("creating systemd unit files")
-			if err := createSystemdUnitFiles(false, proxy); err != nil {
-				return fmt.Errorf("unable to create systemd unit files: %w", err)
-			}
-			logrus.Debugf("installing k0s")
-			if err := installK0s(); err != nil {
-				return fmt.Errorf("unable update cluster: %w", err)
-			}
-			logrus.Debugf("waiting for k0s to be ready")
-			if err := waitForK0s(); err != nil {
-				return fmt.Errorf("unable to wait for node: %w", err)
+			if err := installAndWaitForRestoredK0sNode(c); err != nil {
+				return err
 			}
 
 			kcli, err := kubeutils.KubeClient()

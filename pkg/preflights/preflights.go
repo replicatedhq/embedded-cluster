@@ -11,10 +11,9 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 // SerializeSpec serialize the provided spec inside a HostPreflight object and
