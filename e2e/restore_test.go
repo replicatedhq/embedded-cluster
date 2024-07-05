@@ -341,6 +341,13 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 	t.Log(stdout)
+	// ensure that the cluster is using the right IP ranges.
+	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
+	if err != nil {
+		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log(stdout)
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -364,7 +371,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+		"NO_PROXY":    "localhost,127.0.0.1,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
