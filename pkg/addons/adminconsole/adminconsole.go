@@ -31,12 +31,11 @@ import (
 
 const (
 	releaseName = "admin-console"
+	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console"
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL                = "https://url"
-	ChartName               = "name"
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
@@ -159,7 +158,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 	}
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
+		ChartName: chartURL,
 		Version:   Version,
 		Values:    string(values),
 		TargetNS:  a.namespace,

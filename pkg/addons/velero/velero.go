@@ -18,14 +18,13 @@ import (
 )
 
 const (
+	chartURL              = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero"
 	releaseName           = "velero"
 	credentialsSecretName = "cloud-credentials"
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL     = "https://url"
-	ChartName    = "name"
 	Version      = "v0.0.0"
 	VeleroTag    = "v0.0.0"
 	AwsPluginTag = "v0.0.0"
@@ -96,15 +95,10 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: ChartName,
+		ChartName: chartURL,
 		Version:   Version,
 		TargetNS:  o.namespace,
 		Order:     3,
-	}
-
-	repositoryConfig := v1beta1.Repository{
-		Name: "vmware-tanzu",
-		URL:  ChartURL,
 	}
 
 	kubectlVersion := semver.MustParse(defaults.K0sVersion)
@@ -130,7 +124,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, []v1beta1.Repository{repositoryConfig}, nil
+	return []v1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (o *Velero) GetAdditionalImages() []string {
