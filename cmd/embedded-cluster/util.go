@@ -7,6 +7,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/sirupsen/logrus"
 )
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
@@ -25,6 +26,7 @@ func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	if proxy != nil {
 		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
 	}
+	logrus.Debugf("linking %q to %q", src, dst)
 	if err := os.Symlink(src, dst); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
