@@ -42,6 +42,7 @@ func (s *Sender) Send(ctx context.Context, ev Event) {
 		logrus.Debugf("unable to create request for event %s: %s", ev.Title(), err)
 		return
 	}
+	logrus.Debugf("sending event %s to %s", ev.Title(), request.URL)
 	request.Header.Set("Content-Type", "application/json")
 	response, err := http.DefaultClient.Do(request.WithContext(ctx))
 	if err != nil {
