@@ -250,6 +250,13 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
+		logrus.Debugf("joining node to cluster")
+		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
+			err := fmt.Errorf("unable to join node to cluster: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
 		if err := startAndWaitForK0s(c, jcmd); err != nil {
 			return err
 		}
