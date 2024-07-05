@@ -306,13 +306,13 @@ func RunHostPreflightsForRestore(c *cli.Context) error {
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.
 // The file is saved in the global location (as returned by defaults.PathToK0sConfig()).
 // If a file already sits there, this function returns an error.
-func ensureK0sConfigForRestore(c *cli.Context) error {
+func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
-		return fmt.Errorf("configuration file already exists")
+		return nil, fmt.Errorf("configuration file already exists")
 	}
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
-		return fmt.Errorf("unable to create directory: %w", err)
+		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
 	opts := []addons.Option{}
@@ -329,11 +329,11 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
 	if err := config.UpdateHelmConfigsForRestore(cfg, opts...); err != nil {
-		return fmt.Errorf("unable to update helm configs: %w", err)
+		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
 	var err error
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
-		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
+		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 	if c.String("airgap-bundle") != "" {
 		// update the k0s config to install with airgap
@@ -342,25 +342,31 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("unable to marshal config: %w", err)
+		return nil, fmt.Errorf("unable to marshal config: %w", err)
 	}
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return fmt.Errorf("unable to create config file: %w", err)
+		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
 	defer fp.Close()
 	if _, err := fp.Write(data); err != nil {
-		return fmt.Errorf("unable to write config file: %w", err)
+		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
-	return nil
+	return cfg, nil
 }
 
 // runOutroForRestore calls Outro() in all enabled addons for restore operations by means of Applier.
-func runOutroForRestore(c *cli.Context) error {
+func runOutroForRestore(c *cli.Context, cfg *v1beta1.ClusterConfig) error {
 	opts := []addons.Option{}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), "", ""))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
+
+	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}))
+
 	return addons.NewApplier(opts...).OutroForRestore(c.Context)
 }
 
@@ -972,7 +978,8 @@ var restoreCommand = &cli.Command{
 				return fmt.Errorf("unable to finish preflight checks: %w", err)
 			}
 			logrus.Debugf("creating k0s configuration file")
-			if err := ensureK0sConfigForRestore(c); err != nil {
+			cfg, err := ensureK0sConfigForRestore(c)
+			if err != nil {
 				return fmt.Errorf("unable to create config file: %w", err)
 			}
 			var proxy *ecv1beta1.ProxySpec
@@ -1009,7 +1016,7 @@ var restoreCommand = &cli.Command{
 			}()
 
 			logrus.Debugf("running outro")
-			if err := runOutroForRestore(c); err != nil {
+			if err := runOutroForRestore(c, cfg); err != nil {
 				return fmt.Errorf("unable to run outro: %w", err)
 			}
 
