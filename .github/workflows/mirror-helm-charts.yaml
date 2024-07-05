@@ -1,9 +1,9 @@
 name: Update Addons
 on:
- schedule:
-   # everyday at 1 o'clock.
-   - cron: '0 1 * * *'
-   workflow_dispatch: {}
+  schedule:
+    # everyday at 1 o'clock.
+    - cron: '0 1 * * *'
+  workflow_dispatch: {}
 jobs:
   build:
     name: Build

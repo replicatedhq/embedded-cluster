@@ -31,12 +31,11 @@ import (
 
 const (
 	releaseName = "embedded-cluster-operator"
+	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator"
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL      = "https://url"
-	ChartName     = "name"
 	Version       = "v0.0.0"
 	UtilsImage    = "busybox:latest"
 	ImageOverride = ""
@@ -109,7 +108,7 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
+		ChartName: chartURL,
 		Version:   Version,
 		TargetNS:  "embedded-cluster",
 		Order:     3,
