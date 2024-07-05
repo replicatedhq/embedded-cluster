@@ -200,7 +200,7 @@ jobs:
 #          - TestVersion
 #          - TestHostPreflight
 #          - TestUnsupportedOverrides
-#          - TestMultiNodeInstallation
+          - TestMultiNodeInstallation
 #          - TestMultiNodeReset
 #          - TestCommandsRequireSudo
 #          - TestInstallWithoutEmbed
