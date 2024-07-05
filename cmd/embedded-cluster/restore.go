@@ -961,9 +961,9 @@ var restoreCommand = &cli.Command{
 			s3Store := newS3BackupStore()
 
 			logrus.Debugf("validating backup store configuration")
-			if err := validateS3BackupStore(s3Store); err != nil {
-				return fmt.Errorf("unable to validate backup store: %w", err)
-			}
+			//if err := validateS3BackupStore(s3Store); err != nil {
+			//	return fmt.Errorf("unable to validate backup store: %w", err)
+			//}
 
 			logrus.Debugf("configuring network manager")
 			if err := configureNetworkManager(c); err != nil {
