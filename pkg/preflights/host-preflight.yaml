@@ -7,6 +7,18 @@ spec:
     - diskUsage:
         collectorName: root-disk-usage
         path: /
+    - diskUsage:
+        collectorName: embedded-cluster-path-usage
+        path: /var/lib/embedded-cluster
+    - diskUsage:
+        collectorName: k0s-path-usage
+        path: /var/lib/k0s
+    - diskUsage:
+        collectorName: openebs-path-usage
+        path: /opt/openebs
+    - diskUsage: 
+        collectorName: tmp-path-usage
+        path: /tmp
     - memory: {}
     - cpu: {}
     - time: {}
@@ -22,20 +34,44 @@ spec:
           - pass:
               message: This node has at least 2 CPU cores
     - diskUsage:
-        checkName: Root disk usage
-        collectorName: root-disk-usage
+        checkName: embedded-cluster path usage
+        collectorName: embedded-cluster-path-usage
         outcomes:
           - fail:
               when: 'total < 40Gi'
-              message: The disk containing directory / has less than 40Gi of total space
+              message: The filesystem at the path /var/lib/embedded-cluster has less than 40Gi of total space
+          - pass:
+              message: The filesystem at the path /var/lib/embedded-cluster has sufficient space
+    - diskUsage:
+        checkName: k0s path usage
+        collectorName: k0s-path-usage
+        outcomes:
+          - fail:
+              when: 'total < 40Gi'
+              message: The filesystem at the path /var/lib/k0s has less than 40Gi of total space
           - fail:
               when: 'used/total > 80%'
-              message: The disk containing directory / is more than 80% full
-          - fail:
-              when: 'available < 10Gi'
-              message: The disk containing directory / has less than 10Gi of disk space available
+              message: The filesystem at the path /var/lib/k0s is more than 80% full
           - pass:
-              message: The disk containing directory / has sufficient space
+              message: The filesystem at the path /var/lib/k0s has sufficient space
+    - diskUsage:
+        checkName: openebs path usage
+        collectorName: openebs-path-usage
+        outcomes:
+          - fail:
+              when: 'total < 5Gi'
+              message: The filesystem at the path /opt/openebs has less than 5Gi of total space
+          - pass:
+              message: The filesystem at the path /opt/openebs has sufficient space
+    - diskUsage:
+        checkName: tmp path usage
+        collectorName: tmp-path-usage
+        outcomes:
+          - fail:
+              when: 'total < 5Gi'
+              message: The filesystem at the path /tmp has less than 5Gi of total space
+          - pass:
+              message: The filesystem at the path /tmp has sufficient space
     - memory:
         checkName: Amount of memory on the system
         outcomes:
