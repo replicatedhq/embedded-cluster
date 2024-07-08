@@ -87,9 +87,6 @@ main() {
         kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
         exit 1
     fi
-
-    kubectl get installations -o yaml
-    kubectl get backups -A -o yaml
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

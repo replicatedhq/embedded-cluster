@@ -396,9 +396,9 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if _, ok := appsVersions[rel.AppSlug]; !ok {
 		return false, fmt.Sprintf("does not contain the %q application", rel.AppSlug)
 	}
-	//if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
-	//	return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
-	//}
+	if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
+		return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
+	}
 	if _, ok := backup.Annotations["kots.io/is-airgap"]; !ok {
 		return false, "is missing the kots.io/is-airgap annotation"
 	}
