@@ -50,8 +50,8 @@ spec:
               when: 'total < 40Gi'
               message: The filesystem at the path /var/lib/k0s has less than 40Gi of total space
           - fail:
-              when: 'available < 10Gi'
-              message: The filesystem at the path /var/lib/k0s has less than 10Gi of disk space available
+              when: 'used/total > 80%'
+              message: The filesystem at the path /var/lib/k0s is more than 80% full
           - pass:
               message: The filesystem at the path /var/lib/k0s has sufficient space
     - diskUsage:
