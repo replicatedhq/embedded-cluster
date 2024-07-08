@@ -1079,10 +1079,10 @@ var restoreCommand = &cli.Command{
 			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
 				return fmt.Errorf("unable to set restore state: %w", err)
 			}
-			//logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
-			//if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
-			//	return err
-			//}
+			logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
+			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
+				return err
+			}
 			fallthrough
 
 		case ecRestoreStateRestoreAdminConsole:
