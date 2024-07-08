@@ -1463,20 +1463,21 @@ func Test_updateInfraChartsFromInstall(t *testing.T) {
 						ClusterID:  "testid",
 						BinaryName: "testbin",
 						AirGap:     true,
+						Network:    &v1beta1.NetworkSpec{ServiceCIDR: "1.2.0.0/16"},
 					},
 				},
 				clusterConfig: k0sv1beta1.ClusterConfig{},
 				charts: []k0sv1beta1.Chart{
 					{
 						Name:   "docker-registry",
-						Values: "this: that\nand: another\n",
+						Values: "this: that\nand: another\nservice:\n  clusterIP: \"abc\"\n",
 					},
 				},
 			},
 			want: []k0sv1beta1.Chart{
 				{
 					Name:   "docker-registry",
-					Values: "this: that\nand: another\n",
+					Values: "and: another\nservice:\n  clusterIP: 1.2.0.11\nthis: that\n",
 				},
 			},
 		},
