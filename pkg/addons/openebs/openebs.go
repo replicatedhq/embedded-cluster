@@ -23,8 +23,9 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	Version      = "v0.0.0"
-	UtilsVersion = ""
+	OpenEBSChartVersion  = "v0.0.0"
+	OpenEBSImageTag      = ""
+	OpenEBSUtilsImageTag = ""
 )
 
 var helmValues = map[string]interface{}{
@@ -38,7 +39,14 @@ var helmValues = map[string]interface{}{
 		},
 		"helperPod": map[string]interface{}{
 			"image": map[string]interface{}{
-				"tag": UtilsVersion,
+				"registry": "proxy.replicated.com/anonymous/",
+				"tag":      OpenEBSUtilsImageTag,
+			},
+		},
+		"localpv": map[string]interface{}{
+			"image": map[string]interface{}{
+				"registry": "proxy.replicated.com/anonymous/",
+				"tag":      OpenEBSImageTag,
 			},
 		},
 	},
@@ -73,7 +81,7 @@ type OpenEBS struct{}
 
 // Version returns the version of the OpenEBS chart.
 func (o *OpenEBS) Version() (map[string]string, error) {
-	return map[string]string{"OpenEBS": "v" + Version}, nil
+	return map[string]string{"OpenEBS": "v" + OpenEBSChartVersion}, nil
 }
 
 func (a *OpenEBS) Name() string {
@@ -98,7 +106,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: chartURL,
-		Version:   Version,
+		Version:   OpenEBSChartVersion,
 		TargetNS:  namespace,
 		Order:     1,
 	}
@@ -113,7 +121,12 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1be
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {
-	return []string{fmt.Sprintf("openebs/linux-utils:%s", UtilsVersion)}
+	return []string{
+		fmt.Sprintf(
+			"proxy.replicated.com/anonymous/openebs/linux-utils:%s",
+			OpenEBSUtilsImageTag,
+		),
+	}
 }
 
 // Outro is executed after the cluster deployment.

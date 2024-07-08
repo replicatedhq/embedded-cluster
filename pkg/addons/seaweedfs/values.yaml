@@ -1,6 +1,7 @@
 global:
   enableReplication: true
   replicationPlacment: "001"
+  registry: "proxy.replicated.com/anonymous/"
 master:
   replicas: 1
   disableHttp: true

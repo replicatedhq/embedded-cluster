@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
@@ -12,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -25,9 +23,11 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	Version      = "v0.0.0"
-	VeleroTag    = "v0.0.0"
-	AwsPluginTag = "v0.0.0"
+	VeleroChartVersion          = "v0.0.0"
+	VeleroImageTag              = "v0.0.0"
+	VeleroAWSPluginImageTag     = "v0.0.0"
+	VeleroKubectlImageTag       = "v0.0.0"
+	VeleroRestoreHelperImageTag = "v0.0.0"
 )
 
 var helmValues = map[string]interface{}{
@@ -38,12 +38,13 @@ var helmValues = map[string]interface{}{
 		"podVolumePath": "/var/lib/k0s/kubelet/pods",
 	},
 	"image": map[string]interface{}{
-		"tag": VeleroTag,
+		"repository": "proxy.replicated.com/anonymous/velero/velero",
+		"tag":        VeleroImageTag,
 	},
 	"initContainers": []map[string]interface{}{
 		{
 			"name":            "velero-plugin-for-aws",
-			"image":           fmt.Sprintf("velero/velero-plugin-for-aws:%s", AwsPluginTag),
+			"image":           fmt.Sprintf("proxy.replicated.com/anonymous/velero/velero-plugin-for-aws:%s", VeleroAWSPluginImageTag),
 			"imagePullPolicy": "IfNotPresent",
 			"volumeMounts": []map[string]interface{}{
 				{
@@ -56,6 +57,12 @@ var helmValues = map[string]interface{}{
 	"credentials": map[string]interface{}{
 		"existingSecret": credentialsSecretName,
 	},
+	"kubectl": map[string]interface{}{
+		"image": map[string]interface{}{
+			"repository": "proxy.replicated.com/anonymous/bitnami/kubectl",
+			"tag":        VeleroKubectlImageTag,
+		},
+	},
 }
 
 // Velero manages the installation of the Velero helm chart.
@@ -67,7 +74,7 @@ type Velero struct {
 
 // Version returns the version of the Velero chart.
 func (o *Velero) Version() (map[string]string, error) {
-	return map[string]string{"Velero": "v" + Version}, nil
+	return map[string]string{"Velero": "v" + VeleroChartVersion}, nil
 }
 
 func (a *Velero) Name() string {
@@ -96,16 +103,9 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: chartURL,
-		Version:   Version,
+		Version:   VeleroChartVersion,
 		TargetNS:  o.namespace,
 		Order:     3,
-	}
-
-	kubectlVersion := semver.MustParse(defaults.K0sVersion)
-	helmValues["kubectl"] = map[string]interface{}{
-		"image": map[string]interface{}{
-			"tag": fmt.Sprintf("%d.%d", kubectlVersion.Major(), kubectlVersion.Minor()),
-		},
 	}
 
 	if len(o.proxyEnv) > 0 {
@@ -128,7 +128,16 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 }
 
 func (o *Velero) GetAdditionalImages() []string {
-	return []string{fmt.Sprintf("velero/velero-restore-helper:%s", VeleroTag)}
+	return []string{
+		fmt.Sprintf(
+			"proxy.replicated.com/anonymous/bitnami/kubectl:%s",
+			VeleroKubectlImageTag,
+		),
+		fmt.Sprintf(
+			"proxy.replicated.com/anonymous/velero/velero-restore-helper:%s",
+			VeleroRestoreHelperImageTag,
+		),
+	}
 }
 
 // Outro is executed after the cluster deployment.

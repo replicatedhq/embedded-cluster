@@ -18,13 +18,14 @@ import (
 const (
 	releaseName = "seaweedfs"
 	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/seaweedfs"
+	ImageURL    = "proxy.replicated.com/anonymous/chrislusf/seaweedfs"
 )
 
 var (
 	// Overwritten by -ldflags in Makefile
-	Version = "v0.0.0"
-
-	helmValues map[string]interface{}
+	SeaweedFSChartVersion = "v0.0.0"
+	SeaweedFSImageTag     = ""
+	helmValues            map[string]interface{}
 )
 
 // SeaweedFS manages the installation of the SeaweedFS helm chart.
@@ -36,7 +37,7 @@ type SeaweedFS struct {
 
 // Version returns the version of the SeaweedFS chart.
 func (o *SeaweedFS) Version() (map[string]string, error) {
-	return map[string]string{"SeaweedFS": "v" + Version}, nil
+	return map[string]string{"SeaweedFS": "v" + SeaweedFSChartVersion}, nil
 }
 
 func (a *SeaweedFS) Name() string {
@@ -65,9 +66,18 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: chartURL,
-		Version:   Version,
+		Version:   SeaweedFSChartVersion,
 		TargetNS:  o.namespace,
 		Order:     2,
+	}
+
+	imgver := fmt.Sprintf("%s:%s", ImageURL, SeaweedFSImageTag)
+	indexes := []string{"master", "filer", "volume"}
+	for _, idx := range indexes {
+		if _, ok := helmValues[idx].(map[interface{}]interface{}); !ok {
+			return nil, nil, fmt.Errorf("invalid helm values for %s", idx)
+		}
+		helmValues[idx].(map[interface{}]interface{})["imageOverride"] = imgver
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)

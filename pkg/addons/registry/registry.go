@@ -33,8 +33,8 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
-	Version      = "v0.0.0"
-	ImageVersion = "2.8.3"
+	RegistryChartVersion = "v0.0.0"
+	RegistryImageTag     = ""
 )
 
 var registryPassword = helpers.RandString(20)
@@ -44,7 +44,8 @@ var helmValues = map[string]interface{}{
 	"replicaCount":     1,
 	"fullnameOverride": "registry",
 	"image": map[string]interface{}{
-		"tag": ImageVersion,
+		"repository": "proxy.replicated.com/anonymous/registry",
+		"tag":        RegistryImageTag,
 	},
 	"podAnnotations": map[string]interface{}{
 		"backup.velero.io/backup-volumes": "data",
@@ -84,7 +85,8 @@ var helmValuesHA = map[string]interface{}{
 	"replicaCount":     2,
 	"fullnameOverride": "registry",
 	"image": map[string]interface{}{
-		"tag": ImageVersion,
+		"repository": "proxy.replicated.com/anonymous/registry",
+		"tag":        RegistryImageTag,
 	},
 	"storage": "s3",
 	"s3": map[string]interface{}{
@@ -161,7 +163,7 @@ type Registry struct {
 
 // Version returns the version of the Registry chart.
 func (o *Registry) Version() (map[string]string, error) {
-	return map[string]string{"Registry": "v" + Version}, nil
+	return map[string]string{"Registry": "v" + RegistryChartVersion}, nil
 }
 
 func (a *Registry) Name() string {
@@ -190,7 +192,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
 		ChartName: chartURL,
-		Version:   Version,
+		Version:   RegistryChartVersion,
 		TargetNS:  o.namespace,
 		Order:     3,
 	}

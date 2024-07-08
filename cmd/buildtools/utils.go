@@ -8,8 +8,13 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/containers/image/v5/docker"
+	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/types"
 	"github.com/google/go-github/v62/github"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+	"k8s.io/utils/strings/slices"
 )
 
 func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {
@@ -108,10 +113,161 @@ func SetMakefileVariable(name, value string) error {
 func LatestChartVersion(repo, name string) (string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
-		return "", fmt.Errorf("unable to create helm client: %v", err)
+		return "", fmt.Errorf("unable to create helm client: %w", err)
 	}
 	defer hcli.Close()
 	return hcli.Latest(repo, name)
+}
+
+func GetImageDigest(ctx context.Context, image string) (string, error) {
+	ref, err := docker.ParseReference("//" + image)
+	if err != nil {
+		return "", fmt.Errorf("unable to parse image reference: %w", err)
+	}
+	sysctx := &types.SystemContext{}
+	src, err := ref.NewImageSource(ctx, sysctx)
+	if err != nil {
+		return "", fmt.Errorf("unable to create image source: %w", err)
+	}
+	defer src.Close()
+
+	manifraw, maniftype, err := src.GetManifest(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("error getting manifest: %w", err)
+	}
+
+	if !manifest.MIMETypeIsMultiImage(maniftype) {
+		digest, err := docker.GetDigest(ctx, nil, ref)
+		return string(digest), err
+	}
+
+	manifestList, err := manifest.ListFromBlob(manifraw, maniftype)
+	if err != nil {
+		return "", fmt.Errorf("error parsing manifest list: %w", err)
+	}
+
+	// find the matching manifest for the linux/amd64 architecture
+	for _, descriptor := range manifestList.Instances() {
+		manifest, err := manifestList.Instance(descriptor)
+		if err != nil {
+			return "", fmt.Errorf("error getting manifest instance: %w", err)
+		}
+		if manifest.ReadOnly.Platform.Architecture != "amd64" {
+			continue
+		}
+		if manifest.ReadOnly.Platform.OS != "linux" {
+			continue
+		}
+		return string(descriptor), nil
+	}
+	return "", fmt.Errorf("failed to locate linux/amd64 manifest")
+}
+
+// easier than walking through map[interface{}]interface{}
+type ReducedContainer struct {
+	Image string `yaml:"image"`
+}
+
+type RecudedNestedSpec struct {
+	Containers     []ReducedContainer `yaml:"containers"`
+	InitContainers []ReducedContainer `yaml:"initContainers"`
+}
+
+type ReducedTemplate struct {
+	Spec RecudedNestedSpec `yaml:"spec"`
+}
+
+type ReducedSpec struct {
+	Template       ReducedTemplate    `yaml:"template"`
+	Containers     []ReducedContainer `yaml:"containers"`
+	InitContainers []ReducedContainer `yaml:"initContainers"`
+}
+
+type ReducedResource struct {
+	Kind string      `yaml:"kind"`
+	Spec ReducedSpec `yaml:"spec"`
+}
+
+func RenderChartAndFindImageDigest(ctx context.Context, repo, name, version string, values map[string]interface{}, image string) (string, error) {
+	logrus.Infof("getting a list of images from chart %s/%s (%s)", repo, name, version)
+	images, err := GetImagesFromChart(repo, name, version, values)
+	if err != nil {
+		return "", fmt.Errorf("unable to get images from velero chart: %w", err)
+	}
+
+	desired := []string{}
+	logrus.Infof("searching for %s image", image)
+	desired = slices.Filter(desired, images, func(a string) bool {
+		i := strings.Split(a, ":")
+		return i[0] == image
+	})
+	if len(desired) != 1 {
+		return "", fmt.Errorf("found %d images for %s, expected 1", len(desired), image)
+	}
+	logrus.Infof("found %s image: %s", image, desired[0])
+
+	logrus.Infof("finding the digest for %s", desired[0])
+	digest, err := GetImageDigest(ctx, desired[0])
+	if err != nil {
+		return "", fmt.Errorf("unable to get digest for %s: %w", desired[0], err)
+	}
+
+	_, tag, _ := strings.Cut(desired[0], ":")
+	imgver := fmt.Sprintf("%s@%s", tag, digest)
+	logrus.Infof("found %s image: %s", image, imgver)
+	return imgver, nil
+}
+
+func GetImagesFromChart(repo, name, version string, values map[string]interface{}) ([]string, error) {
+	hcli, err := NewHelm()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create helm client: %w", err)
+	}
+	defer hcli.Close()
+
+	chartPath, err := hcli.Pull(repo, name, version)
+	if err != nil {
+		return nil, err
+	}
+
+	chartResources, err := hcli.Render(name, chartPath, values, "default")
+	if err != nil {
+		return nil, err
+	}
+
+	images := []string{}
+	for _, resource := range chartResources {
+		r := ReducedResource{}
+		if err := yaml.Unmarshal([]byte(resource), &r); err != nil {
+			return nil, err
+		}
+
+		for _, container := range r.Spec.Containers {
+			if !slices.Contains(images, container.Image) {
+				images = append(images, container.Image)
+			}
+		}
+
+		for _, container := range r.Spec.Template.Spec.Containers {
+			if !slices.Contains(images, container.Image) {
+				images = append(images, container.Image)
+			}
+		}
+
+		for _, container := range r.Spec.InitContainers {
+			if !slices.Contains(images, container.Image) {
+				images = append(images, container.Image)
+			}
+		}
+
+		for _, container := range r.Spec.Template.Spec.InitContainers {
+			if !slices.Contains(images, container.Image) {
+				images = append(images, container.Image)
+			}
+		}
+	}
+
+	return images, nil
 }
 
 func MirrorChart(repo, name, ver string) error {
@@ -157,6 +313,6 @@ func MirrorChart(repo, name, ver string) error {
 		return fmt.Errorf("unable to push openebs: %w", err)
 	}
 	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
-	logrus.Infof("pushed openebs chart: %s", remote)
+	logrus.Infof("pushed %s/%s chart: %s", repo, name, remote)
 	return nil
 }
