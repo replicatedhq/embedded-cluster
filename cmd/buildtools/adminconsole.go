@@ -2,55 +2,50 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
-var updateSeaweedFSAddonCommand = &cli.Command{
-	Name:      "seaweedfs",
-	Usage:     "Updates the SeaweedFS addon",
+var updateAdminConsoleAddonCommand = &cli.Command{
+	Name:      "adminconsole",
+	Usage:     "Updates the Admin Console addon",
 	UsageText: environmentUsageText,
 	Action: func(c *cli.Context) error {
-		logrus.Infof("updating seaweedfs addon")
+		logrus.Infof("updating admin console addon")
 
-		latest, err := LatestChartVersion("seaweedfs", "seaweedfs")
+		logrus.Infof("getting admin console latest tag")
+		latest, err := GetLatestGitHubTag(c.Context, "replicatedhq", "kots-helm")
 		if err != nil {
-			return fmt.Errorf("unable to get the latest seaweedfs version: %v", err)
+			return fmt.Errorf("failed to get admin console latest tag: %w", err)
 		}
+		logrus.Infof("latest tag found: %s", latest)
 		latest = strings.TrimPrefix(latest, "v")
-		logrus.Infof("found seaweedfs chart version %s", latest)
 
-		current := seaweedfs.Metadata
+		current := adminconsole.Metadata
 		if current.Version == latest && !c.Bool("force") {
-			logrus.Infof("seaweedfs chart is up to date")
+			logrus.Infof("admin console chart version is already up-to-date")
 			return nil
 		}
 
-		logrus.Infof("mirroring seaweedfs chart")
-		if err := MirrorChart("seaweedfs", "seaweedfs", latest); err != nil {
-			return fmt.Errorf("unable to mirror seaweedfs chart: %w", err)
-		}
-
-		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("DESTINATION"))
+		upstream := "registry.replicated.com/library/admin-console"
 		newmeta := release.AddonMetadata{
 			Version:  latest,
 			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
 			Images:   make(map[string]string),
 		}
 
-		values, err := release.GetValuesWithOriginalImages("seaweedfs")
+		values, err := release.GetValuesWithOriginalImages("adminconsole")
 		if err != nil {
 			return fmt.Errorf("unable to get openebs values: %v", err)
 		}
 
 		logrus.Infof("extracting images from chart")
 		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "seaweedfs", latest, values)
+		images, err := GetImagesFromOCIChart(withproto, "adminconsole", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from admin console chart: %w", err)
 		}
@@ -69,11 +64,11 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 
 		logrus.Infof("saving addon manifest")
 		newmeta.ReplaceImages = true
-		if err := newmeta.Save("seaweedfs"); err != nil {
-			return fmt.Errorf("failed to save metadata: %w", err)
+		if err := newmeta.Save("adminconsole"); err != nil {
+			return fmt.Errorf("failed to save admin console metadata: %w", err)
 		}
 
-		logrus.Infof("successfully updated seaweed addon")
+		logrus.Infof("admin console addon updated")
 		return nil
 	},
 }

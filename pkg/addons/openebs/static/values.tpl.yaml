@@ -1,0 +1,39 @@
+engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+{{- if .ReplaceImages }}
+  helperPod:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      tag: '{{ index .Images "openebs/linux-utils" }}'
+{{- end }}
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+{{- if .ReplaceImages }}
+  localpv:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      tag: '{{ index .Images "openebs/provisioner-localpv" }}'
+{{- end }}
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+{{- if .ReplaceImages }}
+preUpgradeHook:
+  image:
+    registry: proxy.replicated.com/anonymous
+    tag: '{{ index .Images "docker.io/bitnami/kubectl" }}'
+{{- end }}
+zfs-localpv:
+  enabled: false

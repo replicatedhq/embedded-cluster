@@ -1,0 +1,30 @@
+backupsEnabled: false
+credentials:
+  existingSecret: cloud-credentials
+deployNodeAgent: true
+{{- if .ReplaceImages }}
+image:
+  repository: proxy.replicated.com/anonymous/velero/velero
+  tag: '{{ index .Images "velero/velero" }}'
+initContainers:
+- image: 'proxy.replicated.com/anonymous/velero/velero-plugin-for-aws:{{ index .Images "velero/velero-plugin-for-aws" }}'
+  imagePullPolicy: IfNotPresent
+  name: velero-plugin-for-aws
+  volumeMounts:
+  - mountPath: /target
+    name: plugins
+kubectl:
+  image:
+    repository: proxy.replicated.com/anonymous/bitnami/kubectl
+    tag: '{{ index .Images "docker.io/bitnami/kubectl" }}'
+configMaps:
+  fs-restore-action-config:
+    labels:
+      velero.io/plugin-config: ""
+      velero.io/pod-volume-restore: RestoreItemAction
+    data:
+      image: 'proxy.replicated.com/anonymous/velero/velero-restore-helper:{{ index .Images "velero/velero-restore-helper" }}'
+{{- end }}
+nodeAgent:
+  podVolumePath: /var/lib/k0s/kubelet/pods
+snapshotsEnabled: false

@@ -27,6 +27,8 @@ var updateAddonCommand = &cli.Command{
 		updateSeaweedFSAddonCommand,
 		updateRegistryAddonCommand,
 		updateVeleroAddonCommand,
+		updateOperatorAddonCommand,
+		updateAdminConsoleAddonCommand,
 	},
 }
 

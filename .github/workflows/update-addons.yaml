@@ -35,6 +35,8 @@ jobs:
           - registry
           - seaweedfs
           - velero
+          - embeddedclusteroperator
+          - adminconsole
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -49,7 +51,7 @@ jobs:
           REGISTRY_SERVER: registry.replicated.com
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME_PRODUCTION }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD_PRODUCTION }}
-          DESTINATION: oci://registry.replicated.com/ec-charts
+          DESTINATION: registry.replicated.com/ec-charts
         run: |
           chmod 755 ./output/artifacts/buildtools
           ./output/artifacts/buildtools update addon ${{ matrix.addon }}
@@ -67,4 +69,4 @@ jobs:
           draft: false
           base: "main"
           body: |
-            Automated changes by the [cron-mirror-helm-charts](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/mirror-helm-charts.yaml) GitHub action
+            Automated changes by the [update-addons](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/update-addons.yaml) GitHub action
