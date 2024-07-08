@@ -216,8 +216,8 @@ jobs:
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
-          - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeDisasterRecoveryWithProxy
+          - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
           - TestMultiNodeAirgapHAInstallation
