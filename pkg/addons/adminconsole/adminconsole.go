@@ -30,12 +30,13 @@ import (
 )
 
 const (
+	chartRepo   = "registry.replicated.com/library/admin-console"
 	releaseName = "admin-console"
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartRepo               = "registry.replicated.com/library/admin-console"
+	ChartRepoOverride       = ""
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
@@ -157,9 +158,16 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 
+	var chartName string
+	if ChartRepoOverride != "" {
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", ChartRepoOverride)
+	} else {
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartRepo)
+	}
+
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", ChartRepo),
+		ChartName: chartName,
 		Version:   Version,
 		Values:    string(values),
 		TargetNS:  a.namespace,
