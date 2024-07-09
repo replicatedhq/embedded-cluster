@@ -16,7 +16,7 @@ main() {
     export DR_AWS_ACCESS_KEY_ID="$6"
     export DR_AWS_SECRET_ACCESS_KEY="$7"
   elif [ "$test_name" == "deploy-upgrade" ]; then
-    export APP_UPGRADE_VERSION="$1"
+    export APP_UPGRADE_VERSION="$2"
   fi
 
   # if we have a second argument and the first points to the

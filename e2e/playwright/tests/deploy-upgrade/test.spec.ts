@@ -5,7 +5,8 @@ test('deploy upgrade', async ({ page }) => {
   test.setTimeout(15 * 60 * 1000); // 15 minutes
   await login(page);
   await page.getByRole('link', { name: 'Version history', exact: true }).click();
-  const rowLocator = '../../..'; // '//./ancestor::div[@class="available-update-row"]'
+  const rowLocator = '../../..';
+  // const rowLocator = '//./ancestor::div[@class="available-update-row"]';
   await page.getByText(process.env.APP_UPGRADE_VERSION, { exact: true })
     .locator(rowLocator)
     .getByRole('button', { name: 'Deploy', exact: true }).click();
@@ -18,4 +19,7 @@ test('deploy upgrade', async ({ page }) => {
   await expect(page.locator('.Modal-body').getByText('Cluster update in progress')).not.toBeVisible({ timeout: 60 * 1000 });
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
   await expect(page.locator('.VersionCard-content--wrapper')).toContainText(process.env.APP_UPGRADE_VERSION);
+  await expect(page.locator('#app')).toContainText('Currently deployed version', { timeout: 90000 });
+  await expect(page.locator('#app')).toContainText('Ready', { timeout: 30000 });
+  await expect(page.locator('#app')).toContainText('Up to date');
 });
