@@ -36,6 +36,7 @@ const (
 
 // Overwritten by -ldflags in Makefile
 var (
+	// ChartRepoOverride is used by KOTS regression automation to override the default chart repo.
 	ChartRepoOverride       = ""
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
