@@ -268,12 +268,15 @@ func TestHostPreflight(t *testing.T) {
 		{"ls", "-al", "/usr/src/linux-headers-*/.config", "||", "true"},
 		{"ls", "-al", "/lib/modules/*/build/.config", "||", "true"},
 	}
-	stdout, stderr, err := RunCommandsOnNodeWithOutput(t, tc, 0, listPaths)
-	if err != nil {
-		t.Fatalf("fail to list paths on node %s: %v", tc.Nodes[0], err)
+	for _, cmd := range listPaths {
+		stdout, stderr, err := RunCommandOnNode(t, tc, 0, cmd)
+		if err != nil {
+			t.Errorf("failed to list paths: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+		} else {
+			t.Logf("list paths stdout: %s", stdout)
+			t.Logf("list paths stderr: %s", stderr)
+		}
 	}
-	t.Logf("list paths stdout: %s", stdout)
-	t.Logf("list paths stderr: %s", stderr)
 
 	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-preflight.sh"}
