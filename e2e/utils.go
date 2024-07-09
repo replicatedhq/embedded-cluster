@@ -42,6 +42,22 @@ func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]stri
 	return nil
 }
 
+func RunCommandsOnNodeWithOutput(t *testing.T, cl *cluster.Output, node int, cmds [][]string, opts ...RunCommandOption) (string, string, error) {
+	stdouts := []string{}
+	stderrs := []string{}
+	for _, cmd := range cmds {
+		cmdstr := strings.Join(cmd, " ")
+		t.Logf("running `%s` node %d", cmdstr, node)
+		stdout, stderr, err := RunCommandOnNode(t, cl, node, cmd, opts...)
+		if err != nil {
+			return "", "", err
+		}
+		stdouts = append(stdouts, stdout)
+		stderrs = append(stderrs, stderr)
+	}
+	return strings.Join(stdouts, "\n"), strings.Join(stderrs, "\n"), nil
+}
+
 // RunRegularUserCommandOnNode runs a command on a node as a regular user (not root) with a timeout.
 func RunRegularUserCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string, opts ...RunCommandOption) (string, string, error) {
 	stdout := &buffer{bytes.NewBuffer(nil)}
