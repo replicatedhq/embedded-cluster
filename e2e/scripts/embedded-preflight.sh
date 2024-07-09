@@ -155,7 +155,8 @@ main() {
     cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"
     /usr/local/bin/embedded-cluster install --no-prompt --skip-host-preflights || true
-    /usr/local/bin/k0s sysinfo
+    /usr/local/bin/k0s sysinfo | tee -a sysinfo.log
+    cat sysinfo.log
 
     # if /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
     #     cat /tmp/log
