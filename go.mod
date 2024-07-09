@@ -1,6 +1,8 @@
 module github.com/replicatedhq/embedded-cluster
 
-go 1.22.0
+go 1.22.3
+
+toolchain go1.22.5
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -19,16 +21,16 @@ require (
 	github.com/replicatedhq/embedded-cluster-operator v0.36.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
-	github.com/replicatedhq/troubleshoot v0.93.1
+	github.com/replicatedhq/troubleshoot v0.95.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
-	github.com/vmware-tanzu/velero v1.13.2
+	github.com/vmware-tanzu/velero v1.14.0
 	golang.org/x/crypto v0.24.0
 	golang.org/x/term v0.21.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
-	helm.sh/helm/v3 v3.15.1
+	helm.sh/helm/v3 v3.15.2
 	k8s.io/api v0.30.2
 	k8s.io/apimachinery v0.30.2
 	oras.land/oras-go/v2 v2.5.0
@@ -84,8 +86,10 @@ require (
 	github.com/prometheus/procfs v0.15.0 // indirect
 	github.com/redis/go-redis/extra/redisotel/v9 v9.0.5 // indirect
 	github.com/redis/go-redis/v9 v9.5.2 // indirect
+	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/rs/cors v1.10.1 // indirect
-	github.com/spf13/cobra v1.8.0 // indirect
+	github.com/sergi/go-diff v1.2.0 // indirect
+	github.com/spf13/cobra v1.8.1 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
@@ -105,7 +109,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240520151616-dc85e6b867a5 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240520151616-dc85e6b867a5 // indirect
 	google.golang.org/grpc v1.64.0 // indirect
-	k8s.io/cli-runtime v0.30.1 // indirect
+	k8s.io/cli-runtime v0.30.2 // indirect
 	oras.land/oras-go v1.2.5 // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
@@ -185,9 +189,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
-	k8s.io/apiextensions-apiserver v0.30.1 // indirect
+	k8s.io/apiextensions-apiserver v0.30.2 // indirect
 	k8s.io/client-go v0.30.2
-	k8s.io/klog/v2 v2.120.1 // indirect
+	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20231121161247-cf03d44ff3cf
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
