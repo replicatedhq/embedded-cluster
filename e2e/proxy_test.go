@@ -184,17 +184,17 @@ func TestCustomCIDR(t *testing.T) {
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log(stdout)
 
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log(stdout)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -289,17 +289,17 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log(stdout)
 
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log(stdout)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

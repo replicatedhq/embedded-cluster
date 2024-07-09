@@ -212,7 +212,7 @@ jobs:
           - TestMaterialize
           - TestLocalArtifactMirror
           - TestSingleNodeAirgapUpgrade
-          - TestSingleNodeAirgapUpgradeCustomCidr
+          - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery

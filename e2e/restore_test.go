@@ -338,9 +338,9 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA"))}
 	stdout, _, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
-	t.Log(stdout)
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
