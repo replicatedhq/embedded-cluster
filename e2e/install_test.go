@@ -258,15 +258,15 @@ func TestHostPreflight(t *testing.T) {
 	}
 
 	listPaths := [][]string{
-		{"ls", "-al", "/proc/config.gz"},
-		{"ls", "-al", "/boot/config-*"},
-		{"ls", "-al", "/usr/src/linux-*/.config"},
-		{"ls", "-al", "/usr/src/linux/.config"},
-		{"ls", "-al", "/usr/lib/modules/*/config"},
-		{"ls", "-al", "/usr/lib/ostree-boot/config-*"},
-		{"ls", "-al", "/usr/lib/kernel/config-*"},
-		{"ls", "-al", "/usr/src/linux-headers-*/.config"},
-		{"ls", "-al", "/lib/modules/*/build/.config"},
+		{"ls", "-al", "/proc/config.gz", "||", "true"},
+		{"ls", "-al", "/boot/config-*", "||", "true"},
+		{"ls", "-al", "/usr/src/linux-*/.config", "||", "true"},
+		{"ls", "-al", "/usr/src/linux/.config", "||", "true"},
+		{"ls", "-al", "/usr/lib/modules/*/config", "||", "true"},
+		{"ls", "-al", "/usr/lib/ostree-boot/config-*", "||", "true"},
+		{"ls", "-al", "/usr/lib/kernel/config-*", "||", "true"},
+		{"ls", "-al", "/usr/src/linux-headers-*/.config", "||", "true"},
+		{"ls", "-al", "/lib/modules/*/build/.config", "||", "true"},
 	}
 	stdout, stderr, err := RunCommandsOnNodeWithOutput(t, tc, 0, listPaths)
 	if err != nil {
