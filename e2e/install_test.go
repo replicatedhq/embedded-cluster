@@ -281,10 +281,15 @@ func TestHostPreflight(t *testing.T) {
 
 	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-preflight.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Logf("stdout:\n%s", stdout)
+		t.Logf("stderr:\n%s", stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
+	t.Logf("stdout:\n%s", stdout)
+	t.Logf("stderr:\n%s", stderr)
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
