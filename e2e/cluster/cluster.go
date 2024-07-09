@@ -92,6 +92,7 @@ type Output struct {
 
 // Destroy destroys a cluster pointed by the id property inside the output.
 func (o *Output) Destroy() {
+	o.T.Logf("Destroying cluster %s", o.id)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		o.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -201,22 +202,24 @@ func NewTestCluster(in *Input) *Output {
 
 	in.id = uuid.New().String()[:5]
 	in.network = <-networkaddr
+
+	out := &Output{
+		T:       in.T,
+		network: in.network,
+		id:      in.id,
+	}
+	out.T.Cleanup(out.Destroy)
+
 	PullImage(in)
 	CreateProfile(in)
 	CreateNetworks(in)
-	nodes := CreateNodes(in)
-	for _, node := range nodes {
+	out.Nodes = CreateNodes(in)
+	for _, node := range out.Nodes {
 		CopyFilesToNode(in, node)
 		CopyDirsToNode(in, node)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, node)
 		}
-	}
-	out := &Output{
-		T:       in.T,
-		Nodes:   nodes,
-		network: in.network,
-		id:      in.id,
 	}
 	if in.WithProxy {
 		out.Proxy = CreateProxy(in)

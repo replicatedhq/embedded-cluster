@@ -577,7 +577,7 @@ func TestSingleNodeUpgrade(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
-		"APP_UPGRADE_VERSION",
+		"SHORT_SHA",
 	}
 	for _, envVar := range requiredEnvVars {
 		if os.Getenv(envVar) == "" {
@@ -613,10 +613,8 @@ func TestSingleNodeUpgrade(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
-	}
+	appUpgradeVersion := fmt.Sprintf("appver-dev-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
@@ -1712,5 +1710,4 @@ func cleanupCluster(t *testing.T, tc *cluster.Output) {
 		generateAndCopySupportBundle(t, tc)
 		copyPlaywrightReport(t, tc)
 	}
-	tc.Destroy()
 }
