@@ -152,10 +152,12 @@ wait_for_healthy_node() {
 }
 
 main() {
-    cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
-    embed_preflight "$preflight_with_failure"
-    /usr/local/bin/embedded-cluster install --no-prompt --skip-host-preflights || true
-    /usr/local/bin/k0s sysinfo 2>&1 | tee -a sysinfo.log
+    # cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
+    # embed_preflight "$preflight_with_failure"
+    # /usr/local/bin/embedded-cluster install --no-prompt --skip-host-preflights || true
+    curl -L -o k0s https://ec-k0s-binaries.s3.amazonaws.com/k0s-v1.29.5%2Bk0s.0-ec.0
+    chmod +x k0s
+    ./k0s sysinfo 2>&1 | tee -a sysinfo.log
     cat sysinfo.log
 
     # if /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
