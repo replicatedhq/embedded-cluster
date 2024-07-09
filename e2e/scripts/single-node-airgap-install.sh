@@ -127,7 +127,7 @@ check_airgap_pvc() {
 main() {
     local additional_args=
     if [ -n "${1:-}" ]; then
-        additional_args="$1"
+        additional_args="$*"
         echo "Running install with additional args: $additional_args"
     fi
     if ! embedded-cluster install --no-prompt --skip-host-preflights --license /assets/license.yaml --airgap-bundle /assets/release.airgap $additional_args 2>&1 | tee /tmp/log ; then

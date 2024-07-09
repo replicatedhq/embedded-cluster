@@ -2,29 +2,20 @@ VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
-ADMIN_CONSOLE_CHART_URL = oci://registry.replicated.com/library
-ADMIN_CONSOLE_CHART_NAME = admin-console
-ADMIN_CONSOLE_CHART_VERSION = 1.109.13
+ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
+ADMIN_CONSOLE_CHART_VERSION = 1.111.0
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
 EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.36.2
+EMBEDDED_OPERATOR_CHART_VERSION = 0.36.5
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
-OPENEBS_CHART_URL = https://openebs.github.io/openebs
-OPENEBS_CHART_NAME = openebs/openebs
-OPENEBS_CHART_VERSION = 4.0.1
-OPENEBS_UTILS_VERSION = 4.0.0
-SEAWEEDFS_CHART_URL = https://seaweedfs.github.io/seaweedfs/helm
-SEAWEEDFS_CHART_NAME = seaweedfs/seaweedfs
-SEAWEEDFS_CHART_VERSION = 3.68.0
-REGISTRY_CHART_URL = https://helm.twun.io
-REGISTRY_CHART_NAME = twuni/docker-registry
+OPENEBS_CHART_VERSION = 4.1.0
+OPENEBS_UTILS_VERSION = 4.1.0
+SEAWEEDFS_CHART_VERSION = 4.0.0
 REGISTRY_CHART_VERSION = 2.2.3
 REGISTRY_IMAGE_VERSION = 2.8.3
-VELERO_CHART_URL = https://vmware-tanzu.github.io/helm-charts
-VELERO_CHART_NAME = vmware-tanzu/velero
 VELERO_CHART_VERSION = 6.3.0
 VELERO_IMAGE_VERSION = v1.13.2
 VELERO_AWS_PLUGIN_IMAGE_VERSION = v1.9.2
@@ -44,30 +35,19 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.KubectlVersion=$(KUBECTL_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartURL=$(ADMIN_CONSOLE_CHART_URL) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartName=$(ADMIN_CONSOLE_CHART_NAME) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.MigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartURL=$(EMBEDDED_OPERATOR_CHART_URL) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ChartName=$(EMBEDDED_OPERATOR_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ImageOverride=$(EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartURL=$(OPENEBS_CHART_URL) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.ChartName=$(OPENEBS_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.UtilsVersion=$(OPENEBS_UTILS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.ChartURL=$(SEAWEEDFS_CHART_URL) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.ChartName=$(SEAWEEDFS_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.Version=$(SEAWEEDFS_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartURL=$(REGISTRY_CHART_URL) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ChartName=$(REGISTRY_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.ChartURL=$(VELERO_CHART_URL) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.ChartName=$(VELERO_CHART_NAME) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.Version=$(VELERO_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.VeleroTag=$(VELERO_IMAGE_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION)
@@ -209,3 +189,7 @@ push-local-artifact-mirror-image:
 
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
+
+.PHONY: buildtools
+buildtools:
+	go build -o ./output/bin/buildtools ./cmd/buildtools

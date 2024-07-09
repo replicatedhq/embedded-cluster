@@ -212,9 +212,11 @@ jobs:
           - TestMaterialize
           - TestLocalArtifactMirror
           - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
+          - TestSingleNodeDisasterRecoveryWithProxy
           - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
@@ -223,6 +225,8 @@ jobs:
           - TestProxiedEnvironment
           - TestMultiNodeHADisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
+          - TestCustomCIDR
+          - TestProxiedCustomCIDR
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster

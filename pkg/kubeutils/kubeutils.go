@@ -18,6 +18,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
+type ErrNoInstallations struct{}
+
+func (e ErrNoInstallations) Error() string {
+	return "no installations found"
+}
+
 // BackOffToDuration returns the maximum duration of the provided backoff.
 func BackOffToDuration(backoff wait.Backoff) time.Duration {
 	var total time.Duration
@@ -174,7 +180,7 @@ func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclu
 
 	installs := installList.Items
 	if len(installs) == 0 {
-		return nil, fmt.Errorf("no installations found")
+		return nil, ErrNoInstallations{}
 	}
 
 	// sort the installations

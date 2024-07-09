@@ -82,6 +82,98 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
+	t.Parallel()
+
+	requiredEnvVars := []string{
+		"DR_AWS_S3_ENDPOINT",
+		"DR_AWS_S3_REGION",
+		"DR_AWS_S3_BUCKET",
+		"DR_AWS_S3_PREFIX",
+		"DR_AWS_ACCESS_KEY_ID",
+		"DR_AWS_SECRET_ACCESS_KEY",
+	}
+	for _, envVar := range requiredEnvVars {
+		if os.Getenv(envVar) == "" {
+			t.Fatalf("missing required environment variable: %s", envVar)
+		}
+	}
+
+	testArgs := []string{}
+	for _, envVar := range requiredEnvVars {
+		testArgs = append(testArgs, os.Getenv(envVar))
+	}
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "debian/12",
+		WithProxy:           true,
+		LicensePath:         "snapshot-license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	})
+	defer cleanupCluster(t, tc)
+
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "expect", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-proxy-install.sh"}
+	line = append(line, "--http-proxy", cluster.HTTPProxy)
+	line = append(line, "--https-proxy", cluster.HTTPProxy)
+	line = append(line, "--no-proxy", cluster.NOProxy)
+	withEnv = WithEnv(map[string]string{
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
+		"NO_PROXY":    cluster.NOProxy,
+	})
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v", err)
+	}
+
+	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to reset the installation: %v", err)
+	}
+
+	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	line = append([]string{"restore-installation.exp"}, testArgs...)
+	line = append(line, "--http-proxy", cluster.HTTPProxy)
+	line = append(line, "--https-proxy", cluster.HTTPProxy)
+	line = append(line, "--no-proxy", cluster.NOProxy)
+	withEnv = WithEnv(map[string]string{
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
+		"NO_PROXY":    cluster.NOProxy,
+	})
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+		t.Fatalf("fail to restore the installation: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
@@ -223,6 +315,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
+	line = append(line, "--pod-cidr", "10.128.0.0/20")
+	line = append(line, "--service-cidr", "10.129.0.0/20")
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
@@ -242,9 +336,18 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA"))}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	stdout, _, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
+	// ensure that the cluster is using the right IP ranges.
+	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
+	if err != nil {
+		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log(stdout)
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -263,11 +366,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	testArgs = append(testArgs, "--pod-cidr", "10.128.0.0/20", "--service-cidr", "10.129.0.0/20")
 	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+		"NO_PROXY":    "localhost,127.0.0.1,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)

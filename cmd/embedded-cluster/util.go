@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/sirupsen/logrus"
 )
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(isWorker bool, proxy *Proxy) error {
+func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -22,8 +24,11 @@ func createSystemdUnitFiles(isWorker bool, proxy *Proxy) error {
 		src = "/etc/systemd/system/k0sworker.service"
 	}
 	if proxy != nil {
-		ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy)
+		if err := ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy); err != nil {
+			return fmt.Errorf("unable to create proxy config: %w", err)
+		}
 	}
+	logrus.Debugf("linking %s to %s", src, dst)
 	if err := os.Symlink(src, dst); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}

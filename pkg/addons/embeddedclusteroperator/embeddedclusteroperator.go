@@ -31,12 +31,11 @@ import (
 
 const (
 	releaseName = "embedded-cluster-operator"
+	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator"
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL      = "https://url"
-	ChartName     = "name"
 	Version       = "v0.0.0"
 	UtilsImage    = "busybox:latest"
 	ImageOverride = ""
@@ -80,6 +79,7 @@ type EmbeddedClusterOperator struct {
 	airgap          bool
 	releaseMetadata *types.ReleaseMetadata
 	proxyEnv        map[string]string
+	net             *embeddedclusterv1beta1.NetworkSpec
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -108,7 +108,7 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: fmt.Sprintf("%s/%s", ChartURL, ChartName),
+		ChartName: chartURL,
 		Version:   Version,
 		TargetNS:  "embedded-cluster",
 		Order:     3,
@@ -231,6 +231,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			MetricsBaseURL:            metrics.BaseURL(license),
 			AirGap:                    e.airgap,
 			Proxy:                     proxySpec,
+			Network:                   e.net,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
@@ -246,7 +247,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata, proxyEnv map[string]string) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata, proxyEnv map[string]string, net *embeddedclusterv1beta1.NetworkSpec) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:       "embedded-cluster",
 		deployName:      "embedded-cluster-operator",
@@ -255,6 +256,7 @@ func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airga
 		airgap:          airgapEnabled,
 		releaseMetadata: releaseMetadata,
 		proxyEnv:        proxyEnv,
+		net:             net,
 	}, nil
 }
 
