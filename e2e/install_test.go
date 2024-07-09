@@ -677,6 +677,120 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
+	t.Parallel()
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	wg.Wait()
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "debian/12",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	})
+	defer cleanupCluster(t, tc)
+
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
+		t.Logf("failed to remove airgap upgrade bundle: %v", err)
+	}
+
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	line = append(line, "--pod-cidr", "10.128.0.0/20")
+	line = append(line, "--service-cidr", "10.129.0.0/20")
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	// remove the airgap bundle after installation
+	line = []string{"rm", "/assets/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA"))}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+	// remove the airgap bundle after upgrade
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-airgap-upgrade"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-airgap-upgrade: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	// ensure that the cluster is using the right IP ranges.
+	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"}); err != nil {
+		t.Log(stdout)
+		t.Log(stderr)
+		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	t.Parallel()
 
@@ -1318,6 +1432,103 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// TestCustomCIDR tests the installation with an alternate CIDR range
+func TestCustomCIDR(t *testing.T) {
+	t.Parallel()
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               4,
+		Image:               "debian/12",
+		LicensePath:         "license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	})
+	defer cleanupCluster(t, tc)
+	t.Log("non-proxied infrastructure created")
+
+	// bootstrap the first node and makes sure it is healthy. also executes the kots
+	// ssl certificate configuration (kurl-proxy).
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	// this uses the proxy install script because that accepts arbitrary install flags
+	line := []string{"single-node-proxy-install.sh"}
+	line = append(line, "--pod-cidr", "10.128.0.0/20")
+	line = append(line, "--service-cidr", "10.129.0.0/20")
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	// generate all node join commands (2 for controllers and 1 for worker).
+	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
+	controllerCommands := []string{}
+	for i := 0; i < 2; i++ {
+		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		if err != nil {
+			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+		}
+		command, err := findJoinCommandInOutput(stdout)
+		if err != nil {
+			t.Fatalf("fail to find the join command in the output: %v", err)
+		}
+		controllerCommands = append(controllerCommands, command)
+		t.Log("controller join token command:", command)
+	}
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	if err != nil {
+		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	command, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
+	}
+	t.Log("worker join token command:", command)
+
+	// join the nodes.
+	for i, cmd := range controllerCommands {
+		node := i + 1
+		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
+		if _, _, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " ")); err != nil {
+			t.Fatalf("fail to join node %d as a controller: %v", node, err)
+		}
+		// XXX If we are too aggressive joining nodes we can see the following error being
+		// thrown by kotsadm on its log (and we get a 500 back):
+		// "
+		// failed to get controller role name: failed to get cluster config: failed to get
+		// current installation: failed to list installations: etcdserver: leader changed
+		// "
+		t.Logf("node %d joined, sleeping...", node)
+		time.Sleep(30 * time.Second)
+	}
+	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
+		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
+	}
+
+	// wait for the nodes to report as ready.
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	if err != nil {
+		t.Log(stdout)
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	// ensure that the cluster is using the right IP ranges.
+	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
+	if err != nil {
+		t.Log(stdout)
+		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

@@ -79,6 +79,7 @@ type EmbeddedClusterOperator struct {
 	airgap          bool
 	releaseMetadata *types.ReleaseMetadata
 	proxyEnv        map[string]string
+	net             *embeddedclusterv1beta1.NetworkSpec
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -230,6 +231,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			MetricsBaseURL:            metrics.BaseURL(license),
 			AirGap:                    e.airgap,
 			Proxy:                     proxySpec,
+			Network:                   e.net,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
@@ -245,7 +247,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata, proxyEnv map[string]string) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata, proxyEnv map[string]string, net *embeddedclusterv1beta1.NetworkSpec) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:       "embedded-cluster",
 		deployName:      "embedded-cluster-operator",
@@ -254,6 +256,7 @@ func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airga
 		airgap:          airgapEnabled,
 		releaseMetadata: releaseMetadata,
 		proxyEnv:        proxyEnv,
+		net:             net,
 	}, nil
 }
 
