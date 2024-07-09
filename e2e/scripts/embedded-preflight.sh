@@ -154,7 +154,7 @@ wait_for_healthy_node() {
 main() {
     cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"
-    /usr/local/bin/embedded-cluster install --no-prompt || true
+    /usr/local/bin/embedded-cluster install --no-prompt --skip-host-preflights || true
     /usr/local/bin/k0s sysinfo
 
     # if /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
