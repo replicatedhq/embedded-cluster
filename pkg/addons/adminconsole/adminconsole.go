@@ -30,12 +30,14 @@ import (
 )
 
 const (
+	chartRepo   = "registry.replicated.com/library/admin-console"
 	releaseName = "admin-console"
-	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console"
 )
 
 // Overwritten by -ldflags in Makefile
 var (
+	// ChartRepoOverride is used by KOTS regression automation to override the default chart repo.
+	ChartRepoOverride       = ""
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
@@ -156,9 +158,17 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
+
+	var chartName string
+	if ChartRepoOverride != "" {
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", ChartRepoOverride)
+	} else {
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartRepo)
+	}
+
 	chartConfig := v1beta1.Chart{
 		Name:      releaseName,
-		ChartName: chartURL,
+		ChartName: chartName,
 		Version:   Version,
 		Values:    string(values),
 		TargetNS:  a.namespace,
