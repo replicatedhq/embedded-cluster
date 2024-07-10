@@ -672,11 +672,9 @@ func CreateNetworks(in *Input) {
 				"ipv4.dhcp.ranges": fmt.Sprintf("%[1]s.2-%[1]s.254", in.network),
 				"ipv4.nat":         "true",
 				"ipv4.ovn.ranges":  fmt.Sprintf("%[1]s.100-%[1]s.253", in.network),
+				"ipv4.routes":      "10.0.0.0/24",
 			},
 		},
-	}
-	if in.WithProxy {
-		request.NetworkPut.Config["ipv4.routes"] = "10.0.0.0/24"
 	}
 	if err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create external network: %v", err)
