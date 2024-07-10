@@ -2,6 +2,7 @@
 set -euox pipefail
 
 install_apt() {
+    apt-get update && apt-get install -y curl
     curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" -o nodesource_setup.sh
     bash nodesource_setup.sh
     apt-get install -y nodejs
