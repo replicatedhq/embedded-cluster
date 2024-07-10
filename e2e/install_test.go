@@ -613,7 +613,7 @@ func TestSingleNodeUpgrade(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-dev-%s-upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
