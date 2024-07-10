@@ -1,6 +1,7 @@
 module github.com/replicatedhq/embedded-cluster
 
 go 1.22.0
+toolchain go1.22.5
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -23,7 +24,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
-	github.com/vmware-tanzu/velero v1.13.2
+	github.com/vmware-tanzu/velero v1.14.0
 	golang.org/x/crypto v0.25.0
 	golang.org/x/term v0.22.0
 	gopkg.in/yaml.v2 v2.4.0
