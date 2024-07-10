@@ -531,21 +531,21 @@ func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd stri
 func askAdminConsolePassword(c *cli.Context) (string, error) {
 	defaultPass := "password"
 	if c.Bool("no-prompt") {
-		logrus.Infof("Admin Console password set to: %s", defaultPass)
+		logrus.Infof("The Admin Console password is set to %s", defaultPass)
 		return defaultPass, nil
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Enter an Admin Console password:")
-		promptB := prompts.New().Password("Confirm password:")
+		promptA := prompts.New().Password("Set the Admin Console password:")
+		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
 		if promptA == promptB {
 			// TODO: Should we add extra password validation here? e.g length, complexity etc
 			return promptA, nil
 		}
-		logrus.Info("Passwords don't match, please try again.")
+		logrus.Info("Passwords don't match. Please try again.")
 	}
-	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
+	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
 }
 
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
@@ -566,7 +566,7 @@ var installCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "no-prompt",
-			Usage: "Disable interactive prompts. Admin console password will be set to password.",
+			Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
 			Value: false,
 		},
 		&cli.StringFlag{
