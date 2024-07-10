@@ -898,22 +898,22 @@ var restoreCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
-			Usage:  "Path to the airgap bundle. If set, the restore will be completed without internet access.",
+			Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
 			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "http-proxy",
-			Usage:  "HTTP proxy to use for the restore",
+			Usage:  "Proxy server to use for HTTP",
 			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "https-proxy",
-			Usage:  "HTTPS proxy to use for the restore",
+			Usage:  "Proxy server to use for HTTPS",
 			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "no-proxy",
-			Usage:  "Comma separated list of hosts to bypass the proxy for",
+			Usage:  "Comma-separated list of hosts for which not to use a proxy",
 			Hidden: false,
 		},
 		&cli.BoolFlag{
@@ -933,7 +933,7 @@ var restoreCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
-			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Usage: "Skip host preflight checks. This is not recommended.",
 			Value: false,
 		},
 	},
