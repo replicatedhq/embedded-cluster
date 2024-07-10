@@ -16,7 +16,7 @@ func TestCollectSupportBundle(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli"}

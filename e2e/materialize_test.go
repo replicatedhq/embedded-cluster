@@ -15,7 +15,7 @@ func TestMaterialize(t *testing.T) {
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	commands := [][]string{
 		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl"},

@@ -301,7 +301,7 @@ func TestHostPreflight(t *testing.T) {
 		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
 		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
@@ -1049,7 +1049,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion, "true"} // true to indicate that this
+	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
