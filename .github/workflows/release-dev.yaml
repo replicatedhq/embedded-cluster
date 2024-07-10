@@ -149,7 +149,6 @@ jobs:
           - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
-          - TestSingleNodeUpgrade
           - TestVersion
           - TestHostPreflight
           - TestUnsupportedOverrides

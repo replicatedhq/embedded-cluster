@@ -199,51 +199,50 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          # - TestSingleNodeInstallation
-          # - TestSingleNodeInstallationAlmaLinux8
-          # - TestSingleNodeInstallationDebian11
-          # - TestSingleNodeInstallationDebian12
-          # - TestSingleNodeInstallationCentos9Stream
-          - TestSingleNodeUpgrade
-        #   - TestVersion
-        #   - TestHostPreflight
-        #   - TestUnsupportedOverrides
-        #   - TestMultiNodeInstallation
-        #   - TestMultiNodeReset
-        #   - TestCommandsRequireSudo
-        #   - TestInstallWithoutEmbed
-        #   - TestInstallFromReplicatedApp
-        #   - TestResetAndReinstall
-        #   - TestResetAndReinstallAirgap
-        #   - TestCollectSupportBundle
-        #   - TestOldVersionUpgrade
-        #   - TestMaterialize
-        #   - TestLocalArtifactMirror
-        #   - TestSingleNodeAirgapUpgrade
-        #   - TestSingleNodeAirgapUpgradeCustomCIDR
-        #   - TestInstallSnapshotFromReplicatedApp
-        #   - TestMultiNodeAirgapUpgrade
-        #   - TestSingleNodeDisasterRecovery
-        #   - TestSingleNodeDisasterRecoveryWithProxy
-        #   - TestSingleNodeResumeDisasterRecovery
-        #   - TestSingleNodeAirgapDisasterRecovery
-        #   - TestMultiNodeHAInstallation
-        #   - TestMultiNodeAirgapHAInstallation
-        #   - TestMultiNodeAirgapUpgradeSameK0s
-        #   - TestProxiedEnvironment
-        #   - TestMultiNodeHADisasterRecovery
-        #   - TestMultiNodeAirgapHADisasterRecovery
-        #   - TestCustomCIDR
-        #   - TestProxiedCustomCIDR
-        include: []
-        #   - test: TestMultiNodeAirgapUpgrade
-        #     runner: embedded-cluster
-        #   - test: TestMultiNodeAirgapHAInstallation
-        #     runner: embedded-cluster
-        #   - test: TestMultiNodeAirgapHADisasterRecovery
-        #     runner: embedded-cluster
-        #   - test: TestSingleNodeAirgapDisasterRecovery
-        #     runner: embedded-cluster
+          - TestSingleNodeInstallation
+          - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos9Stream
+          - TestVersion
+          - TestHostPreflight
+          - TestUnsupportedOverrides
+          - TestMultiNodeInstallation
+          - TestMultiNodeReset
+          - TestCommandsRequireSudo
+          - TestInstallWithoutEmbed
+          - TestInstallFromReplicatedApp
+          - TestResetAndReinstall
+          - TestResetAndReinstallAirgap
+          - TestCollectSupportBundle
+          - TestOldVersionUpgrade
+          - TestMaterialize
+          - TestLocalArtifactMirror
+          - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeCustomCIDR
+          - TestInstallSnapshotFromReplicatedApp
+          - TestMultiNodeAirgapUpgrade
+          - TestSingleNodeDisasterRecovery
+          - TestSingleNodeDisasterRecoveryWithProxy
+          - TestSingleNodeResumeDisasterRecovery
+          - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeHAInstallation
+          - TestMultiNodeAirgapHAInstallation
+          - TestMultiNodeAirgapUpgradeSameK0s
+          - TestProxiedEnvironment
+          - TestMultiNodeHADisasterRecovery
+          - TestMultiNodeAirgapHADisasterRecovery
+          - TestCustomCIDR
+          - TestProxiedCustomCIDR
+        include:
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHADisasterRecovery
+            runner: embedded-cluster
+          - test: TestSingleNodeAirgapDisasterRecovery
+            runner: embedded-cluster
     steps:
     - name: Checkout
       uses: actions/checkout@v4

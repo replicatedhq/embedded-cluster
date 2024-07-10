@@ -22,11 +22,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -93,11 +89,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -185,11 +177,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -255,11 +243,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
+
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
 		testArgs = append(testArgs, os.Getenv(envVar))
@@ -417,11 +402,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -608,11 +589,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
