@@ -231,6 +231,7 @@ func NewTestCluster(in *Input) *Output {
 		CreateRegularUser(in, out.Proxy)
 	}
 	NodeHasInternet(in, out.Proxy)
+	ConfigureProxyNode(in)
 	if in.WithProxy {
 		ConfigureProxy(in)
 	}
@@ -304,14 +305,14 @@ func CreateProxy(in *Input) string {
 	return name
 }
 
-// ConfigureProxy installs squid and iptables on the target node. Configures the needed
+// ConfigureProxyNode installs squid and iptables on the target node. Configures the needed
 // ip addresses and sets up iptables to allow nat for requests coming out on eth0 using
-// port 53(UDP). Configures squid to accept requests coming from 10.0.0.0/24 network.
-// Proxy will be listening on http://10.0.0.254:3128.
-func ConfigureProxy(in *Input) {
+// port 53(UDP).
+func ConfigureProxyNode(in *Input) {
+	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
+
 	// starts by installing dependencies, setting up the second network interface ip
 	// address and configuring iptables to allow dns requests forwarding (nat).
-	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 	for _, cmd := range [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "-y", "iptables", "squid"},
@@ -322,6 +323,14 @@ func ConfigureProxy(in *Input) {
 	} {
 		RunCommandOnNode(in, cmd, proxyName)
 	}
+}
+
+// ConfigureProxy configures squid to accept requests coming from 10.0.0.0/24 network.
+// Proxy will be listening on http://10.0.0.254:3128. It also sets the default route
+// on all other nodes to point to the proxy to ensure no internet will work on them
+// other than dns and http requests using the proxy.
+func ConfigureProxy(in *Input) {
+	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
 	// create a simple squid configuration that allows for localnet access. upload it
 	// to the proxy in the right location. restart squid to apply the configuration.
