@@ -24,12 +24,20 @@ func TestCollectSupportBundle(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	line = []string{"collect-support-bundle.sh"}
+	line = []string{"collect-support-bundle-host.sh"}
 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log("stdout:", stdout)
 		t.Log("stderr:", stderr)
-		t.Fatalf("fail to collect support bundle on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to collect host support bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	line = []string{"collect-support-bundle-cluster.sh"}
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log("stdout:", stdout)
+		t.Log("stderr:", stderr)
+		t.Fatalf("fail to collect  cluster support bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
 	line = []string{"validate-support-bundle.sh"}

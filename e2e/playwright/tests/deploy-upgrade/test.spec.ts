@@ -16,7 +16,7 @@ test('deploy upgrade', async ({ page }) => {
   await iframe.getByRole('button', { name: 'Next: Confirm and deploy', exact: true }).click({ timeout: 10 * 1000 });
   await iframe.getByRole('button', { name: 'Deploy', exact: true }).click();
   await expect(page.locator('.Modal-body')).toContainText('Cluster update in progress');
-  await expect(page.locator('.Modal-body')).not.toContainText('Cluster update in progress', { timeout: 5 * 60 * 1000 });
+  await expect(page.locator('.Modal-body').getByText('Cluster update in progress')).not.toBeVisible({ timeout: 5 * 60 * 1000 });
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
   await expect(page.locator('.VersionCard-content--wrapper')).toContainText(process.env.APP_UPGRADE_VERSION);
   await expect(page.locator('#app')).toContainText('Currently deployed version', { timeout: 2 * 60 * 1000 });

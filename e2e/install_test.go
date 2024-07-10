@@ -1742,21 +1742,33 @@ func runPlaywrightTest(t *testing.T, tc *cluster.Output, testName string, args .
 }
 
 func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
-	t.Logf("%s: generating support bundle", time.Now().Format(time.RFC3339))
-	line := []string{"collect-support-bundle.sh"}
+	node := tc.Nodes[0]
+	t.Logf("%s: generating cluster support bundle from node %s", time.Now().Format(time.RFC3339), node)
+	line := []string{"collect-support-bundle-cluster.sh"}
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Logf("stdout: %s", stdout)
 		t.Logf("stderr: %s", stderr)
-		t.Errorf("fail to generate support bundle: %v", err)
+		t.Errorf("fail to generate cluster support from node %s bundle: %v", node, err)
 	}
 
-	t.Logf("%s: copying host support bundle to local machine", time.Now().Format(time.RFC3339))
-	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/host.tar.gz", "support-bundle-host.tar.gz"); err != nil {
-		t.Errorf("fail to copy host support bundle to local machine: %v", err)
+	t.Logf("%s: copying cluster support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
+	if err := cluster.CopyFileFromNode(node, "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
+		t.Errorf("fail to copy cluster support bundle from node %s to local machine: %v", node, err)
 	}
-	t.Logf("%s: copying cluster support bundle to local machine", time.Now().Format(time.RFC3339))
-	if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
-		t.Errorf("fail to copy cluster support bundle to local machine: %v", err)
+
+	for i, node := range tc.Nodes {
+		t.Logf("%s: generating host support bundle from node %s", time.Now().Format(time.RFC3339), node)
+		line := []string{"collect-support-bundle-host.sh"}
+		if stdout, stderr, err := RunCommandOnNode(t, tc, i, line); err != nil {
+			t.Logf("stdout: %s", stdout)
+			t.Logf("stderr: %s", stderr)
+			t.Errorf("fail to generate support from node %s bundle: %v", node, err)
+		}
+
+		t.Logf("%s: copying host support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
+		if err := cluster.CopyFileFromNode(node, "/root/host.tar.gz", fmt.Sprintf("support-bundle-host-%s.tar.gz", node)); err != nil {
+			t.Errorf("fail to copy host support bundle from node %s to local machine: %v", node, err)
+		}
 	}
 }
 

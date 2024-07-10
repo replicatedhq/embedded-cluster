@@ -110,7 +110,7 @@ runs:
     if: ${{ failure() }}
     with:
       name: ${{ inputs.test-name }}-support-bundle-host.tar.gz
-      path: ./e2e/support-bundle-host.tar.gz
+      path: ./e2e/support-bundle-host-*.tar.gz
   - name: Upload Cluster Support Bundle
     uses: actions/upload-artifact@v4
     if: ${{ failure() }}
