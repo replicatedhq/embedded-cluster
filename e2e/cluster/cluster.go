@@ -221,13 +221,14 @@ func NewTestCluster(in *Input) *Output {
 			CreateRegularUser(in, node)
 		}
 	}
+	// We create a proxy node for all installations to run playwright tests.
+	out.Proxy = CreateProxy(in)
+	CopyDirsToNode(in, out.Proxy)
+	if in.CreateRegularUser {
+		CreateRegularUser(in, out.Proxy)
+	}
+	NodeHasInternet(in, out.Proxy)
 	if in.WithProxy {
-		out.Proxy = CreateProxy(in)
-		CopyDirsToNode(in, out.Proxy)
-		if in.CreateRegularUser {
-			CreateRegularUser(in, out.Proxy)
-		}
-		NodeHasInternet(in, out.Proxy)
 		ConfigureProxy(in)
 	}
 	return out

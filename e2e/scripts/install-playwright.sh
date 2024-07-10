@@ -7,17 +7,9 @@ install_apt() {
     apt-get install -y nodejs
 }
 
-install_yum() {
-    curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" -o nodesource_setup.sh
-    bash nodesource_setup.sh
-    yum install -y nodejs
-}
-
 main() {
     if command -v apt-get &> /dev/null; then
         install_apt
-    elif command -v yum &> /dev/null; then
-        install_yum
     else
         echo "Unsupported package manager"
         exit 1
