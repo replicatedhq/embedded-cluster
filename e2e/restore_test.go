@@ -235,6 +235,9 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 
 func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_SNAPSHOT_LICENSE_ID"})
+
 	requiredEnvVars := []string{
 		"DR_AWS_S3_ENDPOINT",
 		"DR_AWS_S3_REGION",
@@ -378,8 +381,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-airgap-upgrade"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-airgap-upgrade: %v", err)
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs = []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))

@@ -17,14 +17,13 @@ main() {
     export DR_AWS_SECRET_ACCESS_KEY="$7"
   elif [ "$test_name" == "deploy-upgrade" ]; then
     export APP_UPGRADE_VERSION="$2"
+
+    # make the test skip the "Cluster update in progress" check.
+    if [ $# -ge 3 ] && [ "$3" == "true" ]; then
+      export SKIP_CLUSTER_UPGRADING_CHECK="true" # TODO
+    fi
   fi
 
-  # if we have a second argument and the first points to the
-  # deploy-airgap-upgrade script we set the env variable to
-  # make the test skip the "Cluster update in progress" check.
-  if [ $# -ge 2 ] && [ "$test_name" == "deploy-airgap-upgrade" ]; then
-    export SKIP_CLUSTER_UPGRADING_CHECK="$2"
-  fi
 
   export BASE_URL="http://10.0.0.2:30001"
   cd /automation/playwright
