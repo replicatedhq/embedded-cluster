@@ -210,7 +210,10 @@ func NewTestCluster(in *Input) *Output {
 	}
 	out.T.Cleanup(out.Destroy)
 
-	PullImage(in)
+	PullImage(in, in.Image)
+	if ProxyImage != in.Image {
+		PullImage(in, ProxyImage)
+	}
 	CreateProfile(in)
 	CreateNetworks(in)
 	out.Nodes = CreateNodes(in)
@@ -234,6 +237,7 @@ func NewTestCluster(in *Input) *Output {
 	return out
 }
 
+const ProxyImage = "debian/12"
 const HTTPProxy = "http://10.0.0.254:3128"
 const NOProxy = "10.0.0.0/8"
 
@@ -256,7 +260,7 @@ func CreateProxy(in *Input) string {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "debian/12",
+			Alias: ProxyImage,
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
@@ -740,7 +744,7 @@ func CreateProfile(in *Input) {
 }
 
 // PullImage pull the image used for the nodes.
-func PullImage(in *Input) {
+func PullImage(in *Input, image string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -750,15 +754,15 @@ func PullImage(in *Input) {
 		"https://images.lxd.canonical.com",
 		"https://cloud-images.ubuntu.com/minimal/releases",
 	} {
-		in.T.Logf("Pulling %q image from %s", in.Image, server)
+		in.T.Logf("Pulling %q image from %s", image, server)
 		remote, err := lxd.ConnectSimpleStreams(server, nil)
 		if err != nil {
 			in.T.Fatalf("Failed to connect to image server: %v", err)
 		}
 
-		alias, _, err := remote.GetImageAlias(in.Image)
+		alias, _, err := remote.GetImageAlias(image)
 		if err != nil {
-			in.T.Logf("Failed to get image alias %s on %s: %v", in.Image, server, err)
+			in.T.Logf("Failed to get image alias %s on %s: %v", image, server, err)
 			continue
 		}
 
@@ -780,5 +784,5 @@ func PullImage(in *Input) {
 		in.T.Logf("Failed to wait for image copy: %v", err)
 	}
 
-	in.T.Fatalf("Failed to pull image %s (tried in all servers)", in.Image)
+	in.T.Fatalf("Failed to pull image %s (tried in all servers)", image)
 }
