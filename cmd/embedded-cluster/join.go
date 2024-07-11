@@ -136,7 +136,7 @@ var joinCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
-			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
 			Hidden: true,
 		},
 		&cli.BoolFlag{
@@ -146,7 +146,7 @@ var joinCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
-			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Usage: "Skip host preflight checks. This is not recommended.",
 			Value: false,
 		},
 	},
