@@ -24,7 +24,22 @@ spec:
     - time: {}
     - ipv4Interfaces: {}
     - kernelConfigs: {}
+    - run:
+        collectorName: "ip-route-table"
+        command: "ip"
+        args: ["route"]
   analyzers:
+    - textAnalyze:
+        checkName: Default route
+        fileName: host-collectors/run-host/ip-route-table.txt
+        regex: "default"
+        outcomes:
+          - fail:
+              when: "false"
+              message: "No default route found. A default route is required for cluster initialization"
+          - pass:
+              when: "true"
+              message: "Host has default route"
     - cpu:
         checkName: 'Number of CPUs in the system'
         outcomes:
