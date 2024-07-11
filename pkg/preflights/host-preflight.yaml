@@ -39,7 +39,7 @@ spec:
               message: "No default route found. A default route is required for cluster initialization."
           - pass:
               when: "true"
-              message: "Host has default route"
+              message: "Host has a default route."
     - cpu:
         checkName: 'Number of CPUs in the system'
         outcomes:
