@@ -36,7 +36,7 @@ spec:
         outcomes:
           - fail:
               when: "false"
-              message: "No default route found. A default route is required for cluster initialization"
+              message: "No default route found. A default route is required for cluster initialization."
           - pass:
               when: "true"
               message: "Host has default route"
