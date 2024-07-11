@@ -7,7 +7,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -71,9 +71,9 @@ func Test_localMetadataFor(t *testing.T) {
 				Versions: map[string]string{
 					"EmbeddedClusterOperator": "v1.0.0",
 				},
-				BuiltinConfigs: map[string]v1beta1.HelmExtensions{
+				BuiltinConfigs: map[string]v1beta1.Helm{
 					"registry": {
-						Charts: v1beta1.ChartsSettings{
+						Charts: []v1beta1.Chart{
 							{
 								Name:   "docker-registry",
 								Values: "ha: false\n",
@@ -81,7 +81,7 @@ func Test_localMetadataFor(t *testing.T) {
 						},
 					},
 					"registry-ha": {
-						Charts: v1beta1.ChartsSettings{
+						Charts: []v1beta1.Chart{
 							{
 								Name:   "docker-registry",
 								Values: "ha: true\n",
@@ -117,9 +117,9 @@ func Test_localMetadataFor(t *testing.T) {
 				Versions: map[string]string{
 					"EmbeddedClusterOperator": "v1.0.0",
 				},
-				BuiltinConfigs: map[string]v1beta1.HelmExtensions{
+				BuiltinConfigs: map[string]v1beta1.Helm{
 					"registry": {
-						Charts: v1beta1.ChartsSettings{
+						Charts: []v1beta1.Chart{
 							{
 								Name:   "docker-registry",
 								Values: "ha: false\ntlsSecretName: registry-tls\n",
@@ -127,7 +127,7 @@ func Test_localMetadataFor(t *testing.T) {
 						},
 					},
 					"registry-ha": {
-						Charts: v1beta1.ChartsSettings{
+						Charts: []v1beta1.Chart{
 							{
 								Name:   "docker-registry",
 								Values: "ha: true\ntlsSecretName: registry-tls\n",

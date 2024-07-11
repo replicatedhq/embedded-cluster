@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/gosimple/slug"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
 	"gopkg.in/yaml.v2"
@@ -40,7 +39,7 @@ func LocalVersionMetadataConfigmap(version string) types.NamespacedName {
 
 // configureRegistryTLS makes sure that the docker-registry values contains an entry for the
 // tls secret. this function should be called only if the tls secret exists.
-func configureRegistryTLS(meta *ectypes.ReleaseMetadata, ext *k0sv1beta1.HelmExtensions) error {
+func configureRegistryTLS(meta *ectypes.ReleaseMetadata, ext *v1beta1.Helm) error {
 	for i, chart := range ext.Charts {
 		if chart.Name != "docker-registry" {
 			continue

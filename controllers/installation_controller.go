@@ -872,12 +872,18 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return fmt.Errorf("failed to apply user provided overrides: %w", err)
 	}
 
+	cfgs := &k0sv1beta1.HelmExtensions{}
+	cfgs, err = v1beta1.ConvertTo(*combinedConfigs, cfgs)
+	if err != nil {
+		return fmt.Errorf("failed to convert chart types: %w", err)
+	}
+
 	existingHelm := &k0sv1beta1.HelmExtensions{}
 	if clusterConfig.Spec != nil && clusterConfig.Spec.Extensions != nil && clusterConfig.Spec.Extensions.Helm != nil {
 		existingHelm = clusterConfig.Spec.Extensions.Helm
 	}
 
-	chartDrift, changedCharts, err := detectChartDrift(combinedConfigs, existingHelm)
+	chartDrift, changedCharts, err := detectChartDrift(cfgs, existingHelm)
 	if err != nil {
 		return fmt.Errorf("failed to check chart drift: %w", err)
 	}
@@ -931,7 +937,7 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 	}
 
 	// Replace the current chart configs with the new chart configs
-	clusterConfig.Spec.Extensions.Helm = combinedConfigs
+	clusterConfig.Spec.Extensions.Helm = cfgs
 	in.Status.SetState(v1beta1.InstallationStateAddonsInstalling, "Installing addons", nil)
 	log.Info("Updating cluster config with new helm charts", "updated charts", changedCharts)
 	//Update the clusterConfig

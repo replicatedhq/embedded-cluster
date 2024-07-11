@@ -76,8 +76,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
-							Helm: &k0sv1beta1.HelmExtensions{
-								Charts: []k0sv1beta1.Chart{
+							Helm: &v1beta1.Helm{
+								Charts: []v1beta1.Chart{
 									{
 										Name:    "extchart",
 										Version: "2",
@@ -102,8 +102,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
-							Helm: &k0sv1beta1.HelmExtensions{
-								Charts: []k0sv1beta1.Chart{
+							Helm: &v1beta1.Helm{
+								Charts: []v1beta1.Chart{
 									{
 										Name:    "extchart",
 										Version: "2",
@@ -119,8 +119,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				Reason: "Addons upgraded",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -177,8 +177,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
-							Helm: &k0sv1beta1.HelmExtensions{
-								Charts: []k0sv1beta1.Chart{
+							Helm: &v1beta1.Helm{
+								Charts: []v1beta1.Chart{
 									{
 										Name:    "extchart",
 										Version: "2",
@@ -194,8 +194,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				Reason: "failed to update helm charts: exterror",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -258,8 +258,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				Reason: "failed to update helm charts: metaerror",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -305,8 +305,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
-							Helm: &k0sv1beta1.HelmExtensions{
-								Charts: []k0sv1beta1.Chart{
+							Helm: &v1beta1.Helm{
+								Charts: []v1beta1.Chart{
 									{
 										Name:    "extchart",
 										Version: "2",
@@ -321,8 +321,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				State: v1beta1.InstallationStateAddonsInstalling,
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -354,8 +354,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
-							Helm: &k0sv1beta1.HelmExtensions{
-								Charts: []k0sv1beta1.Chart{
+							Helm: &v1beta1.Helm{
+								Charts: []v1beta1.Chart{
 									{
 										Name:    "extchart",
 										Version: "2",
@@ -371,8 +371,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				Reason: "Installing addons",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -423,8 +423,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
-							Helm: &k0sv1beta1.HelmExtensions{
-								Charts: []k0sv1beta1.Chart{
+							Helm: &v1beta1.Helm{
+								Charts: []v1beta1.Chart{
 									{
 										Name:    "extchart",
 										Version: "2",
@@ -440,8 +440,8 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				Reason: "Addons upgraded",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "admin-console",
 							Version: "1",
@@ -543,8 +543,8 @@ password: frommeta`,
 					Config: &v1beta1.ConfigSpec{
 						Version: "goodver",
 						Extensions: v1beta1.Extensions{
-							Helm: &k0sv1beta1.HelmExtensions{
-								Charts: []k0sv1beta1.Chart{
+							Helm: &v1beta1.Helm{
+								Charts: []v1beta1.Chart{
 									{
 										Name:    "extchart",
 										Version: "2",
@@ -560,8 +560,8 @@ password: frommeta`,
 				Reason: "Installing addons",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -644,8 +644,8 @@ password: original`,
 				PendingCharts: []string{"metachart"},
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -704,8 +704,8 @@ password: original`,
 				PendingCharts: []string{"metachart"},
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -766,8 +766,8 @@ password: original`,
 				Reason: "Installing addons",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
@@ -829,8 +829,8 @@ password: original`,
 				Reason: "Addons upgraded",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
-				Configs: k0sv1beta1.HelmExtensions{
-					Charts: []k0sv1beta1.Chart{
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
 						{
 							Name:    "metachart",
 							Version: "1",
