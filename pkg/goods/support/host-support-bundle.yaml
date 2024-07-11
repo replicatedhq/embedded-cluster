@@ -40,6 +40,10 @@ spec:
       collectorName: k0scontroller-logs
       command: journalctl
       args: [ "--since", "2 days ago", "--no-pager", "-u", "k0scontroller.service" ]
+  - run:
+      collectorName: k0s-images-dir
+      command: ls
+      args: [ "-alh", "/var/lib/k0s/images" ]
   hostAnalyzers:
   - ipv4Interfaces:
       outcomes:
