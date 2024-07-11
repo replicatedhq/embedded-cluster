@@ -529,10 +529,18 @@ func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd stri
 }
 
 func askAdminConsolePassword(c *cli.Context) (string, error) {
-	defaultPass := "password"
+	defaultPassword := "password"
+	userProvidedPassword := c.String("admin-console-password")
 	if c.Bool("no-prompt") {
-		logrus.Infof("The Admin Console password is set to %s", defaultPass)
-		return defaultPass, nil
+		if userProvidedPassword != "" {
+			return userProvidedPassword, nil
+		} else {
+			logrus.Infof("The Admin Console password is set to %s", defaultPassword)
+			return defaultPassword, nil
+		}
+	}
+	if userProvidedPassword != "" {
+		return userProvidedPassword, nil
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
@@ -565,6 +573,11 @@ var installCommand = &cli.Command{
 	},
 	Flags: []cli.Flag{
 		&cli.StringFlag{
+			Name:   "admin-console-password",
+			Usage:  "Password for the Admin Console",
+			Hidden: false,
+		},
+		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
 			Hidden: true,
@@ -580,11 +593,10 @@ var installCommand = &cli.Command{
 			Hidden: false,
 		},
 		&cli.StringFlag{
-			Name:     "license",
-			Aliases:  []string{"l"},
-			Usage:    "Path to the license file",
-			Hidden:   false,
-			Required: true,
+			Name:    "license",
+			Aliases: []string{"l"},
+			Usage:   "Path to the license file",
+			Hidden:  false,
 		},
 		&cli.BoolFlag{
 			Name:  "no-prompt",
