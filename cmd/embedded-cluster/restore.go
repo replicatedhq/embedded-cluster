@@ -923,12 +923,12 @@ var restoreCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:   "pod-cidr",
-			Usage:  "pod CIDR range to use for the installation",
+			Usage:  "IP address range for pods. Must match range provided during install.",
 			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "service-cidr",
-			Usage:  "service CIDR range to use for the installation",
+			Usage:  "IP address range for services. Must match range provided during install.",
 			Hidden: false,
 		},
 		&cli.BoolFlag{

@@ -564,22 +564,6 @@ var installCommand = &cli.Command{
 		return nil
 	},
 	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "no-prompt",
-			Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
-			Value: false,
-		},
-		&cli.StringFlag{
-			Name:   "overrides",
-			Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:    "license",
-			Aliases: []string{"l"},
-			Usage:   "Path to the license file",
-			Hidden:  false,
-		},
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
 			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
@@ -596,19 +580,36 @@ var installCommand = &cli.Command{
 			Hidden: false,
 		},
 		&cli.StringFlag{
+			Name:     "license",
+			Aliases:  []string{"l"},
+			Usage:    "Path to the license file",
+			Hidden:   false,
+			Required: true,
+		},
+		&cli.BoolFlag{
+			Name:  "no-prompt",
+			Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
+			Value: false,
+		},
+		&cli.StringFlag{
 			Name:   "no-proxy",
 			Usage:  "Comma-separated list of hosts for which not to use a proxy",
 			Hidden: false,
 		},
-		&cli.BoolFlag{
-			Name:   "proxy",
-			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
+		&cli.StringFlag{
+			Name:   "overrides",
+			Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
 			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "pod-cidr",
 			Usage:  "IP address range for pods",
 			Hidden: false,
+		},
+		&cli.BoolFlag{
+			Name:   "proxy",
+			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
+			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "service-cidr",
