@@ -525,9 +525,11 @@ func TestResetAndReinstall(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0 after reset", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-install.sh", "ui"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	stdout, _, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
+	t.Log(stdout)
 
 	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)

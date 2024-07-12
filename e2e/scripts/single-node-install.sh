@@ -340,6 +340,13 @@ main() {
         echo "Failed to get status of embedded-cluster service"
         exit 1
     fi
+
+    echo "kotsadm logs"
+    kubectl logs -n kotsadm -l app=kotsadm --tail=50
+    kubectl logs -n kotsadm -l app=kotsadm --tail=50 --previous
+
+    echo "all pods"
+    kubectl get pods -A
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
