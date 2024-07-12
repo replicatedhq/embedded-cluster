@@ -132,7 +132,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		if len(output.Fail) == 1 {
 			s = "failure"
 		}
-		msg := fmt.Sprintf("Host preflights have %d %s", len(output.Fail), s)
+		msg := fmt.Sprintf("%d host preflight %s", len(output.Fail), s)
 		if output.HasWarn() {
 			s = "warnings"
 			if len(output.Warn) == 1 {
@@ -144,7 +144,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		pb.Errorf(msg)
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return fmt.Errorf("preflights haven't passed on the host")
+		return fmt.Errorf("host preflights failed")
 	}
 
 	// Warnings found
@@ -153,7 +153,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		if len(output.Warn) == 1 {
 			s = "warning"
 		}
-		pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
+		pb.Warnf("%d host preflight %s", len(output.Warn), s)
 		if c.Bool("no-prompt") {
 			// We have warnings but we are not in interactive mode
 			// so we just print the warnings and continue
