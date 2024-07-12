@@ -1702,7 +1702,8 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	skipClusterUpgradeCheck := "true"
+	testArgs := []string{appUpgradeVersion, skipClusterUpgradeCheck}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
