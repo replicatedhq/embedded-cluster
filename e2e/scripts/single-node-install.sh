@@ -342,8 +342,9 @@ main() {
     fi
 
     echo "kotsadm logs"
-    kubectl logs -n kotsadm -l app=kotsadm --tail=50
-    kubectl logs -n kotsadm -l app=kotsadm --tail=50 --previous
+    kubectl logs -n kotsadm -l app=kotsadm --tail=50 || true
+    echo "previous kotsadm logs"
+    kubectl logs -n kotsadm -l app=kotsadm --tail=50 --previous || true
 
     echo "all pods"
     kubectl get pods -A
