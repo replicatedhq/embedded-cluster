@@ -83,6 +83,7 @@ jobs:
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "appver-${SHORT_SHA}-pre-minio-removal"
           
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}"
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}-noop"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "appver-${SHORT_SHA}-upgrade"
       - name: Build CI binary
         run: |
@@ -179,6 +180,7 @@ jobs:
           - TestMultiNodeAirgapHADisasterRecovery
           - TestCustomCIDR
           - TestProxiedCustomCIDR
+          - TestSingleNodeInstallationNoopUpgrade
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
