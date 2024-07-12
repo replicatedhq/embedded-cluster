@@ -27,10 +27,10 @@ test('deploy upgrade', async ({ page }) => {
   await expect(page.locator('.Modal-body').getByText('Cluster update in progress')).not.toBeVisible({ timeout: 10 * 60 * 1000 });
   // wait for the page to refresh after cluster update
   await page.waitForTimeout(5000);
-  await expect(page.locator('.available-update-row', { hasText: 'appver-dev-3f50304-upgrade' })).not.toBeVisible();
-  await expect(page.locator('.VersionHistoryRow', { hasText: 'appver-dev-3f50304' })).toContainText('Currently deployed version', { timeout: 30 * 1000 });
+  await expect(page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION })).not.toBeVisible();
+  await expect(page.locator('.VersionHistoryRow', { hasText: process.env.APP_UPGRADE_VERSION })).toContainText('Currently deployed version', { timeout: 30 * 1000 });
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
-  await expect(page.locator('.VersionCard-content--wrapper')).toContainText('appver-dev-3f50304');
+  await expect(page.locator('.VersionCard-content--wrapper')).toContainText(process.env.APP_UPGRADE_VERSION);
   await expect(page.locator('#app')).toContainText('Currently deployed version');
   await expect(page.locator('#app')).toContainText('Ready', { timeout: 30 * 1000 });
   await expect(page.locator('#app')).toContainText('Up to date');
