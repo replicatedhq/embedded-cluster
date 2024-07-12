@@ -420,7 +420,7 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 
 		if podCIDR != "" || serviceCIDR != "" {
 			if podCIDR != net.PodCIDR || serviceCIDR != net.ServiceCIDR {
-				return false, fmt.Sprintf("has a different network configuration than the current cluster, please run with '--pod-cidr %s --service-cidr %s'", podCIDR, serviceCIDR)
+				return false, fmt.Sprintf("has a different network configuration than the current cluster. Please rerun with '--pod-cidr %s --service-cidr %s'.", podCIDR, serviceCIDR)
 			}
 		}
 	}
