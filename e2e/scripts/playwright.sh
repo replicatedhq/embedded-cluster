@@ -17,9 +17,7 @@ main() {
     export DR_AWS_SECRET_ACCESS_KEY="$7"
   elif [ "$test_name" == "deploy-upgrade" ]; then
     export APP_UPGRADE_VERSION="$2"
-    if [ -n "$3" ]; then
-      export SKIP_CLUSTER_UPGRADE_CHECK="$3"
-    fi
+    export SKIP_CLUSTER_UPGRADE_CHECK="${3:-}"
   fi
 
   export BASE_URL="http://10.0.0.2:30001"
