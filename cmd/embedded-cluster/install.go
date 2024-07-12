@@ -109,7 +109,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	}
 	pb := spinner.Start()
 	if c.Bool("skip-host-preflights") {
-		pb.Infof("Skipping host preflights")
+		pb.Infof("Host preflights skipped")
 		pb.Close()
 		return nil
 	}
@@ -117,7 +117,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		pb.CloseWithError()
-		return fmt.Errorf("host preflights failed: %w", err)
+		return fmt.Errorf("host preflights failed to run: %w", err)
 	}
 
 	err = output.SaveToDisk()
@@ -144,7 +144,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		pb.Errorf(msg)
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return fmt.Errorf("host preflights failed")
+		return fmt.Errorf("host preflight failures detected")
 	}
 
 	// Warnings found
@@ -674,7 +674,6 @@ var installCommand = &cli.Command{
 		}
 		logrus.Debugf("running host preflights")
 		if err := RunHostPreflights(c); err != nil {
-			err := fmt.Errorf("unable to finish preflight checks: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
