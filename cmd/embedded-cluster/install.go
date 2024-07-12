@@ -109,7 +109,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	}
 	pb := spinner.Start()
 	if c.Bool("skip-host-preflights") {
-		pb.Infof("Skipping host preflights")
+		pb.Infof("Host preflights skipped")
 		pb.Close()
 		return nil
 	}
@@ -117,7 +117,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		pb.CloseWithError()
-		return fmt.Errorf("host preflights failed: %w", err)
+		return fmt.Errorf("host preflights failed to run: %w", err)
 	}
 
 	err = output.SaveToDisk()
@@ -128,32 +128,28 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 
 	// Failures found
 	if output.HasFail() {
-		s := "failures"
+		s := "preflights"
 		if len(output.Fail) == 1 {
-			s = "failure"
+			s = "preflight"
 		}
-		msg := fmt.Sprintf("Host preflights have %d %s", len(output.Fail), s)
+		msg := fmt.Sprintf("%d host %s failed", len(output.Fail), s)
 		if output.HasWarn() {
-			s = "warnings"
-			if len(output.Warn) == 1 {
-				s = "warning"
-			}
-			msg += fmt.Sprintf(" and %d %s", len(output.Warn), s)
+			msg += fmt.Sprintf(" and %d warned", len(output.Warn))
 		}
 
 		pb.Errorf(msg)
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return fmt.Errorf("preflights haven't passed on the host")
+		return fmt.Errorf("host preflight failures detected")
 	}
 
 	// Warnings found
 	if output.HasWarn() {
-		s := "warnings"
+		s := "preflights"
 		if len(output.Warn) == 1 {
-			s = "warning"
+			s = "preflight"
 		}
-		pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
+		pb.Warnf("%d host %s warned", len(output.Warn), s)
 		if c.Bool("no-prompt") {
 			// We have warnings but we are not in interactive mode
 			// so we just print the warnings and continue
@@ -674,7 +670,6 @@ var installCommand = &cli.Command{
 		}
 		logrus.Debugf("running host preflights")
 		if err := RunHostPreflights(c); err != nil {
-			err := fmt.Errorf("unable to finish preflight checks: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
