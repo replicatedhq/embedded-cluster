@@ -33,7 +33,8 @@ test('deploy upgrade', async ({ page }) => {
   }
 
   await expect(page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION })).not.toBeVisible({ timeout: 10 * 1000 });
-  await expect(page.locator('.VersionHistoryRow', { hasText: process.env.APP_UPGRADE_VERSION })).toContainText('Currently deployed version', { timeout: 30 * 1000 });
+  await expect(page.locator('.VersionHistoryRow', { hasText: process.env.APP_UPGRADE_VERSION })).toContainText('Deploying');
+  await expect(page.locator('.VersionHistoryRow', { hasText: process.env.APP_UPGRADE_VERSION })).toContainText('Currently deployed version', { timeout: 90 * 1000 });
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
   await expect(page.locator('.VersionCard-content--wrapper')).toContainText(process.env.APP_UPGRADE_VERSION);
   await expect(page.locator('#app')).toContainText('Currently deployed version');
