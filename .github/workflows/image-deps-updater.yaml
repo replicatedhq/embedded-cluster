@@ -41,7 +41,5 @@ jobs:
       uses: ./.github/actions/build-dep-image-with-apko
       with:
         apko-config: deploy/images/calico-node/apko.yaml
-        image-name: registry.staging.replicated.com/ec/calico-node:${{ steps.get-tags.outputs.calico-tag }}
-        registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
-        registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
+        image-name: ttl.sh/ec/calico-node:${{ steps.get-tags.outputs.calico-tag }}
         overwrite: ${{ github.event.inputs.overwrite }}
