@@ -1,16 +1,100 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/google/go-github/v62/github"
 	"github.com/sirupsen/logrus"
 )
+
+const (
+	wolfiAPKIndexURL = "https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz"
+)
+
+func GetWolfiAPKIndex() ([]byte, error) {
+	tmpdir, err := os.MkdirTemp("", "wolfi-apk-index")
+	if err != nil {
+		return nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	if err := DownloadFile(wolfiAPKIndexURL, filepath.Join(tmpdir, "APKINDEX.tar.gz")); err != nil {
+		return nil, fmt.Errorf("download APKINDEX.tar.gz: %w", err)
+	}
+	if err := ExtractTGZArchive(filepath.Join(tmpdir, "APKINDEX.tar.gz"), tmpdir); err != nil {
+		return nil, fmt.Errorf("extract APKINDEX.tar.gz: %w", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(tmpdir, "APKINDEX"))
+	if err != nil {
+		return nil, fmt.Errorf("read APKINDEX: %w", err)
+	}
+	return contents, nil
+}
+
+func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion string) (string, error) {
+	// example APKINDEX content:
+	// P:calico-node
+	// V:3.26.1-r1
+	// ...
+	//
+	// P:calico-node
+	// V:3.26.1-r10
+	// ...
+	//
+	// P:calico-node
+	// V:3.26.1-r9
+	// ...
+
+	var revisions []int
+	scanner := bufio.NewScanner(bytes.NewReader(wolfiAPKIndex))
+	for scanner.Scan() {
+		line := scanner.Text()
+		// filter by package name
+		if !strings.HasPrefix(line, "P:"+pkgName) {
+			continue
+		}
+		scanner.Scan()
+		line = scanner.Text()
+		// filter by package version
+		if !strings.HasPrefix(line, "V:"+pinnedVersion+"-r") {
+			continue
+		}
+		// find the revision number
+		parts := strings.Split(line, "-r")
+		if len(parts) != 2 {
+			return "", fmt.Errorf("incorrect number of parts in APKINDEX line: %s", line)
+		}
+		revision, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return "", fmt.Errorf("parse revision: %w", err)
+		}
+		revisions = append(revisions, revision)
+	}
+
+	if len(revisions) == 0 {
+		return "", fmt.Errorf("package %q not found", pkgName)
+	}
+
+	// get the latest revision
+
+	sort.Slice(revisions, func(i, j int) bool {
+		return revisions[i] > revisions[j]
+	})
+
+	return fmt.Sprintf("%s-r%d", pinnedVersion, revisions[0]), nil
+}
 
 func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {
 	client := github.NewClient(nil)
@@ -158,5 +242,79 @@ func MirrorChart(repo, name, ver string) error {
 	}
 	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
 	logrus.Infof("pushed openebs chart: %s", remote)
+	return nil
+}
+
+func DownloadFile(url, dest string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("unable to get %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("unable to create %s: %w", dest, err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func ExtractTGZArchive(tgzFile string, destDir string) error {
+	fileReader, err := os.Open(tgzFile)
+	if err != nil {
+		return fmt.Errorf("open tgz file %q: %w", tgzFile, err)
+	}
+	defer fileReader.Close()
+
+	gzReader, err := gzip.NewReader(fileReader)
+	if err != nil {
+		return fmt.Errorf("create gzip reader: %w", err)
+	}
+	defer gzReader.Close()
+
+	tarReader := tar.NewReader(gzReader)
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read tar data: %w", err)
+		}
+
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		err = func() error {
+			fileName := filepath.Join(destDir, hdr.Name)
+
+			parentDir := filepath.Dir(fileName)
+			err := os.MkdirAll(parentDir, 0755)
+			if err != nil {
+				return fmt.Errorf("create directory %q: %w", parentDir, err)
+			}
+
+			fileWriter, err := os.Create(fileName)
+			if err != nil {
+				return fmt.Errorf("create file %q: %w", hdr.Name, err)
+			}
+			defer fileWriter.Close()
+
+			_, err = io.Copy(fileWriter, tarReader)
+			if err != nil {
+				return fmt.Errorf("write file %q: %w", hdr.Name, err)
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
