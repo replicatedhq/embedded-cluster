@@ -1,10 +1,15 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -158,5 +163,69 @@ func MirrorChart(repo, name, ver string) error {
 	}
 	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
 	logrus.Infof("pushed openebs chart: %s", remote)
+	return nil
+}
+
+func DownloadFile(url, dest string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("unable to get %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("unable to create %s: %w", dest, err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func ExtractTarGz(src string, dest string) error {
+	f, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("unable to open %s: %w", src, err)
+	}
+	defer f.Close()
+
+	uncompressedStream, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("unable to create gzip reader: %w", err)
+	}
+	defer uncompressedStream.Close()
+
+	tarReader := tar.NewReader(uncompressedStream)
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("unable to read tar header: %w", err)
+		}
+
+		target := filepath.Join(dest, header.Name)
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0755); err != nil {
+				return fmt.Errorf("unable to create directory: %w", err)
+			}
+		case tar.TypeReg:
+			outFile, err := os.Create(target)
+			if err != nil {
+				return fmt.Errorf("unable to create file: %w", err)
+			}
+			if _, err := io.Copy(outFile, tarReader); err != nil {
+				outFile.Close()
+				return fmt.Errorf("unable to copy file: %w", err)
+			}
+			outFile.Close()
+		default:
+			return fmt.Errorf("unknown type: %v in %s", header.Typeflag, header.Name)
+		}
+	}
 	return nil
 }

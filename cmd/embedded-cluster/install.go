@@ -319,6 +319,9 @@ func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
+	if err := config.OverrideK0sImages(cfg); err != nil {
+		return nil, fmt.Errorf("unable to override k0s images: %w", err)
+	}
 	if c.String("pod-cidr") != "" {
 		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	}
