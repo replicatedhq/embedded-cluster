@@ -4,7 +4,7 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
-    - calico-node=__CALICO_VERSION__
+    - calico-node=__CALICO_NODE_VERSION__
 
 accounts:
   groups:

@@ -29,19 +29,19 @@ jobs:
         curl -LO --fail --show-error https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
         tar -xzvf APKINDEX.tar.gz
 
-        calico_version=$(< APKINDEX grep -A1 "^P:calico$" | tail -n 1 | sed -n -e 's/V://p' | tr -d '\n')
+        calico_node_version=$(< APKINDEX grep -A1 "^P:calico-node" | tail -n 1 | sed -n -e 's/V://p' | tr -d '\n')
 
-        sed "s/__CALICO_VERSION__/$calico_version/g" deploy/images/calico-node/apko.tmpl.yaml > deploy/images/calico-node/apko.yaml
+        sed "s/__CALICO_NODE_VERSION__/$calico_node_version/g" deploy/images/calico-node/apko.tmpl.yaml > deploy/images/calico-node/apko.yaml
 
         {
-          echo "calico-tag=$calico_version"
+          echo "calico-node-tag=$calico_node_version"
         } >> "$GITHUB_OUTPUT"
 
     - name: Build and push calico-node image
       uses: ./.github/actions/build-dep-image-with-apko
       with:
         apko-config: deploy/images/calico-node/apko.yaml
-        image-name: ttl.sh/ec/calico-node:${{ steps.get-tags.outputs.calico-tag }}
+        image-name: ttl.sh/ec/calico-node:${{ steps.get-tags.outputs.calico-node-tag }}
         # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
         # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
         overwrite: true # ${{ github.event.inputs.overwrite }}
