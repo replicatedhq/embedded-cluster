@@ -146,6 +146,9 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 
 	// Render k0s config to get the images contained within
 	k0sConfig := config.RenderK0sConfig()
+	if err := config.OverrideK0sImages(k0sConfig); err != nil {
+		return nil, fmt.Errorf("unable to override k0s images: %w", err)
+	}
 	meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
 
 	additionalImages, err := applier.GetAdditionalImages()
