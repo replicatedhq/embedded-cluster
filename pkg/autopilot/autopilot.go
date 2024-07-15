@@ -47,3 +47,29 @@ func HasThePlanEnded(plan v1beta2.Plan) bool {
 	}
 	return true
 }
+
+// HasPlanSucceeded returns true if the plan has been completed successfully.
+func HasPlanSucceeded(plan v1beta2.Plan) bool {
+	return plan.Status.State == core.PlanCompleted
+}
+
+// HasPlanFailed returns true if the plan has failed.
+func HasPlanFailed(plan v1beta2.Plan) bool {
+	switch plan.Status.State {
+	case core.PlanIncompleteTargets:
+		return true
+	case core.PlanInconsistentTargets:
+		return true
+	case core.PlanRestricted:
+		return true
+	case core.PlanWarning:
+		return true
+	case core.PlanMissingSignalNode:
+		return true
+	case core.PlanApplyFailed:
+		return true
+	default:
+		// unknown state
+		return HasThePlanEnded(plan) && !HasPlanSucceeded(plan)
+	}
+}

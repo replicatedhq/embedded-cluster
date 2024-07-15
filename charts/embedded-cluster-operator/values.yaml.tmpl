@@ -8,8 +8,8 @@ embeddedBinaryName: v0.0.0
 embeddedClusterID: 123456789
 
 image:
-  repository: ${OPERATOR_REGISTRY}/library/embedded-cluster-operator-image
-  tag: ${OPERATOR_TAG}
+  repository: ${OPERATOR_IMAGE_NAME}
+  tag: ${OPERATOR_IMAGE_TAG}
   pullPolicy: IfNotPresent
 
 kubeProxyImage: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1

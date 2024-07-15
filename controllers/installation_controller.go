@@ -18,11 +18,8 @@ package controllers
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -46,9 +43,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/artifacts"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/autopilot"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/charts"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/openebs"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
@@ -67,65 +65,8 @@ const HAConditionType = "HighAvailability"
 // interval.
 var requeueAfter = time.Hour
 
-const copyArtifactsJobPrefix = "copy-artifacts-"
 const copyHostPreflightResultsJobPrefix = "copy-host-preflight-results-"
 const ecNamespace = "embedded-cluster"
-
-// copyArtifactsJob is a job we create everytime we need to sync files into all nodes.
-// This job mounts /var/lib/embedded-cluster from the node and uses binaries that are
-// present there. This is not yet a complete version of the job as it misses some env
-// variables and a node selector, those are populated during the reconcile cycle.
-var copyArtifactsJob = &batchv1.Job{
-	ObjectMeta: metav1.ObjectMeta{
-		Namespace: ecNamespace,
-	},
-	Spec: batchv1.JobSpec{
-		BackoffLimit: ptr.To[int32](2),
-		Template: corev1.PodTemplateSpec{
-			Spec: corev1.PodSpec{
-				ServiceAccountName: "embedded-cluster-operator",
-				Volumes: []corev1.Volume{
-					{
-						Name: "host",
-						VolumeSource: corev1.VolumeSource{
-							HostPath: &corev1.HostPathVolumeSource{
-								Path: "/var/lib/embedded-cluster",
-								Type: ptr.To[corev1.HostPathType]("Directory"),
-							},
-						},
-					},
-				},
-				RestartPolicy: corev1.RestartPolicyNever,
-				Containers: []corev1.Container{
-					{
-						Name:  "embedded-cluster-updater",
-						Image: "busybox:latest",
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								Name:      "host",
-								MountPath: "/var/lib/embedded-cluster",
-								ReadOnly:  false,
-							},
-						},
-						Command: []string{
-							"/bin/sh",
-							"-e",
-							"-c",
-							"/var/lib/embedded-cluster/bin/local-artifact-mirror pull binaries $INSTALLATION\n" +
-								"/var/lib/embedded-cluster/bin/local-artifact-mirror pull images $INSTALLATION\n" +
-								"/var/lib/embedded-cluster/bin/local-artifact-mirror pull helmcharts $INSTALLATION\n" +
-								"mv /var/lib/embedded-cluster/bin/k0s /var/lib/embedded-cluster/bin/k0s-upgrade\n" +
-								"rm /var/lib/embedded-cluster/images/images-amd64-* || true\n" +
-								"cd /var/lib/embedded-cluster/images/\n" +
-								"mv images-amd64.tar images-amd64-${INSTALLATION}.tar\n" +
-								"echo 'done'",
-						},
-					},
-				},
-			},
-		},
-	},
-}
 
 // copyHostPreflightResultsJob is a job we create everytime we need to copy
 // host preflight results from a newly added node in the cluster. Host preflight
@@ -328,216 +269,13 @@ func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, 
 	}
 }
 
-// HashForAirgapConfig generates a hash for the airgap configuration. We can use this to detect config changes between
-// different reconcile cycles.
-func (r *InstallationReconciler) HashForAirgapConfig(in *v1beta1.Installation) (string, error) {
-	data, err := json.Marshal(in.Spec.Artifacts)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal artifacts location: %w", err)
-	}
-	hash := fmt.Sprintf("%x", sha256.Sum256(data))
-	return hash[:10], nil
-}
-
-// CreateArtifactJobForNode creates a job to copy assets from the internal registry. This jobs runs in the provided node.
-func (r *InstallationReconciler) CreateArtifactJobForNode(ctx context.Context, in *v1beta1.Installation, node corev1.Node) error {
-	log := ctrl.LoggerFrom(ctx)
-
-	log.Info("Creating artifact job for node", "node", node.Name, "installation", in.Name)
-
-	hash, err := r.HashForAirgapConfig(in)
-	if err != nil {
-		return fmt.Errorf("failed to hash airgap config: %w", err)
-	}
-
-	labels := map[string]string{
-		"embedded-cluster/installation":          in.Name,
-		"embedded-cluster/artifacts-config-hash": hash,
-	}
-	job := copyArtifactsJob.DeepCopy()
-	job.Name = util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name)
-
-	job.Spec.Template.Labels, job.Labels = labels, labels
-	job.Spec.Template.Spec.NodeName = node.Name
-	job.Spec.Template.Spec.Containers[0].Env = append(
-		job.Spec.Template.Spec.Containers[0].Env,
-		corev1.EnvVar{Name: "INSTALLATION", Value: in.Name},
-	)
-
-	// overrides the job image if the environment says so.
-	if img := os.Getenv("EMBEDDEDCLUSTER_UTILS_IMAGE"); img != "" {
-		job.Spec.Template.Spec.Containers[0].Image = img
-	}
-
-	err = ctrl.SetControllerReference(in, job, r.Client.Scheme())
-	if err != nil {
-		return fmt.Errorf("failed to set controller reference: %w", err)
-	}
-
-	if err := r.Create(ctx, job); err != nil {
-		return fmt.Errorf("failed to create job: %w", err)
-	}
-	log.Info("Artifact job for node created", "node", node.Name, "installation", in.Name)
-	return nil
-}
-
-// CopyVersionMetadataToCluster makes sure a config map with the embedded cluster version metadata exists in the
-// cluster. The data is read from the internal registry on the repository pointed by EmbeddedClusterMetadata.
-func (r *InstallationReconciler) CopyVersionMetadataToCluster(ctx context.Context, in *v1beta1.Installation) error {
-	log := ctrl.LoggerFrom(ctx)
-
-	// if there is no configuration, no version inside the configuration or the no artifacts location
-	// we log and skip as we can't determine for which version nor from where to retrieve the version
-	// metadata.
-	if in.Spec.Artifacts == nil || in.Spec.Config == nil || in.Spec.Config.Version == "" {
-		log.Info("Skipping version metadata copy to cluster", "installation", in.Name)
-		return nil
-	}
-
-	// let's first verify if we haven't yet fetched the metadata for the specified version. if we found
-	// the config map then it means we have already copied the data to the cluster and we can move on.
-	nsn := release.LocalVersionMetadataConfigmap(in.Spec.Config.Version)
-	var cm corev1.ConfigMap
-	if err := r.Get(ctx, nsn, &cm); err == nil {
-		return nil
-	} else if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get version metadata configmap: %w", err)
-	}
-
-	// pull the artifact from the artifact location pointed by EmbeddedClusterMetadata. This property
-	// points to a repository inside the registry running on the cluster.
-	location, err := artifacts.Pull(ctx, log, r.Client, in.Spec.Artifacts.EmbeddedClusterMetadata)
-	if err != nil {
-		return fmt.Errorf("failed to pull version metadata: %w", err)
-	}
-	defer os.RemoveAll(location)
-
-	// now that we have the metadata locally we can reads its information and create the config map.
-	fpath := filepath.Join(location, "version-metadata.json")
-	data, err := os.ReadFile(fpath)
-	if err != nil {
-		return fmt.Errorf("failed to read version metadata: %w", err)
-	}
-
-	cm.Name = nsn.Name
-	cm.Namespace = nsn.Namespace
-	cm.Data = map[string]string{"metadata.json": string(data)}
-	if err := r.Create(ctx, &cm); err != nil {
-		return fmt.Errorf("failed to create version metadata configmap: %w", err)
-	}
-	return nil
-}
-
-// CopyArtifactsToNodes copies the installation artifacts to the nodes in the cluster.
-// This is done by creating a job for each node in the cluster, which will pull the
-// artifacts from the internal registry.
-func (r *InstallationReconciler) CopyArtifactsToNodes(ctx context.Context, in *v1beta1.Installation) (bool, error) {
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("Evaluating jobs for copying artifacts to nodes", "installation", in.Name)
-	if in.Spec.Artifacts == nil {
-		in.Status.State = v1beta1.InstallationStateFailed
-		in.Status.Reason = "Artifacts locations not specified for an airgap installation"
-		return false, nil
-	}
-
-	var nodes corev1.NodeList
-	if err := r.List(ctx, &nodes); err != nil {
-		return false, fmt.Errorf("failed to list nodes: %w", err)
-	}
-
-	// generate a hash of the current config so we can detect config changes.
-	cfghash, err := r.HashForAirgapConfig(in)
-	if err != nil {
-		return false, fmt.Errorf("failed to hash airgap config: %w", err)
-	}
-
-	status := map[string]string{}
-	ready := true
-	for _, node := range nodes.Items {
-		log.Info("Evaluating job for node", "node", node.Name)
-		nsn := types.NamespacedName{
-			Name:      util.NameWithLengthLimit(copyArtifactsJobPrefix, node.Name),
-			Namespace: ecNamespace,
-		}
-
-		// we first verify if a job already exists for the node, if not then one is
-		// created and we move to the next node.
-		var job batchv1.Job
-		if err := r.Get(ctx, nsn, &job); err != nil {
-			if !errors.IsNotFound(err) {
-				return false, fmt.Errorf("failed to get job: %w", err)
-			}
-			ready = false
-			status[node.Name] = "JobCreated"
-			log.Info("No job for node found", "node", node.Name)
-			if err := r.CreateArtifactJobForNode(ctx, in, node); err != nil {
-				return false, fmt.Errorf("failed to create job for node: %w", err)
-			}
-			continue
-		}
-
-		// we need to check if the job is for the given installation otherwise we delete
-		// it. we also need to check if the configuration has changed. this will trigger
-		// a new reconcile cycle.
-		oldjob := job.Labels["embedded-cluster/installation"] != in.Name
-		newcfg := job.Labels["embedded-cluster/artifacts-config-hash"] != cfghash
-		if oldjob || newcfg {
-			log.Info("Deleting previous job", "oldJob", oldjob, "configchange", newcfg)
-			ready = false
-			status[node.Name] = "WaitingPreviousJobDeletion"
-			policy := metav1.DeletePropagationForeground
-			opt := &client.DeleteOptions{PropagationPolicy: &policy}
-			if err := r.Delete(ctx, &job, opt); err != nil {
-				return false, fmt.Errorf("failed to delete old job: %w", err)
-			}
-			continue
-		}
-
-		// from now on we know we analysing the correct job for the installation.
-		if job.Status.Succeeded > 0 {
-			status[node.Name] = "JobSucceeded"
-			log.Info("Job for node succeeded", "node", node.Name)
-			continue
-		}
-
-		ready = false
-		status[node.Name] = "JobRunning"
-		for _, cond := range job.Status.Conditions {
-			if cond.Type != batchv1.JobFailed {
-				continue
-			}
-			if cond.Status != corev1.ConditionTrue {
-				continue
-			}
-			log.Info("Job for node found in a faulty state", "node", node.Name)
-			status[node.Name] = fmt.Sprintf("JobFailed: %s", cond.Message)
-		}
-		log.Info("Job for node still running", "node", node.Name)
-	}
-
-	if ready {
-		return true, nil
-	}
-
-	all := []string{}
-	for name, state := range status {
-		all = append(all, fmt.Sprintf("%s(%s)", name, state))
-	}
-	in.Status.Reason = fmt.Sprintf("Copying artifacts to nodes: %s", strings.Join(all, ", "))
-	in.Status.State = v1beta1.InstallationStateCopyingArtifacts
-	if strings.Contains(in.Status.Reason, "JobFailed") {
-		in.Status.State = v1beta1.InstallationStateFailed
-	}
-	return false, nil
-}
-
 // HasOnlyOneInstallation returns true if only one Installation object exists in the cluster.
 func (r *InstallationReconciler) HasOnlyOneInstallation(ctx context.Context) (bool, error) {
-	var list v1beta1.InstallationList
-	if err := r.List(ctx, &list); err != nil {
+	ins, err := r.listInstallations(ctx)
+	if err != nil {
 		return false, fmt.Errorf("failed to list installations: %w", err)
 	}
-	return len(list.Items) == 1, nil
+	return len(ins) == 1, nil
 }
 
 // ReconcileK0sVersion reconciles the k0s version in the Installation object status. If the
@@ -566,7 +304,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	// cluster version metadata is available inside the cluster. we can't use the internet
 	// to fetch it directly from our remote servers.
 	if in.Spec.AirGap {
-		if err := r.CopyVersionMetadataToCluster(ctx, in); err != nil {
+		if err := metadata.CopyVersionMetadataToCluster(ctx, r.Client, in); err != nil {
 			return fmt.Errorf("failed to copy version metadata to cluster: %w", err)
 		}
 	}
@@ -597,16 +335,9 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	// not part of the kubernetes version, it is the k0s version. we trim it down
 	// so we can compare kube with kube version.
 	desiredVersion := meta.Versions["Kubernetes"]
-	index := strings.Index(desiredVersion, "k0s")
-	if index == -1 {
-		reason := fmt.Sprintf("Invalid desired version %s", desiredVersion)
-		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
-		return nil
-	}
-	desiredVersion = desiredVersion[:index+len("k0s")]
-	desired, err := version.NewVersion(desiredVersion)
+	desired, err := k8sServerVersionFromK0sVersion(desiredVersion)
 	if err != nil {
-		reason := fmt.Sprintf("Invalid desired version %s", in.Spec.Config.Version)
+		reason := fmt.Sprintf("Invalid desired version %s", desiredVersion)
 		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 		return nil
 	}
@@ -618,16 +349,6 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 		return nil
 	}
 
-	if in.Spec.AirGap {
-		// in airgap installations let's make sure all assets have been copied to nodes.
-		// this may take some time so we only move forward when 'ready'.
-		if ready, err := r.CopyArtifactsToNodes(ctx, in); err != nil {
-			return fmt.Errorf("failed to copy artifacts to nodes: %w", err)
-		} else if !ready {
-			return nil
-		}
-	}
-
 	var plan apv1b2.Plan
 	okey := client.ObjectKey{Name: "autopilot"}
 	if err := r.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
@@ -636,7 +357,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 		// there is no autopilot plan in the cluster so we are free to
 		// start our own plan. here we link the plan to the installation
 		// by its name.
-		if err := r.StartUpgrade(ctx, in); err != nil {
+		if err := r.StartAutopilotUpgrade(ctx, in); err != nil {
 			return fmt.Errorf("failed to start upgrade: %w", err)
 		}
 		return nil
@@ -858,18 +579,9 @@ func (r *InstallationReconciler) ReconcileHelmCharts(ctx context.Context, in *v1
 		return fmt.Errorf("failed to get cluster config: %w", err)
 	}
 
-	combinedConfigs := mergeHelmConfigs(ctx, meta, in, clusterConfig)
-
-	if in.Spec.AirGap {
-		// if in airgap mode then all charts are already on the node's disk. we just need to
-		// make sure that the helm charts are pointing to the right location on disk and that
-		// we do not have any kind of helm repository configuration.
-		combinedConfigs = patchExtensionsForAirGap(combinedConfigs)
-	}
-
-	combinedConfigs, err = applyUserProvidedAddonOverrides(in, combinedConfigs)
+	combinedConfigs, err := charts.K0sHelmExtensionsFromInstallation(ctx, in, meta, &clusterConfig)
 	if err != nil {
-		return fmt.Errorf("failed to apply user provided overrides: %w", err)
+		return fmt.Errorf("failed to get helm charts from installation: %w", err)
 	}
 
 	cfgs := &k0sv1beta1.HelmExtensions{}
@@ -1007,47 +719,8 @@ func (r *InstallationReconciler) DetermineUpgradeTargets(ctx context.Context) (a
 	}, nil
 }
 
-// CreateAirgapPlanCommand creates the plan to execute an aigrap upgrade in all nodes. The
-// return of this function is meant to be used as part of an autopilot plan.
-func (r *InstallationReconciler) CreateAirgapPlanCommand(ctx context.Context, in *v1beta1.Installation) (*apv1b2.PlanCommand, error) {
-	meta, err := release.MetadataFor(ctx, in, r.Client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get release bundle: %w", err)
-	}
-
-	var nodes corev1.NodeList
-	if err := r.List(ctx, &nodes); err != nil {
-		return nil, fmt.Errorf("failed to list nodes: %w", err)
-	}
-
-	var allNodes []string
-	for _, node := range nodes.Items {
-		allNodes = append(allNodes, node.Name)
-	}
-
-	imageURL := fmt.Sprintf("http://127.0.0.1:50000/images/images-amd64-%s.tar", in.Name)
-
-	return &apv1b2.PlanCommand{
-		AirgapUpdate: &apv1b2.PlanCommandAirgapUpdate{
-			Version: meta.Versions["Kubernetes"],
-			Platforms: map[string]apv1b2.PlanResourceURL{
-				"linux-amd64": {
-					URL: imageURL,
-				},
-			},
-			Workers: apv1b2.PlanCommandTarget{
-				Discovery: apv1b2.PlanCommandTargetDiscovery{
-					Static: &apv1b2.PlanCommandTargetDiscoveryStatic{
-						Nodes: allNodes,
-					},
-				},
-			},
-		},
-	}, nil
-}
-
-// StartUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
-func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.Installation) error {
+// StartAutopilotUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
+func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *v1beta1.Installation) error {
 	targets, err := r.DetermineUpgradeTargets(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to determine upgrade targets: %w", err)
@@ -1069,22 +742,12 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	// 'commands' slice with the commands necessary to execute these operations.
 	var commands []apv1b2.PlanCommand
 
-	if in.Spec.AirGap {
-		// if we are running in an airgap environment all assets are already present in the
-		// node and are served by the local-artifact-mirror binary listening on localhost
-		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
-		k0surl = "http://127.0.0.1:50000/bin/k0s-upgrade"
-		command, err := r.CreateAirgapPlanCommand(ctx, in)
-		if err != nil {
-			return fmt.Errorf("failed to create airgap plan command: %w", err)
-		}
-		commands = append(commands, *command)
+	// if the kubernetes version has changed we create an upgrade command
+	shouldUpgrade, err := r.shouldUpgradeK0s(ctx, in, meta.Versions["Kubernetes"])
+	if err != nil {
+		return fmt.Errorf("failed to determine if k0s should be upgraded: %w", err)
 	}
-
-	// if the embedded cluster version has changed we create an upgrade command.
-	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
-	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
-	if curstr != desstr {
+	if shouldUpgrade {
 		commands = append(commands, apv1b2.PlanCommand{
 			K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
 				Version: meta.Versions["Kubernetes"],
@@ -1122,6 +785,19 @@ func (r *InstallationReconciler) StartUpgrade(ctx context.Context, in *v1beta1.I
 	}
 	in.Status.SetState(v1beta1.InstallationStateEnqueued, "", nil)
 	return nil
+}
+
+// listInstallations returns a list of all the installation objects in the cluster in order.
+func (r *InstallationReconciler) listInstallations(ctx context.Context) ([]v1beta1.Installation, error) {
+	var list v1beta1.InstallationList
+	if err := r.List(ctx, &list); err != nil {
+		return nil, fmt.Errorf("list installations: %w", err)
+	}
+	items := list.Items
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[j].Name < items[i].Name
+	})
+	return items, nil
 }
 
 // CoalesceInstallations goes through all the installation objects and make sure that the
@@ -1248,12 +924,12 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// are going to operate only on the newest one (sorting by installation
 	// name).
 	log := ctrl.LoggerFrom(ctx)
-	var installs v1beta1.InstallationList
-	if err := r.List(ctx, &installs); err != nil {
-		return ctrl.Result{}, err
+	installs, err := r.listInstallations(ctx)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to list installations: %w", err)
 	}
-	items := []v1beta1.Installation{}
-	for _, in := range installs.Items {
+	var items []v1beta1.Installation
+	for _, in := range installs {
 		if in.Status.State == v1beta1.InstallationStateObsolete {
 			continue
 		}
@@ -1265,6 +941,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 	in := r.CoalesceInstallations(ctx, items)
+
+	// if the embedded cluster version has changed we should not reconcile with the old version
+	if r.needsUpgrade(ctx, in) {
+		return ctrl.Result{}, fmt.Errorf("embedded cluster version has changed")
+	}
 
 	// if this cluster has no id we bail out immediately.
 	if in.Spec.ClusterID == "" {
@@ -1306,6 +987,18 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// keeps the installation in sync with the state of the k0s upgrade.
 	if err := r.ReconcileK0sVersion(ctx, in); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile k0s version: %w", err)
+	}
+
+	// if the k0s upgrade is still in progress this will wait until the upgrade is finished before
+	// moving on to the next steps.
+	if in.Status.State != v1beta1.InstallationStateKubernetesInstalled {
+		if err := r.Status().Update(ctx, in.DeepCopy()); err != nil {
+			if errors.IsConflict(err) {
+				return ctrl.Result{}, fmt.Errorf("failed to update status: conflict")
+			}
+			return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
+		}
+		return ctrl.Result{}, nil
 	}
 
 	// cleanup openebs stateful pods
@@ -1350,6 +1043,15 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
+}
+
+func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.Installation) bool {
+	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
+		return false
+	}
+	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
+	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
+	return curstr != desstr
 }
 
 // SetupWithManager sets up the controller with the Manager.

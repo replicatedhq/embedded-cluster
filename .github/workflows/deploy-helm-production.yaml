@@ -52,20 +52,14 @@ jobs:
       env:
         HELM_USER: ${{secrets.KOTS_HELM_USER_PROD}}
         HELM_PASS: ${{secrets.KOTS_HELM_PASS_PROD}}
+        HELM_REGISTRY: registry.replicated.com
         CHART_VERSION: ${{steps.tag.outputs.tag}}
       run: |
-        export OPERATOR_VERSION=${CHART_VERSION%-*}
-        export OPERATOR_TAG=${OPERATOR_VERSION}
-        export OPERATOR_REGISTRY=registry.replicated.com
+        export OPERATOR_IMAGE_NAME=registry.replicated.com/library/embedded-cluster-operator-image
+        export OPERATOR_IMAGE_TAG=${CHART_VERSION}
+        export CHART_REMOTE=oci://registry.replicated.com/library
 
-        envsubst < Chart.yaml.tmpl > Chart.yaml
-        envsubst < values.yaml.tmpl > values.yaml
-        rm -f *.tmpl
-
-        export CHART_NAME=`helm package . | rev | cut -d/ -f1 | rev`
-        echo pushing ${CHART_NAME} to production
-        helm registry login registry.replicated.com  --username $HELM_USER --password $HELM_PASS
-        helm push $CHART_NAME oci://registry.replicated.com/library
+        ../../scripts/publish-helm-chart.sh
 
   releaser:
     runs-on: ubuntu-latest

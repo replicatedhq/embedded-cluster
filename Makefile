@@ -113,8 +113,10 @@ test: manifests fmt vet envtest ## Run tests.
 ##@ Build
 
 .PHONY: build
+build: GOOS = linux
+build: GOARCH = amd64
 build: manifests fmt vet ## Build manager binary.
-	CGO_ENABLED=0 go build -o bin/manager main.go
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o bin/manager main.go
 
 .PHONY: run
 run: manifests fmt vet ## Run a controller from your host.
@@ -200,8 +202,12 @@ $(KUSTOMIZE): $(LOCALBIN)
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
 $(CONTROLLER_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+	@test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	echo "Installing controller-gen version $(CONTROLLER_TOOLS_VERSION) to $(LOCALBIN)" && \
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION) && \
+	test -s $(GOBIN)/controller-gen && \
+		ln -sf $(GOBIN)/controller-gen $(LOCALBIN)/controller-gen || \
+		ln -sf $(GOBIN)/$(shell go env GOOS)_$(shell go env GOARCH)/controller-gen $(LOCALBIN)/controller-gen
 
 .PHONY: schemas
 schemas: fmt controller-gen
@@ -211,7 +217,12 @@ schemas: fmt controller-gen
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	@test -s $(LOCALBIN)/setup-envtest || \
+	echo "Installing setup-envtest to $(LOCALBIN)" && \
+	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest && \
+	test -s $(GOBIN)/setup-envtest && \
+		ln -sf $(GOBIN)/setup-envtest $(LOCALBIN)/setup-envtest || \
+		ln -sf $(GOBIN)/$(shell go env GOOS)_$(shell go env GOARCH)/setup-envtest $(LOCALBIN)/setup-envtest
 
 .PHONY: operator-sdk
 OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
@@ -291,3 +302,12 @@ catalog-push: ## Push a catalog image.
 build-ttl.sh:
 	docker build --platform linux/amd64 -t ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h .
 	docker push ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
+
+.PHONY: build-chart-ttl.sh
+build-chart-ttl.sh: build-ttl.sh
+build-chart-ttl.sh: export CHART_VERSION = 0.0.0
+build-chart-ttl.sh: export OPERATOR_IMAGE_NAME = ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image
+build-chart-ttl.sh: export OPERATOR_IMAGE_TAG = 24h
+build-chart-ttl.sh: export CHART_REMOTE = oci://ttl.sh/${CURRENT_USER}
+build-chart-ttl.sh:
+	cd charts/embedded-cluster-operator && ../../scripts/publish-helm-chart.sh

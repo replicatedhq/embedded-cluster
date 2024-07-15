@@ -172,7 +172,7 @@ func newMigrationJob(in *clusterv1beta1.Installation, cli client.Client) (batchv
 							Name:    "migrate-registry-data",
 							Image:   os.Getenv("EMBEDDEDCLUSTER_IMAGE"),
 							Command: []string{"/manager"},
-							Args:    []string{`--migration=registry-data`},
+							Args:    []string{"migrate", "registry-data"},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "registry-data",
