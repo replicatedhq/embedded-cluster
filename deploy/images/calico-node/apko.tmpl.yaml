@@ -4,6 +4,7 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
+    - busybox
     - calico-node=__CALICO_NODE_VERSION__
 
 accounts:
