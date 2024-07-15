@@ -1,0 +1,47 @@
+name: Update image deps
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      overwrite:
+        description: 'Overwrite the existing image tags'
+        required: false
+        default: 'true'
+  push:
+    branches:
+    - emosbaugh/sc-108755/use-chainguard-images-for-embedded-cluster
+jobs:
+  build-3rd-party-images:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Get tags
+      id: get-tags
+      run: |
+        set -euo pipefail
+
+        # We're only using the APKINDEX files to get the versions, so it doesn't matter which arch we use
+
+        curl -LO --fail --show-error https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
+        tar -xzvf APKINDEX.tar.gz
+
+        calico_version=$(< APKINDEX grep -A1 "^P:calico$" | tail -n 1 | sed -n -e 's/V://p' | tr -d '\n')
+
+        sed "s/__CALICO_VERSION__/$calico_version/g" deploy/images/calico-node/apko.tmpl.yaml > deploy/images/calico-node/apko.yaml
+
+        {
+          echo "calico-tag=$calico_version"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Build and push calico-node image
+      uses: ./.github/actions/build-dep-image-with-apko
+      with:
+        apko-config: deploy/images/calico-node/apko.yaml
+        image-name: docker.io/replicated/ec-calico-node:${{ steps.get-tags.outputs.calico-tag }}
+        registry-username: ${{ secrets.DOCKERHUB_USER }}
+        registry-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        overwrite: ${{ github.event.inputs.overwrite }}
