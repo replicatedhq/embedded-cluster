@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
-	github.com/aws/aws-sdk-go v1.54.16
+	github.com/aws/aws-sdk-go v1.54.19
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/creack/pty v1.1.21
