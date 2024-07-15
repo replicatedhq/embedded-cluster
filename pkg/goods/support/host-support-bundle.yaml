@@ -11,12 +11,81 @@ spec:
   - hostOS: {}
   - memory: {}
   - blockDevices: {}
+  - certificate:
+      collectorName: k8s-api-keypair
+      certificatePath: /var/lib/k0s/pki/k0s-api.crt
+      keyPath: /var/lib/k0s/pki/k0s-api.key
+  - certificate:
+      collectorName: etcd-keypair
+      certificatePath: /var/lib/k0s/pki/etcd/server.crt
+      keyPath: /var/lib/k0s/pki/etcd/server.key
+    # Disk usage for commonly used directories
   - diskUsage:
       collectorName: root-disk-usage
       path: /
   - diskUsage:
       collectorName: openebs-disk-usage
       path: /var/openebs/local
+  - diskUsage:
+      collectorName: tmp
+      path: /tmp
+      # APIserver and etcd health endpoints
+  - run:
+      collectorName: k8s-api-healthz-6443
+      command: 'curl'
+      args:
+        [
+          '--cert',
+          '/var/lib/k0s/pki/admin.crt',
+          '--key',
+          '/var/lib/k0s/pki/admin.key',
+          '--cacert',
+          '/var/lib/k0s/pki/ca.crt',
+          '-i',
+          'https://localhost:6443/healthz?verbose',
+        ]
+  - run:
+      collectorName: etcd-healthz-2379
+      command: 'curl'
+      args:
+        [
+          '--cert',
+          '/var/lib/k0s/pki/apiserver-etcd-client.crt',
+          '--key',
+          '/var/lib/k0s/pki/apiserver-etcd-client.key',
+          '--cacert',
+          '/var/lib/k0s/pki/etcd/ca.crt',
+          '-i',
+          'https://localhost:2379/health',
+        ]
+  # Run collectors for system information & metrics
+  - run:
+      collectorName: free
+      command: free
+      args: ['-h']
+  - run:
+      collectorName: top
+      command: top
+      args: ['-b', '-n', '1']
+  - run:
+      collectorName: df
+      command: df
+      args: ['-h']
+  - run:
+      collectorName: iostat
+      command: iostat
+      args: ['-x']
+  - run:
+      collectorName: vmstat
+      command: vmstat
+      args: ['1', '5']
+  - run:
+      collectorName: uptime
+      command: uptime
+  - run:
+      collectorName: k0s-version
+      command: /usr/local/bin/k0s
+      args: ['version']
   - run:
       collectorName: k0s-status
       command: /usr/local/bin/k0s
@@ -52,7 +121,7 @@ spec:
   - memory:
       checkName: Amount of Memory
       outcomes:
-      - warn:
+      - fail:
           when: "< 2G"
           message: At least 2G of memory is recommended
       - pass:
@@ -64,10 +133,10 @@ spec:
       - fail:
           when: "total < 40Gi"
           message: The disk containing directory / has less than 40Gi of total space
-      - warn:
+      - fail:
           when: "used/total > 80%"
           message: The disk containing directory / is more than 80% full
-      - warn:
+      - fail:
           when: "available < 10Gi"
           message: The disk containing directory / has less than 10Gi of disk space available
       - pass:
@@ -79,10 +148,10 @@ spec:
       - fail:
           when: "total < 40Gi"
           message: The disk containing OpenEBS volumes has less than 40Gi of space
-      - warn:
+      - fail:
           when: "used/total > 80%"
           message: The disk containing OpenEBS volumes is more than 80% full
-      - warn:
+      - fail:
           when: "available < 10Gi"
           message:  The disk containing OpenEBS volumes has less than 10Gi of disk space available
       - pass:
