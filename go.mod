@@ -18,7 +18,7 @@ require (
 	github.com/ohler55/ojg v1.23.0
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
-	github.com/replicatedhq/embedded-cluster-kinds v1.4.5
+	github.com/replicatedhq/embedded-cluster-kinds v1.4.6
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
