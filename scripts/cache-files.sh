@@ -109,7 +109,7 @@ function operatorbin() {
 function kotsbin() {
     # first, figure out what version of kots is in the current build
     local kots_version=
-    kots_version=$(awk '/^KOTS_VERSION/{print $3}' Makefile)
+    kots_version=$(make print-KOTS_VERSION)
 
     local kots_override=
     kots_override=$(awk '/^KOTS_BINARY_URL_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
