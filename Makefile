@@ -2,6 +2,8 @@ VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
+COREDNS_IMAGE = proxy.replicated.com/anonymous/ttl.sh/ec/coredns
+COREDNS_VERSION = 1.11.3
 CALICO_NODE_IMAGE = proxy.replicated.com/anonymous/ttl.sh/ec/calico-node
 CALICO_NODE_VERSION = 3.28.0-r7
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
@@ -37,6 +39,8 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.KubectlVersion=$(KUBECTL_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CoreDNSImage=$(COREDNS_IMAGE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CoreDNSVersion=$(COREDNS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoNodeImage=$(CALICO_NODE_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoNodeVersion=$(CALICO_NODE_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \

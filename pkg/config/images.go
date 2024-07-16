@@ -9,6 +9,12 @@ func OverrideK0sImages(cfg *k0sv1beta1.ClusterConfig) error {
 	if cfg.Spec.Images == nil {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
+	if images.CoreDNSImage != "" {
+		cfg.Spec.Images.CoreDNS.Image = images.CoreDNSImage
+	}
+	if images.CoreDNSVersion != "" {
+		cfg.Spec.Images.CoreDNS.Version = images.CoreDNSVersion
+	}
 	if images.CalicoNodeImage != "" {
 		cfg.Spec.Images.Calico.Node.Image = images.CalicoNodeImage
 	}
