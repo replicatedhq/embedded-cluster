@@ -113,10 +113,11 @@ test: manifests fmt vet envtest ## Run tests.
 ##@ Build
 
 .PHONY: build
-build: GOOS = linux
-build: GOARCH = amd64
-build: manifests fmt vet ## Build manager binary.
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o bin/manager main.go
+build: ## Build manager binary.
+	go build \
+		-tags osusergo,netgo \
+		-ldflags="-s -w -extldflags=-static" \
+		-o bin/manager main.go
 
 .PHONY: run
 run: manifests fmt vet ## Run a controller from your host.
@@ -299,9 +300,11 @@ catalog-push: ## Push a catalog image.
 
 # Push operator image to ttl.sh
 .PHONY: build-ttl.sh
-build-ttl.sh:
-	docker build --platform linux/amd64 -t ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h .
-	docker push ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
+build-ttl.sh: export IMAGE = ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
+build-ttl.sh: export VERSION = $(shell git describe --tags --dirty --always --abbrev=8 | sed 's/^v//')
+build-ttl.sh: export GOOS = linux
+build-ttl.sh: export GOARCH = amd64
+build-ttl.sh: build melange apko-publish
 
 .PHONY: build-chart-ttl.sh
 build-chart-ttl.sh: build-ttl.sh
@@ -311,3 +314,58 @@ build-chart-ttl.sh: export OPERATOR_IMAGE_TAG = 24h
 build-chart-ttl.sh: export CHART_REMOTE = oci://ttl.sh/${CURRENT_USER}
 build-chart-ttl.sh:
 	cd charts/embedded-cluster-operator && ../../scripts/publish-helm-chart.sh
+
+.PHONY: apko-build
+apko-build: export IMAGE ?= ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
+apko-build: export ARCHS ?= amd64
+apko-build: apko-template
+	docker run -v "${PWD}":/work -w /work/build \
+		cgr.dev/chainguard/apko build apko.yaml ${IMAGE} apko.tar \
+			--arch ${ARCHS}
+
+.PHONY: apko-publish
+apko-publish: export IMAGE ?= ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
+apko-publish: export ARCHS ?= amd64
+apko-publish: apko-template
+	docker run -v "${PWD}":/work -w /work/build -v "${PWD}"/build/.docker:/root/.docker \
+		cgr.dev/chainguard/apko publish apko.yaml ${IMAGE} \
+			--arch ${ARCHS} | tee build/digest
+
+.PHONY: apko-login
+apko-login: check-env-REGISTRY check-env-USERNAME check-env-PASSWORD
+	docker run -v "${PWD}":/work -v "${PWD}"/build/.docker:/root/.docker -w /work/build \
+		cgr.dev/chainguard/apko login -u "${USERNAME}" \
+			--password "${PASSWORD}" "${REGISTRY}"
+
+.PHONY: melange
+melange: export ARCHS ?= amd64
+melange: melange-template
+	mkdir -p build
+	for f in pkg controllers main.go go.mod go.sum Makefile ; do \
+		rm -rf "build/$$f" && cp -r $$f build/ ; \
+	done
+	docker run --rm -v "${PWD}":/work -w /work/build \
+		cgr.dev/chainguard/melange keygen melange.rsa
+	docker run --privileged --rm -v "${PWD}":/work -w /work \
+		-v "$(shell go env GOMODCACHE)":/go/pkg/mod \
+		cgr.dev/chainguard/melange build build/melange.yaml \
+			--arch ${ARCHS} \
+			--signing-key build/melange.rsa \
+			--cache-dir=/go/pkg/mod \
+			--out-dir build/packages/
+
+.PHONY: melange-template
+melange-template: check-env-VERSION
+	mkdir -p build
+	envsubst '$${VERSION}' < deploy/melange.tmpl.yaml > build/melange.yaml
+
+.PHONY: apko-template
+apko-template: check-env-VERSION
+	mkdir -p build
+	envsubst '$${VERSION}' < deploy/apko.tmpl.yaml > build/apko.yaml
+
+check-env-%:
+	@ if [ "${${*}}" = "" ]; then \
+		echo "Environment variable $* not set"; \
+		exit 1; \
+	fi

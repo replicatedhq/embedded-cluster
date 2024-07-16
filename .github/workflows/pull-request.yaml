@@ -1,10 +1,25 @@
 name: Pull request
 on:
 - pull_request
+
 jobs:
-  tests:
-    name: Unit tests
+
+  get-tag:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get tag
+        id: tag
+        run: echo "tag=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [get-tag]
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -18,29 +33,48 @@ jobs:
     - name: Unit tests
       run: |
         make test
+
   build:
-    name: Build
     runs-on: ubuntu-latest
+    needs: [get-tag]
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Get short commit hash
-      run: echo "SHORT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
     - name: Build
       run: |
-        make build VERSION=dev-${{ env.SHORT_SHA }}
-    - name: Docker Image
-      uses: docker/build-push-action@v6
+        export VERSION=${{needs.get-tag.outputs.tag}}
+        make build
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        push: true
-        tags: |
-          ttl.sh/embedded-cluster-operator-image:dev-${{ env.SHORT_SHA }}
+        name: manager
+        path: ./bin/manager
+
+  package-operator:
+    runs-on: ubuntu-latest
+    needs: [get-tag]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+    - name: Build melange package
+      run: |
+        export VERSION=${{needs.get-tag.outputs.tag}}
+        make melange
+    - name: Build apko image
+      run: |
+        export VERSION=${{needs.get-tag.outputs.tag}}
+        export IMAGE=ttl.sh/embedded-cluster-operator-image:dev-${VERSION}
+        make apko-build
+
   check-crds:
-    name: Check CRDs
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -49,10 +83,10 @@ jobs:
       run: make manifests
     - name: Check CRDs
       run: |
-          git diff --exit-code --name-only
-          if [ $? -eq 0 ]; then
-            echo "CRDs are up to date"
-          else
-            echo "CRDs are out of date"
-            exit 1
-          fi
+        git diff --exit-code --name-only
+        if [ $? -eq 0 ]; then
+          echo "CRDs are up to date"
+        else
+          echo "CRDs are out of date"
+          exit 1
+        fi
