@@ -14,7 +14,7 @@ require (
 	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0s v1.28.11-0.20240527094804-e8317b300637
+	github.com/k0sproject/k0s v1.28.12-0.20240618130209-434229eed353
 	github.com/replicatedhq/embedded-cluster-kinds v1.3.11
 	github.com/replicatedhq/embedded-cluster-operator v0.36.3
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
@@ -84,7 +84,9 @@ require (
 	github.com/prometheus/procfs v0.15.0 // indirect
 	github.com/redis/go-redis/extra/redisotel/v9 v9.0.5 // indirect
 	github.com/redis/go-redis/v9 v9.5.2 // indirect
+	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/rs/cors v1.10.1 // indirect
+	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/spf13/cobra v1.8.1 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
