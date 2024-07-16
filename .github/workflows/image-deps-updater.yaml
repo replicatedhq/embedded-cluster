@@ -15,6 +15,7 @@ on:
   push:
     branches:
     - emosbaugh/sc-108755/use-chainguard-images-for-embedded-cluster
+
 jobs:
   define-matrix:
     runs-on: ubuntu-20.04
@@ -45,10 +46,10 @@ jobs:
         coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep coredns: | awk -F':' '{ print $2 }')
 
         {
-          printf "matrix={\"include\":[
+          printf "matrix={\"include\":["
           printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\"},"
           printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\"}"
-          printf ]}"
+          printf "]}"
         } >> "$GITHUB_OUTPUT"
 
   build-images:
