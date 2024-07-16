@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euox pipefail
 
 function require() {
     if [ -z "$2" ]; then
@@ -97,10 +97,18 @@ function operatorbin() {
         curl --fail-with-body -L -o operator "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
     fi
 
+    echo "downloaded operator binary, setting permissions"
+
     chmod +x operator
 
+    echo "compressing operator binary"
+
     # compress the operator binary
-    tar -czf "${operator_version}.tar.gz" operator
+    tar -czvf "${operator_version}.tar.gz" operator
+
+    # debug content of the tarball
+    tar -xzvf "${operator_version}.tar.gz"
+    ls -lah
 
     # upload the binary to the bucket
     retry 3 aws s3 cp --no-progress "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
