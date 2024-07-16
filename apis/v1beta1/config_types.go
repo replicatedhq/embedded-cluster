@@ -128,7 +128,7 @@ func ConvertTo[T any](e Helm, t T) (T, error) {
 		return t, fmt.Errorf("unable to convert extensions: %w", err)
 	}
 
-	if err = json.Unmarshal(j, &t); err != nil {
+	if err = json.Unmarshal(j, t); err != nil {
 		return t, fmt.Errorf("unable to unmarshal to new type: %w", err)
 	}
 
@@ -141,7 +141,7 @@ func ConvertFrom[T any](e k0sv1beta1.HelmExtensions, t T) (T, error) {
 		return t, fmt.Errorf("unable to convert extensions: %w", err)
 	}
 
-	if err = json.Unmarshal(j, &t); err != nil {
+	if err = json.Unmarshal(j, t); err != nil {
 		return t, fmt.Errorf("unable to unmarshal to new type: %w", err)
 	}
 

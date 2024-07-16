@@ -71,7 +71,7 @@ func TestConvertTo(t *testing.T) {
 	type testCase struct {
 		name    string
 		ourhelm Helm
-		want    k0sv1beta1.HelmExtensions
+		want    *k0sv1beta1.HelmExtensions
 	}
 	tests := []testCase{
 		{
@@ -83,7 +83,7 @@ func TestConvertTo(t *testing.T) {
 					},
 				},
 			},
-			want: k0sv1beta1.HelmExtensions{
+			want: &k0sv1beta1.HelmExtensions{
 				Charts: []k0sv1beta1.Chart{
 					{
 						Name: "abc",
@@ -96,7 +96,7 @@ func TestConvertTo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 			wantType := k0sv1beta1.HelmExtensions{}
-			got, err := ConvertTo(tt.ourhelm, wantType)
+			got, err := ConvertTo(tt.ourhelm, &wantType)
 			req.NoError(err)
 			req.Equal(tt.want, got)
 		})
@@ -107,7 +107,7 @@ func TestConvertFrom(t *testing.T) {
 	type testCase struct {
 		name    string
 		k0sHelm k0sv1beta1.HelmExtensions
-		want    Helm
+		want    *Helm
 	}
 	tests := []testCase{
 		{
@@ -119,7 +119,7 @@ func TestConvertFrom(t *testing.T) {
 					},
 				},
 			},
-			want: Helm{
+			want: &Helm{
 				Charts: []Chart{
 					{
 						Name: "abc",
@@ -132,7 +132,7 @@ func TestConvertFrom(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 			wantType := Helm{}
-			got, err := ConvertFrom(tt.k0sHelm, wantType)
+			got, err := ConvertFrom(tt.k0sHelm, &wantType)
 			req.NoError(err)
 			req.Equal(tt.want, got)
 		})
