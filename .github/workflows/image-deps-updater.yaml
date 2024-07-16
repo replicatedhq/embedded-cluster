@@ -51,8 +51,8 @@ jobs:
         {
           printf "matrix={\"include\":["
           printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\"},"
-          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\"},",
-          printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\"}",
+          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\"},"
+          printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\"}"
           printf "]}"
         } >> "$GITHUB_OUTPUT"
 
