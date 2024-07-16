@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -43,12 +44,15 @@ jobs:
           make pkg/goods/bins/k0s
         fi
 
-        coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep coredns: | awk -F':' '{ print $2 }')
+        coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/coredns:' | awk -F':' '{ print $2 }')
+        kube_proxy_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/kube-proxy:' | awk -F':v' '{ print $2 }')
+        metrics_server_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/metrics-server:' | awk -F':v' '{ print $2 }')
 
         {
           printf "matrix={\"include\":["
           printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\"},"
-          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\"}"
+          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\"},",
+          printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\"}",
           printf "]}"
         } >> "$GITHUB_OUTPUT"
 
@@ -56,7 +60,9 @@ jobs:
     runs-on: ubuntu-20.04
     needs: define-matrix
     strategy:
+      fail-fast: false
       matrix: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4

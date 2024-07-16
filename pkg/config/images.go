@@ -21,5 +21,11 @@ func OverrideK0sImages(cfg *k0sv1beta1.ClusterConfig) error {
 	if images.CalicoNodeVersion != "" {
 		cfg.Spec.Images.Calico.Node.Version = images.CalicoNodeVersion
 	}
+	if images.MetricsServerImage != "" {
+		cfg.Spec.Images.MetricsServer.Image = images.MetricsServerImage
+	}
+	if images.MetricsServerVersion != "" {
+		cfg.Spec.Images.MetricsServer.Version = images.MetricsServerVersion
+	}
 	return nil
 }

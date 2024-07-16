@@ -6,6 +6,8 @@ COREDNS_IMAGE = proxy.replicated.com/anonymous/ttl.sh/ec/coredns
 COREDNS_VERSION = 1.11.3
 CALICO_NODE_IMAGE = proxy.replicated.com/anonymous/ttl.sh/ec/calico-node
 CALICO_NODE_VERSION = 3.28.0-r7
+METRICS_SERVER_IMAGE = proxy.replicated.com/anonymous/ttl.sh/ec/metrics-server
+METRICS_SERVER_VERSION = 0.6.4
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_CHART_VERSION = 1.111.0
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
@@ -43,6 +45,8 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CoreDNSVersion=$(COREDNS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoNodeImage=$(CALICO_NODE_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoNodeVersion=$(CALICO_NODE_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.MetricsServerImage=$(METRICS_SERVER_IMAGE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.MetricsServerVersion=$(METRICS_SERVER_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
