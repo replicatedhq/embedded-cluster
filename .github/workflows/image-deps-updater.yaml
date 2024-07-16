@@ -16,14 +16,16 @@ on:
     branches:
     - emosbaugh/sc-108755/use-chainguard-images-for-embedded-cluster
 jobs:
-  build-3rd-party-images:
+  define-matrix:
     runs-on: ubuntu-20.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Get tags from wolfi repo
-      id: get-tags-from-apkindex
+    - name: Set matrix
+      id: set-matrix
       run: |
         set -euo pipefail
 
@@ -34,18 +36,6 @@ jobs:
 
         calico_node_version=$(< APKINDEX grep -A1 "^P:calico-node" | tail -n 1 | sed -n -e 's/V://p' | tr -d '\n')
 
-        sed "s/__CALICO_NODE_VERSION__/$calico_node_version/g" deploy/images/calico-node/apko.tmpl.yaml > deploy/images/calico-node/apko.yaml
-
-        {
-          echo "calico-node-tag=$calico_node_version"
-        } >> "$GITHUB_OUTPUT"
-
-    - name: Get tags from k0s
-      id: get-tags-from-k0s
-      run: |
-        set -euo pipefail
-
-        # We're only using the APKINDEX fi
         if [ -n "${{ github.event.inputs.k0s-version }}" ]; then
           make pkg/goods/bins/k0s K0S_VERSION="${{ github.event.inputs.k0s-version }}" K0S_BINARY_SOURCE_OVERRIDE=
         else
@@ -54,26 +44,32 @@ jobs:
 
         coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep coredns: | awk -F':' '{ print $2 }')
 
-        sed "s/__COREDNS_VERSION__/$coredns_version/g" deploy/images/coredns/apko.tmpl.yaml > deploy/images/coredns/apko.yaml
-
         {
-          echo "coredns-tag=$coredns_version"
+          printf "matrix={\"include\":[
+          printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\"},"
+          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\"}"
+          printf ]}"
         } >> "$GITHUB_OUTPUT"
 
-    - name: Build and push calico-node image
-      uses: ./.github/actions/build-dep-image-with-apko
-      with:
-        apko-config: deploy/images/calico-node/apko.yaml
-        image-name: ttl.sh/ec/calico-node:${{ steps.get-tags-from-apkindex.outputs.calico-node-tag }}
-        # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
-        # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
-        overwrite: true # ${{ github.event.inputs.overwrite }}
+  build-images:
+    runs-on: ubuntu-20.04
+    needs: define-matrix
+    strategy:
+      matrix: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
 
-    - name: Build and push coredns image
+    - name: Generate apko config
+      run: |
+        set -euo pipefail
+        sed "s/__VERSION__/${{ matrix.version }}/g" deploy/images/${{ matrix.component }}/apko.tmpl.yaml > apko.yaml
+
+    - name: Build and push image
       uses: ./.github/actions/build-dep-image-with-apko
       with:
-        apko-config: deploy/images/coredns/apko.yaml
-        image-name: ttl.sh/ec/coredns:${{ steps.get-tags-from-k0s.outputs.coredns-tag }}
+        apko-config: apko.yaml
+        image-name: ttl.sh/ec/${{ matrix.component }}:${{ matrix.version }}
         # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
         # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
         overwrite: true # ${{ github.event.inputs.overwrite }}
