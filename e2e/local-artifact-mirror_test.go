@@ -10,13 +10,17 @@ import (
 
 func TestLocalArtifactMirror(t *testing.T) {
 	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
+		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"default-install.sh"}

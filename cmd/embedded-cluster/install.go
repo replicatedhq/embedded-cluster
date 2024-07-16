@@ -109,7 +109,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	}
 	pb := spinner.Start()
 	if c.Bool("skip-host-preflights") {
-		pb.Infof("Skipping host preflights")
+		pb.Infof("Host preflights skipped")
 		pb.Close()
 		return nil
 	}
@@ -117,7 +117,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		pb.CloseWithError()
-		return fmt.Errorf("host preflights failed: %w", err)
+		return fmt.Errorf("host preflights failed to run: %w", err)
 	}
 
 	err = output.SaveToDisk()
@@ -128,32 +128,28 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 
 	// Failures found
 	if output.HasFail() {
-		s := "failures"
+		s := "preflights"
 		if len(output.Fail) == 1 {
-			s = "failure"
+			s = "preflight"
 		}
-		msg := fmt.Sprintf("Host preflights have %d %s", len(output.Fail), s)
+		msg := fmt.Sprintf("%d host %s failed", len(output.Fail), s)
 		if output.HasWarn() {
-			s = "warnings"
-			if len(output.Warn) == 1 {
-				s = "warning"
-			}
-			msg += fmt.Sprintf(" and %d %s", len(output.Warn), s)
+			msg += fmt.Sprintf(" and %d warned", len(output.Warn))
 		}
 
 		pb.Errorf(msg)
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return fmt.Errorf("preflights haven't passed on the host")
+		return fmt.Errorf("host preflight failures detected")
 	}
 
 	// Warnings found
 	if output.HasWarn() {
-		s := "warnings"
+		s := "preflights"
 		if len(output.Warn) == 1 {
-			s = "warning"
+			s = "preflight"
 		}
-		pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
+		pb.Warnf("%d host %s warned", len(output.Warn), s)
 		if c.Bool("no-prompt") {
 			// We have warnings but we are not in interactive mode
 			// so we just print the warnings and continue
@@ -529,23 +525,31 @@ func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd stri
 }
 
 func askAdminConsolePassword(c *cli.Context) (string, error) {
-	defaultPass := "password"
+	defaultPassword := "password"
+	userProvidedPassword := c.String("admin-console-password")
 	if c.Bool("no-prompt") {
-		logrus.Infof("Admin Console password set to: %s", defaultPass)
-		return defaultPass, nil
+		if userProvidedPassword != "" {
+			return userProvidedPassword, nil
+		} else {
+			logrus.Infof("The Admin Console password is set to %s", defaultPassword)
+			return defaultPassword, nil
+		}
+	}
+	if userProvidedPassword != "" {
+		return userProvidedPassword, nil
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Enter an Admin Console password:")
-		promptB := prompts.New().Password("Confirm password:")
+		promptA := prompts.New().Password("Set the Admin Console password:")
+		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
 		if promptA == promptB {
 			// TODO: Should we add extra password validation here? e.g length, complexity etc
 			return promptA, nil
 		}
-		logrus.Info("Passwords don't match, please try again.")
+		logrus.Info("Passwords don't match. Please try again.")
 	}
-	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
+	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
 }
 
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
@@ -564,10 +568,41 @@ var installCommand = &cli.Command{
 		return nil
 	},
 	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:   "admin-console-password",
+			Usage:  "Password for the Admin Console",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "airgap-bundle",
+			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "http-proxy",
+			Usage:  "Proxy server to use for HTTP",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "https-proxy",
+			Usage:  "Proxy server to use for HTTPS",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:    "license",
+			Aliases: []string{"l"},
+			Usage:   "Path to the license file",
+			Hidden:  false,
+		},
 		&cli.BoolFlag{
 			Name:  "no-prompt",
-			Usage: "Disable interactive prompts. Admin console password will be set to password.",
+			Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
 			Value: false,
+		},
+		&cli.StringFlag{
+			Name:   "no-proxy",
+			Usage:  "Comma-separated list of hosts for which not to use a proxy",
+			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "overrides",
@@ -575,29 +610,8 @@ var installCommand = &cli.Command{
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:    "license",
-			Aliases: []string{"l"},
-			Usage:   "Path to the application license file",
-			Hidden:  false,
-		},
-		&cli.StringFlag{
-			Name:   "airgap-bundle",
-			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "http-proxy",
-			Usage:  "HTTP proxy to use for the installation",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "https-proxy",
-			Usage:  "HTTPS proxy to use for the installation",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "no-proxy",
-			Usage:  "Comma separated list of hosts to bypass the proxy for",
+			Name:   "pod-cidr",
+			Usage:  "IP address range for pods",
 			Hidden: false,
 		},
 		&cli.BoolFlag{
@@ -606,18 +620,13 @@ var installCommand = &cli.Command{
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "pod-cidr",
-			Usage:  "pod CIDR range to use for the installation",
-			Hidden: false,
-		},
-		&cli.StringFlag{
 			Name:   "service-cidr",
-			Usage:  "service CIDR range to use for the installation",
+			Usage:  "IP address range for services",
 			Hidden: false,
 		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
-			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Usage: "Skip host preflight checks. This is not recommended.",
 			Value: false,
 		},
 	},
@@ -661,7 +670,6 @@ var installCommand = &cli.Command{
 		}
 		logrus.Debugf("running host preflights")
 		if err := RunHostPreflights(c); err != nil {
-			err := fmt.Errorf("unable to finish preflight checks: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

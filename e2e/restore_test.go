@@ -22,11 +22,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -93,11 +89,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -185,11 +177,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -247,6 +235,9 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 
 func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_SNAPSHOT_LICENSE_ID"})
+
 	requiredEnvVars := []string{
 		"DR_AWS_S3_ENDPOINT",
 		"DR_AWS_S3_REGION",
@@ -255,11 +246,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
+
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
 		testArgs = append(testArgs, os.Getenv(envVar))
@@ -393,8 +381,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-airgap-upgrade"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-airgap-upgrade: %v", err)
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs = []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -417,11 +409,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -608,11 +596,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
