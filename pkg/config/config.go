@@ -10,7 +10,7 @@ import (
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/controllers"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/charts"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -225,7 +225,7 @@ func AdditionalCharts() []embeddedclusterv1beta1.Chart {
 			if clusterConfig.Spec.Extensions.Helm != nil {
 				for k := range clusterConfig.Spec.Extensions.Helm.Charts {
 					if clusterConfig.Spec.Extensions.Helm.Charts[k].Order == 0 {
-						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = controllers.DEFAULT_VENDOR_CHART_ORDER
+						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = charts.DefaultVendorChartOrder
 					}
 				}
 
