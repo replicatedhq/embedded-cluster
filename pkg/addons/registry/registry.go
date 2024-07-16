@@ -24,17 +24,15 @@ import (
 )
 
 const (
-	releaseName             = "docker-registry"
-	tlsSecretName           = "registry-tls"
-	seaweedfsS3RWSecretName = "seaweedfs-s3-rw"
-
+	chartURL                 = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/docker-registry"
+	releaseName              = "docker-registry"
+	tlsSecretName            = "registry-tls"
+	seaweedfsS3RWSecretName  = "seaweedfs-s3-rw"
 	registryLowerBandIPIndex = 10
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL     = "https://url"
-	ChartName    = "name"
 	Version      = "v0.0.0"
 	ImageVersion = "2.8.3"
 )
@@ -158,6 +156,7 @@ type Registry struct {
 	config    v1beta1.ClusterConfig
 	isAirgap  bool
 	isHA      bool
+	net       *eckinds.NetworkSpec
 }
 
 // Version returns the version of the Registry chart.
@@ -190,15 +189,10 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eck
 
 	chartConfig := eckinds.Chart{
 		Name:      releaseName,
-		ChartName: ChartName,
+		ChartName: chartURL,
 		Version:   Version,
 		TargetNS:  o.namespace,
 		Order:     3,
-	}
-
-	repositoryConfig := eckinds.Repository{
-		Name: "twuni",
-		URL:  ChartURL,
 	}
 
 	var values map[string]interface{}
@@ -212,6 +206,9 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eck
 	serviceCIDR := v1beta1.DefaultNetwork().ServiceCIDR
 	if o.config.Spec != nil && o.config.Spec.Network != nil {
 		serviceCIDR = o.config.Spec.Network.ServiceCIDR
+	}
+	if o.net != nil && o.net.ServiceCIDR != "" {
+		serviceCIDR = o.net.ServiceCIDR
 	}
 	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
 	if err != nil {
@@ -231,7 +228,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eck
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, []eckinds.Repository{repositoryConfig}, nil
+	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
 func (o *Registry) GetAdditionalImages() []string {
@@ -436,8 +433,8 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new Registry addon.
-func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool, isHA bool) (*Registry, error) {
-	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap, isHA: isHA}, nil
+func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool, isHA bool, net *eckinds.NetworkSpec) (*Registry, error) {
+	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap, isHA: isHA, net: net}, nil
 }
 
 func GetRegistryPassword() string {

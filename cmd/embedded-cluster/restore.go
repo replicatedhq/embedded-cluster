@@ -14,6 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
@@ -233,7 +235,12 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 	if rel == nil {
 		return nil, fmt.Errorf("no release found in binary")
 	}
-	if restorable, reason := isBackupRestorable(backup, rel, isAirgap); !restorable {
+	net, err := getConfiguredNetwork()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get configured network: %w", err)
+	}
+
+	if restorable, reason := isBackupRestorable(backup, rel, isAirgap, *net); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
 	}
 	return backup, nil
@@ -299,28 +306,34 @@ func RunHostPreflightsForRestore(c *cli.Context) error {
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.
 // The file is saved in the global location (as returned by defaults.PathToK0sConfig()).
 // If a file already sits there, this function returns an error.
-func ensureK0sConfigForRestore(c *cli.Context) error {
+func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
-		return fmt.Errorf("configuration file already exists")
+		return nil, fmt.Errorf("configuration file already exists")
 	}
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
-		return fmt.Errorf("unable to create directory: %w", err)
+		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
 	opts := []addons.Option{}
+	if c.String("pod-cidr") != "" {
+		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+	}
+	if c.String("service-cidr") != "" {
+		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+	}
 	if c.Bool("proxy") {
-		opts = append(opts, addons.WithProxyFromEnv())
+		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
 	if err := config.UpdateHelmConfigsForRestore(cfg, opts...); err != nil {
-		return fmt.Errorf("unable to update helm configs: %w", err)
+		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
 	var err error
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
-		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
+		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 	if c.String("airgap-bundle") != "" {
 		// update the k0s config to install with airgap
@@ -329,29 +342,35 @@ func ensureK0sConfigForRestore(c *cli.Context) error {
 	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("unable to marshal config: %w", err)
+		return nil, fmt.Errorf("unable to marshal config: %w", err)
 	}
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return fmt.Errorf("unable to create config file: %w", err)
+		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
 	defer fp.Close()
 	if _, err := fp.Write(data); err != nil {
-		return fmt.Errorf("unable to write config file: %w", err)
+		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
-	return nil
+	return cfg, nil
 }
 
 // runOutroForRestore calls Outro() in all enabled addons for restore operations by means of Applier.
-func runOutroForRestore(c *cli.Context) error {
+func runOutroForRestore(c *cli.Context, cfg *v1beta1.ClusterConfig) error {
 	opts := []addons.Option{}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
+
+	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}))
+
 	return addons.NewApplier(opts...).OutroForRestore(c.Context)
 }
 
-func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool) (bool, string) {
+func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, net ecv1beta1.NetworkSpec) (bool, string) {
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
@@ -393,6 +412,18 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 			return false, "is an airgap backup, but the restore is configured to be online"
 		}
 	}
+
+	if _, ok := backup.Annotations["kots.io/embedded-cluster-pod-cidr"]; ok {
+		// kots.io/embedded-cluster-pod-cidr and kots.io/embedded-cluster-service-cidr should both exist if one does
+		podCIDR := backup.Annotations["kots.io/embedded-cluster-pod-cidr"]
+		serviceCIDR := backup.Annotations["kots.io/embedded-cluster-service-cidr"]
+
+		if podCIDR != "" || serviceCIDR != "" {
+			if podCIDR != net.PodCIDR || serviceCIDR != net.ServiceCIDR {
+				return false, fmt.Sprintf("has a different network configuration than the current cluster. Please rerun with '--pod-cidr %s --service-cidr %s'.", podCIDR, serviceCIDR)
+			}
+		}
+	}
 	return true, ""
 }
 
@@ -429,6 +460,11 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		return nil, fmt.Errorf("no release found in binary")
 	}
 
+	net, err := getConfiguredNetwork()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get configured network: %w", err)
+	}
+
 	for i := 0; i < 30; i++ {
 		time.Sleep(5 * time.Second)
 
@@ -446,7 +482,7 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		invalidReasons := []string{}
 
 		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup, rel, isAirgap)
+			restorable, reason := isBackupRestorable(&backup, rel, isAirgap, *net)
 			if restorable {
 				validBackups = append(validBackups, backup)
 			} else {
@@ -487,6 +523,26 @@ func pickBackupToRestore(backups []velerov1.Backup) *velerov1.Backup {
 		}
 	}
 	return latestBackup
+}
+
+// getConfiguredNetwork reads the k0s config and returns the network configuration.
+func getConfiguredNetwork() (*ecv1beta1.NetworkSpec, error) {
+	cfgBytes, err := os.ReadFile(defaults.PathToK0sConfig())
+	if err != nil {
+		return nil, fmt.Errorf("unable to read k0s config file: %w", err)
+	}
+
+	cfg := &v1beta1.ClusterConfig{}
+	if err := k8syaml.Unmarshal(cfgBytes, cfg); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal k0s config: %w", err)
+	}
+
+	net := &ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}
+
+	return net, nil
 }
 
 // waitForVeleroRestoreCompleted waits for a Velero restore to complete.
@@ -801,28 +857,63 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool) error {
 	return nil
 }
 
+func installAndWaitForRestoredK0sNode(c *cli.Context) (*v1beta1.ClusterConfig, error) {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Installing %s node", binName)
+	logrus.Debugf("creating k0s configuration file")
+
+	cfg, err := ensureK0sConfigForRestore(c)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create config file: %w", err)
+	}
+	var proxy *ecv1beta1.ProxySpec
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		proxy = &ecv1beta1.ProxySpec{
+			HTTPProxy:  c.String("http-proxy"),
+			HTTPSProxy: c.String("https-proxy"),
+			NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
+		}
+	}
+	logrus.Debugf("creating systemd unit files")
+	if err := createSystemdUnitFiles(false, proxy); err != nil {
+		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
+	}
+	logrus.Debugf("installing k0s")
+	if err := installK0s(); err != nil {
+		return nil, fmt.Errorf("unable update cluster: %w", err)
+	}
+	loading.Infof("Waiting for %s node to be ready", binName)
+	logrus.Debugf("waiting for k0s to be ready")
+	if err := waitForK0s(); err != nil {
+		return nil, fmt.Errorf("unable to wait for node: %w", err)
+	}
+	loading.Infof("Node installation finished!")
+	return cfg, nil
+}
+
 var restoreCommand = &cli.Command{
 	Name:  "restore",
 	Usage: fmt.Sprintf("Restore a %s cluster", binName),
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
-			Usage:  "Path to the airgap bundle. If set, the restore will be completed without internet access.",
+			Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
 			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "http-proxy",
-			Usage:  "HTTP proxy to use for the restore",
+			Usage:  "Proxy server to use for HTTP",
 			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "https-proxy",
-			Usage:  "HTTPS proxy to use for the restore",
+			Usage:  "Proxy server to use for HTTPS",
 			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "no-proxy",
-			Usage:  "Comma separated list of hosts to bypass the proxy for",
+			Usage:  "Comma-separated list of hosts for which not to use a proxy",
 			Hidden: false,
 		},
 		&cli.BoolFlag{
@@ -830,9 +921,19 @@ var restoreCommand = &cli.Command{
 			Usage:  "Use the system proxy settings for the restore operation. These variables are currently only passed through to Velero.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "pod-cidr",
+			Usage:  "IP address range for pods. Must match range provided during install.",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "service-cidr",
+			Usage:  "IP address range for services. Must match range provided during install.",
+			Hidden: false,
+		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
-			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Usage: "Skip host preflight checks. This is not recommended.",
 			Value: false,
 		},
 	},
@@ -911,29 +1012,10 @@ var restoreCommand = &cli.Command{
 			if err := RunHostPreflightsForRestore(c); err != nil {
 				return fmt.Errorf("unable to finish preflight checks: %w", err)
 			}
-			logrus.Debugf("creating k0s configuration file")
-			if err := ensureK0sConfigForRestore(c); err != nil {
-				return fmt.Errorf("unable to create config file: %w", err)
-			}
-			var proxy *Proxy
-			if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-				proxy = &Proxy{
-					HTTPProxy:  c.String("http-proxy"),
-					HTTPSProxy: c.String("https-proxy"),
-					NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
-				}
-			}
-			logrus.Debugf("creating systemd unit files")
-			if err := createSystemdUnitFiles(false, proxy); err != nil {
-				return fmt.Errorf("unable to create systemd unit files: %w", err)
-			}
-			logrus.Debugf("installing k0s")
-			if err := installK0s(); err != nil {
-				return fmt.Errorf("unable update cluster: %w", err)
-			}
-			logrus.Debugf("waiting for k0s to be ready")
-			if err := waitForK0s(); err != nil {
-				return fmt.Errorf("unable to wait for node: %w", err)
+
+			cfg, err := installAndWaitForRestoredK0sNode(c)
+			if err != nil {
+				return err
 			}
 
 			kcli, err := kubeutils.KubeClient()
@@ -949,7 +1031,7 @@ var restoreCommand = &cli.Command{
 			}()
 
 			logrus.Debugf("running outro")
-			if err := runOutroForRestore(c); err != nil {
+			if err := runOutroForRestore(c, cfg); err != nil {
 				return fmt.Errorf("unable to run outro: %w", err)
 			}
 

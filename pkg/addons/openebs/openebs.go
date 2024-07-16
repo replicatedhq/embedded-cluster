@@ -18,12 +18,11 @@ import (
 const (
 	releaseName = "openebs"
 	namespace   = "openebs"
+	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs"
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	ChartURL     = "https://url"
-	ChartName    = "name"
 	Version      = "v0.0.0"
 	UtilsVersion = ""
 )
@@ -98,15 +97,10 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	chartConfig := eckinds.Chart{
 		Name:      releaseName,
-		ChartName: ChartName,
+		ChartName: chartURL,
 		Version:   Version,
 		TargetNS:  namespace,
 		Order:     1,
-	}
-
-	repositoryConfig := eckinds.Repository{
-		Name: "openebs",
-		URL:  ChartURL,
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
@@ -115,7 +109,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, []eckinds.Repository{repositoryConfig}, nil
+	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {

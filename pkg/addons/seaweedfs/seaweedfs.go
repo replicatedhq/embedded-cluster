@@ -7,26 +7,24 @@ import (
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
 	releaseName = "seaweedfs"
-)
-
-// Overwritten by -ldflags in Makefile
-var (
-	ChartURL  = "https://url"
-	ChartName = "name"
-	Version   = "v0.0.0"
+	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/seaweedfs"
 )
 
 var (
+	// Overwritten by -ldflags in Makefile
+	Version = "v0.0.0"
+
 	helmValues map[string]interface{}
 )
 
@@ -67,15 +65,10 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ec
 
 	chartConfig := eckinds.Chart{
 		Name:      releaseName,
-		ChartName: ChartName,
+		ChartName: chartURL,
 		Version:   Version,
 		TargetNS:  o.namespace,
 		Order:     2,
-	}
-
-	repositoryConfig := eckinds.Repository{
-		Name: "seaweedfs",
-		URL:  ChartURL,
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
@@ -84,7 +77,7 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ec
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, []eckinds.Repository{repositoryConfig}, nil
+	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
 func (o *SeaweedFS) GetAdditionalImages() []string {
