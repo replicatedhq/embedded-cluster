@@ -42,6 +42,7 @@ var (
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
+	KurlProxyImageOverride  = ""
 	KotsVersion             = ""
 	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
 )
@@ -84,6 +85,12 @@ func init() {
 			helmValues["images"] = map[string]interface{}{}
 		}
 		helmValues["images"].(map[string]interface{})["migrations"] = MigrationsImageOverride
+	}
+	if KurlProxyImageOverride != "" {
+		if helmValues["images"] == nil {
+			helmValues["images"] = map[string]interface{}{}
+		}
+		helmValues["images"].(map[string]interface{})["kurlProxy"] = KurlProxyImageOverride
 	}
 }
 

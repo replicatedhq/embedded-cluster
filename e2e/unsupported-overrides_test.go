@@ -17,7 +17,7 @@ func TestUnsupportedOverrides(t *testing.T) {
 		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
 		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 	t.Logf("%s: installing dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},

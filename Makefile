@@ -3,12 +3,12 @@ UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
-ADMIN_CONSOLE_CHART_VERSION = 1.111.0
+ADMIN_CONSOLE_CHART_VERSION = 1.112.1
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
-EMBEDDED_OPERATOR_CHART_URL = oci://registry.replicated.com/library
-EMBEDDED_OPERATOR_CHART_NAME = embedded-cluster-operator
-EMBEDDED_OPERATOR_CHART_VERSION = 0.38.3
+ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
+EMBEDDED_OPERATOR_CHART_VERSION = 0.40.2
+EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
 EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_VERSION = 4.1.0
@@ -22,7 +22,7 @@ VELERO_AWS_PLUGIN_IMAGE_VERSION = v1.9.2
 KUBECTL_VERSION = v1.30.1
 K0S_VERSION = v1.29.5+k0s.0-ec.0
 K0S_GO_VERSION = v1.29.5+k0s.0
-PREVIOUS_K0S_VERSION ?= v1.28.8+k0s.0
+PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE = https://ec-k0s-binaries.s3.amazonaws.com/k0s-v1.29.5%2Bk0s.0-ec.0
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.93.1
@@ -39,6 +39,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.MigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE) \
@@ -181,7 +182,7 @@ print-%:
 
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image:
-	docker build -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f Dockerfile .
+	docker build --platform linux/amd64 -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f deploy/local-artifact-mirror/Dockerfile .
 
 .PHONY: push-local-artifact-mirror-image
 push-local-artifact-mirror-image:
@@ -193,3 +194,8 @@ build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image pu
 .PHONY: buildtools
 buildtools:
 	go build -o ./output/bin/buildtools ./cmd/buildtools
+
+.PHONY: cache-files
+cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
+cache-files:
+	./scripts/cache-files.sh

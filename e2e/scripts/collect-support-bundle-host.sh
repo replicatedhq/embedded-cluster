@@ -6,11 +6,6 @@ main() {
         echo "Failed to collect local host support bundle"
         return 1
     fi
-
-    if ! kubectl support-bundle --output cluster.tar.gz --interactive=false --load-cluster-specs; then
-        echo "Failed to collect cluster support bundle"
-        return 1
-    fi
 }
 
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf

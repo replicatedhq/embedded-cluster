@@ -82,32 +82,29 @@ func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
 	return nil
 }
 
-type UpstreamUpgradeOptions struct {
+type AirgapUpdateOptions struct {
 	AppSlug      string
 	Namespace    string
 	AirgapBundle string
 }
 
-func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
+func AirgapUpdate(opts AirgapUpdateOptions) error {
 	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
 	defer os.Remove(kotsBinPath)
 
-	var lbreakfn spinner.LineBreakerFn
-	maskfn := MaskKotsOutputForOnline()
-	upstreamUpgradeArgs := []string{
-		"upstream",
-		"upgrade",
+	maskfn := MaskKotsOutputForAirgap()
+	lbreakfn := KotsOutputLineBreaker()
+
+	airgapUpdateArgs := []string{
+		"airgap-update",
 		opts.AppSlug,
 		"--namespace",
 		opts.Namespace,
-	}
-	if opts.AirgapBundle != "" {
-		upstreamUpgradeArgs = append(upstreamUpgradeArgs, "--airgap-bundle", opts.AirgapBundle)
-		maskfn = MaskKotsOutputForAirgap()
-		lbreakfn = KotsOutputLineBreaker()
+		"--airgap-bundle",
+		opts.AirgapBundle,
 	}
 
 	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
@@ -117,7 +114,7 @@ func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
 	}
-	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, upstreamUpgradeArgs...); err != nil {
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {
 		loading.CloseWithError()
 		return fmt.Errorf("unable to update the application: %w", err)
 	}
@@ -177,8 +174,8 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 }
 
 // MaskKotsOutputForOnline masks the kots cli output during online installations. For
-// online installations we only want to print "Finalizing" until it is done and then
-// print "Finished!".
+// online installations we only want to print "Finalizing Admin Console" until it is done
+// and then print "Finished!".
 func MaskKotsOutputForOnline() spinner.MaskFn {
 	return func(message string) string {
 		if strings.Contains(message, "Finished") {
@@ -192,12 +189,14 @@ func MaskKotsOutputForOnline() spinner.MaskFn {
 // function replaces some of the messages being printed to the user so the output looks
 // nicer.
 func MaskKotsOutputForAirgap() spinner.MaskFn {
-	current := "Uploading air gap bundle"
+	current := "Extracting air gap bundle"
 	return func(message string) string {
 		switch {
 		case strings.Contains(message, "Pushing application images"):
 			current = message
 		case strings.Contains(message, "Pushing embedded cluster artifacts"):
+			current = message
+		case strings.Contains(message, "Uploading airgap update"):
 			current = message
 		case strings.Contains(message, "Waiting for the Admin Console"):
 			current = "Finalizing Admin Console"
@@ -262,7 +261,7 @@ func KotsOutputLineBreaker() spinner.LineBreakerFn {
 		// if we are printing a message about the finalization of the installation it
 		// means that the embedded cluster artifacts are ready and we want to break the
 		// line.
-		if current == "Finalizing" {
+		if strings.Contains(current, "Finalizing") {
 			return true, "Embedded cluster artifacts are ready!"
 		}
 		return false, ""
