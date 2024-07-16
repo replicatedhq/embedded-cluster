@@ -5,6 +5,9 @@ on:
     - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
+      k0s-version:
+        description: 'K0s version for discovering image versions'
+        required: false
       overwrite:
         description: 'Overwrite the existing image tags'
         required: false
@@ -19,8 +22,8 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Get tags
-      id: get-tags
+    - name: Get tags from wolfi repo
+      id: get-tags-from-apkindex
       run: |
         set -euo pipefail
 
@@ -37,11 +40,40 @@ jobs:
           echo "calico-node-tag=$calico_node_version"
         } >> "$GITHUB_OUTPUT"
 
+    - name: Get tags from k0s
+      id: get-tags-from-k0s
+      run: |
+        set -euo pipefail
+
+        # We're only using the APKINDEX fi
+        if [ -n "${{ github.event.inputs.k0s-version }}" ]; then
+          make pkg/goods/bins/k0s K0S_VERSION="${{ github.event.inputs.k0s-version }}" K0S_BINARY_SOURCE_OVERRIDE=
+        else
+          make pkg/goods/bins/k0s
+        fi
+
+        coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep coredns: | awk -F':' '{ print $2 }')
+
+        sed "s/__COREDNS_VERSION__/$coredns_version/g" deploy/images/coredns/apko.tmpl.yaml > deploy/images/coredns/apko.yaml
+
+        {
+          echo "coredns-tag=$coredns_version"
+        } >> "$GITHUB_OUTPUT"
+
     - name: Build and push calico-node image
       uses: ./.github/actions/build-dep-image-with-apko
       with:
         apko-config: deploy/images/calico-node/apko.yaml
-        image-name: ttl.sh/ec/calico-node:${{ steps.get-tags.outputs.calico-node-tag }}
+        image-name: ttl.sh/ec/calico-node:${{ steps.get-tags-from-apkindex.outputs.calico-node-tag }}
+        # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
+        # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
+        overwrite: true # ${{ github.event.inputs.overwrite }}
+
+    - name: Build and push coredns image
+      uses: ./.github/actions/build-dep-image-with-apko
+      with:
+        apko-config: deploy/images/coredns/apko.yaml
+        image-name: ttl.sh/ec/coredns:${{ steps.get-tags-from-k0s.outputs.coredns-tag }}
         # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
         # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
         overwrite: true # ${{ github.event.inputs.overwrite }}

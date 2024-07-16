@@ -16,7 +16,7 @@ accounts:
       uid: 65532
       gid: 65532
   # calico-node is responsible for many host level networking tasks and as such, needs root
-  run-as: "0"
+  run-as: 0
 
 environment:
   # Tell sv where to find the services
