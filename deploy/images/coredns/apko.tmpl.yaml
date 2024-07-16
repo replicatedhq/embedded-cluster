@@ -4,7 +4,7 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
-    - coredns=__COREDNS_VERSION__
+    - coredns=__VERSION__
 
 accounts:
   groups:
