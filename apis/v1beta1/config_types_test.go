@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	"embed"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -62,6 +63,78 @@ func TestApplyEndUserAddOnOverrides(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Equal(t, expected, result)
+		})
+	}
+}
+
+func TestConvertTo(t *testing.T) {
+	type testCase struct {
+		name    string
+		ourhelm Helm
+		want    k0sv1beta1.HelmExtensions
+	}
+	tests := []testCase{
+		{
+			name: "basic",
+			ourhelm: Helm{
+				Charts: []Chart{
+					{
+						Name: "abc",
+					},
+				},
+			},
+			want: k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name: "abc",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			wantType := k0sv1beta1.HelmExtensions{}
+			got, err := ConvertTo(tt.ourhelm, wantType)
+			req.NoError(err)
+			req.Equal(tt.want, got)
+		})
+	}
+}
+
+func TestConvertFrom(t *testing.T) {
+	type testCase struct {
+		name    string
+		k0sHelm k0sv1beta1.HelmExtensions
+		want    Helm
+	}
+	tests := []testCase{
+		{
+			name: "basic",
+			k0sHelm: k0sv1beta1.HelmExtensions{
+				Charts: []k0sv1beta1.Chart{
+					{
+						Name: "abc",
+					},
+				},
+			},
+			want: Helm{
+				Charts: []Chart{
+					{
+						Name: "abc",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			wantType := Helm{}
+			got, err := ConvertFrom(tt.k0sHelm, wantType)
+			req.NoError(err)
+			req.Equal(tt.want, got)
 		})
 	}
 }
