@@ -20,7 +20,7 @@ func TestVersion(t *testing.T) {
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Destroy()
+	defer cleanupCluster(t, tc)
 	t.Logf("%s: validating 'embedded-cluster version' in node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-cluster", "version"}
 	stdout, stderr, err := RunRegularUserCommandOnNode(t, tc, 0, line)

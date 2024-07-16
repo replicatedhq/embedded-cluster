@@ -1,0 +1,22 @@
+apiVersion: troubleshoot.replicated.com/v1beta1
+kind: Preflight
+metadata:
+  name: preflight-checks
+spec:
+  analyzers:
+    - customResourceDefinition:
+        customResourceDefinitionName: installations.embeddedcluster.replicated.com
+        checkName: Embedded Cluster Installation CRD exists
+        outcomes:
+          - fail:
+              message: The Embedded Cluster Installation CRD is not installed in the cluster. Please install the Embedded Cluster Operator.
+          - pass:
+              message: The Embedded Cluster Installation CRD is installed in the cluster.
+    - customResourceDefinition:
+        customResourceDefinitionName: configs.embeddedcluster.replicated.com
+        checkName: Embedded Cluster Config CRD exists
+        outcomes:
+          - fail:
+              message: The Embedded Cluster Config CRD is not installed in the cluster. Please install the Embedded Cluster Operator.
+          - pass:
+              message: The Embedded Cluster Config CRD is installed in the cluster.
