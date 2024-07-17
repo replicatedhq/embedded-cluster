@@ -20,14 +20,14 @@ jobs:
   get-versions:
     runs-on: ubuntu-20.04
     outputs:
-      components: ${{ steps.get-components.outputs.components }}
+      components: ${{ steps.get-versions.outputs.components }}
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
     - name: Set matrix
-      id: get-components
+      id: get-versions
       run: |
         set -euox pipefail
 
@@ -115,10 +115,11 @@ jobs:
     - name: Update Makefile
       run: |
         set -euox pipefail
-        
-        components=$(echo ${{ needs.get-versions.outputs.components }} | jq -r '.[]')
-        
-        for component in $components; do
+
+        echo "${{ needs.get-versions.outputs.components }}" > components.json
+        components=$(cat components.json)
+
+        for component in $(echo "${components}" | jq -c '.[]'); do
           version=$(echo "$component" | jq -r '.version')
           makefile_var=$(echo "$component" | jq -r '.makefile_var')
           sed -i "s/^$makefile_var.*/$makefile_var = $version/" Makefile
