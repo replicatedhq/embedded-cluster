@@ -74,7 +74,7 @@ jobs:
             "version": "'$(get_package_version metrics-server $metrics_server_version)'",
             "makefile_var": "METRICS_SERVER_VERSION"
           }
-        ]')
+        ]' | jq -sc '.')
 
         echo "components=$components" >> "$GITHUB_OUTPUT"
 
