@@ -39,10 +39,14 @@ jobs:
           make pkg/goods/bins/k0s
         fi
 
-        coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/coredns:' | awk -F':' '{ print $2 }' | sed 's/-[0-9]*$//')
-        calico_node_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/calico-node:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
-        metrics_server_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/metrics-server:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
-        kube_proxy_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/kube-proxy:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
+        function get_version() {
+          pkg/goods/bins/k0s airgap list-images --all | grep "/$1:" | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//'
+        }
+
+        coredns_version=$(get_version coredns)
+        calico_node_version=$(get_version calico-node)
+        metrics_server_version=$(get_version metrics-server)
+        kube_proxy_version=$(get_version kube-proxy)
 
         # get the corresponding melange package versions
         # we're only using the APKINDEX files to get the versions, so it doesn't matter which arch we use
@@ -50,43 +54,68 @@ jobs:
         curl -LO --fail --show-error https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
         tar -xzvf APKINDEX.tar.gz
 
-        coredns_version=$(< APKINDEX grep -A1 "^P:coredns" | grep "V:$coredns_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
-        calico_node_version=$(< APKINDEX grep -A1 "^P:calico-node" | grep "V:$calico_node_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
-        metrics_server_version=$(< APKINDEX grep -A1 "^P:metrics-server" | grep "V:$metrics_server_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
-        kube_proxy_version=$(< APKINDEX grep -A1 "^P:kube-proxy" | grep "V:$kube_proxy_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
+        function get_package_version() {
+          < APKINDEX grep -A1 "^P:$1" | grep "V:$2" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n'
+        }
 
-        {
-          printf "matrix={\"include\":["
-          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\", \"makefile_var\": \"COREDNS_VERSION\"},"
-          printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\", \"makefile_var\": \"CALICO_NODE_VERSION\"},"
-          printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\", \"makefile_var\": \"METRICS_SERVER_VERSION\"}"
-          printf "]}"
-        } >> "$GITHUB_OUTPUT"
+        # coredns_package_version=$(get_package_version coredns $coredns_version)
+        # calico_node_package_version=$(get_package_version calico-node $calico_node_version)
+        # metrics_server_package_version=$(get_package_version metrics-server $metrics_server_version)
+        # kube_proxy_package_version=$(get_package_version kube-proxy $kube_proxy_version)
 
-  # build-images:
-  #   runs-on: ubuntu-20.04
-  #   needs: get-versions
-  #   strategy:
-  #     fail-fast: false
-  #     matrix: ${{ fromJSON(needs.get-versions.outputs.matrix) }}
+        components=$(echo '[
+          {
+            "name": "coredns",
+            "version": "'$(get_package_version coredns $coredns_version)'",
+            "makefile_var": "COREDNS_VERSION"
+          },
+          {
+            "name": "calico-node",
+            "version": "'$(get_package_version calico-node $calico_node_version)'",
+            "makefile_var": "CALICO_NODE_VERSION"
+          },
+          {
+            "name": "metrics-server",
+            "version": "'$(get_package_version metrics-server $metrics_server_version)'",
+            "makefile_var": "METRICS_SERVER_VERSION"
+          }
+        ]')
 
-  #   steps:
-  #   - name: Checkout
-  #     uses: actions/checkout@v4
+        # {
+        #   printf "matrix={\"include\":["
+        #   printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\", \"makefile_var\": \"COREDNS_VERSION\"},"
+        #   printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\", \"makefile_var\": \"CALICO_NODE_VERSION\"},"
+        #   printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\", \"makefile_var\": \"METRICS_SERVER_VERSION\"}"
+        #   printf "]}"
+        # } >> "$GITHUB_OUTPUT"
 
-  #   - name: Generate apko config
-  #     run: |
-  #       set -euo pipefail
-  #       sed "s/__VERSION__/${{ matrix.version }}/g" deploy/images/${{ matrix.component }}/apko.tmpl.yaml > apko.yaml
+        echo "components=$components" >> "$GITHUB_OUTPUT"
 
-  #   - name: Build and push image
-  #     uses: ./.github/actions/build-dep-image-with-apko
-  #     with:
-  #       apko-config: apko.yaml
-  #       image-name: ttl.sh/ec/${{ matrix.component }}:${{ matrix.version }}
-  #       # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
-  #       # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
-  #       overwrite: true # ${{ github.event.inputs.overwrite }}
+  build-images:
+    runs-on: ubuntu-20.04
+    needs: get-versions
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(needs.list-prs.outputs.components) }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Generate apko config
+      run: |
+        set -euo pipefail
+        sed "s/__VERSION__/${{ matrix.component.version }}/g" deploy/images/${{ matrix.component.name }}/apko.tmpl.yaml > apko.yaml
+
+    - name: Build and push image
+      uses: ./.github/actions/build-dep-image-with-apko
+      with:
+        apko-config: apko.yaml
+        image-name: ttl.sh/ec/${{ matrix.component.name }}:${{ matrix.component.version }}
+        # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
+        # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
+        overwrite: true # ${{ github.event.inputs.overwrite }}
 
   update-makefile:
     runs-on: ubuntu-20.04
@@ -100,12 +129,12 @@ jobs:
       run: |
         set -euo pipefail
         
-        components=$(echo "${{ needs.get-versions.outputs.matrix }}" | jq -r '.include[].component')
+        components=$(echo "${{ needs.get-versions.outputs.components }}" | jq -r '.[]')
         
         for component in $components; do
           version=$(echo "$component" | jq -r '.version')
           makefile_var=$(echo "$component" | jq -r '.makefile_var')
-          sed -i "s/^$makefile_var = .*/$makefile_var = $version/" Makefile
+          sed -i "s/^$makefile_var.*/$makefile_var = $version/" Makefile
         done
 
     - name: Create Pull Request # creates a PR if there are differences
