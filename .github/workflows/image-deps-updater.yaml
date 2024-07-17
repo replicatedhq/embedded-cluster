@@ -100,7 +100,7 @@ jobs:
       run: |
         set -euo pipefail
         
-        components=$(echo ${{ needs.get-versions.outputs.matrix }} | jq -r '.include[].component')
+        components=$(echo "${{ needs.get-versions.outputs.matrix }}" | jq -r '.include[].component')
         
         for component in $components; do
           version=$(echo "$component" | jq -r '.version')
