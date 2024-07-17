@@ -1,0 +1,27 @@
+contents:
+  repositories:
+    - https://packages.wolfi.dev/os
+    - ./packages/
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    - ./melange.rsa.pub
+  packages:
+    - wolfi-base
+    - local-artifact-mirror  # This is expected to be built locally by `melange`.
+
+accounts:
+  groups:
+    - groupname: nonroot
+      gid: 65532
+  users:
+    - username: nonroot
+      uid: 65532
+      gid: 65532
+  # many embedded-cluster commands must be run as root
+  run-as: 0
+
+environment:
+  VERSION: ${VERSION}
+
+entrypoint:
+  command: /usr/local/bin/local-artifact-mirror

@@ -9,7 +9,9 @@ ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_CHART_VERSION = 0.40.2
 EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
-EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
+EMBEDDED_OPERATOR_UTILS_IMAGE ?= replicated/embedded-cluster-utils
+EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION ?= $(subst +,-,$(VERSION))
+EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION = proxy.replicated.com/anonymous/$(EMBEDDED_OPERATOR_UTILS_IMAGE):(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 OPENEBS_CHART_VERSION = 4.1.0
 OPENEBS_UTILS_VERSION = 4.1.0
@@ -28,8 +30,9 @@ PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.93.1
 KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 KOTS_BINARY_URL_OVERRIDE =
-LOCAL_ARTIFACT_MIRROR_IMAGE ?= registry.replicated.com/library/embedded-cluster-local-artifact-mirror
-LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION = ${LOCAL_ARTIFACT_MIRROR_IMAGE}:$(subst +,-,$(VERSION))
+LOCAL_ARTIFACT_MIRROR_IMAGE ?= replicated/embedded-cluster-local-artifact-mirror
+LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION ?= $(subst +,-,$(VERSION))
+LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION = proxy.replicated.com/anonymous/$(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
 LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
@@ -42,7 +45,7 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ImageOverride=$(EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.UtilsVersion=$(OPENEBS_UTILS_VERSION) \
@@ -52,6 +55,8 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.Version=$(VELERO_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.VeleroTag=$(VELERO_IMAGE_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION)
+
+export PATH := $(shell pwd)/bin:$(PATH)
 
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
@@ -90,7 +95,10 @@ pkg/goods/bins/kubectl-preflight: Makefile
 
 pkg/goods/bins/local-artifact-mirror: Makefile
 	mkdir -p pkg/goods/bins
-	CGO_ENABLED=0 go build -o pkg/goods/bins/local-artifact-mirror ./cmd/local-artifact-mirror
+	go build \
+		-tags osusergo,netgo \
+		-ldflags="-s -w -extldflags=-static" \
+		-o pkg/goods/bins/local-artifact-mirror ./cmd/local-artifact-mirror
 
 pkg/goods/internal/bins/kubectl-kots: Makefile
 	mkdir -p pkg/goods/internal/bins
@@ -159,6 +167,8 @@ clean:
 	rm -rf output
 	rm -rf pkg/goods/bins
 	rm -rf pkg/goods/internal/bins
+	rm -rf build
+	rm -rf bin
 
 .PHONY: lint
 lint:
@@ -177,19 +187,91 @@ scan:
 		--ignore-unfixed \
 		./
 
-print-%:
-	@echo -n $($*)
+.PHONY: build-utils-image
+build-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-utils-image: export VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-utils-image: export MELANGE_CONFIG = deploy/packages/utils/melange.tmpl.yaml
+build-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
+build-utils-image: apko-build
+
+.PHONY: build-and-push-utils-image
+build-and-push-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-and-push-utils-image: export VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-and-push-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
+build-and-push-utils-image: apko-login apko-build-and-publish
 
 .PHONY: build-local-artifact-mirror-image
-build-local-artifact-mirror-image:
-	docker build --platform linux/amd64 -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f deploy/local-artifact-mirror/Dockerfile .
-
-.PHONY: push-local-artifact-mirror-image
-push-local-artifact-mirror-image:
-	docker push $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION)
+build-local-artifact-mirror-image: export IMAGE ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
+build-local-artifact-mirror-image: export VERSION ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
+build-local-artifact-mirror-image: export MELANGE_CONFIG = deploy/packages/local-artifact-mirror/melange.tmpl.yaml
+build-local-artifact-mirror-image: export APKO_CONFIG = deploy/images/local-artifact-mirror/apko.tmpl.yaml
+build-local-artifact-mirror-image: melange-build apko-build
 
 .PHONY: build-and-push-local-artifact-mirror-image
-build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
+build-and-push-local-artifact-mirror-image: export IMAGE ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
+build-and-push-local-artifact-mirror-image: export VERSION ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
+build-and-push-local-artifact-mirror-image: export MELANGE_CONFIG = deploy/packages/local-artifact-mirror/melange.tmpl.yaml
+build-and-push-local-artifact-mirror-image: export APKO_CONFIG = deploy/images/local-artifact-mirror/apko.tmpl.yaml
+build-and-push-local-artifact-mirror-image: melange-build apko-login apko-build-and-publish
+
+CHAINGUARD_TOOLS_USE_DOCKER = 0
+ifeq ($(CHAINGUARD_TOOLS_USE_DOCKER),"1")
+MELANGE_CACHE_DIR = /go/pkg/mod
+APKO_CMD = docker run -v "${PWD}":/work -w /work -v "${PWD}"/build/.docker:/root/.docker cgr.dev/chainguard/apko
+MELANGE_CMD = docker run --privileged --rm -v "${PWD}":/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
+else
+MELANGE_CACHE_DIR = $(shell go env GOMODCACHE)
+APKO_CMD = apko
+MELANGE_CMD = melange
+endif
+
+.PHONY: apko-build
+apko-build: export ARCHS ?= amd64
+apko-build: check-env-IMAGE apko-template
+	cd build && ${APKO_CMD} \
+		build apko.yaml ${IMAGE} apko.tar \
+		--arch ${ARCHS}
+
+.PHONY: apko-build-and-publish
+apko-build-and-publish: export ARCHS ?= amd64
+apko-build-and-publish: check-env-IMAGE apko-template
+	cd build && ${APKO_CMD} \
+		publish apko.yaml ${IMAGE} \
+		--arch ${ARCHS} | tee digest
+
+.PHONY: apko-login
+apko-login:
+	rm -f build/.docker/config.json
+	@ { [ "${PASSWORD}" = "" ] || [ "${USERNAME}" = "" ] ; } || \
+	${APKO_CMD} \
+		login -u "${USERNAME}" \
+		--password "${PASSWORD}" "${REGISTRY}"
+
+.PHONY: melange-build
+melange-build: export ARCHS ?= amd64
+melange-build: melange-template
+	mkdir -p build
+	for f in pkg cmd go.mod go.sum Makefile ; do \
+		rm -rf "build/$$f" && cp -r $$f build/ ; \
+	done
+	${MELANGE_CMD} \
+		keygen build/melange.rsa
+	${MELANGE_CMD} \
+		build build/melange.yaml \
+		--arch ${ARCHS} \
+		--signing-key build/melange.rsa \
+		--cache-dir=$(MELANGE_CACHE_DIR) \
+		--out-dir build/packages/
+
+.PHONY: melange-template
+melange-template: check-env-MELANGE_CONFIG check-env-VERSION
+	mkdir -p build
+	envsubst '$${VERSION}' < ${MELANGE_CONFIG} > build/melange.yaml
+
+.PHONY: apko-template
+apko-template: check-env-APKO_CONFIG check-env-VERSION
+	mkdir -p build
+	envsubst '$${VERSION}' < ${APKO_CONFIG} > build/apko.yaml
 
 .PHONY: buildtools
 buildtools:
@@ -199,3 +281,30 @@ buildtools:
 cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
 cache-files:
 	./scripts/cache-files.sh
+
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
+bin/apko:
+	mkdir -p bin
+	go install chainguard.dev/apko@latest && \
+		test -s $(GOBIN)/apko && \
+		ln -sf $(GOBIN)/apko bin/apko
+
+bin/melange:
+	mkdir -p bin
+	go install chainguard.dev/melange@latest && \
+		test -s $(GOBIN)/melange && \
+		ln -sf $(GOBIN)/melange bin/melange
+
+print-%:
+	@echo -n $($*)
+
+check-env-%:
+	@ if [ "${${*}}" = "" ]; then \
+		echo "Environment variable $* not set"; \
+		exit 1; \
+	fi
