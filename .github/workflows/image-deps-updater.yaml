@@ -121,7 +121,7 @@ jobs:
           automated-pr
           images
           type::security
-        draft: false
+        draft: true
         # base: "main"
         base: "sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster"
         body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
