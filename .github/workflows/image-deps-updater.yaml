@@ -40,7 +40,7 @@ jobs:
         fi
 
         function get_version() {
-          pkg/goods/bins/k0s airgap list-images --all | grep "/$1:" | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//'
+          pkg/goods/bins/k0s airgap list-images --all | grep "/$1:" | awk -F':' '{ print $2 }' | sed 's/^v//' | sed 's/-[0-9]*$//'
         }
 
         coredns_version=$(get_version coredns)
@@ -57,11 +57,6 @@ jobs:
         function get_package_version() {
           < APKINDEX grep -A1 "^P:$1" | grep "V:$2" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n'
         }
-
-        # coredns_package_version=$(get_package_version coredns $coredns_version)
-        # calico_node_package_version=$(get_package_version calico-node $calico_node_version)
-        # metrics_server_package_version=$(get_package_version metrics-server $metrics_server_version)
-        # kube_proxy_package_version=$(get_package_version kube-proxy $kube_proxy_version)
 
         components=$(echo '[
           {
@@ -80,14 +75,6 @@ jobs:
             "makefile_var": "METRICS_SERVER_VERSION"
           }
         ]')
-
-        # {
-        #   printf "matrix={\"include\":["
-        #   printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\", \"makefile_var\": \"COREDNS_VERSION\"},"
-        #   printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\", \"makefile_var\": \"CALICO_NODE_VERSION\"},"
-        #   printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\", \"makefile_var\": \"METRICS_SERVER_VERSION\"}"
-        #   printf "]}"
-        # } >> "$GITHUB_OUTPUT"
 
         echo "components=$components" >> "$GITHUB_OUTPUT"
 
