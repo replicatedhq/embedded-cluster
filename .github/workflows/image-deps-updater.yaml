@@ -100,12 +100,12 @@ jobs:
       run: |
         set -euo pipefail
         
-        matrix=${{ fromJSON(needs.get-versions.outputs.matrix) }}
-
-        echo "$matrix" | jq -c '.include[]' | while read -r component; do
-          makefile_var=$(echo "$component" | jq -r '.makefile_var')
+        components=$(echo ${{ needs.get-versions.outputs.matrix }} | jq -r '.include[].component')
+        
+        for component in $components; do
           version=$(echo "$component" | jq -r '.version')
-          sed -i "s/^$makefile_var.*/$makefile_var = $version/" Makefile
+          makefile_var=$(echo "$component" | jq -r '.makefile_var')
+          sed -i "s/^$makefile_var = .*/$makefile_var = $version/" Makefile
         done
 
     - name: Create Pull Request # creates a PR if there are differences
