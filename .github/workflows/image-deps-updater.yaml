@@ -8,75 +8,41 @@ on:
       k0s-version:
         description: 'K0s version for discovering image versions'
         required: false
-      overwrite:
-        description: 'Overwrite the existing image tags'
-        required: false
-        default: 'true'
   push:
     branches:
-    - emosbaugh/sc-108755/use-chainguard-images-for-embedded-cluster
+    - sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster
 
 jobs:
-  define-matrix:
+  update-k0s-images:
     runs-on: ubuntu-20.04
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Set matrix
-      id: set-matrix
-      run: |
-        set -euo pipefail
+    - name: Update k0s images
+      run: deploy/scripts/k0s-images.sh
 
-        # We're only using the APKINDEX files to get the versions, so it doesn't matter which arch we use
-
-        curl -LO --fail --show-error https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
-        tar -xzvf APKINDEX.tar.gz
-
-        calico_node_version=$(< APKINDEX grep -A1 "^P:calico-node" | tail -n 1 | sed -n -e 's/V://p' | tr -d '\n')
-
-        if [ -n "${{ github.event.inputs.k0s-version }}" ]; then
-          make pkg/goods/bins/k0s K0S_VERSION="${{ github.event.inputs.k0s-version }}" K0S_BINARY_SOURCE_OVERRIDE=
-        else
-          make pkg/goods/bins/k0s
-        fi
-
-        coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/coredns:' | awk -F':' '{ print $2 }')
-        kube_proxy_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/kube-proxy:' | awk -F':v' '{ print $2 }')
-        metrics_server_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/metrics-server:' | awk -F':v' '{ print $2 }')
-
-        {
-          printf "matrix={\"include\":["
-          printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\"},"
-          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\"},"
-          printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\"}"
-          printf "]}"
-        } >> "$GITHUB_OUTPUT"
-
-  build-images:
-    runs-on: ubuntu-20.04
-    needs: define-matrix
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Generate apko config
-      run: |
-        set -euo pipefail
-        sed "s/__VERSION__/${{ matrix.version }}/g" deploy/images/${{ matrix.component }}/apko.tmpl.yaml > apko.yaml
-
-    - name: Build and push image
-      uses: ./.github/actions/build-dep-image-with-apko
+    - name: Create Pull Request # creates a PR if there are differences
+      uses: peter-evans/create-pull-request@v6
+      id: cpr
       with:
-        apko-config: apko.yaml
-        image-name: ttl.sh/ec/${{ matrix.component }}:${{ matrix.version }}
-        # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
-        # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
-        overwrite: true # ${{ github.event.inputs.overwrite }}
+        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        commit-message: 'Update image versions'
+        title: 'Automated image updates'
+        branch: automation/image-dependencies
+        delete-branch: true
+        labels: |
+          automated-pr
+          images
+          type::security
+        # draft: false
+        draft: true
+        # base: "main"
+        base: "sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster"
+        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+
+    - name: Check outputs
+      if: ${{ steps.cpr.outputs.pull-request-number }}
+      run: |
+        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
