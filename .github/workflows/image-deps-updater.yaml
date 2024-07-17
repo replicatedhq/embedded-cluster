@@ -29,7 +29,7 @@ jobs:
     - name: Set matrix
       id: set-matrix
       run: |
-        set -euo pipefail
+        set -euox pipefail
 
         # find the versions of k0s images we need
 
