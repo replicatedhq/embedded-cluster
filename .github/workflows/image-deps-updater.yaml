@@ -100,7 +100,7 @@ jobs:
       run: |
         set -euo pipefail
         
-        matrix=${{ needs.get-versions.outputs.matrix }}
+        matrix=${{ fromJSON(needs.get-versions.outputs.matrix) }}
 
         echo "$matrix" | jq -c '.include[]' | while read -r component; do
           makefile_var=$(echo "$component" | jq -r '.makefile_var')
