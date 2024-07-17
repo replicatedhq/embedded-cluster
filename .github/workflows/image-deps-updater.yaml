@@ -90,7 +90,7 @@ jobs:
 
   update-makefile:
     runs-on: ubuntu-20.04
-    needs: build-images
+    needs: [get-versions, build-images]
 
     steps:
     - name: Checkout
@@ -121,6 +121,7 @@ jobs:
           automated-pr
           images
           type::security
+        # draft: false
         draft: true
         # base: "main"
         base: "sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster"
