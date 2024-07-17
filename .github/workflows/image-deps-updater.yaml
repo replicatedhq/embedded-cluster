@@ -17,7 +17,7 @@ on:
     - sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster
 
 jobs:
-  define-matrix:
+  get-versions:
     runs-on: ubuntu-20.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -39,10 +39,10 @@ jobs:
           make pkg/goods/bins/k0s
         fi
 
-        calico_node_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/calico-node:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
         coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/coredns:' | awk -F':' '{ print $2 }' | sed 's/-[0-9]*$//')
-        kube_proxy_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/kube-proxy:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
+        calico_node_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/calico-node:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
         metrics_server_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/metrics-server:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
+        kube_proxy_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/kube-proxy:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
 
         # get the corresponding melange package versions
         # we're only using the APKINDEX files to get the versions, so it doesn't matter which arch we use
@@ -50,25 +50,25 @@ jobs:
         curl -LO --fail --show-error https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
         tar -xzvf APKINDEX.tar.gz
 
-        calico_node_version=$(< APKINDEX grep -A1 "^P:calico-node" | grep "V:$calico_node_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
         coredns_version=$(< APKINDEX grep -A1 "^P:coredns" | grep "V:$coredns_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
-        kube_proxy_version=$(< APKINDEX grep -A1 "^P:kube-proxy" | grep "V:$kube_proxy_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
+        calico_node_version=$(< APKINDEX grep -A1 "^P:calico-node" | grep "V:$calico_node_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
         metrics_server_version=$(< APKINDEX grep -A1 "^P:metrics-server" | grep "V:$metrics_server_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
+        kube_proxy_version=$(< APKINDEX grep -A1 "^P:kube-proxy" | grep "V:$kube_proxy_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
 
         {
           printf "matrix={\"include\":["
-          printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\"},"
-          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\"},"
-          printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\"}"
+          printf "{\"component\": \"coredns\", \"version\": \"$coredns_version\", \"makefile_var\": \"COREDNS_VERSION\"},"
+          printf "{\"component\": \"calico-node\", \"version\": \"$calico_node_version\", \"makefile_var\": \"CALICO_NODE_VERSION\"},"
+          printf "{\"component\": \"metrics-server\", \"version\": \"$metrics_server_version\", \"makefile_var\": \"METRICS_SERVER_VERSION\"}"
           printf "]}"
         } >> "$GITHUB_OUTPUT"
 
   build-images:
     runs-on: ubuntu-20.04
-    needs: define-matrix
+    needs: get-versions
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.get-versions.outputs.matrix) }}
 
     steps:
     - name: Checkout
@@ -87,3 +87,47 @@ jobs:
         # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
         # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
         overwrite: true # ${{ github.event.inputs.overwrite }}
+
+  update-makefile:
+    runs-on: ubuntu-20.04
+    needs: build-images
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Update Makefile
+      run: |
+        set -euo pipefail
+        
+        matrix=${{ needs.get-versions.outputs.matrix }}
+
+        echo "$matrix" | jq -c '.include[]' | while read -r component; do
+          makefile_var=$(echo "$component" | jq -r '.makefile_var')
+          version=$(echo "$component" | jq -r '.version')
+          sed -i "s/^$makefile_var.*/$makefile_var = $version/" Makefile
+        done
+
+    - name: Create Pull Request # creates a PR if there are differences
+      uses: peter-evans/create-pull-request@v6
+      id: cpr
+      with:
+        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        commit-message: 'Update image versions'
+        title: 'Automated image updates'
+        branch: automation/image-dependencies
+        delete-branch: true
+        labels: |
+          automated-pr
+          images
+          type::security
+        draft: false
+        # base: "main"
+        base: "sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster"
+        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+
+    - name: Check outputs
+      if: ${{ steps.cpr.outputs.pull-request-number }}
+      run: |
+        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
