@@ -74,7 +74,7 @@ jobs:
             "version": "'$(get_package_version metrics-server $metrics_server_version)'",
             "makefile_var": "METRICS_SERVER_VERSION"
           }
-        ]' | jq -sc '.')
+        ]' | jq -c '.')
 
         echo "components=$components" >> "$GITHUB_OUTPUT"
 
@@ -84,7 +84,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: ${{ fromJson(needs.list-prs.outputs.components) }}
+        component: ${{ fromJson(needs.get-versions.outputs.components) }}
 
     steps:
     - name: Checkout
@@ -92,7 +92,7 @@ jobs:
 
     - name: Generate apko config
       run: |
-        set -euo pipefail
+        set -euox pipefail
         sed "s/__VERSION__/${{ matrix.component.version }}/g" deploy/images/${{ matrix.component.name }}/apko.tmpl.yaml > apko.yaml
 
     - name: Build and push image
@@ -114,9 +114,9 @@ jobs:
 
     - name: Update Makefile
       run: |
-        set -euo pipefail
+        set -euox pipefail
         
-        components=$(echo "${{ needs.get-versions.outputs.components }}" | jq -r '.[]')
+        components=$(echo ${{ needs.get-versions.outputs.components }} | jq -r '.[]')
         
         for component in $components; do
           version=$(echo "$component" | jq -r '.version')
