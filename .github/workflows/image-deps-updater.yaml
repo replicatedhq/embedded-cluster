@@ -14,7 +14,7 @@ on:
         default: 'true'
   push:
     branches:
-    - emosbaugh/sc-108755/use-chainguard-images-for-embedded-cluster
+    - sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster
 
 jobs:
   define-matrix:
@@ -31,12 +31,7 @@ jobs:
       run: |
         set -euo pipefail
 
-        # We're only using the APKINDEX files to get the versions, so it doesn't matter which arch we use
-
-        curl -LO --fail --show-error https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
-        tar -xzvf APKINDEX.tar.gz
-
-        calico_node_version=$(< APKINDEX grep -A1 "^P:calico-node" | tail -n 1 | sed -n -e 's/V://p' | tr -d '\n')
+        # find the versions of k0s images we need
 
         if [ -n "${{ github.event.inputs.k0s-version }}" ]; then
           make pkg/goods/bins/k0s K0S_VERSION="${{ github.event.inputs.k0s-version }}" K0S_BINARY_SOURCE_OVERRIDE=
@@ -44,9 +39,21 @@ jobs:
           make pkg/goods/bins/k0s
         fi
 
-        coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/coredns:' | awk -F':' '{ print $2 }')
-        kube_proxy_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/kube-proxy:' | awk -F':v' '{ print $2 }')
-        metrics_server_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/metrics-server:' | awk -F':v' '{ print $2 }')
+        calico_node_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/calico-node:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
+        coredns_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/coredns:' | awk -F':' '{ print $2 }' | sed 's/-[0-9]*$//')
+        kube_proxy_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/kube-proxy:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
+        metrics_server_version=$(pkg/goods/bins/k0s airgap list-images --all | grep '/metrics-server:' | awk -F':v' '{ print $2 }' | sed 's/-[0-9]*$//')
+
+        # get the corresponding melange package versions
+        # we're only using the APKINDEX files to get the versions, so it doesn't matter which arch we use
+
+        curl -LO --fail --show-error https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
+        tar -xzvf APKINDEX.tar.gz
+
+        calico_node_version=$(< APKINDEX grep -A1 "^P:calico-node" | grep "V:$calico_node_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
+        coredns_version=$(< APKINDEX grep -A1 "^P:coredns" | grep "V:$coredns_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
+        kube_proxy_version=$(< APKINDEX grep -A1 "^P:kube-proxy" | grep "V:$kube_proxy_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
+        metrics_server_version=$(< APKINDEX grep -A1 "^P:metrics-server" | grep "V:$metrics_server_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n')
 
         {
           printf "matrix={\"include\":["
