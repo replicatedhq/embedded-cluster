@@ -20,14 +20,14 @@ jobs:
   get-versions:
     runs-on: ubuntu-20.04
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      components: ${{ steps.get-components.outputs.components }}
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
     - name: Set matrix
-      id: set-matrix
+      id: get-components
       run: |
         set -euox pipefail
 
