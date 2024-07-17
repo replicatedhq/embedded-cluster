@@ -63,34 +63,34 @@ jobs:
           printf "]}"
         } >> "$GITHUB_OUTPUT"
 
-  build-images:
-    runs-on: ubuntu-20.04
-    needs: get-versions
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.get-versions.outputs.matrix) }}
+  # build-images:
+  #   runs-on: ubuntu-20.04
+  #   needs: get-versions
+  #   strategy:
+  #     fail-fast: false
+  #     matrix: ${{ fromJSON(needs.get-versions.outputs.matrix) }}
 
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout
+  #     uses: actions/checkout@v4
 
-    - name: Generate apko config
-      run: |
-        set -euo pipefail
-        sed "s/__VERSION__/${{ matrix.version }}/g" deploy/images/${{ matrix.component }}/apko.tmpl.yaml > apko.yaml
+  #   - name: Generate apko config
+  #     run: |
+  #       set -euo pipefail
+  #       sed "s/__VERSION__/${{ matrix.version }}/g" deploy/images/${{ matrix.component }}/apko.tmpl.yaml > apko.yaml
 
-    - name: Build and push image
-      uses: ./.github/actions/build-dep-image-with-apko
-      with:
-        apko-config: apko.yaml
-        image-name: ttl.sh/ec/${{ matrix.component }}:${{ matrix.version }}
-        # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
-        # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
-        overwrite: true # ${{ github.event.inputs.overwrite }}
+  #   - name: Build and push image
+  #     uses: ./.github/actions/build-dep-image-with-apko
+  #     with:
+  #       apko-config: apko.yaml
+  #       image-name: ttl.sh/ec/${{ matrix.component }}:${{ matrix.version }}
+  #       # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
+  #       # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
+  #       overwrite: true # ${{ github.event.inputs.overwrite }}
 
   update-makefile:
     runs-on: ubuntu-20.04
-    needs: [get-versions, build-images]
+    needs: [get-versions]
 
     steps:
     - name: Checkout
