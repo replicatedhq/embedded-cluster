@@ -525,17 +525,7 @@ func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd stri
 }
 
 func askAdminConsolePassword(c *cli.Context) (string, error) {
-	defaultPassword := "password"
-	userProvidedPassword := c.String("admin-console-password")
-	if c.Bool("no-prompt") {
-		if userProvidedPassword != "" {
-			return userProvidedPassword, nil
-		} else {
-			logrus.Infof("The Admin Console password is set to %s", defaultPassword)
-			return defaultPassword, nil
-		}
-	}
-	if userProvidedPassword != "" {
+	if userProvidedPassword := c.String("admin-console-password"); userProvidedPassword != "" {
 		return userProvidedPassword, nil
 	}
 	maxTries := 3
@@ -564,6 +554,9 @@ var installCommand = &cli.Command{
 		}
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
+		}
+		if c.Bool("no-prompt") && c.String("admin-console-password") == "" {
+			return fmt.Errorf("must pass '--admin-console-password' with '--no-prompt'")
 		}
 		return nil
 	},
