@@ -8,10 +8,6 @@ on:
       k0s-version:
         description: 'K0s version for discovering image versions'
         required: false
-      overwrite:
-        description: 'Overwrite the existing image tags'
-        required: false
-        default: 'true'
   push:
     branches:
     - sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster
@@ -102,7 +98,6 @@ jobs:
         image-name: ttl.sh/ec/${{ matrix.component.name }}:${{ matrix.component.version }}
         # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
         # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
-        overwrite: true # ${{ github.event.inputs.overwrite }}
 
   update-makefile:
     runs-on: ubuntu-20.04
