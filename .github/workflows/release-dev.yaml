@@ -194,7 +194,6 @@ jobs:
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
           - TestMultiNodeAirgapHAInstallation
-          - TestMultiNodeAirgapUpgradeSameK0s
           - TestProxiedEnvironment
           - TestMultiNodeHADisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
@@ -203,6 +202,8 @@ jobs:
           - TestSingleNodeInstallationNoopUpgrade
         include:
           - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgradeSameK0s
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHAInstallation
             runner: embedded-cluster
