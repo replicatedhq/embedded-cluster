@@ -250,10 +250,6 @@ apko-login:
 .PHONY: melange-build
 melange-build: export ARCHS ?= amd64
 melange-build: melange-template
-	mkdir -p build
-	for f in pkg cmd go.mod go.sum Makefile ; do \
-		rm -rf "build/$$f" && cp -r $$f build/ ; \
-	done
 	${MELANGE_CMD} \
 		keygen build/melange.rsa
 	${MELANGE_CMD} \
@@ -261,6 +257,7 @@ melange-build: melange-template
 		--arch ${ARCHS} \
 		--signing-key build/melange.rsa \
 		--cache-dir=$(MELANGE_CACHE_DIR) \
+		--source-dir . \
 		--out-dir build/packages/
 
 .PHONY: melange-template
