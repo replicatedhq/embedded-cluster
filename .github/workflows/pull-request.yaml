@@ -65,7 +65,7 @@ jobs:
         export REGISTRY=docker.io
         export USERNAME=${{ secrets.DOCKERHUB_USER }}
         export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-        make bin/apko
+        make apko
         make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}"
         make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
         make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-upgrade"
@@ -78,7 +78,7 @@ jobs:
         export REGISTRY=docker.io
         export USERNAME=${{ secrets.DOCKERHUB_USER }}
         export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-        make bin/apko
+        make apko
         make build-and-push-utils-image VERSION="${SHORT_SHA}"
         make build-and-push-utils-image VERSION="${SHORT_SHA}-previous-k0s"
         make build-and-push-utils-image VERSION="${SHORT_SHA}-upgrade"

@@ -37,7 +37,7 @@ jobs:
           export REGISTRY=docker.io
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make bin/apko
+          make apko
           make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
 
       - name: Build and push local-artifact-mirror image (staging)
@@ -46,7 +46,7 @@ jobs:
           export REGISTRY=docker.io
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make bin/apko
+          make apko
           make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
 
       - name: Build and push utils image (production)
@@ -54,7 +54,7 @@ jobs:
           export REGISTRY=docker.io
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make bin/apko
+          make apko
           make build-and-push-utils-image VERSION=$TAG_NAME
 
       - name: Build and push utils image (staging)
@@ -63,7 +63,7 @@ jobs:
           export REGISTRY=docker.io
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make bin/apko
+          make apko
           make build-and-push-utils-image VERSION=$TAG_NAME
 
       - name: Build linux-amd64

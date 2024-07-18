@@ -221,8 +221,8 @@ APKO_CMD = docker run -v "${PWD}":/work -w /work -v "${PWD}"/build/.docker:/root
 MELANGE_CMD = docker run --privileged --rm -v "${PWD}":/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
 else
 MELANGE_CACHE_DIR = $(shell go env GOMODCACHE)
-APKO_CMD = apko
-MELANGE_CMD = melange
+APKO_CMD = $(APKO)
+MELANGE_CMD = $(MELANGE)
 endif
 
 .PHONY: apko-build
@@ -282,23 +282,33 @@ cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
 cache-files:
 	./scripts/cache-files.sh
 
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+## Tool Binaries
+MELANGE ?= $(LOCALBIN)/melange
+APKO ?= $(LOCALBIN)/apko
+
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
 
-bin/apko:
-	mkdir -p bin
-	go install chainguard.dev/apko@latest && \
-		test -s $(GOBIN)/apko && \
-		ln -sf $(GOBIN)/apko bin/apko
-
-bin/melange:
-	mkdir -p bin
+melange: $(MELANGE)
+$(MELANGE): $(LOCALBIN)
 	go install chainguard.dev/melange@latest && \
 		test -s $(GOBIN)/melange && \
-		ln -sf $(GOBIN)/melange bin/melange
+		ln -sf $(GOBIN)/melange $(LOCALBIN)/melange
+
+apko: $(APKO)
+$(APKO): $(LOCALBIN)
+	go install chainguard.dev/apko@latest && \
+		test -s $(GOBIN)/apko && \
+		ln -sf $(GOBIN)/apko $(LOCALBIN)/apko
 
 print-%:
 	@echo -n $($*)
