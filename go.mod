@@ -14,7 +14,7 @@ require (
 	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0s v1.29.6-0.20240527072442-22f6a125e881
+	github.com/k0sproject/k0s v1.29.7-0.20240618090010-edbb703218fd
 	github.com/replicatedhq/embedded-cluster-kinds v1.4.5
 	github.com/replicatedhq/embedded-cluster-operator v0.40.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
@@ -42,7 +42,8 @@ require (
 	github.com/Microsoft/hcsshim v0.12.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/containerd/containerd v1.7.17 // indirect
+	github.com/containerd/containerd v1.7.18 // indirect
+	github.com/containerd/errdefs v0.1.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
