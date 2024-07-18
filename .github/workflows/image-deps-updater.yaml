@@ -20,7 +20,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Update k0s images
-      run: deploy/scripts/k0s-images.sh
+      run: make update-k0s-images
 
     - name: Create Pull Request # creates a PR if there are differences
       uses: peter-evans/create-pull-request@v6

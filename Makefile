@@ -271,6 +271,10 @@ cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
 cache-files:
 	./scripts/cache-files.sh
 
+.PHONY: update-k0s-images
+update-k0s-images:
+	./scripts/update-k0s-images.sh
+
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
