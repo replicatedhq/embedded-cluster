@@ -21,7 +21,7 @@ accounts:
   run-as: 0
 
 environment:
-  VERSION: ${VERSION}
+  VERSION: ${PACKAGE_VERSION}
 
 entrypoint:
   command: /usr/bin/local-artifact-mirror

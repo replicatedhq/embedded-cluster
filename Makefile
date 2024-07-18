@@ -189,27 +189,26 @@ scan:
 
 .PHONY: build-utils-image
 build-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
-build-utils-image: export VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
-build-utils-image: export MELANGE_CONFIG = deploy/packages/utils/melange.tmpl.yaml
+build-utils-image: export PACKAGE_VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
 build-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
 build-utils-image: apko-build
 
 .PHONY: build-and-push-utils-image
 build-and-push-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
-build-and-push-utils-image: export VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-and-push-utils-image: export PACKAGE_VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
 build-and-push-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
 build-and-push-utils-image: apko-login apko-build-and-publish
 
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image: export IMAGE ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
-build-local-artifact-mirror-image: export VERSION ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
+build-local-artifact-mirror-image: export PACKAGE_VERSION ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
 build-local-artifact-mirror-image: export MELANGE_CONFIG = deploy/packages/local-artifact-mirror/melange.tmpl.yaml
 build-local-artifact-mirror-image: export APKO_CONFIG = deploy/images/local-artifact-mirror/apko.tmpl.yaml
 build-local-artifact-mirror-image: melange-build apko-build
 
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: export IMAGE ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
-build-and-push-local-artifact-mirror-image: export VERSION ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
+build-and-push-local-artifact-mirror-image: export PACKAGE_VERSION ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
 build-and-push-local-artifact-mirror-image: export MELANGE_CONFIG = deploy/packages/local-artifact-mirror/melange.tmpl.yaml
 build-and-push-local-artifact-mirror-image: export APKO_CONFIG = deploy/images/local-artifact-mirror/apko.tmpl.yaml
 build-and-push-local-artifact-mirror-image: melange-build apko-login apko-build-and-publish
@@ -264,14 +263,14 @@ melange-build: $(MELANGE_CACHE_DIR) melange-template
 		--out-dir build/packages/
 
 .PHONY: melange-template
-melange-template: check-env-MELANGE_CONFIG check-env-VERSION
+melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
-	envsubst '$${VERSION}' < ${MELANGE_CONFIG} > build/melange.yaml
+	envsubst '$${PACKAGE_VERSION}' < ${MELANGE_CONFIG} > build/melange.yaml
 
 .PHONY: apko-template
-apko-template: check-env-APKO_CONFIG check-env-VERSION
+apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
-	envsubst '$${VERSION}' < ${APKO_CONFIG} > build/apko.yaml
+	envsubst '$${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
 
 .PHONY: buildtools
 buildtools:
