@@ -4,6 +4,7 @@ set -euox pipefail
 
 # we're only using the APKINDEX files to get the versions, so it doesn't matter which arch we use
 
+mkdir -p output/tmp
 curl -L -o output/tmp/APKINDEX.tar.gz https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
 tar -xzvf output/tmp/APKINDEX.tar.gz -C output/tmp
 
