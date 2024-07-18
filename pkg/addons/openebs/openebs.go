@@ -25,6 +25,8 @@ var (
 	openEBSImageRepo        = "proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv"
 	openEBSUtilsImageRepo   = "proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils"
 	openebsKubectlImageRepo = "proxy.replicated.com/anonymous/replicated/ec-openebs-kubectl"
+
+	helmValues = map[string]interface{}{}
 )
 
 // Overwritten by -ldflags in Makefile
@@ -48,60 +50,60 @@ func init() {
 	if OpenEBSKubectlImageRepoOverride == "" {
 		openebsKubectlImageRepo = OpenEBSKubectlImageRepoOverride
 	}
-}
 
-var helmValues = map[string]interface{}{
-	"localpv-provisioner": map[string]interface{}{
-		"analytics": map[string]interface{}{
+	helmValues = map[string]interface{}{
+		"localpv-provisioner": map[string]interface{}{
+			"analytics": map[string]interface{}{
+				"enabled": false,
+			},
+			"hostpathClass": map[string]interface{}{
+				"enabled":        true,
+				"isDefaultClass": true,
+			},
+			"helperPod": map[string]interface{}{
+				"image": map[string]interface{}{
+					"repository": openEBSUtilsImageRepo,
+					"tag":        OpenEBSUtilsImageTag,
+				},
+			},
+			"localpv": map[string]interface{}{
+				"image": map[string]interface{}{
+					"repository": openEBSImageRepo,
+					"tag":        OpenEBSImageTag,
+				},
+			},
+		},
+		"preUpgradeHook": map[string]interface{}{
+			"image": map[string]interface{}{
+				"repository": openebsKubectlImageRepo,
+				"tag":        OpenEBSKubectlImageTag,
+			},
+		},
+		"zfs-localpv": map[string]interface{}{
 			"enabled": false,
 		},
-		"hostpathClass": map[string]interface{}{
-			"enabled":        true,
-			"isDefaultClass": true,
+		"lvm-localpv": map[string]interface{}{
+			"enabled": false,
 		},
-		"helperPod": map[string]interface{}{
-			"image": map[string]interface{}{
-				"repository": openEBSUtilsImageRepo,
-				"tag":        OpenEBSUtilsImageTag,
+		"mayastor": map[string]interface{}{
+			"enabled": false,
+		},
+		"engines": map[string]interface{}{
+			"local": map[string]interface{}{
+				"lvm": map[string]interface{}{
+					"enabled": false,
+				},
+				"zfs": map[string]interface{}{
+					"enabled": false,
+				},
+			},
+			"replicated": map[string]interface{}{
+				"mayastor": map[string]interface{}{
+					"enabled": false,
+				},
 			},
 		},
-		"localpv": map[string]interface{}{
-			"image": map[string]interface{}{
-				"repository": openEBSImageRepo,
-				"tag":        OpenEBSImageTag,
-			},
-		},
-	},
-	"preUpgradeHook": map[string]interface{}{
-		"image": map[string]interface{}{
-			"repository": openebsKubectlImageRepo,
-			"tag":        OpenEBSKubectlImageTag,
-		},
-	},
-	"zfs-localpv": map[string]interface{}{
-		"enabled": false,
-	},
-	"lvm-localpv": map[string]interface{}{
-		"enabled": false,
-	},
-	"mayastor": map[string]interface{}{
-		"enabled": false,
-	},
-	"engines": map[string]interface{}{
-		"local": map[string]interface{}{
-			"lvm": map[string]interface{}{
-				"enabled": false,
-			},
-			"zfs": map[string]interface{}{
-				"enabled": false,
-			},
-		},
-		"replicated": map[string]interface{}{
-			"mayastor": map[string]interface{}{
-				"enabled": false,
-			},
-		},
-	},
+	}
 }
 
 // OpenEBS manages the installation of the OpenEBS helm chart.
