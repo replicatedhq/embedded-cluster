@@ -89,13 +89,22 @@ var updateK0sImagesCommand = &cli.Command{
 				return fmt.Errorf("failed to generate apko config for %s: %w", component.name, err)
 			}
 
+			if os.Getenv("REGISTRY_PASS") != "" {
+				if err := runCommand(
+					"make",
+					"apko-login",
+					fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_SERVER")),
+					fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
+					fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
+				); err != nil {
+					return fmt.Errorf("failed to build and publish apko for %s: %w", component.name, err)
+				}
+			}
+
 			if err := runCommand(
 				"make",
 				"apko-build-and-publish",
-				fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_SERVER")),
-				fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
-				fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
-				fmt.Sprintf("IMAGE=replicated/ec-%s:%s", component.name, version),
+				fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), component.name, version),
 				fmt.Sprintf("APKO_CONFIG=%s", apkoConfig),
 				fmt.Sprintf("VERSION=%s", version),
 			); err != nil {
