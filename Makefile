@@ -66,6 +66,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+export PATH := $(shell pwd)/bin:$(PATH)
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -185,6 +187,8 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+MELANGE ?= $(LOCALBIN)/melange
+APKO ?= $(LOCALBIN)/apko
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
@@ -300,11 +304,11 @@ catalog-push: ## Push a catalog image.
 
 # Push operator image to ttl.sh
 .PHONY: build-ttl.sh
-build-ttl.sh: export IMAGE = ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
-build-ttl.sh: export VERSION = $(shell git describe --tags --dirty --always --abbrev=8 | sed 's/^v//')
-build-ttl.sh: export GOOS = linux
-build-ttl.sh: export GOARCH = amd64
-build-ttl.sh: build melange apko-publish
+build-ttl.sh: export IMAGE ?= ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
+build-ttl.sh: export VERSION ?= $(shell git describe --tags --dirty --always --abbrev=8 | sed 's/^v//')
+build-ttl.sh: export MELANGE_CONFIG = deploy/melange.tmpl.yaml
+build-ttl.sh: export APKO_CONFIG = deploy/apko.tmpl.yaml
+build-ttl.sh: melange-build apko-publish
 
 .PHONY: build-chart-ttl.sh
 build-chart-ttl.sh: build-ttl.sh
@@ -315,54 +319,76 @@ build-chart-ttl.sh: export CHART_REMOTE = oci://ttl.sh/${CURRENT_USER}
 build-chart-ttl.sh:
 	cd charts/embedded-cluster-operator && ../../scripts/publish-helm-chart.sh
 
-.PHONY: apko-build
-apko-build: export IMAGE ?= ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
-apko-build: export ARCHS ?= amd64
-apko-build: apko-template
-	docker run -v "${PWD}":/work -w /work/build \
-		cgr.dev/chainguard/apko build apko.yaml ${IMAGE} apko.tar \
-			--arch ${ARCHS}
+CHAINGUARD_TOOLS_USE_DOCKER = 0
+ifeq ($(CHAINGUARD_TOOLS_USE_DOCKER),"1")
+MELANGE_CACHE_DIR ?= /go/pkg/mod
+APKO_CMD = docker run -v $(shell pwd):/work -w /work -v $(shell pwd)/build/.docker:/root/.docker cgr.dev/chainguard/apko
+MELANGE_CMD = docker run --privileged --rm -v $(shell pwd):/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
+else
+MELANGE_CACHE_DIR ?= build/.melange-cache
+APKO_CMD = apko
+MELANGE_CMD = melange
+endif
 
-.PHONY: apko-publish
-apko-publish: export IMAGE ?= ttl.sh/${CURRENT_USER}/embedded-cluster-operator-image:24h
-apko-publish: export ARCHS ?= amd64
-apko-publish: apko-template
-	docker run -v "${PWD}":/work -w /work/build -v "${PWD}"/build/.docker:/root/.docker \
-		cgr.dev/chainguard/apko publish apko.yaml ${IMAGE} \
-			--arch ${ARCHS} | tee build/digest
+$(MELANGE_CACHE_DIR):
+	mkdir -p $(MELANGE_CACHE_DIR)
+
+.PHONY: apko-build
+apko-build: export ARCHS ?= amd64
+apko-build: check-env-IMAGE apko-template
+	cd build && ${APKO_CMD} \
+		build apko.yaml ${IMAGE} apko.tar \
+		--arch ${ARCHS}
+
+.PHONY: apko-build-and-publish
+apko-build-and-publish: export ARCHS ?= amd64
+apko-build-and-publish: check-env-IMAGE apko-template
+	cd build && ${APKO_CMD} \
+		publish apko.yaml ${IMAGE} \
+		--arch ${ARCHS} | tee digest
 
 .PHONY: apko-login
-apko-login: check-env-REGISTRY check-env-USERNAME check-env-PASSWORD
-	docker run -v "${PWD}":/work -v "${PWD}"/build/.docker:/root/.docker -w /work/build \
-		cgr.dev/chainguard/apko login -u "${USERNAME}" \
-			--password "${PASSWORD}" "${REGISTRY}"
+apko-login:
+	rm -f build/.docker/config.json
+	@ { [ "${PASSWORD}" = "" ] || [ "${USERNAME}" = "" ] ; } || \
+	${APKO_CMD} \
+		login -u "${USERNAME}" \
+		--password "${PASSWORD}" "${REGISTRY}"
 
-.PHONY: melange
-melange: export ARCHS ?= amd64
-melange: melange-template
-	mkdir -p build
-	for f in pkg controllers main.go go.mod go.sum Makefile ; do \
-		rm -rf "build/$$f" && cp -r $$f build/ ; \
-	done
-	docker run --rm -v "${PWD}":/work -w /work/build \
-		cgr.dev/chainguard/melange keygen melange.rsa
-	docker run --privileged --rm -v "${PWD}":/work -w /work \
-		-v "$(shell go env GOMODCACHE)":/go/pkg/mod \
-		cgr.dev/chainguard/melange build build/melange.yaml \
-			--arch ${ARCHS} \
-			--signing-key build/melange.rsa \
-			--cache-dir=/go/pkg/mod \
-			--out-dir build/packages/
+.PHONY: melange-build
+melange-build: export ARCHS ?= amd64
+melange-build: $(MELANGE_CACHE_DIR) melange-template
+	${MELANGE_CMD} \
+		keygen build/melange.rsa
+	${MELANGE_CMD} \
+		build build/melange.yaml \
+		--arch ${ARCHS} \
+		--signing-key build/melange.rsa \
+		--cache-dir=$(MELANGE_CACHE_DIR) \
+		--source-dir . \
+		--out-dir build/packages/
 
 .PHONY: melange-template
-melange-template: check-env-VERSION
+melange-template: check-env-MELANGE_CONFIG check-env-VERSION
 	mkdir -p build
-	envsubst '$${VERSION}' < deploy/melange.tmpl.yaml > build/melange.yaml
+	envsubst '$${VERSION}' < ${MELANGE_CONFIG} > build/melange.yaml
 
 .PHONY: apko-template
-apko-template: check-env-VERSION
+apko-template: check-env-APKO_CONFIG check-env-VERSION
 	mkdir -p build
-	envsubst '$${VERSION}' < deploy/apko.tmpl.yaml > build/apko.yaml
+	envsubst '$${VERSION}' < ${APKO_CONFIG} > build/apko.yaml
+
+melange: $(MELANGE)
+$(MELANGE): $(LOCALBIN)
+	go install chainguard.dev/melange@latest && \
+		test -s $(GOBIN)/melange && \
+		ln -sf $(GOBIN)/melange $(LOCALBIN)/melange
+
+apko: $(APKO)
+$(APKO): $(LOCALBIN)
+	go install chainguard.dev/apko@latest && \
+		test -s $(GOBIN)/apko && \
+		ln -sf $(GOBIN)/apko $(LOCALBIN)/apko
 
 check-env-%:
 	@ if [ "${${*}}" = "" ]; then \

@@ -64,15 +64,24 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
+    - uses: actions/cache@v4
+      with:
+        path: |
+          build/.melange-cache
+        key: melange-cache
+    - name: Setup Melange
+      uses: chainguard-dev/actions/setup-melange@main
     - name: Build melange package
       run: |
         export VERSION=${{needs.get-tag.outputs.tag}}
-        make melange
+        export MELANGE_CONFIG=deploy/melange.tmpl.yaml
+        make melange-build
     - name: Build apko image
       run: |
         export VERSION=${{needs.get-tag.outputs.tag}}
         export IMAGE=ttl.sh/embedded-cluster-operator-image:dev-${VERSION}
-        make apko-build
+        export APKO_CONFIG=deploy/apko.tmpl.yaml
+        make apko apko-build
 
   check-crds:
     runs-on: ubuntu-latest

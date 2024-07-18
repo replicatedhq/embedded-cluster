@@ -15,12 +15,11 @@ environment:
     packages:
       - busybox
       - go
-  environment:
-    GOMODCACHE: /var/cache/melange
 
 pipeline:
   - runs: |
-      set -ex
+      set -exuo pipefail
+
       make build
-      cp bin/manager "${{targets.destdir}}/manager"
+      cp bin/manager "${{targets.contextdir}}/manager"
   - uses: strip
