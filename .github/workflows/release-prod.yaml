@@ -8,8 +8,6 @@ permissions:
 jobs:
   releaser:
     runs-on: ubuntu-latest
-    env:
-      MELANGE_CACHE_DIR: /root/.cache/melange-build
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,8 +32,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            $MELANGE_CACHE_DIR
-          key: ${{ runner.os }}-melange-build
+            build/.melange-cache
+          key: ${{ runner.os }}-melange-cache
 
       - name: Setup Melange
         uses: chainguard-dev/actions/setup-melange@main

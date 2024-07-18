@@ -43,8 +43,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-    env:
-      MELANGE_CACHE_DIR: /root/.cache/melange-build
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -56,8 +54,8 @@ jobs:
     - uses: actions/cache@v4
       with:
         path: |
-          $MELANGE_CACHE_DIR
-        key: ${{ runner.os }}-melange-build
+          build/.melange-cache
+        key: ${{ runner.os }}-melange-cache
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
