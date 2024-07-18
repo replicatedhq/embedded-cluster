@@ -24,4 +24,4 @@ environment:
   VERSION: ${VERSION}
 
 entrypoint:
-  command: /usr/local/bin/local-artifact-mirror
+  command: /usr/bin/local-artifact-mirror

@@ -216,14 +216,17 @@ build-and-push-local-artifact-mirror-image: melange-build apko-login apko-build-
 
 CHAINGUARD_TOOLS_USE_DOCKER = 0
 ifeq ($(CHAINGUARD_TOOLS_USE_DOCKER),"1")
-MELANGE_CACHE_DIR = /go/pkg/mod
-APKO_CMD = docker run -v "${PWD}":/work -w /work -v "${PWD}"/build/.docker:/root/.docker cgr.dev/chainguard/apko
-MELANGE_CMD = docker run --privileged --rm -v "${PWD}":/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
+MELANGE_CACHE_DIR ?= /go/pkg/mod
+APKO_CMD = docker run -v $(shell pwd):/work -w /work -v $(shell pwd)/build/.docker:/root/.docker cgr.dev/chainguard/apko
+MELANGE_CMD = docker run --privileged --rm -v $(shell pwd):/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
 else
-MELANGE_CACHE_DIR = $(shell go env GOMODCACHE)
+MELANGE_CACHE_DIR ?= build/.melange-cache
 APKO_CMD = apko
 MELANGE_CMD = melange
 endif
+
+$(MELANGE_CACHE_DIR):
+	mkdir -p $(MELANGE_CACHE_DIR)
 
 .PHONY: apko-build
 apko-build: export ARCHS ?= amd64
@@ -249,7 +252,7 @@ apko-login:
 
 .PHONY: melange-build
 melange-build: export ARCHS ?= amd64
-melange-build: melange-template
+melange-build: $(MELANGE_CACHE_DIR) melange-template
 	${MELANGE_CMD} \
 		keygen build/melange.rsa
 	${MELANGE_CMD} \
