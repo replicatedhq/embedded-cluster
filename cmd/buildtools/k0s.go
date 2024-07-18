@@ -74,8 +74,8 @@ var updateK0sImagesCommand = &cli.Command{
 			}
 		}
 
-		if err := runCommand("make", "bin/apko"); err != nil {
-			return fmt.Errorf("failed to make bin/apko: %w", err)
+		if err := runCommand("make", "apko"); err != nil {
+			return fmt.Errorf("failed to make apko: %w", err)
 		}
 
 		for _, component := range k0sComponents {
