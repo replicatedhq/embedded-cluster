@@ -1,0 +1,25 @@
+# adapted from:
+#   https://github.com/bitnami/containers/blob/main/bitnami/kubectl/1.29/debian-12/Dockerfile
+#   https://github.com/chainguard-images/images/blob/4317e36114e989a8dcf744c4685cd60eb8582447/images/kubectl/config/main.tf
+contents:
+  repositories:
+    - https://packages.wolfi.dev/os
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  packages:
+    - kubectl-${PACKAGE_VERSION}-default
+
+accounts:
+  groups:
+    - groupname: nonroot
+      gid: 65532
+  users:
+    - username: nonroot
+      uid: 65532
+      gid: 65532
+  run-as: 65532
+
+entrypoint:
+  command: /usr/bin/kubectl
+
+cmd: help

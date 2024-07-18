@@ -23,8 +23,12 @@ EMBEDDED_OPERATOR_UTILS_IMAGE ?= replicated/embedded-cluster-utils
 EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION ?= $(subst +,-,$(VERSION))
 EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION = proxy.replicated.com/anonymous/$(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
-OPENEBS_CHART_VERSION = 4.1.0
-OPENEBS_UTILS_VERSION = 4.1.0
+OPENEBS_IMAGE_REPO_OVERRIDE = ttl.sh/replicated/ec-openebs-provisioner-localpv
+OPENEBS_IMAGE_TAG = 4.1.0
+OPENEBS_UTILS_IMAGE_REPO_OVERRIDE = ttl.sh/replicated/ec-openebs-linux-utils
+OPENEBS_UTILS_IMAGE_TAG = 4.1.0
+OPENEBS_KUBECTL_IMAGE_REPO_OVERRIDE = ttl.sh/replicated/ec-openebs-kubectl
+OPENEBS_KUBECTL_IMAGE_TAG = 1.29
 SEAWEEDFS_CHART_VERSION = 4.0.0
 REGISTRY_CHART_VERSION = 2.2.3
 REGISTRY_IMAGE_VERSION = 2.8.3
@@ -67,8 +71,13 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ImageOverride=$(EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.UtilsVersion=$(OPENEBS_UTILS_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.OpenEBSChartVersion=$(OPENEBS_CHART_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.OpenEBSImageRepoOverride=$(OPENEBS_IMAGE_REPO_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.OpenEBSImageTag=$(OPENEBS_IMAGE_TAG) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.OpenEBSUtilsImageRepoOverride=$(OPENEBS_UTILS_IMAGE_REPO_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.OpenEBSUtilsImageTag=$(OPENEBS_UTILS_IMAGE_TAG) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.OpenEBSKubectlImageRepoOverride=$(OPENEBS_KUBECTL_IMAGE_REPO_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.OpenEBSKubectlImageTag=$(OPENEBS_KUBECTL_IMAGE_TAG) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.Version=$(SEAWEEDFS_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION) \
@@ -337,3 +346,43 @@ check-env-%:
 		echo "Environment variable $* not set"; \
 		exit 1; \
 	fi
+
+# THIS IS TEMPORARY UNTIL I INTEGRATE WITH BUILDTOOLS
+
+.PHONY: build-openebs-linux-utils-image
+build-openebs-linux-utils-image: export IMAGE ?= ttl.sh/replicated/ec-openebs-linux-utils:4.1.0
+build-openebs-linux-utils-image: export PACKAGE_VERSION ?= 4.1.0
+build-openebs-linux-utils-image: export APKO_CONFIG = deploy/images/openebs-linux-utils/apko.tmpl.yaml
+build-openebs-linux-utils-image: apko-build
+
+.PHONY: build-and-push-openebs-linux-utils-image
+build-and-push-openebs-linux-utils-image: export IMAGE ?= ttl.sh/replicated/ec-openebs-linux-utils:4.1.0
+build-and-push-openebs-linux-utils-image: export PACKAGE_VERSION ?= 4.1.0
+build-and-push-openebs-linux-utils-image: export APKO_CONFIG = deploy/images/openebs-linux-utils/apko.tmpl.yaml
+build-and-push-openebs-linux-utils-image: apko-login apko-build-and-publish
+
+.PHONY: build-openebs-kubectl-image
+build-openebs-kubectl-image: export IMAGE ?= ttl.sh/replicated/ec-openebs-kubectl:1.29
+build-openebs-kubectl-image: export PACKAGE_VERSION ?= 1.29
+build-openebs-kubectl-image: export APKO_CONFIG = deploy/images/openebs-kubectl/apko.tmpl.yaml
+build-openebs-kubectl-image: apko-build
+
+.PHONY: build-and-push-openebs-kubectl-image
+build-and-push-openebs-kubectl-image: export IMAGE ?= ttl.sh/replicated/ec-openebs-kubectl:1.29
+build-and-push-openebs-kubectl-image: export PACKAGE_VERSION ?= 1.29
+build-and-push-openebs-kubectl-image: export APKO_CONFIG = deploy/images/openebs-kubectl/apko.tmpl.yaml
+build-and-push-openebs-kubectl-image: apko-login apko-build-and-publish
+
+.PHONY: build-openebs-provisioner-localpv-image
+build-openebs-provisioner-localpv-image: export IMAGE ?= ttl.sh/replicated/ec-openebs-provisioner-localpv:4.1.0
+build-openebs-provisioner-localpv-image: export PACKAGE_VERSION ?= 4.1.0
+build-openebs-provisioner-localpv-image: export MELANGE_CONFIG = deploy/packages/openebs-provisioner-localpv/melange.tmpl.yaml
+build-openebs-provisioner-localpv-image: export APKO_CONFIG = deploy/images/openebs-provisioner-localpv/apko.tmpl.yaml
+build-openebs-provisioner-localpv-image: melange-build apko-build
+
+.PHONY: build-and-push-openebs-provisioner-localpv-image
+build-and-push-openebs-provisioner-localpv-image: export IMAGE ?= ttl.sh/replicated/ec-openebs-provisioner-localpv:4.1.0
+build-and-push-openebs-provisioner-localpv-image: export PACKAGE_VERSION ?= 4.1.0
+build-and-push-openebs-provisioner-localpv-image: export MELANGE_CONFIG = deploy/packages/openebs-provisioner-localpv/melange.tmpl.yaml
+build-and-push-openebs-provisioner-localpv-image: export APKO_CONFIG = deploy/images/openebs-provisioner-localpv/apko.tmpl.yaml
+build-and-push-openebs-provisioner-localpv-image: melange-build apko-login apko-build-and-publish

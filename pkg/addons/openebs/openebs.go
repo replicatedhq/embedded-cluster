@@ -21,11 +21,34 @@ const (
 	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs"
 )
 
+var (
+	openEBSImageRepo        = "proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv"
+	openEBSUtilsImageRepo   = "proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils"
+	openebsKubectlImageRepo = "proxy.replicated.com/anonymous/replicated/ec-openebs-kubectl"
+)
+
 // Overwritten by -ldflags in Makefile
 var (
-	Version      = "v0.0.0"
-	UtilsVersion = ""
+	OpenEBSChartVersion             = "v0.0.0"
+	OpenEBSImageRepoOverride        = ""
+	OpenEBSImageTag                 = ""
+	OpenEBSUtilsImageRepoOverride   = ""
+	OpenEBSUtilsImageTag            = ""
+	OpenEBSKubectlImageRepoOverride = ""
+	OpenEBSKubectlImageTag          = ""
 )
+
+func init() {
+	if OpenEBSImageRepoOverride != "" {
+		openEBSImageRepo = OpenEBSImageRepoOverride
+	}
+	if OpenEBSUtilsImageRepoOverride != "" {
+		openEBSUtilsImageRepo = OpenEBSUtilsImageRepoOverride
+	}
+	if OpenEBSKubectlImageRepoOverride == "" {
+		openebsKubectlImageRepo = OpenEBSKubectlImageRepoOverride
+	}
+}
 
 var helmValues = map[string]interface{}{
 	"localpv-provisioner": map[string]interface{}{
@@ -38,8 +61,21 @@ var helmValues = map[string]interface{}{
 		},
 		"helperPod": map[string]interface{}{
 			"image": map[string]interface{}{
-				"tag": UtilsVersion,
+				"repository": openEBSUtilsImageRepo,
+				"tag":        OpenEBSUtilsImageTag,
 			},
+		},
+		"localpv": map[string]interface{}{
+			"image": map[string]interface{}{
+				"repository": openEBSImageRepo,
+				"tag":        OpenEBSImageTag,
+			},
+		},
+	},
+	"preUpgradeHook": map[string]interface{}{
+		"image": map[string]interface{}{
+			"repository": openebsKubectlImageRepo,
+			"tag":        OpenEBSKubectlImageTag,
 		},
 	},
 	"zfs-localpv": map[string]interface{}{
@@ -73,7 +109,7 @@ type OpenEBS struct{}
 
 // Version returns the version of the OpenEBS chart.
 func (o *OpenEBS) Version() (map[string]string, error) {
-	return map[string]string{"OpenEBS": "v" + Version}, nil
+	return map[string]string{"OpenEBS": "v" + OpenEBSChartVersion}, nil
 }
 
 func (a *OpenEBS) Name() string {
@@ -98,7 +134,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 	chartConfig := eckinds.Chart{
 		Name:      releaseName,
 		ChartName: chartURL,
-		Version:   Version,
+		Version:   OpenEBSChartVersion,
 		TargetNS:  namespace,
 		Order:     1,
 	}
@@ -113,7 +149,12 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {
-	return []string{fmt.Sprintf("openebs/linux-utils:%s", UtilsVersion)}
+	return []string{
+		fmt.Sprintf(
+			"proxy.replicated.com/anonymous/openebs/linux-utils:%s",
+			OpenEBSUtilsImageTag,
+		),
+	}
 }
 
 // Outro is executed after the cluster deployment.
