@@ -10,7 +10,7 @@ import (
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/controllers"
+	"github.com/replicatedhq/embedded-cluster-operator/pkg/charts"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -66,18 +66,28 @@ func UpdateHelmConfigsForRestore(cfg *k0sconfig.ClusterConfig, opts ...addons.Op
 	return updateHelmConfigs(cfg, chtconfig, repconfig)
 }
 
-func updateHelmConfigs(cfg *k0sconfig.ClusterConfig, chtconfig []k0sconfig.Chart, repconfig []k0sconfig.Repository) error {
+func updateHelmConfigs(cfg *k0sconfig.ClusterConfig, chtconfig []embeddedclusterv1beta1.Chart, repconfig []embeddedclusterv1beta1.Repository) error {
 	// k0s sorts order numbers alphabetically because they're used in file names,
 	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").
 	// We add 100 to the order of each chart to work around this.
 	for k := range chtconfig {
 		chtconfig[k].Order += 100
 	}
+
+	helm := embeddedclusterv1beta1.Helm{
+		Charts:       chtconfig,
+		Repositories: repconfig,
+	}
+
+	convertedHelm := &k0sconfig.HelmExtensions{}
+	var err error
+	convertedHelm, err = embeddedclusterv1beta1.ConvertTo(helm, convertedHelm)
+	if err != nil {
+		return err
+	}
+
 	cfg.Spec.Extensions = &k0sconfig.ClusterExtensions{
-		Helm: &k0sconfig.HelmExtensions{
-			Charts:       chtconfig,
-			Repositories: repconfig,
-		},
+		Helm: convertedHelm,
 	}
 	return nil
 }
@@ -208,14 +218,14 @@ func additionalControllerLabels() map[string]string {
 	return map[string]string{}
 }
 
-func AdditionalCharts() []k0sconfig.Chart {
+func AdditionalCharts() []embeddedclusterv1beta1.Chart {
 	clusterConfig, err := release.GetEmbeddedClusterConfig()
 	if err == nil {
 		if clusterConfig != nil {
 			if clusterConfig.Spec.Extensions.Helm != nil {
 				for k := range clusterConfig.Spec.Extensions.Helm.Charts {
 					if clusterConfig.Spec.Extensions.Helm.Charts[k].Order == 0 {
-						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = controllers.DEFAULT_VENDOR_CHART_ORDER
+						clusterConfig.Spec.Extensions.Helm.Charts[k].Order = charts.DefaultVendorChartOrder
 					}
 				}
 
@@ -223,10 +233,10 @@ func AdditionalCharts() []k0sconfig.Chart {
 			}
 		}
 	}
-	return []k0sconfig.Chart{}
+	return []embeddedclusterv1beta1.Chart{}
 }
 
-func AdditionalRepositories() []k0sconfig.Repository {
+func AdditionalRepositories() []embeddedclusterv1beta1.Repository {
 	clusterConfig, err := release.GetEmbeddedClusterConfig()
 	if err == nil {
 		if clusterConfig != nil {
@@ -235,5 +245,5 @@ func AdditionalRepositories() []k0sconfig.Repository {
 			}
 		}
 	}
-	return []k0sconfig.Repository{}
+	return []embeddedclusterv1beta1.Repository{}
 }

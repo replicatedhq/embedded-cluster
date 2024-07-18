@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
@@ -156,7 +156,7 @@ type Registry struct {
 	config    v1beta1.ClusterConfig
 	isAirgap  bool
 	isHA      bool
-	net       *embeddedclusterv1beta1.NetworkSpec
+	net       *eckinds.NetworkSpec
 }
 
 // Version returns the version of the Registry chart.
@@ -182,12 +182,12 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
-func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
 
-	chartConfig := v1beta1.Chart{
+	chartConfig := eckinds.Chart{
 		Name:      releaseName,
 		ChartName: chartURL,
 		Version:   Version,
@@ -228,7 +228,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1b
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
 func (o *Registry) GetAdditionalImages() []string {
@@ -433,7 +433,7 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new Registry addon.
-func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool, isHA bool, net *embeddedclusterv1beta1.NetworkSpec) (*Registry, error) {
+func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool, isHA bool, net *eckinds.NetworkSpec) (*Registry, error) {
 	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap, isHA: isHA, net: net}, nil
 }
 
