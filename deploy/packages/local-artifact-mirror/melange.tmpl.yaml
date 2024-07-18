@@ -1,6 +1,6 @@
 package:
   name: local-artifact-mirror
-  version: ${VERSION}
+  version: ${PACKAGE_VERSION}
   epoch: 0
   description: Local Artifact Mirror
   copyright:
