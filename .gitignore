@@ -7,3 +7,5 @@ pkg/goods/images
 .pre-commit-config.yaml
 vendor
 e2e/kots-release-install/license.yaml
+/build/
+/bin/
