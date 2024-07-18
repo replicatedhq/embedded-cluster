@@ -22,10 +22,11 @@ pipeline:
       set -exuo pipefail
 
       rm -f pkg/goods/bins/local-artifact-mirror
-      mkdir -p ${{targets.destdir}}/usr/local/bin
+      mkdir -p ${{targets.contextdir}}/usr/bin
+      mkdir -p ${{targets.contextdir}}/usr/local/bin
 
       make pkg/goods/bins/local-artifact-mirror
-      cp pkg/goods/bins/local-artifact-mirror ${{targets.destdir}}/usr/bin/local-artifact-mirror
+      cp pkg/goods/bins/local-artifact-mirror ${{targets.contextdir}}/usr/bin/local-artifact-mirror
       # support for legacy path
-      ln -s /usr/bin/local-artifact-mirror ${{targets.destdir}}/usr/local/bin/local-artifact-mirror
+      ln -s /usr/bin/local-artifact-mirror ${{targets.contextdir}}/usr/local/bin/local-artifact-mirror
   - uses: strip
