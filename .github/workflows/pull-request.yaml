@@ -55,7 +55,7 @@ jobs:
       with:
         path: |
           build/.melange-cache
-        key: ${{ runner.os }}-melange-cache
+        key: melange-cache
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3

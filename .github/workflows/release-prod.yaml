@@ -33,7 +33,7 @@ jobs:
         with:
           path: |
             build/.melange-cache
-          key: ${{ runner.os }}-melange-cache
+          key: melange-cache
 
       - name: Setup Melange
         uses: chainguard-dev/actions/setup-melange@main
