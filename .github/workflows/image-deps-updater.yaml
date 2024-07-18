@@ -126,27 +126,27 @@ jobs:
           sed -i "s/^$makefile_var.*/$makefile_var = $version@$digest/" Makefile
         done
 
-    - name: Create Pull Request # creates a PR if there are differences
-      uses: peter-evans/create-pull-request@v6
-      id: cpr
-      with:
-        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
-        commit-message: 'Update image versions'
-        title: 'Automated image updates'
-        branch: automation/image-dependencies
-        delete-branch: true
-        labels: |
-          automated-pr
-          images
-          type::security
-        # draft: false
-        draft: true
-        # base: "main"
-        base: "sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster"
-        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+    # - name: Create Pull Request # creates a PR if there are differences
+    #   uses: peter-evans/create-pull-request@v6
+    #   id: cpr
+    #   with:
+    #     token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+    #     commit-message: 'Update image versions'
+    #     title: 'Automated image updates'
+    #     branch: automation/image-dependencies
+    #     delete-branch: true
+    #     labels: |
+    #       automated-pr
+    #       images
+    #       type::security
+    #     # draft: false
+    #     draft: true
+    #     # base: "main"
+    #     base: "sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster"
+    #     body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
 
-    - name: Check outputs
-      if: ${{ steps.cpr.outputs.pull-request-number }}
-      run: |
-        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
-        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
+    # - name: Check outputs
+    #   if: ${{ steps.cpr.outputs.pull-request-number }}
+    #   run: |
+    #     echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+    #     echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
