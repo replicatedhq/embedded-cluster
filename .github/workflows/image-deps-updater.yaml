@@ -116,8 +116,7 @@ jobs:
       run: |
         set -euox pipefail
 
-        echo ${{ toJson(needs.get-versions.outputs.components) }} > components.json
-        components=$(cat components.json)
+        components=${{ toJson(needs.get-versions.outputs.components) }}
 
         for component in $(echo "${components}" | jq -c '.[]'); do
           version=$(echo "$component" | jq -r '.version')
