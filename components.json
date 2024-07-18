@@ -1,0 +1,1 @@
+[{"name":"coredns","version":"1.11.3-r3","makefile_var":"COREDNS_VERSION"},{"name":"calico-node","version":"3.26.1-r16","makefile_var":"CALICO_NODE_VERSION"},{"name":"metrics-server","version":"0.6.4-r9","makefile_var":"METRICS_SERVER_VERSION"}]
