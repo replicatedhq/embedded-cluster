@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
@@ -323,6 +325,36 @@ func maybePrintHAWarning(c *cli.Context) error {
 	return nil
 }
 
+// removeContentsThenDirectory removes all files in a directory and then the directory itself
+// this handles the case where someone has mounted a volume to the directory, or used a symlink
+func removeContentsThenDirectory(dir string) error {
+	var starPath string
+	if strings.HasSuffix(dir, "/") {
+		starPath = fmt.Sprintf("%s*", dir)
+	} else {
+		starPath = fmt.Sprintf("%s/*", dir)
+	}
+
+	contents, err := filepath.Glob(starPath)
+	if err != nil {
+		return fmt.Errorf("failed to list directory contents: %w", err)
+	}
+
+	for _, oneFile := range contents {
+		err := os.RemoveAll(oneFile)
+		if err != nil {
+			return fmt.Errorf("failed to remove file: %w", err)
+		}
+	}
+
+	err = os.Remove(dir)
+	if err != nil {
+		logrus.Warnf("failed to remove emptied directory %q: %s", dir, err)
+	}
+
+	return nil
+}
+
 var resetCommand = &cli.Command{
 	Name: "reset",
 	Before: func(c *cli.Context) error {
@@ -455,14 +487,21 @@ var resetCommand = &cli.Command{
 			}
 		}
 
+		ecNetworkManagerConfPath := "/etc/NetworkManager/conf.d/embedded-cluster.conf"
+		if _, err := os.Stat(ecNetworkManagerConfPath); err == nil {
+			if err := os.RemoveAll(ecNetworkManagerConfPath); err != nil {
+				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
+			}
+		}
+
 		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
-			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
+			if err := removeContentsThenDirectory(defaults.EmbeddedClusterHomeDirectory()); err != nil {
 				return fmt.Errorf("failed to remove embedded cluster home directory: %w", err)
 			}
 		}
 
 		if _, err := os.Stat(defaults.PathToK0sContainerdConfig()); err == nil {
-			if err := os.RemoveAll(defaults.PathToK0sContainerdConfig()); err != nil {
+			if err := removeContentsThenDirectory(defaults.PathToK0sContainerdConfig()); err != nil {
 				return fmt.Errorf("failed to remove containerd config: %w", err)
 			}
 		}
@@ -474,19 +513,13 @@ var resetCommand = &cli.Command{
 		}
 
 		if _, err := os.Stat("/var/openebs"); err == nil {
-			if err := os.RemoveAll("/var/openebs"); err != nil {
+			if err := removeContentsThenDirectory("/var/openebs"); err != nil {
 				return fmt.Errorf("failed to remove openebs storage: %w", err)
 			}
 		}
 
-		if _, err := os.Stat("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err == nil {
-			if err := os.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
-				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
-			}
-		}
-
 		if _, err := os.Stat("/usr/local/bin/k0s"); err == nil {
-			if err := os.RemoveAll("/usr/local/bin/k0s"); err != nil {
+			if err := removeContentsThenDirectory("/usr/local/bin/k0s"); err != nil {
 				return fmt.Errorf("failed to remove k0s binary: %w", err)
 			}
 		}
