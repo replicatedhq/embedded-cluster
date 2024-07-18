@@ -13,7 +13,7 @@ on:
     - sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster
 
 jobs:
-  get-versions:
+  update-k0s-images:
     runs-on: ubuntu-20.04
     outputs:
       components: ${{ steps.get-versions.outputs.components }}
@@ -22,126 +22,30 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Get versions
-      id: get-versions
-      run: |
-        set -euox pipefail
+    - name: Update k0s images
+      run: deploy/scripts/k0s-images.sh
 
-        # find the versions of k0s images we need
-
-        if [ -n "${{ github.event.inputs.k0s-version }}" ]; then
-          make pkg/goods/bins/k0s K0S_VERSION="${{ github.event.inputs.k0s-version }}" K0S_BINARY_SOURCE_OVERRIDE=
-        else
-          make pkg/goods/bins/k0s
-        fi
-
-        function get_version() {
-          pkg/goods/bins/k0s airgap list-images --all | grep "/$1:" | awk -F':' '{ print $2 }' | sed 's/^v//' | sed 's/-[0-9]*$//'
-        }
-
-        coredns_version=$(get_version coredns)
-        calico_node_version=$(get_version calico-node)
-        metrics_server_version=$(get_version metrics-server)
-        kube_proxy_version=$(get_version kube-proxy)
-
-        # get the corresponding melange package versions
-        # we're only using the APKINDEX files to get the versions, so it doesn't matter which arch we use
-
-        curl -LO --fail --show-error https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz
-        tar -xzvf APKINDEX.tar.gz
-
-        function get_package_version() {
-          < APKINDEX grep -A1 "^P:$1" | grep "V:$2" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n'
-        }
-
-        components=$(echo '[
-          {
-            "name": "coredns",
-            "version": "'$(get_package_version coredns $coredns_version)'",
-            "makefile_var": "COREDNS_VERSION"
-          },
-          {
-            "name": "calico-node",
-            "version": "'$(get_package_version calico-node $calico_node_version)'",
-            "makefile_var": "CALICO_NODE_VERSION"
-          },
-          {
-            "name": "metrics-server",
-            "version": "'$(get_package_version metrics-server $metrics_server_version)'",
-            "makefile_var": "METRICS_SERVER_VERSION"
-          }
-        ]' | jq -c '.')
-
-        echo "components=$components" >> "$GITHUB_OUTPUT"
-
-  build-images:
-    runs-on: ubuntu-20.04
-    needs: get-versions
-    strategy:
-      fail-fast: false
-      matrix:
-        component: ${{ fromJson(needs.get-versions.outputs.components) }}
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Generate apko config
-      run: |
-        set -euox pipefail
-        sed "s/__VERSION__/${{ matrix.component.version }}/g" deploy/images/${{ matrix.component.name }}/apko.tmpl.yaml > apko.yaml
-
-    - name: Build and push image
-      uses: ./.github/actions/build-dep-image-with-apko
+    - name: Create Pull Request # creates a PR if there are differences
+      uses: peter-evans/create-pull-request@v6
+      id: cpr
       with:
-        apko-config: apko.yaml
-        image-name: ttl.sh/ec/${{ matrix.component.name }}:${{ matrix.component.version }}
-        # registry-username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
-        # registry-password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
+        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        commit-message: 'Update image versions'
+        title: 'Automated image updates'
+        branch: automation/image-dependencies
+        delete-branch: true
+        labels: |
+          automated-pr
+          images
+          type::security
+        # draft: false
+        draft: true
+        # base: "main"
+        base: "sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster"
+        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
 
-  update-makefile:
-    runs-on: ubuntu-20.04
-    needs: [get-versions, build-images]
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Update Makefile
+    - name: Check outputs
+      if: ${{ steps.cpr.outputs.pull-request-number }}
       run: |
-        set -euox pipefail
-
-        components=${{ toJson(needs.get-versions.outputs.components) }}
-
-        for component in $(echo "${components}" | jq -c '.[]'); do
-          name=$(echo "$component" | jq -r '.name')
-          version=$(echo "$component" | jq -r '.version')
-          digest=$(docker manifest inspect ttl.sh/ec/$name:$version | jq -r '.manifests[0].digest')
-          makefile_var=$(echo "$component" | jq -r '.makefile_var')
-          sed -i "s/^$makefile_var.*/$makefile_var = $version@$digest/" Makefile
-        done
-
-    # - name: Create Pull Request # creates a PR if there are differences
-    #   uses: peter-evans/create-pull-request@v6
-    #   id: cpr
-    #   with:
-    #     token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
-    #     commit-message: 'Update image versions'
-    #     title: 'Automated image updates'
-    #     branch: automation/image-dependencies
-    #     delete-branch: true
-    #     labels: |
-    #       automated-pr
-    #       images
-    #       type::security
-    #     # draft: false
-    #     draft: true
-    #     # base: "main"
-    #     base: "sgalsaleh/sc-108755/use-chainguard-images-for-embedded-cluster"
-    #     body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
-
-    # - name: Check outputs
-    #   if: ${{ steps.cpr.outputs.pull-request-number }}
-    #   run: |
-    #     echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
-    #     echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
+        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"

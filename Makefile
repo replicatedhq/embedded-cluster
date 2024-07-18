@@ -64,6 +64,8 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.VeleroTag=$(VELERO_IMAGE_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION)
 
+export PATH := $(shell pwd)/bin:$(PATH)
+
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
 
@@ -170,6 +172,8 @@ clean:
 	rm -rf output
 	rm -rf pkg/goods/bins
 	rm -rf pkg/goods/internal/bins
+	rm -rf build
+	rm -rf bin
 
 .PHONY: lint
 lint:
@@ -188,9 +192,6 @@ scan:
 		--ignore-unfixed \
 		./
 
-print-%:
-	@echo -n $($*)
-
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image:
 	docker build -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f Dockerfile .
@@ -202,6 +203,97 @@ push-local-artifact-mirror-image:
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
 
+CHAINGUARD_TOOLS_USE_DOCKER = 0
+ifeq ($(CHAINGUARD_TOOLS_USE_DOCKER),"1")
+MELANGE_CACHE_DIR = /go/pkg/mod
+APKO_CMD = docker run -v "${PWD}":/work -w /work -v "${PWD}"/build/.docker:/root/.docker cgr.dev/chainguard/apko
+MELANGE_CMD = docker run --privileged --rm -v "${PWD}":/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
+else
+MELANGE_CACHE_DIR = $(shell go env GOMODCACHE)
+APKO_CMD = apko
+MELANGE_CMD = melange
+endif
+
+.PHONY: apko-build
+apko-build: export ARCHS ?= amd64
+apko-build: check-env-IMAGE apko-template
+	cd build && ${APKO_CMD} \
+		build apko.yaml ${IMAGE} apko.tar \
+		--arch ${ARCHS}
+
+.PHONY: apko-build-and-publish
+apko-build-and-publish: export ARCHS ?= amd64
+apko-build-and-publish: check-env-IMAGE apko-template
+	cd build && ${APKO_CMD} \
+		publish apko.yaml ${IMAGE} \
+		--arch ${ARCHS} | tee digest
+
+.PHONY: apko-login
+apko-login:
+	rm -f build/.docker/config.json
+	@ { [ "${PASSWORD}" = "" ] || [ "${USERNAME}" = "" ] ; } || \
+	${APKO_CMD} \
+		login -u "${USERNAME}" \
+		--password "${PASSWORD}" "${REGISTRY}"
+
+.PHONY: melange-build
+melange-build: export ARCHS ?= amd64
+melange-build: melange-template
+	mkdir -p build
+	for f in pkg cmd go.mod go.sum Makefile ; do \
+		rm -rf "build/$$f" && cp -r $$f build/ ; \
+	done
+	${MELANGE_CMD} \
+		keygen build/melange.rsa
+	${MELANGE_CMD} \
+		build build/melange.yaml \
+		--arch ${ARCHS} \
+		--signing-key build/melange.rsa \
+		--cache-dir=$(MELANGE_CACHE_DIR) \
+		--out-dir build/packages/
+
+.PHONY: melange-template
+melange-template: check-env-MELANGE_CONFIG check-env-VERSION
+	mkdir -p build
+	envsubst '$${VERSION}' < ${MELANGE_CONFIG} > build/melange.yaml
+
+.PHONY: apko-template
+apko-template: check-env-APKO_CONFIG check-env-VERSION
+	mkdir -p build
+	envsubst '$${VERSION}' < ${APKO_CONFIG} > build/apko.yaml
+
 .PHONY: buildtools
 buildtools:
 	go build -o ./output/bin/buildtools ./cmd/buildtools
+
+.PHONY: cache-files
+cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
+cache-files:
+	./scripts/cache-files.sh
+
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
+bin/apko:
+	mkdir -p bin
+	go install chainguard.dev/apko@latest && \
+		test -s $(GOBIN)/apko && \
+		ln -sf $(GOBIN)/apko bin/apko
+
+bin/melange:
+	mkdir -p bin
+	go install chainguard.dev/melange@latest && \
+		test -s $(GOBIN)/melange && \
+		ln -sf $(GOBIN)/melange bin/melange
+
+print-%:
+	@echo -n $($*)
+
+check-env-%:
+	@ if [ "${${*}}" = "" ]; then \
+		echo "Environment variable $* not set"; \
+		exit 1; \
+	fi
