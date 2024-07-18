@@ -16,7 +16,9 @@ else
 fi
 
 function get_package_version() {
+  # get the version specified by k0s
   pinned_version=$(pkg/goods/bins/k0s airgap list-images --all | grep "/$1:" | awk -F':' '{ print $2 }' | sed 's/^v//' | sed 's/-[0-9]*$//')
+  # find the corresponding APK package version
   < output/tmp/APKINDEX grep -A1 "^P:$1" | grep "V:$pinned_version" | awk -F '-r' '{print $1, $2}' | sort -k2,2n | tail -1 | awk '{print $1 "-r" $2}' | sed -n -e 's/V://p' | tr -d '\n'
 }
 
