@@ -221,8 +221,8 @@ APKO_CMD = docker run -v "${PWD}":/work -w /work -v "${PWD}"/build/.docker:/root
 MELANGE_CMD = docker run --privileged --rm -v "${PWD}":/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
 else
 MELANGE_CACHE_DIR = $(shell go env GOMODCACHE)
-APKO_CMD = $(APKO)
-MELANGE_CMD = $(MELANGE)
+APKO_CMD = apko
+MELANGE_CMD = melange
 endif
 
 .PHONY: apko-build

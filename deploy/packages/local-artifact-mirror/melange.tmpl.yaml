@@ -17,7 +17,7 @@ environment:
       - git
       - go
   environment:
-    GOMODCACHE: /var/cache/melange/gomodcache
+    GOMODCACHE: /var/cache/melange
 
 pipeline:
   - runs: |
