@@ -74,6 +74,8 @@ var updateK0sImagesCommand = &cli.Command{
 				return fmt.Errorf("failed to get package version for %s: %w", component.name, err)
 			}
 
+			logrus.Infof("building and publishing %s@%s", component.name, packageVersion)
+
 			if err := ApkoBuildAndPublish(component.name, packageVersion); err != nil {
 				return fmt.Errorf("failed to apko build and publish for %s: %w", component.name, err)
 			}

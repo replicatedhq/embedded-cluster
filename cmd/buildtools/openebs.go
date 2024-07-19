@@ -151,6 +151,8 @@ var updateOpenEBSImagesCommand = &cli.Command{
 				}
 			}
 
+			logrus.Infof("building and publishing %s@%s", component.name, packageVersion)
+
 			extraArgs := []string{}
 			if packageName != "" {
 				extraArgs = append(extraArgs, fmt.Sprintf("PACKAGE_NAME=%s", packageName))
