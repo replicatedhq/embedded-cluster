@@ -62,7 +62,7 @@ func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion 
 	for scanner.Scan() {
 		line := scanner.Text()
 		// filter by package name
-		if !strings.HasPrefix(line, "P:"+pkgName) {
+		if line != "P:"+pkgName {
 			continue
 		}
 		scanner.Scan()
@@ -81,6 +81,10 @@ func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion 
 			return "", fmt.Errorf("parse revision: %w", err)
 		}
 		revisions = append(revisions, revision)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("scan APKINDEX: %w", err)
 	}
 
 	if len(revisions) == 0 {

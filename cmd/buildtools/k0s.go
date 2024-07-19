@@ -92,7 +92,7 @@ var updateK0sImagesCommand = &cli.Command{
 				"apko-build-and-publish",
 				fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), component.name, packageVersion),
 				fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", component.name, "apko.tmpl.yaml")),
-				fmt.Sprintf("VERSION=%s", packageVersion),
+				fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
 			); err != nil {
 				return fmt.Errorf("failed to build and publish apko for %s: %w", component.name, err)
 			}
