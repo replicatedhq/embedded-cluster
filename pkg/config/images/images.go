@@ -2,10 +2,14 @@ package images
 
 // Overwritten by -ldflags in Makefile
 var (
-	CoreDNSImage         = ""
-	CoreDNSVersion       = ""
-	CalicoNodeImage      = ""
-	CalicoNodeVersion    = ""
-	MetricsServerImage   = ""
-	MetricsServerVersion = ""
+	CoreDNSImage                 = ""
+	CoreDNSVersion               = ""
+	CalicoNodeImage              = ""
+	CalicoNodeVersion            = ""
+	CalicoCNIImage               = ""
+	CalicoCNIVersion             = ""
+	CalicoKubeControllersImage   = ""
+	CalicoKubeControllersVersion = ""
+	MetricsServerImage           = ""
+	MetricsServerVersion         = ""
 )

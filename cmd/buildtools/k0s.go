@@ -26,6 +26,14 @@ var k0sComponents = []struct {
 		makefileVar: "CALICO_NODE_VERSION",
 	},
 	{
+		name:        "calico-cni",
+		makefileVar: "CALICO_CNI_VERSION",
+	},
+	{
+		name:        "calico-kube-controllers",
+		makefileVar: "CALICO_KUBE_CONTROLLERS_VERSION",
+	},
+	{
 		name:        "metrics-server",
 		makefileVar: "METRICS_SERVER_VERSION",
 	},
