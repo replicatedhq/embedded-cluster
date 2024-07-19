@@ -21,6 +21,18 @@ func OverrideK0sImages(cfg *k0sv1beta1.ClusterConfig) error {
 	if images.CalicoNodeVersion != "" {
 		cfg.Spec.Images.Calico.Node.Version = images.CalicoNodeVersion
 	}
+	if images.CalicoCNIImage != "" {
+		cfg.Spec.Images.Calico.CNI.Image = images.CalicoCNIImage
+	}
+	if images.CalicoCNIVersion != "" {
+		cfg.Spec.Images.Calico.CNI.Version = images.CalicoCNIVersion
+	}
+	if images.CalicoKubeControllersImage != "" {
+		cfg.Spec.Images.Calico.KubeControllers.Image = images.CalicoKubeControllersImage
+	}
+	if images.CalicoKubeControllersVersion != "" {
+		cfg.Spec.Images.Calico.KubeControllers.Version = images.CalicoKubeControllersVersion
+	}
 	if images.MetricsServerImage != "" {
 		cfg.Spec.Images.MetricsServer.Image = images.MetricsServerImage
 	}
