@@ -63,8 +63,7 @@ jobs:
 
       - name: Build and push local-artifact-mirror image
         run: |
-          SHA=${{ github.event.pull_request.head.sha }}
-          export SHORT_SHA=dev-${SHA::7}
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
           export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
           export REGISTRY=docker.io
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
@@ -76,8 +75,7 @@ jobs:
 
       - name: Build and push utils image
         run: |
-          SHA=${{ github.event.pull_request.head.sha }}
-          export SHORT_SHA=dev-${SHA::7}
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
           export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
           export REGISTRY=docker.io
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
