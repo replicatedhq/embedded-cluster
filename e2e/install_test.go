@@ -1733,7 +1733,7 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 		}
 		time.Sleep(2 * time.Minute)
 	}
-	t.Fatalf("failed to download airgap bundle after 5 attempts")
+	t.Errorf("failed to download airgap bundle after 5 attempts")
 	return ""
 }
 
