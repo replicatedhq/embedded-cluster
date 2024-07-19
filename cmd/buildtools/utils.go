@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -67,8 +68,8 @@ func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion 
 		}
 		scanner.Scan()
 		line = scanner.Text()
-		// filter by package version
-		if !strings.HasPrefix(line, "V:"+pinnedVersion+"-r") {
+		// filter by pinned version
+		if pinnedVersion != "" && !strings.HasPrefix(line, "V:"+pinnedVersion+"-r") {
 			continue
 		}
 		// find the revision number
@@ -98,6 +99,49 @@ func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion 
 	})
 
 	return fmt.Sprintf("%s-r%d", pinnedVersion, revisions[0]), nil
+}
+
+func ApkoLogin() error {
+	if err := RunCommand("make", "apko"); err != nil {
+		return fmt.Errorf("make apko: %w", err)
+	}
+	if os.Getenv("REGISTRY_PASS") != "" {
+		if err := RunCommand(
+			"make",
+			"apko-login",
+			fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_SERVER")),
+			fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
+			fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
+		); err != nil {
+			return fmt.Errorf("apko login: %w", err)
+		}
+	}
+	return nil
+}
+
+func ApkoBuildAndPublish(componentName string, packageVersion string) error {
+	if err := RunCommand(
+		"make",
+		"apko-build-and-publish",
+		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), componentName, packageVersion),
+		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
+		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
+	); err != nil {
+		return fmt.Errorf("failed to build and publish apko for %s: %w", componentName, err)
+	}
+	return nil
+}
+
+func GetDigestFromBuildFile() (string, error) {
+	contents, err := os.ReadFile("build/digest")
+	if err != nil {
+		return "", fmt.Errorf("read build file: %w", err)
+	}
+	parts := strings.Split(string(contents), "@")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("incorrect number of parts in build file")
+	}
+	return strings.TrimSpace(parts[1]), nil
 }
 
 func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {
@@ -321,4 +365,11 @@ func ExtractTGZArchive(tgzFile string, destDir string) error {
 	}
 
 	return nil
+}
+
+func RunCommand(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
