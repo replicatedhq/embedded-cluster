@@ -5,6 +5,7 @@ package openebs
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -51,6 +52,11 @@ func init() {
 		openebsKubectlImageRepo = OpenEBSKubectlImageRepoOverride
 	}
 
+	openebsKubectlImageParts := strings.SplitN(openebsKubectlImageRepo, "/", 2)
+	if len(openebsKubectlImageParts) != 2 {
+		panic(fmt.Sprintf("invalid image repo %q", openebsKubectlImageRepo))
+	}
+
 	helmValues = map[string]interface{}{
 		"localpv-provisioner": map[string]interface{}{
 			"analytics": map[string]interface{}{
@@ -75,8 +81,9 @@ func init() {
 		},
 		"preUpgradeHook": map[string]interface{}{
 			"image": map[string]interface{}{
-				"repository": openebsKubectlImageRepo,
-				"tag":        OpenEBSKubectlImageTag,
+				"registry": openebsKubectlImageParts[0],
+				"repo":     openebsKubectlImageParts[1],
+				"tag":      OpenEBSKubectlImageTag,
 			},
 		},
 		"zfs-localpv": map[string]interface{}{
