@@ -761,7 +761,7 @@ func PullImage(in *Input, image string) {
 		"https://images.lxd.canonical.com",
 		"https://cloud-images.ubuntu.com/minimal/releases",
 	} {
-		in.T.Logf("Pulling %q image from %s", image, server)
+		in.T.Logf("Pulling %q image from %s at %s", image, server, time.Now().Format(time.RFC3339))
 		remote, err := lxd.ConnectSimpleStreams(server, nil)
 		if err != nil {
 			in.T.Fatalf("Failed to connect to image server: %v", err)
