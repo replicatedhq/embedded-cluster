@@ -22,5 +22,4 @@ accounts:
     - username: nonroot
       uid: 65532
       gid: 65532
-  # must be run as root
-  run-as: 0
+  run-as: 65532
