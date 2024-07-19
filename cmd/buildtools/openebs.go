@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -190,55 +187,4 @@ func getAddonComponentUpstreamVersion(c *cli.Context, component addonComponent) 
 
 func getAddonComponentImageTagMakefileVar(component addonComponent) string {
 	return fmt.Sprintf("%s_IMAGE_TAG", strings.ReplaceAll(strings.ToUpper(component.name), "-", "_"))
-}
-
-func ApkoLogin() error {
-	if err := RunCommand("make", "apko"); err != nil {
-		return fmt.Errorf("make apko: %w", err)
-	}
-	if os.Getenv("REGISTRY_PASS") != "" {
-		if err := RunCommand(
-			"make",
-			"apko-login",
-			fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_SERVER")),
-			fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
-			fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
-		); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func ApkoBuildAndPublish(componentName string, packageVersion string, extraArgs ...string) error {
-	args := []string{
-		"apko-build-and-publish",
-		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), componentName, packageVersion),
-		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
-		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
-	}
-	args = append(args, extraArgs...)
-	if err := RunCommand("make", args...); err != nil {
-		return err
-	}
-	return nil
-}
-
-func GetDigestFromBuildFile() (string, error) {
-	contents, err := os.ReadFile("build/digest")
-	if err != nil {
-		return "", fmt.Errorf("read build file: %w", err)
-	}
-	parts := strings.Split(string(contents), "@")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("incorrect number of parts in build file")
-	}
-	return strings.TrimSpace(parts[1]), nil
-}
-
-func RunCommand(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
 }
