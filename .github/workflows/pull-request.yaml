@@ -248,7 +248,7 @@ jobs:
 #          - TestSingleNodeDisasterRecoveryWithProxy
 #          - TestSingleNodeResumeDisasterRecovery
 #          - TestSingleNodeAirgapDisasterRecovery
-#          - TestMultiNodeHAInstallation
+          - TestMultiNodeHAInstallation
           - TestMultiNodeAirgapHAInstallation
 #          - TestProxiedEnvironment
 #          - TestMultiNodeHADisasterRecovery
