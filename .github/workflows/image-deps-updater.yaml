@@ -10,7 +10,7 @@ on:
         required: false
   push:
     branches:
-      - emosbaugh/sc-108755/use-chainguard-openebs
+      - emosbaugh/sc-108755/use-chainguard-openebs # TODO remove
 
 jobs:
   update-k0s-images:
@@ -27,16 +27,16 @@ jobs:
     - name: Compile buildtools
       run: make buildtools
 
-    # - name: Update k0s images
-    #   env:
-    #     REGISTRY_SERVER: docker.io
-    #     REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
-    #     REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
-    #   run: ./output/bin/buildtools update images k0s
+    - name: Update k0s images
+      env:
+        REGISTRY_SERVER: index.docker.io
+        REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+        REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+      run: ./output/bin/buildtools update images k0s
 
     - name: Update OpenEBS images
       env:
-        REGISTRY_SERVER: docker.io
+        REGISTRY_SERVER: index.docker.io
         REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
         REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
       run: ./output/bin/buildtools update images openebs
@@ -55,7 +55,7 @@ jobs:
           images
           type::security
         draft: false
-        base: "main"
+        base: "emosbaugh/sc-108755/use-chainguard-openebs" # TODO main
         body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
 
     - name: Check outputs

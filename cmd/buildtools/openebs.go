@@ -85,6 +85,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 type addonComponent struct {
 	name                        string
 	wolfiPackageName            string
+	getWolfiPackageName         func(upstreamVersion string) string
 	upstreamVersionMakefileVar  string
 	upstreamVersionFlagOverride string
 }
@@ -103,7 +104,7 @@ var openebsComponents = []addonComponent{
 	},
 	{
 		name:                        "openebs-kubectl",
-		wolfiPackageName:            "kubectl",
+		getWolfiPackageName:         func(upstreamVersion string) string { return "kubectl-" + upstreamVersion + "-default" },
 		upstreamVersionMakefileVar:  "OPENEBS_KUBECTL_IMAGE_VERSION",
 		upstreamVersionFlagOverride: "kubectl-version",
 	},
@@ -141,15 +142,23 @@ var updateOpenEBSImagesCommand = &cli.Command{
 				return fmt.Errorf("failed to get upstream version for %s: %w", component.name, err)
 			}
 
+			packageName := component.wolfiPackageName
+			if component.getWolfiPackageName != nil {
+				packageName = component.getWolfiPackageName(upstreamVersion)
+			}
 			packageVersion := upstreamVersion
-			if component.wolfiPackageName != "" {
-				packageVersion, err = GetWolfiPackageVersion(wolfiAPKIndex, component.name, upstreamVersion)
+			if packageName != "" {
+				packageVersion, err = GetWolfiPackageVersion(wolfiAPKIndex, packageName, upstreamVersion)
 				if err != nil {
 					return fmt.Errorf("failed to get package version for %s: %w", component.name, err)
 				}
 			}
 
-			if err := ApkoBuildAndPublish(component.name, packageVersion); err != nil {
+			extraArgs := []string{}
+			if packageName != "" {
+				extraArgs = append(extraArgs, fmt.Sprintf("PACKAGE_NAME=%s", packageName))
+			}
+			if err := ApkoBuildAndPublish(component.name, packageVersion, extraArgs...); err != nil {
 				return fmt.Errorf("failed to apko build and publish for %s: %w", component.name, err)
 			}
 
@@ -201,14 +210,15 @@ func ApkoLogin() error {
 	return nil
 }
 
-func ApkoBuildAndPublish(componentName string, packageVersion string) error {
-	if err := RunCommand(
-		"make",
+func ApkoBuildAndPublish(componentName string, packageVersion string, extraArgs ...string) error {
+	args := []string{
 		"apko-build-and-publish",
 		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), componentName, packageVersion),
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
-	); err != nil {
+	}
+	args = append(args, extraArgs...)
+	if err := RunCommand("make", args...); err != nil {
 		return err
 	}
 	return nil

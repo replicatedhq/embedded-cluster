@@ -13,10 +13,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v62/github"
 	"github.com/sirupsen/logrus"
 )
@@ -44,21 +44,48 @@ func GetWolfiAPKIndex() ([]byte, error) {
 	return contents, nil
 }
 
-func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion string) (string, error) {
-	// example APKINDEX content:
-	// P:calico-node
-	// V:3.26.1-r1
-	// ...
-	//
-	// P:calico-node
-	// V:3.26.1-r10
-	// ...
-	//
-	// P:calico-node
-	// V:3.26.1-r9
-	// ...
+type PackageVersion struct {
+	semver   semver.Version
+	revision int
+}
 
-	var revisions []int
+func (v *PackageVersion) matches(version *semver.Version) bool {
+	parts := strings.SplitN(version.Original(), "-", 2)
+	parts = strings.SplitN(parts[0], "+", 2)
+	parts = strings.Split(parts[0], ".")
+	switch len(parts) {
+	case 1:
+		return v.semver.Major() == version.Major()
+	case 2:
+		return v.semver.Major() == version.Major() && v.semver.Minor() == version.Minor()
+	default:
+		return v.semver.Major() == version.Major() && v.semver.Minor() == version.Minor() && v.semver.Patch() == version.Patch()
+	}
+}
+
+func (v *PackageVersion) String() string {
+	return fmt.Sprintf("%s-r%d", v.semver.Original(), v.revision)
+}
+
+func ParsePackageVersion(version string) (*PackageVersion, error) {
+	parts := strings.Split(version, "-r")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("incorrect number of parts in version %s", version)
+	}
+	sv, err := semver.NewVersion(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse version: %w", err)
+	}
+	revision, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("parse revision: %w", err)
+	}
+	return &PackageVersion{semver: *sv, revision: revision}, nil
+}
+
+// listWolfiPackageVersions returns a list of all versions for a given package name
+func listWolfiPackageVersions(wolfiAPKIndex []byte, pkgName string) ([]*PackageVersion, error) {
+	var versions []*PackageVersion
 	scanner := bufio.NewScanner(bytes.NewReader(wolfiAPKIndex))
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -68,37 +95,74 @@ func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion 
 		}
 		scanner.Scan()
 		line = scanner.Text()
-		// filter by pinned version
-		if pinnedVersion != "" && !strings.HasPrefix(line, "V:"+pinnedVersion+"-r") {
+		if !strings.HasPrefix(line, "V:") {
+			return nil, fmt.Errorf("incorrect APKINDEX version line: %s", line)
+		}
+		// extract the version
+		pv, err := ParsePackageVersion(line[2:])
+		if err != nil {
+			return nil, fmt.Errorf("parse package version from line %s: %w", line, err)
+		}
+		versions = append(versions, pv)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan APKINDEX: %w", err)
+	}
+	return versions, nil
+}
+
+// listMatchingWolfiPackageVersions returns a list of all versions for a given package name that
+// match the pinned version based on the number of version segments.
+func listMatchingWolfiPackageVersions(wolfiAPKIndex []byte, pkgName, pinnedVersion string) ([]*PackageVersion, error) {
+	pinnedSV, err := semver.NewVersion(pinnedVersion)
+	if err != nil {
+		return nil, fmt.Errorf("parse pinned version: %w", err)
+	}
+
+	versions, err := listWolfiPackageVersions(wolfiAPKIndex, pkgName)
+	if err != nil {
+		return nil, fmt.Errorf("list package versions: %w", err)
+	}
+
+	if pinnedVersion == "" {
+		return versions, nil
+	}
+
+	var matchingVersions []*PackageVersion
+	for _, version := range versions {
+		// filter by package version
+		if !version.matches(pinnedSV) {
 			continue
 		}
-		// find the revision number
-		parts := strings.Split(line, "-r")
-		if len(parts) != 2 {
-			return "", fmt.Errorf("incorrect number of parts in APKINDEX line: %s", line)
-		}
-		revision, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return "", fmt.Errorf("parse revision: %w", err)
-		}
-		revisions = append(revisions, revision)
+		matchingVersions = append(matchingVersions, version)
+	}
+	return matchingVersions, nil
+}
+
+// GetWolfiPackageVersion returns the latest version and revision of a package in the wolfi APK
+// index that matches the pinned version based on the number of version segments.
+func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName, pinnedVersion string) (string, error) {
+	versions, err := listMatchingWolfiPackageVersions(wolfiAPKIndex, pkgName, pinnedVersion)
+	if err != nil {
+		return "", fmt.Errorf("list package versions: %w", err)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("scan APKINDEX: %w", err)
+	var maxVersion *PackageVersion
+	for _, version := range versions {
+		if maxVersion == nil {
+			maxVersion = version
+		} else if version.semver.GreaterThan(&maxVersion.semver) {
+			maxVersion = version
+		} else if version.semver.Equal(&maxVersion.semver) && version.revision > maxVersion.revision {
+			maxVersion = version
+		}
 	}
 
-	if len(revisions) == 0 {
+	if maxVersion == nil {
 		return "", fmt.Errorf("package %q not found", pkgName)
 	}
 
-	// get the latest revision
-
-	sort.Slice(revisions, func(i, j int) bool {
-		return revisions[i] > revisions[j]
-	})
-
-	return fmt.Sprintf("%s-r%d", pinnedVersion, revisions[0]), nil
+	return maxVersion.semver.Original(), nil
 }
 
 func ApkoLogin() error {
