@@ -383,6 +383,5 @@ build-openebs-provisioner-localpv-image: apko-build
 .PHONY: build-and-push-openebs-provisioner-localpv-image
 build-and-push-openebs-provisioner-localpv-image: export IMAGE ?= ttl.sh/replicated/ec-openebs-provisioner-localpv:4.1.0
 build-and-push-openebs-provisioner-localpv-image: export PACKAGE_VERSION ?= 4.1.0
-build-and-push-openebs-provisioner-localpv-image: export MELANGE_CONFIG = deploy/packages/openebs-provisioner-localpv/melange.tmpl.yaml
 build-and-push-openebs-provisioner-localpv-image: export APKO_CONFIG = deploy/images/openebs-provisioner-localpv/apko.tmpl.yaml
 build-and-push-openebs-provisioner-localpv-image: apko-login apko-build-and-publish
