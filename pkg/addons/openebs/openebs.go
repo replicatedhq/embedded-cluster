@@ -152,7 +152,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 
 func (o *OpenEBS) GetAdditionalImages() []string {
 	return []string{
-		fmt.Sprintf("%s:%s", openebsKubectlImageRepo, OpenEBSUtilsImageTag),
+		fmt.Sprintf("%s:%s", openEBSUtilsImageRepo, OpenEBSUtilsImageTag),
 	}
 }
 
