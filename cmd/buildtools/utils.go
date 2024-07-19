@@ -113,7 +113,7 @@ func ApkoLogin() error {
 			fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
 			fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
 		); err != nil {
-			return fmt.Errorf("apko login: %w", err)
+			return err
 		}
 	}
 	return nil
@@ -127,7 +127,7 @@ func ApkoBuildAndPublish(componentName string, packageVersion string) error {
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
 	); err != nil {
-		return fmt.Errorf("build and publish apko for %s: %w", componentName, err)
+		return err
 	}
 	return nil
 }
