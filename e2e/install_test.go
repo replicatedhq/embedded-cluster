@@ -1720,7 +1720,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 }
 
 func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) string {
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		airgapBundlePath, size := maybeDownloadAirgapBundle(t, versionLabel, destPath, licenseID)
 		if size > 1024*1024*1024 { // more than a GB
 			t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
@@ -1731,9 +1731,9 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 		if err != nil {
 			t.Fatalf("failed to remove airgap bundle at %s: %v", airgapBundlePath, err)
 		}
-		time.Sleep(60 * time.Second)
+		time.Sleep(2 * time.Minute)
 	}
-	t.Fatalf("failed to download airgap bundle after 3 attempts")
+	t.Fatalf("failed to download airgap bundle after 5 attempts")
 	return ""
 }
 
