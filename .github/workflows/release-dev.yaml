@@ -38,9 +38,9 @@ jobs:
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
           make apko
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}"
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-upgrade"
+          make build-and-push-local-artifact-mirror-image PACKAGE_VERSION="${SHORT_SHA}"
+          make build-and-push-local-artifact-mirror-image PACKAGE_VERSION="${SHORT_SHA}-previous-k0s"
+          make build-and-push-local-artifact-mirror-image PACKAGE_VERSION="${SHORT_SHA}-upgrade"
 
       - name: Build and push local-artifact-mirror image
         run: |
@@ -50,9 +50,9 @@ jobs:
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
           make apko
-          make build-and-push-utils-image VERSION="${SHORT_SHA}"
-          make build-and-push-utils-image VERSION="${SHORT_SHA}-previous-k0s"
-          make build-and-push-utils-image VERSION="${SHORT_SHA}-upgrade"
+          make build-and-push-utils-image PACKAGE_VERSION="${SHORT_SHA}"
+          make build-and-push-utils-image PACKAGE_VERSION="${SHORT_SHA}-previous-k0s"
+          make build-and-push-utils-image PACKAGE_VERSION="${SHORT_SHA}-upgrade"
 
       - name: Build Linux AMD64 and Output Metadata
         run: |

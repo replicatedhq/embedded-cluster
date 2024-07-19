@@ -44,7 +44,7 @@ jobs:
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
           make apko
-          make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
+          make build-and-push-local-artifact-mirror-image PACKAGE_VERSION=$TAG_NAME
 
       - name: Build and push local-artifact-mirror image (staging)
         run: |
@@ -53,7 +53,7 @@ jobs:
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
           make apko
-          make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
+          make build-and-push-local-artifact-mirror-image PACKAGE_VERSION=$TAG_NAME
 
       - name: Build and push utils image (production)
         run: |
@@ -61,7 +61,7 @@ jobs:
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
           make apko
-          make build-and-push-utils-image VERSION=$TAG_NAME
+          make build-and-push-utils-image PACKAGE_VERSION=$TAG_NAME
 
       - name: Build and push utils image (staging)
         run: |
@@ -70,7 +70,7 @@ jobs:
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
           make apko
-          make build-and-push-utils-image VERSION=$TAG_NAME
+          make build-and-push-utils-image PACKAGE_VERSION=$TAG_NAME
 
       - name: Build linux-amd64
         run: |
