@@ -52,9 +52,11 @@ func init() {
 		openebsKubectlImageRepo = OpenEBSKubectlImageRepoOverride
 	}
 
+	var kubectlImageRegistry, kubectlImageRepo string
 	openebsKubectlImageParts := strings.SplitN(openebsKubectlImageRepo, "/", 2)
-	if len(openebsKubectlImageParts) != 2 {
-		panic(fmt.Sprintf("invalid image repo %q", openebsKubectlImageRepo))
+	if len(openebsKubectlImageParts) == 2 {
+		kubectlImageRegistry = openebsKubectlImageParts[0]
+		kubectlImageRepo = openebsKubectlImageParts[1]
 	}
 
 	helmValues = map[string]interface{}{
@@ -81,8 +83,8 @@ func init() {
 		},
 		"preUpgradeHook": map[string]interface{}{
 			"image": map[string]interface{}{
-				"registry": openebsKubectlImageParts[0],
-				"repo":     openebsKubectlImageParts[1],
+				"registry": kubectlImageRegistry,
+				"repo":     kubectlImageRepo,
 				"tag":      OpenEBSKubectlImageTag,
 			},
 		},
