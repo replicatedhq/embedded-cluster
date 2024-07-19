@@ -153,8 +153,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 func (o *OpenEBS) GetAdditionalImages() []string {
 	return []string{
 		fmt.Sprintf(
-			"proxy.replicated.com/anonymous/openebs/linux-utils:%s",
-			OpenEBSUtilsImageTag,
+			fmt.Sprintf("%s:%s", openebsKubectlImageRepo, OpenEBSUtilsImageTag),
 		),
 	}
 }
