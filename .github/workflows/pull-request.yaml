@@ -249,14 +249,13 @@ jobs:
 #          - TestSingleNodeResumeDisasterRecovery
 #          - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
-          - TestMultiNodeAirgapHAInstallation
 #          - TestProxiedEnvironment
 #          - TestMultiNodeHADisasterRecovery
 #          - TestMultiNodeAirgapHADisasterRecovery
 #          - TestCustomCIDR
 #          - TestProxiedCustomCIDR
 #          - TestSingleNodeInstallationNoopUpgrade
-#        include:
+        include:
 #          - test: TestMultiNodeAirgapUpgrade
 #            runner: embedded-cluster
 #          - test: TestMultiNodeAirgapUpgradeSameK0s
@@ -267,6 +266,8 @@ jobs:
 #            runner: embedded-cluster
 #          - test: TestSingleNodeAirgapDisasterRecovery
 #            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
     steps:
     - name: Checkout
       uses: actions/checkout@v4

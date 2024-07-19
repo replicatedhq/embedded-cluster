@@ -193,7 +193,6 @@ jobs:
           - TestSingleNodeResumeDisasterRecovery
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
-          - TestMultiNodeAirgapHAInstallation
           - TestProxiedEnvironment
           - TestMultiNodeHADisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
@@ -210,6 +209,8 @@ jobs:
           - test: TestMultiNodeAirgapHADisasterRecovery
             runner: embedded-cluster
           - test: TestSingleNodeAirgapDisasterRecovery
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHAInstallation
             runner: embedded-cluster
     steps:
       - name: Checkout
