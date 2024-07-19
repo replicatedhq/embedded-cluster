@@ -127,7 +127,7 @@ func ApkoBuildAndPublish(componentName string, packageVersion string) error {
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
 	); err != nil {
-		return fmt.Errorf("failed to build and publish apko for %s: %w", componentName, err)
+		return fmt.Errorf("build and publish apko for %s: %w", componentName, err)
 	}
 	return nil
 }
