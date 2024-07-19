@@ -198,8 +198,7 @@ jobs:
       - name: Create download link message text
         if: github.event_name == 'pull_request'
         run: |
-          SHA=${{ github.event.pull_request.head.sha }}
-          export SHORT_SHA=dev-${SHA::7}
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
           
           echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
           echo "" >> download-link.txt
