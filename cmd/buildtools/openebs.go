@@ -151,7 +151,7 @@ var updateOpenEBSImagesCommand = &cli.Command{
 				}
 			}
 
-			logrus.Infof("building and publishing %s@%s", component.name, packageVersion)
+			logrus.Infof("building and publishing %s=%s", component.name, packageVersion)
 
 			extraArgs := []string{}
 			if packageName != "" {

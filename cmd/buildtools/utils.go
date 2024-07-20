@@ -162,7 +162,7 @@ func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName, pinnedVersion string)
 		return "", fmt.Errorf("package %q not found", pkgName)
 	}
 
-	return maxVersion.semver.Original(), nil
+	return maxVersion.String(), nil
 }
 
 func ApkoLogin() error {
