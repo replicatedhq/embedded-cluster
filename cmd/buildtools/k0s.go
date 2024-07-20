@@ -4,9 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -24,6 +22,14 @@ var k0sComponents = []struct {
 	{
 		name:        "calico-node",
 		makefileVar: "CALICO_NODE_VERSION",
+	},
+	{
+		name:        "calico-cni",
+		makefileVar: "CALICO_CNI_VERSION",
+	},
+	{
+		name:        "calico-kube-controllers",
+		makefileVar: "CALICO_KUBE_CONTROLLERS_VERSION",
 	},
 	{
 		name:        "metrics-server",
@@ -44,31 +50,12 @@ var updateK0sImagesCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating k0s images")
 
-		k0sVersion := c.String("k0s-version")
-		if k0sVersion != "" {
-			if err := runCommand("make", "pkg/goods/bins/k0s", fmt.Sprintf("K0S_VERSION=%s", k0sVersion), "K0S_BINARY_SOURCE_OVERRIDE="); err != nil {
-				return fmt.Errorf("failed to make k0s: %w", err)
-			}
-		} else {
-			if err := runCommand("make", "pkg/goods/bins/k0s"); err != nil {
-				return fmt.Errorf("failed to make k0s: %w", err)
-			}
+		if err := makeK0s(c.String("k0s-version")); err != nil {
+			return fmt.Errorf("failed to make k0s: %w", err)
 		}
 
-		if err := runCommand("make", "apko"); err != nil {
-			return fmt.Errorf("failed to make apko: %w", err)
-		}
-
-		if os.Getenv("REGISTRY_PASS") != "" {
-			if err := runCommand(
-				"make",
-				"apko-login",
-				fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_SERVER")),
-				fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
-				fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
-			); err != nil {
-				return fmt.Errorf("failed to apko login: %w", err)
-			}
+		if err := ApkoLogin(); err != nil {
+			return fmt.Errorf("failed to apko login: %w", err)
 		}
 
 		wolfiAPKIndex, err := GetWolfiAPKIndex()
@@ -87,17 +74,11 @@ var updateK0sImagesCommand = &cli.Command{
 				return fmt.Errorf("failed to get package version for %s: %w", component.name, err)
 			}
 
-			if err := runCommand(
-				"make",
-				"apko-build-and-publish",
-				fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), component.name, packageVersion),
-				fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", component.name, "apko.tmpl.yaml")),
-				fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
-			); err != nil {
-				return fmt.Errorf("failed to build and publish apko for %s: %w", component.name, err)
+			if err := ApkoBuildAndPublish(component.name, packageVersion); err != nil {
+				return fmt.Errorf("failed to apko build and publish for %s: %w", component.name, err)
 			}
 
-			digest, err := getDigestFromBuildFile()
+			digest, err := GetDigestFromBuildFile()
 			if err != nil {
 				return fmt.Errorf("failed to get digest from build file: %w", err)
 			}
@@ -109,6 +90,19 @@ var updateK0sImagesCommand = &cli.Command{
 
 		return nil
 	},
+}
+
+func makeK0s(k0sVersion string) error {
+	if k0sVersion != "" {
+		if err := RunCommand("make", "pkg/goods/bins/k0s", fmt.Sprintf("K0S_VERSION=%s", k0sVersion), "K0S_BINARY_SOURCE_OVERRIDE="); err != nil {
+			return fmt.Errorf("make k0s: %w", err)
+		}
+	} else {
+		if err := RunCommand("make", "pkg/goods/bins/k0s"); err != nil {
+			return fmt.Errorf("make k0s: %w", err)
+		}
+	}
+	return nil
 }
 
 func getUpstreamVersion(name string) (string, error) {
@@ -142,23 +136,4 @@ func getUpstreamVersion(name string) (string, error) {
 		return "", fmt.Errorf("%q image not found", name)
 	}
 	return version, nil
-}
-
-func getDigestFromBuildFile() (string, error) {
-	contents, err := os.ReadFile("build/digest")
-	if err != nil {
-		return "", fmt.Errorf("read build file: %w", err)
-	}
-	parts := strings.Split(string(contents), "@")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("incorrect number of parts in build file")
-	}
-	return strings.TrimSpace(parts[1]), nil
-}
-
-func runCommand(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
 }

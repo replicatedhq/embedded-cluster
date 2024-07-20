@@ -1775,6 +1775,24 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 }
 
 func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) string {
+	for i := 0; i < 5; i++ {
+		airgapBundlePath, size := maybeDownloadAirgapBundle(t, versionLabel, destPath, licenseID)
+		if size > 1024*1024*1024 { // more than a GB
+			t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
+			return airgapBundlePath
+		}
+		t.Logf("downloaded airgap bundle to %s (%d bytes), retrying as it is less than 1GB", airgapBundlePath, size)
+		err := os.RemoveAll(airgapBundlePath)
+		if err != nil {
+			t.Fatalf("failed to remove airgap bundle at %s: %v", airgapBundlePath, err)
+		}
+		time.Sleep(2 * time.Minute)
+	}
+	t.Errorf("failed to download airgap bundle after 5 attempts")
+	return ""
+}
+
+func maybeDownloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) (string, int64) {
 	// download airgap bundle
 	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
 
@@ -1804,9 +1822,8 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 	if err != nil {
 		t.Fatalf("failed to write response to temporary file: %v", err)
 	}
-	t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
 
-	return airgapBundlePath
+	return airgapBundlePath, size
 }
 
 func setupPlaywright(t *testing.T, tc *cluster.Output) error {
