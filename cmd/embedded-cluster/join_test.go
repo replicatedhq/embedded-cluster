@@ -21,6 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	k8syaml "sigs.k8s.io/yaml"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 )
 
 //go:embed testdata/*
@@ -199,7 +202,7 @@ func Test_canEnableHA(t *testing.T) {
 						Spec:       embeddedclusterv1beta1.InstallationSpec{HighAvailability: false},
 					},
 					&corev1.ConfigMap{
-						ObjectMeta: metav1.ObjectMeta{Name: ecRestoreStateCMName, Namespace: "embedded-cluster"},
+						ObjectMeta: metav1.ObjectMeta{Name: constants.EcRestoreStateCMName, Namespace: "embedded-cluster"},
 					},
 					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1", Labels: controllerLabels}},
 					&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2", Labels: controllerLabels}},
@@ -213,7 +216,7 @@ func Test_canEnableHA(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 			ctx := context.Background()
-			got, err := canEnableHA(ctx, tt.args.kcli)
+			got, err := highavailability.CanEnableHA(ctx, tt.args.kcli)
 			if tt.wantErr {
 				req.Error(err)
 				return
@@ -286,7 +289,7 @@ func Test_enableHA(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 			ctx := context.Background()
-			err := enableHA(ctx, tt.args.kcli)
+			err := highavailability.EnableHA(ctx, tt.args.kcli)
 			if tt.wantErr {
 				req.Error(err)
 				return
