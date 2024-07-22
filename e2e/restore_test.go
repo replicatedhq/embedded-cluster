@@ -22,11 +22,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -93,11 +89,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -185,11 +177,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -247,6 +235,9 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 
 func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_SNAPSHOT_LICENSE_ID"})
+
 	requiredEnvVars := []string{
 		"DR_AWS_S3_ENDPOINT",
 		"DR_AWS_S3_REGION",
@@ -255,11 +246,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
+
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
 		testArgs = append(testArgs, os.Getenv(envVar))
@@ -315,6 +303,8 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
+	line = append(line, "--pod-cidr", "10.128.0.0/20")
+	line = append(line, "--service-cidr", "10.129.0.0/20")
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
@@ -334,9 +324,18 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA"))}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	stdout, _, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to check installation state: %v", err)
 	}
+	// ensure that the cluster is using the right IP ranges.
+	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
+	if err != nil {
+		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
+	}
+	t.Log(stdout)
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -355,11 +354,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	testArgs = append(testArgs, "--pod-cidr", "10.128.0.0/20", "--service-cidr", "10.129.0.0/20")
 	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    "localhost,127.0.0.1,10.96.0.0/12,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+		"NO_PROXY":    "localhost,127.0.0.1,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
@@ -381,8 +381,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-airgap-upgrade"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-airgap-upgrade: %v", err)
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs = []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -405,11 +409,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {
@@ -596,11 +596,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		"DR_AWS_ACCESS_KEY_ID",
 		"DR_AWS_SECRET_ACCESS_KEY",
 	}
-	for _, envVar := range requiredEnvVars {
-		if os.Getenv(envVar) == "" {
-			t.Fatalf("missing required environment variable: %s", envVar)
-		}
-	}
+	RequireEnvVars(t, requiredEnvVars)
 
 	testArgs := []string{}
 	for _, envVar := range requiredEnvVars {

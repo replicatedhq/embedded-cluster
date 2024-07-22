@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -30,15 +31,18 @@ import (
 )
 
 const (
+	chartRepo   = "registry.replicated.com/library/admin-console"
 	releaseName = "admin-console"
-	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console"
 )
 
 // Overwritten by -ldflags in Makefile
 var (
+	// ChartRepoOverride is used by KOTS regression automation to override the default chart repo.
+	ChartRepoOverride       = ""
 	Version                 = "v0.0.0"
 	ImageOverride           = ""
 	MigrationsImageOverride = ""
+	KurlProxyImageOverride  = ""
 	KotsVersion             = ""
 	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
 )
@@ -81,6 +85,12 @@ func init() {
 			helmValues["images"] = map[string]interface{}{}
 		}
 		helmValues["images"].(map[string]interface{})["migrations"] = MigrationsImageOverride
+	}
+	if KurlProxyImageOverride != "" {
+		if helmValues["images"] == nil {
+			helmValues["images"] = map[string]interface{}{}
+		}
+		helmValues["images"].(map[string]interface{})["kurlProxy"] = KurlProxyImageOverride
 	}
 }
 
@@ -133,7 +143,7 @@ func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	if !onlyDefaults {
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if a.airgapBundle != "" {
@@ -156,15 +166,23 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, [
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
-	chartConfig := v1beta1.Chart{
+
+	var chartName string
+	if ChartRepoOverride != "" {
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", ChartRepoOverride)
+	} else {
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartRepo)
+	}
+
+	chartConfig := eckinds.Chart{
 		Name:      releaseName,
-		ChartName: chartURL,
+		ChartName: chartName,
 		Version:   Version,
 		Values:    string(values),
 		TargetNS:  a.namespace,
 		Order:     5,
 	}
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
 func (a *AdminConsole) GetAdditionalImages() []string {

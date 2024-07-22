@@ -1,16 +1,148 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/google/go-github/v62/github"
 	"github.com/sirupsen/logrus"
 )
+
+const (
+	wolfiAPKIndexURL = "https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz"
+)
+
+func GetWolfiAPKIndex() ([]byte, error) {
+	tmpdir, err := os.MkdirTemp("", "wolfi-apk-index")
+	if err != nil {
+		return nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	if err := DownloadFile(wolfiAPKIndexURL, filepath.Join(tmpdir, "APKINDEX.tar.gz")); err != nil {
+		return nil, fmt.Errorf("download APKINDEX.tar.gz: %w", err)
+	}
+	if err := ExtractTGZArchive(filepath.Join(tmpdir, "APKINDEX.tar.gz"), tmpdir); err != nil {
+		return nil, fmt.Errorf("extract APKINDEX.tar.gz: %w", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(tmpdir, "APKINDEX"))
+	if err != nil {
+		return nil, fmt.Errorf("read APKINDEX: %w", err)
+	}
+	return contents, nil
+}
+
+func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion string) (string, error) {
+	// example APKINDEX content:
+	// P:calico-node
+	// V:3.26.1-r1
+	// ...
+	//
+	// P:calico-node
+	// V:3.26.1-r10
+	// ...
+	//
+	// P:calico-node
+	// V:3.26.1-r9
+	// ...
+
+	var revisions []int
+	scanner := bufio.NewScanner(bytes.NewReader(wolfiAPKIndex))
+	for scanner.Scan() {
+		line := scanner.Text()
+		// filter by package name
+		if line != "P:"+pkgName {
+			continue
+		}
+		scanner.Scan()
+		line = scanner.Text()
+		// filter by pinned version
+		if pinnedVersion != "" && !strings.HasPrefix(line, "V:"+pinnedVersion+"-r") {
+			continue
+		}
+		// find the revision number
+		parts := strings.Split(line, "-r")
+		if len(parts) != 2 {
+			return "", fmt.Errorf("incorrect number of parts in APKINDEX line: %s", line)
+		}
+		revision, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return "", fmt.Errorf("parse revision: %w", err)
+		}
+		revisions = append(revisions, revision)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("scan APKINDEX: %w", err)
+	}
+
+	if len(revisions) == 0 {
+		return "", fmt.Errorf("package %q not found", pkgName)
+	}
+
+	// get the latest revision
+
+	sort.Slice(revisions, func(i, j int) bool {
+		return revisions[i] > revisions[j]
+	})
+
+	return fmt.Sprintf("%s-r%d", pinnedVersion, revisions[0]), nil
+}
+
+func ApkoLogin() error {
+	if err := RunCommand("make", "apko"); err != nil {
+		return fmt.Errorf("make apko: %w", err)
+	}
+	if os.Getenv("REGISTRY_PASS") != "" {
+		if err := RunCommand(
+			"make",
+			"apko-login",
+			fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_SERVER")),
+			fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
+			fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ApkoBuildAndPublish(componentName string, packageVersion string) error {
+	if err := RunCommand(
+		"make",
+		"apko-build-and-publish",
+		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), componentName, packageVersion),
+		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
+		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetDigestFromBuildFile() (string, error) {
+	contents, err := os.ReadFile("build/digest")
+	if err != nil {
+		return "", fmt.Errorf("read build file: %w", err)
+	}
+	parts := strings.Split(string(contents), "@")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("incorrect number of parts in build file")
+	}
+	return strings.TrimSpace(parts[1]), nil
+}
 
 func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {
 	client := github.NewClient(nil)
@@ -159,4 +291,85 @@ func MirrorChart(repo, name, ver string) error {
 	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
 	logrus.Infof("pushed openebs chart: %s", remote)
 	return nil
+}
+
+func DownloadFile(url, dest string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("unable to get %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("unable to create %s: %w", dest, err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func ExtractTGZArchive(tgzFile string, destDir string) error {
+	fileReader, err := os.Open(tgzFile)
+	if err != nil {
+		return fmt.Errorf("open tgz file %q: %w", tgzFile, err)
+	}
+	defer fileReader.Close()
+
+	gzReader, err := gzip.NewReader(fileReader)
+	if err != nil {
+		return fmt.Errorf("create gzip reader: %w", err)
+	}
+	defer gzReader.Close()
+
+	tarReader := tar.NewReader(gzReader)
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read tar data: %w", err)
+		}
+
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		err = func() error {
+			fileName := filepath.Join(destDir, hdr.Name)
+
+			parentDir := filepath.Dir(fileName)
+			err := os.MkdirAll(parentDir, 0755)
+			if err != nil {
+				return fmt.Errorf("create directory %q: %w", parentDir, err)
+			}
+
+			fileWriter, err := os.Create(fileName)
+			if err != nil {
+				return fmt.Errorf("create file %q: %w", hdr.Name, err)
+			}
+			defer fileWriter.Close()
+
+			_, err = io.Copy(fileWriter, tarReader)
+			if err != nil {
+				return fmt.Errorf("write file %q: %w", hdr.Name, err)
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func RunCommand(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }

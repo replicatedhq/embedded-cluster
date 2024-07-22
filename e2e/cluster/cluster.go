@@ -92,6 +92,7 @@ type Output struct {
 
 // Destroy destroys a cluster pointed by the id property inside the output.
 func (o *Output) Destroy() {
+	o.T.Logf("Destroying cluster %s", o.id)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		o.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -201,35 +202,43 @@ func NewTestCluster(in *Input) *Output {
 
 	in.id = uuid.New().String()[:5]
 	in.network = <-networkaddr
-	PullImage(in)
+
+	out := &Output{
+		T:       in.T,
+		network: in.network,
+		id:      in.id,
+	}
+	out.T.Cleanup(out.Destroy)
+
+	PullImage(in, in.Image)
+	if ProxyImage != in.Image {
+		PullImage(in, ProxyImage)
+	}
 	CreateProfile(in)
 	CreateNetworks(in)
-	nodes := CreateNodes(in)
-	for _, node := range nodes {
+	out.Nodes = CreateNodes(in)
+	for _, node := range out.Nodes {
 		CopyFilesToNode(in, node)
 		CopyDirsToNode(in, node)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, node)
 		}
 	}
-	out := &Output{
-		T:       in.T,
-		Nodes:   nodes,
-		network: in.network,
-		id:      in.id,
+	// We create a proxy node for all installations to run playwright tests.
+	out.Proxy = CreateProxy(in)
+	CopyDirsToNode(in, out.Proxy)
+	if in.CreateRegularUser {
+		CreateRegularUser(in, out.Proxy)
 	}
+	NodeHasInternet(in, out.Proxy)
+	ConfigureProxyNode(in)
 	if in.WithProxy {
-		out.Proxy = CreateProxy(in)
-		CopyDirsToNode(in, out.Proxy)
-		if in.CreateRegularUser {
-			CreateRegularUser(in, out.Proxy)
-		}
-		NodeHasInternet(in, out.Proxy)
 		ConfigureProxy(in)
 	}
 	return out
 }
 
+const ProxyImage = "debian/12"
 const HTTPProxy = "http://10.0.0.254:3128"
 const NOProxy = "10.0.0.0/8"
 
@@ -252,7 +261,7 @@ func CreateProxy(in *Input) string {
 		Type: api.InstanceTypeContainer,
 		Source: api.InstanceSource{
 			Type:  "image",
-			Alias: "debian/12",
+			Alias: ProxyImage,
 		},
 		InstancePut: api.InstancePut{
 			Profiles:     []string{profile},
@@ -296,14 +305,14 @@ func CreateProxy(in *Input) string {
 	return name
 }
 
-// ConfigureProxy installs squid and iptables on the target node. Configures the needed
+// ConfigureProxyNode installs squid and iptables on the target node. Configures the needed
 // ip addresses and sets up iptables to allow nat for requests coming out on eth0 using
-// port 53(UDP). Configures squid to accept requests coming from 10.0.0.0/24 network.
-// Proxy will be listening on http://10.0.0.254:3128.
-func ConfigureProxy(in *Input) {
+// port 53(UDP).
+func ConfigureProxyNode(in *Input) {
+	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
+
 	// starts by installing dependencies, setting up the second network interface ip
 	// address and configuring iptables to allow dns requests forwarding (nat).
-	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 	for _, cmd := range [][]string{
 		{"apt-get", "update", "-y"},
 		{"apt-get", "install", "-y", "iptables", "squid"},
@@ -314,6 +323,14 @@ func ConfigureProxy(in *Input) {
 	} {
 		RunCommandOnNode(in, cmd, proxyName)
 	}
+}
+
+// ConfigureProxy configures squid to accept requests coming from 10.0.0.0/24 network.
+// Proxy will be listening on http://10.0.0.254:3128. It also sets the default route
+// on all other nodes to point to the proxy to ensure no internet will work on them
+// other than dns and http requests using the proxy.
+func ConfigureProxy(in *Input) {
+	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
 	// create a simple squid configuration that allows for localnet access. upload it
 	// to the proxy in the right location. restart squid to apply the configuration.
@@ -664,11 +681,9 @@ func CreateNetworks(in *Input) {
 				"ipv4.dhcp.ranges": fmt.Sprintf("%[1]s.2-%[1]s.254", in.network),
 				"ipv4.nat":         "true",
 				"ipv4.ovn.ranges":  fmt.Sprintf("%[1]s.100-%[1]s.253", in.network),
+				"ipv4.routes":      "10.0.0.0/24",
 			},
 		},
-	}
-	if in.WithProxy {
-		request.NetworkPut.Config["ipv4.routes"] = "10.0.0.0/24"
 	}
 	if err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create external network: %v", err)
@@ -736,7 +751,7 @@ func CreateProfile(in *Input) {
 }
 
 // PullImage pull the image used for the nodes.
-func PullImage(in *Input) {
+func PullImage(in *Input, image string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -746,15 +761,15 @@ func PullImage(in *Input) {
 		"https://images.lxd.canonical.com",
 		"https://cloud-images.ubuntu.com/minimal/releases",
 	} {
-		in.T.Logf("Pulling %q image from %s", in.Image, server)
+		in.T.Logf("Pulling %q image from %s at %s", image, server, time.Now().Format(time.RFC3339))
 		remote, err := lxd.ConnectSimpleStreams(server, nil)
 		if err != nil {
 			in.T.Fatalf("Failed to connect to image server: %v", err)
 		}
 
-		alias, _, err := remote.GetImageAlias(in.Image)
+		alias, _, err := remote.GetImageAlias(image)
 		if err != nil {
-			in.T.Logf("Failed to get image alias %s on %s: %v", in.Image, server, err)
+			in.T.Logf("Failed to get image alias %s on %s: %v", image, server, err)
 			continue
 		}
 
@@ -776,5 +791,5 @@ func PullImage(in *Input) {
 		in.T.Logf("Failed to wait for image copy: %v", err)
 	}
 
-	in.T.Fatalf("Failed to pull image %s (tried in all servers)", in.Image)
+	in.T.Fatalf("Failed to pull image %s (tried in all servers)", image)
 }

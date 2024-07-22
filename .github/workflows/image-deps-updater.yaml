@@ -1,0 +1,55 @@
+name: Update image deps
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      k0s-version:
+        description: 'K0s version for discovering image versions'
+        required: false
+
+jobs:
+  update-k0s-images:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Compile buildtools
+      run: make buildtools
+
+    - name: Update k0s images
+      env:
+        REGISTRY_SERVER: docker.io
+        REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+        REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+      run: ./output/bin/buildtools update images k0s
+
+    - name: Create Pull Request # creates a PR if there are differences
+      uses: peter-evans/create-pull-request@v6
+      id: cpr
+      with:
+        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        commit-message: 'Update image versions'
+        title: 'Automated image updates'
+        branch: automation/image-dependencies
+        delete-branch: true
+        labels: |
+          automated-pr
+          images
+          type::security
+        draft: false
+        base: "main"
+        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+
+    - name: Check outputs
+      if: ${{ steps.cpr.outputs.pull-request-number }}
+      run: |
+        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"

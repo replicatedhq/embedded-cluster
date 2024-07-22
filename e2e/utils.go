@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -19,6 +20,14 @@ type buffer struct {
 
 func (b *buffer) Close() error {
 	return nil
+}
+
+func RequireEnvVars(t *testing.T, envVars []string) {
+	for _, envVar := range envVars {
+		if os.Getenv(envVar) == "" {
+			t.Fatalf("missing required environment variable: %s", envVar)
+		}
+	}
 }
 
 type RunCommandOption func(cmd *cluster.Command)
@@ -41,6 +50,7 @@ func RunCommandsOnNode(t *testing.T, cl *cluster.Output, node int, cmds [][]stri
 	}
 	return nil
 }
+
 // RunRegularUserCommandOnNode runs a command on a node as a regular user (not root) with a timeout.
 func RunRegularUserCommandOnNode(t *testing.T, cl *cluster.Output, node int, line []string, opts ...RunCommandOption) (string, string, error) {
 	stdout := &buffer{bytes.NewBuffer(nil)}

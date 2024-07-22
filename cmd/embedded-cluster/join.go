@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
@@ -33,22 +34,17 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
-type Proxy struct {
-	HTTPProxy  string `json:"httpProxy"`
-	HTTPSProxy string `json:"httpsProxy"`
-	NoProxy    string `json:"noProxy"`
-}
-
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
 type JoinCommandResponse struct {
-	K0sJoinCommand            string    `json:"k0sJoinCommand"`
-	K0sToken                  string    `json:"k0sToken"`
-	ClusterID                 uuid.UUID `json:"clusterID"`
-	K0sUnsupportedOverrides   string    `json:"k0sUnsupportedOverrides"`
-	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
-	MetricsBaseURL            string    `json:"metricsBaseURL"`
-	AirgapRegistryAddress     string    `json:"airgapRegistryAddress"`
-	Proxy                     *Proxy    `json:"proxy"`
+	K0sJoinCommand            string                 `json:"k0sJoinCommand"`
+	K0sToken                  string                 `json:"k0sToken"`
+	ClusterID                 uuid.UUID              `json:"clusterID"`
+	K0sUnsupportedOverrides   string                 `json:"k0sUnsupportedOverrides"`
+	EndUserK0sConfigOverrides string                 `json:"endUserK0sConfigOverrides"`
+	MetricsBaseURL            string                 `json:"metricsBaseURL"`
+	AirgapRegistryAddress     string                 `json:"airgapRegistryAddress"`
+	Proxy                     *ecv1beta1.ProxySpec   `json:"proxy"`
+	Network                   *ecv1beta1.NetworkSpec `json:"network"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -140,7 +136,7 @@ var joinCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
-			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
+			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
 			Hidden: true,
 		},
 		&cli.BoolFlag{
@@ -150,7 +146,7 @@ var joinCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
-			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Usage: "Skip host preflight checks. This is not recommended.",
 			Value: false,
 		},
 	},
@@ -241,16 +237,22 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		logrus.Debugf("joining node to cluster")
-		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
-			err := fmt.Errorf("unable to join node to cluster: %w", err)
+		logrus.Debugf("overriding network configuration")
+		if err := applyNetworkConfiguration(jcmd); err != nil {
+			err := fmt.Errorf("unable to apply network configuration: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
-			return err
 		}
 
 		logrus.Debugf("applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
+		logrus.Debugf("joining node to cluster")
+		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
+			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
@@ -295,6 +297,24 @@ var joinCommand = &cli.Command{
 		logrus.Debugf("controller node join finished")
 		return nil
 	},
+}
+
+func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
+	if jcmd.Network != nil {
+		clusterSpec := k0sconfig.DefaultClusterConfig()
+		clusterSpec.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
+		clusterSpec.Spec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
+		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
+
+		if err != nil {
+			return fmt.Errorf("unable to marshal cluster spec: %w", err)
+		}
+		err = os.WriteFile(defaults.PathToK0sConfig(), clusterSpecYaml, 0644)
+		if err != nil {
+			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
+		}
+	}
+	return nil
 }
 
 // applyJoinConfigurationOverrides applies both config overrides received from the kots api.
@@ -419,6 +439,7 @@ func runK0sInstallCommand(fullcmd string) error {
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
 	}
+
 	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
 		return err
 	}

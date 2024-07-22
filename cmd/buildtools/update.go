@@ -4,9 +4,18 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var addonCommand = &cli.Command{
+var updateCommand = &cli.Command{
 	Name:  "update",
-	Usage: "Manage the embedded cluster addons",
+	Usage: "Manage the embedded cluster components",
+	Subcommands: []*cli.Command{
+		updateAddonCommand,
+		updateImagesCommand,
+	},
+}
+
+var updateAddonCommand = &cli.Command{
+	Name:  "addon",
+	Usage: "Update an embedded cluster addon by copying the chart to the Replicated registry and setting the version in the Makefile",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "force",
@@ -14,17 +23,17 @@ var addonCommand = &cli.Command{
 		},
 	},
 	Subcommands: []*cli.Command{
-		updateAddonCommand,
-	},
-}
-
-var updateAddonCommand = &cli.Command{
-	Name:  "addon",
-	Usage: "Update an embedded cluster addon by copying the chart to the Replicated registry and setting the version in the Makefile",
-	Subcommands: []*cli.Command{
 		updateOpenEBSAddonCommand,
 		updateSeaweedFSAddonCommand,
 		updateRegistryAddonCommand,
 		updateVeleroAddonCommand,
+	},
+}
+
+var updateImagesCommand = &cli.Command{
+	Name:  "images",
+	Usage: "Update embedded cluster images",
+	Subcommands: []*cli.Command{
+		updateK0sImagesCommand,
 	},
 }

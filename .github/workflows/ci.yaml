@@ -1,13 +1,94 @@
-name: Release
+name: CI
 on:
+  pull_request: {}
   push:
     branches:
       - main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
-  releaser:
+  sanitize:
+    name: Sanitize
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Go vet
+        run: |
+          make vet
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.54
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Go vet
+        run: |
+          make vet
+      - name: Unit tests
+        run: |
+          make unit-tests
+  build-images:
+    name: Build Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/.melange-cache
+          key: melange-cache
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Setup Melange
+        uses: chainguard-dev/actions/setup-melange@main
+
+      - name: Build and push local-artifact-mirror image
+        run: |
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
+          export REGISTRY=docker.io
+          export USERNAME=${{ secrets.DOCKERHUB_USER }}
+          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
+          make apko
+          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}"
+          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
+          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-upgrade"
+
+      - name: Build and push utils image
+        run: |
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
+          export REGISTRY=docker.io
+          export USERNAME=${{ secrets.DOCKERHUB_USER }}
+          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
+          make apko
+          make build-and-push-utils-image VERSION="${SHORT_SHA}"
+          make build-and-push-utils-image VERSION="${SHORT_SHA}-previous-k0s"
+          make build-and-push-utils-image VERSION="${SHORT_SHA}-upgrade"
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,28 +99,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.staging.replicated.com
-          username: ${{ secrets.REGISTRY_USERNAME_STAGING }}
-          password: ${{ secrets.REGISTRY_PASSWORD_STAGING }}
-
-      - name: Build and push local-artifact-mirror image
-        run: |
-          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}"
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-upgrade"
-
       - name: Build Linux AMD64 and Output Metadata
         run: |
-          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
+          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
           make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) K0S_BINARY_SOURCE_OVERRIDE=$(make print-PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE) VERSION="${SHORT_SHA}-previous-k0s"
           tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
@@ -50,6 +114,7 @@ jobs:
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
       - name: Publish development release
+        if: github.branch == 'main'
         uses: marvinpinto/action-automatic-releases@latest
         with:
           automatic_release_tag: development
@@ -74,7 +139,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
-          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
           echo "${SHORT_SHA}"
           sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
           sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
@@ -83,11 +148,13 @@ jobs:
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "appver-${SHORT_SHA}-pre-minio-removal"
           
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}"
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}-noop"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "appver-${SHORT_SHA}-upgrade"
       - name: Build CI binary
         run: |
-          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=registry.staging.replicated.com/library/embedded-cluster-local-artifact-mirror
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
+          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
           echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
@@ -105,18 +172,19 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
           export EC_VERSION="v${SHORT_SHA}"
           ./scripts/cache-files.sh
           ./scripts/create-upgrade-release.sh
           ./scripts/create-previous-k0s-release.sh
+
       - name: Create Airgap Release
         env:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
-          export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
           echo "${SHORT_SHA}"
           rm e2e/kots-release-install/release.yaml
           replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
@@ -127,6 +195,30 @@ jobs:
           replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}-previous-k0s"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI-airgap --version "appver-${SHORT_SHA}-upgrade"
 
+      - name: Create download link message text
+        if: github.event_name == 'pull_request'
+        run: |
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          
+          echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
+          echo "" >> download-link.txt
+          echo "Online Installer:" >> download-link.txt
+          echo "\`\`\`" >> download-link.txt
+          echo "curl \"https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/appver-${SHORT_SHA}\" -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
+          echo "\`\`\`" >> download-link.txt
+          echo "Airgap Installer (may take a few minutes before the airgap bundle is built):" >> download-link.txt
+          echo "\`\`\`" >> download-link.txt
+          echo "curl \"https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/appver-${SHORT_SHA}?airgap=true\" -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
+          echo "\`\`\`" >> download-link.txt
+          echo "Happy debugging!" >> download-link.txt
+          cat download-link.txt
+
+      - name: comment download link
+        if: github.event_name == 'pull_request'
+        uses: mshick/add-pr-comment@v2
+        with:
+          message-path: download-link.txt
+
       - name: upload binary
         uses: actions/upload-artifact@v4
         with:
@@ -136,10 +228,12 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-previous-k0s
             output/bin/embedded-cluster-release-builder
+
   e2e:
     runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     needs:
-      - releaser
+      - build
+      - build-images
     strategy:
       fail-fast: false
       matrix:
@@ -164,6 +258,7 @@ jobs:
           - TestMaterialize
           - TestLocalArtifactMirror
           - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
@@ -172,12 +267,16 @@ jobs:
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeHAInstallation
           - TestMultiNodeAirgapHAInstallation
-          - TestMultiNodeAirgapUpgradeSameK0s
           - TestProxiedEnvironment
           - TestMultiNodeHADisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
+          - TestCustomCIDR
+          - TestProxiedCustomCIDR
+          - TestSingleNodeInstallationNoopUpgrade
         include:
           - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgradeSameK0s
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHAInstallation
             runner: embedded-cluster
@@ -193,6 +292,7 @@ jobs:
         with:
           name: embedded-release
           path: output/bin
+
       - uses: ./.github/actions/e2e
         with:
           test-name: '${{ matrix.test }}'
@@ -205,3 +305,26 @@ jobs:
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+
+  # this job will validate that all the tests passed
+  # it is used for the github branch protection rule
+  validate-success:
+    runs-on: ubuntu-20.04
+    needs:
+      - e2e
+      - sanitize
+      - tests
+    if: always()
+    steps:
+      # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
+      - name: fail if e2e job was not successful
+        if: needs.e2e.result != 'success'
+        run: exit 1
+      - name: fail if sanitize job was not successful
+        if: needs.sanitize.result != 'success'
+        run: exit 1
+      - name: fail if tests job was not successful
+        if: needs.tests.result != 'success'
+        run: exit 1
+      - name: succeed if everything else passed
+        run: echo "Validation succeeded"

@@ -155,7 +155,7 @@ jobs:
     - name: Create download link message text
       run: |
         export SHORT_SHA=dev-$(git rev-parse --short=7 HEAD)
-        
+
         echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
         echo "" >> download-link.txt
         echo "Online Installer:" >> download-link.txt

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -108,7 +109,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	}
 	pb := spinner.Start()
 	if c.Bool("skip-host-preflights") {
-		pb.Infof("Skipping host preflights")
+		pb.Infof("Host preflights skipped")
 		pb.Close()
 		return nil
 	}
@@ -116,7 +117,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 	output, err := preflights.Run(c.Context, hpf)
 	if err != nil {
 		pb.CloseWithError()
-		return fmt.Errorf("host preflights failed: %w", err)
+		return fmt.Errorf("host preflights failed to run: %w", err)
 	}
 
 	err = output.SaveToDisk()
@@ -127,32 +128,28 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 
 	// Failures found
 	if output.HasFail() {
-		s := "failures"
+		s := "preflights"
 		if len(output.Fail) == 1 {
-			s = "failure"
+			s = "preflight"
 		}
-		msg := fmt.Sprintf("Host preflights have %d %s", len(output.Fail), s)
+		msg := fmt.Sprintf("%d host %s failed", len(output.Fail), s)
 		if output.HasWarn() {
-			s = "warnings"
-			if len(output.Warn) == 1 {
-				s = "warning"
-			}
-			msg += fmt.Sprintf(" and %d %s", len(output.Warn), s)
+			msg += fmt.Sprintf(" and %d warned", len(output.Warn))
 		}
 
 		pb.Errorf(msg)
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return fmt.Errorf("preflights haven't passed on the host")
+		return fmt.Errorf("host preflight failures detected")
 	}
 
 	// Warnings found
 	if output.HasWarn() {
-		s := "warnings"
+		s := "preflights"
 		if len(output.Warn) == 1 {
-			s = "warning"
+			s = "preflight"
 		}
-		pb.Warnf("Host preflights have %d %s", len(output.Warn), s)
+		pb.Warnf("%d host %s warned", len(output.Warn), s)
 		if c.Bool("no-prompt") {
 			// We have warnings but we are not in interactive mode
 			// so we just print the warnings and continue
@@ -313,15 +310,24 @@ func materializeFiles(c *cli.Context) error {
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
-func ensureK0sConfig(c *cli.Context) error {
+func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
-		return fmt.Errorf("configuration file already exists")
+		return nil, fmt.Errorf("configuration file already exists")
 	}
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
-		return fmt.Errorf("unable to create directory: %w", err)
+		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
+	if err := config.OverrideK0sImages(cfg); err != nil {
+		return nil, fmt.Errorf("unable to override k0s images: %w", err)
+	}
+	if c.String("pod-cidr") != "" {
+		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+	}
+	if c.String("service-cidr") != "" {
+		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+	}
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -333,17 +339,21 @@ func ensureK0sConfig(c *cli.Context) error {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
 	if c.Bool("proxy") {
-		opts = append(opts, addons.WithProxyFromEnv())
+		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
+	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}))
 	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
-		return fmt.Errorf("unable to update helm configs: %w", err)
+		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
 	var err error
 	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
-		return fmt.Errorf("unable to apply unsupported overrides: %w", err)
+		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 	if c.String("airgap-bundle") != "" {
 		// update the k0s config to install with airgap
@@ -352,17 +362,18 @@ func ensureK0sConfig(c *cli.Context) error {
 	}
 	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("unable to marshal config: %w", err)
+		return nil, fmt.Errorf("unable to marshal config: %w", err)
 	}
 	fp, err := os.OpenFile(cfgpath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return fmt.Errorf("unable to create config file: %w", err)
+		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
 	defer fp.Close()
 	if _, err := fp.Write(data); err != nil {
-		return fmt.Errorf("unable to write config file: %w", err)
+		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
-	return nil
+
+	return cfg, nil
 }
 
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies first the
@@ -438,19 +449,20 @@ func waitForK0s() error {
 }
 
 // installAndWaitForK0s installs the k0s binary and waits for it to be ready
-func installAndWaitForK0s(c *cli.Context) error {
+func installAndWaitForK0s(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", defaults.BinaryName())
 	logrus.Debugf("creating k0s configuration file")
-	if err := ensureK0sConfig(c); err != nil {
+	cfg, err := ensureK0sConfig(c)
+	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
 		metrics.ReportApplyFinished(c, err)
-		return err
+		return nil, err
 	}
-	var proxy *Proxy
+	var proxy *ecv1beta1.ProxySpec
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		proxy = &Proxy{
+		proxy = &ecv1beta1.ProxySpec{
 			HTTPProxy:  c.String("http-proxy"),
 			HTTPSProxy: c.String("https-proxy"),
 			NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
@@ -460,28 +472,28 @@ func installAndWaitForK0s(c *cli.Context) error {
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
 		metrics.ReportApplyFinished(c, err)
-		return err
+		return nil, err
 	}
 
 	logrus.Debugf("installing k0s")
 	if err := installK0s(); err != nil {
 		err := fmt.Errorf("unable update cluster: %w", err)
 		metrics.ReportApplyFinished(c, err)
-		return err
+		return nil, err
 	}
 	loading.Infof("Waiting for %s node to be ready", defaults.BinaryName())
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		err := fmt.Errorf("unable to wait for node: %w", err)
 		metrics.ReportApplyFinished(c, err)
-		return err
+		return nil, err
 	}
 	loading.Infof("Node installation finished!")
-	return nil
+	return cfg, nil
 }
 
 // runOutro calls Outro() in all enabled addons by means of Applier.
-func runOutro(c *cli.Context, adminConsolePwd string) error {
+func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd string) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	opts := []addons.Option{}
 
@@ -506,29 +518,41 @@ func runOutro(c *cli.Context, adminConsolePwd string) error {
 	}
 	opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy")))
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
+	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
+		PodCIDR:     cfg.Spec.Network.PodCIDR,
+		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
+	}))
 	return addons.NewApplier(opts...).Outro(c.Context)
 }
 
 func askAdminConsolePassword(c *cli.Context) (string, error) {
-	defaultPass := "password"
+	defaultPassword := "password"
+	userProvidedPassword := c.String("admin-console-password")
 	if c.Bool("no-prompt") {
-		logrus.Infof("Admin Console password set to: %s", defaultPass)
-		return defaultPass, nil
+		if userProvidedPassword != "" {
+			return userProvidedPassword, nil
+		} else {
+			logrus.Infof("The Admin Console password is set to %s", defaultPassword)
+			return defaultPassword, nil
+		}
+	}
+	if userProvidedPassword != "" {
+		return userProvidedPassword, nil
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Enter an Admin Console password:")
-		promptB := prompts.New().Password("Confirm password:")
+		promptA := prompts.New().Password("Set the Admin Console password:")
+		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
 		if promptA == promptB {
 			// TODO: Should we add extra password validation here? e.g length, complexity etc
 			return promptA, nil
 		}
-		logrus.Info("Passwords don't match, please try again.")
+		logrus.Info("Passwords don't match. Please try again.")
 	}
-	return "", fmt.Errorf("unable to set Admin Console password after %d tries", maxTries)
+	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
 }
 
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
@@ -547,10 +571,41 @@ var installCommand = &cli.Command{
 		return nil
 	},
 	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:   "admin-console-password",
+			Usage:  "Password for the Admin Console",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "airgap-bundle",
+			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
+			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:   "http-proxy",
+			Usage:  "Proxy server to use for HTTP",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:   "https-proxy",
+			Usage:  "Proxy server to use for HTTPS",
+			Hidden: false,
+		},
+		&cli.StringFlag{
+			Name:    "license",
+			Aliases: []string{"l"},
+			Usage:   "Path to the license file",
+			Hidden:  false,
+		},
 		&cli.BoolFlag{
 			Name:  "no-prompt",
-			Usage: "Disable interactive prompts. Admin console password will be set to password.",
+			Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
 			Value: false,
+		},
+		&cli.StringFlag{
+			Name:   "no-proxy",
+			Usage:  "Comma-separated list of hosts for which not to use a proxy",
+			Hidden: false,
 		},
 		&cli.StringFlag{
 			Name:   "overrides",
@@ -558,29 +613,8 @@ var installCommand = &cli.Command{
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:    "license",
-			Aliases: []string{"l"},
-			Usage:   "Path to the application license file",
-			Hidden:  false,
-		},
-		&cli.StringFlag{
-			Name:   "airgap-bundle",
-			Usage:  "Path to the airgap bundle. If set, the installation will be completed without internet access.",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "http-proxy",
-			Usage:  "HTTP proxy to use for the installation",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "https-proxy",
-			Usage:  "HTTPS proxy to use for the installation",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "no-proxy",
-			Usage:  "Comma separated list of hosts to bypass the proxy for",
+			Name:   "pod-cidr",
+			Usage:  "IP address range for pods",
 			Hidden: false,
 		},
 		&cli.BoolFlag{
@@ -588,9 +622,14 @@ var installCommand = &cli.Command{
 			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:   "service-cidr",
+			Usage:  "IP address range for services",
+			Hidden: false,
+		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
-			Usage: "Skip host preflight checks. This is not recommended unless you are sure your system is compatible.",
+			Usage: "Skip host preflight checks. This is not recommended.",
 			Value: false,
 		},
 	},
@@ -634,15 +673,15 @@ var installCommand = &cli.Command{
 		}
 		logrus.Debugf("running host preflights")
 		if err := RunHostPreflights(c); err != nil {
-			err := fmt.Errorf("unable to finish preflight checks: %w", err)
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		if err := installAndWaitForK0s(c); err != nil {
+		cfg, err := installAndWaitForK0s(c)
+		if err != nil {
 			return err
 		}
 		logrus.Debugf("running outro")
-		if err := runOutro(c, adminConsolePwd); err != nil {
+		if err := runOutro(c, cfg, adminConsolePwd); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

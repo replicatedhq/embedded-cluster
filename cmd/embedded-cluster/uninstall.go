@@ -334,15 +334,15 @@ var resetCommand = &cli.Command{
 	Args: false,
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
-			Name:  "no-prompt",
-			Usage: "Disable interactive prompts",
-			Value: false,
-		},
-		&cli.BoolFlag{
 			Name:    "force",
 			Aliases: []string{"f"},
 			Usage:   "Ignore errors encountered when resetting the node (implies --no-prompt)",
 			Value:   false,
+		},
+		&cli.BoolFlag{
+			Name:  "no-prompt",
+			Usage: "Disable interactive prompts",
+			Value: false,
 		},
 		&cli.BoolFlag{
 			Name:  "reboot",

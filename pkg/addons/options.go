@@ -72,16 +72,16 @@ func WithVersionMetadata(metadata *types.ReleaseMetadata) Option {
 }
 
 // WithProxyFromEnv sets the proxy environment variables to be used during addons installation.
-func WithProxyFromEnv() Option {
-	return WithProxyFromArgs(os.Getenv("HTTP_PROXY"), os.Getenv("HTTPS_PROXY"), os.Getenv("NO_PROXY"))
+func WithProxyFromEnv(podCIDR, serviceCIDR string) Option {
+	return WithProxyFromArgs(os.Getenv("HTTP_PROXY"), os.Getenv("HTTPS_PROXY"), os.Getenv("NO_PROXY"), podCIDR, serviceCIDR)
 }
 
 // WithProxyFromArgs sets the proxy environment variables to be used during addons installation.
-func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string) Option {
+func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string, podCIDR string, serviceCIDR string) Option {
 	proxyEnv := map[string]string{
 		"HTTP_PROXY":  httpProxy,
 		"HTTPS_PROXY": httpsProxy,
-		"NO_PROXY":    strings.Join(append(defaults.DefaultNoProxy, noProxy), ","),
+		"NO_PROXY":    strings.Join(append(defaults.DefaultNoProxy, noProxy, podCIDR, serviceCIDR), ","),
 	}
 
 	return func(a *Applier) {
@@ -93,5 +93,12 @@ func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string) Opti
 func WithAdminConsolePassword(password string) Option {
 	return func(a *Applier) {
 		a.adminConsolePwd = password
+	}
+}
+
+// WithNetwork sets the network configuration for the cluster
+func WithNetwork(network *embeddedclusterv1beta1.NetworkSpec) Option {
+	return func(a *Applier) {
+		a.network = network
 	}
 }

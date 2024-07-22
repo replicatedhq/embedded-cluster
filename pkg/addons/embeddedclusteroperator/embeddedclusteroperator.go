@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -79,6 +78,7 @@ type EmbeddedClusterOperator struct {
 	airgap          bool
 	releaseMetadata *types.ReleaseMetadata
 	proxyEnv        map[string]string
+	net             *embeddedclusterv1beta1.NetworkSpec
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -104,8 +104,8 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	chartConfig := v1beta1.Chart{
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
+	chartConfig := embeddedclusterv1beta1.Chart{
 		Name:      releaseName,
 		ChartName: chartURL,
 		Version:   Version,
@@ -133,7 +133,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return []embeddedclusterv1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
@@ -230,6 +230,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 			MetricsBaseURL:            metrics.BaseURL(license),
 			AirGap:                    e.airgap,
 			Proxy:                     proxySpec,
+			Network:                   e.net,
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
@@ -245,7 +246,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata, proxyEnv map[string]string) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata, proxyEnv map[string]string, net *embeddedclusterv1beta1.NetworkSpec) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:       "embedded-cluster",
 		deployName:      "embedded-cluster-operator",
@@ -254,6 +255,7 @@ func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airga
 		airgap:          airgapEnabled,
 		releaseMetadata: releaseMetadata,
 		proxyEnv:        proxyEnv,
+		net:             net,
 	}, nil
 }
 

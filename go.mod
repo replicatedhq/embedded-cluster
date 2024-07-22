@@ -1,10 +1,10 @@
 module github.com/replicatedhq/embedded-cluster
 
-go 1.22.3
+go 1.22.5
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
-	github.com/aws/aws-sdk-go v1.54.1
+	github.com/aws/aws-sdk-go v1.54.19
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/creack/pty v1.1.21
@@ -14,9 +14,9 @@ require (
 	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0s v1.29.6-0.20240527072442-22f6a125e881
-	github.com/replicatedhq/embedded-cluster-kinds v1.3.9
-	github.com/replicatedhq/embedded-cluster-operator v0.36.0
+	github.com/k0sproject/k0s v1.29.7-0.20240618090010-edbb703218fd
+	github.com/replicatedhq/embedded-cluster-kinds v1.4.5
+	github.com/replicatedhq/embedded-cluster-operator v0.40.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.95.1
@@ -24,11 +24,11 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
 	github.com/vmware-tanzu/velero v1.14.0
-	golang.org/x/crypto v0.24.0
-	golang.org/x/term v0.21.0
+	golang.org/x/crypto v0.25.0
+	golang.org/x/term v0.22.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
-	helm.sh/helm/v3 v3.15.2
+	helm.sh/helm/v3 v3.15.3
 	k8s.io/api v0.30.2
 	k8s.io/apimachinery v0.30.2
 	oras.land/oras-go/v2 v2.5.0
@@ -42,7 +42,8 @@ require (
 	github.com/Microsoft/hcsshim v0.12.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/containerd/containerd v1.7.17 // indirect
+	github.com/containerd/containerd v1.7.18 // indirect
+	github.com/containerd/errdefs v0.1.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
@@ -74,7 +75,7 @@ require (
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
-	github.com/ohler55/ojg v1.22.0 // indirect
+	github.com/ohler55/ojg v1.23.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -178,7 +179,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect

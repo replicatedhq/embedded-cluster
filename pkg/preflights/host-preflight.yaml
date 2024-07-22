@@ -24,62 +24,77 @@ spec:
     - time: {}
     - ipv4Interfaces: {}
     - kernelConfigs: {}
+    - run:
+        collectorName: "ip-route-table"
+        command: "ip"
+        args: ["route"]
   analyzers:
     - cpu:
-        checkName: 'Number of CPUs in the system'
+        checkName: 'CPU'
         outcomes:
           - fail:
               when: 'count < 2'
-              message: At least 2 CPU cores is required
+              message: At least 2 CPU cores are required
           - pass:
-              message: This node has at least 2 CPU cores
+              message: At least 2 CPU cores are present
+    - memory:
+        checkName: Memory
+        outcomes:
+          - fail:
+              when: '< 2G'
+              message: At least 2GB of memory is required
+          - pass:
+              message: At least 2GB of memory is present
     - diskUsage:
-        checkName: embedded-cluster path usage
+        checkName: Embedded Cluster Disk Space
         collectorName: embedded-cluster-path-usage
         outcomes:
           - fail:
               when: 'total < 40Gi'
-              message: The filesystem at the path /var/lib/embedded-cluster has less than 40Gi of total space
+              message: The filesystem at /var/lib/embedded-cluster has less than 40Gi of total space
           - pass:
-              message: The filesystem at the path /var/lib/embedded-cluster has sufficient space
+              message: The filesystem at /var/lib/embedded-cluster has sufficient space
     - diskUsage:
-        checkName: k0s path usage
+        checkName: k0s Disk Space
         collectorName: k0s-path-usage
         outcomes:
           - fail:
               when: 'total < 40Gi'
-              message: The filesystem at the path /var/lib/k0s has less than 40Gi of total space
+              message: The filesystem at /var/lib/k0s has less than 40Gi of total space
           - fail:
               when: 'used/total > 80%'
-              message: The filesystem at the path /var/lib/k0s is more than 80% full
+              message: The filesystem at /var/lib/k0s is more than 80% full
           - pass:
-              message: The filesystem at the path /var/lib/k0s has sufficient space
+              message: The filesystem at /var/lib/k0s has sufficient space
     - diskUsage:
-        checkName: openebs path usage
+        checkName: OpenEBS Disk Space
         collectorName: openebs-path-usage
         outcomes:
           - fail:
               when: 'total < 5Gi'
-              message: The filesystem at the path /opt/openebs has less than 5Gi of total space
+              message: The filesystem at /opt/openebs has less than 5Gi of total space
           - pass:
-              message: The filesystem at the path /opt/openebs has sufficient space
+              message: The filesystem at /opt/openebs has sufficient space
     - diskUsage:
-        checkName: tmp path usage
+        checkName: tmp Disk Space
         collectorName: tmp-path-usage
         outcomes:
           - fail:
               when: 'total < 5Gi'
-              message: The filesystem at the path /tmp has less than 5Gi of total space
+              message: The filesystem at /tmp has less than 5Gi of total space
           - pass:
-              message: The filesystem at the path /tmp has sufficient space
-    - memory:
-        checkName: Amount of memory on the system
+              message: The filesystem at /tmp has sufficient space
+    - textAnalyze:
+        checkName: Default Route
+        fileName: host-collectors/run-host/ip-route-table.txt
+        regex: "default"
         outcomes:
           - fail:
-              when: '< 2G'
-              message: At least 2G of memory is recommended
+              when: "false"
+              message: "No default route found. A default route is required."
           - pass:
-              message: The system has at least 2G of memory
+              when: "true"
+              message: "Host has a default route"
     - ipv4Interfaces:
         outcomes:
           - fail:
@@ -89,14 +104,14 @@ spec:
               when: 'count >= 1'
               message: IPv4 interface detected
     - time:
-        checkName: 'Time synchronization'
+        checkName: System Clock
         outcomes:
           - fail:
               when: 'ntp == unsynchronized+inactive'
               message: 'System clock is not synchronized'
           - fail:
               when: 'ntp == unsynchronized+active'
-              message: System clock not yet synchronized
+              message: System clock is not yet synchronized
           - pass:
               when: 'ntp == synchronized+active'
               message: 'System clock is synchronized'
