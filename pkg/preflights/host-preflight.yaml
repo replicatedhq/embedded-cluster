@@ -25,9 +25,9 @@ spec:
     - ipv4Interfaces: {}
     - cgroups: {}
     - run:
-        collectorName: "ip-route-table"
-        command: "ip"
-        args: ["route"]
+        collectorName: 'ip-route-table'
+        command: 'ip'
+        args: ['route']
   analyzers:
     - cpu:
         checkName: 'CPU'
@@ -87,14 +87,14 @@ spec:
     - textAnalyze:
         checkName: Default Route
         fileName: host-collectors/run-host/ip-route-table.txt
-        regex: "default"
+        regex: 'default'
         outcomes:
           - fail:
-              when: "false"
-              message: "No default route found. A default route is required."
+              when: 'false'
+              message: 'No default route found. A default route is required.'
           - pass:
-              when: "true"
-              message: "Host has a default route"
+              when: 'true'
+              message: 'Host has a default route'
     - ipv4Interfaces:
         outcomes:
           - fail:
@@ -118,96 +118,104 @@ spec:
     - jsonCompare:
         checkName: Check if either cgroup v1 or v2 is enabled
         fileName: host-collectors/system/cgroups.json
-        path: "cgroup-enabled"
-        value: true
+        path: 'cgroup-enabled'
+        value: |
+          true
         outcomes:
           - fail:
-              when: "false"
-              message: "Neither cgroup v1 nor v2 is enabled"
+              when: 'false'
+              message: 'Neither cgroup v1 nor v2 is enabled'
           - pass:
-              when: "true"
-              message: "One of cgroup v1 or v2 is enabled"
+              when: 'true'
+              message: 'One of cgroup v1 or v2 is enabled'
     - jsonCompare:
         checkName: Check if cpu cgroup controller is enabled
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'cpu')]}"
-        value: "cpu"
+        value: |
+          "cpu"
         outcomes:
           - fail:
-              when: "false"
+              when: 'false'
               message: "'cpu' cgroup controller is not enabled"
           - pass:
-              when: "true"
+              when: 'true'
               message: "'cpu' cgroup controller is enabled"
     - jsonCompare:
         checkName: Check if cpuacct cgroup controller is enabled
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'cpuacct')]}"
-        value: "cpuacct"
+        value: |
+          "cpuacct"
         outcomes:
           - fail:
-              when: "false"
+              when: 'false'
               message: "'cpuacct' cgroup controller is not enabled"
           - pass:
-              when: "true"
+              when: 'true'
               message: "'cpuacct' cgroup controller is enabled"
     - jsonCompare:
         checkName: Check if cpuset cgroup controller is enabled
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'cpuset')]}"
-        value: "cpuset"
+        value: |
+          "cpuset"
         outcomes:
           - fail:
-              when: "false"
+              when: 'false'
               message: "'cpuset' cgroup controller is not enabled"
           - pass:
-              when: "true"
+              when: 'true'
               message: "'cpuset' cgroup controller is enabled"
     - jsonCompare:
         checkName: Check if memory cgroup controller is enabled
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'memory')]}"
-        value: "memory"
+        value: |
+          "memory"
         outcomes:
           - fail:
-              when: "false"
+              when: 'false'
               message: "'memory' cgroup controller is not enabled"
           - pass:
-              when: "true"
+              when: 'true'
               message: "'memory' cgroup controller is enabled"
     - jsonCompare:
         checkName: Check if devices cgroup controller is enabled
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'devices')]}"
-        value: "devices"
+        value: |
+          "devices"
         outcomes:
           - fail:
-              when: "false"
+              when: 'false'
               message: "'devices' cgroup controller is not enabled"
           - pass:
-              when: "true"
+              when: 'true'
               message: "'devices' cgroup controller is enabled"
     - jsonCompare:
         checkName: Check if freezer cgroup controller is enabled
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'freezer')]}"
-        value: "freezer"
+        value: |
+          "freezer"
         outcomes:
           - fail:
-              when: "false"
+              when: 'false'
               message: "'freezer' cgroup controller is not enabled"
           - pass:
-              when: "true"
+              when: 'true'
               message: "'freezer' cgroup controller is enabled"
     - jsonCompare:
         checkName: Check if pids cgroup controller is enabled
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'pids')]}"
-        value: "pids"
+        value: |
+          "pids"
         outcomes:
           - fail:
-              when: "false"
+              when: 'false'
               message: "'pids' cgroup controller is not enabled"
           - pass:
-              when: "true"
+              when: 'true'
               message: "'pids' cgroup controller is enabled"
