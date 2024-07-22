@@ -239,10 +239,10 @@ jobs:
       matrix:
         test:
           - TestSingleNodeInstallation
-#          - TestSingleNodeInstallationAlmaLinux8
-#          - TestSingleNodeInstallationDebian11
-#          - TestSingleNodeInstallationDebian12
-#          - TestSingleNodeInstallationCentos9Stream
+          - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos9Stream
 #          - TestVersion
 #          - TestHostPreflight
 #          - TestUnsupportedOverrides
@@ -250,7 +250,7 @@ jobs:
 #          - TestMultiNodeReset
 #          - TestCommandsRequireSudo
 #          - TestInstallWithoutEmbed
-#          - TestInstallFromReplicatedApp
+          - TestInstallFromReplicatedApp
 #          - TestResetAndReinstall
 #          - TestResetAndReinstallAirgap
 #          - TestCollectSupportBundle
