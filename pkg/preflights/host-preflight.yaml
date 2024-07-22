@@ -23,11 +23,29 @@ spec:
     - cpu: {}
     - time: {}
     - ipv4Interfaces: {}
-    - cgroups: {}
     - run:
         collectorName: 'ip-route-table'
         command: 'ip'
         args: ['route']
+    # External k0s dependencies
+    # https://docs.k0sproject.io/stable/external-runtime-deps/
+    - cgroups: {}
+    - run:
+        collectorName: 'check-proc-filesystem'
+        command: 'sh'
+        args: ['-c', 'stat -f -c "%T" /proc']
+    - run:
+        collectorName: 'check-modprobe'
+        command: 'sh'
+        args: ['-c', 'command -v modprobe']
+    - run:
+        collectorName: 'check-mount'
+        command: 'sh'
+        args: ['-c', 'command -v mount']
+    - run:
+        collectorName: 'check-umount'
+        command: 'sh'
+        args: ['-c', 'command -v umount']
   analyzers:
     - cpu:
         checkName: 'CPU'
@@ -219,3 +237,91 @@ spec:
           - pass:
               when: 'true'
               message: "'pids' cgroup controller is enabled"
+    - textAnalyze:
+        checkName: Check if /proc filesystem is mounted
+        fileName: host-collectors/run-host/check-proc-filesystem.txt
+        regex: 'proc'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "/proc filesystem is mounted"
+          - fail:
+              when: "false"
+              message: "/proc filesystem is not mounted"
+    - textAnalyze:
+        checkName: Check if 'modprobe' command exists in PATH
+        fileName: host-collectors/run-host/check-modprobe.txt
+        regex: '/usr/sbin/modprobe'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'modprobe' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'modprobe' command does not exist in PATH"
+    - textAnalyze:
+        checkName: Check if 'mount' command exists in PATH
+        fileName: host-collectors/run-host/check-mount.txt
+        regex: '/usr/bin/mount'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'mount' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'mount' command does not exist in PATH"
+    - textAnalyze:
+        checkName: Check if 'umount' command exists in PATH
+        fileName: host-collectors/run-host/check-umount.txt
+        regex: '/usr/bin/umount'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'umount' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'umount' command does not exist in PATH"
+    - textAnalyze:
+        checkName: Check if /proc filesystem is mounted
+        fileName: host-collectors/run-host/check-proc-filesystem.txt
+        regex: 'proc'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "/proc filesystem is mounted"
+          - fail:
+              when: "false"
+              message: "/proc filesystem is not mounted"
+    - textAnalyze:
+        checkName: Check if 'modprobe' command exists in PATH
+        fileName: host-collectors/run-host/check-modprobe.txt
+        regex: '/usr/sbin/modprobe'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'modprobe' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'modprobe' command does not exist in PATH"
+    - textAnalyze:
+        checkName: Check if 'mount' command exists in PATH
+        fileName: host-collectors/run-host/check-mount.txt
+        regex: '/usr/bin/mount'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'mount' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'mount' command does not exist in PATH"
+    - textAnalyze:
+        checkName: Check if 'umount' command exists in PATH
+        fileName: host-collectors/run-host/check-umount.txt
+        regex: '/usr/bin/umount'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'umount' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'umount' command does not exist in PATH"
