@@ -10,7 +10,7 @@ on:
         required: false
 
 jobs:
-  update-k0s-images:
+  compile-buildtools:
     runs-on: ubuntu-20.04
     steps:
     - name: Checkout
@@ -24,12 +24,33 @@ jobs:
     - name: Compile buildtools
       run: make buildtools
 
+    - name: Upload buildtools artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: buildtools
+        path: output/bin/buildtools
+
+  update-k0s-images:
+    runs-on: ubuntu-20.04
+    needs: [compile-buildtools]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Download buildtools artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: buildtools
+        path: output/bin
+
     - name: Update k0s images
       env:
-        REGISTRY_SERVER: docker.io
+        REGISTRY_SERVER: index.docker.io
         REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
         REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
-      run: ./output/bin/buildtools update images k0s
+      run: |
+        chmod +x ./output/bin/buildtools
+        ./output/bin/buildtools update images k0s
 
     - name: Create Pull Request # creates a PR if there are differences
       uses: peter-evans/create-pull-request@v6
@@ -37,15 +58,60 @@ jobs:
       with:
         token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
         commit-message: 'Update image versions'
-        title: 'Automated image updates'
-        branch: automation/image-dependencies
+        title: 'Automated k0s image updates'
+        branch: automation/k0s-image-dependencies
         delete-branch: true
         labels: |
           automated-pr
           images
           type::security
         draft: false
-        base: "main"
+        base: main
+        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+
+    - name: Check outputs
+      if: ${{ steps.cpr.outputs.pull-request-number }}
+      run: |
+        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
+
+  update-openebs-images:
+    runs-on: ubuntu-20.04
+    needs: [compile-buildtools]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Download buildtools artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: buildtools
+        path: output/bin
+
+    - name: Update OpenEBS images
+      env:
+        REGISTRY_SERVER: index.docker.io
+        REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+        REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+      run: |
+        chmod +x ./output/bin/buildtools
+        ./output/bin/buildtools update images openebs
+
+    - name: Create Pull Request # creates a PR if there are differences
+      uses: peter-evans/create-pull-request@v6
+      id: cpr
+      with:
+        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        commit-message: 'Update image versions'
+        title: 'Automated OpenEBS image updates'
+        branch: automation/openebs-image-dependencies
+        delete-branch: true
+        labels: |
+          automated-pr
+          images
+          type::security
+        draft: false
+        base: main
         body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
 
     - name: Check outputs

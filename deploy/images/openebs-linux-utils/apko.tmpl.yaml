@@ -1,0 +1,26 @@
+# adapted from https://github.com/openebs/linux-utils/blob/v4.1.0/dockerfiles/linux-utils/Dockerfile
+contents:
+  repositories:
+    - https://packages.wolfi.dev/os
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  packages:
+    - wolfi-base
+    - util-linux
+    - xfsprogs
+    - xfs-scrub # xfsprogs-extra is missing but im not sure if its necessary
+    - lvm2
+    - device-mapper
+    - e2fsprogs-extra
+    - quota-tools
+
+accounts:
+  groups:
+    - groupname: nonroot
+      gid: 65532
+  users:
+    - username: nonroot
+      uid: 65532
+      gid: 65532
+  # must be run as root
+  run-as: 0
