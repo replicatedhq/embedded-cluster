@@ -5,6 +5,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -125,6 +126,7 @@ func Test_enableHA(t *testing.T) {
 						Spec: v1beta1.InstallationSpec{
 							HighAvailability: false,
 							AirGap:           true,
+							Network:          &v1beta1.NetworkSpec{ServiceCIDR: "10.123.0.0/16"},
 						},
 						Status: v1beta1.InstallationStatus{
 							Conditions: []v1.Condition{
@@ -134,6 +136,12 @@ func Test_enableHA(t *testing.T) {
 								},
 							},
 							State: v1beta1.InstallationStateInstalled,
+						},
+					},
+					&corev1.Namespace{
+						ObjectMeta: v1.ObjectMeta{Name: "seaweedfs"},
+						Status: corev1.NamespaceStatus{
+							Phase: corev1.NamespaceActive,
 						},
 					},
 				).Build(),

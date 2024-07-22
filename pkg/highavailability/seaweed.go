@@ -66,6 +66,10 @@ func ensureSeaweedfsS3Service(ctx context.Context, in *embeddedclusterv1beta1.In
 		return fmt.Errorf("ensure seaweedfs namespace: %w", err)
 	}
 
+	if in == nil || in.Spec.Network == nil || in.Spec.Network.ServiceCIDR == "" {
+		return fmt.Errorf("installation spec network or service not present")
+	}
+
 	clusterIP, err := getSeaweedfsS3ServiceIP(in.Spec.Network.ServiceCIDR)
 	if err != nil {
 		return fmt.Errorf("get seaweedfs s3 service IP: %w", err)
