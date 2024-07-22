@@ -46,11 +46,16 @@ func EnableHA(ctx context.Context, kcli client.Client) error {
 		return fmt.Errorf("unable to get latest installation: %w", err)
 	}
 	if !in.Spec.HighAvailability {
-		// only update the installation/create seaweed service if HA is not already enabled
-		if err := createSeaweedfsResources(ctx, kcli, in); err != nil {
-			return fmt.Errorf("unable to create seaweedfs resources: %w", err)
+		if in.Spec.AirGap {
+			loading.Infof("creating seaweed resources")
+
+			// only update the installation/create seaweed service if HA is not already enabled
+			if err := createSeaweedfsResources(ctx, kcli, in); err != nil {
+				return fmt.Errorf("unable to create seaweedfs resources: %w", err)
+			}
 		}
 
+		loading.Infof("updating installation")
 		in.Spec.HighAvailability = true
 		if err := kcli.Update(ctx, in); err != nil {
 			return fmt.Errorf("unable to update installation: %w", err)
