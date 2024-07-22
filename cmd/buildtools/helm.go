@@ -1,17 +1,24 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/pusher"
 	"helm.sh/helm/v3/pkg/registry"
+	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/uploader"
 )
@@ -121,7 +128,7 @@ func (h *Helm) Close() error {
 }
 
 func (h *Helm) Latest(reponame, chart string) (string, error) {
-	logrus.Infof("finding latest version of %s/%s", reponame, chart)
+	logrus.Infof("finding latest chart version of %s/%s", reponame, chart)
 	for _, repository := range repositories.Repositories {
 		if repository.Name != reponame {
 			continue
@@ -156,6 +163,25 @@ func (h *Helm) Latest(reponame, chart string) (string, error) {
 	return "", fmt.Errorf("repository %s not found", reponame)
 }
 
+func (h *Helm) PullOCI(url, version string) (string, error) {
+	if err := h.prepare(); err != nil {
+		return "", err
+	}
+
+	dl := downloader.ChartDownloader{
+		Out:              io.Discard,
+		Options:          []getter.Option{},
+		RepositoryConfig: h.repocfg,
+		RepositoryCache:  h.tmpdir,
+		Getters:          getters,
+	}
+	path, _, err := dl.DownloadTo(url, version, h.tmpdir)
+	if err != nil {
+		return "", fmt.Errorf("unable to download chart: %w", err)
+	}
+	return path, nil
+}
+
 func (h *Helm) Pull(repo, chart, version string) (string, error) {
 	if err := h.prepare(); err != nil {
 		return "", err
@@ -187,4 +213,60 @@ func (h *Helm) Push(path, dst string) error {
 		Options: []pusher.Option{pusher.WithRegistryClient(h.regcli)},
 	}
 	return up.UploadTo(path, dst)
+}
+
+func (h *Helm) Render(chartName string, chartPath string, vals map[string]interface{}, namespace string) ([]string, error) {
+	cfg := &action.Configuration{}
+
+	client := action.NewInstall(cfg)
+	client.DryRun = true
+	client.ReleaseName = chartName
+	client.Replace = true
+	client.ClientOnly = true
+	client.IncludeCRDs = true
+	client.Namespace = namespace
+
+	rawver, err := GetMakefileVariable("K0S_VERSION")
+	if err != nil {
+		return nil, fmt.Errorf("unable to get k0s version: %w", err)
+	}
+	kversion := semver.MustParse(rawver)
+
+	// since ClientOnly is true we need to initialize KubeVersion otherwise resorts defaults
+	client.KubeVersion = &chartutil.KubeVersion{
+		Version: fmt.Sprintf("v%d.%d.0", kversion.Major(), kversion.Minor()),
+		Major:   fmt.Sprintf("%d", kversion.Major()),
+		Minor:   fmt.Sprintf("%d", kversion.Minor()),
+	}
+
+	chartRequested, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load chart: %w", err)
+	}
+
+	if req := chartRequested.Metadata.Dependencies; req != nil {
+		if err := action.CheckDependencies(chartRequested, req); err != nil {
+			return nil, fmt.Errorf("failed dependency check: %w", err)
+		}
+	}
+
+	rel, err := client.Run(chartRequested, vals)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render chart: %w", err)
+	}
+
+	var manifests bytes.Buffer
+	fmt.Fprintln(&manifests, strings.TrimSpace(rel.Manifest))
+	for _, m := range rel.Hooks {
+		fmt.Fprintf(&manifests, "---\n# Source: %s\n%s\n", m.Path, m.Manifest)
+	}
+
+	resources := []string{}
+	splitManifests := releaseutil.SplitManifests(manifests.String())
+	for _, manifest := range splitManifests {
+		manifest = strings.TrimSpace(manifest)
+		resources = append(resources, manifest)
+	}
+
+	return resources, nil
 }

@@ -15,18 +15,6 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
-    - name: AdminConsole
-      run: |
-        export VERSION=`curl https://api.github.com/repos/replicatedhq/kots-helm/tags | jq -r .[].name | grep -v alpha | head -1 | tr -d v`
-        sed -i "/^ADMIN_CONSOLE_CHART_VERSION/c\ADMIN_CONSOLE_CHART_VERSION = $VERSION" Makefile
-    - name: Embedded Cluster Operator
-      run: |
-        export VERSION=`curl https://api.github.com/repos/replicatedhq/embedded-cluster-operator/tags | jq -r .[].name | head -1 | tr -d v`
-        sed -i "/^EMBEDDED_OPERATOR_CHART_VERSION/c\EMBEDDED_OPERATOR_CHART_VERSION = $VERSION" Makefile
-    - name: Embedded Cluster Operator Utils
-      run: |
-        export VERSION=`curl https://raw.githubusercontent.com/docker-library/busybox/master/versions.json | jq -r .latest.version`
-        sed -i "/^EMBEDDED_OPERATOR_UTILS_IMAGE/c\EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:$VERSION" Makefile
     - name: Kubectl
       run: |
         export VERSION=`curl -L -s https://dl.k8s.io/release/stable.txt`

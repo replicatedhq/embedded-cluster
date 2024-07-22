@@ -2,58 +2,62 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
-var updateSeaweedFSAddonCommand = &cli.Command{
-	Name:      "seaweedfs",
-	Usage:     "Updates the SeaweedFS addon",
+var updateOperatorAddonCommand = &cli.Command{
+	Name:      "embeddedclusteroperator",
+	Usage:     "Updates the Embedded Cluster Operator addon",
 	UsageText: environmentUsageText,
 	Action: func(c *cli.Context) error {
-		logrus.Infof("updating seaweedfs addon")
+		logrus.Infof("updating operator addon")
 
-		latest, err := LatestChartVersion("seaweedfs", "seaweedfs")
+		logrus.Infof("getting embedded cluster operator release")
+		latest, err := GetGitHubRelease(
+			c.Context, "replicatedhq", "embedded-cluster-operator",
+			func(tag string) bool {
+				return !strings.Contains(tag, "build")
+			},
+		)
 		if err != nil {
-			return fmt.Errorf("unable to get the latest seaweedfs version: %v", err)
+			return fmt.Errorf("failed to get embedded cluster operator release: %w", err)
 		}
 		latest = strings.TrimPrefix(latest, "v")
-		logrus.Infof("found seaweedfs chart version %s", latest)
+		logrus.Infof("embedded cluster operator release found: %s", latest)
 
-		current := seaweedfs.Metadata
+		current := embeddedclusteroperator.Metadata
 		if current.Version == latest && !c.Bool("force") {
-			logrus.Infof("seaweedfs chart is up to date")
+			logrus.Infof("operator chart version is already up-to-date")
 			return nil
 		}
 
-		logrus.Infof("mirroring seaweedfs chart")
-		if err := MirrorChart("seaweedfs", "seaweedfs", latest); err != nil {
-			return fmt.Errorf("unable to mirror seaweedfs chart: %w", err)
-		}
-
-		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("DESTINATION"))
+		upstream := "registry.replicated.com/library/embedded-cluster-operator"
 		newmeta := release.AddonMetadata{
 			Version:  latest,
 			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
 			Images:   make(map[string]string),
 		}
 
-		values, err := release.GetValuesWithOriginalImages("seaweedfs")
+		values, err := release.GetValuesWithOriginalImages("embeddedclusteroperator")
 		if err != nil {
 			return fmt.Errorf("unable to get openebs values: %v", err)
 		}
 
 		logrus.Infof("extracting images from chart")
 		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "seaweedfs", latest, values)
+		images, err := GetImagesFromOCIChart(withproto, "adminconsole", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from admin console chart: %w", err)
 		}
+
+		// make sure we include the operator util image as it does not show up
+		// when rendering the helm chart.
+		images = append(images, "busybox:1.36")
 
 		logrus.Infof("fetching digest for images")
 		for _, image := range images {
@@ -69,11 +73,9 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 
 		logrus.Infof("saving addon manifest")
 		newmeta.ReplaceImages = true
-		if err := newmeta.Save("seaweedfs"); err != nil {
-			return fmt.Errorf("failed to save metadata: %w", err)
+		if err := newmeta.Save("embeddedclusteroperator"); err != nil {
+			return fmt.Errorf("failed to save embedded cluster operator metadata: %w", err)
 		}
-
-		logrus.Infof("successfully updated seaweed addon")
 		return nil
 	},
 }

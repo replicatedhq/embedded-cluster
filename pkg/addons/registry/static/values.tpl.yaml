@@ -1,0 +1,27 @@
+configData:
+  auth:
+    htpasswd:
+      path: /auth/htpasswd
+      realm: Registry
+extraVolumeMounts:
+- mountPath: /auth
+  name: auth
+extraVolumes:
+- name: auth
+  secret:
+    secretName: registry-auth
+fullnameOverride: registry
+{{- if .ReplaceImages }}
+image:
+  repository: proxy.replicated.com/anonymous/registry
+  tag: '{{ index .Images "registry" }}'
+{{- end }}
+persistence:
+  accessMode: ReadWriteOnce
+  enabled: true
+  size: 10Gi
+  storageClass: openebs-hostpath
+podAnnotations:
+  backup.velero.io/backup-volumes: data
+replicaCount: 1
+storage: filesystem

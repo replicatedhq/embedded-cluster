@@ -4,6 +4,7 @@ package embeddedclusteroperator
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -28,39 +29,41 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
-const (
-	releaseName = "embedded-cluster-operator"
-	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator"
-)
+const releaseName = "embedded-cluster-operator"
 
-// Overwritten by -ldflags in Makefile
 var (
-	Version       = "v0.0.0"
-	UtilsImage    = "busybox:latest"
-	ImageOverride = ""
+	//go:embed static/values.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/metadata.yaml
+	rawmetadata []byte
+	// Metadata is the unmarchal version of rawmetadata.
+	Metadata release.AddonMetadata
+	// Overwritten by -ldflags in Makefile
+	EmbeddedOperatorImageOverride = ""
 )
-
-var helmValues = map[string]interface{}{
-	"kotsVersion":               adminconsole.Version,
-	"embeddedClusterVersion":    defaults.Version,
-	"embeddedClusterK0sVersion": defaults.K0sVersion,
-	"utilsImage":                UtilsImage,
-	"global": map[string]interface{}{
-		"labels": map[string]interface{}{
-			"replicated.com/disaster-recovery":       "infra",
-			"replicated.com/disaster-recovery-chart": "embedded-cluster-operator",
-		},
-	},
-}
 
 func init() {
-	if ImageOverride != "" {
-		// split ImageOverride into the image and tag
-		parts := strings.Split(ImageOverride, ":")
-		if len(parts) != 2 {
-			panic(fmt.Sprintf("invalid image override: %s", ImageOverride))
-		}
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
 
+	helmValues = make(map[string]interface{})
+	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
+	}
+
+	helmValues["kotsVersion"] = adminconsole.Metadata.Version
+	helmValues["embeddedClusterVersion"] = defaults.Version
+	helmValues["embeddedClusterK0sVersion"] = defaults.K0sVersion
+
+	if EmbeddedOperatorImageOverride != "" {
+		// split ImageOverride into the image and tag
+		parts := strings.Split(EmbeddedOperatorImageOverride, ":")
+		if len(parts) != 2 {
+			panic(fmt.Sprintf("invalid image override: %s", EmbeddedOperatorImageOverride))
+		}
 		helmValues["image"] = map[string]interface{}{
 			"repository": parts[0],
 			"tag":        parts[1],
@@ -83,7 +86,9 @@ type EmbeddedClusterOperator struct {
 
 // Version returns the version of the embedded cluster operator chart.
 func (e *EmbeddedClusterOperator) Version() (map[string]string, error) {
-	return map[string]string{"EmbeddedClusterOperator": "v" + Version}, nil
+	return map[string]string{
+		"EmbeddedClusterOperator": "v" + Metadata.Version,
+	}, nil
 }
 
 func (a *EmbeddedClusterOperator) Name() string {
@@ -107,8 +112,8 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
 	chartConfig := embeddedclusterv1beta1.Chart{
 		Name:      releaseName,
-		ChartName: chartURL,
-		Version:   Version,
+		ChartName: Metadata.Location,
+		Version:   Metadata.Version,
 		TargetNS:  "embedded-cluster",
 		Order:     3,
 	}
@@ -137,7 +142,10 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embed
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
-	return []string{UtilsImage}
+	if tag, ok := Metadata.Images["busybox"]; ok {
+		return []string{fmt.Sprintf("proxy.replicated.com/anonymous/busybox:%s", tag)}
+	}
+	return nil
 }
 
 // createVersionMetadataConfigMap creates a ConfigMap with the version metadata for the embedded cluster operator.

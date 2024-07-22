@@ -4,9 +4,9 @@ package adminconsole
 
 import (
 	"context"
+	_ "embed"
 	"encoding/base64"
 	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -31,66 +31,49 @@ import (
 )
 
 const (
-	chartRepo   = "registry.replicated.com/library/admin-console"
-	releaseName = "admin-console"
+	releaseName                 = "admin-console"
+	DefaultAdminConsoleNodePort = 30000
 )
 
-// Overwritten by -ldflags in Makefile
 var (
-	// ChartRepoOverride is used by KOTS regression automation to override the default chart repo.
-	ChartRepoOverride       = ""
-	Version                 = "v0.0.0"
-	ImageOverride           = ""
-	MigrationsImageOverride = ""
-	KurlProxyImageOverride  = ""
-	KotsVersion             = ""
-	CounterRegex            = regexp.MustCompile(`(\d+)/(\d+)`)
+	//go:embed static/values.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/metadata.yaml
+	rawmetadata []byte
+	// Metadata is the unmarchal version of rawmetadata.
+	Metadata release.AddonMetadata
+	// protectedFields are helm values that are not overwritten when upgrading the addon.
+	protectedFields = []string{"automation", "embeddedClusterID", "isAirgap"}
+	// Overwritten by -ldflags in Makefile
+	AdminConsoleChartRepoOverride       = ""
+	AdminConsoleImageOverride           = ""
+	AdminConsoleMigrationsImageOverride = ""
+	AdminConsoleKurlProxyImageOverride  = ""
+	KotsVersion                         = ""
 )
-
-// protectedFields are helm values that are not overwritten when upgrading the addon.
-var protectedFields = []string{"automation", "embeddedClusterID", "isAirgap"}
-
-const DEFAULT_ADMIN_CONSOLE_NODE_PORT = 30000
-
-var helmValues = map[string]interface{}{
-	"isHA":          false,
-	"minimalRBAC":   false,
-	"isHelmManaged": false,
-	"service": map[string]interface{}{
-		"enabled": false, // disable the admin console service
-	},
-	"kurlProxy": map[string]interface{}{
-		"enabled":  true,
-		"nodePort": DEFAULT_ADMIN_CONSOLE_NODE_PORT,
-	},
-	"embeddedClusterVersion": defaults.Version,
-	"labels": map[string]interface{}{
-		"replicated.com/disaster-recovery":       "infra",
-		"replicated.com/disaster-recovery-chart": "admin-console",
-	},
-	"passwordSecretRef": map[string]interface{}{
-		"name": "kotsadm-password",
-		"key":  "passwordBcrypt",
-	},
-}
 
 func init() {
-	if ImageOverride != "" {
-		helmValues["images"] = map[string]interface{}{
-			"kotsadm": ImageOverride,
-		}
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
-	if MigrationsImageOverride != "" {
-		if helmValues["images"] == nil {
-			helmValues["images"] = map[string]interface{}{}
-		}
-		helmValues["images"].(map[string]interface{})["migrations"] = MigrationsImageOverride
+
+	helmValues = make(map[string]interface{})
+	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
 	}
-	if KurlProxyImageOverride != "" {
-		if helmValues["images"] == nil {
-			helmValues["images"] = map[string]interface{}{}
-		}
-		helmValues["images"].(map[string]interface{})["kurlProxy"] = KurlProxyImageOverride
+
+	helmValues["embeddedClusterVersion"] = defaults.Version
+
+	if AdminConsoleImageOverride != "" {
+		helmValues["images"].(map[string]interface{})["kotsadm"] = AdminConsoleImageOverride
+	}
+	if AdminConsoleMigrationsImageOverride != "" {
+		helmValues["images"].(map[string]interface{})["migrations"] = AdminConsoleMigrationsImageOverride
+	}
+	if AdminConsoleKurlProxyImageOverride != "" {
+		helmValues["images"].(map[string]interface{})["kurlProxy"] = AdminConsoleKurlProxyImageOverride
 	}
 }
 
@@ -106,7 +89,7 @@ type AdminConsole struct {
 
 // Version returns the embedded admin console version.
 func (a *AdminConsole) Version() (map[string]string, error) {
-	return map[string]string{"AdminConsole": "v" + Version}, nil
+	return map[string]string{"AdminConsole": "v" + Metadata.Version}, nil
 }
 
 func (a *AdminConsole) Name() string {
@@ -167,17 +150,15 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, [
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 
-	var chartName string
-	if ChartRepoOverride != "" {
-		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", ChartRepoOverride)
-	} else {
-		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartRepo)
+	chartName := Metadata.Location
+	if AdminConsoleChartRepoOverride != "" {
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
 	}
 
 	chartConfig := eckinds.Chart{
 		Name:      releaseName,
 		ChartName: chartName,
-		Version:   Version,
+		Version:   Metadata.Version,
 		Values:    string(values),
 		TargetNS:  a.namespace,
 		Order:     5,
@@ -289,7 +270,7 @@ func GetURL() string {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	return fmt.Sprintf("http://%s:%v", ipaddr, DEFAULT_ADMIN_CONSOLE_NODE_PORT)
+	return fmt.Sprintf("http://%s:%v", ipaddr, DefaultAdminConsoleNodePort)
 }
 
 func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {
