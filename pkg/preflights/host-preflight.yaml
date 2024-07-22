@@ -23,7 +23,7 @@ spec:
     - cpu: {}
     - time: {}
     - ipv4Interfaces: {}
-    - kernelConfigs: {}
+    - cgroups: {}
     - run:
         collectorName: "ip-route-table"
         command: "ip"
@@ -115,201 +115,99 @@ spec:
           - pass:
               when: 'ntp == synchronized+active'
               message: 'System clock is synchronized'
-    - kernelConfigs:
-        checkName: "Control Group support kernel config"
-        selectedConfigs:
-          - CONFIG_CGROUPS=my
+    - jsonCompare:
+        checkName: Check if either cgroup v1 or v2 is enabled
+        fileName: host-collectors/system/cgroups.json
+        path: "cgroup-enabled"
+        value: true
         outcomes:
-          - pass:
-              message: "CGROUPS (Control Group support) kernel config is available"
           - fail:
-              message: "CGROUPS (Control Group support) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Freezer cgroup subsystem kernel config"
-        selectedConfigs:
-          - CONFIG_CGROUP_FREEZER=my
+              when: "false"
+              message: "Neither cgroup v1 nor v2 is enabled"
+          - pass:
+              when: "true"
+              message: "One of cgroup v1 or v2 is enabled"
+    - jsonCompare:
+        checkName: Check if cpu cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'cpu')]}"
+        value: "cpu"
         outcomes:
-          - pass:
-              message: "CGROUP_FREEZER (Freezer cgroup subsystem) kernel config is available"
           - fail:
-              message: "CGROUP_FREEZER (Freezer cgroup subsystem) kernel config is missing"
-    - kernelConfigs:
-        checkName: "PIDs cgroup subsystem kernel config"
-        selectedConfigs:
-          - CONFIG_CGROUP_PIDS=my
+              when: "false"
+              message: "'cpu' cgroup controller is not enabled"
+          - pass:
+              when: "true"
+              message: "'cpu' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if cpuacct cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'cpuacct')]}"
+        value: "cpuacct"
         outcomes:
-          - pass:
-              message: "CGROUP_PIDS (PIDs cgroup subsystem) kernel config is available"
           - fail:
-              message: "CGROUP_PIDS (PIDs cgroup subsystem) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Device controller for cgroups kernel config"
-        selectedConfigs:
-          - CONFIG_CGROUP_DEVICE=my
+              when: "false"
+              message: "'cpuacct' cgroup controller is not enabled"
+          - pass:
+              when: "true"
+              message: "'cpuacct' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if cpuset cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'cpuset')]}"
+        value: "cpuset"
         outcomes:
-          - pass:
-              message: "CGROUP_DEVICE (Device controller for cgroups) kernel config is available"
           - fail:
-              message: "CGROUP_DEVICE (Device controller for cgroups) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Cpuset support kernel config"
-        selectedConfigs:
-          - CONFIG_CPUSETS=my
+              when: "false"
+              message: "'cpuset' cgroup controller is not enabled"
+          - pass:
+              when: "true"
+              message: "'cpuset' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if memory cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'memory')]}"
+        value: "memory"
         outcomes:
-          - pass:
-              message: "CPUSETS (Cpuset support) kernel config is available"
           - fail:
-              message: "CPUSETS (Cpuset support) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Simple CPU accounting cgroup subsystem kernel config"
-        selectedConfigs:
-          - CONFIG_CGROUP_CPUACCT=my
+              when: "false"
+              message: "'memory' cgroup controller is not enabled"
+          - pass:
+              when: "true"
+              message: "'memory' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if devices cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'devices')]}"
+        value: "devices"
         outcomes:
-          - pass:
-              message: "CGROUP_CPUACCT (Simple CPU accounting cgroup subsystem) kernel config is available"
           - fail:
-              message: "CGROUP_CPUACCT (Simple CPU accounting cgroup subsystem) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Memory Resource Controller for Control Groups kernel config"
-        selectedConfigs:
-          - CONFIG_MEMCG=my
+              when: "false"
+              message: "'devices' cgroup controller is not enabled"
+          - pass:
+              when: "true"
+              message: "'devices' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if freezer cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'freezer')]}"
+        value: "freezer"
         outcomes:
-          - pass:
-              message: "MEMCG (Memory Resource Controller for Control Groups) kernel config is available"
           - fail:
-              message: "MEMCG (Memory Resource Controller for Control Groups) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Group CPU scheduler kernel config"
-        selectedConfigs:
-          - CONFIG_CGROUP_SCHED=my
+              when: "false"
+              message: "'freezer' cgroup controller is not enabled"
+          - pass:
+              when: "true"
+              message: "'freezer' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if pids cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'pids')]}"
+        value: "pids"
         outcomes:
-          - pass:
-              message: "CGROUP_SCHED (Group CPU scheduler) kernel config is available"
           - fail:
-              message: "CGROUP_SCHED (Group CPU scheduler) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Group scheduling for SCHED_OTHER kernel config"
-        selectedConfigs:
-          - CONFIG_FAIR_GROUP_SCHED=my
-        outcomes:
+              when: "false"
+              message: "'pids' cgroup controller is not enabled"
           - pass:
-              message: "FAIR_GROUP_SCHED (Group scheduling for SCHED_OTHER) kernel config is available"
-          - fail:
-              message: "FAIR_GROUP_SCHED (Group scheduling for SCHED_OTHER) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Namespaces support kernel config"
-        selectedConfigs:
-          - CONFIG_NAMESPACES=my
-        outcomes:
-          - pass:
-              message: "NAMESPACES (Namespaces support) kernel config is available"
-          - fail:
-              message: "NAMESPACES (Namespaces support) kernel config is missing"
-    - kernelConfigs:
-        checkName: "UTS namespace kernel config"
-        selectedConfigs:
-          - CONFIG_UTS_NS=my
-        outcomes:
-          - pass:
-              message: "UTS_NS (UTS namespace) kernel config is available"
-          - fail:
-              message: "UTS_NS (UTS namespace) kernel config is missing"
-    - kernelConfigs:
-        checkName: "IPC namespace kernel config"
-        selectedConfigs:
-          - CONFIG_IPC_NS=my
-        outcomes:
-          - pass:
-              message: "IPC_NS (IPC namespace) kernel config is available"
-          - fail:
-              message: "IPC_NS (IPC namespace) kernel config is missing"
-    - kernelConfigs:
-        checkName: "PID namespace kernel config"
-        selectedConfigs:
-          - CONFIG_PID_NS=my
-        outcomes:
-          - pass:
-              message: "PID_NS (PID namespace) kernel config is available"
-          - fail:
-              message: "PID_NS (PID namespace) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Network namespace kernel config"
-        selectedConfigs:
-          - CONFIG_NET_NS=my
-        outcomes:
-          - pass:
-              message: "NET_NS (Network namespace) kernel config is available"
-          - fail:
-              message: "NET_NS (Network namespace) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Networking support kernel config"
-        selectedConfigs:
-          - CONFIG_NET=my
-        outcomes:
-          - pass:
-              message: "NET (Networking support) kernel config is available"
-          - fail:
-              message: "NET (Networking support) kernel config is missing"
-    - kernelConfigs:
-        checkName: "TCP/IP networking kernel config"
-        selectedConfigs:
-          - CONFIG_INET=my
-        outcomes:
-          - pass:
-              message: "INET (TCP/IP networking) kernel config is available"
-          - fail:
-              message: "INET (TCP/IP networking) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Network packet filtering framework (Netfilter) kernel config"
-        selectedConfigs:
-          - CONFIG_NETFILTER=my
-        outcomes:
-          - pass:
-              message: "NETFILTER (Network packet filtering framework (Netfilter)) kernel config is available"
-          - fail:
-              message: "NETFILTER (Network packet filtering framework (Netfilter)) kernel config is missing"
-    - kernelConfigs:
-        checkName: "Netfilter Xtables support kernel config"
-        selectedConfigs:
-          - CONFIG_NETFILTER_XTABLES=my
-        outcomes:
-          - pass:
-              message: "NETFILTER_XTABLES (Netfilter Xtables support) kernel config is available"
-          - fail:
-              message: "NETFILTER_XTABLES (Netfilter Xtables support) kernel config is missing"
-    - kernelConfigs:
-        checkName: "REDIRECT target support kernel config"
-        selectedConfigs:
-          - CONFIG_NETFILTER_XT_TARGET_REDIRECT=my
-        outcomes:
-          - pass:
-              message: "NETFILTER_XT_TARGET_REDIRECT (REDIRECT target support) kernel config is available"
-          - fail:
-              message: "NETFILTER_XT_TARGET_REDIRECT (REDIRECT target support) kernel config is missing"
-    - kernelConfigs:
-        checkName: "NETFILTER_XT_MATCH_COMMENT (\"comment\" match support) kernel config"
-        selectedConfigs:
-          - CONFIG_NETFILTER_XT_MATCH_COMMENT=my
-        outcomes:
-          - pass:
-              message: "NETFILTER_XT_MATCH_COMMENT (\"comment\" match support) kernel config is available"
-          - fail:
-              message: "NETFILTER_XT_MATCH_COMMENT (\"comment\" match support) kernel config is missing"
-    - kernelConfigs:
-        checkName: "The Extended 4 (ext4) filesystem kernel config"
-        selectedConfigs:
-          - CONFIG_EXT4_FS=my
-        outcomes:
-          - pass:
-              message: "EXT4_FS (The Extended 4 (ext4) filesystem) kernel config is available"
-          - fail:
-              message: "EXT4_FS (The Extended 4 (ext4) filesystem) kernel config is missing"
-    - kernelConfigs:
-        checkName: "/proc file system support kernel config"
-        selectedConfigs:
-          - CONFIG_PROC_FS=my
-        outcomes:
-          - pass:
-              message: "PROC_FS (/proc file system support) kernel config is available"
-          - fail:
-              message: "PROC_FS (/proc file system support) kernel config is missing"
+              when: "true"
+              message: "'pids' cgroup controller is enabled"
