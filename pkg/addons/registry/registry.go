@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"time"
 
@@ -20,134 +21,48 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
-	chartURL                 = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/docker-registry"
 	releaseName              = "docker-registry"
 	tlsSecretName            = "registry-tls"
 	seaweedfsS3RWSecretName  = "seaweedfs-s3-rw"
 	registryLowerBandIPIndex = 10
 )
 
-// Overwritten by -ldflags in Makefile
 var (
-	Version      = "v0.0.0"
-	ImageVersion = "2.8.3"
+	//go:embed static/values.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/values-ha.yaml
+	rawvaluesha []byte
+	// helmValuesHA is the unmarshal version of rawvaluesha.
+	helmValuesHA map[string]interface{}
+	//go:embed static/metadata.yaml
+	rawmetadata []byte
+	// Metadata is the unmarchal version of rawmetadata.
+	Metadata         release.AddonMetadata
+	registryPassword = helpers.RandString(20)
+	registryAddress  = ""
 )
 
-var registryPassword = helpers.RandString(20)
-var registryAddress = ""
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
 
-var helmValues = map[string]interface{}{
-	"replicaCount":     1,
-	"fullnameOverride": "registry",
-	"image": map[string]interface{}{
-		"tag": ImageVersion,
-	},
-	"podAnnotations": map[string]interface{}{
-		"backup.velero.io/backup-volumes": "data",
-	},
-	"storage": "filesystem",
-	"persistence": map[string]interface{}{
-		"enabled":      true,
-		"size":         "10Gi",
-		"accessMode":   "ReadWriteOnce",
-		"storageClass": "openebs-hostpath",
-	},
-	"configData": map[string]interface{}{
-		"auth": map[string]interface{}{
-			"htpasswd": map[string]interface{}{
-				"realm": "Registry",
-				"path":  "/auth/htpasswd",
-			},
-		},
-	},
-	"extraVolumeMounts": []map[string]interface{}{
-		{
-			"name":      "auth",
-			"mountPath": "/auth",
-		},
-	},
-	"extraVolumes": []map[string]interface{}{
-		{
-			"name": "auth",
-			"secret": map[string]interface{}{
-				"secretName": "registry-auth",
-			},
-		},
-	},
-}
+	helmValues = make(map[string]interface{})
+	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
 
-var helmValuesHA = map[string]interface{}{
-	"replicaCount":     2,
-	"fullnameOverride": "registry",
-	"image": map[string]interface{}{
-		"tag": ImageVersion,
-	},
-	"storage": "s3",
-	"s3": map[string]interface{}{
-		"region": "us-east-1",
-		// regionEndpoint is set by the operator to a hardcoded lower band IP
-		"regionEndpoint": "DYNAMIC",
-		"bucket":         "registry",
-		"rootdirectory":  "/registry",
-		"encrypt":        false,
-		"secure":         false, // This does not work
-	},
-	"secrets": map[string]interface{}{
-		"s3": map[string]interface{}{
-			"secretRef": seaweedfsS3RWSecretName,
-		},
-	},
-	"configData": map[string]interface{}{
-		"auth": map[string]interface{}{
-			"htpasswd": map[string]interface{}{
-				"realm": "Registry",
-				"path":  "/auth/htpasswd",
-			},
-		},
-		"storage": map[string]interface{}{
-			"s3": map[string]interface{}{
-				// There is a bug in the helm chart that REGISTRY_STORAGE_S3_SECURE is not set if
-				// false yet it defaults to true
-				"secure": false,
-			},
-		},
-	},
-	"extraVolumeMounts": []map[string]interface{}{
-		{
-			"name":      "auth",
-			"mountPath": "/auth",
-		},
-	},
-	"extraVolumes": []map[string]interface{}{
-		{
-			"name": "auth",
-			"secret": map[string]interface{}{
-				"secretName": "registry-auth",
-			},
-		},
-	},
-	"affinity": map[string]interface{}{
-		"podAntiAffinity": map[string]interface{}{
-			"requiredDuringSchedulingIgnoredDuringExecution": []map[string]interface{}{
-				{
-					"labelSelector": map[string]interface{}{
-						"matchExpressions": []map[string]interface{}{
-							{
-								"key":      "app",
-								"operator": "In",
-								"values":   []string{"docker-registry"},
-							},
-						},
-					},
-					"topologyKey": "kubernetes.io/hostname",
-				},
-			},
-		},
-	},
+	helmValuesHA = make(map[string]interface{})
+	if err := yaml.Unmarshal(rawvaluesha, &helmValuesHA); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
 }
 
 // Registry manages the installation of the Registry helm chart.
@@ -161,7 +76,7 @@ type Registry struct {
 
 // Version returns the version of the Registry chart.
 func (o *Registry) Version() (map[string]string, error) {
-	return map[string]string{"Registry": "v" + Version}, nil
+	return map[string]string{"Registry": "v" + Metadata.Version}, nil
 }
 
 func (a *Registry) Name() string {
@@ -189,8 +104,8 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eck
 
 	chartConfig := eckinds.Chart{
 		Name:      releaseName,
-		ChartName: chartURL,
-		Version:   Version,
+		ChartName: Metadata.Location,
+		Version:   Metadata.Version,
 		TargetNS:  o.namespace,
 		Order:     3,
 	}

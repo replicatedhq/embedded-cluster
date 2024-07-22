@@ -4,6 +4,7 @@ package openebs
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 
 	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
@@ -12,60 +13,35 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
 	releaseName = "openebs"
 	namespace   = "openebs"
-	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs"
 )
 
-// Overwritten by -ldflags in Makefile
 var (
-	Version      = "v0.0.0"
-	UtilsVersion = ""
+	//go:embed static/values.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/metadata.yaml
+	rawmetadata []byte
+	// Metadata is the unmarchal version of rawmetadata.
+	Metadata release.AddonMetadata
 )
 
-var helmValues = map[string]interface{}{
-	"localpv-provisioner": map[string]interface{}{
-		"analytics": map[string]interface{}{
-			"enabled": false,
-		},
-		"hostpathClass": map[string]interface{}{
-			"enabled":        true,
-			"isDefaultClass": true,
-		},
-		"helperPod": map[string]interface{}{
-			"image": map[string]interface{}{
-				"tag": UtilsVersion,
-			},
-		},
-	},
-	"zfs-localpv": map[string]interface{}{
-		"enabled": false,
-	},
-	"lvm-localpv": map[string]interface{}{
-		"enabled": false,
-	},
-	"mayastor": map[string]interface{}{
-		"enabled": false,
-	},
-	"engines": map[string]interface{}{
-		"local": map[string]interface{}{
-			"lvm": map[string]interface{}{
-				"enabled": false,
-			},
-			"zfs": map[string]interface{}{
-				"enabled": false,
-			},
-		},
-		"replicated": map[string]interface{}{
-			"mayastor": map[string]interface{}{
-				"enabled": false,
-			},
-		},
-	},
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
+
+	helmValues = make(map[string]interface{})
+	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
 }
 
 // OpenEBS manages the installation of the OpenEBS helm chart.
@@ -73,7 +49,7 @@ type OpenEBS struct{}
 
 // Version returns the version of the OpenEBS chart.
 func (o *OpenEBS) Version() (map[string]string, error) {
-	return map[string]string{"OpenEBS": "v" + Version}, nil
+	return map[string]string{"OpenEBS": "v" + Metadata.Version}, nil
 }
 
 func (a *OpenEBS) Name() string {
@@ -97,8 +73,8 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	chartConfig := eckinds.Chart{
 		Name:      releaseName,
-		ChartName: chartURL,
-		Version:   Version,
+		ChartName: Metadata.Location,
+		Version:   Metadata.Version,
 		TargetNS:  namespace,
 		Order:     1,
 	}
@@ -113,7 +89,10 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {
-	return []string{fmt.Sprintf("openebs/linux-utils:%s", UtilsVersion)}
+	if tag, ok := Metadata.Images["openebs/linux-utils"]; ok {
+		return []string{fmt.Sprintf("proxy.replicated.com/anonymous/openebs/linux-utils:%s", tag)}
+	}
+	return nil
 }
 
 // Outro is executed after the cluster deployment.

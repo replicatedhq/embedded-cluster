@@ -1,0 +1,21 @@
+{{- if .ReplaceImages }}
+images:
+    kotsadm: 'proxy.replicated.com/anonymous/kotsadm/kotsadm:{{ index .Images "kotsadm/kotsadm" }}'
+    kurlProxy: 'proxy.replicated.com/anonymous/kotsadm/kurl-proxy:{{ index .Images "kotsadm/kurl-proxy" }}'
+    migrations: 'proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations:{{ index .Images "kotsadm/kotsadm-migrations" }}'
+    rqlite: 'proxy.replicated.com/anonymous/kotsadm/rqlite:{{ index .Images "kotsadm/rqlite" }}'
+{{- end }}
+isHA: false
+isHelmManaged: false
+kurlProxy:
+    enabled: true
+    nodePort: 30000
+labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+    key: passwordBcrypt
+    name: kotsadm-password
+service:
+    enabled: false

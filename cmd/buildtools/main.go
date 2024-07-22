@@ -15,7 +15,7 @@ This script uses the following environment variables:
 - REGISTRY_SERVER: the registry server to push the chart/image to (only used for authentication in the case of charts, e.g. index.docker.io)
 - REGISTRY_USER: the username to authenticate with.
 - REGISTRY_PASS: the password to authenticate with.
-- DESTINATION: the destination repository to push the chart to (e.g. oci://ttl.sh/embedded-cluster-charts)
+- DESTINATION: the destination repository to push the chart to (e.g. ttl.sh/embedded-cluster-charts)
 `
 
 func main() {

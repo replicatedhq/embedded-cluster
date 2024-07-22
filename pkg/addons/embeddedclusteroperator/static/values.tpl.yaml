@@ -1,0 +1,11 @@
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+{{- if .ReplaceImages }}
+image:
+  repository: proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator-image
+  tag: {{ index .Images "registry.replicated.com/library/embedded-cluster-operator-image" }}
+kubeProxyImage: 'proxy.replicated.com/anonymous/gcr.io/kubebuilder/kube-rbac-proxy:{{ index .Images "gcr.io/kubebuilder/kube-rbac-proxy" }}'
+utilsImage: 'proxy.replicated.com/anonymous/busybox:{{ index .Images "busybox" }}'
+{{- end }}
