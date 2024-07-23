@@ -8,6 +8,12 @@ on:
       k0s-version:
         description: 'K0s version for discovering image versions'
         required: false
+      openebs-version:
+        description: 'OpenEBS version for discovering image versions'
+        required: false
+      kubectl-version:
+        description: 'Kubectl version for discovering image versions'
+        required: false
 
 jobs:
   compile-buildtools:

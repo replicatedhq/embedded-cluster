@@ -24,10 +24,10 @@ var openebsComponents = map[string]addonComponent{
 			// package name is not the same as the component name
 			return "dynamic-localpv-provisioner"
 		},
-		upstreamVersionFlagOverride: "openebs-version",
+		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"openebs-linux-utils": {
-		upstreamVersionFlagOverride: "openebs-version",
+		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"openebs-kubectl": {
 		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
@@ -37,7 +37,7 @@ var openebsComponents = map[string]addonComponent{
 			// match the greatest patch version of the same minor version
 			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
 		},
-		upstreamVersionFlagOverride: "kubectl-version",
+		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
 }
 
@@ -119,9 +119,13 @@ func updateOpenEBSAddonImages(chartURL string, chartVersion string) error {
 		Images:   make(map[string]string),
 	}
 
-	rawver, err := GetMakefileVariable("K0S_VERSION")
-	if err != nil {
-		return fmt.Errorf("failed to get k0s version: %w", err)
+	rawver := os.Getenv("INPUT_K0S_VERSION")
+	if rawver == "" {
+		v, err := GetMakefileVariable("K0S_VERSION")
+		if err != nil {
+			return fmt.Errorf("failed to get k0s version: %w", err)
+		}
+		rawver = v
 	}
 	k0sVersion := semver.MustParse(rawver)
 
@@ -163,6 +167,14 @@ func updateOpenEBSAddonImages(chartURL string, chartVersion string) error {
 		component, ok := openebsComponents[componentName]
 		if !ok {
 			return fmt.Errorf("no component found for component name %s", componentName)
+		}
+
+		if component.upstreamVersionInputOverride != "" {
+			v := os.Getenv(component.upstreamVersionInputOverride)
+			if v != "" {
+				logrus.Infof("using input override from %s: %s", component.upstreamVersionInputOverride, v)
+				upstreamVersion = v
+			}
 		}
 
 		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)

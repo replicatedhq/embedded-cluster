@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -42,16 +43,15 @@ var updateK0sImagesCommand = &cli.Command{
 	Name:      "k0s",
 	Usage:     "Updates the k0s images",
 	UsageText: environmentUsageText,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "k0s-version",
-			Usage: "The version of k0s to use to determine image versions",
-		},
-	},
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating k0s images")
 
-		if err := makeK0s(c.String("k0s-version")); err != nil {
+		k0sVersion := os.Getenv("INPUT_K0S_VERSION")
+		if k0sVersion != "" {
+			logrus.Infof("using input override from INPUT_K0S_VERSION: %s", k0sVersion)
+		}
+
+		if err := makeK0s(k0sVersion); err != nil {
 			return fmt.Errorf("failed to make k0s: %w", err)
 		}
 

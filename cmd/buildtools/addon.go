@@ -9,7 +9,7 @@ import (
 type addonComponent struct {
 	getWolfiPackageName              func(k0sVersion *semver.Version, upstreamVersion string) string
 	getWolfiPackageVersionComparison func(k0sVersion *semver.Version, upstreamVersion string) string
-	upstreamVersionFlagOverride      string
+	upstreamVersionInputOverride     string
 }
 
 func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, k0sVersion *semver.Version, upstreamVersion string) (string, string, error) {
