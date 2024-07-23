@@ -66,8 +66,8 @@ var updateVeleroAddonCommand = &cli.Command{
 		for _, image := range images {
 			tag := TagFromImage(image)
 			image = RemoveTagFromImage(image)
-			if image == "velero/velero" {
-				helper = fmt.Sprintf("velero/velero-restore-helper:%s", tag)
+			if image == "docker.io/velero/velero" {
+				helper = fmt.Sprintf("docker.io/velero/velero-restore-helper:%s", tag)
 				break
 			}
 		}

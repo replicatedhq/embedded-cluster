@@ -44,7 +44,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: buildtools
-          path: ./output/artifacts
+          path: output/bin
       - name: Update ${{ matrix.addon }}
         id: update
         env:
@@ -56,8 +56,8 @@ jobs:
           IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
           CHARTS_DESTINATION: registry.replicated.com/ec-charts
         run: |
-          chmod 755 ./output/artifacts/buildtools
-          ./output/artifacts/buildtools update addon ${{ matrix.addon }}
+          chmod 755 ./output/bin/buildtools
+          ./output/bin/buildtools update addon ${{ matrix.addon }}
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
