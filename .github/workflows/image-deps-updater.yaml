@@ -44,8 +44,9 @@ jobs:
       fail-fast: false
       matrix:
         addon:
-          - openebs
           - k0s
+          - openebs
+          - velero
     steps:
     - name: Checkout
       uses: actions/checkout@v4
