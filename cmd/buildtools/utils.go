@@ -159,7 +159,7 @@ func FindWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, constraints *
 	}
 
 	if len(versions) == 0 {
-		return "", fmt.Errorf("package %q not found", pkgName)
+		return "", fmt.Errorf("package %q not found with the provided constraints", pkgName)
 	}
 
 	sorted := PackageVersions(versions)
