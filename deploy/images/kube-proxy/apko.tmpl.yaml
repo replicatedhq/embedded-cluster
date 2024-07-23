@@ -6,7 +6,7 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
     - ./melange.rsa.pub # remove
   packages:
-    - ${PACKAGE_NAME}=${PACKAGE_VERSION}
+    - kube-proxy-1.29-default=1.29.5-r0 # revert
     - conntrack-tools
     - ip6tables # this pulls in iptables as well
     # - cilium-iptables
