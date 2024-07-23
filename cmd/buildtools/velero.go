@@ -90,7 +90,7 @@ var updateVeleroAddonCommand = &cli.Command{
 
 		logrus.Infof("updating velero images")
 
-		err = updateVeleroAddonImages(c.Context, withproto, latest, restoreHelperVersion, awsPluginVersion)
+		err = updateVeleroAddonImages(c.Context, withproto, nextChartVersion, restoreHelperVersion, awsPluginVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update velero images: %w", err)
 		}
