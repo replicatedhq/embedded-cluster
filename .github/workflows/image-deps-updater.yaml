@@ -61,6 +61,9 @@ jobs:
         REGISTRY_SERVER: index.docker.io
         REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
         REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+        INPUT_K0S_VERSION: ${{ github.event.inputs.k0s_version }}
+        INPUT_OPENEBS_VERSION: ${{ github.event.inputs.openebs_version }}
+        INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
       run: |
         chmod +x ./output/bin/buildtools
         ./output/bin/buildtools update images ${{ matrix.addon }}
