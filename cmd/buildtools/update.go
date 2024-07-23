@@ -37,5 +37,6 @@ var updateImagesCommand = &cli.Command{
 	Usage: "Update embedded cluster images",
 	Subcommands: []*cli.Command{
 		updateK0sImagesCommand,
+		updateOpenEBSImagesCommand,
 	},
 }

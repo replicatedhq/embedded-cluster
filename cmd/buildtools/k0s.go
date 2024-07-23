@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -69,12 +70,19 @@ var updateK0sImagesCommand = &cli.Command{
 				return fmt.Errorf("failed to get upstream version for %s: %w", component.name, err)
 			}
 
-			packageVersion, err := GetWolfiPackageVersion(wolfiAPKIndex, component.name, upstreamVersion)
+			constraints, err := semver.NewConstraint("=" + upstreamVersion)
+			if err != nil {
+				return fmt.Errorf("failed to parse version constraint: %w", err)
+			}
+
+			packageVersion, err := FindWolfiPackageVersion(wolfiAPKIndex, component.name, constraints)
 			if err != nil {
 				return fmt.Errorf("failed to get package version for %s: %w", component.name, err)
 			}
 
-			if err := ApkoBuildAndPublish(component.name, packageVersion); err != nil {
+			logrus.Infof("building and publishing %s=%s", component.name, packageVersion)
+
+			if err := ApkoBuildAndPublish(component.name, "", packageVersion); err != nil {
 				return fmt.Errorf("failed to apko build and publish for %s: %w", component.name, err)
 			}
 
@@ -94,11 +102,13 @@ var updateK0sImagesCommand = &cli.Command{
 
 func makeK0s(k0sVersion string) error {
 	if k0sVersion != "" {
-		if err := RunCommand("make", "pkg/goods/bins/k0s", fmt.Sprintf("K0S_VERSION=%s", k0sVersion), "K0S_BINARY_SOURCE_OVERRIDE="); err != nil {
+		cmd := exec.Command("make", "pkg/goods/bins/k0s", fmt.Sprintf("K0S_VERSION=%s", k0sVersion), "K0S_BINARY_SOURCE_OVERRIDE=")
+		if err := RunCommand(cmd); err != nil {
 			return fmt.Errorf("make k0s: %w", err)
 		}
 	} else {
-		if err := RunCommand("make", "pkg/goods/bins/k0s"); err != nil {
+		cmd := exec.Command("make", "pkg/goods/bins/k0s")
+		if err := RunCommand(cmd); err != nil {
 			return fmt.Errorf("make k0s: %w", err)
 		}
 	}

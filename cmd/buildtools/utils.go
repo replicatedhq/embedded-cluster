@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
@@ -49,21 +50,59 @@ func GetWolfiAPKIndex() ([]byte, error) {
 	return contents, nil
 }
 
-func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion string) (string, error) {
-	// example APKINDEX content:
-	// P:calico-node
-	// V:3.26.1-r1
-	// ...
-	//
-	// P:calico-node
-	// V:3.26.1-r10
-	// ...
-	//
-	// P:calico-node
-	// V:3.26.1-r9
-	// ...
+type PackageVersion struct {
+	semver   semver.Version
+	revision int
+}
 
-	var revisions []int
+func (v *PackageVersion) String() string {
+	return fmt.Sprintf("%s-r%d", v.semver.Original(), v.revision)
+}
+
+type PackageVersions []*PackageVersion
+
+func (pvs PackageVersions) Len() int {
+	return len(pvs)
+}
+
+func (pvs PackageVersions) Less(i, j int) bool {
+	if pvs[i].semver.Equal(&pvs[j].semver) {
+		return pvs[i].revision < pvs[j].revision
+	}
+	return pvs[i].semver.LessThan(&pvs[j].semver)
+}
+
+func (pvs PackageVersions) Swap(i, j int) {
+	pvs[i], pvs[j] = pvs[j], pvs[i]
+}
+
+func ParsePackageVersion(version string) (*PackageVersion, error) {
+	parts := strings.Split(version, "-r")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("incorrect number of parts in version %s", version)
+	}
+	sv, err := semver.NewVersion(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse version: %w", err)
+	}
+	revision, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("parse revision: %w", err)
+	}
+	return &PackageVersion{semver: *sv, revision: revision}, nil
+}
+
+func MustParsePackageVersion(version string) *PackageVersion {
+	pv, err := ParsePackageVersion(version)
+	if err != nil {
+		panic(err)
+	}
+	return pv
+}
+
+// listWolfiPackageVersions returns a list of all versions for a given package name
+func listWolfiPackageVersions(wolfiAPKIndex []byte, pkgName string) ([]*PackageVersion, error) {
+	var versions []*PackageVersion
 	scanner := bufio.NewScanner(bytes.NewReader(wolfiAPKIndex))
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -73,65 +112,92 @@ func GetWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, pinnedVersion 
 		}
 		scanner.Scan()
 		line = scanner.Text()
-		// filter by pinned version
-		if pinnedVersion != "" && !strings.HasPrefix(line, "V:"+pinnedVersion+"-r") {
+		if !strings.HasPrefix(line, "V:") {
+			return nil, fmt.Errorf("incorrect APKINDEX version line: %s", line)
+		}
+		// extract the version
+		pv, err := ParsePackageVersion(line[2:])
+		if err != nil {
+			return nil, fmt.Errorf("parse package version from line %s: %w", line, err)
+		}
+		versions = append(versions, pv)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan APKINDEX: %w", err)
+	}
+	return versions, nil
+}
+
+// listMatchingWolfiPackageVersions returns a list of all versions for a given package name that
+// match the semver constraints.
+func listMatchingWolfiPackageVersions(wolfiAPKIndex []byte, pkgName string, constraints *semver.Constraints) ([]*PackageVersion, error) {
+	versions, err := listWolfiPackageVersions(wolfiAPKIndex, pkgName)
+	if err != nil {
+		return nil, fmt.Errorf("list package versions: %w", err)
+	}
+
+	if constraints == nil {
+		return versions, nil
+	}
+
+	var matchingVersions []*PackageVersion
+	for _, version := range versions {
+		if !constraints.Check(&version.semver) {
 			continue
 		}
-		// find the revision number
-		parts := strings.Split(line, "-r")
-		if len(parts) != 2 {
-			return "", fmt.Errorf("incorrect number of parts in APKINDEX line: %s", line)
-		}
-		revision, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return "", fmt.Errorf("parse revision: %w", err)
-		}
-		revisions = append(revisions, revision)
+		matchingVersions = append(matchingVersions, version)
+	}
+	return matchingVersions, nil
+}
+
+// FindWolfiPackageVersion returns the latest version and revision of a package in the wolfi APK
+// index that matches the semver constraints.
+func FindWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, constraints *semver.Constraints) (string, error) {
+	versions, err := listMatchingWolfiPackageVersions(wolfiAPKIndex, pkgName, constraints)
+	if err != nil {
+		return "", fmt.Errorf("list package versions: %w", err)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("scan APKINDEX: %w", err)
-	}
-
-	if len(revisions) == 0 {
+	if len(versions) == 0 {
 		return "", fmt.Errorf("package %q not found", pkgName)
 	}
 
-	// get the latest revision
+	sorted := PackageVersions(versions)
+	sort.Sort(sorted)
 
-	sort.Slice(revisions, func(i, j int) bool {
-		return revisions[i] > revisions[j]
-	})
-
-	return fmt.Sprintf("%s-r%d", pinnedVersion, revisions[0]), nil
+	return sorted[len(sorted)-1].String(), nil
 }
 
 func ApkoLogin() error {
-	if err := RunCommand("make", "apko"); err != nil {
+	cmd := exec.Command("make", "apko")
+	if err := RunCommand(cmd); err != nil {
 		return fmt.Errorf("make apko: %w", err)
 	}
 	if os.Getenv("REGISTRY_PASS") != "" {
-		if err := RunCommand(
+		cmd := exec.Command(
 			"make",
 			"apko-login",
 			fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_SERVER")),
 			fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
 			fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
-		); err != nil {
+		)
+		if err := RunCommand(cmd); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func ApkoBuildAndPublish(componentName string, packageVersion string) error {
-	if err := RunCommand(
-		"make",
+func ApkoBuildAndPublish(componentName string, packageName string, packageVersion string) error {
+	args := []string{
 		"apko-build-and-publish",
 		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), componentName, packageVersion),
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
+		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
-	); err != nil {
+	}
+	cmd := exec.Command("make", args...)
+	if err := RunCommand(cmd); err != nil {
 		return err
 	}
 	return nil
@@ -448,6 +514,15 @@ func GetImagesFromLocalChart(name, path string, values map[string]interface{}) (
 		}
 	}
 
+	for i, image := range images {
+		// Normalize the image name to include docker.io and tag
+		ref, err := docker.ParseReference("//" + image)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse image reference %s: %w", image, err)
+		}
+		images[i] = ref.DockerReference().String()
+	}
+
 	return images, nil
 }
 
@@ -572,8 +647,7 @@ func ExtractTGZArchive(tgzFile string, destDir string) error {
 	return nil
 }
 
-func RunCommand(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+func RunCommand(cmd *exec.Cmd) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

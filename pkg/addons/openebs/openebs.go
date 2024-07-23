@@ -89,8 +89,8 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {
-	if tag, ok := Metadata.Images["openebs/linux-utils"]; ok {
-		return []string{fmt.Sprintf("proxy.replicated.com/anonymous/openebs/linux-utils:%s", tag)}
+	if tag, ok := Metadata.Images["openebs-linux-utils"]; ok {
+		return []string{fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils:%s", tag)}
 	}
 	return nil
 }

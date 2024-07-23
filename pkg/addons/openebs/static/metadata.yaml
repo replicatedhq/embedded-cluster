@@ -8,6 +8,6 @@
 version: 4.1.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs
 images:
-    docker.io/bitnami/kubectl: 1.25.15@sha256:da199debb691621e0dc6954fefdaaf833900e58e28b96a4d805ff01ac397a979
-    openebs/linux-utils: 4.1.0@sha256:a0f8fd9457388d5728e8e9c41f1cf5dc3b21ef8f00d7b019520101812ae602dc
-    openebs/provisioner-localpv: 4.1.0@sha256:7a9bb247229564c74b5c4981304bf614f1b0157797a52c6d882d5f1cb057b838
+    openebs-kubectl: 1.29.5-r0@sha256:15b0bceeddaff3b34ea1a7e722faff86af7460c9d2b838cd49da23527a7d716d
+    openebs-linux-utils: 4.1.0@sha256:f1c3fefb69356ef559ceb95682511a5fd3bd0fbdb0c9a008f89942045dd7051e
+    openebs-provisioner-localpv: 4.1.0-r0@sha256:af2cd9974c6a8cacdafe8b6e14cd744c751aead6a2a426c2c356c9546777ec5c
