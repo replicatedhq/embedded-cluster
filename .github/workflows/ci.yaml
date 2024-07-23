@@ -208,7 +208,6 @@ jobs:
         run: |
           export SHORT_SHA=dev-${GITHUB_SHA::7}
           echo "${SHORT_SHA}"
-          rm e2e/kots-release-install/release.yaml
           replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
 
           # airgap tests install the previous k0s version to ensure an upgrade occurs
