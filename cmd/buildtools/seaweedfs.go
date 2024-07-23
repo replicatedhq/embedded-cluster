@@ -36,7 +36,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 			return fmt.Errorf("unable to mirror seaweedfs chart: %w", err)
 		}
 
-		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("DESTINATION"))
+		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("CHARTS_DESTINATION"))
 		newmeta := release.AddonMetadata{
 			Version:  latest,
 			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),

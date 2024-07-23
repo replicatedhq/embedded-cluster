@@ -159,7 +159,7 @@ func FindWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, constraints *
 	}
 
 	if len(versions) == 0 {
-		return "", fmt.Errorf("package %q not found", pkgName)
+		return "", fmt.Errorf("package %q not found with the provided constraints", pkgName)
 	}
 
 	sorted := PackageVersions(versions)
@@ -173,13 +173,13 @@ func ApkoLogin() error {
 	if err := RunCommand(cmd); err != nil {
 		return fmt.Errorf("make apko: %w", err)
 	}
-	if os.Getenv("REGISTRY_PASS") != "" {
+	if os.Getenv("IMAGES_REGISTRY_USER") != "" && os.Getenv("IMAGES_REGISTRY_PASS") != "" {
 		cmd := exec.Command(
 			"make",
 			"apko-login",
-			fmt.Sprintf("REGISTRY=%s", os.Getenv("REGISTRY_SERVER")),
-			fmt.Sprintf("USERNAME=%s", os.Getenv("REGISTRY_USER")),
-			fmt.Sprintf("PASSWORD=%s", os.Getenv("REGISTRY_PASS")),
+			fmt.Sprintf("REGISTRY=%s", os.Getenv("IMAGES_REGISTRY_SERVER")),
+			fmt.Sprintf("USERNAME=%s", os.Getenv("IMAGES_REGISTRY_USER")),
+			fmt.Sprintf("PASSWORD=%s", os.Getenv("IMAGES_REGISTRY_PASS")),
 		)
 		if err := RunCommand(cmd); err != nil {
 			return err
@@ -191,7 +191,7 @@ func ApkoLogin() error {
 func ApkoBuildAndPublish(componentName string, packageName string, packageVersion string) error {
 	args := []string{
 		"apko-build-and-publish",
-		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("REGISTRY_SERVER"), componentName, packageVersion),
+		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("IMAGES_REGISTRY_SERVER"), componentName, packageVersion),
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
 		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
@@ -541,18 +541,18 @@ func MirrorChart(repo, name, ver string) error {
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
 
-	if val := os.Getenv("REGISTRY_SERVER"); val != "" {
-		logrus.Infof("authenticating with %q", os.Getenv("REGISTRY_SERVER"))
+	if val := os.Getenv("CHARTS_REGISTRY_SERVER"); val != "" {
+		logrus.Infof("authenticating with %q", os.Getenv("CHARTS_REGISTRY_SERVER"))
 		if err := hcli.RegistryAuth(
-			os.Getenv("REGISTRY_SERVER"),
-			os.Getenv("REGISTRY_USER"),
-			os.Getenv("REGISTRY_PASS"),
+			os.Getenv("CHARTS_REGISTRY_SERVER"),
+			os.Getenv("CHARTS_REGISTRY_USER"),
+			os.Getenv("CHARTS_REGISTRY_PASS"),
 		); err != nil {
 			return fmt.Errorf("unable to authenticate: %w", err)
 		}
 	}
 
-	dst := fmt.Sprintf("oci://%s", os.Getenv("DESTINATION"))
+	dst := fmt.Sprintf("oci://%s", os.Getenv("CHARTS_DESTINATION"))
 	logrus.Infof("verifying if destination tag already exists")
 	tmpf, err := hcli.Pull(dst, name, ver)
 	if err != nil && !strings.HasSuffix(err.Error(), "not found") {

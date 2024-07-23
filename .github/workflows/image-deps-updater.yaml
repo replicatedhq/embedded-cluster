@@ -5,8 +5,14 @@ on:
     - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
-      k0s-version:
+      k0s_version:
         description: 'K0s version for discovering image versions'
+        required: false
+      openebs_version:
+        description: 'OpenEBS version for discovering image versions'
+        required: false
+      kubectl_version:
+        description: 'Kubectl version for discovering image versions'
         required: false
 
 jobs:
@@ -22,7 +28,8 @@ jobs:
         go-version-file: go.mod
 
     - name: Compile buildtools
-      run: make buildtools
+      run: |
+        make buildtools
 
     - name: Upload buildtools artifact
       uses: actions/upload-artifact@v4
@@ -30,9 +37,15 @@ jobs:
         name: buildtools
         path: output/bin/buildtools
 
-  update-k0s-images:
+  update-addon-images:
     runs-on: ubuntu-20.04
     needs: [compile-buildtools]
+    strategy:
+      fail-fast: false
+      matrix:
+        addon:
+          - openebs
+          - k0s
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -43,14 +56,17 @@ jobs:
         name: buildtools
         path: output/bin
 
-    - name: Update k0s images
+    - name: Update ${{ matrix.addon }} images
       env:
-        REGISTRY_SERVER: index.docker.io
-        REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
-        REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+        IMAGES_REGISTRY_SERVER: index.docker.io
+        IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+        IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+        INPUT_K0S_VERSION: ${{ github.event.inputs.k0s_version }}
+        INPUT_OPENEBS_VERSION: ${{ github.event.inputs.openebs_version }}
+        INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
       run: |
         chmod +x ./output/bin/buildtools
-        ./output/bin/buildtools update images k0s
+        ./output/bin/buildtools update images ${{ matrix.addon }}
 
     - name: Create Pull Request # creates a PR if there are differences
       uses: peter-evans/create-pull-request@v6
@@ -58,53 +74,8 @@ jobs:
       with:
         token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
         commit-message: 'Update image versions'
-        title: 'Automated k0s image updates'
-        branch: automation/k0s-image-dependencies
-        delete-branch: true
-        labels: |
-          automated-pr
-          images
-          type::security
-        draft: false
-        base: main
-        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
-
-    - name: Check outputs
-      if: ${{ steps.cpr.outputs.pull-request-number }}
-      run: |
-        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
-        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
-
-  update-openebs-images:
-    runs-on: ubuntu-20.04
-    needs: [compile-buildtools]
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Download buildtools artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: buildtools
-        path: output/bin
-
-    - name: Update OpenEBS images
-      env:
-        REGISTRY_SERVER: index.docker.io
-        REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
-        REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
-      run: |
-        chmod +x ./output/bin/buildtools
-        ./output/bin/buildtools update images openebs
-
-    - name: Create Pull Request # creates a PR if there are differences
-      uses: peter-evans/create-pull-request@v6
-      id: cpr
-      with:
-        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
-        commit-message: 'Update image versions'
-        title: 'Automated OpenEBS image updates'
-        branch: automation/openebs-image-dependencies
+        title: "chore: update ${{ matrix.addon }} images"
+        branch: automation/${{ matrix.addon }}-image-dependencies
         delete-branch: true
         labels: |
           automated-pr

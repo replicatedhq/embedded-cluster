@@ -24,10 +24,10 @@ var openebsComponents = map[string]addonComponent{
 			// package name is not the same as the component name
 			return "dynamic-localpv-provisioner"
 		},
-		upstreamVersionFlagOverride: "openebs-version",
+		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"openebs-linux-utils": {
-		upstreamVersionFlagOverride: "openebs-version",
+		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"openebs-kubectl": {
 		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
@@ -37,7 +37,7 @@ var openebsComponents = map[string]addonComponent{
 			// match the greatest patch version of the same minor version
 			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
 		},
-		upstreamVersionFlagOverride: "kubectl-version",
+		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
 }
 
@@ -47,18 +47,6 @@ var updateOpenEBSAddonCommand = &cli.Command{
 	UsageText: environmentUsageText,
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating openebs addon")
-
-		rawver, err := GetMakefileVariable("K0S_VERSION")
-		if err != nil {
-			return fmt.Errorf("failed to get k0s version: %w", err)
-		}
-		k0sVersion := semver.MustParse(rawver)
-
-		logrus.Infof("fetching wolfi apk index")
-		wolfiAPKIndex, err := GetWolfiAPKIndex()
-		if err != nil {
-			return fmt.Errorf("failed to get APK index: %w", err)
-		}
 
 		logrus.Infof("fetching the latest openebs chart version")
 		latest, err := LatestChartVersion("openebs", "openebs")
@@ -78,77 +66,18 @@ var updateOpenEBSAddonCommand = &cli.Command{
 			}
 		}
 
-		upstream := fmt.Sprintf("%s/openebs", os.Getenv("DESTINATION"))
-		newmeta := release.AddonMetadata{
-			Version:  latest,
-			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
-			Images:   make(map[string]string),
-		}
-
-		values, err := release.GetValuesWithOriginalImages("openebs")
-		if err != nil {
-			return fmt.Errorf("failed to get openebs values: %v", err)
-		}
-
-		logrus.Infof("extracting images from chart")
-		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "openebs", latest, values)
-		if err != nil {
-			return fmt.Errorf("failed to get images from admin console chart: %w", err)
-		}
-
-		// make sure we include the linux-utils image.
-		images = append(images, fmt.Sprintf("docker.io/openebs/linux-utils:%s", latest))
+		upstream := fmt.Sprintf("%s/openebs", os.Getenv("CHARTS_DESTINATION"))
+		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
 		logrus.Infof("updating openebs images")
 
-		if err := ApkoLogin(); err != nil {
-			return fmt.Errorf("failed to apko login: %w", err)
-		}
-
-		for _, image := range images {
-			logrus.Infof("updating image %s", image)
-
-			upstreamVersion := TagFromImage(image)
-			image = RemoveTagFromImage(image)
-
-			componentName, ok := openebsImageComponents[image]
-			if !ok {
-				logrus.Warnf("no component found for image %s", image)
-				continue
-			}
-
-			component, ok := openebsComponents[componentName]
-			if !ok {
-				return fmt.Errorf("no component found for component name %s", componentName)
-			}
-
-			packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
-			if err != nil {
-				return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
-			}
-
-			logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
-
-			if err := ApkoBuildAndPublish(componentName, packageName, packageVersion); err != nil {
-				return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
-			}
-
-			digest, err := GetDigestFromBuildFile()
-			if err != nil {
-				return fmt.Errorf("failed to get digest from build file: %w", err)
-			}
-
-			newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
-		}
-
-		logrus.Infof("saving addon manifest")
-		newmeta.ReplaceImages = true
-		if err := newmeta.Save("openebs"); err != nil {
-			return fmt.Errorf("failed to save metadata: %w", err)
+		err = updateOpenEBSAddonImages(withproto, latest)
+		if err != nil {
+			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
 
 		logrus.Infof("successfully updated openebs addon")
+
 		return nil
 	},
 }
@@ -170,86 +99,108 @@ var updateOpenEBSImagesCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating openebs images")
 
-		rawver, err := GetMakefileVariable("K0S_VERSION")
-		if err != nil {
-			return fmt.Errorf("failed to get k0s version: %w", err)
-		}
-		k0sVersion := semver.MustParse(rawver)
-
-		logrus.Infof("fetching wolfi apk index")
-		wolfiAPKIndex, err := GetWolfiAPKIndex()
-		if err != nil {
-			return fmt.Errorf("failed to get APK index: %w", err)
-		}
-
 		current := openebs.Metadata
-		newmeta := release.AddonMetadata{
-			Version:  current.Version,
-			Location: current.Location,
-			Images:   make(map[string]string),
-		}
 
-		values, err := release.GetValuesWithOriginalImages("openebs")
+		err := updateOpenEBSAddonImages(current.Location, current.Version)
 		if err != nil {
-			return fmt.Errorf("failed to get openebs values: %v", err)
-		}
-
-		logrus.Infof("extracting images from chart")
-		images, err := GetImagesFromOCIChart(current.Location, "openebs", current.Version, values)
-		if err != nil {
-			return fmt.Errorf("failed to get images from admin console chart: %w", err)
-		}
-
-		// make sure we include the linux-utils image.
-		images = append(images, fmt.Sprintf("docker.io/openebs/linux-utils:%s", current.Version))
-
-		if err := ApkoLogin(); err != nil {
-			return fmt.Errorf("failed to apko login: %w", err)
-		}
-
-		for _, image := range images {
-			logrus.Infof("updating image %s", image)
-
-			upstreamVersion := TagFromImage(image)
-			image = RemoveTagFromImage(image)
-
-			componentName, ok := openebsImageComponents[image]
-			if !ok {
-				logrus.Warnf("no component found for image %s", image)
-				continue
-			}
-
-			component, ok := openebsComponents[componentName]
-			if !ok {
-				return fmt.Errorf("no component found for component name %s", componentName)
-			}
-
-			packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
-			if err != nil {
-				return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
-			}
-
-			logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
-
-			if err := ApkoBuildAndPublish(componentName, packageName, packageVersion); err != nil {
-				return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
-			}
-
-			digest, err := GetDigestFromBuildFile()
-			if err != nil {
-				return fmt.Errorf("failed to get digest from build file: %w", err)
-			}
-
-			newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
-		}
-
-		logrus.Infof("saving addon manifest")
-		newmeta.ReplaceImages = true
-		if err := newmeta.Save("openebs"); err != nil {
-			return fmt.Errorf("failed to save metadata: %w", err)
+			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
 
 		logrus.Infof("successfully updated openebs images")
+
 		return nil
 	},
+}
+
+func updateOpenEBSAddonImages(chartURL string, chartVersion string) error {
+	newmeta := release.AddonMetadata{
+		Version:  chartVersion,
+		Location: chartURL,
+		Images:   make(map[string]string),
+	}
+
+	rawver := os.Getenv("INPUT_K0S_VERSION")
+	if rawver == "" {
+		v, err := GetMakefileVariable("K0S_VERSION")
+		if err != nil {
+			return fmt.Errorf("failed to get k0s version: %w", err)
+		}
+		rawver = v
+	}
+	k0sVersion := semver.MustParse(rawver)
+
+	logrus.Infof("fetching wolfi apk index")
+	wolfiAPKIndex, err := GetWolfiAPKIndex()
+	if err != nil {
+		return fmt.Errorf("failed to get APK index: %w", err)
+	}
+
+	values, err := release.GetValuesWithOriginalImages("openebs")
+	if err != nil {
+		return fmt.Errorf("failed to get openebs values: %v", err)
+	}
+
+	logrus.Infof("extracting images from chart")
+	images, err := GetImagesFromOCIChart(chartURL, "openebs", chartVersion, values)
+	if err != nil {
+		return fmt.Errorf("failed to get images from admin console chart: %w", err)
+	}
+
+	// make sure we include the linux-utils image.
+	images = append(images, fmt.Sprintf("docker.io/openebs/linux-utils:%s", chartVersion))
+
+	if err := ApkoLogin(); err != nil {
+		return fmt.Errorf("failed to apko login: %w", err)
+	}
+
+	for _, image := range images {
+		logrus.Infof("updating image %s", image)
+
+		upstreamVersion := TagFromImage(image)
+		image = RemoveTagFromImage(image)
+
+		componentName, ok := openebsImageComponents[image]
+		if !ok {
+			return fmt.Errorf("no component found for image %s", image)
+		}
+
+		component, ok := openebsComponents[componentName]
+		if !ok {
+			return fmt.Errorf("no component found for component name %s", componentName)
+		}
+
+		if component.upstreamVersionInputOverride != "" {
+			v := os.Getenv(component.upstreamVersionInputOverride)
+			if v != "" {
+				logrus.Infof("using input override from %s: %s", component.upstreamVersionInputOverride, v)
+				upstreamVersion = v
+			}
+		}
+
+		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
+		}
+
+		logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
+
+		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion); err != nil {
+			return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
+		}
+
+		digest, err := GetDigestFromBuildFile()
+		if err != nil {
+			return fmt.Errorf("failed to get digest from build file: %w", err)
+		}
+
+		newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
+	}
+
+	logrus.Infof("saving addon manifest")
+	newmeta.ReplaceImages = true
+	if err := newmeta.Save("openebs"); err != nil {
+		return fmt.Errorf("failed to save metadata: %w", err)
+	}
+
+	return nil
 }
