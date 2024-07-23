@@ -12,4 +12,6 @@ var (
 	CalicoKubeControllersVersion = ""
 	MetricsServerImage           = ""
 	MetricsServerVersion         = ""
+	KubeProxyImage               = ""
+	KubeProxyVersion             = ""
 )
