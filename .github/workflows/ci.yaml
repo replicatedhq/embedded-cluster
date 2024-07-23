@@ -133,6 +133,11 @@ jobs:
           echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
           echo "versionLabel: \"appver-${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
           cat e2e/kots-release-install/release.yaml
+          
+          # ensure that the cluster config embedded in the CI binaries is correct
+          sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+          
           cp output/bin/embedded-cluster output/bin/embedded-cluster-original
           make -B embedded-release K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}-previous-k0s"
           mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
