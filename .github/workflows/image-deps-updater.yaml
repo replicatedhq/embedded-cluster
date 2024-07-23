@@ -5,13 +5,13 @@ on:
     - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
-      k0s-version:
+      k0s_version:
         description: 'K0s version for discovering image versions'
         required: false
-      openebs-version:
+      openebs_version:
         description: 'OpenEBS version for discovering image versions'
         required: false
-      kubectl-version:
+      kubectl_version:
         description: 'Kubectl version for discovering image versions'
         required: false
 
