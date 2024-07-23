@@ -5,10 +5,10 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 6.3.0
+version: 6.7.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
-    docker.io/bitnami/kubectl: 1.29@sha256:89bde5352cd988ed9440ff0956a7ceb00415923aea9d34fc0ac82d9b3eee8af7
-    velero/velero: v1.13.2@sha256:9a833acbc2391f50c994e3c1379e038e5a64372f6d645d89b4321b732f8dc8ef
-    velero/velero-plugin-for-aws: v1.10.0@sha256:0b4fe36bbd5c7e484750bf21e25274cecbb72b30b097a72dc3e599430590bdfc
-    velero/velero-restore-helper: v1.13.2@sha256:83943510812496ad7ba6750f440645b313fd676db460fda7dcbf70f437db775c
+    kubectl: 1.29.5-r0@sha256:6685cee257798285ad1ec15f3e85cd4524bdf62b0a7b3ee981e193da922e2426
+    velero: 1.13.2@sha256:9584eb07473d0fe8ccd8c9daa6f04efcd382df37d3cb09fd1ec0c5600c6e8343
+    velero-plugin-for-aws: 1.10.0@sha256:87a22849b30633427bbd5a41acca3faf17a676d6037d38106f6d0154f514ae0c
+    velero-restore-helper: 1.13.2@sha256:5c3e0f294da2cb1481234da761c8ded62ec9bf816dfaff83cd2b869954bd2e79
