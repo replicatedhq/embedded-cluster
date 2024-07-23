@@ -19,7 +19,7 @@ image:
   repository: proxy.replicated.com/anonymous/replicated/ec-velero
   tag: '1.13.2@sha256:9584eb07473d0fe8ccd8c9daa6f04efcd382df37d3cb09fd1ec0c5600c6e8343'
 initContainers:
-- image: 'proxy.replicated.com/anonymous/velero/velero-plugin-for-aws:v1.10.0@sha256:0b4fe36bbd5c7e484750bf21e25274cecbb72b30b097a72dc3e599430590bdfc'
+- image: 'proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws:1.9.2@sha256:9654091c85799c7e82c3f00b6c2d2895b28026451b1b2da5ddb365d1cdcdef09'
   imagePullPolicy: IfNotPresent
   name: velero-plugin-for-aws
   volumeMounts:
@@ -27,8 +27,8 @@ initContainers:
     name: plugins
 kubectl:
   image:
-    repository: proxy.replicated.com/anonymous/bitnami/kubectl
-    tag: '1.29@sha256:89bde5352cd988ed9440ff0956a7ceb00415923aea9d34fc0ac82d9b3eee8af7'
+    repository: proxy.replicated.com/anonymous/replicated/ec-kubectl
+    tag: '1.29.5-r0@sha256:6685cee257798285ad1ec15f3e85cd4524bdf62b0a7b3ee981e193da922e2426'
 configMaps:
   fs-restore-action-config:
     labels:

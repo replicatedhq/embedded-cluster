@@ -13,6 +13,12 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/26bf6253ff0d74f8e5ce6aeb3053f31b7a297a99/README.md#compatibility
+var veleroPluginForAWSCompatibility = map[string]*semver.Constraints{
+	"1.14": mustParseSemverConstraints(">=1.10,<1.11"),
+	"1.13": mustParseSemverConstraints(">=1.9,<1.10"),
+}
+
 var veleroImageComponents = map[string]string{
 	"docker.io/velero/velero":                "velero",
 	"docker.io/velero/velero-plugin-for-aws": "velero-plugin-for-aws",
@@ -76,17 +82,18 @@ var updateVeleroAddonCommand = &cli.Command{
 		upstream := fmt.Sprintf("%s/velero", os.Getenv("CHARTS_DESTINATION"))
 		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
-		restoreHelperVersion, err := findVeleroVersionFromChart(c.Context, withproto, nextChartVersion)
+		veleroVersion, err := findVeleroVersionFromChart(c.Context, withproto, nextChartVersion)
 		if err != nil {
-			return fmt.Errorf("failed to find restore helper version: %w", err)
+			return fmt.Errorf("failed to find velero version from chart: %w", err)
 		}
+		restoreHelperVersion := veleroVersion
 		logrus.Infof("found latest velero restore helper version %s", restoreHelperVersion)
 
-		awsPluginVersion, err := findLatestAWSPluginVersion(c.Context)
+		awsPluginVersion, err := findBestAWSPluginVersion(c.Context, veleroVersion)
 		if err != nil {
 			return fmt.Errorf("failed to find latest velero plugin for aws version: %w", err)
 		}
-		logrus.Infof("found latest velero plugin for aws version %s", awsPluginVersion)
+		logrus.Infof("found best velero plugin for aws version %s", awsPluginVersion)
 
 		logrus.Infof("updating velero images")
 
@@ -156,10 +163,22 @@ func findVeleroVersionFromChart(ctx context.Context, chartURL string, chartVersi
 	return "", fmt.Errorf("failed to find velero image tag")
 }
 
-func findLatestAWSPluginVersion(ctx context.Context) (string, error) {
-	awsPluginVersion, err := GetLatestGitHubTag(ctx, "vmware-tanzu", "velero-plugin-for-aws")
+func findBestAWSPluginVersion(ctx context.Context, veleroVersion string) (string, error) {
+	sv, err := semver.NewVersion(veleroVersion)
 	if err != nil {
-		return "", fmt.Errorf("failed to get latest velero plugin for aws release: %w", err)
+		return "", fmt.Errorf("failed to parse velero version: %w", err)
+	}
+	constraints, ok := veleroPluginForAWSCompatibility[fmt.Sprintf("%d.%d", sv.Major(), sv.Minor())]
+	if !ok {
+		awsPluginVersion, err := GetLatestGitHubTag(ctx, "vmware-tanzu", "velero-plugin-for-aws")
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest velero plugin for aws release: %w", err)
+		}
+		return strings.TrimPrefix(awsPluginVersion, "v"), nil
+	}
+	awsPluginVersion, err := GetBestGitHubTag(ctx, "vmware-tanzu", "velero-plugin-for-aws", constraints)
+	if err != nil {
+		return "", fmt.Errorf("failed to get best velero plugin for aws release with constraints %s: %w", constraints, err)
 	}
 	return strings.TrimPrefix(awsPluginVersion, "v"), nil
 }
@@ -192,7 +211,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 		return fmt.Errorf("failed to get velero values: %v", err)
 	}
 
-	logrus.Infof("extracting images from chart")
+	logrus.Infof("extracting images from chart version %s", chartVersion)
 	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from admin console chart: %w", err)
@@ -256,4 +275,12 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 	}
 
 	return nil
+}
+
+func mustParseSemverConstraints(s string) *semver.Constraints {
+	c, err := semver.NewConstraint(s)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }

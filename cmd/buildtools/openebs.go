@@ -137,7 +137,7 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 		return fmt.Errorf("failed to get openebs values: %v", err)
 	}
 
-	logrus.Infof("extracting images from chart")
+	logrus.Infof("extracting images from chart version %s", chartVersion)
 	images, err := GetImagesFromOCIChart(chartURL, "openebs", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from admin console chart: %w", err)
