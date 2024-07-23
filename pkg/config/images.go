@@ -39,5 +39,11 @@ func OverrideK0sImages(cfg *k0sv1beta1.ClusterConfig) error {
 	if images.MetricsServerVersion != "" {
 		cfg.Spec.Images.MetricsServer.Version = images.MetricsServerVersion
 	}
+	if images.KubeProxyImage != "" {
+		cfg.Spec.Images.KubeProxy.Image = images.KubeProxyImage
+	}
+	if images.KubeProxyVersion != "" {
+		cfg.Spec.Images.KubeProxy.Version = images.KubeProxyVersion
+	}
 	return nil
 }
