@@ -46,6 +46,7 @@ spec:
         collectorName: 'check-umount'
         command: 'sh'
         args: ['-c', 'command -v umount']
+    - hostOS: {}
   analyzers:
     - cpu:
         checkName: 'CPU'
@@ -325,3 +326,10 @@ spec:
           - fail:
               when: "false"
               message: "'umount' command does not exist in PATH"
+    - hostOS:
+        outcomes:
+          - pass:
+              when: "kernelVersion >= 3.10"
+              message: "Minimum kernel version of 3.10 has been met"
+          - fail:
+              message: "Minimum kernel version of 3.10 has not been met"
