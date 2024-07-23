@@ -28,7 +28,8 @@ jobs:
         go-version-file: go.mod
 
     - name: Compile buildtools
-      run: make buildtools
+      run: |
+        make buildtools
 
     - name: Upload buildtools artifact
       uses: actions/upload-artifact@v4

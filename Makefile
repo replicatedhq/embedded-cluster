@@ -277,6 +277,7 @@ apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 
 .PHONY: buildtools
 buildtools:
+	mkdir -p pkg/goods/bins
 	go build -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: cache-files
