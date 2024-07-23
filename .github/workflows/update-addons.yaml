@@ -48,10 +48,13 @@ jobs:
       - name: Update ${{ matrix.addon }}
         id: update
         env:
-          REGISTRY_SERVER: registry.replicated.com
-          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME_PRODUCTION }}
-          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD_PRODUCTION }}
-          DESTINATION: registry.replicated.com/ec-charts
+          CHARTS_REGISTRY_SERVER: registry.replicated.com
+          CHARTS_REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME_PRODUCTION }}
+          CHARTS_REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD_PRODUCTION }}
+          IMAGES_REGISTRY_SERVER: index.docker.io
+          IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+          CHARTS_DESTINATION: registry.replicated.com/ec-charts
         run: |
           chmod 755 ./output/artifacts/buildtools
           ./output/artifacts/buildtools update addon ${{ matrix.addon }}

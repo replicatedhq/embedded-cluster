@@ -66,7 +66,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 			}
 		}
 
-		upstream := fmt.Sprintf("%s/openebs", os.Getenv("DESTINATION"))
+		upstream := fmt.Sprintf("%s/openebs", os.Getenv("CHARTS_DESTINATION"))
 		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
 		logrus.Infof("updating openebs images")

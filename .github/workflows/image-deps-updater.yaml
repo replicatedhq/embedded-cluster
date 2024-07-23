@@ -58,9 +58,9 @@ jobs:
 
     - name: Update ${{ matrix.addon }} images
       env:
-        REGISTRY_SERVER: index.docker.io
-        REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
-        REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+        IMAGES_REGISTRY_SERVER: index.docker.io
+        IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+        IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
         INPUT_K0S_VERSION: ${{ github.event.inputs.k0s_version }}
         INPUT_OPENEBS_VERSION: ${{ github.event.inputs.openebs_version }}
         INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
