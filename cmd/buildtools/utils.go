@@ -243,11 +243,12 @@ func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) 
 	return "", fmt.Errorf("filter returned no record")
 }
 
+// GetLatestGitHubTag returns the latest tag from a GitHub repository.
 func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error) {
 	client := github.NewClient(nil)
 	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
-		return "", fmt.Errorf("unable to list tags: %w", err)
+		return "", fmt.Errorf("list tags: %w", err)
 	}
 	if len(tags) == 0 {
 		return "", fmt.Errorf("no tags found")
@@ -255,11 +256,13 @@ func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error)
 	return tags[0].GetName(), nil
 }
 
-func GetBestGitHubTag(ctx context.Context, owner, repo string, constrants *semver.Constraints) (string, error) {
+// GetGreatestGitHubTag returns the greatest non-prerelease semver tag from a GitHub repository
+// that matches the provided constraints.
+func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *semver.Constraints) (string, error) {
 	client := github.NewClient(nil)
 	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
-		return "", fmt.Errorf("unable to list tags: %w", err)
+		return "", fmt.Errorf("list tags: %w", err)
 	}
 	var best *semver.Version
 	var bestStr string
@@ -282,7 +285,7 @@ func GetBestGitHubTag(ctx context.Context, owner, repo string, constrants *semve
 		}
 	}
 	if best == nil {
-		return "", fmt.Errorf("no tags found")
+		return "", fmt.Errorf("no tags found matching constraints")
 	}
 	return bestStr, nil
 }
@@ -312,7 +315,7 @@ func GetMakefileVariable(name string) (string, error) {
 func SetMakefileVariable(name, value string) error {
 	file, err := os.OpenFile("./Makefile", os.O_RDWR, 0644)
 	if err != nil {
-		return fmt.Errorf("unable to open ./Makefile: %w", err)
+		return fmt.Errorf("open ./Makefile: %w", err)
 	}
 	defer file.Close()
 
@@ -340,13 +343,13 @@ func SetMakefileVariable(name, value string) error {
 
 	wfile, err := os.OpenFile("./Makefile", os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		return fmt.Errorf("unable to open ./Makefile: %w", err)
+		return fmt.Errorf("open ./Makefile: %w", err)
 	}
 	defer wfile.Close()
 
 	for _, line := range lines {
 		if _, err := fmt.Fprintln(wfile, line); err != nil {
-			return fmt.Errorf("unable to write ./Makefile: %w", err)
+			return fmt.Errorf("write ./Makefile: %w", err)
 		}
 	}
 	return nil
@@ -355,7 +358,7 @@ func SetMakefileVariable(name, value string) error {
 func LatestChartVersion(repo, name string) (string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
-		return "", fmt.Errorf("unable to create helm client: %w", err)
+		return "", fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
 	return hcli.Latest(repo, name)
@@ -364,18 +367,18 @@ func LatestChartVersion(repo, name string) (string, error) {
 func GetImageDigest(ctx context.Context, image string) (string, error) {
 	ref, err := docker.ParseReference("//" + image)
 	if err != nil {
-		return "", fmt.Errorf("unable to parse image reference: %w", err)
+		return "", fmt.Errorf("parse image reference: %w", err)
 	}
 	sysctx := &types.SystemContext{}
 	src, err := ref.NewImageSource(ctx, sysctx)
 	if err != nil {
-		return "", fmt.Errorf("unable to create image source: %w", err)
+		return "", fmt.Errorf("create image source: %w", err)
 	}
 	defer src.Close()
 
 	manifraw, maniftype, err := src.GetManifest(ctx, nil)
 	if err != nil {
-		return "", fmt.Errorf("error getting manifest: %w", err)
+		return "", fmt.Errorf("get manifest: %w", err)
 	}
 
 	if !manifest.MIMETypeIsMultiImage(maniftype) {
@@ -385,14 +388,14 @@ func GetImageDigest(ctx context.Context, image string) (string, error) {
 
 	manifestList, err := manifest.ListFromBlob(manifraw, maniftype)
 	if err != nil {
-		return "", fmt.Errorf("error parsing manifest list: %w", err)
+		return "", fmt.Errorf("parse manifest list: %w", err)
 	}
 
 	// find the matching manifest for the linux/amd64 architecture
 	for _, descriptor := range manifestList.Instances() {
 		manifest, err := manifestList.Instance(descriptor)
 		if err != nil {
-			return "", fmt.Errorf("error getting manifest instance: %w", err)
+			return "", fmt.Errorf("get manifest instance: %w", err)
 		}
 		if manifest.ReadOnly.Platform.Architecture != "amd64" {
 			continue
@@ -446,7 +449,7 @@ func RenderChartAndFindImageDigest(ctx context.Context, repo, name, version stri
 	logrus.Infof("getting a list of images from chart %s/%s (%s)", repo, name, version)
 	images, err := GetImagesFromChart(repo, name, version, values)
 	if err != nil {
-		return "", fmt.Errorf("unable to get images from %s/%s chart: %w", repo, name, err)
+		return "", fmt.Errorf("get images from %s/%s chart: %w", repo, name, err)
 	}
 
 	desired := []string{}
@@ -463,7 +466,7 @@ func RenderChartAndFindImageDigest(ctx context.Context, repo, name, version stri
 	logrus.Infof("finding the digest for %s", desired[0])
 	digest, err := GetImageDigest(ctx, desired[0])
 	if err != nil {
-		return "", fmt.Errorf("unable to get digest for %s: %w", desired[0], err)
+		return "", fmt.Errorf("get digest for %s: %w", desired[0], err)
 	}
 
 	_, tag, _ := strings.Cut(desired[0], ":")
@@ -475,7 +478,7 @@ func RenderChartAndFindImageDigest(ctx context.Context, repo, name, version stri
 func GetImagesFromOCIChart(url, name, version string, values map[string]interface{}) ([]string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
-		return nil, fmt.Errorf("unable to create helm client: %w", err)
+		return nil, fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
 
@@ -490,7 +493,7 @@ func GetImagesFromOCIChart(url, name, version string, values map[string]interfac
 func GetImagesFromChart(repo, name, version string, values map[string]interface{}) ([]string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
-		return nil, fmt.Errorf("unable to create helm client: %w", err)
+		return nil, fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
 
@@ -505,7 +508,7 @@ func GetImagesFromChart(repo, name, version string, values map[string]interface{
 func GetImagesFromLocalChart(name, path string, values map[string]interface{}) ([]string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
-		return nil, fmt.Errorf("unable to create helm client: %w", err)
+		return nil, fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
 
@@ -550,7 +553,7 @@ func GetImagesFromLocalChart(name, path string, values map[string]interface{}) (
 		// Normalize the image name to include docker.io and tag
 		ref, err := docker.ParseReference("//" + image)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse image reference %s: %w", image, err)
+			return nil, fmt.Errorf("parse image reference %s: %w", image, err)
 		}
 		images[i] = ref.DockerReference().String()
 	}
@@ -561,14 +564,14 @@ func GetImagesFromLocalChart(name, path string, values map[string]interface{}) (
 func MirrorChart(repo, name, ver string) error {
 	hcli, err := NewHelm()
 	if err != nil {
-		return fmt.Errorf("unable to create helm: %w", err)
+		return fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
 
 	logrus.Infof("pulling %s chart version %s", name, ver)
 	chpath, err := hcli.Pull(repo, name, ver)
 	if err != nil {
-		return fmt.Errorf("unable to pull %s: %w", name, err)
+		return fmt.Errorf("pull chart %s: %w", name, err)
 	}
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
@@ -580,7 +583,7 @@ func MirrorChart(repo, name, ver string) error {
 			os.Getenv("CHARTS_REGISTRY_USER"),
 			os.Getenv("CHARTS_REGISTRY_PASS"),
 		); err != nil {
-			return fmt.Errorf("unable to authenticate: %w", err)
+			return fmt.Errorf("registry authenticate: %w", err)
 		}
 	}
 
@@ -588,7 +591,7 @@ func MirrorChart(repo, name, ver string) error {
 	logrus.Infof("verifying if destination tag already exists")
 	tmpf, err := hcli.Pull(dst, name, ver)
 	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
-		return fmt.Errorf("unable to verify if tag already exists: %w", err)
+		return fmt.Errorf("verify tag exists: %w", err)
 	} else if err == nil {
 		os.Remove(tmpf)
 		logrus.Warnf("cowardly refusing to override dst (tag %s already exist)", ver)
@@ -598,7 +601,7 @@ func MirrorChart(repo, name, ver string) error {
 
 	logrus.Infof("pushing %s chart to %s", name, dst)
 	if err := hcli.Push(chpath, dst); err != nil {
-		return fmt.Errorf("unable to push openebs: %w", err)
+		return fmt.Errorf("push %s chart: %w", name, err)
 	}
 	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
 	logrus.Infof("pushed %s/%s chart: %s", repo, name, remote)
@@ -608,13 +611,13 @@ func MirrorChart(repo, name, ver string) error {
 func DownloadFile(url, dest string) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("unable to get %s: %w", url, err)
+		return fmt.Errorf("http get %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	out, err := os.Create(dest)
 	if err != nil {
-		return fmt.Errorf("unable to create %s: %w", dest, err)
+		return fmt.Errorf("create file %s: %w", dest, err)
 	}
 	defer out.Close()
 
