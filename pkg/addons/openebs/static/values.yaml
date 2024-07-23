@@ -27,7 +27,7 @@ localpv-provisioner:
     image:
       registry: proxy.replicated.com/anonymous/
       repository: replicated/ec-openebs-linux-utils
-      tag: '4.1.0@sha256:f1c3fefb69356ef559ceb95682511a5fd3bd0fbdb0c9a008f89942045dd7051e'
+      tag: '4.1.0@sha256:2f3ede1e91c9767518f48f9d31165d6ec45e968c8bf047f407f728d54c218dbd'
   hostpathClass:
     enabled: true
     isDefaultClass: true
@@ -35,7 +35,7 @@ localpv-provisioner:
     image:
       registry: proxy.replicated.com/anonymous/
       repository: replicated/ec-openebs-provisioner-localpv
-      tag: '4.1.0-r0@sha256:af2cd9974c6a8cacdafe8b6e14cd744c751aead6a2a426c2c356c9546777ec5c'
+      tag: '4.1.0-r0@sha256:892c0e77f493a4a16da5e2e35a513e4d2e032d5ed73ff3c13213ac2d16c65c9f'
 lvm-localpv:
   enabled: false
 mayastor:
@@ -44,6 +44,6 @@ preUpgradeHook:
   image:
     registry: proxy.replicated.com/anonymous
     repo: replicated/ec-openebs-kubectl
-    tag: '1.29.5-r0@sha256:15b0bceeddaff3b34ea1a7e722faff86af7460c9d2b838cd49da23527a7d716d'
+    tag: '1.29.5-r0@sha256:6685cee257798285ad1ec15f3e85cd4524bdf62b0a7b3ee981e193da922e2426'
 zfs-localpv:
   enabled: false
