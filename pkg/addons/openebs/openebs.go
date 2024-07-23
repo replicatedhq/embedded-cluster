@@ -22,14 +22,6 @@ const (
 	namespace   = "openebs"
 )
 
-// TODO
-// Overwritten by -ldflags in Makefile
-var (
-	OpenEBSImageRepoOverride        = ""
-	OpenEBSUtilsImageRepoOverride   = ""
-	OpenEBSKubectlImageRepoOverride = ""
-)
-
 var (
 	//go:embed static/values.yaml
 	rawvalues []byte
