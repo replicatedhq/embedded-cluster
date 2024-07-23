@@ -173,7 +173,7 @@ func ApkoLogin() error {
 	if err := RunCommand(cmd); err != nil {
 		return fmt.Errorf("make apko: %w", err)
 	}
-	if os.Getenv("REGISTRY_PASS") != "" {
+	if os.Getenv("IMAGES_REGISTRY_USER") != "" && os.Getenv("IMAGES_REGISTRY_PASS") != "" {
 		cmd := exec.Command(
 			"make",
 			"apko-login",
