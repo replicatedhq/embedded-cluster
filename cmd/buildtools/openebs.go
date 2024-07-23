@@ -120,8 +120,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 
 			component, ok := openebsComponents[componentName]
 			if !ok {
-				logrus.Warnf("no component found for component name %s", componentName)
-				continue
+				return fmt.Errorf("no component found for component name %s", componentName)
 			}
 
 			packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
@@ -222,8 +221,7 @@ var updateOpenEBSImagesCommand = &cli.Command{
 
 			component, ok := openebsComponents[componentName]
 			if !ok {
-				logrus.Warnf("no component found for component name %s", componentName)
-				continue
+				return fmt.Errorf("no component found for component name %s", componentName)
 			}
 
 			packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
