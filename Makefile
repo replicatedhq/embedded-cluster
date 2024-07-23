@@ -217,7 +217,7 @@ build-and-push-local-artifact-mirror-image: export APKO_CONFIG = deploy/images/l
 build-and-push-local-artifact-mirror-image: melange-build apko-login apko-build-and-publish
 
 .PHONY: build-and-push-kube-proxy-image
-build-and-push-kube-proxy-image: export IMAGE ?= sgalsaleh/kube-proxy:$(SHORT_SHA)
+build-and-push-kube-proxy-image: export IMAGE ?= ttl.sh/sgalsaleh/kube-proxy:$(SHORT_SHA)
 build-and-push-kube-proxy-image: export PACKAGE_NAME ?= kube-proxy-1.29
 build-and-push-kube-proxy-image: export PACKAGE_VERSION ?= 1.29.5-r0
 build-and-push-kube-proxy-image: export MELANGE_CONFIG = deploy/images/kube-proxy/melange.tmpl.yaml
