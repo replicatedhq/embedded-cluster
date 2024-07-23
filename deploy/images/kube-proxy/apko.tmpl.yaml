@@ -4,6 +4,7 @@ contents:
     - ./packages/ # remove
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    - ./melange.rsa.pub # remove
   packages:
     - ${PACKAGE_NAME}=${PACKAGE_VERSION}
     - conntrack-tools
