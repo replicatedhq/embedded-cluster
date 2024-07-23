@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -20,48 +21,48 @@ var k0sImageComponents = map[string]string{
 	"quay.io/k0sproject/calico-kube-controllers":    "calico-kube-controllers",
 	"registry.k8s.io/metrics-server/metrics-server": "metrics-server",
 	"quay.io/k0sproject/kube-proxy":                 "kube-proxy",
+	"quay.io/k0sproject/envoy-distroless":           "envoy-distroless",
 }
 
 var k0sComponents = map[string]addonComponent{
 	"coredns": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return "coredns"
 		},
-		makefileVar: "COREDNS_VERSION",
 	},
 	"calico-node": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return "calico-node"
 		},
-		makefileVar: "CALICO_NODE_VERSION",
 	},
 	"calico-cni": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return "calico-cni"
 		},
-		makefileVar: "CALICO_CNI_VERSION",
 	},
 	"calico-kube-controllers": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return "calico-kube-controllers"
 		},
-		makefileVar: "CALICO_KUBE_CONTROLLERS_VERSION",
 	},
 	"metrics-server": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return "metrics-server"
 		},
-		makefileVar: "METRICS_SERVER_VERSION",
 	},
 	"kube-proxy": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return fmt.Sprintf("kube-proxy-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			// match the greatest patch version of the same minor version
 			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
 		},
-		makefileVar: "KUBE_PROXY_VERSION",
+	},
+	"envoy-distroless": {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+			return fmt.Sprintf("envoy-%d.%d", upstreamVersion.Major(), upstreamVersion.Minor())
+		},
 	},
 }
 
@@ -72,23 +73,23 @@ var updateK0sImagesCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating k0s images")
 
-		rawK0sVersion := os.Getenv("INPUT_K0S_VERSION")
-		if rawK0sVersion != "" {
-			logrus.Infof("using input override from INPUT_K0S_VERSION: %s", rawK0sVersion)
-		} else {
-			rawver, err := GetMakefileVariable("K0S_VERSION")
-			if err != nil {
-				return fmt.Errorf("failed to get k0s version: %w", err)
-			}
-			rawK0sVersion = rawver
+		newmeta := release.K0sMetadata{
+			Images: make(map[string]string),
 		}
 
-		images, err := listK0sImages(rawK0sVersion)
-		if err != nil {
+		if err := makeK0s(); err != nil {
 			return fmt.Errorf("failed to make k0s: %w", err)
 		}
 
-		k0sVersion := semver.MustParse(rawK0sVersion)
+		images, err := listK0sImages()
+		if err != nil {
+			return fmt.Errorf("failed to list k0s images: %w", err)
+		}
+
+		k0sVersion, err := getK0sVersion()
+		if err != nil {
+			return fmt.Errorf("failed to get k0s version: %w", err)
+		}
 
 		if err := ApkoLogin(); err != nil {
 			return fmt.Errorf("failed to apko login: %w", err)
@@ -134,26 +135,51 @@ var updateK0sImagesCommand = &cli.Command{
 				return fmt.Errorf("failed to get digest from build file: %w", err)
 			}
 
-			if err := SetMakefileVariable(component.makefileVar, fmt.Sprintf("%s@%s", packageVersion, digest)); err != nil {
-				return fmt.Errorf("failed to set %s version: %w", componentName, err)
-			}
+			newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
+		}
+
+		logrus.Infof("saving k0s metadata")
+		if err := newmeta.Save(); err != nil {
+			return fmt.Errorf("failed to save k0s metadata: %w", err)
 		}
 
 		return nil
 	},
 }
 
-func listK0sImages(k0sVersion string) ([]string, error) {
-	cmd := exec.Command("make", "pkg/goods/bins/k0s", fmt.Sprintf("K0S_VERSION=%s", k0sVersion))
-	if err := RunCommand(cmd); err != nil {
-		return nil, fmt.Errorf("make k0s: %w", err)
+func getK0sVersion() (*semver.Version, error) {
+	if v := os.Getenv("INPUT_K0S_VERSION"); v != "" {
+		logrus.Infof("using input override from INPUT_K0S_VERSION: %s", v)
+		return semver.MustParse(v), nil
 	}
+	v, err := GetMakefileVariable("K0S_VERSION")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get k0s version: %w", err)
+	}
+	return semver.MustParse(v), nil
+}
 
+func makeK0s() error {
+	if v := os.Getenv("INPUT_K0S_VERSION"); v != "" {
+		logrus.Infof("using input override from INPUT_K0S_VERSION: %s", v)
+		cmd := exec.Command("make", "pkg/goods/bins/k0s", fmt.Sprintf("K0S_VERSION=%s", v), "K0S_BINARY_SOURCE_OVERRIDE=")
+		if err := RunCommand(cmd); err != nil {
+			return fmt.Errorf("make k0s: %w", err)
+		}
+	} else {
+		cmd := exec.Command("make", "pkg/goods/bins/k0s")
+		if err := RunCommand(cmd); err != nil {
+			return fmt.Errorf("make k0s: %w", err)
+		}
+	}
+	return nil
+}
+
+func listK0sImages() ([]string, error) {
 	output, err := exec.Command("pkg/goods/bins/k0s", "airgap", "list-images", "--all").Output()
 	if err != nil {
 		return nil, fmt.Errorf("list k0s images: %w", err)
 	}
-
 	images := []string{}
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	for scanner.Scan() {
@@ -164,6 +190,5 @@ func listK0sImages(k0sVersion string) ([]string, error) {
 		}
 		images = append(images, image)
 	}
-
 	return images, nil
 }

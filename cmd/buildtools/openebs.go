@@ -21,7 +21,7 @@ var openebsImageComponents = map[string]string{
 
 var openebsComponents = map[string]addonComponent{
 	"openebs-provisioner-localpv": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			// package name is not the same as the component name
 			return "dynamic-localpv-provisioner"
 		},
@@ -31,10 +31,10 @@ var openebsComponents = map[string]addonComponent{
 		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"kubectl": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return fmt.Sprintf("kubectl-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			// match the greatest patch version of the same minor version
 			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
 		},
