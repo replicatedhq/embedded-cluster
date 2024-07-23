@@ -89,10 +89,11 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {
+	var images []string
 	if tag, ok := Metadata.Images["openebs-linux-utils"]; ok {
-		return []string{fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils:%s", tag)}
+		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils:%s", tag))
 	}
-	return nil
+	return images
 }
 
 // Outro is executed after the cluster deployment.

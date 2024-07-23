@@ -3,7 +3,14 @@ on:
   schedule:
     # everyday at 1 o'clock.
     - cron: '0 1 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      openebs_chart_version:
+        description: 'OpenEBS chart version for updating the chart and images'
+        required: false
+      velero_chart_version:
+        description: 'Velero chart version for updating the chart and images'
+        required: false
 jobs:
   build:
     name: Build
@@ -55,6 +62,8 @@ jobs:
           IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
           IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
           CHARTS_DESTINATION: registry.replicated.com/ec-charts
+          INPUT_OPENEBS_CHART_VERSION: ${{ github.event.inputs.openebs_chart_version }}
+          INPUT_VELERO_CHART_VERSION: ${{ github.event.inputs.velero_chart_version }}
         run: |
           chmod 755 ./output/bin/buildtools
           ./output/bin/buildtools update addon ${{ matrix.addon }}

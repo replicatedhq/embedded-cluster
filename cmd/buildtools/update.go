@@ -38,5 +38,6 @@ var updateImagesCommand = &cli.Command{
 	Subcommands: []*cli.Command{
 		updateK0sImagesCommand,
 		updateOpenEBSImagesCommand,
+		updateVeleroImagesCommand,
 	},
 }

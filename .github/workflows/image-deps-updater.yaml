@@ -11,6 +11,12 @@ on:
       openebs_version:
         description: 'OpenEBS version for discovering image versions'
         required: false
+      velero_version:
+        description: 'Velero version for discovering image versions'
+        required: false
+      velero_aws_plugin_version:
+        description: 'Velero AWS plugin version for discovering image versions'
+        required: false
       kubectl_version:
         description: 'Kubectl version for discovering image versions'
         required: false
@@ -44,8 +50,9 @@ jobs:
       fail-fast: false
       matrix:
         addon:
-          - openebs
           - k0s
+          - openebs
+          - velero
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -63,6 +70,8 @@ jobs:
         IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
         INPUT_K0S_VERSION: ${{ github.event.inputs.k0s_version }}
         INPUT_OPENEBS_VERSION: ${{ github.event.inputs.openebs_version }}
+        INPUT_VELERO_VERSION: ${{ github.event.inputs.velero_version }}
+        INPUT_VELERO_AWS_PLUGIN_VERSION: ${{ github.event.inputs.velero_aws_plugin_version }}
         INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
       run: |
         chmod +x ./output/bin/buildtools

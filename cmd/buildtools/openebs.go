@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -13,7 +14,7 @@ import (
 )
 
 var openebsImageComponents = map[string]string{
-	"docker.io/bitnami/kubectl":             "openebs-kubectl",
+	"docker.io/bitnami/kubectl":             "kubectl",
 	"docker.io/openebs/linux-utils":         "openebs-linux-utils",
 	"docker.io/openebs/provisioner-localpv": "openebs-provisioner-localpv",
 }
@@ -29,7 +30,7 @@ var openebsComponents = map[string]addonComponent{
 	"openebs-linux-utils": {
 		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
-	"openebs-kubectl": {
+	"kubectl": {
 		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
 			return fmt.Sprintf("kubectl-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
 		},
@@ -48,20 +49,26 @@ var updateOpenEBSAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating openebs addon")
 
-		logrus.Infof("fetching the latest openebs chart version")
-		latest, err := LatestChartVersion("openebs", "openebs")
-		if err != nil {
-			return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
+		nextChartVersion := os.Getenv("INPUT_OPENEBS_CHART_VERSION")
+		if nextChartVersion != "" {
+			logrus.Infof("using input override from INPUT_OPENEBS_CHART_VERSION: %s", nextChartVersion)
+		} else {
+			logrus.Infof("fetching the latest openebs chart version")
+			latest, err := LatestChartVersion("openebs", "openebs")
+			if err != nil {
+				return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
+			}
+			nextChartVersion = latest
+			logrus.Printf("latest velero chart version: %s", latest)
 		}
-		latest = strings.TrimPrefix(latest, "v")
-		logrus.Printf("latest openebs chart version: %s", latest)
+		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		current := openebs.Metadata
-		if current.Version == latest && !c.Bool("force") {
+		if current.Version == nextChartVersion && !c.Bool("force") {
 			logrus.Infof("openebs chart version is already up-to-date")
 		} else {
-			logrus.Infof("mirroring openebs chart version %s", latest)
-			if err := MirrorChart("openebs", "openebs", latest); err != nil {
+			logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
+			if err := MirrorChart("openebs", "openebs", nextChartVersion); err != nil {
 				return fmt.Errorf("failed to mirror openebs chart: %v", err)
 			}
 		}
@@ -71,7 +78,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 
 		logrus.Infof("updating openebs images")
 
-		err = updateOpenEBSAddonImages(withproto, latest)
+		err := updateOpenEBSAddonImages(c.Context, withproto, nextChartVersion, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -86,22 +93,12 @@ var updateOpenEBSImagesCommand = &cli.Command{
 	Name:      "openebs",
 	Usage:     "Updates the openebs images",
 	UsageText: environmentUsageText,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "openebs-version",
-			Usage: "The version of openebs to use to determine image versions",
-		},
-		&cli.StringFlag{
-			Name:  "kubectl-version",
-			Usage: "The version of kubectl to use to determine image versions",
-		},
-	},
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating openebs images")
 
 		current := openebs.Metadata
 
-		err := updateOpenEBSAddonImages(current.Location, current.Version)
+		err := updateOpenEBSAddonImages(c.Context, current.Location, current.Version, current.Version)
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -112,7 +109,7 @@ var updateOpenEBSImagesCommand = &cli.Command{
 	},
 }
 
-func updateOpenEBSAddonImages(chartURL string, chartVersion string) error {
+func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion string, linuxUtilsVersion string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -140,14 +137,14 @@ func updateOpenEBSAddonImages(chartURL string, chartVersion string) error {
 		return fmt.Errorf("failed to get openebs values: %v", err)
 	}
 
-	logrus.Infof("extracting images from chart")
+	logrus.Infof("extracting images from chart version %s", chartVersion)
 	images, err := GetImagesFromOCIChart(chartURL, "openebs", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from admin console chart: %w", err)
 	}
 
 	// make sure we include the linux-utils image.
-	images = append(images, fmt.Sprintf("docker.io/openebs/linux-utils:%s", chartVersion))
+	images = append(images, fmt.Sprintf("docker.io/openebs/linux-utils:%s", linuxUtilsVersion))
 
 	if err := ApkoLogin(); err != nil {
 		return fmt.Errorf("failed to apko login: %w", err)

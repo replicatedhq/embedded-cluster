@@ -1,14 +1,52 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
+
+// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/26bf6253ff0d74f8e5ce6aeb3053f31b7a297a99/README.md#compatibility
+var veleroPluginForAWSCompatibility = map[string]*semver.Constraints{
+	"1.14": mustParseSemverConstraints(">=1.10,<1.11"),
+	"1.13": mustParseSemverConstraints(">=1.9,<1.10"),
+}
+
+var veleroImageComponents = map[string]string{
+	"docker.io/velero/velero":                "velero",
+	"docker.io/velero/velero-plugin-for-aws": "velero-plugin-for-aws",
+	"docker.io/velero/velero-restore-helper": "velero-restore-helper",
+	"docker.io/bitnami/kubectl":              "kubectl",
+}
+
+var veleroComponents = map[string]addonComponent{
+	"velero": {
+		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
+	},
+	"velero-plugin-for-aws": {
+		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
+	},
+	"velero-restore-helper": {
+		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
+	},
+	"kubectl": {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+			return fmt.Sprintf("kubectl-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
+		},
+		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion string) string {
+			// match the greatest patch version of the same minor version
+			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
+		},
+		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
+	},
+}
 
 var updateVeleroAddonCommand = &cli.Command{
 	Name:      "velero",
@@ -17,84 +55,228 @@ var updateVeleroAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating velero addon")
 
-		// check what is the latest version of the chart.
-		latest, err := LatestChartVersion("vmware-tanzu", "velero")
-		if err != nil {
-			return fmt.Errorf("unable to get the latest registry version: %v", err)
+		nextChartVersion := os.Getenv("INPUT_VELERO_CHART_VERSION")
+		if nextChartVersion != "" {
+			logrus.Infof("using input override from INPUT_VELERO_CHART_VERSION: %s", nextChartVersion)
+		} else {
+			logrus.Infof("fetching the latest velero chart version")
+			latest, err := LatestChartVersion("vmware-tanzu", "velero")
+			if err != nil {
+				return fmt.Errorf("failed to get the latest velero chart version: %v", err)
+			}
+			nextChartVersion = latest
+			logrus.Printf("latest velero chart version: %s", latest)
 		}
+		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		current := velero.Metadata
-		// compare with the version we are currently using.
-		if current.Version == latest && !c.Bool("force") {
-			logrus.Infof("velero chart is up to date")
-			return nil
-		}
-
-		// attempt to mirror the chart.
-		if err := MirrorChart("vmware-tanzu", "velero", latest); err != nil {
-			return fmt.Errorf("unable to mirror velero chart: %w", err)
+		if current.Version == nextChartVersion && !c.Bool("force") {
+			logrus.Infof("velero chart version is already up-to-date")
+		} else {
+			logrus.Infof("mirroring velero chart version %s", nextChartVersion)
+			if err := MirrorChart("vmware-tanzu", "velero", nextChartVersion); err != nil {
+				return fmt.Errorf("failed to mirror velero chart: %v", err)
+			}
 		}
 
 		upstream := fmt.Sprintf("%s/velero", os.Getenv("CHARTS_DESTINATION"))
-		newmeta := release.AddonMetadata{
-			Version:  latest,
-			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
-			Images:   make(map[string]string),
-		}
+		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
-		values, err := release.GetValuesWithOriginalImages("velero")
+		veleroVersion, err := findVeleroVersionFromChart(c.Context, withproto, nextChartVersion)
 		if err != nil {
-			return fmt.Errorf("unable to get openebs values: %v", err)
+			return fmt.Errorf("failed to find velero version from chart: %w", err)
 		}
+		restoreHelperVersion := veleroVersion
+		logrus.Infof("found latest velero restore helper version %s", restoreHelperVersion)
 
-		logrus.Infof("extracting images from chart")
-		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "velero", latest, values)
+		awsPluginVersion, err := findBestAWSPluginVersion(c.Context, veleroVersion)
 		if err != nil {
-			return fmt.Errorf("failed to get images from chart: %w", err)
+			return fmt.Errorf("failed to find latest velero plugin for aws version: %w", err)
 		}
+		logrus.Infof("found best velero plugin for aws version %s", awsPluginVersion)
 
-		awsver, err := GetLatestGitHubTag(c.Context, "vmware-tanzu", "velero-plugin-for-aws")
+		logrus.Infof("updating velero images")
+
+		err = updateVeleroAddonImages(c.Context, withproto, nextChartVersion, restoreHelperVersion, awsPluginVersion)
 		if err != nil {
-			return fmt.Errorf("failed to get latest velero plugin release: %w", err)
-		}
-		logrus.Infof("found latest velero plugin for aws version %s", latest)
-		images = append(images, fmt.Sprintf("velero/velero-plugin-for-aws:%s", awsver))
-
-		logrus.Infof("including velero helper image (using the same tag as the velero image)")
-		var helper string
-		for _, image := range images {
-			tag := TagFromImage(image)
-			image = RemoveTagFromImage(image)
-			if image == "docker.io/velero/velero" {
-				helper = fmt.Sprintf("docker.io/velero/velero-restore-helper:%s", tag)
-				break
-			}
-		}
-		if helper == "" {
-			return fmt.Errorf("failed to find velero image tag")
-		}
-		images = append(images, helper)
-
-		logrus.Infof("fetching digest for images")
-		for _, image := range images {
-			sha, err := GetImageDigest(c.Context, image)
-			if err != nil {
-				return fmt.Errorf("failed to get image %s digest: %w", image, err)
-			}
-			logrus.Infof("image %s digest: %s", image, sha)
-			tag := TagFromImage(image)
-			image = RemoveTagFromImage(image)
-			newmeta.Images[image] = fmt.Sprintf("%s@%s", tag, sha)
-		}
-
-		logrus.Infof("saving addon manifest")
-		newmeta.ReplaceImages = true
-		if err := newmeta.Save("velero"); err != nil {
-			return fmt.Errorf("failed to save metadata: %w", err)
+			return fmt.Errorf("failed to update velero images: %w", err)
 		}
 
 		logrus.Infof("successfully updated velero addon")
+
 		return nil
 	},
+}
+
+var updateVeleroImagesCommand = &cli.Command{
+	Name:      "velero",
+	Usage:     "Updates the velero images",
+	UsageText: environmentUsageText,
+	Action: func(c *cli.Context) error {
+		logrus.Infof("updating velero images")
+
+		current := velero.Metadata
+
+		image, ok := velero.Metadata.Images["velero-restore-helper"]
+		if !ok {
+			return fmt.Errorf("failed to find velero restore helper image")
+		}
+		restoreHelperVersion, _, _ := strings.Cut(image, "@")
+		restoreHelperVersion = strings.TrimPrefix(restoreHelperVersion, "v")
+
+		image, ok = velero.Metadata.Images["velero-plugin-for-aws"]
+		if !ok {
+			return fmt.Errorf("failed to find velero plugin for aws image")
+		}
+		awsPluginVersion, _, _ := strings.Cut(image, "@")
+		awsPluginVersion = strings.TrimPrefix(awsPluginVersion, "v")
+
+		err := updateVeleroAddonImages(c.Context, current.Location, current.Version, restoreHelperVersion, awsPluginVersion)
+		if err != nil {
+			return fmt.Errorf("failed to update velero images: %w", err)
+		}
+
+		logrus.Infof("successfully updated velero images")
+
+		return nil
+	},
+}
+
+func findVeleroVersionFromChart(ctx context.Context, chartURL string, chartVersion string) (string, error) {
+	values, err := release.GetValuesWithOriginalImages("velero")
+	if err != nil {
+		return "", fmt.Errorf("failed to get velero values: %v", err)
+	}
+	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
+	if err != nil {
+		return "", fmt.Errorf("failed to get images from admin console chart: %w", err)
+	}
+
+	for _, image := range images {
+		tag := TagFromImage(image)
+		image = RemoveTagFromImage(image)
+		if image == "docker.io/velero/velero" {
+			return strings.TrimPrefix(tag, "v"), nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find velero image tag")
+}
+
+func findBestAWSPluginVersion(ctx context.Context, veleroVersion string) (string, error) {
+	sv, err := semver.NewVersion(veleroVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse velero version: %w", err)
+	}
+	constraints, ok := veleroPluginForAWSCompatibility[fmt.Sprintf("%d.%d", sv.Major(), sv.Minor())]
+	if !ok {
+		return "", fmt.Errorf("no aws plugin compatibility constraints found for velero version %s", veleroVersion)
+	}
+	awsPluginVersion, err := GetBestGitHubTag(ctx, "vmware-tanzu", "velero-plugin-for-aws", constraints)
+	if err != nil {
+		return "", fmt.Errorf("failed to get best velero plugin for aws release with constraints %s: %w", constraints, err)
+	}
+	return strings.TrimPrefix(awsPluginVersion, "v"), nil
+}
+
+func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion string, restoreHelperVersion string, awsPluginVersion string) error {
+	newmeta := release.AddonMetadata{
+		Version:  chartVersion,
+		Location: chartURL,
+		Images:   make(map[string]string),
+	}
+
+	rawver := os.Getenv("INPUT_K0S_VERSION")
+	if rawver == "" {
+		v, err := GetMakefileVariable("K0S_VERSION")
+		if err != nil {
+			return fmt.Errorf("failed to get k0s version: %w", err)
+		}
+		rawver = v
+	}
+	k0sVersion := semver.MustParse(rawver)
+
+	logrus.Infof("fetching wolfi apk index")
+	wolfiAPKIndex, err := GetWolfiAPKIndex()
+	if err != nil {
+		return fmt.Errorf("failed to get APK index: %w", err)
+	}
+
+	values, err := release.GetValuesWithOriginalImages("velero")
+	if err != nil {
+		return fmt.Errorf("failed to get velero values: %v", err)
+	}
+
+	logrus.Infof("extracting images from chart version %s", chartVersion)
+	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
+	if err != nil {
+		return fmt.Errorf("failed to get images from admin console chart: %w", err)
+	}
+
+	// make sure we include additional images
+	images = append(images, fmt.Sprintf("docker.io/velero/velero-restore-helper:%s", restoreHelperVersion))
+	images = append(images, fmt.Sprintf("docker.io/velero/velero-plugin-for-aws:%s", awsPluginVersion))
+
+	if err := ApkoLogin(); err != nil {
+		return fmt.Errorf("failed to apko login: %w", err)
+	}
+
+	for _, image := range images {
+		logrus.Infof("updating image %s", image)
+
+		upstreamVersion := strings.TrimPrefix(TagFromImage(image), "v")
+		image = RemoveTagFromImage(image)
+
+		componentName, ok := veleroImageComponents[image]
+		if !ok {
+			return fmt.Errorf("no component found for image %s", image)
+		}
+
+		component, ok := veleroComponents[componentName]
+		if !ok {
+			return fmt.Errorf("no component found for component name %s", componentName)
+		}
+
+		if component.upstreamVersionInputOverride != "" {
+			v := os.Getenv(component.upstreamVersionInputOverride)
+			if v != "" {
+				logrus.Infof("using input override from %s: %s", component.upstreamVersionInputOverride, v)
+				upstreamVersion = v
+			}
+		}
+
+		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
+		}
+
+		logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
+
+		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion); err != nil {
+			return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
+		}
+
+		digest, err := GetDigestFromBuildFile()
+		if err != nil {
+			return fmt.Errorf("failed to get digest from build file: %w", err)
+		}
+
+		newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
+	}
+
+	logrus.Infof("saving addon manifest")
+	newmeta.ReplaceImages = true
+	if err := newmeta.Save("velero"); err != nil {
+		return fmt.Errorf("failed to save metadata: %w", err)
+	}
+
+	return nil
+}
+
+func mustParseSemverConstraints(s string) *semver.Constraints {
+	c, err := semver.NewConstraint(s)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }

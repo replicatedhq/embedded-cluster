@@ -35,8 +35,8 @@ mayastor:
 preUpgradeHook:
   image:
     registry: proxy.replicated.com/anonymous
-    repo: replicated/ec-openebs-kubectl
-    tag: '{{ index .Images "openebs-kubectl" }}'
+    repo: replicated/ec-kubectl
+    tag: '{{ index .Images "kubectl" }}'
 {{- end }}
 zfs-localpv:
   enabled: false

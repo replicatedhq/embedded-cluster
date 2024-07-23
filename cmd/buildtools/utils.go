@@ -255,6 +255,38 @@ func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error)
 	return tags[0].GetName(), nil
 }
 
+func GetBestGitHubTag(ctx context.Context, owner, repo string, constrants *semver.Constraints) (string, error) {
+	client := github.NewClient(nil)
+	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("unable to list tags: %w", err)
+	}
+	var best *semver.Version
+	var bestStr string
+	for _, tag := range tags {
+		ver := tag.GetName()
+		ver = strings.TrimPrefix(ver, "v")
+		sv, err := semver.NewVersion(ver)
+		if err != nil {
+			continue
+		}
+		if sv.Prerelease() != "" {
+			continue
+		}
+		if !constrants.Check(sv) {
+			continue
+		}
+		if best == nil || sv.GreaterThan(best) {
+			best = sv
+			bestStr = tag.GetName()
+		}
+	}
+	if best == nil {
+		return "", fmt.Errorf("no tags found")
+	}
+	return bestStr, nil
+}
+
 func GetMakefileVariable(name string) (string, error) {
 	f, err := os.Open("./Makefile")
 	if err != nil {
