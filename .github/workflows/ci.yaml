@@ -87,8 +87,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -124,32 +122,6 @@ jobs:
           files: |
             *.tgz
             metadata.json
-      - name: Install Replicated CLI
-        run: |
-          curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
-          | grep "browser_download_url.*linux_amd64.tar.gz" \
-          | cut -d : -f 2,3 \
-          | tr -d \" \
-          | wget -O replicated.tar.gz -qi -
-          tar xf replicated.tar.gz replicated && rm replicated.tar.gz
-          mv replicated /usr/local/bin/replicated
-      - name: Create CI Releases
-        env:
-          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
-          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
-          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
-        run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
-          echo "${SHORT_SHA}"
-          sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
-          sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
-
-          # re-promote a release containing an old version of embedded-cluster to test upgrades
-          replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "appver-${SHORT_SHA}-pre-minio-removal"
-          
-          replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}"
-          replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}-noop"
-          replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "appver-${SHORT_SHA}-upgrade"
       - name: Build CI binary
         run: |
           export SHORT_SHA=dev-${GITHUB_SHA::7}
@@ -177,6 +149,56 @@ jobs:
           ./scripts/cache-files.sh
           ./scripts/create-upgrade-release.sh
           ./scripts/create-previous-k0s-release.sh
+
+      - name: upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-release
+          path: |
+            output/bin/embedded-cluster
+            output/bin/embedded-cluster-original
+            output/bin/embedded-cluster-previous-k0s
+            output/bin/embedded-cluster-release-builder
+
+  release-app:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    needs:
+      - build
+      - build-images
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Replicated CLI
+        run: |
+          curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
+          | grep "browser_download_url.*linux_amd64.tar.gz" \
+          | cut -d : -f 2,3 \
+          | tr -d \" \
+          | wget -O replicated.tar.gz -qi -
+          tar xf replicated.tar.gz replicated && rm replicated.tar.gz
+          mv replicated /usr/local/bin/replicated
+      - name: Create CI Releases
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+        run: |
+          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          echo "${SHORT_SHA}"
+          sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+
+          # re-promote a release containing an old version of embedded-cluster to test upgrades
+          replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "appver-${SHORT_SHA}-pre-minio-removal"
+
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}"
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}-noop"
+          replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "appver-${SHORT_SHA}-upgrade"
 
       - name: Create Airgap Release
         env:
@@ -219,21 +241,12 @@ jobs:
         with:
           message-path: download-link.txt
 
-      - name: upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: embedded-release
-          path: |
-            output/bin/embedded-cluster
-            output/bin/embedded-cluster-original
-            output/bin/embedded-cluster-previous-k0s
-            output/bin/embedded-cluster-release-builder
-
   e2e:
     runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     needs:
       - build
       - build-images
+      - release-app
     strategy:
       fail-fast: false
       matrix:
