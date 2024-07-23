@@ -116,15 +116,10 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 		Images:   make(map[string]string),
 	}
 
-	rawver := os.Getenv("INPUT_K0S_VERSION")
-	if rawver == "" {
-		v, err := GetMakefileVariable("K0S_VERSION")
-		if err != nil {
-			return fmt.Errorf("failed to get k0s version: %w", err)
-		}
-		rawver = v
+	k0sVersion, err := getK0sVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get k0s version: %w", err)
 	}
-	k0sVersion := semver.MustParse(rawver)
 
 	logrus.Infof("fetching wolfi apk index")
 	wolfiAPKIndex, err := GetWolfiAPKIndex()
@@ -140,7 +135,7 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 	logrus.Infof("extracting images from chart version %s", chartVersion)
 	images, err := GetImagesFromOCIChart(chartURL, "openebs", chartVersion, values)
 	if err != nil {
-		return fmt.Errorf("failed to get images from admin console chart: %w", err)
+		return fmt.Errorf("failed to get images from openebs chart: %w", err)
 	}
 
 	// make sure we include the linux-utils image.
