@@ -1,6 +1,7 @@
 contents:
   repositories:
     - https://packages.wolfi.dev/os
+    - ./packages/ # remove
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
