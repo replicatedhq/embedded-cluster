@@ -49,20 +49,26 @@ var updateVeleroAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating velero addon")
 
-		logrus.Infof("fetching the latest velero chart version")
-		latest, err := LatestChartVersion("vmware-tanzu", "velero")
-		if err != nil {
-			return fmt.Errorf("failed to get the latest velero chart version: %v", err)
+		nextChartVersion := os.Getenv("INPUT_VELERO_CHART_VERSION")
+		if nextChartVersion != "" {
+			logrus.Infof("using input override from INPUT_VELERO_CHART_VERSION: %s", nextChartVersion)
+		} else {
+			logrus.Infof("fetching the latest velero chart version")
+			latest, err := LatestChartVersion("vmware-tanzu", "velero")
+			if err != nil {
+				return fmt.Errorf("failed to get the latest velero chart version: %v", err)
+			}
+			nextChartVersion = latest
+			logrus.Printf("latest velero chart version: %s", latest)
 		}
-		latest = strings.TrimPrefix(latest, "v")
-		logrus.Printf("latest velero chart version: %s", latest)
+		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		current := velero.Metadata
-		if current.Version == latest && !c.Bool("force") {
+		if current.Version == nextChartVersion && !c.Bool("force") {
 			logrus.Infof("velero chart version is already up-to-date")
 		} else {
-			logrus.Infof("mirroring velero chart version %s", latest)
-			if err := MirrorChart("vmware-tanzu", "velero", latest); err != nil {
+			logrus.Infof("mirroring velero chart version %s", nextChartVersion)
+			if err := MirrorChart("vmware-tanzu", "velero", nextChartVersion); err != nil {
 				return fmt.Errorf("failed to mirror velero chart: %v", err)
 			}
 		}
@@ -70,7 +76,7 @@ var updateVeleroAddonCommand = &cli.Command{
 		upstream := fmt.Sprintf("%s/velero", os.Getenv("CHARTS_DESTINATION"))
 		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
-		restoreHelperVersion, err := findVeleroVersionFromChart(c.Context, withproto, latest)
+		restoreHelperVersion, err := findVeleroVersionFromChart(c.Context, withproto, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to find restore helper version: %w", err)
 		}

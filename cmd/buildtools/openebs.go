@@ -49,20 +49,26 @@ var updateOpenEBSAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating openebs addon")
 
-		logrus.Infof("fetching the latest openebs chart version")
-		latest, err := LatestChartVersion("openebs", "openebs")
-		if err != nil {
-			return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
+		nextChartVersion := os.Getenv("INPUT_OPENEBS_CHART_VERSION")
+		if nextChartVersion != "" {
+			logrus.Infof("using input override from INPUT_OPENEBS_CHART_VERSION: %s", nextChartVersion)
+		} else {
+			logrus.Infof("fetching the latest openebs chart version")
+			latest, err := LatestChartVersion("openebs", "openebs")
+			if err != nil {
+				return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
+			}
+			nextChartVersion = latest
+			logrus.Printf("latest velero chart version: %s", latest)
 		}
-		latest = strings.TrimPrefix(latest, "v")
-		logrus.Printf("latest openebs chart version: %s", latest)
+		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		current := openebs.Metadata
-		if current.Version == latest && !c.Bool("force") {
+		if current.Version == nextChartVersion && !c.Bool("force") {
 			logrus.Infof("openebs chart version is already up-to-date")
 		} else {
-			logrus.Infof("mirroring openebs chart version %s", latest)
-			if err := MirrorChart("openebs", "openebs", latest); err != nil {
+			logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
+			if err := MirrorChart("openebs", "openebs", nextChartVersion); err != nil {
 				return fmt.Errorf("failed to mirror openebs chart: %v", err)
 			}
 		}
@@ -72,7 +78,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 
 		logrus.Infof("updating openebs images")
 
-		err = updateOpenEBSAddonImages(c.Context, withproto, latest, latest)
+		err := updateOpenEBSAddonImages(c.Context, withproto, nextChartVersion, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
