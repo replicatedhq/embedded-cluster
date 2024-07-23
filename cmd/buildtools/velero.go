@@ -104,14 +104,14 @@ var updateVeleroImagesCommand = &cli.Command{
 
 		current := velero.Metadata
 
-		image, ok := velero.Metadata.Images["docker.io/velero/velero-restore-helper"]
+		image, ok := velero.Metadata.Images["velero-restore-helper"]
 		if !ok {
 			return fmt.Errorf("failed to find velero restore helper image")
 		}
 		restoreHelperVersion, _, _ := strings.Cut(image, "@")
 		restoreHelperVersion = strings.TrimPrefix(restoreHelperVersion, "v")
 
-		image, ok = velero.Metadata.Images["docker.io/velero/velero-plugin-for-aws"]
+		image, ok = velero.Metadata.Images["velero-plugin-for-aws"]
 		if !ok {
 			return fmt.Errorf("failed to find velero plugin for aws image")
 		}
