@@ -43,7 +43,7 @@ mayastor:
 preUpgradeHook:
   image:
     registry: proxy.replicated.com/anonymous
-    repo: replicated/ec-openebs-kubectl
+    repo: replicated/ec-kubectl
     tag: '1.29.5-r0@sha256:6685cee257798285ad1ec15f3e85cd4524bdf62b0a7b3ee981e193da922e2426'
 zfs-localpv:
   enabled: false

@@ -8,6 +8,6 @@
 version: 4.1.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs
 images:
-    openebs-kubectl: 1.29.5-r0@sha256:6685cee257798285ad1ec15f3e85cd4524bdf62b0a7b3ee981e193da922e2426
+    kubectl: 1.29.5-r0@sha256:6685cee257798285ad1ec15f3e85cd4524bdf62b0a7b3ee981e193da922e2426
     openebs-linux-utils: 4.1.0@sha256:2f3ede1e91c9767518f48f9d31165d6ec45e968c8bf047f407f728d54c218dbd
     openebs-provisioner-localpv: 4.1.0-r0@sha256:892c0e77f493a4a16da5e2e35a513e4d2e032d5ed73ff3c13213ac2d16c65c9f
