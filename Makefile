@@ -216,6 +216,14 @@ build-and-push-local-artifact-mirror-image: export MELANGE_CONFIG = deploy/packa
 build-and-push-local-artifact-mirror-image: export APKO_CONFIG = deploy/images/local-artifact-mirror/apko.tmpl.yaml
 build-and-push-local-artifact-mirror-image: melange-build apko-login apko-build-and-publish
 
+.PHONY: build-and-push-kube-proxy-image
+build-and-push-kube-proxy-image: export IMAGE ?= sgalsaleh/kube-proxy:$(SHORT_SHA)
+build-and-push-kube-proxy-image: export PACKAGE_NAME ?= kube-proxy-1.29
+build-and-push-kube-proxy-image: export PACKAGE_VERSION ?= 1.29.5-r0
+build-and-push-kube-proxy-image: export MELANGE_CONFIG = deploy/images/kube-proxy/melange.tmpl.yaml
+build-and-push-kube-proxy-image: export APKO_CONFIG = deploy/images/kube-proxy/apko.tmpl.yaml
+build-and-push-kube-proxy-image: melange-build apko-login apko-build-and-publish
+
 CHAINGUARD_TOOLS_USE_DOCKER = 0
 ifeq ($(CHAINGUARD_TOOLS_USE_DOCKER),"1")
 MELANGE_CACHE_DIR ?= /go/pkg/mod
