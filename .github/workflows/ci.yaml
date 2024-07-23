@@ -161,7 +161,7 @@ jobs:
             output/bin/embedded-cluster-release-builder
 
   release-app:
-    name: Build
+    name: Create App Releases
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
