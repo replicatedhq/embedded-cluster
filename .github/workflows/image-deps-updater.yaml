@@ -74,7 +74,7 @@ jobs:
       with:
         token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
         commit-message: 'Update image versions'
-        title: 'Automated ${{ matrix.addon }} image updates'
+        title: "chore: update ${{ matrix.addon }} images"
         branch: automation/${{ matrix.addon }}-image-dependencies
         delete-branch: true
         labels: |
