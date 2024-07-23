@@ -107,14 +107,11 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckin
 
 func (o *Velero) GetAdditionalImages() []string {
 	var images []string
-	for _, img := range []string{
-		"docker.io/bitnami/kubectl", "velero/velero-restore-helper",
-	} {
-		tag, ok := Metadata.Images[img]
-		if !ok {
-			continue
-		}
-		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", img, tag))
+	if tag, ok := Metadata.Images["velero-restore-helper"]; ok {
+		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper:%s", tag))
+	}
+	if tag, ok := Metadata.Images["kubectl"]; ok {
+		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-kubectl:%s", tag))
 	}
 	return images
 }
