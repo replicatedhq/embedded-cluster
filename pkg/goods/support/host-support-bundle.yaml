@@ -202,3 +202,16 @@ spec:
         - pass:
             when: "false"
             message: "No signs of hostname changes found"
+  - textAnalyze:
+        checkName: Etcdserver Database Size Exceeded
+        exclude: ""
+        ignoreIfNoFiles: true
+        fileName: *
+        regex: '(etcdserver)?.*mvcc.*database space exceeded'
+        outcomes:
+          - fail:
+              when: "true"
+              message: etcdserver database has grown too large.  See: https://community.replicated.com/t/kubernetes-cluster-is-down-and-reporting-etcdserver-mvcc-database-size-exceeded/1428
+          - pass:
+              when: "false"
+              message: etcdserver database is not too large
