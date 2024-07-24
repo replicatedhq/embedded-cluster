@@ -17,7 +17,6 @@ global:
     replicated.com/disaster-recovery-chart: embedded-cluster-operator
 image:
   repository: proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator-image
-  tag: 0.40.2@sha256:8f464cc976210676bf4a75ec487b073e1902647449e4a945f195d51e94f0e4c8
-kotsVersion: 1.112.1
+  tag: 
 kubeProxyImage: 'proxy.replicated.com/anonymous/gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1@sha256:18f12fc3a0085bbc303cfbd2ad1151127c1c959c4641e36027547b6b66eb4c92'
 utilsImage: 'proxy.replicated.com/anonymous/busybox:1.36@sha256:50aa4698fa6262977cff89181b2664b99d8a56dbca847bf62f2ef04854597cf8'
