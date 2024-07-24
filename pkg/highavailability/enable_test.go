@@ -144,6 +144,12 @@ func Test_enableHA(t *testing.T) {
 							Phase: corev1.NamespaceActive,
 						},
 					},
+					&corev1.Namespace{
+						ObjectMeta: v1.ObjectMeta{Name: "registry"},
+						Status: corev1.NamespaceStatus{
+							Phase: corev1.NamespaceActive,
+						},
+					},
 				).Build(),
 			},
 		},

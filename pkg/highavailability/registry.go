@@ -25,7 +25,7 @@ func createRegistryResources(ctx context.Context, kcli client.Client, config *se
 
 	err = kubeutils.WaitForNamespace(ctx, kcli, defaults.RegistryNamespace)
 	if err != nil {
-		return fmt.Errorf("wait for seaweedfs namespace: %w", err)
+		return fmt.Errorf("wait for registry namespace: %w", err)
 	}
 
 	err = ensureRegistryS3Secret(ctx, kcli, config)
