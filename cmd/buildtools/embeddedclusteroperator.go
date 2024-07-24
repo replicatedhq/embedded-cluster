@@ -57,7 +57,7 @@ var updateOperatorAddonCommand = &cli.Command{
 
 		// make sure we include the operator util image as it does not show up
 		// when rendering the helm chart.
-		images = append(images, "busybox:1.36")
+		images = append(images, "docker.io/library/busybox:1.36")
 
 		logrus.Infof("fetching digest for images")
 		for _, image := range images {
