@@ -27,6 +27,8 @@ var updateAddonCommand = &cli.Command{
 		updateSeaweedFSAddonCommand,
 		updateRegistryAddonCommand,
 		updateVeleroAddonCommand,
+		updateOperatorAddonCommand,
+		updateAdminConsoleAddonCommand,
 	},
 }
 
@@ -35,5 +37,7 @@ var updateImagesCommand = &cli.Command{
 	Usage: "Update embedded cluster images",
 	Subcommands: []*cli.Command{
 		updateK0sImagesCommand,
+		updateOpenEBSImagesCommand,
+		updateVeleroImagesCommand,
 	},
 }

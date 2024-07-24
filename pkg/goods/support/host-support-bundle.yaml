@@ -409,3 +409,14 @@ spec:
             message: "Minimum kernel version of 3.10 has been met"
         - fail:
             message: "Minimum kernel version of 3.10 has not been met"
+  - textAnalyze:
+      checkName: Hostname Mismatch
+      fileName: host-collectors/run-host/k0scontroller-logs.txt
+      regex: ".*can only access node lease with the same name as the requesting node.*"
+      outcomes:
+        - fail:
+            when: "true"
+            message: "Possible hostname change. Verify that the current hostname matches what's expected by the k8s control plane"
+        - pass:
+            when: "false"
+            message: "No signs of hostname changes found"

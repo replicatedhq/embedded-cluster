@@ -1,0 +1,43 @@
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - docker-registry
+      topologyKey: kubernetes.io/hostname
+configData:
+  auth:
+    htpasswd:
+      path: /auth/htpasswd
+      realm: Registry
+  storage:
+    s3:
+      secure: false
+extraVolumeMounts:
+- mountPath: /auth
+  name: auth
+extraVolumes:
+- name: auth
+  secret:
+    secretName: registry-auth
+fullnameOverride: registry
+{{- if .ReplaceImages }}
+image:
+  repository: proxy.replicated.com/anonymous/registry
+  tag: '{{ index .Images "registry" }}'
+{{- end }}
+replicaCount: 2
+s3:
+  bucket: registry
+  encrypt: false
+  region: us-east-1
+  regionEndpoint: DYNAMIC
+  rootdirectory: /registry
+  secure: false
+secrets:
+  s3:
+    secretRef: seaweedfs-s3-rw
+storage: s3

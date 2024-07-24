@@ -3,7 +3,14 @@ on:
   schedule:
     # everyday at 1 o'clock.
     - cron: '0 1 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      openebs_chart_version:
+        description: 'OpenEBS chart version for updating the chart and images'
+        required: false
+      velero_chart_version:
+        description: 'Velero chart version for updating the chart and images'
+        required: false
 jobs:
   build:
     name: Build
@@ -35,6 +42,8 @@ jobs:
           - registry
           - seaweedfs
           - velero
+          - embeddedclusteroperator
+          - adminconsole
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -42,17 +51,22 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: buildtools
-          path: ./output/artifacts
+          path: output/bin
       - name: Update ${{ matrix.addon }}
         id: update
         env:
-          REGISTRY_SERVER: registry.replicated.com
-          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME_PRODUCTION }}
-          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD_PRODUCTION }}
-          DESTINATION: oci://registry.replicated.com/ec-charts
+          CHARTS_REGISTRY_SERVER: registry.replicated.com
+          CHARTS_REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME_PRODUCTION }}
+          CHARTS_REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD_PRODUCTION }}
+          IMAGES_REGISTRY_SERVER: index.docker.io
+          IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+          CHARTS_DESTINATION: registry.replicated.com/ec-charts
+          INPUT_OPENEBS_CHART_VERSION: ${{ github.event.inputs.openebs_chart_version }}
+          INPUT_VELERO_CHART_VERSION: ${{ github.event.inputs.velero_chart_version }}
         run: |
-          chmod 755 ./output/artifacts/buildtools
-          ./output/artifacts/buildtools update addon ${{ matrix.addon }}
+          chmod 755 ./output/bin/buildtools
+          ./output/bin/buildtools update addon ${{ matrix.addon }}
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
@@ -67,4 +81,4 @@ jobs:
           draft: false
           base: "main"
           body: |
-            Automated changes by the [cron-mirror-helm-charts](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/mirror-helm-charts.yaml) GitHub action
+            Automated changes by the [update-addons](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/update-addons.yaml) GitHub action

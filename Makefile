@@ -5,32 +5,25 @@ APP_NAME = embedded-cluster
 COREDNS_IMAGE = proxy.replicated.com/anonymous/replicated/ec-coredns
 COREDNS_VERSION = 1.11.3-r3@sha256:7996a7ee8e1b7fec9a6dc216b01f0047cafbd551562bde44a2c6615ef8f3dbfc
 CALICO_NODE_IMAGE = proxy.replicated.com/anonymous/replicated/ec-calico-node
-CALICO_NODE_VERSION = 3.26.1-r16@sha256:f2d58c94a900bf33174d81cb270dfdf070350954fd2e4e7edeccc2dad2f855b6
+CALICO_NODE_VERSION = 3.26.1-r16@sha256:7212746eda056c0b2833764d065e932fdddee2aced0170fd721197b19d13606e
 CALICO_CNI_IMAGE = proxy.replicated.com/anonymous/replicated/ec-calico-cni
 CALICO_CNI_VERSION = 3.26.1-r16@sha256:11d5bf25611ffc578e632e23e09767ca5a964f81ff311c47d2e98b686c2d0365
 CALICO_KUBE_CONTROLLERS_IMAGE = proxy.replicated.com/anonymous/replicated/ec-calico-kube-controllers
-CALICO_KUBE_CONTROLLERS_VERSION = 3.26.1-r16@sha256:50703dc3f6b17188dda3dc445f5b1f41ab4473d8f7dbed0ac39a3685ac8e916d
+CALICO_KUBE_CONTROLLERS_VERSION = 3.26.1-r16@sha256:74e845a0dbbd2b9ebd988c03ed53b88f2e2657c5defb2ed7796dda2583601111
 METRICS_SERVER_IMAGE = proxy.replicated.com/anonymous/replicated/ec-metrics-server
 METRICS_SERVER_VERSION = 0.6.4-r9@sha256:bd7d9ada28e299979174b2094d1eec7d653f793730b320dc7e90763c92452268
+KUBE_PROXY_IMAGE = proxy.replicated.com/anonymous/replicated/ec-kube-proxy
+KUBE_PROXY_VERSION = 1.29.5-r0@sha256:a329421a4574823411f4e4f3215a112596407a4bd5a96372b7059feb77258074
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
-ADMIN_CONSOLE_CHART_VERSION = 1.112.1-build.1
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-EMBEDDED_OPERATOR_CHART_VERSION = 0.40.2
+EMBEDDED_OPERATOR_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
 EMBEDDED_OPERATOR_UTILS_IMAGE ?= replicated/embedded-cluster-utils
 EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION ?= $(subst +,-,$(VERSION))
 EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION = proxy.replicated.com/anonymous/$(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
 EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
-OPENEBS_CHART_VERSION = 4.1.0
-OPENEBS_UTILS_VERSION = 4.1.0
-SEAWEEDFS_CHART_VERSION = 4.0.0
-REGISTRY_CHART_VERSION = 2.2.3
-REGISTRY_IMAGE_VERSION = 2.8.3
-VELERO_CHART_VERSION = 6.3.0
-VELERO_IMAGE_VERSION = v1.13.2
-VELERO_AWS_PLUGIN_IMAGE_VERSION = v1.9.2
 KUBECTL_VERSION = v1.30.1
 K0S_VERSION = v1.29.6+k0s.0
 K0S_GO_VERSION = v1.29.6+k0s.0
@@ -38,12 +31,13 @@ PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.95.1
-KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 KOTS_BINARY_URL_OVERRIDE =
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= replicated/embedded-cluster-local-artifact-mirror
 LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION ?= $(subst +,-,$(VERSION))
 LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION = proxy.replicated.com/anonymous/$(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
-LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
+LD_FLAGS = \
+	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.KubectlVersion=$(KUBECTL_VERSION) \
@@ -58,23 +52,16 @@ LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$
 	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoKubeControllersVersion=$(CALICO_KUBE_CONTROLLERS_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.MetricsServerImage=$(METRICS_SERVER_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.MetricsServerVersion=$(METRICS_SERVER_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.KubeProxyImage=$(KUBE_PROXY_IMAGE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.KubeProxyVersion=$(KUBE_PROXY_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.MigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ImageOverride=$(EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.UtilsVersion=$(OPENEBS_UTILS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.Version=$(SEAWEEDFS_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.Version=$(VELERO_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.VeleroTag=$(VELERO_IMAGE_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.EmbeddedOperatorImageOverride=$(EMBEDDED_OPERATOR_IMAGE_OVERRIDE)
 
 export PATH := $(shell pwd)/bin:$(PATH)
 
@@ -84,23 +71,23 @@ default: embedded-cluster-linux-amd64
 pkg/goods/bins/k0s: Makefile
 	mkdir -p pkg/goods/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
-	    curl -L -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
+	    curl -fL -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
 	else \
-	    curl -L -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
+	    curl -fL -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
 	fi
 	chmod +x pkg/goods/bins/k0s
 	touch pkg/goods/bins/k0s
 
 pkg/goods/bins/kubectl: Makefile
 	mkdir -p pkg/goods/bins
-	curl -L -o pkg/goods/bins/kubectl "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+	curl -fL -o pkg/goods/bins/kubectl "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
 	chmod +x pkg/goods/bins/kubectl
 	touch pkg/goods/bins/kubectl
 
 pkg/goods/bins/kubectl-support_bundle: Makefile
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/support-bundle
-	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
+	curl -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
 	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/kubectl-support_bundle
 	touch pkg/goods/bins/kubectl-support_bundle
@@ -108,7 +95,7 @@ pkg/goods/bins/kubectl-support_bundle: Makefile
 pkg/goods/bins/kubectl-preflight: Makefile
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/preflight
-	curl -L -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
+	curl -fL -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
 	touch pkg/goods/bins/kubectl-preflight
@@ -124,9 +111,9 @@ pkg/goods/internal/bins/kubectl-kots: Makefile
 	mkdir -p pkg/goods/internal/bins
 	mkdir -p output/tmp/kots
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
-	    curl -L -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
+	    curl -fL -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
 	else \
-	    curl -L -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
+	    curl -fL -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
 	fi
 	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
 	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots
@@ -290,10 +277,12 @@ melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
 .PHONY: apko-template
 apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
-	envsubst '$${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
+	envsubst '$${PACKAGE_NAME} $${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
 
 .PHONY: buildtools
 buildtools:
+	mkdir -p pkg/goods/bins pkg/goods/internal/bins
+	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: cache-files
