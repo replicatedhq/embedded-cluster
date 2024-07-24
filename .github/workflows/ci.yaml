@@ -260,45 +260,45 @@ jobs:
           - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
-#          - TestVersion
-#          - TestHostPreflight
-#          - TestUnsupportedOverrides
-#          - TestMultiNodeInstallation
-#          - TestMultiNodeReset
-#          - TestCommandsRequireSudo
-#          - TestInstallWithoutEmbed
+          - TestVersion
+          - TestHostPreflight
+          - TestUnsupportedOverrides
+          - TestMultiNodeInstallation
+          - TestMultiNodeReset
+          - TestCommandsRequireSudo
+          - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
-#          - TestResetAndReinstall
-#          - TestResetAndReinstallAirgap
-#          - TestCollectSupportBundle
-#          - TestOldVersionUpgrade
-#          - TestMaterialize
-#          - TestLocalArtifactMirror
-#          - TestSingleNodeAirgapUpgrade
-#          - TestSingleNodeAirgapUpgradeCustomCIDR
-#          - TestInstallSnapshotFromReplicatedApp
-#          - TestMultiNodeAirgapUpgrade
-#          - TestSingleNodeDisasterRecovery
-#          - TestSingleNodeDisasterRecoveryWithProxy
-#          - TestSingleNodeResumeDisasterRecovery
-#          - TestSingleNodeAirgapDisasterRecovery
-#          - TestProxiedEnvironment
+          - TestResetAndReinstall
+          - TestResetAndReinstallAirgap
+          - TestCollectSupportBundle
+          - TestOldVersionUpgrade
+          - TestMaterialize
+          - TestLocalArtifactMirror
+          - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeCustomCIDR
+          - TestInstallSnapshotFromReplicatedApp
+          - TestMultiNodeAirgapUpgrade
+          - TestSingleNodeDisasterRecovery
+          - TestSingleNodeDisasterRecoveryWithProxy
+          - TestSingleNodeResumeDisasterRecovery
+          - TestSingleNodeAirgapDisasterRecovery
+          - TestProxiedEnvironment
           - TestMultiNodeHAInstallation
           - TestMultiNodeHADisasterRecovery
-#          - TestCustomCIDR
-#          - TestProxiedCustomCIDR
-#          - TestSingleNodeInstallationNoopUpgrade
+          - TestCustomCIDR
+          - TestProxiedCustomCIDR
+          - TestSingleNodeInstallationNoopUpgrade
         include:
-#          - test: TestMultiNodeAirgapUpgrade
-#            runner: embedded-cluster
-#          - test: TestMultiNodeAirgapUpgradeSameK0s
-#            runner: embedded-cluster
-#          - test: TestMultiNodeAirgapHAInstallation
-#            runner: embedded-cluster
-#          - test: TestMultiNodeAirgapHADisasterRecovery
-#            runner: embedded-cluster
-#          - test: TestSingleNodeAirgapDisasterRecovery
-#            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgradeSameK0s
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHADisasterRecovery
+            runner: embedded-cluster
+          - test: TestSingleNodeAirgapDisasterRecovery
+            runner: embedded-cluster
           - test: TestMultiNodeAirgapHAInstallation
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHADisasterRecovery
