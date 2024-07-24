@@ -40,7 +40,11 @@ var (
 	rawmetadata []byte
 	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.AddonMetadata
-	// Overwritten by -ldflags in Makefile
+)
+
+// Overwritten by -ldflags in Makefile
+var (
+	UtilsImage                    = "busybox:latest"
 	EmbeddedOperatorImageOverride = ""
 )
 
@@ -68,6 +72,10 @@ func init() {
 			"repository": parts[0],
 			"tag":        parts[1],
 		}
+	}
+
+	if UtilsImage != "" {
+		helmValues["utilsImage"] = UtilsImage
 	}
 }
 
@@ -141,11 +149,22 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embed
 	return []embeddedclusterv1beta1.Chart{chartConfig}, nil, nil
 }
 
-func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
-	if tag, ok := Metadata.Images["docker.io/library/busybox"]; ok {
-		return []string{fmt.Sprintf("proxy.replicated.com/anonymous/busybox:%s", tag)}
+func (a *EmbeddedClusterOperator) GetImages() []string {
+	var images []string
+	for image, tag := range Metadata.Images {
+		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", image, tag))
 	}
-	return nil
+	return images
+}
+
+func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
+	var images []string
+	if UtilsImage != "" {
+		images = append(images, UtilsImage)
+	} else if tag, ok := Metadata.Images["busybox"]; ok {
+		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/busybox:%s", tag))
+	}
+	return images
 }
 
 // createVersionMetadataConfigMap creates a ConfigMap with the version metadata for the embedded cluster operator.

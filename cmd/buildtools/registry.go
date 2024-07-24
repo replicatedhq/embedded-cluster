@@ -80,7 +80,7 @@ var updateRegistryAddonCommand = &cli.Command{
 			}
 			logrus.Infof("image %s digest: %s", image, sha)
 
-			newmeta.Images[withoutTag] = fmt.Sprintf("%s@%s", tag, sha)
+			newmeta.Images[FamiliarImageName(withoutTag)] = fmt.Sprintf("%s@%s", tag, sha)
 		}
 
 		logrus.Infof("saving addon manifest")

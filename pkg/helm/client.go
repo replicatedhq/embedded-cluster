@@ -1,4 +1,4 @@
-package main
+package helm
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -69,26 +68,44 @@ var (
 	}
 )
 
-func NewHelm() (*Helm, error) {
+func NewHelm(opts HelmOptions) (*Helm, error) {
 	tmpdir, err := os.MkdirTemp(os.TempDir(), "helm-cache-*")
 	if err != nil {
 		return nil, err
 	}
-	writer := logrus.New().Writer()
-	regcli, err := registry.NewClient(registry.ClientOptWriter(writer))
+	registryOpts := []registry.ClientOption{}
+	if opts.Writer != nil {
+		registryOpts = append(registryOpts, registry.ClientOptWriter(opts.Writer))
+	}
+	var kversion *semver.Version
+	if opts.K0sVersion != "" {
+		sv, err := semver.NewVersion(opts.K0sVersion)
+		if err != nil {
+			return nil, fmt.Errorf("parse k0s version: %w", err)
+		}
+		kversion = sv
+	}
+	regcli, err := registry.NewClient(registryOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create registry client: %w", err)
+		return nil, fmt.Errorf("create registry client: %w", err)
 	}
 	return &Helm{
-		tmpdir: tmpdir,
-		regcli: regcli,
+		tmpdir:   tmpdir,
+		kversion: kversion,
+		regcli:   regcli,
 	}, nil
 }
 
+type HelmOptions struct {
+	K0sVersion string
+	Writer     io.Writer
+}
+
 type Helm struct {
-	tmpdir  string
-	repocfg string
-	regcli  *registry.Client
+	tmpdir   string
+	kversion *semver.Version
+	regcli   *registry.Client
+	repocfg  string
 }
 
 func (h *Helm) prepare() error {
@@ -98,12 +115,12 @@ func (h *Helm) prepare() error {
 
 	data, err := yaml.Marshal(repositories)
 	if err != nil {
-		return fmt.Errorf("unable to marshal repositories: %w", err)
+		return fmt.Errorf("marshal repositories: %w", err)
 	}
 
 	repocfg := filepath.Join(h.tmpdir, "config.yaml")
 	if err := os.WriteFile(repocfg, data, 0644); err != nil {
-		return fmt.Errorf("unable to write repositories: %w", err)
+		return fmt.Errorf("write repositories: %w", err)
 	}
 
 	for _, repository := range repositories.Repositories {
@@ -111,12 +128,12 @@ func (h *Helm) prepare() error {
 			repository, getters,
 		)
 		if err != nil {
-			return fmt.Errorf("unable to create chart repo: %w", err)
+			return fmt.Errorf("create chart repo: %w", err)
 		}
 		chrepo.CachePath = h.tmpdir
 		_, err = chrepo.DownloadIndexFile()
 		if err != nil {
-			return fmt.Errorf("unable to download index file: %w", err)
+			return fmt.Errorf("download index file: %w", err)
 		}
 	}
 	h.repocfg = repocfg
@@ -128,24 +145,23 @@ func (h *Helm) Close() error {
 }
 
 func (h *Helm) Latest(reponame, chart string) (string, error) {
-	logrus.Infof("finding latest chart version of %s/%s", reponame, chart)
 	for _, repository := range repositories.Repositories {
 		if repository.Name != reponame {
 			continue
 		}
 		chrepo, err := repo.NewChartRepository(repository, getters)
 		if err != nil {
-			return "", fmt.Errorf("unable to create chart repo: %w", err)
+			return "", fmt.Errorf("create chart repo: %w", err)
 		}
 		chrepo.CachePath = h.tmpdir
 		idx, err := chrepo.DownloadIndexFile()
 		if err != nil {
-			return "", fmt.Errorf("unable to download index file: %w", err)
+			return "", fmt.Errorf("download index file: %w", err)
 		}
 
 		repoidx, err := repo.LoadIndexFile(idx)
 		if err != nil {
-			return "", fmt.Errorf("unable to load index file: %w", err)
+			return "", fmt.Errorf("load index file: %w", err)
 		}
 
 		versions, ok := repoidx.Entries[chart]
@@ -177,7 +193,7 @@ func (h *Helm) PullOCI(url, version string) (string, error) {
 	}
 	path, _, err := dl.DownloadTo(url, version, h.tmpdir)
 	if err != nil {
-		return "", fmt.Errorf("unable to download chart: %w", err)
+		return "", fmt.Errorf("download chart: %w", err)
 	}
 	return path, nil
 }
@@ -215,7 +231,7 @@ func (h *Helm) Push(path, dst string) error {
 	return up.UploadTo(path, dst)
 }
 
-func (h *Helm) Render(chartName string, chartPath string, vals map[string]interface{}, namespace string) ([]string, error) {
+func (h *Helm) Render(chartName string, chartPath string, vals map[string]interface{}, namespace string) ([][]byte, error) {
 	cfg := &action.Configuration{}
 
 	client := action.NewInstall(cfg)
@@ -226,22 +242,18 @@ func (h *Helm) Render(chartName string, chartPath string, vals map[string]interf
 	client.IncludeCRDs = true
 	client.Namespace = namespace
 
-	rawver, err := GetMakefileVariable("K0S_VERSION")
-	if err != nil {
-		return nil, fmt.Errorf("unable to get k0s version: %w", err)
-	}
-	kversion := semver.MustParse(rawver)
-
-	// since ClientOnly is true we need to initialize KubeVersion otherwise resorts defaults
-	client.KubeVersion = &chartutil.KubeVersion{
-		Version: fmt.Sprintf("v%d.%d.0", kversion.Major(), kversion.Minor()),
-		Major:   fmt.Sprintf("%d", kversion.Major()),
-		Minor:   fmt.Sprintf("%d", kversion.Minor()),
+	if h.kversion != nil {
+		// since ClientOnly is true we need to initialize KubeVersion otherwise resorts defaults
+		client.KubeVersion = &chartutil.KubeVersion{
+			Version: fmt.Sprintf("v%d.%d.0", h.kversion.Major(), h.kversion.Minor()),
+			Major:   fmt.Sprintf("%d", h.kversion.Major()),
+			Minor:   fmt.Sprintf("%d", h.kversion.Minor()),
+		}
 	}
 
 	chartRequested, err := loader.Load(chartPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load chart: %w", err)
+		return nil, fmt.Errorf("load chart: %w", err)
 	}
 
 	if req := chartRequested.Metadata.Dependencies; req != nil {
@@ -250,9 +262,11 @@ func (h *Helm) Render(chartName string, chartPath string, vals map[string]interf
 		}
 	}
 
-	rel, err := client.Run(chartRequested, vals)
+	cleanVals := cleanUpGenericMap(vals)
+
+	rel, err := client.Run(chartRequested, cleanVals)
 	if err != nil {
-		return nil, fmt.Errorf("failed to render chart: %w", err)
+		return nil, fmt.Errorf("run render: %w", err)
 	}
 
 	var manifests bytes.Buffer
@@ -261,12 +275,64 @@ func (h *Helm) Render(chartName string, chartPath string, vals map[string]interf
 		fmt.Fprintf(&manifests, "---\n# Source: %s\n%s\n", m.Path, m.Manifest)
 	}
 
-	resources := []string{}
+	resources := [][]byte{}
 	splitManifests := releaseutil.SplitManifests(manifests.String())
 	for _, manifest := range splitManifests {
 		manifest = strings.TrimSpace(manifest)
-		resources = append(resources, manifest)
+		resources = append(resources, []byte(manifest))
 	}
 
 	return resources, nil
+}
+
+// cleanUpGenericMap is a helper to "cleanup" generic yaml parsing where nested maps
+// are unmarshalled with type map[interface{}]interface{}
+func cleanUpGenericMap(in map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range in {
+		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
+	}
+	return result
+}
+
+// Cleans up the value in the map, recurses in case of arrays and maps
+func cleanUpMapValue(v interface{}) interface{} {
+	// Keep null values as nil to avoid type mismatches
+	if v == nil {
+		return nil
+	}
+	switch v := v.(type) {
+	case []interface{}:
+		return cleanUpInterfaceArray(v)
+	case map[string]interface{}:
+		return cleanUpInterfaceMap(v)
+	case string:
+		return v
+	case int:
+		return v
+	case bool:
+		return v
+	case float64:
+		return v
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// Cleans up a slice of interfaces into slice of actual values
+func cleanUpInterfaceArray(in []interface{}) []interface{} {
+	result := make([]interface{}, len(in))
+	for i, v := range in {
+		result[i] = cleanUpMapValue(v)
+	}
+	return result
+}
+
+// Cleans up the map keys to be strings
+func cleanUpInterfaceMap(in map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range in {
+		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
+	}
+	return result
 }

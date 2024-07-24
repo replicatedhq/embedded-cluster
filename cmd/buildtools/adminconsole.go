@@ -59,7 +59,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 			logrus.Infof("image %s digest: %s", image, sha)
 			tag := TagFromImage(image)
 			image = RemoveTagFromImage(image)
-			newmeta.Images[image] = fmt.Sprintf("%s@%s", tag, sha)
+			newmeta.Images[FamiliarImageName(image)] = fmt.Sprintf("%s@%s", tag, sha)
 		}
 
 		logrus.Infof("saving addon manifest")

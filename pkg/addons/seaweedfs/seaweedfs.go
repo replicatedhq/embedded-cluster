@@ -93,6 +93,14 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ec
 	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
+func (a *SeaweedFS) GetImages() []string {
+	var images []string
+	for image, tag := range Metadata.Images {
+		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", image, tag))
+	}
+	return images
+}
+
 func (o *SeaweedFS) GetAdditionalImages() []string {
 	return nil
 }

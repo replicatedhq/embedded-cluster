@@ -33,10 +33,11 @@ func main() {
 		Usage: "Provide a set of tools for building embedded cluster binarires",
 		Commands: []*cli.Command{
 			updateCommand,
+			metadataCommand,
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
