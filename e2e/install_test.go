@@ -1345,8 +1345,8 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	}
 
 	bin := strings.Split(command, " ")[0]
-	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "reset", "--no-prompt"})
+	t.Logf("%s: resetting controller node 0", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
 		t.Fatalf("fail to remove controller node %s:", err)
 	}
@@ -1512,6 +1512,10 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node 2: %v", err)
 	}
+	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
+	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+		t.Fatalf("fail to remove embedded-cluster binary on node 2: %v", err)
+	}
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
@@ -1537,10 +1541,6 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
-	line = []string{"rm", "/usr/local/bin/embedded-cluster-upgrade"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to remove embedded-cluster-upgrade binary on node %s: %v", tc.Nodes[0], err)
-	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -1556,8 +1556,8 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
-	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{"/usr/local/bin/embedded-cluster", "reset", "--no-prompt"})
+	t.Logf("%s: resetting controller node 0", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, []string{"/usr/local/bin/embedded-cluster-upgrade", "reset", "--no-prompt"})
 	if err != nil {
 		t.Fatalf("fail to remove controller node %s:", err)
 	}
