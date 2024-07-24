@@ -41,6 +41,7 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
 	cfg.Spec.Telemetry.Enabled = false
+	overrideK0sImages(cfg)
 	return cfg
 }
 

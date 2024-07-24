@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
-	"github.com/k0sproject/k0s/pkg/airgap"
 	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/urfave/cli/v2"
@@ -144,12 +143,8 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	}
 	meta.BuiltinConfigs = builtinCharts
 
-	// Render k0s config to get the images contained within
-	k0sConfig := config.RenderK0sConfig()
-	if err := config.OverrideK0sImages(k0sConfig); err != nil {
-		return nil, fmt.Errorf("unable to override k0s images: %w", err)
-	}
-	meta.K0sImages = airgap.GetImageURIs(k0sConfig.Spec, true)
+	cfg := config.RenderK0sConfig()
+	meta.K0sImages = config.ListK0sImages(cfg)
 
 	additionalImages, err := applier.GetAdditionalImages()
 	if err != nil {

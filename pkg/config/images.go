@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"fmt"
 
+	"github.com/k0sproject/k0s/pkg/airgap"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"gopkg.in/yaml.v2"
@@ -22,11 +24,22 @@ func init() {
 	}
 }
 
-func OverrideK0sImages(cfg *k0sv1beta1.ClusterConfig) error {
-	if len(Metadata.Images) == 0 {
-		return fmt.Errorf("no images found in metadata")
+func ListK0sImages(cfg *k0sconfig.ClusterConfig) []string {
+	var images []string
+	for _, image := range airgap.GetImageURIs(cfg.Spec, true) {
+		switch image {
+		// skip these images
+		case cfg.Spec.Images.KubeRouter.CNI.URI(),
+			cfg.Spec.Images.KubeRouter.CNIInstaller.URI(),
+			cfg.Spec.Images.Konnectivity.URI():
+		default:
+			images = append(images, image)
+		}
 	}
+	return images
+}
 
+func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 	if cfg.Spec.Images == nil {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
@@ -64,6 +77,4 @@ func OverrideK0sImages(cfg *k0sv1beta1.ClusterConfig) error {
 	// }
 	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = "proxy.replicated.com/anonymous/replicated/ec-envoy-distroless"
 	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"]
-
-	return nil
 }

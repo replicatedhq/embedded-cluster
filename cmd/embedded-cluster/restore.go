@@ -315,16 +315,13 @@ func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
-	if err := config.OverrideK0sImages(cfg); err != nil {
-		return nil, fmt.Errorf("unable to override k0s images: %w", err)
-	}
-	opts := []addons.Option{}
 	if c.String("pod-cidr") != "" {
 		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	}
 	if c.String("service-cidr") != "" {
 		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	}
+	opts := []addons.Option{}
 	if c.Bool("proxy") {
 		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
