@@ -266,6 +266,7 @@ jobs:
 #          - TestSingleNodeResumeDisasterRecovery
 #          - TestSingleNodeAirgapDisasterRecovery
 #          - TestProxiedEnvironment
+          - TestMultiNodeHAInstallation
           - TestMultiNodeHADisasterRecovery
 #          - TestCustomCIDR
 #          - TestProxiedCustomCIDR
@@ -281,8 +282,6 @@ jobs:
 #            runner: embedded-cluster
 #          - test: TestSingleNodeAirgapDisasterRecovery
 #            runner: embedded-cluster
-          - test: TestMultiNodeHAInstallation
-            runner: embedded-cluster
           - test: TestMultiNodeAirgapHAInstallation
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHADisasterRecovery
