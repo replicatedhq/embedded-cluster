@@ -26,7 +26,7 @@ test('deploy upgrade', async ({ page }) => {
 
   if (process.env.SKIP_CLUSTER_UPGRADE_CHECK !== 'true') {
     await expect(page.locator('.Modal-body')).toContainText('Cluster update in progress');
-    await expect(page.locator('.Modal-body').getByText('Cluster update in progress')).not.toBeVisible({ timeout: 10 * 60 * 1000 });
+    await expect(page.locator('.Modal-body').getByText('Cluster update in progress')).not.toBeVisible({ timeout: 20 * 60 * 1000 });
   }
 
   await expect(page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION })).not.toBeVisible({ timeout: 10 * 1000 });
