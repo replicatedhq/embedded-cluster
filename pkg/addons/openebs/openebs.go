@@ -29,7 +29,7 @@ var (
 	helmValues map[string]interface{}
 	//go:embed static/metadata.yaml
 	rawmetadata []byte
-	// Metadata is the unmarchal version of rawmetadata.
+	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.AddonMetadata
 )
 
@@ -89,10 +89,11 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 }
 
 func (o *OpenEBS) GetAdditionalImages() []string {
-	if tag, ok := Metadata.Images["openebs/linux-utils"]; ok {
-		return []string{fmt.Sprintf("proxy.replicated.com/anonymous/openebs/linux-utils:%s", tag)}
+	var images []string
+	if tag, ok := Metadata.Images["openebs-linux-utils"]; ok {
+		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils:%s", tag))
 	}
-	return nil
+	return images
 }
 
 // Outro is executed after the cluster deployment.

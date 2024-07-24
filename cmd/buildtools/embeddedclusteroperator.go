@@ -50,9 +50,9 @@ var updateOperatorAddonCommand = &cli.Command{
 
 		logrus.Infof("extracting images from chart")
 		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "adminconsole", latest, values)
+		images, err := GetImagesFromOCIChart(withproto, "embeddedclusteroperator", latest, values)
 		if err != nil {
-			return fmt.Errorf("failed to get images from admin console chart: %w", err)
+			return fmt.Errorf("failed to get images from embedded cluster operator chart: %w", err)
 		}
 
 		// make sure we include the operator util image as it does not show up
