@@ -34,7 +34,7 @@ func TestListK0sImages(t *testing.T) {
 		t.Errorf("ListK0sImages() = %v, want to contain apiserver-network-proxy-agent", original)
 	}
 
-	filtered := ListK0sImages()
+	filtered := ListK0sImages(RenderK0sConfig())
 	if len(filtered) == 0 {
 		t.Errorf("ListK0sImages() = %v, want not empty", filtered)
 	}
