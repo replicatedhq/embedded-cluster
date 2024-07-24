@@ -45,11 +45,11 @@ jobs:
         export VERSION=${{needs.get-tag.outputs.tag}}
         export IMAGE=replicated/embedded-cluster-operator-image-staging:${VERSION}
         export APKO_CONFIG=deploy/apko.tmpl.yaml
-        make apko-login \
+        make apko apko-login \
           REGISTRY=docker.io \
           USERNAME=${{secrets.DOCKERHUB_USER}} \
           PASSWORD=${{secrets.DOCKERHUB_PASSWORD}}
-        make apko apko-publish
+        make apko-build-and-publish
         echo ::notice title=digest::$(cat build/digest)
 
   package-and-publish-helmchart:
