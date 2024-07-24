@@ -172,7 +172,7 @@ func findBestAWSPluginVersion(ctx context.Context, veleroVersion string) (string
 	if !ok {
 		return "", fmt.Errorf("no aws plugin compatibility constraints found for velero version %s", veleroVersion)
 	}
-	awsPluginVersion, err := GetBestGitHubTag(ctx, "vmware-tanzu", "velero-plugin-for-aws", constraints)
+	awsPluginVersion, err := GetGreatestGitHubTag(ctx, "vmware-tanzu", "velero-plugin-for-aws", constraints)
 	if err != nil {
 		return "", fmt.Errorf("failed to get best velero plugin for aws release with constraints %s: %w", constraints, err)
 	}
