@@ -12,7 +12,8 @@ type ReleaseMetadata struct {
 	K0sSHA         string
 	K0sBinaryURL   string
 	Artifacts      map[string]string // key is the artifact name, value is the URL it can be retrieved from
-	K0sImages      []string
+	Images         []string
+	K0sImages      []string                // deprecated (still used by airgap-builder), use Images instead
 	Configs        v1beta1.Helm            // always applied
 	BuiltinConfigs map[string]v1beta1.Helm // applied if the relevant builtin addon is enabled
 	Protected      map[string][]string
