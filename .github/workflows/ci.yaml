@@ -265,10 +265,8 @@ jobs:
 #          - TestSingleNodeDisasterRecoveryWithProxy
 #          - TestSingleNodeResumeDisasterRecovery
 #          - TestSingleNodeAirgapDisasterRecovery
-          - TestMultiNodeHAInstallation
 #          - TestProxiedEnvironment
           - TestMultiNodeHADisasterRecovery
-          - TestMultiNodeAirgapHADisasterRecovery
 #          - TestCustomCIDR
 #          - TestProxiedCustomCIDR
 #          - TestSingleNodeInstallationNoopUpgrade
@@ -283,7 +281,11 @@ jobs:
 #            runner: embedded-cluster
 #          - test: TestSingleNodeAirgapDisasterRecovery
 #            runner: embedded-cluster
+          - test: TestMultiNodeHAInstallation
+            runner: embedded-cluster
           - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHADisasterRecovery
             runner: embedded-cluster
     steps:
       - name: Checkout
