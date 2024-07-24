@@ -49,20 +49,21 @@ func OverrideK0sImages(cfg *k0sv1beta1.ClusterConfig) error {
 	cfg.Spec.Images.KubeProxy.Image = "proxy.replicated.com/anonymous/replicated/ec-kube-proxy"
 	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"]
 
-	if cfg.Spec.Network == nil {
-		cfg.Spec.Network = &k0sv1beta1.Network{}
-	}
-	if cfg.Spec.Network.NodeLocalLoadBalancing == nil {
-		cfg.Spec.Network.NodeLocalLoadBalancing = &k0sv1beta1.NodeLocalLoadBalancing{}
-	}
-	if cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy == nil {
-		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy = &k0sv1beta1.EnvoyProxy{}
-	}
-	if cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image == nil {
-		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image = &k0sv1beta1.ImageSpec{}
-	}
-	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = "proxy.replicated.com/anonymous/replicated/ec-envoy-distroless"
-	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"]
+	// TODO (salah): uncomment when upstream PR for digest support is released: https://github.com/k0sproject/k0s/pull/4792
+	// if cfg.Spec.Network == nil {
+	// 	cfg.Spec.Network = &k0sv1beta1.Network{}
+	// }
+	// if cfg.Spec.Network.NodeLocalLoadBalancing == nil {
+	// 	cfg.Spec.Network.NodeLocalLoadBalancing = &k0sv1beta1.NodeLocalLoadBalancing{}
+	// }
+	// if cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy == nil {
+	// 	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy = &k0sv1beta1.EnvoyProxy{}
+	// }
+	// if cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image == nil {
+	// 	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image = &k0sv1beta1.ImageSpec{}
+	// }
+	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = "proxy.replicated.com/anonymous/replicated/ec-envoy-distroless"
+	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"]
 
 	return nil
 }
