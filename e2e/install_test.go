@@ -551,36 +551,8 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
-	// download airgap bundle
-	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/appver-%s?airgap=true", os.Getenv("SHORT_SHA"))
-
-	req, err := http.NewRequest("GET", airgapURL, nil)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	req.Header.Set("Authorization", os.Getenv("AIRGAP_LICENSE_ID"))
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("failed to download airgap bundle: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("failed to download airgap bundle: %s", resp.Status)
-	}
-
-	// pipe response to a temporary file
 	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
-	f, err := os.Create(airgapBundlePath)
-	if err != nil {
-		t.Fatalf("failed to create temporary file: %v", err)
-	}
-	defer f.Close()
-	size, err := f.ReadFrom(resp.Body)
-	if err != nil {
-		t.Fatalf("failed to write response to temporary file: %v", err)
-	}
-	t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
+	downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 
 	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
 
@@ -596,13 +568,13 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
 
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -614,7 +586,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
