@@ -49,7 +49,7 @@ spec:
     - hostOS: {}
   analyzers:
     - cpu:
-        checkName: 'CPU'
+        checkName: 'Number of CPU cores'
         outcomes:
           - fail:
               when: 'count < 2'
@@ -57,7 +57,7 @@ spec:
           - pass:
               message: At least 2 CPU cores are present
     - memory:
-        checkName: Memory
+        checkName: Amount of Memory
         outcomes:
           - fail:
               when: '< 2G'
@@ -282,51 +282,8 @@ spec:
           - fail:
               when: "false"
               message: "'umount' command does not exist in PATH"
-    - textAnalyze:
-        checkName: Check if /proc filesystem is mounted
-        fileName: host-collectors/run-host/check-proc-filesystem.txt
-        regex: 'proc'
-        outcomes:
-          - pass:
-              when: "true"
-              message: "/proc filesystem is mounted"
-          - fail:
-              when: "false"
-              message: "/proc filesystem is not mounted"
-    - textAnalyze:
-        checkName: Check if 'modprobe' command exists in PATH
-        fileName: host-collectors/run-host/check-modprobe.txt
-        regex: '/usr/sbin/modprobe'
-        outcomes:
-          - pass:
-              when: "true"
-              message: "'modprobe' command exists in PATH"
-          - fail:
-              when: "false"
-              message: "'modprobe' command does not exist in PATH"
-    - textAnalyze:
-        checkName: Check if 'mount' command exists in PATH
-        fileName: host-collectors/run-host/check-mount.txt
-        regex: '/usr/bin/mount'
-        outcomes:
-          - pass:
-              when: "true"
-              message: "'mount' command exists in PATH"
-          - fail:
-              when: "false"
-              message: "'mount' command does not exist in PATH"
-    - textAnalyze:
-        checkName: Check if 'umount' command exists in PATH
-        fileName: host-collectors/run-host/check-umount.txt
-        regex: '/usr/bin/umount'
-        outcomes:
-          - pass:
-              when: "true"
-              message: "'umount' command exists in PATH"
-          - fail:
-              when: "false"
-              message: "'umount' command does not exist in PATH"
     - hostOS:
+        checkName: Check minimum kernel version
         outcomes:
           - pass:
               when: "kernelVersion >= 3.10"
