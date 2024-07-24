@@ -37,10 +37,10 @@ var veleroComponents = map[string]addonComponent{
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
 	"kubectl": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return fmt.Sprintf("kubectl-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			// match the greatest patch version of the same minor version
 			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
 		},
@@ -149,7 +149,7 @@ func findVeleroVersionFromChart(ctx context.Context, chartURL string, chartVersi
 	}
 	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
 	if err != nil {
-		return "", fmt.Errorf("failed to get images from admin console chart: %w", err)
+		return "", fmt.Errorf("failed to get images from velero chart: %w", err)
 	}
 
 	for _, image := range images {
@@ -186,15 +186,10 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 		Images:   make(map[string]string),
 	}
 
-	rawver := os.Getenv("INPUT_K0S_VERSION")
-	if rawver == "" {
-		v, err := GetMakefileVariable("K0S_VERSION")
-		if err != nil {
-			return fmt.Errorf("failed to get k0s version: %w", err)
-		}
-		rawver = v
+	k0sVersion, err := getK0sVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get k0s version: %w", err)
 	}
-	k0sVersion := semver.MustParse(rawver)
 
 	logrus.Infof("fetching wolfi apk index")
 	wolfiAPKIndex, err := GetWolfiAPKIndex()
@@ -210,7 +205,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
 	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
 	if err != nil {
-		return fmt.Errorf("failed to get images from admin console chart: %w", err)
+		return fmt.Errorf("failed to get images from velero chart: %w", err)
 	}
 
 	// make sure we include additional images
