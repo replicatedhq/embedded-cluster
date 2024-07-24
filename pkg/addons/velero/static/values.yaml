@@ -19,7 +19,7 @@ image:
   repository: proxy.replicated.com/anonymous/replicated/ec-velero
   tag: '1.13.2@sha256:891aecafcdb3e03b08b8494f71fbad42335a52c445cb0e164210d383558753e2'
 initContainers:
-- image: 'proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws:1.9.2@sha256:9654091c85799c7e82c3f00b6c2d2895b28026451b1b2da5ddb365d1cdcdef09'
+- image: 'proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws:1.9.2@sha256:f2b81a1c1fcbf4e1a11b87ac0484c87e8ea7dd3facd76aa038f99cc4e1b1bcd7'
   imagePullPolicy: IfNotPresent
   name: velero-plugin-for-aws
   volumeMounts:
