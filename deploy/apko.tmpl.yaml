@@ -7,6 +7,7 @@ contents:
     - ./melange.rsa.pub
   packages:
     - embedded-cluster-operator  # This is expected to be built locally by `melange`.
+    - ca-certificates-bundle
 
 accounts:
   groups:

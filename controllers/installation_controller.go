@@ -422,18 +422,7 @@ func (r *InstallationReconciler) ReconcileRegistry(ctx context.Context, in *v1be
 		return fmt.Errorf("failed to get cluster config: %w", err)
 	}
 
-	serviceCIDR := util.ClusterServiceCIDR(clusterConfig, in)
-
-	err := registry.EnsureResources(ctx, in, r.Client, serviceCIDR)
-	if err != nil {
-		// Conditions may be updated so we need to update the status
-		if err := r.Status().Update(ctx, in); err != nil {
-			log.Error(err, "Failed to update installation status")
-		}
-		return fmt.Errorf("failed to ensure registry resources: %w", err)
-	}
-
-	err = registry.MigrateRegistryData(ctx, in, r.Client)
+	err := registry.MigrateRegistryData(ctx, in, r.Client)
 	if err != nil {
 		if err := r.Status().Update(ctx, in); err != nil {
 			log.Error(err, "Failed to update installation status")
@@ -1058,9 +1047,6 @@ func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.I
 func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.Installation{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.Service{}).
-		Owns(&batchv1.Job{}).
 		Watches(&corev1.Node{}, &handler.EnqueueRequestForObject{}).
 		Watches(&apv1b2.Plan{}, &handler.EnqueueRequestForObject{}).
 		Watches(&k0shelm.Chart{}, &handler.EnqueueRequestForObject{}).

@@ -21,6 +21,10 @@ const registryDataMigrationJobName = "registry-data-migration"
 const RegistryMigrationStatusConditionType = "RegistryMigrationStatus"
 const RegistryMigrationServiceAccountName = "registry-data-migration-serviceaccount"
 
+// registryS3SecretName is the name of the Registry secret.
+// This secret name is defined in the chart in the release metadata.
+const registryS3SecretName = "seaweedfs-s3-rw"
+
 // MigrateRegistryData should be called when transitioning from non-HA to HA airgapped installations
 // this function creates a job that will scale down the registry deployment then upload the data to s3
 // before finally creating a 'migration is complete' secret in the registry namespace

@@ -308,7 +308,7 @@ build-ttl.sh: export IMAGE ?= ttl.sh/${CURRENT_USER}/embedded-cluster-operator-i
 build-ttl.sh: export VERSION ?= $(shell git describe --tags --dirty --always --abbrev=8 | sed 's/^v//')
 build-ttl.sh: export MELANGE_CONFIG = deploy/melange.tmpl.yaml
 build-ttl.sh: export APKO_CONFIG = deploy/apko.tmpl.yaml
-build-ttl.sh: melange-build apko-publish
+build-ttl.sh: melange-build apko-build-and-publish
 
 .PHONY: build-chart-ttl.sh
 build-chart-ttl.sh: build-ttl.sh

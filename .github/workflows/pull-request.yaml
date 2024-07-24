@@ -81,7 +81,7 @@ jobs:
         export VERSION=${{needs.get-tag.outputs.tag}}
         export IMAGE=ttl.sh/embedded-cluster-operator-image:dev-${VERSION}
         export APKO_CONFIG=deploy/apko.tmpl.yaml
-        make apko apko-build
+        make apko apko-build-and-publish
 
   check-crds:
     runs-on: ubuntu-latest
