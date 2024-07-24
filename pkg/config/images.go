@@ -52,25 +52,25 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
 
-	cfg.Spec.Images.CoreDNS.Image = getImageName("coredns")
+	cfg.Spec.Images.CoreDNS.Image = "proxy.replicated.com/anonymous/replicated/ec-coredns"
 	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"]
 
-	cfg.Spec.Images.Calico.Node.Image = getImageName("calico-node")
+	cfg.Spec.Images.Calico.Node.Image = "proxy.replicated.com/anonymous/replicated/ec-calico-node"
 	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"]
 
-	cfg.Spec.Images.Calico.CNI.Image = getImageName("calico-cni")
+	cfg.Spec.Images.Calico.CNI.Image = "proxy.replicated.com/anonymous/replicated/ec-calico-cni"
 	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"]
 
-	cfg.Spec.Images.Calico.KubeControllers.Image = getImageName("calico-kube-controllers")
+	cfg.Spec.Images.Calico.KubeControllers.Image = "proxy.replicated.com/anonymous/replicated/ec-calico-kube-controllers"
 	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"]
 
-	cfg.Spec.Images.MetricsServer.Image = getImageName("metrics-server")
+	cfg.Spec.Images.MetricsServer.Image = "proxy.replicated.com/anonymous/replicated/ec-metrics-server"
 	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"]
 
-	cfg.Spec.Images.KubeProxy.Image = getImageName("kube-proxy")
+	cfg.Spec.Images.KubeProxy.Image = "proxy.replicated.com/anonymous/replicated/ec-kube-proxy"
 	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"]
 
-	cfg.Spec.Images.Pause.Image = getImageName("pause")
+	cfg.Spec.Images.Pause.Image = "proxy.replicated.com/anonymous/replicated/ec-pause"
 	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"]
 
 	// TODO (salah): uncomment when upstream PR for digest support is released: https://github.com/k0sproject/k0s/pull/4792
@@ -86,10 +86,6 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 	// if cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image == nil {
 	// 	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image = &k0sv1beta1.ImageSpec{}
 	// }
-	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = getImageName("envoy-distroless")
+	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = "proxy.replicated.com/anonymous/replicated/ec-envoy-distroless"
 	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"]
-}
-
-func getImageName(component string) string {
-	return fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-%s", component)
 }
