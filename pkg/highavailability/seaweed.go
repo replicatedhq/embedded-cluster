@@ -2,7 +2,9 @@ package highavailability
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
@@ -25,25 +27,61 @@ const (
 	// seaweedfsLowerBandIPIndex is the index of the seaweedfs service IP in the service CIDR.
 	// HACK: this is shared with the cli and operator as it is used by the registry to redirect requests for blobs.
 	seaweedfsLowerBandIPIndex = 11
+
+	// seaweedfsS3SecretName is the name of the Seaweedfs secret.
+	// This secret name is defined in the chart in the release metadata.
+	seaweedfsS3SecretName = "secret-seaweedfs-s3"
 )
 
-func createSeaweedfsResources(ctx context.Context, kcli client.Client, in *embeddedclusterv1beta1.Installation) error {
+type seaweedfsConfig struct {
+	Identities []seaweedfsIdentity `json:"identities"`
+}
+
+type seaweedfsIdentity struct {
+	Name        string                        `json:"name"`
+	Credentials []seaweedfsIdentityCredential `json:"credentials"`
+	Actions     []string                      `json:"actions"`
+}
+
+type seaweedfsIdentityCredential struct {
+	AccessKey string `json:"accessKey"`
+	SecretKey string `json:"secretKey"`
+}
+
+func (c seaweedfsConfig) getCredentials(name string) (seaweedfsIdentityCredential, bool) {
+	for _, identity := range c.Identities {
+		if identity.Name == name {
+			if len(identity.Credentials) == 0 {
+				return seaweedfsIdentityCredential{}, false
+			}
+			return identity.Credentials[0], true
+		}
+	}
+	return seaweedfsIdentityCredential{}, false
+}
+
+func createSeaweedfsResources(ctx context.Context, kcli client.Client, in *embeddedclusterv1beta1.Installation) (*seaweedfsConfig, error) {
 	err := ensureSeaweedfsNamespace(ctx, kcli)
 	if err != nil {
-		return fmt.Errorf("unable to create seaweedfs namespace: %w", err)
+		return nil, fmt.Errorf("unable to create seaweedfs namespace: %w", err)
 	}
 
 	err = kubeutils.WaitForNamespace(ctx, kcli, defaults.SeaweedFSNamespace)
 	if err != nil {
-		return fmt.Errorf("wait for seaweedfs namespace: %w", err)
+		return nil, fmt.Errorf("wait for seaweedfs namespace: %w", err)
 	}
 
 	err = ensureSeaweedfsS3Service(ctx, in, kcli)
 	if err != nil {
-		return fmt.Errorf("unable to create seaweedfs s3 service: %w", err)
+		return nil, fmt.Errorf("unable to create seaweedfs s3 service: %w", err)
 	}
 
-	return nil
+	seaweedConfig, err := ensureSeaweedFSS3Secret(ctx, kcli)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create seaweedfs s3 secret: %w", err)
+	}
+
+	return seaweedConfig, nil
 }
 
 func ensureSeaweedfsNamespace(ctx context.Context, cli client.Client) error {
@@ -101,6 +139,46 @@ func ensureSeaweedfsS3Service(ctx context.Context, in *embeddedclusterv1beta1.In
 	}
 
 	return nil
+}
+
+func ensureSeaweedFSS3Secret(ctx context.Context, cli client.Client) (*seaweedfsConfig, error) {
+	var config seaweedfsConfig
+	config.Identities = append(config.Identities, seaweedfsIdentity{
+		Name: "anvAdmin",
+		Credentials: []seaweedfsIdentityCredential{{
+			AccessKey: helpers.RandString(20),
+			SecretKey: helpers.RandString(40),
+		}},
+		Actions: []string{"Admin", "Read", "Write"},
+	})
+	config.Identities = append(config.Identities, seaweedfsIdentity{
+		Name: "anvReadOnly",
+		Credentials: []seaweedfsIdentityCredential{{
+			AccessKey: helpers.RandString(20),
+			SecretKey: helpers.RandString(40),
+		}},
+		Actions: []string{"Read"},
+	})
+
+	configData, err := json.Marshal(config)
+	if err != nil {
+		return nil, fmt.Errorf("marshal seaweedfs_s3_config: %w", err)
+	}
+
+	obj := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SecretName, Namespace: defaults.SeaweedFSNamespace},
+		Data: map[string][]byte{
+			"seaweedfs_s3_config": configData,
+		},
+	}
+
+	obj.ObjectMeta.Labels = applySeaweedFSLabels(obj.ObjectMeta.Labels, "s3")
+
+	err = cli.Create(ctx, obj)
+	if err != nil {
+		return nil, fmt.Errorf("create registry seaweedfs s3 service: %w", err)
+	}
+	return &config, nil
 }
 
 func applySeaweedFSLabels(labels map[string]string, component string) map[string]string {
