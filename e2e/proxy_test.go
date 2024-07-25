@@ -28,8 +28,9 @@ func TestProxiedEnvironment(t *testing.T) {
 		{"apt-get", "kmod", "-y"},
 	}
 	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
+		"NO_PROXY":    cluster.NOProxy,
 	})
 	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
@@ -42,11 +43,6 @@ func TestProxiedEnvironment(t *testing.T) {
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", cluster.NOProxy)
-	withEnv := WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -136,8 +132,9 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		{"apt-get", "kmod", "-y"},
 	}
 	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
+		"NO_PROXY":    cluster.NOProxy,
 	})
 	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
@@ -152,11 +149,6 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	line = append(line, "--no-proxy", cluster.NOProxy)
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
-	withEnv := WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
