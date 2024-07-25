@@ -20,6 +20,9 @@ on:
       kubectl_version:
         description: 'Kubectl version for discovering image versions'
         required: false
+      seaweedfs_version:
+        description: 'SeaweedFS version for discovering image versions'
+        required: false
 
 jobs:
   compile-buildtools:
@@ -53,6 +56,7 @@ jobs:
           - k0s
           - openebs
           - velero
+          - seaweedfs
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -73,6 +77,7 @@ jobs:
         INPUT_VELERO_VERSION: ${{ github.event.inputs.velero_version }}
         INPUT_VELERO_AWS_PLUGIN_VERSION: ${{ github.event.inputs.velero_aws_plugin_version }}
         INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
+        INPUT_SEAWEEDFS_VERSION: ${{ github.event.inputs.seaweedfs_version }}
       run: |
         chmod +x ./output/bin/buildtools
         ./output/bin/buildtools update images ${{ matrix.addon }}
