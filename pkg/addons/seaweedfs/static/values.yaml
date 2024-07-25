@@ -16,7 +16,7 @@ global:
   replicationPlacment: "001"
   registry: "proxy.replicated.com/anonymous/"
 master:
-  imageOverride: 'proxy.replicated.com/anonymous/chrislusf/seaweedfs:3.71@sha256:2829e52cd2f653cfb900cbbbc72f4c3fda0e8ab785429a80514090cdd73dec8c'
+  imageOverride: 'proxy.replicated.com/anonymous/replicated/ec-seaweedfs:3.69-r0@sha256:bd650b4efec90de79c97d5a1c88c2d48e2b91de669819cafb6680c5b25d9294d'
   replicas: 1
   disableHttp: true
   volumeSizeLimitMB: 30000
@@ -43,7 +43,7 @@ master:
 volume:
   # replicas must be at least replication (2) + 1 = 3
   replicas: 3
-  imageOverride: 'proxy.replicated.com/anonymous/chrislusf/seaweedfs:3.71@sha256:2829e52cd2f653cfb900cbbbc72f4c3fda0e8ab785429a80514090cdd73dec8c'
+  imageOverride: 'proxy.replicated.com/anonymous/replicated/ec-seaweedfs:3.69-r0@sha256:bd650b4efec90de79c97d5a1c88c2d48e2b91de669819cafb6680c5b25d9294d'
   podAnnotations:
     backup.velero.io/backup-volumes: data
   affinity: |
@@ -78,7 +78,7 @@ volume:
     maxVolumes: 50
 filer:
   replicas: 3
-  imageOverride: 'proxy.replicated.com/anonymous/chrislusf/seaweedfs:3.71@sha256:2829e52cd2f653cfb900cbbbc72f4c3fda0e8ab785429a80514090cdd73dec8c'
+  imageOverride: 'proxy.replicated.com/anonymous/replicated/ec-seaweedfs:3.69-r0@sha256:bd650b4efec90de79c97d5a1c88c2d48e2b91de669819cafb6680c5b25d9294d'
   podAnnotations:
     backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
   data:
