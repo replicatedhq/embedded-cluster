@@ -6,6 +6,6 @@
 # $ output/bin/buildtools update addon <addon name>
 #
 version: 4.0.0
-location: oci://proxy.replicated.com/anonymous/ttl.sh/sgalsaleh/seaweedfs
+location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/seaweedfs
 images:
-    seaweedfs: 3.71-r1@sha256:d7af55530b590fbc136a6a4942e23d964080997392b8aac964b83926937b36b4
+    chrislusf/seaweedfs: 3.71@sha256:2829e52cd2f653cfb900cbbbc72f4c3fda0e8ab785429a80514090cdd73dec8c
