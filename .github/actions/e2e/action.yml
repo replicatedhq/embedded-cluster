@@ -107,25 +107,25 @@ runs:
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Upload Host Support Bundle
     uses: actions/upload-artifact@v4
-    if: ${{ failure() }}
+    if: ${{ ! cancelled() }}
     with:
       name: ${{ inputs.test-name }}-support-bundle-host.tar.gz
       path: ./e2e/support-bundle-host-*.tar.gz
   - name: Upload Cluster Support Bundle
     uses: actions/upload-artifact@v4
-    if: ${{ failure() }}
+    if: ${{ ! cancelled() }}
     with:
       name: ${{ inputs.test-name }}-support-bundle-cluster.tar.gz
       path: ./e2e/support-bundle-cluster.tar.gz
   - name: Upload Playwright Report
     id: upload-playwright-report
     uses: actions/upload-artifact@v4
-    if: ${{ failure() }}
+    if: ${{ ! cancelled() }}
     with:
       name: ${{ inputs.test-name }}-playwright-report.tar.gz
       path: ./e2e/playwright-report.tar.gz
   - name: Print instructions to view Playwright report
-    if: ${{ failure() && steps.upload-playwright-report.outputs.artifact-url != '' }}
+    if: ${{ ! cancelled() && steps.upload-playwright-report.outputs.artifact-url != '' }}
     run: |
       echo -e "\e[1;33m┌──────────────────────────────────────────────────────────────────────────────────────────────────────┐\e[0m"
       echo -e "\e[1;33m                                  To view the Playwright test report:                                   \e[0m"
