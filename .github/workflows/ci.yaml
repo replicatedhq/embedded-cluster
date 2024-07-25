@@ -133,11 +133,11 @@ jobs:
           echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
           echo "versionLabel: \"appver-${SHORT_SHA}\"" >> e2e/kots-release-install/release.yaml
           cat e2e/kots-release-install/release.yaml
-
+          
           # ensure that the cluster config embedded in the CI binaries is correct
           sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
           sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
-
+          
           cp output/bin/embedded-cluster output/bin/embedded-cluster-original
           make -B embedded-release K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${SHORT_SHA}-previous-k0s"
           mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
@@ -217,7 +217,7 @@ jobs:
 
           # airgap tests install the previous k0s version to ensure an upgrade occurs
           sed -i "s/${SHORT_SHA}/${SHORT_SHA}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
-
+          
           replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}-previous-k0s"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI-airgap --version "appver-${SHORT_SHA}-upgrade"
 
@@ -225,7 +225,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           export SHORT_SHA=dev-${GITHUB_SHA::7}
-
+          
           echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
           echo "" >> download-link.txt
           echo "Online Installer:" >> download-link.txt
@@ -255,52 +255,49 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          # - TestSingleNodeInstallation
-          # - TestSingleNodeInstallationAlmaLinux8
-          # - TestSingleNodeInstallationDebian11
-          # - TestSingleNodeInstallationDebian12
-          # - TestSingleNodeInstallationCentos9Stream
-          # - TestVersion
-          # - TestHostPreflight
-          # - TestUnsupportedOverrides
-          # - TestMultiNodeInstallation
-          # - TestMultiNodeReset
-          # - TestCommandsRequireSudo
-          # - TestInstallWithoutEmbed
-          # - TestInstallFromReplicatedApp
-          # - TestResetAndReinstall
-          # - TestResetAndReinstallAirgap
-          # - TestCollectSupportBundle
-          # - TestOldVersionUpgrade
-          # - TestMaterialize
-          # - TestLocalArtifactMirror
-          # - TestSingleNodeAirgapUpgrade
-          # - TestSingleNodeAirgapUpgradeCustomCIDR
-          # - TestInstallSnapshotFromReplicatedApp
-          # - TestMultiNodeAirgapUpgrade
-          # - TestSingleNodeDisasterRecovery
+          - TestSingleNodeInstallation
+          - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos9Stream
+          - TestVersion
+          - TestHostPreflight
+          - TestUnsupportedOverrides
+          - TestMultiNodeInstallation
+          - TestMultiNodeReset
+          - TestCommandsRequireSudo
+          - TestInstallWithoutEmbed
+          - TestInstallFromReplicatedApp
+          - TestResetAndReinstall
+          - TestResetAndReinstallAirgap
+          - TestCollectSupportBundle
+          - TestOldVersionUpgrade
+          - TestMaterialize
+          - TestLocalArtifactMirror
+          - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeCustomCIDR
+          - TestInstallSnapshotFromReplicatedApp
+          - TestMultiNodeAirgapUpgrade
+          - TestSingleNodeDisasterRecovery
           - TestSingleNodeDisasterRecoveryWithProxy
-          # - TestSingleNodeResumeDisasterRecovery
-          # - TestSingleNodeAirgapDisasterRecovery
-          # - TestMultiNodeHAInstallation
-          # - TestMultiNodeAirgapHAInstallation
-          # - TestProxiedEnvironment
-          # - TestMultiNodeHADisasterRecovery
-          # - TestMultiNodeAirgapHADisasterRecovery
-          # - TestCustomCIDR
-          # - TestProxiedCustomCIDR
-          # - TestSingleNodeInstallationNoopUpgrade
-        # include:
-        #   - test: TestMultiNodeAirgapUpgrade
-        #     runner: embedded-cluster
-        #   - test: TestMultiNodeAirgapUpgradeSameK0s
-        #     runner: embedded-cluster
-        #   - test: TestMultiNodeAirgapHAInstallation
-        #     runner: embedded-cluster
-        #   - test: TestMultiNodeAirgapHADisasterRecovery
-        #     runner: embedded-cluster
-        #   - test: TestSingleNodeAirgapDisasterRecovery
-        #     runner: embedded-cluster
+          - TestSingleNodeResumeDisasterRecovery
+          - TestProxiedEnvironment
+          - TestMultiNodeHAInstallation
+          - TestMultiNodeHADisasterRecovery
+          - TestCustomCIDR
+          - TestProxiedCustomCIDR
+          - TestSingleNodeInstallationNoopUpgrade
+        include:
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgradeSameK0s
+            runner: embedded-cluster
+          - test: TestSingleNodeAirgapDisasterRecovery
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHADisasterRecovery
+            runner: embedded-cluster
     steps:
       - name: Checkout
         uses: actions/checkout@v4
