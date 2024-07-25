@@ -1,14 +1,13 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -22,6 +21,7 @@ var k0sImageComponents = map[string]string{
 	"registry.k8s.io/metrics-server/metrics-server": "metrics-server",
 	"quay.io/k0sproject/kube-proxy":                 "kube-proxy",
 	"quay.io/k0sproject/envoy-distroless":           "envoy-distroless",
+	"registry.k8s.io/pause":                         "pause",
 }
 
 var k0sComponents = map[string]addonComponent{
@@ -55,13 +55,25 @@ var k0sComponents = map[string]addonComponent{
 			return fmt.Sprintf("kube-proxy-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
 		},
 		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			// match the greatest patch version of the same minor version
+			// current k0s version is 1.29.6, which isn't available in wolfi packages, latest for that minor is 1.29.5
+			// to workaround this, match the greatest patch version of the same minor version
 			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
 		},
 	},
 	"envoy-distroless": {
 		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return fmt.Sprintf("envoy-%d.%d", upstreamVersion.Major(), upstreamVersion.Minor())
+		},
+	},
+	"pause": {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+			return fmt.Sprintf("kubernetes-pause-%d.%d", upstreamVersion.Major(), upstreamVersion.Minor())
+		},
+		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+			// pause package version follows the k8s version
+			// current k0s version is 1.29.6, which isn't available in wolfi packages, latest for that minor is 1.29.5
+			// to workaround this, match the greatest patch version of the same minor version
+			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
 		},
 	},
 }
@@ -77,14 +89,7 @@ var updateK0sImagesCommand = &cli.Command{
 			Images: make(map[string]string),
 		}
 
-		if err := makeK0s(); err != nil {
-			return fmt.Errorf("failed to make k0s: %w", err)
-		}
-
-		images, err := listK0sImages()
-		if err != nil {
-			return fmt.Errorf("failed to list k0s images: %w", err)
-		}
+		k0sImages := config.ListK0sImages(k0sconfig.DefaultClusterConfig())
 
 		k0sVersion, err := getK0sVersion()
 		if err != nil {
@@ -100,7 +105,7 @@ var updateK0sImagesCommand = &cli.Command{
 			return fmt.Errorf("failed to get APK index: %w", err)
 		}
 
-		for _, image := range images {
+		for _, image := range k0sImages {
 			logrus.Infof("updating image %s", image)
 
 			upstreamVersion := TagFromImage(image)
@@ -126,7 +131,7 @@ var updateK0sImagesCommand = &cli.Command{
 
 			logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
 
-			if err := ApkoBuildAndPublish(componentName, packageName, packageVersion); err != nil {
+			if err := ApkoBuildAndPublish(componentName, packageName, packageVersion, upstreamVersion); err != nil {
 				return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
 			}
 
@@ -157,38 +162,4 @@ func getK0sVersion() (*semver.Version, error) {
 		return nil, fmt.Errorf("failed to get k0s version: %w", err)
 	}
 	return semver.MustParse(v), nil
-}
-
-func makeK0s() error {
-	if v := os.Getenv("INPUT_K0S_VERSION"); v != "" {
-		logrus.Infof("using input override from INPUT_K0S_VERSION: %s", v)
-		cmd := exec.Command("make", "pkg/goods/bins/k0s", fmt.Sprintf("K0S_VERSION=%s", v), "K0S_BINARY_SOURCE_OVERRIDE=")
-		if err := RunCommand(cmd); err != nil {
-			return fmt.Errorf("make k0s: %w", err)
-		}
-	} else {
-		cmd := exec.Command("make", "pkg/goods/bins/k0s")
-		if err := RunCommand(cmd); err != nil {
-			return fmt.Errorf("make k0s: %w", err)
-		}
-	}
-	return nil
-}
-
-func listK0sImages() ([]string, error) {
-	output, err := exec.Command("pkg/goods/bins/k0s", "airgap", "list-images", "--all").Output()
-	if err != nil {
-		return nil, fmt.Errorf("list k0s images: %w", err)
-	}
-	images := []string{}
-	scanner := bufio.NewScanner(bytes.NewReader(output))
-	for scanner.Scan() {
-		image := scanner.Text()
-		if _, ok := k0sImageComponents[RemoveTagFromImage(image)]; !ok {
-			logrus.Warnf("skipping image %q as it is not in the list", image)
-			continue
-		}
-		images = append(images, image)
-	}
-	return images, nil
 }

@@ -247,7 +247,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 
 		logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
 
-		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion); err != nil {
+		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion, upstreamVersion); err != nil {
 			return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
 		}
 

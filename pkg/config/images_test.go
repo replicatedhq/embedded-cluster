@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
+	"github.com/k0sproject/k0s/pkg/constant"
 )
 
 func TestListK0sImages(t *testing.T) {
@@ -47,6 +48,9 @@ func TestListK0sImages(t *testing.T) {
 		}
 		if strings.Contains(image, "apiserver-network-proxy-agent") {
 			t.Errorf("ListK0sImages() = %v, want not to contain apiserver-network-proxy-agent", filtered)
+		}
+		if strings.Contains(image, constant.KubePauseContainerImage) {
+			t.Errorf("ListK0sImages() = %v, want the ec pause image", filtered)
 		}
 	}
 }

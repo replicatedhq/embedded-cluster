@@ -252,7 +252,7 @@ melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
 .PHONY: apko-template
 apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
-	envsubst '$${PACKAGE_NAME} $${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
+	envsubst '$${PACKAGE_NAME} $${PACKAGE_VERSION} $${UPSTREAM_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
 
 .PHONY: buildtools
 buildtools:
