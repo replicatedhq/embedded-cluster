@@ -494,11 +494,26 @@ func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd stri
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 	opts := []addons.Option{}
 
-	metadata, err := gatherVersionMetadata()
-	if err != nil {
-		return fmt.Errorf("unable to gather release metadata: %w", err)
+	if ab := c.String("airgap-bundle"); ab != "" {
+		err := func() error {
+			rawfile, err := os.Open(ab)
+			if err != nil {
+				return fmt.Errorf("failed to open airgap file: %w", err)
+			}
+			defer rawfile.Close()
+
+			metadata, err := airgap.GetVersionMetadataFromBundle(rawfile)
+			if err != nil {
+				return fmt.Errorf("unable to get version metadata from airgap bundle: %w", err)
+			}
+
+			opts = append(opts, addons.WithVersionMetadata(metadata))
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
 	}
-	opts = append(opts, addons.WithVersionMetadata(metadata))
 
 	if l := c.String("license"); l != "" {
 		opts = append(opts, addons.WithLicense(l))

@@ -3,11 +3,13 @@ package airgap
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
@@ -56,6 +58,38 @@ func MaterializeAirgap(airgapReader io.Reader) error {
 			return nil
 		}
 	}
+}
+
+func GetVersionMetadataFromBundle(airgapReader io.Reader) (*types.ReleaseMetadata, error) {
+	// decompress tarball
+	ungzip, err := gzip.NewReader(airgapReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress airgap file: %w", err)
+	}
+
+	// iterate through tarball
+	tarreader := tar.NewReader(ungzip)
+	var nextFile *tar.Header
+	for {
+		nextFile, err = tarreader.Next()
+		if err != nil {
+			if err == io.EOF {
+				return nil, fmt.Errorf("embedded-cluster.tar.gz not found in airgap file")
+			}
+			return nil, fmt.Errorf("failed to read airgap file: %w", err)
+		}
+
+		if nextFile.Name == "embedded-cluster/version-metadata.json" {
+			var meta types.ReleaseMetadata
+			err := json.NewDecoder(tarreader).Decode(&meta)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode version metadata: %w", err)
+			}
+			return &meta, nil
+		}
+	}
+
+	return nil, fmt.Errorf("version-metadata.json not found in airgap file")
 }
 
 func writeOneFile(reader io.Reader, path string, mode int64) error {
