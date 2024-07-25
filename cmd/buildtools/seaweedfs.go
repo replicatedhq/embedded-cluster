@@ -33,9 +33,9 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating seaweedfs addon")
 
-		nextChartVersion := os.Getenv("INPUT_SEAWEEDFS_VERSION")
+		nextChartVersion := os.Getenv("INPUT_SEAWEEDFS_CHART_VERSION")
 		if nextChartVersion != "" {
-			logrus.Infof("using input override from INPUT_SEAWEEDFS_VERSION: %s", nextChartVersion)
+			logrus.Infof("using input override from INPUT_SEAWEEDFS_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest seaweedfs chart version")
 			latest, err := LatestChartVersion("seaweedfs", "seaweedfs")
