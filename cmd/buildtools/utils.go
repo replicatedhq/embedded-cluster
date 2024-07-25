@@ -590,13 +590,13 @@ func MirrorChart(repo, name, ver string) error {
 
 	dst := fmt.Sprintf("oci://%s", os.Getenv("CHARTS_DESTINATION"))
 	logrus.Infof("verifying if destination tag already exists")
-	tmpf, err := hcli.Pull(dst, name, ver)
+	_, err = hcli.Pull(dst, name, ver)
 	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
 		return fmt.Errorf("verify tag exists: %w", err)
 	} else if err == nil {
-		os.Remove(tmpf)
-		logrus.Warnf("cowardly refusing to override dst (tag %s already exist)", ver)
-		return nil
+		// os.Remove(tmpf)
+		// logrus.Warnf("cowardly refusing to override dst (tag %s already exist)", ver)
+		// return nil
 	}
 	logrus.Infof("destination tag does not exist")
 
