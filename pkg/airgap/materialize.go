@@ -74,7 +74,7 @@ func GetVersionMetadataFromBundle(airgapReader io.Reader) (*types.ReleaseMetadat
 		nextFile, err = tarreader.Next()
 		if err != nil {
 			if err == io.EOF {
-				return nil, fmt.Errorf("embedded-cluster.tar.gz not found in airgap file")
+				return nil, fmt.Errorf("version-metadata.json not found in airgap file")
 			}
 			return nil, fmt.Errorf("failed to read airgap file: %w", err)
 		}
@@ -88,8 +88,6 @@ func GetVersionMetadataFromBundle(airgapReader io.Reader) (*types.ReleaseMetadat
 			return &meta, nil
 		}
 	}
-
-	return nil, fmt.Errorf("version-metadata.json not found in airgap file")
 }
 
 func writeOneFile(reader io.Reader, path string, mode int64) error {
