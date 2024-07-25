@@ -313,39 +313,13 @@ func TestHostPreflight(t *testing.T) {
 		t.Fatalf("fail to install dependencies on node %s: %v", tc.Nodes[0], err)
 	}
 
-	// listPaths := [][]string{
-	// 	{"/usr/local/bin/k0s", "sysinfo"},
-	// 	{"ls", "-al", "/proc/config.gz"},
-	// 	{"ls", "-al", "/boot/config-*"},
-	// 	{"ls", "-al", "/usr/src/linux-*/.config"},
-	// 	{"ls", "-al", "/usr/src/linux/.config"},
-	// 	{"ls", "-al", "/usr/lib/modules/*/config"},
-	// 	{"ls", "-al", "/usr/lib/ostree-boot/config-*"},
-	// 	{"ls", "-al", "/usr/lib/kernel/config-*"},
-	// 	{"ls", "-al", "/usr/src/linux-headers-*/.config"},
-	// 	{"ls", "-al", "/lib/modules/*/build/.config"},
-	// }
-	// for _, cmd := range listPaths {
-	// 	stdout, stderr, err := RunCommandOnNode(t, tc, 0, cmd)
-	// 	if err != nil {
-	// 		t.Errorf("failed to list paths: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
-	// 	} else {
-	// 		t.Logf("list paths stdout: %s", stdout)
-	// 		t.Logf("list paths stderr: %s", stderr)
-	// 	}
-	// }
-
 	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-preflight.sh"}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	_, _, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
-		t.Logf("stdout:\n%s", stdout)
-		t.Logf("stderr:\n%s", stderr)
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	t.Logf("stdout:\n%s", stdout)
-	t.Logf("stderr:\n%s", stderr)
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 

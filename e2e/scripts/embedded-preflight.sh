@@ -152,59 +152,54 @@ wait_for_healthy_node() {
 }
 
 main() {
-    # cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
-    # embed_preflight "$preflight_with_failure"
-    # /usr/local/bin/embedded-cluster install --no-prompt --skip-host-preflights || true
-    curl -L -o k0s https://ec-k0s-binaries.s3.amazonaws.com/k0s-v1.29.5%2Bk0s.0-ec.0
-    chmod +x k0s
-    ./k0s sysinfo 2>&1 | tee -a sysinfo.log
-    cat sysinfo.log
-
-    # if /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
-    #     cat /tmp/log
-    #     echo "preflight_with_failure: Expected installation to fail"
-    #     exit 1
-    # fi
-    # if ! has_applied_host_preflight; then
-    #     echo "preflight_with_failure: Install hasn't applied host preflight"
-    #     cat /tmp/log
-    #     exit 1
-    # fi
-    # if ! has_stored_host_preflight_results; then
-    #     echo "preflight_with_failure: Install hasn't stored host preflight results to disk"
-    #     cat /tmp/log
-    #     exit 1
-    # fi
-    # rm /var/lib/embedded-cluster/support/host-preflight-results.json
-    # mv /tmp/log /tmp/log-failure
-    # embed_preflight "$preflight_with_warning"
-    # if ! /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
-    #     cat /etc/os-release
-    #     echo "preflight_with_warning: Failed to install embedded-cluster"
-    #     exit 1
-    # fi
-    # if ! grep -q "Admin Console is ready!" /tmp/log; then
-    #     echo "preflight_with_warning: Failed to validate that the Admin Console is ready"
-    #     exit 1
-    # fi
-    # if ! has_applied_host_preflight; then
-    #     echo "preflight_with_warning: Install hasn't applied host preflight"
-    #     cat /tmp/log
-    #     exit 1
-    # fi
-    # if ! has_stored_host_preflight_results; then
-    #     echo "preflight_with_warning: Install hasn't stored host preflight results to disk"
-    #     cat /tmp/log
-    #     exit 1
-    # fi
-    # if ! wait_for_healthy_node; then
-    #     echo "Failed to wait for healthy node"
-    #     exit 1
-    # fi
-    # if ! systemctl restart embedded-cluster; then
-    #     echo "Failed to restart embedded-cluster service"
-    #     exit 1
-    # fi
+    cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
+    embed_preflight "$preflight_with_failure"
+    if /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
+        cat /tmp/log
+        echo "preflight_with_failure: Expected installation to fail"
+        exit 1
+    fi
+    if ! has_applied_host_preflight; then
+        echo "preflight_with_failure: Install hasn't applied host preflight"
+        cat /tmp/log
+        exit 1
+    fi
+    if ! has_stored_host_preflight_results; then
+        echo "preflight_with_failure: Install hasn't stored host preflight results to disk"
+        cat /tmp/log
+        exit 1
+    fi
+    rm /var/lib/embedded-cluster/support/host-preflight-results.json
+    mv /tmp/log /tmp/log-failure
+    # Warnings should not fail installations
+    embed_preflight "$preflight_with_warning"
+    if ! /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
+        cat /etc/os-release
+        echo "preflight_with_warning: Failed to install embedded-cluster"
+        exit 1
+    fi
+    if ! grep -q "Admin Console is ready!" /tmp/log; then
+        echo "preflight_with_warning: Failed to validate that the Admin Console is ready"
+        exit 1
+    fi
+    if ! has_applied_host_preflight; then
+        echo "preflight_with_warning: Install hasn't applied host preflight"
+        cat /tmp/log
+        exit 1
+    fi
+    if ! has_stored_host_preflight_results; then
+        echo "preflight_with_warning: Install hasn't stored host preflight results to disk"
+        cat /tmp/log
+        exit 1
+    fi
+    if ! wait_for_healthy_node; then
+        echo "Failed to wait for healthy node"
+        exit 1
+    fi
+    if ! systemctl restart embedded-cluster; then
+        echo "Failed to restart embedded-cluster service"
+        exit 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"

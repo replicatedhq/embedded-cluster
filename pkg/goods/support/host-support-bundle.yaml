@@ -113,7 +113,7 @@ spec:
       collectorName: k0s-images-dir
       command: ls
       args: [ "-alh", "/var/lib/k0s/images" ]
-  # External k0s dependencies
+  # External k0s runtime dependencies
   # https://docs.k0sproject.io/stable/external-runtime-deps/
   - kernelConfigs: {}
   - cgroups: {}

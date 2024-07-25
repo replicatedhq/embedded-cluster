@@ -27,7 +27,7 @@ spec:
         collectorName: 'ip-route-table'
         command: 'ip'
         args: ['route']
-    # External k0s dependencies
+    # External k0s runtime dependencies
     # https://docs.k0sproject.io/stable/external-runtime-deps/
     - cgroups: {}
     - run:
