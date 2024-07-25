@@ -48,7 +48,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		current := seaweedfs.Metadata
-		if current.Version == nextChartVersion && !c.Bool("force") {
+		if current.Version == nextChartVersion && false {
 			logrus.Infof("seaweedfs chart version is already up-to-date")
 		} else {
 			logrus.Infof("mirroring seaweedfs chart version %s", nextChartVersion)
