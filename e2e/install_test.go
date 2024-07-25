@@ -315,8 +315,7 @@ func TestHostPreflight(t *testing.T) {
 
 	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-preflight.sh"}
-	_, _, err := RunCommandOnNode(t, tc, 0, line)
-	if err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -1607,19 +1606,6 @@ func TestCustomCIDR(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 	t.Log("non-proxied infrastructure created")
-
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "kmod", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).

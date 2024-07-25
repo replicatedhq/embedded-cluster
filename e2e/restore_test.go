@@ -109,7 +109,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "kmod", "-y"},
+		{"apt-get", "install", "expect", "-y"},
 	}
 	withEnv := WithEnv(map[string]string{
 		"http_proxy":  cluster.HTTPProxy,
@@ -635,7 +635,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Logf("%s: installing test dependencies", time.Now().Format(time.RFC3339))
 	commands := [][]string{
 		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "curl", "kmod", "-y"},
+		{"apt-get", "install", "expect", "curl", "-y"},
 	}
 	withEnv := WithEnv(map[string]string{
 		"http_proxy":  cluster.HTTPProxy,
