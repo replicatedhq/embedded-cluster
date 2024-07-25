@@ -59,7 +59,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 				return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
 			}
 			nextChartVersion = latest
-			logrus.Printf("latest velero chart version: %s", latest)
+			logrus.Printf("latest openebs chart version: %s", latest)
 		}
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
