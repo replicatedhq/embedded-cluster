@@ -124,8 +124,9 @@ main() {
     fi
     echo "######### single-node-proxy-install"
     embedded-cluster version 2>&1 | tee /tmp/log
-    ls -al /var/lib/embedded-cluster/bin 2>&1 | tee /tmp/log
     if ! embedded-cluster install --no-prompt --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
+        ls -al /var/lib/embedded-cluster/bin 2>&1 | tee /tmp/log || true
+        kubectl-preflight version 2>&1 | tee /tmp/log
         echo "Failed to install embedded-cluster"
         exit 1
     fi
