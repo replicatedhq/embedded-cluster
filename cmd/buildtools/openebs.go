@@ -21,7 +21,7 @@ var openebsImageComponents = map[string]string{
 
 var openebsComponents = map[string]addonComponent{
 	"openebs-provisioner-localpv": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			// package name is not the same as the component name
 			return "dynamic-localpv-provisioner"
 		},
@@ -31,10 +31,10 @@ var openebsComponents = map[string]addonComponent{
 		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"kubectl": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			return fmt.Sprintf("kubectl-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion string) string {
+		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
 			// match the greatest patch version of the same minor version
 			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
 		},
@@ -116,15 +116,10 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 		Images:   make(map[string]string),
 	}
 
-	rawver := os.Getenv("INPUT_K0S_VERSION")
-	if rawver == "" {
-		v, err := GetMakefileVariable("K0S_VERSION")
-		if err != nil {
-			return fmt.Errorf("failed to get k0s version: %w", err)
-		}
-		rawver = v
+	k0sVersion, err := getK0sVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get k0s version: %w", err)
 	}
-	k0sVersion := semver.MustParse(rawver)
 
 	logrus.Infof("fetching wolfi apk index")
 	wolfiAPKIndex, err := GetWolfiAPKIndex()
@@ -140,7 +135,7 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 	logrus.Infof("extracting images from chart version %s", chartVersion)
 	images, err := GetImagesFromOCIChart(chartURL, "openebs", chartVersion, values)
 	if err != nil {
-		return fmt.Errorf("failed to get images from admin console chart: %w", err)
+		return fmt.Errorf("failed to get images from openebs chart: %w", err)
 	}
 
 	// make sure we include the linux-utils image.
@@ -181,7 +176,7 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 
 		logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
 
-		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion); err != nil {
+		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion, upstreamVersion); err != nil {
 			return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
 		}
 

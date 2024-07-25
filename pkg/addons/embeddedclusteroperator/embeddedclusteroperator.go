@@ -38,7 +38,7 @@ var (
 	helmValues map[string]interface{}
 	//go:embed static/metadata.yaml
 	rawmetadata []byte
-	// Metadata is the unmarchal version of rawmetadata.
+	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.AddonMetadata
 	// Overwritten by -ldflags in Makefile
 	EmbeddedOperatorImageOverride = ""
@@ -142,7 +142,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embed
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
-	if tag, ok := Metadata.Images["busybox"]; ok {
+	if tag, ok := Metadata.Images["docker.io/library/busybox"]; ok {
 		return []string{fmt.Sprintf("proxy.replicated.com/anonymous/busybox:%s", tag)}
 	}
 	return nil

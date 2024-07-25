@@ -27,7 +27,7 @@ var (
 	helmValues map[string]interface{}
 	//go:embed static/metadata.yaml
 	rawmetadata []byte
-	// Metadata is the unmarchal version of rawmetadata.
+	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.AddonMetadata
 )
 

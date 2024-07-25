@@ -50,14 +50,14 @@ var updateOperatorAddonCommand = &cli.Command{
 
 		logrus.Infof("extracting images from chart")
 		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "adminconsole", latest, values)
+		images, err := GetImagesFromOCIChart(withproto, "embeddedclusteroperator", latest, values)
 		if err != nil {
-			return fmt.Errorf("failed to get images from admin console chart: %w", err)
+			return fmt.Errorf("failed to get images from embedded cluster operator chart: %w", err)
 		}
 
 		// make sure we include the operator util image as it does not show up
 		// when rendering the helm chart.
-		images = append(images, "busybox:1.36")
+		images = append(images, "docker.io/library/busybox:1.36")
 
 		logrus.Infof("fetching digest for images")
 		for _, image := range images {

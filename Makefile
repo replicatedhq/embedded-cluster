@@ -2,18 +2,6 @@ VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
-COREDNS_IMAGE = proxy.replicated.com/anonymous/replicated/ec-coredns
-COREDNS_VERSION = 1.11.3-r3@sha256:7996a7ee8e1b7fec9a6dc216b01f0047cafbd551562bde44a2c6615ef8f3dbfc
-CALICO_NODE_IMAGE = proxy.replicated.com/anonymous/replicated/ec-calico-node
-CALICO_NODE_VERSION = 3.26.1-r16@sha256:7212746eda056c0b2833764d065e932fdddee2aced0170fd721197b19d13606e
-CALICO_CNI_IMAGE = proxy.replicated.com/anonymous/replicated/ec-calico-cni
-CALICO_CNI_VERSION = 3.26.1-r16@sha256:11d5bf25611ffc578e632e23e09767ca5a964f81ff311c47d2e98b686c2d0365
-CALICO_KUBE_CONTROLLERS_IMAGE = proxy.replicated.com/anonymous/replicated/ec-calico-kube-controllers
-CALICO_KUBE_CONTROLLERS_VERSION = 3.26.1-r16@sha256:74e845a0dbbd2b9ebd988c03ed53b88f2e2657c5defb2ed7796dda2583601111
-METRICS_SERVER_IMAGE = proxy.replicated.com/anonymous/replicated/ec-metrics-server
-METRICS_SERVER_VERSION = 0.6.4-r9@sha256:bd7d9ada28e299979174b2094d1eec7d653f793730b320dc7e90763c92452268
-KUBE_PROXY_IMAGE = proxy.replicated.com/anonymous/replicated/ec-kube-proxy
-KUBE_PROXY_VERSION = 1.29.5-r0@sha256:a329421a4574823411f4e4f3215a112596407a4bd5a96372b7059feb77258074
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
@@ -23,7 +11,6 @@ EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
 EMBEDDED_OPERATOR_UTILS_IMAGE ?= replicated/embedded-cluster-utils
 EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION ?= $(subst +,-,$(VERSION))
 EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION = proxy.replicated.com/anonymous/$(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
-EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
 KUBECTL_VERSION = v1.30.1
 K0S_VERSION = v1.29.6+k0s.0
 K0S_GO_VERSION = v1.29.6+k0s.0
@@ -42,18 +29,6 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.KubectlVersion=$(KUBECTL_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CoreDNSImage=$(COREDNS_IMAGE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CoreDNSVersion=$(COREDNS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoNodeImage=$(CALICO_NODE_IMAGE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoNodeVersion=$(CALICO_NODE_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoCNIImage=$(CALICO_CNI_IMAGE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoCNIVersion=$(CALICO_CNI_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoKubeControllersImage=$(CALICO_KUBE_CONTROLLERS_IMAGE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.CalicoKubeControllersVersion=$(CALICO_KUBE_CONTROLLERS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.MetricsServerImage=$(METRICS_SERVER_IMAGE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.MetricsServerVersion=$(METRICS_SERVER_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.KubeProxyImage=$(KUBE_PROXY_IMAGE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/config/images.KubeProxyVersion=$(KUBE_PROXY_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
@@ -277,7 +252,7 @@ melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
 .PHONY: apko-template
 apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
-	envsubst '$${PACKAGE_NAME} $${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
+	envsubst '$${PACKAGE_NAME} $${PACKAGE_VERSION} $${UPSTREAM_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
 
 .PHONY: buildtools
 buildtools:

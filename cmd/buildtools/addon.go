@@ -7,10 +7,9 @@ import (
 )
 
 type addonComponent struct {
-	getWolfiPackageName              func(k0sVersion *semver.Version, upstreamVersion string) string
-	getWolfiPackageVersionComparison func(k0sVersion *semver.Version, upstreamVersion string) string
+	getWolfiPackageName              func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string
+	getWolfiPackageVersionComparison func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string
 	upstreamVersionInputOverride     string
-	makefileVar                      string
 }
 
 func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, k0sVersion *semver.Version, upstreamVersion string) (string, string, error) {
@@ -20,12 +19,12 @@ func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, k0sVersi
 	}
 
 	if c.getWolfiPackageName != nil {
-		packageName = c.getWolfiPackageName(k0sVersion, upstreamVersion)
+		packageName = c.getWolfiPackageName(k0sVersion, semver.MustParse(upstreamVersion))
 	}
 
 	comparison := "=" + upstreamVersion
 	if c.getWolfiPackageVersionComparison != nil {
-		comparison = c.getWolfiPackageVersionComparison(k0sVersion, upstreamVersion)
+		comparison = c.getWolfiPackageVersionComparison(k0sVersion, semver.MustParse(upstreamVersion))
 	}
 	constraints, err := semver.NewConstraint(comparison)
 	if err != nil {

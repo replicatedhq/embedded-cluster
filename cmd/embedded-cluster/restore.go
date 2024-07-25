@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -67,7 +68,6 @@ var ecRestoreStates = []ecRestoreState{
 }
 
 const (
-	ecRestoreStateCMName    = "embedded-cluster-restore-state"
 	resourceModifiersCMName = "restore-resource-modifiers"
 )
 
@@ -119,7 +119,7 @@ func getECRestoreState(ctx context.Context) ecRestoreState {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
-			Name:      ecRestoreStateCMName,
+			Name:      constants.EcRestoreStateCMName,
 		},
 	}
 	if err := kcli.Get(ctx, types.NamespacedName{Namespace: cm.Namespace, Name: cm.Name}, cm); err != nil {
@@ -154,7 +154,7 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
-			Name:      ecRestoreStateCMName,
+			Name:      constants.EcRestoreStateCMName,
 		},
 		Data: map[string]string{
 			"state": string(state),
@@ -184,7 +184,7 @@ func resetECRestoreState(ctx context.Context) error {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
-			Name:      ecRestoreStateCMName,
+			Name:      constants.EcRestoreStateCMName,
 		},
 	}
 	if err := kcli.Delete(ctx, cm); err != nil && !errors.IsNotFound(err) {
@@ -206,7 +206,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
-			Name:      ecRestoreStateCMName,
+			Name:      constants.EcRestoreStateCMName,
 		},
 	}
 	if err := kcli.Get(ctx, types.NamespacedName{Namespace: cm.Namespace, Name: cm.Name}, cm); err != nil {
@@ -315,16 +315,13 @@ func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
-	if err := config.OverrideK0sImages(cfg); err != nil {
-		return nil, fmt.Errorf("unable to override k0s images: %w", err)
-	}
-	opts := []addons.Option{}
 	if c.String("pod-cidr") != "" {
 		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	}
 	if c.String("service-cidr") != "" {
 		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	}
+	opts := []addons.Option{}
 	if c.Bool("proxy") {
 		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}

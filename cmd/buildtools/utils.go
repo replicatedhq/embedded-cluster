@@ -188,13 +188,14 @@ func ApkoLogin() error {
 	return nil
 }
 
-func ApkoBuildAndPublish(componentName string, packageName string, packageVersion string) error {
+func ApkoBuildAndPublish(componentName string, packageName string, packageVersion string, upstreamVersion string) error {
 	args := []string{
 		"apko-build-and-publish",
 		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("IMAGES_REGISTRY_SERVER"), componentName, packageVersion),
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
 		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
+		fmt.Sprintf("UPSTREAM_VERSION=%s", upstreamVersion),
 	}
 	cmd := exec.Command("make", args...)
 	if err := RunCommand(cmd); err != nil {

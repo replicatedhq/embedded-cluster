@@ -17,10 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 
@@ -28,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -458,7 +456,7 @@ func waitForNode(ctx context.Context, kcli client.Client, hostname string) error
 }
 
 func maybeEnableHA(ctx context.Context, kcli client.Client) error {
-	canEnableHA, err := canEnableHA(ctx, kcli)
+	canEnableHA, err := highavailability.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)
 	}
@@ -473,47 +471,5 @@ func maybeEnableHA(ctx context.Context, kcli client.Client) error {
 		return nil
 	}
 	logrus.Info("")
-	return enableHA(ctx, kcli)
-}
-
-// canEnableHA checks if high availability can be enabled in the cluster.
-func canEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
-	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
-	if err != nil {
-		return false, fmt.Errorf("unable to get latest installation: %w", err)
-	}
-	if installation.Spec.HighAvailability {
-		return false, nil
-	}
-	if err := kcli.Get(ctx, types.NamespacedName{Name: ecRestoreStateCMName, Namespace: "embedded-cluster"}, &corev1.ConfigMap{}); err == nil {
-		return false, nil // cannot enable HA during a restore
-	} else if !errors.IsNotFound(err) {
-		return false, fmt.Errorf("unable to get restore state configmap: %w", err)
-	}
-	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kcli)
-	if err != nil {
-		return false, fmt.Errorf("unable to check control plane nodes: %w", err)
-	}
-	return ncps >= 3, nil
-}
-
-// enableHA enables high availability in the installation object
-// and waits for the migration to be complete.
-func enableHA(ctx context.Context, kcli client.Client) error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Enabling high availability")
-	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
-	if err != nil {
-		return fmt.Errorf("unable to get latest installation: %w", err)
-	}
-	in.Spec.HighAvailability = true
-	if err := kcli.Update(ctx, in); err != nil {
-		return fmt.Errorf("unable to update installation: %w", err)
-	}
-	if err := kubeutils.WaitForHAInstallation(ctx, kcli); err != nil {
-		return fmt.Errorf("unable to wait for ha installation: %w", err)
-	}
-	loading.Infof("High availability enabled!")
-	return nil
+	return highavailability.EnableHA(ctx, kcli)
 }
