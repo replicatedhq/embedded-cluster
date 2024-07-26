@@ -188,10 +188,10 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-previous-k0s
             output/bin/embedded-cluster-release-builder
-#      - name: Export K0s Version
-#        run: |
-#          make print-K0S_VERSION
-#          echo "k0s_version=$(make print-K0S_VERSION)" >> "$GITHUB_OUTPUT"
+      - name: Export K0s Version
+        run: |
+          make print-K0S_VERSION
+          echo "k0s_version=$(make print-K0S_VERSION)" >> "$GITHUB_OUTPUT"
 
   check-images:
     name: Check Images
@@ -392,7 +392,7 @@ jobs:
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-          #k0s-version: ${{ steps.build.outputs.k0s_version }}
+          k0s-version: ${{ steps.build.outputs.k0s_version }}
 
   # this job will validate that all the tests passed
   # it is used for the github branch protection rule
