@@ -607,3 +607,17 @@ func NewHelm() (*helm.Helm, error) {
 		K0sVersion: sv.Original(),
 	})
 }
+
+func GetLatestKubernetesVersion() (*semver.Version, error) {
+	resp, err := http.Get("https://dl.k8s.io/release/stable.txt")
+	if err != nil {
+		return nil, fmt.Errorf("http get: %w", err)
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+	if !scanner.Scan() {
+		return nil, fmt.Errorf("no content in stable.txt")
+	}
+	return semver.NewVersion(scanner.Text())
+}

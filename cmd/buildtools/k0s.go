@@ -26,46 +26,46 @@ var k0sImageComponents = map[string]string{
 
 var k0sComponents = map[string]addonComponent{
 	"coredns": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts commonOptions) string {
 			return "coredns"
 		},
 	},
 	"calico-node": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts commonOptions) string {
 			return "calico-node"
 		},
 	},
 	"calico-cni": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts commonOptions) string {
 			return "calico-cni"
 		},
 	},
 	"calico-kube-controllers": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts commonOptions) string {
 			return "calico-kube-controllers"
 		},
 	},
 	"metrics-server": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts commonOptions) string {
 			return "metrics-server"
 		},
 	},
 	"kube-proxy": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			return fmt.Sprintf("kube-proxy-%d.%d-default", upstreamVersion.Major(), upstreamVersion.Minor())
+		getWolfiPackageName: func(opts commonOptions) string {
+			return fmt.Sprintf("kube-proxy-%d.%d-default", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
 	},
 	"envoy-distroless": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			return fmt.Sprintf("envoy-%d.%d", upstreamVersion.Major(), upstreamVersion.Minor())
+		getWolfiPackageName: func(opts commonOptions) string {
+			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
 	},
 	"pause": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			return fmt.Sprintf("kubernetes-pause-%d.%d", upstreamVersion.Major(), upstreamVersion.Minor())
+		getWolfiPackageName: func(opts commonOptions) string {
+			return fmt.Sprintf("kubernetes-pause-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			return latestPatchComparison(k0sVersion) // pause package version follows the k8s version
+		getWolfiPackageVersionComparison: func(opts commonOptions) string {
+			return latestPatchComparison(opts.k0sVersion) // pause package version follows the k8s version
 		},
 	},
 }
@@ -82,11 +82,6 @@ var updateK0sImagesCommand = &cli.Command{
 		}
 
 		k0sImages := config.ListK0sImages(k0sconfig.DefaultClusterConfig())
-
-		k0sVersion, err := getK0sVersion()
-		if err != nil {
-			return fmt.Errorf("failed to get k0s version: %w", err)
-		}
 
 		if err := ApkoLogin(); err != nil {
 			return fmt.Errorf("failed to apko login: %w", err)
@@ -116,7 +111,7 @@ var updateK0sImagesCommand = &cli.Command{
 				return fmt.Errorf("no component found for component name %s", componentName)
 			}
 
-			packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
+			packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, upstreamVersion)
 			if err != nil {
 				return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
 			}

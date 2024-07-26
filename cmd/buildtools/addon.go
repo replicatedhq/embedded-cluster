@@ -7,24 +7,48 @@ import (
 )
 
 type addonComponent struct {
-	getWolfiPackageName              func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string
-	getWolfiPackageVersionComparison func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string
+	getWolfiPackageName              func(opts commonOptions) string
+	getWolfiPackageVersionComparison func(opts commonOptions) string
 	upstreamVersionInputOverride     string
 }
 
-func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, k0sVersion *semver.Version, upstreamVersion string) (string, string, error) {
+type commonOptions struct {
+	k0sVersion       *semver.Version
+	upstreamVersion  *semver.Version
+	latestK8sVersion *semver.Version
+}
+
+func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, upstreamVersion string) (string, string, error) {
 	packageName := ""
 	if c.getWolfiPackageName == nil {
 		return packageName, upstreamVersion, nil
 	}
 
+	k0sVersion, err := getK0sVersion()
+	if err != nil {
+		return "", "", fmt.Errorf("get k0s version: %w", err)
+	}
+
+	latestK8sVersion, err := GetLatestKubernetesVersion()
+	if err != nil {
+		return "", "", fmt.Errorf("get latest k8s version: %w", err)
+	}
+
 	if c.getWolfiPackageName != nil {
-		packageName = c.getWolfiPackageName(k0sVersion, semver.MustParse(upstreamVersion))
+		packageName = c.getWolfiPackageName(commonOptions{
+			k0sVersion:       k0sVersion,
+			upstreamVersion:  semver.MustParse(upstreamVersion),
+			latestK8sVersion: latestK8sVersion,
+		})
 	}
 
 	comparison := latestPatchComparison(semver.MustParse(upstreamVersion))
 	if c.getWolfiPackageVersionComparison != nil {
-		comparison = c.getWolfiPackageVersionComparison(k0sVersion, semver.MustParse(upstreamVersion))
+		comparison = c.getWolfiPackageVersionComparison(commonOptions{
+			k0sVersion:       k0sVersion,
+			upstreamVersion:  semver.MustParse(upstreamVersion),
+			latestK8sVersion: latestK8sVersion,
+		})
 	}
 	constraints, err := semver.NewConstraint(comparison)
 	if err != nil {
