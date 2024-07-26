@@ -11,6 +11,7 @@ spec:
   - hostOS: {}
   - memory: {}
   - blockDevices: {}
+  - time: {}
   - certificate:
       collectorName: k8s-api-keypair
       certificatePath: /var/lib/k0s/pki/k0s-api.crt
@@ -27,9 +28,18 @@ spec:
       collectorName: openebs-disk-usage
       path: /var/openebs/local
   - diskUsage:
-      collectorName: tmp
+      collectorName: embedded-cluster-path-usage
+      path: /var/lib/embedded-cluster
+  - diskUsage:
+      collectorName: k0s-path-usage
+      path: /var/lib/k0s
+  - diskUsage:
+      collectorName: openebs-path-usage
+      path: /opt/openebs
+  - diskUsage:
+      collectorName: tmp-path-usage
       path: /tmp
-      # APIserver and etcd health endpoints
+  # APIserver and etcd health endpoints
   - run:
       collectorName: k8s-api-healthz-6443
       command: 'curl'
