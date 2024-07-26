@@ -208,7 +208,6 @@ jobs:
           path: output/bin
       - name: Check for missing images
         run: |
-          set -x
           chmod +x ./output/bin/buildtools
           chmod +x ./output/bin/embedded-cluster
           ./output/bin/embedded-cluster version metadata > version-metadata.json

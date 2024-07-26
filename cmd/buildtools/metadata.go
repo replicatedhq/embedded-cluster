@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
@@ -13,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
+	"helm.sh/helm/v3/pkg/repo"
 )
 
 var metadataCommand = &cli.Command{
@@ -82,6 +84,23 @@ func extractImagesFromHelmExtensions(repos []embeddedclusterv1beta1.Repository, 
 	}
 	defer hcli.Close()
 
+	for _, entry := range repos {
+		log.Printf("Adding helm repository %s", entry.Name)
+		err := hcli.AddRepo(&repo.Entry{
+			Name:                  entry.Name,
+			URL:                   entry.URL,
+			Username:              entry.Username,
+			Password:              entry.Password,
+			CertFile:              entry.CertFile,
+			KeyFile:               entry.KeyFile,
+			CAFile:                entry.CAFile,
+			InsecureSkipTLSverify: entry.Insecure,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("add helm repository %s: %w", entry.Name, err)
+		}
+	}
+
 	var images []string
 	for _, ext := range charts {
 		log.Printf("Extracting images from chart %s", ext.Name)
@@ -106,5 +125,9 @@ func extractImagesFromChart(hcli *helm.Helm, chart embeddedclusterv1beta1.Chart)
 		}
 	}
 
-	return helm.ExtractImagesFromOCIChart(hcli, chart.ChartName, chart.Name, chart.Version, values)
+	if strings.HasPrefix(chart.ChartName, "oci://") {
+		return helm.ExtractImagesFromOCIChart(hcli, chart.ChartName, chart.Name, chart.Version, values)
+	}
+	parts := strings.SplitN(chart.ChartName, "/", 2)
+	return helm.ExtractImagesFromChart(hcli, parts[0], parts[1], chart.Version, values)
 }

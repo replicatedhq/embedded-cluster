@@ -43,29 +43,6 @@ var (
 			New:     pusher.NewOCIPusher,
 		},
 	}
-
-	// repositories holds a list of all known repositories
-	// we use to pull charts from.
-	repositories = repo.File{
-		Repositories: []*repo.Entry{
-			{
-				Name: "openebs",
-				URL:  "https://openebs.github.io/openebs",
-			},
-			{
-				Name: "seaweedfs",
-				URL:  "https://seaweedfs.github.io/seaweedfs/helm",
-			},
-			{
-				Name: "twuni",
-				URL:  "https://helm.twun.io",
-			},
-			{
-				Name: "vmware-tanzu",
-				URL:  "https://vmware-tanzu.github.io/helm-charts",
-			},
-		},
-	}
 )
 
 func NewHelm(opts HelmOptions) (*Helm, error) {
@@ -106,6 +83,7 @@ type Helm struct {
 	kversion *semver.Version
 	regcli   *registry.Client
 	repocfg  string
+	repos    []*repo.Entry
 }
 
 func (h *Helm) prepare() error {
@@ -113,7 +91,7 @@ func (h *Helm) prepare() error {
 		return nil
 	}
 
-	data, err := yaml.Marshal(repositories)
+	data, err := yaml.Marshal(repo.File{Repositories: h.repos})
 	if err != nil {
 		return fmt.Errorf("marshal repositories: %w", err)
 	}
@@ -123,7 +101,7 @@ func (h *Helm) prepare() error {
 		return fmt.Errorf("write repositories: %w", err)
 	}
 
-	for _, repository := range repositories.Repositories {
+	for _, repository := range h.repos {
 		chrepo, err := repo.NewChartRepository(
 			repository, getters,
 		)
@@ -144,8 +122,13 @@ func (h *Helm) Close() error {
 	return os.RemoveAll(h.tmpdir)
 }
 
+func (h *Helm) AddRepo(repo *repo.Entry) error {
+	h.repos = append(h.repos, repo)
+	return nil
+}
+
 func (h *Helm) Latest(reponame, chart string) (string, error) {
-	for _, repository := range repositories.Repositories {
+	for _, repository := range h.repos {
 		if repository.Name != reponame {
 			continue
 		}
@@ -181,7 +164,7 @@ func (h *Helm) Latest(reponame, chart string) (string, error) {
 
 func (h *Helm) PullOCI(url, version string) (string, error) {
 	if err := h.prepare(); err != nil {
-		return "", err
+		return "", fmt.Errorf("prepare: %w", err)
 	}
 
 	dl := downloader.ChartDownloader{
@@ -200,7 +183,7 @@ func (h *Helm) PullOCI(url, version string) (string, error) {
 
 func (h *Helm) Pull(repo, chart, version string) (string, error) {
 	if err := h.prepare(); err != nil {
-		return "", err
+		return "", fmt.Errorf("prepare: %w", err)
 	}
 
 	dl := downloader.ChartDownloader{
@@ -213,7 +196,7 @@ func (h *Helm) Pull(repo, chart, version string) (string, error) {
 	ref := fmt.Sprintf("%s/%s", repo, chart)
 	dst, _, err := dl.DownloadTo(ref, version, os.TempDir())
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("download chart: %w", err)
 	}
 	return dst, nil
 }
