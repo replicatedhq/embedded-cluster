@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+permissions:
+  security-events: write
+
 jobs:
   output-matrix:
     runs-on: ubuntu-latest
