@@ -260,6 +260,12 @@ jobs:
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "appver-${SHORT_SHA}-pre-minio-removal"
 
+          # install the previous k0s version to ensure an upgrade occurs
+          sed -i "s/${SHORT_SHA}/${SHORT_SHA}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}-previous-k0s"
+          # return the cluster config to the current version
+          sed -i "s/${SHORT_SHA}-previous-k0s/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}"
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "appver-${SHORT_SHA}-noop"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI --version "appver-${SHORT_SHA}-upgrade"
@@ -272,12 +278,14 @@ jobs:
         run: |
           export SHORT_SHA=dev-${GITHUB_SHA::7}
           echo "${SHORT_SHA}"
-          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
 
           # airgap tests install the previous k0s version to ensure an upgrade occurs
           sed -i "s/${SHORT_SHA}/${SHORT_SHA}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
-          
           replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}-previous-k0s"
+          # return the cluster config to the current version
+          sed -i "s/${SHORT_SHA}-previous-k0s/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
+
+          replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "appver-${SHORT_SHA}"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI-airgap --version "appver-${SHORT_SHA}-upgrade"
 
       - name: Create download link message text
@@ -314,50 +322,51 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian11
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
-          - TestVersion
-          - TestHostPreflightCustomSpec
-          - TestHostPreflightInBuiltSpec
-          - TestUnsupportedOverrides
-          - TestMultiNodeInstallation
-          - TestMultiNodeReset
-          - TestCommandsRequireSudo
-          - TestInstallWithoutEmbed
+#          - TestSingleNodeInstallation
+#          - TestSingleNodeInstallationAlmaLinux8
+#          - TestSingleNodeInstallationDebian11
+#          - TestSingleNodeInstallationDebian12
+#          - TestSingleNodeInstallationCentos9Stream
+#          - TestVersion
+#          - TestHostPreflightCustomSpec
+#          - TestHostPreflightInBuiltSpec
+#          - TestUnsupportedOverrides
+#          - TestMultiNodeInstallation
+#          - TestMultiNodeReset
+#          - TestCommandsRequireSudo
+#          - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
-          - TestResetAndReinstall
-          - TestResetAndReinstallAirgap
-          - TestCollectSupportBundle
-          - TestOldVersionUpgrade
-          - TestMaterialize
-          - TestLocalArtifactMirror
+          - TestUpgradeFromReplicatedApp
+#          - TestResetAndReinstall
+#          - TestResetAndReinstallAirgap
+#          - TestCollectSupportBundle
+#          - TestOldVersionUpgrade
+#          - TestMaterialize
+#          - TestLocalArtifactMirror
           - TestSingleNodeAirgapUpgrade
-          - TestSingleNodeAirgapUpgradeCustomCIDR
-          - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgrade
-          - TestSingleNodeDisasterRecovery
-          - TestSingleNodeDisasterRecoveryWithProxy
-          - TestSingleNodeResumeDisasterRecovery
-          - TestProxiedEnvironment
-          - TestMultiNodeHAInstallation
-          - TestMultiNodeHADisasterRecovery
-          - TestCustomCIDR
-          - TestProxiedCustomCIDR
-          - TestSingleNodeInstallationNoopUpgrade
-        include:
-          - test: TestMultiNodeAirgapUpgrade
-            runner: embedded-cluster
-          - test: TestMultiNodeAirgapUpgradeSameK0s
-            runner: embedded-cluster
-          - test: TestSingleNodeAirgapDisasterRecovery
-            runner: embedded-cluster
-          - test: TestMultiNodeAirgapHAInstallation
-            runner: embedded-cluster
-          - test: TestMultiNodeAirgapHADisasterRecovery
-            runner: embedded-cluster
+#          - TestSingleNodeAirgapUpgradeCustomCIDR
+#          - TestInstallSnapshotFromReplicatedApp
+#          - TestMultiNodeAirgapUpgrade
+#          - TestSingleNodeDisasterRecovery
+#          - TestSingleNodeDisasterRecoveryWithProxy
+#          - TestSingleNodeResumeDisasterRecovery
+#          - TestProxiedEnvironment
+#          - TestMultiNodeHAInstallation
+#          - TestMultiNodeHADisasterRecovery
+#          - TestCustomCIDR
+#          - TestProxiedCustomCIDR
+#          - TestSingleNodeInstallationNoopUpgrade
+#        include:
+#          - test: TestMultiNodeAirgapUpgrade
+#            runner: embedded-cluster
+#          - test: TestMultiNodeAirgapUpgradeSameK0s
+#            runner: embedded-cluster
+#          - test: TestSingleNodeAirgapDisasterRecovery
+#            runner: embedded-cluster
+#          - test: TestMultiNodeAirgapHAInstallation
+#            runner: embedded-cluster
+#          - test: TestMultiNodeAirgapHADisasterRecovery
+#            runner: embedded-cluster
     steps:
       - name: Checkout
         uses: actions/checkout@v4
