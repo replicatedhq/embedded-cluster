@@ -151,50 +151,6 @@ wait_for_healthy_node() {
     return 0
 }
 
-reset_installation() {
-    if ! embedded-cluster reset --no-prompt "${additional_flags[@]}" | tee /tmp/log ; then
-        echo "Failed to uninstall embedded-cluster"
-        exit 1
-    fi
-
-    if systemctl status embedded-cluster; then
-        echo "Unexpectedly got status of embedded-cluster service"
-        exit 1
-    fi
-}
-
-install_with_in_built_preflights() {
-    rm -rf /usr/local/bin/embedded-cluster
-    cp -Rfp /usr/local/bin/embedded-cluster-copy /usr/local/bin/embedded-cluster
-    if ! /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
-        cat /etc/os-release
-        echo "install_with_in_built_preflights: Failed to install embedded-cluster"
-        exit 1
-    fi
-    if ! grep -q "Admin Console is ready!" /tmp/log; then
-        echo "install_with_in_built_preflights: Failed to validate that the Admin Console is ready"
-        exit 1
-    fi
-    if ! has_applied_host_preflight; then
-        echo "install_with_in_built_preflights: Install hasn't applied host preflight"
-        cat /tmp/log
-        exit 1
-    fi
-    if ! has_stored_host_preflight_results; then
-        echo "install_with_in_built_preflights: Install hasn't stored host preflight results to disk"
-        cat /tmp/log
-        exit 1
-    fi
-    if ! wait_for_healthy_node; then
-        echo "install_with_in_built_preflights: Failed to wait for healthy node"
-        exit 1
-    fi
-    if ! systemctl restart embedded-cluster; then
-        echo "install_with_in_built_preflights: Failed to restart embedded-cluster service"
-        exit 1
-    fi
-}
-
 main() {
     cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"
@@ -244,11 +200,6 @@ main() {
         echo "Failed to restart embedded-cluster service"
         exit 1
     fi
-
-    # Now lets install with in-built preflight spec
-    # TODO Move to separate script
-    reset_installation
-    install_with_in_built_preflights
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
