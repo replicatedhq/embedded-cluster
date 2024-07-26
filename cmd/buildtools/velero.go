@@ -29,29 +29,30 @@ var veleroImageComponents = map[string]string{
 
 var veleroComponents = map[string]addonComponent{
 	"velero": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
 	"velero-plugin-for-aws": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero-plugin-for-aws"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
 	},
 	"velero-restore-helper": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero-restore-helper"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
 	"kubectl": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			return fmt.Sprintf("kubectl-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return fmt.Sprintf("kubectl-%d.%d-default", opts.latestK8sVersion.Major(), opts.latestK8sVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			return latestPatchComparison(k0sVersion) // since we're using the k0s version to identify the package
+		getWolfiPackageVersionComparison: func(opts addonComponentOptions) string {
+			// use latest available patch in wolfi as latest upstream might not be available yet
+			return latestPatchComparison(opts.latestK8sVersion)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
@@ -200,11 +201,6 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 		Images:   make(map[string]string),
 	}
 
-	k0sVersion, err := getK0sVersion()
-	if err != nil {
-		return fmt.Errorf("failed to get k0s version: %w", err)
-	}
-
 	logrus.Infof("fetching wolfi apk index")
 	wolfiAPKIndex, err := GetWolfiAPKIndex()
 	if err != nil {
@@ -254,7 +250,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 			}
 		}
 
-		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
+		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, upstreamVersion)
 		if err != nil {
 			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
 		}

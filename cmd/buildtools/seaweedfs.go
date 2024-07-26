@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
@@ -20,7 +19,7 @@ var seaweedfsImageComponents = map[string]string{
 
 var seaweedfsComponents = map[string]addonComponent{
 	"seaweedfs": {
-		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "seaweedfs"
 		},
 		upstreamVersionInputOverride: "INPUT_SEAWEEDFS_VERSION",
@@ -106,11 +105,6 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 		Images:   make(map[string]string),
 	}
 
-	k0sVersion, err := getK0sVersion()
-	if err != nil {
-		return fmt.Errorf("failed to get k0s version: %w", err)
-	}
-
 	logrus.Infof("fetching wolfi apk index")
 	wolfiAPKIndex, err := GetWolfiAPKIndex()
 	if err != nil {
@@ -156,7 +150,7 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 			}
 		}
 
-		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
+		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, upstreamVersion)
 		if err != nil {
 			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
 		}
