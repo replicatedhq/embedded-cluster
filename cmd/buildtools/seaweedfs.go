@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"helm.sh/helm/v3/pkg/repo"
 )
 
 var seaweedfsImageComponents = map[string]string{
@@ -26,6 +27,11 @@ var seaweedfsComponents = map[string]addonComponent{
 	},
 }
 
+var seaweedfsRepo = &repo.Entry{
+	Name: "seaweedfs",
+	URL:  "https://seaweedfs.github.io/seaweedfs/helm",
+}
+
 var updateSeaweedFSAddonCommand = &cli.Command{
 	Name:      "seaweedfs",
 	Usage:     "Updates the SeaweedFS addon",
@@ -38,7 +44,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_SEAWEEDFS_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest seaweedfs chart version")
-			latest, err := LatestChartVersion("seaweedfs", "seaweedfs")
+			latest, err := LatestChartVersion(seaweedfsRepo, "seaweedfs")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest seaweedfs chart version: %v", err)
 			}
@@ -52,7 +58,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 			logrus.Infof("seaweedfs chart version is already up-to-date")
 		} else {
 			logrus.Infof("mirroring seaweedfs chart version %s", nextChartVersion)
-			if err := MirrorChart("seaweedfs", "seaweedfs", nextChartVersion); err != nil {
+			if err := MirrorChart(seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
 				return fmt.Errorf("failed to mirror seaweedfs chart: %v", err)
 			}
 		}

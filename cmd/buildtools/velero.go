@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"helm.sh/helm/v3/pkg/repo"
 )
 
 // From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/26bf6253ff0d74f8e5ce6aeb3053f31b7a297a99/README.md#compatibility
@@ -28,12 +29,21 @@ var veleroImageComponents = map[string]string{
 
 var veleroComponents = map[string]addonComponent{
 	"velero": {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+			return "velero"
+		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
 	"velero-plugin-for-aws": {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+			return "velero-plugin-for-aws"
+		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
 	},
 	"velero-restore-helper": {
+		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
+			return "velero-restore-helper"
+		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
 	"kubectl": {
@@ -45,6 +55,11 @@ var veleroComponents = map[string]addonComponent{
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
+}
+
+var veleroRepo = &repo.Entry{
+	Name: "vmware-tanzu",
+	URL:  "https://vmware-tanzu.github.io/helm-charts",
 }
 
 var updateVeleroAddonCommand = &cli.Command{
@@ -59,7 +74,7 @@ var updateVeleroAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_VELERO_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest velero chart version")
-			latest, err := LatestChartVersion("vmware-tanzu", "velero")
+			latest, err := LatestChartVersion(veleroRepo, "velero")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest velero chart version: %v", err)
 			}
@@ -73,7 +88,7 @@ var updateVeleroAddonCommand = &cli.Command{
 			logrus.Infof("velero chart version is already up-to-date")
 		} else {
 			logrus.Infof("mirroring velero chart version %s", nextChartVersion)
-			if err := MirrorChart("vmware-tanzu", "velero", nextChartVersion); err != nil {
+			if err := MirrorChart(veleroRepo, "velero", nextChartVersion); err != nil {
 				return fmt.Errorf("failed to mirror velero chart: %v", err)
 			}
 		}
