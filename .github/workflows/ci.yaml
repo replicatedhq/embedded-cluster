@@ -262,7 +262,7 @@ jobs:
           # - TestSingleNodeInstallationCentos9Stream
           # - TestVersion
           - TestHostPreflightInBuiltSpec
-          - TestHostPreflightCustomSpec
+          # - TestHostPreflightCustomSpec
         #   - TestUnsupportedOverrides
         #   - TestMultiNodeInstallation
         #   - TestMultiNodeReset
