@@ -288,7 +288,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestHostPreflight(t *testing.T) {
+func TestHostPreflightCustomSpec(t *testing.T) {
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
@@ -319,8 +319,25 @@ func TestHostPreflight(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestHostPreflightInBuiltSpec(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                                 t,
+		Nodes:                             1,
+		Image:                             "centos/9-Stream",
+		LicensePath:                       "license.yaml",
+		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
+	})
+	defer cleanupCluster(t, tc)
+
 	t.Logf("%s: install single node with in-built host preflights", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-host-preflight-install.sh"}
+	line := []string{"single-node-host-preflight-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster node with host preflights: %v", err)
 	}
