@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
-. ./common.sh
+DIR=/usr/local/bin
+
+. $DIR/common.sh
 
 has_stored_host_preflight_results() {
     if [ ! -f /var/lib/embedded-cluster/support/host-preflight-results.json ]; then

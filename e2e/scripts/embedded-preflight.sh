@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
-. ./common.sh
+DIR=/usr/local/bin
+
+. $DIR/common.sh
 
 preflight_with_failure="
 apiVersion: troubleshoot.sh/v1beta2
