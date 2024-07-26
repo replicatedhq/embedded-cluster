@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-github/v62/github"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/sirupsen/logrus"
+	"helm.sh/helm/v3/pkg/repo"
 )
 
 const (
@@ -382,14 +383,19 @@ func SetMakefileVariable(name, value string) error {
 	return nil
 }
 
-func LatestChartVersion(repo, name string) (string, error) {
+func LatestChartVersion(repo *repo.Entry, name string) (string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
 		return "", fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
+	logrus.Infof("adding helm repo %s", repo.Name)
+	err = hcli.AddRepo(repo)
+	if err != nil {
+		return "", fmt.Errorf("add helm repo: %w", err)
+	}
 	logrus.Infof("finding latest chart version of %s/%s", repo, name)
-	return hcli.Latest(repo, name)
+	return hcli.Latest(repo.Name, name)
 }
 
 func GetImageDigest(ctx context.Context, image string) (string, error) {
@@ -458,15 +464,21 @@ func GetImagesFromOCIChart(url, name, version string, values map[string]interfac
 	return helm.ExtractImagesFromOCIChart(hcli, url, name, version, values)
 }
 
-func MirrorChart(repo, name, ver string) error {
+func MirrorChart(repo *repo.Entry, name, ver string) error {
 	hcli, err := NewHelm()
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
 
+	logrus.Infof("adding helm repo %s", repo.Name)
+	err = hcli.AddRepo(repo)
+	if err != nil {
+		return fmt.Errorf("add helm repo: %w", err)
+	}
+
 	logrus.Infof("pulling %s chart version %s", name, ver)
-	chpath, err := hcli.Pull(repo, name, ver)
+	chpath, err := hcli.Pull(repo.Name, name, ver)
 	if err != nil {
 		return fmt.Errorf("pull chart %s: %w", name, err)
 	}

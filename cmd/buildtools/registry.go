@@ -7,10 +7,16 @@ import (
 	"github.com/coreos/go-semver/semver"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"helm.sh/helm/v3/pkg/repo"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
+
+var registryRepo = &repo.Entry{
+	Name: "twuni",
+	URL:  "https://helm.twun.io",
+}
 
 var updateRegistryAddonCommand = &cli.Command{
 	Name:      "registry",
@@ -18,7 +24,7 @@ var updateRegistryAddonCommand = &cli.Command{
 	UsageText: environmentUsageText,
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating registry addon")
-		latest, err := LatestChartVersion("twuni", "docker-registry")
+		latest, err := LatestChartVersion(registryRepo, "docker-registry")
 		if err != nil {
 			return fmt.Errorf("unable to get the latest registry version: %v", err)
 		}
@@ -31,7 +37,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring registry chart version %s", latest)
-		if err := MirrorChart("twuni", "docker-registry", latest); err != nil {
+		if err := MirrorChart(registryRepo, "docker-registry", latest); err != nil {
 			return fmt.Errorf("unable to mirror chart: %w", err)
 		}
 

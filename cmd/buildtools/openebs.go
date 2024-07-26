@@ -11,12 +11,18 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"helm.sh/helm/v3/pkg/repo"
 )
 
 var openebsImageComponents = map[string]string{
 	"docker.io/bitnami/kubectl":             "kubectl",
 	"docker.io/openebs/linux-utils":         "openebs-linux-utils",
 	"docker.io/openebs/provisioner-localpv": "openebs-provisioner-localpv",
+}
+
+var openebsRepo = &repo.Entry{
+	Name: "openebs",
+	URL:  "https://openebs.github.io/openebs",
 }
 
 var openebsComponents = map[string]addonComponent{
@@ -53,7 +59,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_OPENEBS_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest openebs chart version")
-			latest, err := LatestChartVersion("openebs", "openebs")
+			latest, err := LatestChartVersion(openebsRepo, "openebs")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
 			}
@@ -67,7 +73,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 			logrus.Infof("openebs chart version is already up-to-date")
 		} else {
 			logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
-			if err := MirrorChart("openebs", "openebs", nextChartVersion); err != nil {
+			if err := MirrorChart(openebsRepo, "openebs", nextChartVersion); err != nil {
 				return fmt.Errorf("failed to mirror openebs chart: %v", err)
 			}
 		}
