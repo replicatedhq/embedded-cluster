@@ -319,13 +319,21 @@ func TestHostPreflight(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA")}
+	stdout, _, err := RunCommandOnNode(t, tc, 0, line)
+	if err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+	t.Log(stdout)
+
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
-	t.Logf("%s: install single node with in-built host host preflights", time.Now().Format(time.RFC3339))
+	t.Logf("%s: install single node with in-built host preflights", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-host-preflight-install.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster node with host preflights: %v", err)
