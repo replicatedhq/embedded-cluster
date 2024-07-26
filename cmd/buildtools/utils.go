@@ -188,6 +188,16 @@ func ApkoLogin() error {
 	return nil
 }
 
+func latestPatchComparison(s *semver.Version) string {
+	return fmt.Sprintf(
+		">=%d.%d, <%d.%d",
+		s.Major(),
+		s.Minor(),
+		s.Major(),
+		s.Minor()+1,
+	)
+}
+
 func ApkoBuildAndPublish(componentName string, packageName string, packageVersion string, upstreamVersion string) error {
 	args := []string{
 		"apko-build-and-publish",

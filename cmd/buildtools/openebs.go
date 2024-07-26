@@ -35,8 +35,7 @@ var openebsComponents = map[string]addonComponent{
 			return fmt.Sprintf("kubectl-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
 		},
 		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			// match the greatest patch version of the same minor version
-			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
+			return latestPatchComparison(k0sVersion) // since we're using the k0s version to identify the package
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
