@@ -8,9 +8,6 @@ ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
-EMBEDDED_OPERATOR_UTILS_IMAGE ?= replicated/embedded-cluster-utils
-EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION ?= $(subst +,-,$(VERSION))
-EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION = proxy.replicated.com/anonymous/$(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
 KUBECTL_VERSION = v1.30.1
 K0S_VERSION = v1.29.6+k0s.0
 K0S_GO_VERSION = v1.29.6+k0s.0
@@ -36,7 +33,6 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.EmbeddedOperatorImageOverride=$(EMBEDDED_OPERATOR_IMAGE_OVERRIDE)
 
 export PATH := $(shell pwd)/bin:$(PATH)
@@ -186,18 +182,6 @@ scan:
 		--severity="HIGH,CRITICAL" \
 		--ignore-unfixed \
 		./
-
-.PHONY: build-utils-image
-build-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
-build-utils-image: export PACKAGE_VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
-build-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
-build-utils-image: apko-build
-
-.PHONY: build-and-push-utils-image
-build-and-push-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
-build-and-push-utils-image: export PACKAGE_VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
-build-and-push-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
-build-and-push-utils-image: apko-login apko-build-and-publish
 
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image: export IMAGE ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
