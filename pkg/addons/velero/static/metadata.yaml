@@ -8,7 +8,7 @@
 version: 6.7.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
-    kubectl: 1.29.5-r0@sha256:0e6ba5cb5cd48a17a4700e9fac4a267d3ec847637890919301ac0c0fe5ac7068
-    velero: 1.13.2@sha256:891aecafcdb3e03b08b8494f71fbad42335a52c445cb0e164210d383558753e2
+    kubectl: 1.29.5-r0@sha256:b02581e79105d18e18ab29668838c7ba6040a5c0c096cddbc9b110e9ba24843d
+    velero: 1.13.2@sha256:f5609c28a5e1984e7b07a93c871a19ff3fb3d168663d3e459d41f12ef629925b
     velero-plugin-for-aws: 1.9.2@sha256:f2b81a1c1fcbf4e1a11b87ac0484c87e8ea7dd3facd76aa038f99cc4e1b1bcd7
-    velero-restore-helper: 1.13.2@sha256:56ac4f664d79f97534d41db2e46561d3862035cd527d092d016cb7289ec4ce8f
+    velero-restore-helper: 1.13.2@sha256:dac290e821ee7fa698bdce4d1e5c98ea8e36940cfca9b21cb0d93df67864d055
