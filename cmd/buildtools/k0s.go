@@ -26,45 +26,45 @@ var k0sImageComponents = map[string]string{
 
 var k0sComponents = map[string]addonComponent{
 	"coredns": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "coredns"
 		},
 	},
 	"calico-node": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-node"
 		},
 	},
 	"calico-cni": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-cni"
 		},
 	},
 	"calico-kube-controllers": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-kube-controllers"
 		},
 	},
 	"metrics-server": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "metrics-server"
 		},
 	},
 	"kube-proxy": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return fmt.Sprintf("kube-proxy-%d.%d-default", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
 	},
 	"envoy-distroless": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
 	},
 	"pause": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return fmt.Sprintf("kubernetes-pause-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(opts commonOptions) string {
+		getWolfiPackageVersionComparison: func(opts addonComponentOptions) string {
 			return latestPatchComparison(opts.k0sVersion) // pause package version follows the k8s version
 		},
 	},

@@ -19,7 +19,7 @@ var seaweedfsImageComponents = map[string]string{
 
 var seaweedfsComponents = map[string]addonComponent{
 	"seaweedfs": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "seaweedfs"
 		},
 		upstreamVersionInputOverride: "INPUT_SEAWEEDFS_VERSION",

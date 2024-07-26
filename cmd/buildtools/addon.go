@@ -7,12 +7,12 @@ import (
 )
 
 type addonComponent struct {
-	getWolfiPackageName              func(opts commonOptions) string
-	getWolfiPackageVersionComparison func(opts commonOptions) string
+	getWolfiPackageName              func(opts addonComponentOptions) string
+	getWolfiPackageVersionComparison func(opts addonComponentOptions) string
 	upstreamVersionInputOverride     string
 }
 
-type commonOptions struct {
+type addonComponentOptions struct {
 	k0sVersion       *semver.Version
 	upstreamVersion  *semver.Version
 	latestK8sVersion *semver.Version
@@ -35,7 +35,7 @@ func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, upstream
 	}
 
 	if c.getWolfiPackageName != nil {
-		packageName = c.getWolfiPackageName(commonOptions{
+		packageName = c.getWolfiPackageName(addonComponentOptions{
 			k0sVersion:       k0sVersion,
 			upstreamVersion:  semver.MustParse(upstreamVersion),
 			latestK8sVersion: latestK8sVersion,
@@ -44,7 +44,7 @@ func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, upstream
 
 	comparison := latestPatchComparison(semver.MustParse(upstreamVersion))
 	if c.getWolfiPackageVersionComparison != nil {
-		comparison = c.getWolfiPackageVersionComparison(commonOptions{
+		comparison = c.getWolfiPackageVersionComparison(addonComponentOptions{
 			k0sVersion:       k0sVersion,
 			upstreamVersion:  semver.MustParse(upstreamVersion),
 			latestK8sVersion: latestK8sVersion,

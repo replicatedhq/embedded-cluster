@@ -26,7 +26,7 @@ var openebsRepo = &repo.Entry{
 
 var openebsComponents = map[string]addonComponent{
 	"openebs-provisioner-localpv": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			// package name is not the same as the component name
 			return "dynamic-localpv-provisioner"
 		},
@@ -36,10 +36,10 @@ var openebsComponents = map[string]addonComponent{
 		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"kubectl": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return fmt.Sprintf("kubectl-%d.%d-default", opts.latestK8sVersion.Major(), opts.latestK8sVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(opts commonOptions) string {
+		getWolfiPackageVersionComparison: func(opts addonComponentOptions) string {
 			// use latest available patch in wolfi as latest upstream might not be available yet
 			return latestPatchComparison(opts.latestK8sVersion)
 		},

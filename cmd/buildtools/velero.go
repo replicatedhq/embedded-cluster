@@ -29,28 +29,28 @@ var veleroImageComponents = map[string]string{
 
 var veleroComponents = map[string]addonComponent{
 	"velero": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
 	"velero-plugin-for-aws": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero-plugin-for-aws"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
 	},
 	"velero-restore-helper": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero-restore-helper"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
 	"kubectl": {
-		getWolfiPackageName: func(opts commonOptions) string {
+		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return fmt.Sprintf("kubectl-%d.%d-default", opts.latestK8sVersion.Major(), opts.latestK8sVersion.Minor())
 		},
-		getWolfiPackageVersionComparison: func(opts commonOptions) string {
+		getWolfiPackageVersionComparison: func(opts addonComponentOptions) string {
 			// use latest available patch in wolfi as latest upstream might not be available yet
 			return latestPatchComparison(opts.latestK8sVersion)
 		},
