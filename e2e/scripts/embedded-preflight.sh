@@ -133,12 +133,6 @@ has_applied_host_preflight() {
     fi
 }
 
-has_stored_host_preflight_results() {
-    if [ ! -f /var/lib/embedded-cluster/support/host-preflight-results.json ]; then
-        return 1
-    fi
-}
-
 main() {
     cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"

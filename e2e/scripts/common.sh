@@ -13,3 +13,9 @@ wait_for_healthy_node() {
     done
     return 0
 }
+
+has_stored_host_preflight_results() {
+    if [ ! -f /var/lib/embedded-cluster/support/host-preflight-results.json ]; then
+        return 1
+    fi
+}
