@@ -52,12 +52,7 @@ var k0sComponents = map[string]addonComponent{
 	},
 	"kube-proxy": {
 		getWolfiPackageName: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			return fmt.Sprintf("kube-proxy-%d.%d-default", k0sVersion.Major(), k0sVersion.Minor())
-		},
-		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			// current k0s version is 1.29.6, which isn't available in wolfi packages, latest for that minor is 1.29.5
-			// to workaround this, match the greatest patch version of the same minor version
-			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
+			return fmt.Sprintf("kube-proxy-%d.%d-default", upstreamVersion.Major(), upstreamVersion.Minor())
 		},
 	},
 	"envoy-distroless": {
@@ -70,10 +65,7 @@ var k0sComponents = map[string]addonComponent{
 			return fmt.Sprintf("kubernetes-pause-%d.%d", upstreamVersion.Major(), upstreamVersion.Minor())
 		},
 		getWolfiPackageVersionComparison: func(k0sVersion *semver.Version, upstreamVersion *semver.Version) string {
-			// pause package version follows the k8s version
-			// current k0s version is 1.29.6, which isn't available in wolfi packages, latest for that minor is 1.29.5
-			// to workaround this, match the greatest patch version of the same minor version
-			return fmt.Sprintf(">=%d.%d, <%d.%d", k0sVersion.Major(), k0sVersion.Minor(), k0sVersion.Major(), k0sVersion.Minor()+1)
+			return latestPatchComparison(k0sVersion) // pause package version follows the k8s version
 		},
 	},
 }
