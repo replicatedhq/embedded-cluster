@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -105,13 +106,21 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckin
 	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
+func (a *Velero) GetImages() []string {
+	var images []string
+	for image, tag := range Metadata.Images {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(image), tag))
+	}
+	return images
+}
+
 func (o *Velero) GetAdditionalImages() []string {
 	var images []string
 	if tag, ok := Metadata.Images["velero-restore-helper"]; ok {
-		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper:%s", tag))
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("velero-restore-helper"), tag))
 	}
 	if tag, ok := Metadata.Images["kubectl"]; ok {
-		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-kubectl:%s", tag))
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("kubectl"), tag))
 	}
 	return images
 }

@@ -12,3 +12,15 @@ func RandString(l int) string {
 
 	return string(b)
 }
+
+func UniqueStringSlice(input []string) []string {
+	var unique []string
+	seen := map[string]bool{}
+	for _, element := range input {
+		if !seen[element] {
+			unique = append(unique, element)
+			seen[element] = true
+		}
+	}
+	return unique
+}

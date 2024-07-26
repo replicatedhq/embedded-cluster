@@ -146,6 +146,14 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eck
 	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
+func (a *Registry) GetImages() []string {
+	var images []string
+	for image, tag := range Metadata.Images {
+		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", image, tag))
+	}
+	return images
+}
+
 func (o *Registry) GetAdditionalImages() []string {
 	return nil
 }

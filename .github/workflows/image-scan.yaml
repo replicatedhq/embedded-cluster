@@ -1,0 +1,57 @@
+name: Image Scan
+on:
+  schedule:
+    # everyday at midnight.
+    - cron: '0 0 * * *'
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+
+jobs:
+  output-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: |
+          make embedded-cluster-linux-amd64
+
+      - name: List images
+        run: |
+          ./output/bin/embedded-cluster version list-images > images.txt
+
+      - name: Upload images artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: images
+          path: images.txt
+
+      - name: Build images matrix
+        id: build-matrix
+        run: |
+          IMAGES="[$(awk '{print $1}' images.txt | xargs -n1 | awk '{print "\""$1"\","}' | sed '$ s/.$//')]"
+          echo "matrix=$(jq -cn --argjson images "$IMAGES" '{image: $images}')" >> $GITHUB_OUTPUT
+
+  scan:
+    runs-on: ubuntu-latest
+    needs: [output-matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.output-matrix.outputs.matrix)}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: ./.github/actions/scan-image
+        with:
+          image-ref: '${{ matrix.image }}'
+          upload-sarif: ${{ github.ref == 'refs/heads/main' }}

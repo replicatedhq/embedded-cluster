@@ -36,9 +36,13 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE_LOCATION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.EmbeddedOperatorImageOverride=$(EMBEDDED_OPERATOR_IMAGE_OVERRIDE)
 
 export PATH := $(shell pwd)/bin:$(PATH)
+
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 
 .DEFAULT_GOAL := default
 default: embedded-cluster-linux-amd64
@@ -120,16 +124,30 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: static go.mod
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
+embedded-cluster-linux-amd64: GOOS = linux
+embedded-cluster-linux-amd64: GOARCH = amd64
+embedded-cluster-linux-amd64: static go.mod embedded-cluster
+	mkdir -p ./output/bin
+	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
 
 # for testing
 .PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: go.mod
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
+embedded-cluster-darwin-arm64: GOOS = darwin
+embedded-cluster-darwin-arm64: GOARCH = arm64
+embedded-cluster-darwin-arm64: go.mod embedded-cluster
+	mkdir -p ./output/bin
+	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
+
+.PHONY: embedded-cluster
+embedded-cluster:
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) \
+		go build -ldflags "$(LD_FLAGS)" -o ./build/embedded-cluster-$(GOOS)-$(GOARCH) \
+		./cmd/embedded-cluster
 
 .PHONY: unit-tests
 unit-tests:
+	mkdir -p pkg/goods/bins pkg/goods/internal/bins
+	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go test -v ./pkg/... ./cmd/...
 
 .PHONY: vet

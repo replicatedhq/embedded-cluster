@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -88,10 +89,18 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 	return []eckinds.Chart{chartConfig}, nil, nil
 }
 
+func (a *OpenEBS) GetImages() []string {
+	var images []string
+	for component, tag := range Metadata.Images {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(component), tag))
+	}
+	return images
+}
+
 func (o *OpenEBS) GetAdditionalImages() []string {
 	var images []string
 	if tag, ok := Metadata.Images["openebs-linux-utils"]; ok {
-		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils:%s", tag))
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("openebs-linux-utils"), tag))
 	}
 	return images
 }

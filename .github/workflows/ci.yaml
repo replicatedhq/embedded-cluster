@@ -37,12 +37,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Go vet
-        run: |
-          make vet
       - name: Unit tests
         run: |
           make unit-tests
+
   build-images:
     name: Build Images
     runs-on: ubuntu-latest
@@ -84,6 +82,26 @@ jobs:
           make build-and-push-utils-image VERSION="${SHORT_SHA}"
           make build-and-push-utils-image VERSION="${SHORT_SHA}-previous-k0s"
           make build-and-push-utils-image VERSION="${SHORT_SHA}-upgrade"
+
+  buildtools:
+    name: Build Buildtools
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Compile buildtools
+        run: |
+          make buildtools
+      - name: Upload buildtools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildtools
+          path: output/bin/buildtools
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -111,6 +129,12 @@ jobs:
           make -B embedded-cluster-linux-amd64 VERSION="${SHORT_SHA}"
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata.json
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-binary
+          path: |
+            output/bin/embedded-cluster
       - name: Publish development release
         if: github.branch == 'main'
         uses: marvinpinto/action-automatic-releases@latest
@@ -155,7 +179,7 @@ jobs:
           ./scripts/create-upgrade-release.sh
           ./scripts/create-previous-k0s-release.sh
 
-      - name: upload binary
+      - name: Upload release
         uses: actions/upload-artifact@v4
         with:
           name: embedded-release
@@ -164,6 +188,41 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-previous-k0s
             output/bin/embedded-cluster-release-builder
+
+  check-images:
+    name: Check Images
+    runs-on: ubuntu-latest
+    needs: [buildtools, build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download buildtools artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: buildtools
+          path: output/bin
+      - name: Download embedded-cluster artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: embedded-binary
+          path: output/bin
+      - name: Check for missing images
+        run: |
+          chmod +x ./output/bin/buildtools
+          chmod +x ./output/bin/embedded-cluster
+          ./output/bin/embedded-cluster version metadata > version-metadata.json
+          ./output/bin/embedded-cluster version list-images > expected.txt
+          echo "Found $(wc -l < expected.txt) images"
+          ./output/bin/buildtools metadata extract-helm-chart-images --metadata-path version-metadata.json > images.txt
+          echo "Found $(wc -l < images.txt) images"
+          missing_images=0
+          while read img; do
+            grep -q "$img" expected.txt || { echo "Missing image: $img" && missing_images=$((missing_images+1)) ; }
+          done <images.txt
+          if [ $missing_images -gt 0 ]; then
+            echo "Found $missing_images missing images"
+            exit 1
+          fi
 
   release-app:
     name: Create App Releases

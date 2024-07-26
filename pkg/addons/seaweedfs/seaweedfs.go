@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -91,6 +92,14 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ec
 	chartConfig.Values = string(valuesStringData)
 
 	return []eckinds.Chart{chartConfig}, nil, nil
+}
+
+func (a *SeaweedFS) GetImages() []string {
+	var images []string
+	for component, tag := range Metadata.Images {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(component), tag))
+	}
+	return images
 }
 
 func (o *SeaweedFS) GetAdditionalImages() []string {

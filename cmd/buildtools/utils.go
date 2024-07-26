@@ -21,10 +21,10 @@ import (
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
+	"github.com/distribution/reference"
 	"github.com/google/go-github/v62/github"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
-	"k8s.io/utils/strings/slices"
 )
 
 const (
@@ -191,7 +191,7 @@ func ApkoLogin() error {
 func ApkoBuildAndPublish(componentName string, packageName string, packageVersion string, upstreamVersion string) error {
 	args := []string{
 		"apko-build-and-publish",
-		fmt.Sprintf("IMAGE=%s/replicated/ec-%s:%s", os.Getenv("IMAGES_REGISTRY_SERVER"), componentName, packageVersion),
+		fmt.Sprintf("IMAGE=%s", ComponentImageName(componentName, packageVersion)),
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
 		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
@@ -202,6 +202,22 @@ func ApkoBuildAndPublish(componentName string, packageName string, packageVersio
 		return err
 	}
 	return nil
+}
+
+func ComponentImageName(componentName string, packageVersion string) string {
+	return fmt.Sprintf("%s:%s", ComponentImageRepo(componentName), packageVersion)
+}
+
+func ComponentImageRepo(componentName string) string {
+	return fmt.Sprintf("%s/replicated/ec-%s", os.Getenv("IMAGES_REGISTRY_SERVER"), componentName)
+}
+
+func FamiliarImageName(imageName string) string {
+	ref, err := reference.ParseNormalizedNamed(imageName)
+	if err != nil {
+		panic(fmt.Errorf("parse image name %s: %w", imageName, err))
+	}
+	return reference.FamiliarName(ref)
 }
 
 func GetDigestFromBuildFile() (string, error) {
@@ -362,6 +378,7 @@ func LatestChartVersion(repo, name string) (string, error) {
 		return "", fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
+	logrus.Infof("finding latest chart version of %s/%s", repo, name)
 	return hcli.Latest(repo, name)
 }
 
@@ -409,31 +426,6 @@ func GetImageDigest(ctx context.Context, image string) (string, error) {
 	return "", fmt.Errorf("failed to locate linux/amd64 manifest")
 }
 
-// easier than walking through map[interface{}]interface{}
-type ReducedContainer struct {
-	Image string `yaml:"image"`
-}
-
-type ReducedNestedSpec struct {
-	Containers     []ReducedContainer `yaml:"containers"`
-	InitContainers []ReducedContainer `yaml:"initContainers"`
-}
-
-type ReducedTemplate struct {
-	Spec ReducedNestedSpec `yaml:"spec"`
-}
-
-type ReducedSpec struct {
-	Template       ReducedTemplate    `yaml:"template"`
-	Containers     []ReducedContainer `yaml:"containers"`
-	InitContainers []ReducedContainer `yaml:"initContainers"`
-}
-
-type ReducedResource struct {
-	Kind string      `yaml:"kind"`
-	Spec ReducedSpec `yaml:"spec"`
-}
-
 // XXX we need to revisit this as a registry may have a port number.
 func TagFromImage(image string) string {
 	_, tag, _ := strings.Cut(image, ":")
@@ -446,36 +438,6 @@ func RemoveTagFromImage(image string) string {
 	return location
 }
 
-func RenderChartAndFindImageDigest(ctx context.Context, repo, name, version string, values map[string]interface{}, image string) (string, error) {
-	logrus.Infof("getting a list of images from chart %s/%s (%s)", repo, name, version)
-	images, err := GetImagesFromChart(repo, name, version, values)
-	if err != nil {
-		return "", fmt.Errorf("get images from %s/%s chart: %w", repo, name, err)
-	}
-
-	desired := []string{}
-	logrus.Infof("searching for %s image", image)
-	desired = slices.Filter(desired, images, func(a string) bool {
-		i := strings.Split(a, ":")
-		return i[0] == image
-	})
-	if len(desired) != 1 {
-		return "", fmt.Errorf("found %d images for %s, expected 1", len(desired), image)
-	}
-	logrus.Infof("found %s image: %s", image, desired[0])
-
-	logrus.Infof("finding the digest for %s", desired[0])
-	digest, err := GetImageDigest(ctx, desired[0])
-	if err != nil {
-		return "", fmt.Errorf("get digest for %s: %w", desired[0], err)
-	}
-
-	_, tag, _ := strings.Cut(desired[0], ":")
-	imgver := fmt.Sprintf("%s@%s", tag, digest)
-	logrus.Infof("found %s image: %s", image, imgver)
-	return imgver, nil
-}
-
 func GetImagesFromOCIChart(url, name, version string, values map[string]interface{}) ([]string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
@@ -483,83 +445,7 @@ func GetImagesFromOCIChart(url, name, version string, values map[string]interfac
 	}
 	defer hcli.Close()
 
-	chartPath, err := hcli.PullOCI(url, version)
-	if err != nil {
-		return nil, err
-	}
-
-	return GetImagesFromLocalChart(name, chartPath, values)
-}
-
-func GetImagesFromChart(repo, name, version string, values map[string]interface{}) ([]string, error) {
-	hcli, err := NewHelm()
-	if err != nil {
-		return nil, fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
-	chartPath, err := hcli.Pull(repo, name, version)
-	if err != nil {
-		return nil, err
-	}
-
-	return GetImagesFromLocalChart(name, chartPath, values)
-}
-
-func GetImagesFromLocalChart(name, path string, values map[string]interface{}) ([]string, error) {
-	hcli, err := NewHelm()
-	if err != nil {
-		return nil, fmt.Errorf("create helm client: %w", err)
-	}
-	defer hcli.Close()
-
-	chartResources, err := hcli.Render(name, path, values, "default")
-	if err != nil {
-		return nil, err
-	}
-
-	images := []string{}
-	for _, resource := range chartResources {
-		r := ReducedResource{}
-		if err := yaml.Unmarshal([]byte(resource), &r); err != nil {
-			return nil, err
-		}
-
-		for _, container := range r.Spec.Containers {
-			if !slices.Contains(images, container.Image) {
-				images = append(images, container.Image)
-			}
-		}
-
-		for _, container := range r.Spec.Template.Spec.Containers {
-			if !slices.Contains(images, container.Image) {
-				images = append(images, container.Image)
-			}
-		}
-
-		for _, container := range r.Spec.InitContainers {
-			if !slices.Contains(images, container.Image) {
-				images = append(images, container.Image)
-			}
-		}
-
-		for _, container := range r.Spec.Template.Spec.InitContainers {
-			if !slices.Contains(images, container.Image) {
-				images = append(images, container.Image)
-			}
-		}
-	}
-
-	for i, image := range images {
-		// Normalize the image name to include docker.io and tag
-		ref, err := docker.ParseReference("//" + image)
-		if err != nil {
-			return nil, fmt.Errorf("parse image reference %s: %w", image, err)
-		}
-		images[i] = ref.DockerReference().String()
-	}
-
-	return images, nil
+	return helm.ExtractImagesFromOCIChart(hcli, url, name, version, values)
 }
 
 func MirrorChart(repo, name, ver string) error {
@@ -687,4 +573,15 @@ func RunCommand(cmd *exec.Cmd) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+func NewHelm() (*helm.Helm, error) {
+	sv, err := getK0sVersion()
+	if err != nil {
+		return nil, fmt.Errorf("get k0s version: %w", err)
+	}
+	return helm.NewHelm(helm.HelmOptions{
+		Writer:     logrus.New().Writer(),
+		K0sVersion: sv.Original(),
+	})
 }
