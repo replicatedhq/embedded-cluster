@@ -12,6 +12,8 @@ function check_nginx_version {
 }
 
 main() {
+    local k8s_version="$1"
+
     echo "ensure that installation is installed"
     wait_for_installation
 
@@ -100,6 +102,12 @@ main() {
     if ! kubectl describe clusterconfig -n kube-system k0s | grep -q -e 'Order:\W*110' ; then
         kubectl describe clusterconfig -n kube-system k0s
         echo "no charts had an order of '110'"
+        exit 1
+    fi
+
+    echo "ensure that all nodes are running k8s $k8s_version"
+    if ! ensure_nodes_match_kube_version "$k8s_version"; then
+        echo "not all nodes are running k8s $k8s_version"
         exit 1
     fi
 }
