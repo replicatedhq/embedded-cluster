@@ -16,21 +16,40 @@ spec:
     - diskUsage:
         collectorName: openebs-path-usage
         path: /opt/openebs
-    - diskUsage: 
+    - diskUsage:
         collectorName: tmp-path-usage
         path: /tmp
     - memory: {}
     - cpu: {}
     - time: {}
     - ipv4Interfaces: {}
-    - kernelConfigs: {}
     - run:
-        collectorName: "ip-route-table"
-        command: "ip"
-        args: ["route"]
+        collectorName: 'ip-route-table'
+        command: 'ip'
+        args: ['route']
+    # External k0s runtime dependencies
+    # https://docs.k0sproject.io/stable/external-runtime-deps/
+    - cgroups: {}
+    - run:
+        collectorName: 'check-proc-filesystem'
+        command: 'sh'
+        args: ['-c', 'stat -f -c "%T" /proc']
+    - run:
+        collectorName: 'check-modprobe'
+        command: 'sh'
+        args: ['-c', 'command -v modprobe']
+    - run:
+        collectorName: 'check-mount'
+        command: 'sh'
+        args: ['-c', 'command -v mount']
+    - run:
+        collectorName: 'check-umount'
+        command: 'sh'
+        args: ['-c', 'command -v umount']
+    - hostOS: {}
   analyzers:
     - cpu:
-        checkName: 'CPU'
+        checkName: 'Number of CPU cores'
         outcomes:
           - fail:
               when: 'count < 2'
@@ -38,7 +57,7 @@ spec:
           - pass:
               message: At least 2 CPU cores are present
     - memory:
-        checkName: Memory
+        checkName: Amount of Memory
         outcomes:
           - fail:
               when: '< 2G'
@@ -87,14 +106,14 @@ spec:
     - textAnalyze:
         checkName: Default Route
         fileName: host-collectors/run-host/ip-route-table.txt
-        regex: "default"
+        regex: 'default'
         outcomes:
           - fail:
-              when: "false"
-              message: "No default route found. A default route is required."
+              when: 'false'
+              message: 'No default route found. A default route is required.'
           - pass:
-              when: "true"
-              message: "Host has a default route"
+              when: 'true'
+              message: 'Host has a default route'
     - ipv4Interfaces:
         outcomes:
           - fail:
@@ -115,182 +134,159 @@ spec:
           - pass:
               when: 'ntp == synchronized+active'
               message: 'System clock is synchronized'
-    # Ensure https://docs.k0sproject.io/head/external-runtime-deps/?h=config_cgroups#linux-kernel-configuration requirements are met
-    # Commented out until https://github.com/replicatedhq/troubleshoot/issues/1563 is resolved
-    # Leave this here cause it took a while to write
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_CGROUPS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "CGROUPS (Control Group support) kernel config is available"
-    #       - fail:
-    #           message: "CGROUPS (Control Group support) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_CGROUP_FREEZER=y
-    #     outcomes:
-    #       - pass:
-    #           message: "CGROUP_FREEZER (Freezer cgroup subsystem) kernel config is available"
-    #       - fail:
-    #           message: "CGROUP_FREEZER (Freezer cgroup subsystem) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_CGROUP_PIDS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "CGROUP_PIDS (PIDs cgroup subsystem) kernel config is available"
-    #       - fail:
-    #           message: "CGROUP_PIDS (PIDs cgroup subsystem) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_CGROUP_DEVICE=y
-    #     outcomes:
-    #       - pass:
-    #           message: "CGROUP_DEVICE (Device controller for cgroups) kernel config is available"
-    #       - fail:
-    #           message: "CGROUP_DEVICE (Device controller for cgroups) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_CPUSETS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "CPUSETS (Cpuset support) kernel config is available"
-    #       - fail:
-    #           message: "CPUSETS (Cpuset support) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_CGROUP_CPUACCT=y
-    #     outcomes:
-    #       - pass:
-    #           message: "CGROUP_CPUACCT (Simple CPU accounting cgroup subsystem) kernel config is available"
-    #       - fail:
-    #           message: "CGROUP_CPUACCT (Simple CPU accounting cgroup subsystem) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_MEMCG=y
-    #     outcomes:
-    #       - pass:
-    #           message: "MEMCG (Memory Resource Controller for Control Groups) kernel config is available"
-    #       - fail:
-    #           message: "MEMCG (Memory Resource Controller for Control Groups) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_CGROUP_SCHED=y
-    #     outcomes:
-    #       - pass:
-    #           message: "CGROUP_SCHED (Group CPU scheduler) kernel config is available"
-    #       - fail:
-    #           message: "CGROUP_SCHED (Group CPU scheduler) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_FAIR_GROUP_SCHED=y
-    #     outcomes:
-    #       - pass:
-    #           message: "FAIR_GROUP_SCHED (Group scheduling for SCHED_OTHER) kernel config is available"
-    #       - fail:
-    #           message: "FAIR_GROUP_SCHED (Group scheduling for SCHED_OTHER) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_NAMESPACES=y
-    #     outcomes:
-    #       - pass:
-    #           message: "NAMESPACES (Namespaces support) kernel config is available"
-    #       - fail:
-    #           message: "NAMESPACES (Namespaces support) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_UTS_NS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "UTS_NS (UTS namespace) kernel config is available"
-    #       - fail:
-    #           message: "UTS_NS (UTS namespace) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_IPC_NS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "IPC_NS (IPC namespace) kernel config is available"
-    #       - fail:
-    #           message: "IPC_NS (IPC namespace) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_PID_NS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "PID_NS (PID namespace) kernel config is available"
-    #       - fail:
-    #           message: "PID_NS (PID namespace) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_NET_NS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "NET_NS (Network namespace) kernel config is available"
-    #       - fail:
-    #           message: "NET_NS (Network namespace) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_NET=y
-    #     outcomes:
-    #       - pass:
-    #           message: "NET (Networking support) kernel config is available"
-    #       - fail:
-    #           message: "NET (Networking support) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_INET=y
-    #     outcomes:
-    #       - pass:
-    #           message: "INET (TCP/IP networking) kernel config is available"
-    #       - fail:
-    #           message: "INET (TCP/IP networking) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_NETFILTER=y
-    #     outcomes:
-    #       - pass:
-    #           message: "NETFILTER (Network packet filtering framework (Netfilter)) kernel config is available"
-    #       - fail:
-    #           message: "NETFILTER (Network packet filtering framework (Netfilter)) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_NETFILTER_XTABLES=y
-    #     outcomes:
-    #       - pass:
-    #           message: "NETFILTER_XTABLES (Netfilter Xtables support) kernel config is available"
-    #       - fail:
-    #           message: "NETFILTER_XTABLES (Netfilter Xtables support) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_NETFILTER_XT_TARGET_REDIRECT=y
-    #     outcomes:
-    #       - pass:
-    #           message: "NETFILTER_XT_TARGET_REDIRECT (REDIRECT target support) kernel config is available"
-    #       - fail:
-    #           message: "NETFILTER_XT_TARGET_REDIRECT (REDIRECT target support) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_NETFILTER_XT_MATCH_COMMENT=y
-    #     outcomes:
-    #       - pass:
-    #           message: "NETFILTER_XT_MATCH_COMMENT (\"comment\" match support) kernel config is available"
-    #       - fail:
-    #           message: "NETFILTER_XT_MATCH_COMMENT (\"comment\" match support) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_EXT4_FS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "EXT4_FS (The Extended 4 (ext4) filesystem) kernel config is available"
-    #       - fail:
-    #           message: "EXT4_FS (The Extended 4 (ext4) filesystem) kernel config is missing"
-    # - kernelConfigs:
-    #     selectedConfigs:
-    #       - CONFIG_PROC_FS=y
-    #     outcomes:
-    #       - pass:
-    #           message: "PROC_FS (/proc file system support) kernel config is available"
-    #       - fail:
-    #           message: "PROC_FS (/proc file system support) kernel config is missing"
+    - jsonCompare:
+        checkName: Check if either cgroup v1 or v2 is enabled
+        fileName: host-collectors/system/cgroups.json
+        path: 'cgroup-enabled'
+        value: |
+          true
+        outcomes:
+          - fail:
+              when: 'false'
+              message: 'Neither cgroup v1 nor v2 is enabled'
+          - pass:
+              when: 'true'
+              message: 'One of cgroup v1 or v2 is enabled'
+    - jsonCompare:
+        checkName: Check if cpu cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'cpu')]}"
+        value: |
+          "cpu"
+        outcomes:
+          - fail:
+              when: 'false'
+              message: "'cpu' cgroup controller is not enabled"
+          - pass:
+              when: 'true'
+              message: "'cpu' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if cpuacct cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'cpuacct')]}"
+        value: |
+          "cpuacct"
+        outcomes:
+          - fail:
+              when: 'false'
+              message: "'cpuacct' cgroup controller is not enabled"
+          - pass:
+              when: 'true'
+              message: "'cpuacct' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if cpuset cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'cpuset')]}"
+        value: |
+          "cpuset"
+        outcomes:
+          - fail:
+              when: 'false'
+              message: "'cpuset' cgroup controller is not enabled"
+          - pass:
+              when: 'true'
+              message: "'cpuset' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if memory cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'memory')]}"
+        value: |
+          "memory"
+        outcomes:
+          - fail:
+              when: 'false'
+              message: "'memory' cgroup controller is not enabled"
+          - pass:
+              when: 'true'
+              message: "'memory' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if devices cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'devices')]}"
+        value: |
+          "devices"
+        outcomes:
+          - fail:
+              when: 'false'
+              message: "'devices' cgroup controller is not enabled"
+          - pass:
+              when: 'true'
+              message: "'devices' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if freezer cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'freezer')]}"
+        value: |
+          "freezer"
+        outcomes:
+          - fail:
+              when: 'false'
+              message: "'freezer' cgroup controller is not enabled"
+          - pass:
+              when: 'true'
+              message: "'freezer' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Check if pids cgroup controller is enabled
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$.allControllers[?(@ == 'pids')]}"
+        value: |
+          "pids"
+        outcomes:
+          - fail:
+              when: 'false'
+              message: "'pids' cgroup controller is not enabled"
+          - pass:
+              when: 'true'
+              message: "'pids' cgroup controller is enabled"
+    - textAnalyze:
+        checkName: Check if /proc filesystem is mounted
+        fileName: host-collectors/run-host/check-proc-filesystem.txt
+        regex: 'proc'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "/proc filesystem is mounted"
+          - fail:
+              when: "false"
+              message: "/proc filesystem is not mounted"
+    - textAnalyze:
+        checkName: Check if 'modprobe' command exists in PATH
+        fileName: host-collectors/run-host/check-modprobe.txt
+        regex: '/usr/sbin/modprobe'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'modprobe' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'modprobe' command does not exist in PATH"
+    - textAnalyze:
+        checkName: Check if 'mount' command exists in PATH
+        fileName: host-collectors/run-host/check-mount.txt
+        regex: '/usr/bin/mount'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'mount' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'mount' command does not exist in PATH"
+    - textAnalyze:
+        checkName: Check if 'umount' command exists in PATH
+        fileName: host-collectors/run-host/check-umount.txt
+        regex: '/usr/bin/umount'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "'umount' command exists in PATH"
+          - fail:
+              when: "false"
+              message: "'umount' command does not exist in PATH"
+    - hostOS:
+        checkName: Check minimum kernel version
+        outcomes:
+          - pass:
+              when: "kernelVersion >= 3.10"
+              message: "Minimum kernel version of 3.10 has been met"
+          - fail:
+              message: "Minimum kernel version of 3.10 has not been met"

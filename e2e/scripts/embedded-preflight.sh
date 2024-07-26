@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
+DIR=/usr/local/bin
+
+. $DIR/common.sh
+
 preflight_with_failure="
 apiVersion: troubleshoot.sh/v1beta2
 kind: HostPreflight
@@ -129,28 +133,6 @@ has_applied_host_preflight() {
     fi
 }
 
-has_stored_host_preflight_results() {
-    if [ ! -f /var/lib/embedded-cluster/support/host-preflight-results.json ]; then
-        return 1
-    fi
-}
-
-wait_for_healthy_node() {
-    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-    counter=0
-    while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
-            return 1
-        fi
-        sleep 5
-        counter=$((counter+1))
-        echo "Waiting for node to be ready"
-        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-        kubectl get nodes || true
-    done
-    return 0
-}
-
 main() {
     cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"
@@ -171,6 +153,7 @@ main() {
     fi
     rm /var/lib/embedded-cluster/support/host-preflight-results.json
     mv /tmp/log /tmp/log-failure
+    # Warnings should not fail installations
     embed_preflight "$preflight_with_warning"
     if ! /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release

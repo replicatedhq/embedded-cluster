@@ -320,7 +320,8 @@ jobs:
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
           - TestVersion
-          - TestHostPreflight
+          - TestHostPreflightCustomSpec
+          - TestHostPreflightInBuiltSpec
           - TestUnsupportedOverrides
           - TestMultiNodeInstallation
           - TestMultiNodeReset
