@@ -11,6 +11,6 @@ images:
     calico-node: 3.26.4-r2@sha256:c0eb53aa2ccd366dea99845f18a24fe51cce67863fc35ffbdda88d383d9ff6ae
     coredns: 1.11.3-r3@sha256:e8aa52ab1af3ed44f664ea79cba6099fea7fc8a3a4af3601a08244c6d5b34de6
     envoy-distroless: 1.29.6-r0@sha256:f38f813f786c17354f1d7bf91758068f3328fedede1ac84864dde8f2c635b7a5
-    kube-proxy: 1.29.5-r0@sha256:ef5aeb0610089a8216a138b92f3701f61aac6894861d81a31d23c6c4a6e31526
+    kube-proxy: 1.29.5-r0@sha256:c2b6db991de9bf3799996d1e28c77cdda3673f9651b4da58ef9bad5c9e527ccd
     metrics-server: 0.6.4-r9@sha256:58516a4f46ba645f4e0f367af41df6506951c3cd7903efd5f4ae3e17fd753e4a
     pause: 1.29.5-r0@sha256:3fb2eefc6eb8a9c33ffc416cdb28e353a51587efe10fc3427eddb76fd132e110
