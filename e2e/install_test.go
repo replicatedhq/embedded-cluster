@@ -328,11 +328,11 @@ func TestHostPreflightInBuiltSpec(t *testing.T) {
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                                 t,
-		Nodes:                             1,
-		Image:                             "centos/9-Stream",
-		LicensePath:                       "license.yaml",
-		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
+		T:                   t,
+		Nodes:               1,
+		Image:               "centos/9-Stream",
+		LicensePath:         "license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
 	defer cleanupCluster(t, tc)
 
