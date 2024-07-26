@@ -31,6 +31,9 @@ inputs:
   dr-aws-secret-access-key:
     description: 'Disaster Recovery AWS Secret Access Key'
     required: true
+#  k0s-version:
+#    description: 'k0s version to expect after upgrades in e2e tests'
+#    required: true
 
 runs:
   using: composite
@@ -104,6 +107,7 @@ runs:
       export DR_AWS_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
       export DR_AWS_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
       export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
+      # export K0S_VERSION=${{ inputs.k0s-version }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Upload Host Support Bundle
     uses: actions/upload-artifact@v4
