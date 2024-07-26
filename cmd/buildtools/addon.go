@@ -22,7 +22,7 @@ func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, k0sVersi
 		packageName = c.getWolfiPackageName(k0sVersion, semver.MustParse(upstreamVersion))
 	}
 
-	comparison := "=" + upstreamVersion
+	comparison := latestPatchComparison(semver.MustParse(upstreamVersion))
 	if c.getWolfiPackageVersionComparison != nil {
 		comparison = c.getWolfiPackageVersionComparison(k0sVersion, semver.MustParse(upstreamVersion))
 	}
