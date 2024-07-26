@@ -44,6 +44,6 @@ preUpgradeHook:
   image:
     registry: proxy.replicated.com/anonymous
     repo: replicated/ec-kubectl
-    tag: '1.29.5-r0@sha256:b02581e79105d18e18ab29668838c7ba6040a5c0c096cddbc9b110e9ba24843d'
+    tag: '1.30.3-r0@sha256:1eae04515815de86ce041229dfd38574930c8ba4ff2d3b1944ee43ce8e3ea757'
 zfs-localpv:
   enabled: false
