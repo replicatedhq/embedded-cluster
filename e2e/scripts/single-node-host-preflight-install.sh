@@ -2,7 +2,6 @@
 set -euox pipefail
 
 DIR=/usr/local/bin
-
 . $DIR/common.sh
 
 main() {

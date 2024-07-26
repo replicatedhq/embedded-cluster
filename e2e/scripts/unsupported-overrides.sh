@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
+DIR=/usr/local/bin
+. $DIR/common.sh
+
 embedded_cluster_config="
 apiVersion: embeddedcluster.replicated.com/v1beta1
 kind: Config
@@ -79,22 +82,6 @@ embed_cluster_config() {
     embedded-cluster-release-builder /usr/local/bin/embedded-cluster /root/release.tar.gz /usr/local/bin/embedded-cluster
 }
 
-wait_for_healthy_node() {
-    ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-    counter=0
-    while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
-            return 1
-        fi
-        sleep 5
-        counter=$((counter+1))
-        echo "Waiting for node to be ready"
-        ready=$(kubectl get nodes | grep -v NotReady | grep -c Ready || true)
-        kubectl get nodes || true
-    done
-    return 0
-}
-
 override_applied() {
     grep -A1 telemetry "$K0SCONFIG" > /tmp/telemetry-section
     if ! grep -q "enabled: true" /tmp/telemetry-section; then
@@ -117,22 +104,6 @@ override_applied() {
       cat "$K0SCONFIG"
       return 1
     fi
-}
-
-wait_for_memcached_pods() {
-    ready=$(kubectl get pods -n embedded-cluster | grep -c memcached || true)
-    counter=0
-    while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
-            return 1
-        fi
-        sleep 5
-        counter=$((counter+1))
-        echo "Waiting for memcached pods"
-        ready=$(kubectl get pods -n embedded-cluster | grep -c memcached || true)
-        kubectl get pods -n embedded-cluster 2>&1 || true
-        echo "$ready"
-    done
 }
 
 main() {
