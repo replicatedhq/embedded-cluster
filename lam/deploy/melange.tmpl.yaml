@@ -21,12 +21,12 @@ pipeline:
   - runs: |
       set -exuo pipefail
 
-      rm -f pkg/goods/bins/local-artifact-mirror
+      rm -rf bin
       mkdir -p ${{targets.contextdir}}/usr/bin
       mkdir -p ${{targets.contextdir}}/usr/local/bin
 
-      make pkg/goods/bins/local-artifact-mirror
-      cp pkg/goods/bins/local-artifact-mirror ${{targets.contextdir}}/usr/bin/local-artifact-mirror
+      make -C lam bin/local-artifact-mirror
+      cp lam/bin/local-artifact-mirror-$(go env GOOS)-$(go env GOARCH) ${{targets.contextdir}}/usr/bin/local-artifact-mirror
       # support for legacy path
       ln -s /usr/bin/local-artifact-mirror ${{targets.contextdir}}/usr/local/bin/local-artifact-mirror
   - uses: strip

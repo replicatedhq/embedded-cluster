@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/sdk/defaults"
 )
 
 // RemapHelm removes all helm repositories from the cluster config, and changes the upstreams of all helm charts

@@ -1,7 +1,11 @@
 name: CI
 on:
-  pull_request: {}
+  pull_request:
+    paths-ignore:
+      - 'lam/**'
   push:
+    paths-ignore:
+      - 'lam/**'
     branches:
       - main
 concurrency:

@@ -9,18 +9,15 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/lam/pkg/tgzutils"
+	"github.com/replicatedhq/embedded-cluster/sdk/defaults"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 )
 
 // These constant define the expected names of the files in the registry.
@@ -40,7 +37,7 @@ var pullCommand = &cli.Command{
 	Name:  "pull",
 	Usage: "Pull artifacts for an airgap installation",
 	Before: func(c *cli.Context) (err error) {
-		if kubecli, err = kubeutils.KubeClient(); err != nil {
+		if kubecli, err = kubeClient(); err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 		return nil
@@ -85,7 +82,7 @@ var imagesCommand = &cli.Command{
 		dst := filepath.Join(defaults.EmbeddedClusterImagesSubDir(), ImagesArtifactName)
 		src := filepath.Join(location, ImagesArtifactName)
 		logrus.Infof("%s > %s", src, dst)
-		if err := helpers.MoveFile(src, dst); err != nil {
+		if err := moveFile(src, dst); err != nil {
 			return fmt.Errorf("unable to move images bundle: %w", err)
 		}
 

@@ -3,8 +3,9 @@ package highavailability
 import (
 	"context"
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/sdk/defaults"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

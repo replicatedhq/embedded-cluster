@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/sdk/defaults"
 )
 
 // Materializer is an entity capable of materialize (write to disk) embedded assets.

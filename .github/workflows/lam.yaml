@@ -1,0 +1,68 @@
+name: Local artifact mirror
+
+on:
+  pull_request:
+    paths:
+      - 'sdk/**'
+      - 'lam/**'
+  push:
+    tags:
+      - "lam/*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-image:
+    name: Build image
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lam
+    env:
+      LOCAL_ARTIFACT_MIRROR_IMAGE: replicated/embedded-cluster-local-artifact-mirror
+      REGISTRY: docker.io
+      USERNAME: ${{ secrets.DOCKERHUB_USER }}
+      PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Melange
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/.melange-cache
+          key: melange-cache
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: lam/go.mod
+
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Setup Melange
+        uses: chainguard-dev/actions/setup-melange@main
+
+      - name: Build local-artifact-mirror binary
+        run: make bin/local-artifact-mirror
+
+      - name: Build local-artifact-mirror package
+        run: make build-local-artifact-mirror-package
+
+      - name: Bundle repo
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd build
+          tar -czvf repo.tar.gz packages
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            bin/local-artifact-mirror-*-*
+            build/melange.rsa.pub
+            build/repo.tar.gz

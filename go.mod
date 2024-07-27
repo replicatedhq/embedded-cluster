@@ -2,6 +2,8 @@ module github.com/replicatedhq/embedded-cluster
 
 go 1.22.5
 
+replace github.com/replicatedhq/embedded-cluster/sdk => ./sdk
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/aws/aws-sdk-go v1.54.19
@@ -21,6 +23,7 @@ require (
 	github.com/replicatedhq/embedded-cluster-kinds v1.4.7
 	github.com/replicatedhq/embedded-cluster-operator v0.40.2
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
+	github.com/replicatedhq/embedded-cluster/sdk v0.0.0-00010101000000-000000000000
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.97.0
 	github.com/sirupsen/logrus v1.9.3
@@ -34,7 +37,6 @@ require (
 	helm.sh/helm/v3 v3.15.3
 	k8s.io/api v0.30.3
 	k8s.io/apimachinery v0.30.3
-	oras.land/oras-go/v2 v2.5.0
 	sigs.k8s.io/controller-runtime v0.18.4
 	sigs.k8s.io/yaml v1.4.0
 )
@@ -210,7 +212,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
 	github.com/zitadel/oidc/v2 v2.7.0 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
-	go.uber.org/multierr v1.11.0
+	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect

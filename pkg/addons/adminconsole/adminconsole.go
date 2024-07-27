@@ -21,13 +21,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/replicatedhq/embedded-cluster/sdk/defaults"
 )
 
 const (
@@ -64,7 +65,7 @@ func init() {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
 	}
 
-	helmValues["embeddedClusterVersion"] = defaults.Version
+	helmValues["embeddedClusterVersion"] = versions.Version
 
 	if AdminConsoleImageOverride != "" {
 		helmValues["images"].(map[string]interface{})["kotsadm"] = AdminConsoleImageOverride

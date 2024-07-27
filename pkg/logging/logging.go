@@ -13,7 +13,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/sdk/defaults"
 )
 
 // MaxLogFiles is the maximum number of log files we keep.

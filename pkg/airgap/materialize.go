@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/sdk/defaults"
 )
 
 const K0sImagePath = "/var/lib/k0s/images/images-amd64.tar"

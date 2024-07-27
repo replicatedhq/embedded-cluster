@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/jedib0t/go-pretty/table"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/sdk/defaults"
 	"github.com/sirupsen/logrus"
 )
 
