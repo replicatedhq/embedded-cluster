@@ -1,4 +1,9 @@
+SHELL := /bin/bash
+
+include chainguard.mk
+
 VERSION ?= $(shell git describe --tags --dirty)
+CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
@@ -17,15 +22,14 @@ PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.97.0
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 KOTS_BINARY_URL_OVERRIDE =
-LOCAL_ARTIFACT_MIRROR_IMAGE ?= replicated/embedded-cluster-local-artifact-mirror
-LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION ?= $(subst +,-,$(VERSION))
-LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION = proxy.replicated.com/anonymous/$(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
+# TODO: move this to a manifest file
+LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
 LD_FLAGS = \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.KubectlVersion=$(KUBECTL_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.KubectlVersion=$(KUBECTL_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
@@ -41,7 +45,7 @@ GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
 .DEFAULT_GOAL := default
-default: embedded-cluster-linux-amd64
+default: build-ttl.sh
 
 pkg/goods/bins/k0s: Makefile
 	mkdir -p pkg/goods/bins
@@ -77,10 +81,8 @@ pkg/goods/bins/kubectl-preflight: Makefile
 
 pkg/goods/bins/local-artifact-mirror: Makefile
 	mkdir -p pkg/goods/bins
-	go build \
-		-tags osusergo,netgo \
-		-ldflags="-s -w -extldflags=-static" \
-		-o pkg/goods/bins/local-artifact-mirror ./cmd/local-artifact-mirror
+	$(MAKE) -C local-artifact-mirror build GOOS=linux GOARCH=amd64
+	cp local-artifact-mirror/bin/local-artifact-mirror-$(GOOS)-$(GOARCH) pkg/goods/bins/local-artifact-mirror
 
 pkg/goods/internal/bins/kubectl-kots: Makefile
 	mkdir -p pkg/goods/internal/bins
@@ -158,6 +160,13 @@ e2e-tests: embedded-release
 e2e-test:
 	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
 
+.PHONY: build-ttl.sh
+build-ttl.sh:
+	$(MAKE) -C local-artifact-mirror build-ttl.sh \
+		IMAGE_NAME=$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
+	make embedded-cluster-linux-amd64 \
+		LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/$(shell cat local-artifact-mirror/build/image)
+
 .PHONY: clean
 clean:
 	rm -rf output
@@ -183,78 +192,17 @@ scan:
 		--ignore-unfixed \
 		./
 
-.PHONY: build-local-artifact-mirror-image
-build-local-artifact-mirror-image: export IMAGE ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
-build-local-artifact-mirror-image: export PACKAGE_VERSION ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
-build-local-artifact-mirror-image: export MELANGE_CONFIG = deploy/packages/local-artifact-mirror/melange.tmpl.yaml
-build-local-artifact-mirror-image: export APKO_CONFIG = deploy/images/local-artifact-mirror/apko.tmpl.yaml
-build-local-artifact-mirror-image: melange-build apko-build
+.PHONY: build-utils-image
+build-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-utils-image: export PACKAGE_VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
+build-utils-image: apko-build
 
-.PHONY: build-and-push-local-artifact-mirror-image
-build-and-push-local-artifact-mirror-image: export IMAGE ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE):$(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
-build-and-push-local-artifact-mirror-image: export PACKAGE_VERSION ?= $(LOCAL_ARTIFACT_MIRROR_IMAGE_VERSION)
-build-and-push-local-artifact-mirror-image: export MELANGE_CONFIG = deploy/packages/local-artifact-mirror/melange.tmpl.yaml
-build-and-push-local-artifact-mirror-image: export APKO_CONFIG = deploy/images/local-artifact-mirror/apko.tmpl.yaml
-build-and-push-local-artifact-mirror-image: melange-build apko-login apko-build-and-publish
-
-CHAINGUARD_TOOLS_USE_DOCKER = 0
-ifeq ($(CHAINGUARD_TOOLS_USE_DOCKER),"1")
-MELANGE_CACHE_DIR ?= /go/pkg/mod
-APKO_CMD = docker run -v $(shell pwd):/work -w /work -v $(shell pwd)/build/.docker:/root/.docker cgr.dev/chainguard/apko
-MELANGE_CMD = docker run --privileged --rm -v $(shell pwd):/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
-else
-MELANGE_CACHE_DIR ?= build/.melange-cache
-APKO_CMD = apko
-MELANGE_CMD = melange
-endif
-
-$(MELANGE_CACHE_DIR):
-	mkdir -p $(MELANGE_CACHE_DIR)
-
-.PHONY: apko-build
-apko-build: export ARCHS ?= amd64
-apko-build: check-env-IMAGE apko-template
-	cd build && ${APKO_CMD} \
-		build apko.yaml ${IMAGE} apko.tar \
-		--arch ${ARCHS}
-
-.PHONY: apko-build-and-publish
-apko-build-and-publish: export ARCHS ?= amd64
-apko-build-and-publish: check-env-IMAGE apko-template
-	cd build && ${APKO_CMD} \
-		publish apko.yaml ${IMAGE} \
-		--arch ${ARCHS} | tee digest
-
-.PHONY: apko-login
-apko-login:
-	rm -f build/.docker/config.json
-	@ { [ "${PASSWORD}" = "" ] || [ "${USERNAME}" = "" ] ; } || \
-	${APKO_CMD} \
-		login -u "${USERNAME}" \
-		--password "${PASSWORD}" "${REGISTRY}"
-
-.PHONY: melange-build
-melange-build: export ARCHS ?= amd64
-melange-build: $(MELANGE_CACHE_DIR) melange-template
-	${MELANGE_CMD} \
-		keygen build/melange.rsa
-	${MELANGE_CMD} \
-		build build/melange.yaml \
-		--arch ${ARCHS} \
-		--signing-key build/melange.rsa \
-		--cache-dir=$(MELANGE_CACHE_DIR) \
-		--source-dir . \
-		--out-dir build/packages/
-
-.PHONY: melange-template
-melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
-	mkdir -p build
-	envsubst '$${PACKAGE_VERSION}' < ${MELANGE_CONFIG} > build/melange.yaml
-
-.PHONY: apko-template
-apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
-	mkdir -p build
-	envsubst '$${PACKAGE_NAME} $${PACKAGE_VERSION} $${UPSTREAM_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
+.PHONY: build-and-push-utils-image
+build-and-push-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-and-push-utils-image: export PACKAGE_VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-and-push-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
+build-and-push-utils-image: apko-login apko-build-and-publish
 
 .PHONY: buildtools
 buildtools:
@@ -267,39 +215,5 @@ cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
 cache-files:
 	./scripts/cache-files.sh
 
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
-
-## Tool Binaries
-MELANGE ?= $(LOCALBIN)/melange
-APKO ?= $(LOCALBIN)/apko
-
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
-
-melange: $(MELANGE)
-$(MELANGE): $(LOCALBIN)
-	go install chainguard.dev/melange@latest && \
-		test -s $(GOBIN)/melange && \
-		ln -sf $(GOBIN)/melange $(LOCALBIN)/melange
-
-apko: $(APKO)
-$(APKO): $(LOCALBIN)
-	go install chainguard.dev/apko@latest && \
-		test -s $(GOBIN)/apko && \
-		ln -sf $(GOBIN)/apko $(LOCALBIN)/apko
-
 print-%:
 	@echo -n $($*)
-
-check-env-%:
-	@ if [ "${${*}}" = "" ]; then \
-		echo "Environment variable $* not set"; \
-		exit 1; \
-	fi

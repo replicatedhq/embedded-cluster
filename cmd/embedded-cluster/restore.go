@@ -28,6 +28,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -374,8 +375,8 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
-	if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(defaults.Version, "v") {
-		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, defaults.Version)
+	if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(versions.Version, "v") {
+		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, versions.Version)
 	}
 	if backup.Status.Phase != velerov1.BackupPhaseCompleted {
 		return false, fmt.Sprintf("has a status of %q", backup.Status.Phase)

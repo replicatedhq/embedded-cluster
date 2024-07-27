@@ -9,18 +9,17 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 )
 
 // These constant define the expected names of the files in the registry.
