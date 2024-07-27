@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
--include ../chainguard.mk
+include chainguard.mk
 
 VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
