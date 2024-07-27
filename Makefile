@@ -1,3 +1,7 @@
+SHELL := /bin/bash
+
+-include ../chainguard.mk
+
 VERSION ?= $(shell git describe --tags --dirty)
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
