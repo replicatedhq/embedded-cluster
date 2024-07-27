@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -21,9 +22,7 @@ var operatorComponents = map[string]addonComponent{
 	"embedded-cluster-operator": {
 		useUpstreamImage: true,
 	},
-	"utils": {
-		upstreamVersionInputOverride: "INPUT_EMBEDDED_CLUSTER_VERSION",
-	},
+	"utils": {},
 }
 
 var updateOperatorAddonCommand = &cli.Command{
@@ -57,7 +56,7 @@ var updateOperatorAddonCommand = &cli.Command{
 
 		logrus.Infof("updating embedded cluster operator images")
 
-		err := updateOperatorAddonImages(c.Context, withproto, nextChartVersion, nextChartVersion)
+		err := updateOperatorAddonImages(c.Context, withproto, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
 		}
@@ -68,7 +67,27 @@ var updateOperatorAddonCommand = &cli.Command{
 	},
 }
 
-func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersion string, linuxUtilsVersion string) error {
+var updateOperatorImagesCommand = &cli.Command{
+	Name:      "embeddedclusteroperator",
+	Usage:     "Updates the embedded cluster operator images",
+	UsageText: environmentUsageText,
+	Action: func(c *cli.Context) error {
+		logrus.Infof("updating embedded cluster operator images")
+
+		current := embeddedclusteroperator.Metadata
+
+		err := updateOperatorAddonImages(c.Context, current.Location, current.Version)
+		if err != nil {
+			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
+		}
+
+		logrus.Infof("successfully updated embedded cluster operator images")
+
+		return nil
+	},
+}
+
+func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersion string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
