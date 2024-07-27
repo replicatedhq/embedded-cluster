@@ -13,8 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  build-image:
-    name: Build image
+  build-and-release:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -27,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Cache Melange
         uses: actions/cache@v4

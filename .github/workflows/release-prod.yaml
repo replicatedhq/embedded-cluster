@@ -38,23 +38,6 @@ jobs:
       - name: Setup Melange
         uses: chainguard-dev/actions/setup-melange@main
 
-      - name: Build and push local-artifact-mirror image (production)
-        run: |
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
-
-      - name: Build and push local-artifact-mirror image (staging)
-        run: |
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
-
       - name: Build and push utils image (production)
         run: |
           export REGISTRY=docker.io

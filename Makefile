@@ -184,6 +184,18 @@ scan:
 		--ignore-unfixed \
 		./
 
+.PHONY: build-utils-image
+build-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-utils-image: export PACKAGE_VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
+build-utils-image: apko-build
+
+.PHONY: build-and-push-utils-image
+build-and-push-utils-image: export IMAGE ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE):$(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-and-push-utils-image: export PACKAGE_VERSION ?= $(EMBEDDED_OPERATOR_UTILS_IMAGE_VERSION)
+build-and-push-utils-image: export APKO_CONFIG = deploy/images/utils/apko.tmpl.yaml
+build-and-push-utils-image: apko-login apko-build-and-publish
+
 .PHONY: buildtools
 buildtools:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
