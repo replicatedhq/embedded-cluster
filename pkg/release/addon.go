@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"gopkg.in/yaml.v3"
@@ -40,13 +41,26 @@ type AddonMetadata struct {
 	ReplaceImages bool              `yaml:"-"`
 }
 
+var funcMap = template.FuncMap{
+	"FormatImage": func(repo, tag string) string {
+		switch {
+		case tag == "":
+			return repo
+		case strings.HasPrefix(tag, "latest@"):
+			return fmt.Sprintf("%s@%s", repo, strings.TrimPrefix(tag, "latest@"))
+		default:
+			return fmt.Sprintf("%s:%s", repo, tag)
+		}
+	},
+}
+
 func GetValuesWithOriginalImages(addon string) (map[string]interface{}, error) {
 	tplpath := filepath.Join("pkg", "addons", addon, "static", "values.tpl.yaml")
 	tpl, err := os.ReadFile(tplpath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read values template: %w", err)
 	}
-	tmpl, err := template.New(fmt.Sprintf("builder-%s", addon)).Parse(string(tpl))
+	tmpl, err := template.New(fmt.Sprintf("builder-%s", addon)).Funcs(funcMap).Parse(string(tpl))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse values template: %w", err)
 	}
@@ -82,7 +96,7 @@ func (a *AddonMetadata) RenderValues(addon, tplfile, dest string) error {
 		return fmt.Errorf("failed to read values template: %w", err)
 	}
 
-	tmpl, err := template.New(addon).Parse(string(tpl))
+	tmpl, err := template.New(addon).Funcs(funcMap).Parse(string(tpl))
 	if err != nil {
 		return fmt.Errorf("failed to parse values template: %w", err)
 	}

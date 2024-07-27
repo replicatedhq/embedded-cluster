@@ -18,4 +18,4 @@ global:
 image:
   repository: proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image
   tag: 0.42.0-build.0@sha256:631f46f23b4110e7f49aff3aca642ca83e389a7a06daad269e6b2fe3212018e6
-utilsImage: 'proxy.replicated.com/anonymous/replicated/ec-utils:latest@sha256:f61e4346397e56553be0e1d897b6e162e41e90bc766a42a2beee0c2bca0c3bdc'
+utilsImage: 'proxy.replicated.com/anonymous/replicated/ec-utils@sha256:f61e4346397e56553be0e1d897b6e162e41e90bc766a42a2beee0c2bca0c3bdc'

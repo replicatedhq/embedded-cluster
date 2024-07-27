@@ -6,5 +6,5 @@ global:
 image:
   repository: proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image
   tag: {{ index .Images "replicated/embedded-cluster-operator-image" }}
-utilsImage: 'proxy.replicated.com/anonymous/replicated/ec-utils:{{ index .Images "utils" }}'
+utilsImage: '{{ index .Images "utils" | FormatImage "proxy.replicated.com/anonymous/replicated/ec-utils" }}'
 {{- end }}
