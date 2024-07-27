@@ -46,6 +46,8 @@ var funcMap = template.FuncMap{
 		switch {
 		case tag == "":
 			return repo
+		// The image appears in containerd images without the "latest" tag and causes an
+		// ImagePullBackOff error
 		case strings.HasPrefix(tag, "latest@"):
 			return fmt.Sprintf("%s@%s", repo, strings.TrimPrefix(tag, "latest@"))
 		default:
