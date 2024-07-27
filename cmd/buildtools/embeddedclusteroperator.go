@@ -75,11 +75,6 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 		Images:   make(map[string]string),
 	}
 
-	k0sVersion, err := getK0sVersion()
-	if err != nil {
-		return fmt.Errorf("failed to get k0s version: %w", err)
-	}
-
 	logrus.Infof("fetching wolfi apk index")
 	wolfiAPKIndex, err := GetWolfiAPKIndex()
 	if err != nil {
@@ -142,7 +137,7 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 			}
 		}
 
-		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, k0sVersion, upstreamVersion)
+		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, upstreamVersion)
 		if err != nil {
 			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
 		}
