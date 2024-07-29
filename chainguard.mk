@@ -64,7 +64,6 @@ apko-login:
 	${APKO_CMD} \
 		login -u "${USERNAME}" \
 		--password "${PASSWORD}" "${REGISTRY}"
-	$(MAKE) apko-output-image
 
 .PHONY: apko-output-image
 apko-output-image:
