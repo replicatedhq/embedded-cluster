@@ -1,16 +1,247 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
+	"github.com/containers/image/v5/docker"
+	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/types"
+	"github.com/distribution/reference"
 	"github.com/google/go-github/v62/github"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/sirupsen/logrus"
+	"helm.sh/helm/v3/pkg/repo"
 )
+
+const (
+	wolfiAPKIndexURL = "https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz"
+)
+
+func GetWolfiAPKIndex() ([]byte, error) {
+	tmpdir, err := os.MkdirTemp("", "wolfi-apk-index")
+	if err != nil {
+		return nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	if err := DownloadFile(wolfiAPKIndexURL, filepath.Join(tmpdir, "APKINDEX.tar.gz")); err != nil {
+		return nil, fmt.Errorf("download APKINDEX.tar.gz: %w", err)
+	}
+	if err := ExtractTGZArchive(filepath.Join(tmpdir, "APKINDEX.tar.gz"), tmpdir); err != nil {
+		return nil, fmt.Errorf("extract APKINDEX.tar.gz: %w", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(tmpdir, "APKINDEX"))
+	if err != nil {
+		return nil, fmt.Errorf("read APKINDEX: %w", err)
+	}
+	return contents, nil
+}
+
+type PackageVersion struct {
+	semver   semver.Version
+	revision int
+}
+
+func (v *PackageVersion) String() string {
+	return fmt.Sprintf("%s-r%d", v.semver.Original(), v.revision)
+}
+
+type PackageVersions []*PackageVersion
+
+func (pvs PackageVersions) Len() int {
+	return len(pvs)
+}
+
+func (pvs PackageVersions) Less(i, j int) bool {
+	if pvs[i].semver.Equal(&pvs[j].semver) {
+		return pvs[i].revision < pvs[j].revision
+	}
+	return pvs[i].semver.LessThan(&pvs[j].semver)
+}
+
+func (pvs PackageVersions) Swap(i, j int) {
+	pvs[i], pvs[j] = pvs[j], pvs[i]
+}
+
+func ParsePackageVersion(version string) (*PackageVersion, error) {
+	parts := strings.Split(version, "-r")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("incorrect number of parts in version %s", version)
+	}
+	sv, err := semver.NewVersion(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse version: %w", err)
+	}
+	revision, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("parse revision: %w", err)
+	}
+	return &PackageVersion{semver: *sv, revision: revision}, nil
+}
+
+func MustParsePackageVersion(version string) *PackageVersion {
+	pv, err := ParsePackageVersion(version)
+	if err != nil {
+		panic(err)
+	}
+	return pv
+}
+
+// listWolfiPackageVersions returns a list of all versions for a given package name
+func listWolfiPackageVersions(wolfiAPKIndex []byte, pkgName string) ([]*PackageVersion, error) {
+	var versions []*PackageVersion
+	scanner := bufio.NewScanner(bytes.NewReader(wolfiAPKIndex))
+	for scanner.Scan() {
+		line := scanner.Text()
+		// filter by package name
+		if line != "P:"+pkgName {
+			continue
+		}
+		scanner.Scan()
+		line = scanner.Text()
+		if !strings.HasPrefix(line, "V:") {
+			return nil, fmt.Errorf("incorrect APKINDEX version line: %s", line)
+		}
+		// extract the version
+		pv, err := ParsePackageVersion(line[2:])
+		if err != nil {
+			return nil, fmt.Errorf("parse package version from line %s: %w", line, err)
+		}
+		versions = append(versions, pv)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan APKINDEX: %w", err)
+	}
+	return versions, nil
+}
+
+// listMatchingWolfiPackageVersions returns a list of all versions for a given package name that
+// match the semver constraints.
+func listMatchingWolfiPackageVersions(wolfiAPKIndex []byte, pkgName string, constraints *semver.Constraints) ([]*PackageVersion, error) {
+	versions, err := listWolfiPackageVersions(wolfiAPKIndex, pkgName)
+	if err != nil {
+		return nil, fmt.Errorf("list package versions: %w", err)
+	}
+
+	if constraints == nil {
+		return versions, nil
+	}
+
+	var matchingVersions []*PackageVersion
+	for _, version := range versions {
+		if !constraints.Check(&version.semver) {
+			continue
+		}
+		matchingVersions = append(matchingVersions, version)
+	}
+	return matchingVersions, nil
+}
+
+// FindWolfiPackageVersion returns the latest version and revision of a package in the wolfi APK
+// index that matches the semver constraints.
+func FindWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, constraints *semver.Constraints) (string, error) {
+	versions, err := listMatchingWolfiPackageVersions(wolfiAPKIndex, pkgName, constraints)
+	if err != nil {
+		return "", fmt.Errorf("list package versions: %w", err)
+	}
+
+	if len(versions) == 0 {
+		return "", fmt.Errorf("package %q not found with the provided constraints", pkgName)
+	}
+
+	sorted := PackageVersions(versions)
+	sort.Sort(sorted)
+
+	return sorted[len(sorted)-1].String(), nil
+}
+
+func ApkoLogin() error {
+	cmd := exec.Command("make", "apko")
+	if err := RunCommand(cmd); err != nil {
+		return fmt.Errorf("make apko: %w", err)
+	}
+	if os.Getenv("IMAGES_REGISTRY_USER") != "" && os.Getenv("IMAGES_REGISTRY_PASS") != "" {
+		cmd := exec.Command(
+			"make",
+			"apko-login",
+			fmt.Sprintf("REGISTRY=%s", os.Getenv("IMAGES_REGISTRY_SERVER")),
+			fmt.Sprintf("USERNAME=%s", os.Getenv("IMAGES_REGISTRY_USER")),
+			fmt.Sprintf("PASSWORD=%s", os.Getenv("IMAGES_REGISTRY_PASS")),
+		)
+		if err := RunCommand(cmd); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func latestPatchComparison(s *semver.Version) string {
+	return fmt.Sprintf(
+		">=%d.%d, <%d.%d",
+		s.Major(),
+		s.Minor(),
+		s.Major(),
+		s.Minor()+1,
+	)
+}
+
+func ApkoBuildAndPublish(componentName string, packageName string, packageVersion string, upstreamVersion string) error {
+	args := []string{
+		"apko-build-and-publish",
+		fmt.Sprintf("IMAGE=%s", ComponentImageName(componentName, packageVersion)),
+		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
+		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
+		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
+		fmt.Sprintf("UPSTREAM_VERSION=%s", upstreamVersion),
+	}
+	cmd := exec.Command("make", args...)
+	if err := RunCommand(cmd); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ComponentImageName(componentName string, packageVersion string) string {
+	return fmt.Sprintf("%s:%s", ComponentImageRepo(componentName), packageVersion)
+}
+
+func ComponentImageRepo(componentName string) string {
+	return fmt.Sprintf("%s/replicated/ec-%s", os.Getenv("IMAGES_REGISTRY_SERVER"), componentName)
+}
+
+func FamiliarImageName(imageName string) string {
+	ref, err := reference.ParseNormalizedNamed(imageName)
+	if err != nil {
+		panic(fmt.Errorf("parse image name %s: %w", imageName, err))
+	}
+	return reference.FamiliarName(ref)
+}
+
+func GetDigestFromBuildFile() (string, error) {
+	contents, err := os.ReadFile("build/digest")
+	if err != nil {
+		return "", fmt.Errorf("read build file: %w", err)
+	}
+	parts := strings.Split(string(contents), "@")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("incorrect number of parts in build file")
+	}
+	return strings.TrimSpace(parts[1]), nil
+}
 
 func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {
 	client := github.NewClient(nil)
@@ -21,23 +252,70 @@ func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, er
 	return release.GetName(), nil
 }
 
+type filterFn func(string) bool
+
+func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) (string, error) {
+	client := github.NewClient(nil)
+	releases, _, err := client.Repositories.ListReleases(
+		ctx, owner, repo, &github.ListOptions{},
+	)
+	if err != nil {
+		return "", err
+	}
+	for _, release := range releases {
+		if !filter(release.GetTagName()) {
+			continue
+		}
+		return release.GetTagName(), nil
+	}
+	return "", fmt.Errorf("filter returned no record")
+}
+
+// GetLatestGitHubTag returns the latest tag from a GitHub repository.
 func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error) {
 	client := github.NewClient(nil)
 	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
 	if err != nil {
-		return "", fmt.Errorf("unable to list tags: %w", err)
+		return "", fmt.Errorf("list tags: %w", err)
 	}
 	if len(tags) == 0 {
 		return "", fmt.Errorf("no tags found")
 	}
+	return tags[0].GetName(), nil
+}
+
+// GetGreatestGitHubTag returns the greatest non-prerelease semver tag from a GitHub repository
+// that matches the provided constraints.
+func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *semver.Constraints) (string, error) {
+	client := github.NewClient(nil)
+	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("list tags: %w", err)
+	}
+	var best *semver.Version
+	var bestStr string
 	for _, tag := range tags {
-		// "-" indicates this is a pre-release version
-		if strings.Contains(tag.GetName(), "-") {
+		ver := tag.GetName()
+		ver = strings.TrimPrefix(ver, "v")
+		sv, err := semver.NewVersion(ver)
+		if err != nil {
 			continue
 		}
-		return tag.GetName(), nil
+		if sv.Prerelease() != "" {
+			continue
+		}
+		if !constrants.Check(sv) {
+			continue
+		}
+		if best == nil || sv.GreaterThan(best) {
+			best = sv
+			bestStr = tag.GetName()
+		}
 	}
-	return "", fmt.Errorf("no stable tags found")
+	if best == nil {
+		return "", fmt.Errorf("no tags found matching constraints")
+	}
+	return bestStr, nil
 }
 
 func GetMakefileVariable(name string) (string, error) {
@@ -65,7 +343,7 @@ func GetMakefileVariable(name string) (string, error) {
 func SetMakefileVariable(name, value string) error {
 	file, err := os.OpenFile("./Makefile", os.O_RDWR, 0644)
 	if err != nil {
-		return fmt.Errorf("unable to open ./Makefile: %w", err)
+		return fmt.Errorf("open ./Makefile: %w", err)
 	}
 	defer file.Close()
 
@@ -93,58 +371,136 @@ func SetMakefileVariable(name, value string) error {
 
 	wfile, err := os.OpenFile("./Makefile", os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		return fmt.Errorf("unable to open ./Makefile: %w", err)
+		return fmt.Errorf("open ./Makefile: %w", err)
 	}
 	defer wfile.Close()
 
 	for _, line := range lines {
 		if _, err := fmt.Fprintln(wfile, line); err != nil {
-			return fmt.Errorf("unable to write ./Makefile: %w", err)
+			return fmt.Errorf("write ./Makefile: %w", err)
 		}
 	}
 	return nil
 }
 
-func LatestChartVersion(repo, name string) (string, error) {
+func LatestChartVersion(repo *repo.Entry, name string) (string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
-		return "", fmt.Errorf("unable to create helm client: %v", err)
+		return "", fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
-	return hcli.Latest(repo, name)
+	logrus.Infof("adding helm repo %s", repo.Name)
+	err = hcli.AddRepo(repo)
+	if err != nil {
+		return "", fmt.Errorf("add helm repo: %w", err)
+	}
+	logrus.Infof("finding latest chart version of %s/%s", repo, name)
+	return hcli.Latest(repo.Name, name)
 }
 
-func MirrorChart(repo, name, ver string) error {
+func GetImageDigest(ctx context.Context, image string) (string, error) {
+	ref, err := docker.ParseReference("//" + image)
+	if err != nil {
+		return "", fmt.Errorf("parse image reference: %w", err)
+	}
+	sysctx := &types.SystemContext{}
+	src, err := ref.NewImageSource(ctx, sysctx)
+	if err != nil {
+		return "", fmt.Errorf("create image source: %w", err)
+	}
+	defer src.Close()
+
+	manifraw, maniftype, err := src.GetManifest(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("get manifest: %w", err)
+	}
+
+	if !manifest.MIMETypeIsMultiImage(maniftype) {
+		digest, err := docker.GetDigest(ctx, nil, ref)
+		return string(digest), err
+	}
+
+	manifestList, err := manifest.ListFromBlob(manifraw, maniftype)
+	if err != nil {
+		return "", fmt.Errorf("parse manifest list: %w", err)
+	}
+
+	// find the matching manifest for the linux/amd64 architecture
+	for _, descriptor := range manifestList.Instances() {
+		manifest, err := manifestList.Instance(descriptor)
+		if err != nil {
+			return "", fmt.Errorf("get manifest instance: %w", err)
+		}
+		if manifest.ReadOnly.Platform.Architecture != "amd64" {
+			continue
+		}
+		if manifest.ReadOnly.Platform.OS != "linux" {
+			continue
+		}
+		return string(descriptor), nil
+	}
+	return "", fmt.Errorf("failed to locate linux/amd64 manifest")
+}
+
+// XXX we need to revisit this as a registry may have a port number.
+func TagFromImage(image string) string {
+	_, tag, _ := strings.Cut(image, ":")
+	return tag
+}
+
+// XXX we need to revisit this as a registry may have a port number.
+func RemoveTagFromImage(image string) string {
+	location, _, _ := strings.Cut(image, ":")
+	return location
+}
+
+func GetImagesFromOCIChart(url, name, version string, values map[string]interface{}) ([]string, error) {
 	hcli, err := NewHelm()
 	if err != nil {
-		return fmt.Errorf("unable to create helm: %w", err)
+		return nil, fmt.Errorf("create helm client: %w", err)
 	}
 	defer hcli.Close()
 
-	logrus.Infof("pulling %s chart version %s", name, ver)
-	chpath, err := hcli.Pull(repo, name, ver)
+	return helm.ExtractImagesFromOCIChart(hcli, url, name, version, values)
+}
+
+func MirrorChart(repo *repo.Entry, name, ver string) error {
+	hcli, err := NewHelm()
 	if err != nil {
-		return fmt.Errorf("unable to pull %s: %w", name, err)
+		return fmt.Errorf("create helm client: %w", err)
+	}
+	defer hcli.Close()
+
+	logrus.Infof("adding helm repo %s", repo.Name)
+	err = hcli.AddRepo(repo)
+	if err != nil {
+		return fmt.Errorf("add helm repo: %w", err)
+	}
+
+	logrus.Infof("pulling %s chart version %s", name, ver)
+	chpath, err := hcli.Pull(repo.Name, name, ver)
+	if err != nil {
+		return fmt.Errorf("pull chart %s: %w", name, err)
 	}
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
 
-	if val := os.Getenv("REGISTRY_SERVER"); val != "" {
-		logrus.Infof("authenticating with %q", os.Getenv("REGISTRY_SERVER"))
+	if val := os.Getenv("CHARTS_REGISTRY_SERVER"); val != "" {
+		logrus.Infof("authenticating with %q", os.Getenv("CHARTS_REGISTRY_SERVER"))
 		if err := hcli.RegistryAuth(
-			os.Getenv("REGISTRY_SERVER"),
-			os.Getenv("REGISTRY_USER"),
-			os.Getenv("REGISTRY_PASS"),
+			os.Getenv("CHARTS_REGISTRY_SERVER"),
+			os.Getenv("CHARTS_REGISTRY_USER"),
+			os.Getenv("CHARTS_REGISTRY_PASS"),
 		); err != nil {
-			return fmt.Errorf("unable to authenticate: %w", err)
+			return fmt.Errorf("registry authenticate: %w", err)
 		}
 	}
 
-	dst := os.Getenv("DESTINATION")
+	dst := fmt.Sprintf("oci://%s", os.Getenv("CHARTS_DESTINATION"))
 	logrus.Infof("verifying if destination tag already exists")
 	tmpf, err := hcli.Pull(dst, name, ver)
 	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
-		return fmt.Errorf("unable to verify if tag already exists: %w", err)
+		return fmt.Errorf("verify tag exists: %w", err)
 	} else if err == nil {
 		os.Remove(tmpf)
 		logrus.Warnf("cowardly refusing to override dst (tag %s already exist)", ver)
@@ -154,9 +510,114 @@ func MirrorChart(repo, name, ver string) error {
 
 	logrus.Infof("pushing %s chart to %s", name, dst)
 	if err := hcli.Push(chpath, dst); err != nil {
-		return fmt.Errorf("unable to push openebs: %w", err)
+		return fmt.Errorf("push %s chart: %w", name, err)
 	}
 	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
-	logrus.Infof("pushed openebs chart: %s", remote)
+	logrus.Infof("pushed %s/%s chart: %s", repo, name, remote)
 	return nil
+}
+
+func DownloadFile(url, dest string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("http get %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("create file %s: %w", dest, err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func ExtractTGZArchive(tgzFile string, destDir string) error {
+	fileReader, err := os.Open(tgzFile)
+	if err != nil {
+		return fmt.Errorf("open tgz file %q: %w", tgzFile, err)
+	}
+	defer fileReader.Close()
+
+	gzReader, err := gzip.NewReader(fileReader)
+	if err != nil {
+		return fmt.Errorf("create gzip reader: %w", err)
+	}
+	defer gzReader.Close()
+
+	tarReader := tar.NewReader(gzReader)
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read tar data: %w", err)
+		}
+
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		err = func() error {
+			fileName := filepath.Join(destDir, hdr.Name)
+
+			parentDir := filepath.Dir(fileName)
+			err := os.MkdirAll(parentDir, 0755)
+			if err != nil {
+				return fmt.Errorf("create directory %q: %w", parentDir, err)
+			}
+
+			fileWriter, err := os.Create(fileName)
+			if err != nil {
+				return fmt.Errorf("create file %q: %w", hdr.Name, err)
+			}
+			defer fileWriter.Close()
+
+			_, err = io.Copy(fileWriter, tarReader)
+			if err != nil {
+				return fmt.Errorf("write file %q: %w", hdr.Name, err)
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func RunCommand(cmd *exec.Cmd) error {
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func NewHelm() (*helm.Helm, error) {
+	sv, err := getK0sVersion()
+	if err != nil {
+		return nil, fmt.Errorf("get k0s version: %w", err)
+	}
+	return helm.NewHelm(helm.HelmOptions{
+		Writer:     logrus.New().Writer(),
+		K0sVersion: sv.Original(),
+	})
+}
+
+func GetLatestKubernetesVersion() (*semver.Version, error) {
+	resp, err := http.Get("https://dl.k8s.io/release/stable.txt")
+	if err != nil {
+		return nil, fmt.Errorf("http get: %w", err)
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+	if !scanner.Scan() {
+		return nil, fmt.Errorf("no content in stable.txt")
+	}
+	return semver.NewVersion(scanner.Text())
 }

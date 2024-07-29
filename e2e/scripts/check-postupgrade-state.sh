@@ -1,49 +1,8 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
-wait_for_installation() {
-    ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
-    counter=0
-    while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 84 ]; then
-            echo "installation did not become ready"
-            kubectl get installations 2>&1 || true
-            kubectl describe installations 2>&1 || true
-            kubectl get charts -A
-            kubectl get secrets -A
-            kubectl describe clusterconfig -A
-            kubectl get pods -A
-            echo "operator logs:"
-            kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
-            return 1
-        fi
-        sleep 5
-        counter=$((counter+1))
-        echo "Waiting for installation"
-        ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
-        kubectl get installations 2>&1 || true
-    done
-}
-
-function retry() {
-    local retries=$1
-    shift
-
-    local count=0
-    until "$@"; do
-        exit=$?
-        wait=$((2 ** $count))
-        count=$(($count + 1))
-        if [ $count -lt $retries ]; then
-            echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
-            sleep $wait
-        else
-            echo "Retry $count/$retries exited $exit, no more retries left."
-            return $exit
-        fi
-    done
-    return 0
-}
+DIR=/usr/local/bin
+. $DIR/common.sh
 
 function check_nginx_version {
     if ! kubectl describe pod -n ingress-nginx | grep -q "4.9.1"; then

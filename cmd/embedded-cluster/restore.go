@@ -21,12 +21,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -67,7 +69,6 @@ var ecRestoreStates = []ecRestoreState{
 }
 
 const (
-	ecRestoreStateCMName    = "embedded-cluster-restore-state"
 	resourceModifiersCMName = "restore-resource-modifiers"
 )
 
@@ -119,7 +120,7 @@ func getECRestoreState(ctx context.Context) ecRestoreState {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
-			Name:      ecRestoreStateCMName,
+			Name:      constants.EcRestoreStateCMName,
 		},
 	}
 	if err := kcli.Get(ctx, types.NamespacedName{Namespace: cm.Namespace, Name: cm.Name}, cm); err != nil {
@@ -154,7 +155,7 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
-			Name:      ecRestoreStateCMName,
+			Name:      constants.EcRestoreStateCMName,
 		},
 		Data: map[string]string{
 			"state": string(state),
@@ -184,7 +185,7 @@ func resetECRestoreState(ctx context.Context) error {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
-			Name:      ecRestoreStateCMName,
+			Name:      constants.EcRestoreStateCMName,
 		},
 	}
 	if err := kcli.Delete(ctx, cm); err != nil && !errors.IsNotFound(err) {
@@ -206,7 +207,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
-			Name:      ecRestoreStateCMName,
+			Name:      constants.EcRestoreStateCMName,
 		},
 	}
 	if err := kcli.Get(ctx, types.NamespacedName{Namespace: cm.Namespace, Name: cm.Name}, cm); err != nil {
@@ -315,13 +316,13 @@ func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
-	opts := []addons.Option{}
 	if c.String("pod-cidr") != "" {
 		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	}
 	if c.String("service-cidr") != "" {
 		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	}
+	opts := []addons.Option{}
 	if c.Bool("proxy") {
 		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
 	}
@@ -374,8 +375,8 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
-	if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(defaults.Version, "v") {
-		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, defaults.Version)
+	if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(versions.Version, "v") {
+		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, versions.Version)
 	}
 	if backup.Status.Phase != velerov1.BackupPhaseCompleted {
 		return false, fmt.Sprintf("has a status of %q", backup.Status.Phase)

@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -33,9 +32,10 @@ type AddOn interface {
 	Version() (map[string]string, error)
 	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error)
+	GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error)
 	Outro(context.Context, client.Client) error
 	GetProtectedFields() map[string][]string
+	GetImages() []string
 	GetAdditionalImages() []string
 }
 
@@ -106,9 +106,9 @@ func (a *Applier) OutroForRestore(ctx context.Context) error {
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, additionalRepositories []v1beta1.Repository) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	charts := []v1beta1.Chart{}
-	repositories := []v1beta1.Repository{}
+func (a *Applier) GenerateHelmConfigs(additionalCharts []embeddedclusterv1beta1.Chart, additionalRepositories []embeddedclusterv1beta1.Repository) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
+	charts := []embeddedclusterv1beta1.Chart{}
+	repositories := []embeddedclusterv1beta1.Repository{}
 	addons, err := a.load()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
@@ -132,9 +132,9 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []v1beta1.Chart, addition
 }
 
 // GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
-func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	charts := []v1beta1.Chart{}
-	repositories := []v1beta1.Repository{}
+func (a *Applier) GenerateHelmConfigsForRestore() ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
+	charts := []embeddedclusterv1beta1.Chart{}
+	repositories := []embeddedclusterv1beta1.Repository{}
 	addons, err := a.loadForRestore()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
@@ -155,75 +155,66 @@ func (a *Applier) GenerateHelmConfigsForRestore() ([]v1beta1.Chart, []v1beta1.Re
 
 // GetBuiltinCharts returns a map of charts that are not applied at install time and instead
 // included in metadata for later use by the operator.
-func (a *Applier) GetBuiltinCharts() (map[string]k0sconfig.HelmExtensions, error) {
-	builtinCharts := map[string]k0sconfig.HelmExtensions{}
+func (a *Applier) GetBuiltinCharts() (map[string]embeddedclusterv1beta1.Helm, error) {
+	builtinCharts := map[string]embeddedclusterv1beta1.Helm{}
 
-	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
+	addons, err := a.loadBuiltIn()
 	if err != nil {
-		return nil, fmt.Errorf("unable to create velero addon: %w", err)
-	}
-	velChart, velRepo, err := vel.GenerateHelmConfig(true)
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate helm config for velero: %w", err)
-	}
-	builtinCharts["velero"] = k0sconfig.HelmExtensions{
-		Repositories: velRepo,
-		Charts:       velChart,
+		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.config, true, false, a.network)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create registry addon: %w", err)
-	}
-	regChart, regRepo, err := reg.GenerateHelmConfig(true)
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
-	}
-	builtinCharts["registry"] = k0sconfig.HelmExtensions{
-		Repositories: regRepo,
-		Charts:       regChart,
-	}
-
-	regHA, err := registry.New(defaults.RegistryNamespace, a.config, true, true, a.network)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create registry addon: %w", err)
-	}
-	regHAChart, regHARepo, err := regHA.GenerateHelmConfig(true)
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate helm config for registry: %w", err)
-	}
-	builtinCharts["registry-ha"] = k0sconfig.HelmExtensions{
-		Repositories: regHARepo,
-		Charts:       regHAChart,
-	}
-
-	seaweed, err := seaweedfs.New(defaults.SeaweedFSNamespace, a.config, true)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
-	}
-	seaweedChart, seaweedRepo, err := seaweed.GenerateHelmConfig(true)
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate helm config for seaweedfs: %w", err)
-	}
-	builtinCharts["seaweedfs"] = k0sconfig.HelmExtensions{
-		Repositories: seaweedRepo,
-		Charts:       seaweedChart,
+	for name, addon := range addons {
+		chart, repo, err := addon.GenerateHelmConfig(true)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate helm config for %s: %w", name, err)
+		}
+		builtinCharts[name] = embeddedclusterv1beta1.Helm{
+			Repositories: repo,
+			Charts:       chart,
+		}
 	}
 
 	return builtinCharts, nil
 }
 
-func (a *Applier) GetAdditionalImages() ([]string, error) {
-	additionalImages := []string{}
+func (a *Applier) GetImages() ([]string, error) {
+	images := []string{}
 	addons, err := a.load()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)
 	}
+	builtInAddons, err := a.loadBuiltIn()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load built-in addons: %w", err)
+	}
 	for _, addon := range addons {
-		additionalImages = append(additionalImages, addon.GetAdditionalImages()...)
+		images = append(images, addon.GetImages()...)
+	}
+	for _, addon := range builtInAddons {
+		images = append(images, addon.GetImages()...)
 	}
 
-	return additionalImages, nil
+	return images, nil
+}
+
+func (a *Applier) GetAdditionalImages() ([]string, error) {
+	images := []string{}
+	addons, err := a.load()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load addons: %w", err)
+	}
+	builtInAddons, err := a.loadBuiltIn()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load built-in addons: %w", err)
+	}
+	for _, addon := range addons {
+		images = append(images, addon.GetAdditionalImages()...)
+	}
+	for _, addon := range builtInAddons {
+		images = append(images, addon.GetAdditionalImages()...)
+	}
+
+	return images, nil
 }
 
 // ProtectedFields returns the protected fields for all the embedded charts.
@@ -315,6 +306,37 @@ func (a *Applier) load() ([]AddOn, error) {
 	return addons, nil
 }
 
+// load instantiates and returns all addon appliers.
+func (a *Applier) loadBuiltIn() (map[string]AddOn, error) {
+	addons := map[string]AddOn{}
+
+	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create velero addon: %w", err)
+	}
+	addons["velero"] = vel
+
+	reg, err := registry.New(defaults.RegistryNamespace, a.config, true, false, a.network)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create registry addon: %w", err)
+	}
+	addons["registry"] = reg
+
+	regHA, err := registry.New(defaults.RegistryNamespace, a.config, true, true, a.network)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create registry addon: %w", err)
+	}
+	addons["registry-ha"] = regHA
+
+	seaweed, err := seaweedfs.New(defaults.SeaweedFSNamespace, a.config, true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
+	}
+	addons["seaweedfs"] = seaweed
+
+	return addons, nil
+}
+
 // loadForRestore instantiates and returns addon appliers for restore operations.
 func (a *Applier) loadForRestore() ([]AddOn, error) {
 	addons := []AddOn{}
@@ -333,7 +355,7 @@ func (a *Applier) loadForRestore() ([]AddOn, error) {
 }
 
 // Versions returns a map with the version of each addon that will be applied.
-func (a *Applier) Versions(additionalCharts []v1beta1.Chart) (map[string]string, error) {
+func (a *Applier) Versions(additionalCharts []embeddedclusterv1beta1.Chart) (map[string]string, error) {
 	addons, err := a.load()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)

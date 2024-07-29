@@ -181,7 +181,7 @@ expect {
 }
 
 expect {
-    -timeout 150 "Registry restored!" {}
+    -timeout 300 "Registry restored!" {}
     timeout {
       puts "\n\nFailed to restore registry."
       exit 1

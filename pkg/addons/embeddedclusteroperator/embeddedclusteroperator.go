@@ -4,22 +4,15 @@ package embeddedclusteroperator
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gosimple/slug"
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -27,41 +20,53 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	releaseName = "embedded-cluster-operator"
-	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator"
+const releaseName = "embedded-cluster-operator"
+
+var (
+	//go:embed static/values.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/metadata.yaml
+	rawmetadata []byte
+	// Metadata is the unmarshal version of rawmetadata.
+	Metadata release.AddonMetadata
 )
 
 // Overwritten by -ldflags in Makefile
 var (
-	Version       = "v0.0.0"
-	UtilsImage    = "busybox:latest"
-	ImageOverride = ""
+	EmbeddedOperatorImageOverride = ""
 )
 
-var helmValues = map[string]interface{}{
-	"kotsVersion":               adminconsole.Version,
-	"embeddedClusterVersion":    defaults.Version,
-	"embeddedClusterK0sVersion": defaults.K0sVersion,
-	"utilsImage":                UtilsImage,
-	"global": map[string]interface{}{
-		"labels": map[string]interface{}{
-			"replicated.com/disaster-recovery":       "infra",
-			"replicated.com/disaster-recovery-chart": "embedded-cluster-operator",
-		},
-	},
-}
-
 func init() {
-	if ImageOverride != "" {
-		// split ImageOverride into the image and tag
-		parts := strings.Split(ImageOverride, ":")
-		if len(parts) != 2 {
-			panic(fmt.Sprintf("invalid image override: %s", ImageOverride))
-		}
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
 
+	helmValues = make(map[string]interface{})
+	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
+	}
+
+	helmValues["kotsVersion"] = adminconsole.Metadata.Version
+	helmValues["embeddedClusterVersion"] = versions.Version
+	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
+
+	if EmbeddedOperatorImageOverride != "" {
+		// split ImageOverride into the image and tag
+		parts := strings.Split(EmbeddedOperatorImageOverride, ":")
+		if len(parts) != 2 {
+			panic(fmt.Sprintf("invalid image override: %s", EmbeddedOperatorImageOverride))
+		}
 		helmValues["image"] = map[string]interface{}{
 			"repository": parts[0],
 			"tag":        parts[1],
@@ -84,7 +89,9 @@ type EmbeddedClusterOperator struct {
 
 // Version returns the version of the embedded cluster operator chart.
 func (e *EmbeddedClusterOperator) Version() (map[string]string, error) {
-	return map[string]string{"EmbeddedClusterOperator": "v" + Version}, nil
+	return map[string]string{
+		"EmbeddedClusterOperator": "v" + Metadata.Version,
+	}, nil
 }
 
 func (a *EmbeddedClusterOperator) Name() string {
@@ -105,11 +112,11 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
-	chartConfig := v1beta1.Chart{
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
+	chartConfig := embeddedclusterv1beta1.Chart{
 		Name:      releaseName,
-		ChartName: chartURL,
-		Version:   Version,
+		ChartName: Metadata.Location,
+		Version:   Metadata.Version,
 		TargetNS:  "embedded-cluster",
 		Order:     3,
 	}
@@ -134,11 +141,28 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]v1bet
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return []embeddedclusterv1beta1.Chart{chartConfig}, nil, nil
+}
+
+func (a *EmbeddedClusterOperator) GetImages() []string {
+	var images []string
+	for image, tag := range Metadata.Images {
+		// we use replicated/embedded-cluster-operator-image from upstream
+		if image == "replicated/embedded-cluster-operator-image" {
+			images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", image, tag))
+		} else {
+			images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(image), tag))
+		}
+	}
+	return images
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
-	return []string{UtilsImage}
+	var images []string
+	if tag, ok := Metadata.Images["utils"]; ok {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("utils"), tag))
+	}
+	return images
 }
 
 // createVersionMetadataConfigMap creates a ConfigMap with the version metadata for the embedded cluster operator.
@@ -150,7 +174,7 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 
 	// we trim out the prefix v from the version and then slugify it, we use
 	// the result as a suffix for the config map name.
-	slugver := slug.Make(strings.TrimPrefix(defaults.Version, "v"))
+	slugver := slug.Make(strings.TrimPrefix(versions.Version, "v"))
 	configmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("version-metadata-%s", slugver),

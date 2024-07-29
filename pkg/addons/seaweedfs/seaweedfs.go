@@ -2,30 +2,45 @@ package seaweedfs
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"time"
 
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
-const (
-	releaseName = "seaweedfs"
-	chartURL    = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/seaweedfs"
-)
+const releaseName = "seaweedfs"
 
 var (
-	// Overwritten by -ldflags in Makefile
-	Version = "v0.0.0"
-
+	//go:embed static/values.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
+	//go:embed static/metadata.yaml
+	rawmetadata []byte
+	// Metadata is the unmarshal version of rawmetadata.
+	Metadata release.AddonMetadata
 )
+
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(fmt.Errorf("failed to unmarshal metadata: %w", err))
+	}
+	helmValues = make(map[string]interface{})
+	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+		panic(fmt.Errorf("failed to unmarshal helm values: %w", err))
+	}
+}
 
 // SeaweedFS manages the installation of the SeaweedFS helm chart.
 type SeaweedFS struct {
@@ -36,7 +51,7 @@ type SeaweedFS struct {
 
 // Version returns the version of the SeaweedFS chart.
 func (o *SeaweedFS) Version() (map[string]string, error) {
-	return map[string]string{"SeaweedFS": "v" + Version}, nil
+	return map[string]string{"SeaweedFS": "v" + Metadata.Version}, nil
 }
 
 func (a *SeaweedFS) Name() string {
@@ -57,15 +72,15 @@ func (o *SeaweedFS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the SeaweedFS chart.
-func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
 
-	chartConfig := v1beta1.Chart{
+	chartConfig := eckinds.Chart{
 		Name:      releaseName,
-		ChartName: chartURL,
-		Version:   Version,
+		ChartName: Metadata.Location,
+		Version:   Metadata.Version,
 		TargetNS:  o.namespace,
 		Order:     2,
 	}
@@ -76,7 +91,15 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return []eckinds.Chart{chartConfig}, nil, nil
+}
+
+func (a *SeaweedFS) GetImages() []string {
+	var images []string
+	for component, tag := range Metadata.Images {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(component), tag))
+	}
+	return images
 }
 
 func (o *SeaweedFS) GetAdditionalImages() []string {
@@ -135,11 +158,4 @@ func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spi
 		return fmt.Errorf("error waiting for admin console: %v", lasterr)
 	}
 	return nil
-}
-
-func init() {
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(helmValuesYAML, &helmValues); err != nil {
-		panic(fmt.Errorf("failed to unmarshal helm values: %w", err))
-	}
 }

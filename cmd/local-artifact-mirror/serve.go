@@ -10,9 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/urfave/cli/v2"
-
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/urfave/cli/v2"
 )
 
 // serveCommand starts a http server that serves files from the /var/lib/embedded-cluster

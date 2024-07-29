@@ -1,0 +1,45 @@
+name: Scan image
+description: 'Scan a container image for vulnerabilities and optionally upload the results for GitHub code scanning'
+inputs:
+  image-ref:
+    description: 'The image to scan'
+    required: true
+  upload-sarif:
+    description: 'Whether to upload the scan results as a SARIF file'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Get image id
+      id: image-id
+      shell: bash
+      run: |
+        image_id=$(${{github.action_path}}/image_id.sh '${{ inputs.image-ref }}')
+        echo "image_id=$image_id" >> $GITHUB_OUTPUT
+
+    - name: Scan image
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        image-ref: '${{ inputs.image-ref }}'
+        ignore-unfixed: true
+        severity: CRITICAL,HIGH,MEDIUM
+        exit-code: 1
+
+    - name: Output sarif
+      uses: aquasecurity/trivy-action@0.24.0
+      if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
+      with:
+        image-ref: '${{ matrix.image }}'
+        format: sarif
+        output: trivy-results.sarif
+        ignore-unfixed: true
+        severity: CRITICAL,HIGH,MEDIUM
+
+    - name: Upload sarif
+      if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-results.sarif
+        category: 'image-scan:${{ steps.image-id.outputs.image_id }}'

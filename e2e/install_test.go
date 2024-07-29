@@ -288,7 +288,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestHostPreflight(t *testing.T) {
+func TestHostPreflightCustomSpec(t *testing.T) {
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
@@ -317,6 +317,29 @@ func TestHostPreflight(t *testing.T) {
 	line := []string{"embedded-preflight.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestHostPreflightInBuiltSpec(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "centos/9-Stream",
+		LicensePath:         "license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	})
+	defer cleanupCluster(t, tc)
+
+	t.Logf("%s: install single node with in-built host preflights", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-host-preflight-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster node with host preflights: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -551,36 +574,8 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
-	// download airgap bundle
-	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/appver-%s?airgap=true", os.Getenv("SHORT_SHA"))
-
-	req, err := http.NewRequest("GET", airgapURL, nil)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	req.Header.Set("Authorization", os.Getenv("AIRGAP_LICENSE_ID"))
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("failed to download airgap bundle: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("failed to download airgap bundle: %s", resp.Status)
-	}
-
-	// pipe response to a temporary file
 	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
-	f, err := os.Create(airgapBundlePath)
-	if err != nil {
-		t.Fatalf("failed to create temporary file: %v", err)
-	}
-	defer f.Close()
-	size, err := f.ReadFrom(resp.Body)
-	if err != nil {
-		t.Fatalf("failed to write response to temporary file: %v", err)
-	}
-	t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
+	downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 
 	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
 
@@ -596,13 +591,13 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
 
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -614,7 +609,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	if _, _, err = RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -1330,8 +1325,22 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
 
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
 	bin := strings.Split(command, " ")[0]
-	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
+	t.Logf("%s: resetting controller node 2", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
 		t.Fatalf("fail to remove controller node %s:", err)
@@ -1352,9 +1361,20 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
-	downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	wg.Wait()
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
@@ -1362,6 +1382,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
 	defer cleanupCluster(t, tc)
 
@@ -1503,6 +1524,31 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+	// remove the airgap bundle and binary after upgrade
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -1720,6 +1766,24 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 }
 
 func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) string {
+	for i := 0; i < 5; i++ {
+		airgapBundlePath, size := maybeDownloadAirgapBundle(t, versionLabel, destPath, licenseID)
+		if size > 1024*1024*1024 { // more than a GB
+			t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
+			return airgapBundlePath
+		}
+		t.Logf("downloaded airgap bundle to %s (%d bytes), retrying as it is less than 1GB", airgapBundlePath, size)
+		err := os.RemoveAll(airgapBundlePath)
+		if err != nil {
+			t.Fatalf("failed to remove airgap bundle at %s: %v", airgapBundlePath, err)
+		}
+		time.Sleep(2 * time.Minute)
+	}
+	t.Errorf("failed to download airgap bundle after 5 attempts")
+	return ""
+}
+
+func maybeDownloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) (string, int64) {
 	// download airgap bundle
 	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
 
@@ -1749,9 +1813,8 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 	if err != nil {
 		t.Fatalf("failed to write response to temporary file: %v", err)
 	}
-	t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
 
-	return airgapBundlePath
+	return airgapBundlePath, size
 }
 
 func setupPlaywright(t *testing.T, tc *cluster.Output) error {

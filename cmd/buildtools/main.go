@@ -12,10 +12,13 @@ import (
 
 const environmentUsageText = `
 This script uses the following environment variables:
-- REGISTRY_SERVER: the registry server to push the chart to (used for authentication, e.g. index.docker.io)
-- REGISTRY_USER: the username to authenticate with.
-- REGISTRY_PASS: the password to authenticate with.
-- DESTINATION: the destination repository to push the chart to (e.g. oci://ttl.sh/embedded-cluster-charts)
+- CHARTS_REGISTRY_SERVER: the registry server to push the chart to (e.g. index.docker.io)
+- CHARTS_REGISTRY_USER: the username to authenticate with.
+- CHARTS_REGISTRY_PASS: the password to authenticate with.
+- IMAGES_REGISTRY_SERVER: the registry server to push the images to (e.g. index.docker.io)
+- IMAGES_REGISTRY_USER: the username to authenticate with.
+- IMAGES_REGISTRY_PASS: the password to authenticate with.
+- CHARTS_DESTINATION: the destination repository to push the chart to (e.g. ttl.sh/embedded-cluster-charts)
 `
 
 func main() {
@@ -29,11 +32,12 @@ func main() {
 		Name:  "buildtools",
 		Usage: "Provide a set of tools for building embedded cluster binarires",
 		Commands: []*cli.Command{
-			addonCommand,
+			updateCommand,
+			metadataCommand,
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

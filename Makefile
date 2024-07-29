@@ -1,81 +1,72 @@
+SHELL := /bin/bash
+
+include chainguard.mk
+
 VERSION ?= $(shell git describe --tags --dirty)
+CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
-ADMIN_CONSOLE_CHART_VERSION = 1.112.1
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-EMBEDDED_OPERATOR_CHART_VERSION = 0.40.2
+EMBEDDED_OPERATOR_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
-EMBEDDED_OPERATOR_UTILS_IMAGE = busybox:1.36.1
-EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE =
-OPENEBS_CHART_VERSION = 4.1.0
-OPENEBS_UTILS_VERSION = 4.1.0
-SEAWEEDFS_CHART_VERSION = 4.0.0
-REGISTRY_CHART_VERSION = 2.2.3
-REGISTRY_IMAGE_VERSION = 2.8.3
-VELERO_CHART_VERSION = 6.3.0
-VELERO_IMAGE_VERSION = v1.13.2
-VELERO_AWS_PLUGIN_IMAGE_VERSION = v1.9.2
 KUBECTL_VERSION = v1.28.11
 K0S_VERSION = v1.28.11+k0s.0
 K0S_GO_VERSION = v1.28.11+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
-K0S_BINARY_SOURCE_OVERRIDE = 
+K0S_BINARY_SOURCE_OVERRIDE =
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.93.1
-KOTS_VERSION = v$(shell echo $(ADMIN_CONSOLE_CHART_VERSION) | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+TROUBLESHOOT_VERSION = v0.97.0
+KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 KOTS_BINARY_URL_OVERRIDE =
-LOCAL_ARTIFACT_MIRROR_IMAGE ?= registry.replicated.com/library/embedded-cluster-local-artifact-mirror
-LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION = ${LOCAL_ARTIFACT_MIRROR_IMAGE}:$(subst +,-,$(VERSION))
-LD_FLAGS = -X github.com/replicatedhq/embedded-cluster/pkg/defaults.K0sVersion=$(K0S_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.Version=$(VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.KubectlVersion=$(KUBECTL_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/defaults.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) \
+# TODO: move this to a manifest file
+LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
+LD_FLAGS = \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.KubectlVersion=$(KUBECTL_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.Version=$(ADMIN_CONSOLE_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.MigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.Version=$(EMBEDDED_OPERATOR_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.UtilsImage=$(EMBEDDED_OPERATOR_UTILS_IMAGE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.ImageOverride=$(EMBEDDED_CLUSTER_OPERATOR_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.Version=$(OPENEBS_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/openebs.UtilsVersion=$(OPENEBS_UTILS_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs.Version=$(SEAWEEDFS_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.Version=$(REGISTRY_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/registry.ImageVersion=$(REGISTRY_IMAGE_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.Version=$(VELERO_CHART_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.VeleroTag=$(VELERO_IMAGE_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/velero.AwsPluginTag=$(VELERO_AWS_PLUGIN_IMAGE_VERSION)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.EmbeddedOperatorImageOverride=$(EMBEDDED_OPERATOR_IMAGE_OVERRIDE)
+
+export PATH := $(shell pwd)/bin:$(PATH)
+
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 
 .DEFAULT_GOAL := default
-default: embedded-cluster-linux-amd64
+default: build-ttl.sh
 
 pkg/goods/bins/k0s: Makefile
 	mkdir -p pkg/goods/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
-	    curl -L -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
+	    curl -fL -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
 	else \
-	    curl -L -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
+	    curl -fL -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
 	fi
 	chmod +x pkg/goods/bins/k0s
 	touch pkg/goods/bins/k0s
 
 pkg/goods/bins/kubectl: Makefile
 	mkdir -p pkg/goods/bins
-	curl -L -o pkg/goods/bins/kubectl "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+	curl -fL -o pkg/goods/bins/kubectl "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
 	chmod +x pkg/goods/bins/kubectl
 	touch pkg/goods/bins/kubectl
 
 pkg/goods/bins/kubectl-support_bundle: Makefile
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/support-bundle
-	curl -L -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
+	curl -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
 	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/kubectl-support_bundle
 	touch pkg/goods/bins/kubectl-support_bundle
@@ -83,22 +74,23 @@ pkg/goods/bins/kubectl-support_bundle: Makefile
 pkg/goods/bins/kubectl-preflight: Makefile
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/preflight
-	curl -L -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
+	curl -fL -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
 	touch pkg/goods/bins/kubectl-preflight
 
 pkg/goods/bins/local-artifact-mirror: Makefile
 	mkdir -p pkg/goods/bins
-	CGO_ENABLED=0 go build -o pkg/goods/bins/local-artifact-mirror ./cmd/local-artifact-mirror
+	$(MAKE) -C local-artifact-mirror build GOOS=linux GOARCH=amd64
+	cp local-artifact-mirror/bin/local-artifact-mirror-$(GOOS)-$(GOARCH) pkg/goods/bins/local-artifact-mirror
 
 pkg/goods/internal/bins/kubectl-kots: Makefile
 	mkdir -p pkg/goods/internal/bins
 	mkdir -p output/tmp/kots
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
-	    curl -L -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
+	    curl -fL -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
 	else \
-	    curl -L -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
+	    curl -fL -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
 	fi
 	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
 	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots
@@ -130,16 +122,30 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: static go.mod
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
+embedded-cluster-linux-amd64: GOOS = linux
+embedded-cluster-linux-amd64: GOARCH = amd64
+embedded-cluster-linux-amd64: static go.mod embedded-cluster
+	mkdir -p ./output/bin
+	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
 
 # for testing
 .PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: go.mod
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "$(LD_FLAGS)" -o ./output/bin/$(APP_NAME) ./cmd/embedded-cluster
+embedded-cluster-darwin-arm64: GOOS = darwin
+embedded-cluster-darwin-arm64: GOARCH = arm64
+embedded-cluster-darwin-arm64: go.mod embedded-cluster
+	mkdir -p ./output/bin
+	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
+
+.PHONY: embedded-cluster
+embedded-cluster:
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) \
+		go build -ldflags "$(LD_FLAGS)" -o ./build/embedded-cluster-$(GOOS)-$(GOARCH) \
+		./cmd/embedded-cluster
 
 .PHONY: unit-tests
 unit-tests:
+	mkdir -p pkg/goods/bins pkg/goods/internal/bins
+	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go test -v ./pkg/... ./cmd/...
 
 .PHONY: vet
@@ -154,11 +160,20 @@ e2e-tests: embedded-release
 e2e-test:
 	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
 
+.PHONY: build-ttl.sh
+build-ttl.sh:
+	$(MAKE) -C local-artifact-mirror build-ttl.sh \
+		IMAGE_NAME=$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
+	make embedded-cluster-linux-amd64 \
+		LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/$(shell cat local-artifact-mirror/build/image)
+
 .PHONY: clean
 clean:
 	rm -rf output
 	rm -rf pkg/goods/bins
 	rm -rf pkg/goods/internal/bins
+	rm -rf build
+	rm -rf bin
 
 .PHONY: lint
 lint:
@@ -177,25 +192,16 @@ scan:
 		--ignore-unfixed \
 		./
 
-print-%:
-	@echo -n $($*)
-
-.PHONY: build-local-artifact-mirror-image
-build-local-artifact-mirror-image:
-	docker build --platform linux/amd64 -t $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION) -f deploy/local-artifact-mirror/Dockerfile .
-
-.PHONY: push-local-artifact-mirror-image
-push-local-artifact-mirror-image:
-	docker push $(LOCAL_ARTIFACT_MIRROR_IMAGE_LOCATION)
-
-.PHONY: build-and-push-local-artifact-mirror-image
-build-and-push-local-artifact-mirror-image: build-local-artifact-mirror-image push-local-artifact-mirror-image
-
 .PHONY: buildtools
 buildtools:
+	mkdir -p pkg/goods/bins pkg/goods/internal/bins
+	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: cache-files
 cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
 cache-files:
 	./scripts/cache-files.sh
+
+print-%:
+	@echo -n $($*)

@@ -68,7 +68,7 @@ function k0sbin() {
 function operatorbin() {
     # first, figure out what version of operator is in the current build
     local operator_version=
-    operator_version=$(awk '/^EMBEDDED_OPERATOR_CHART_VERSION/{print $3}' Makefile)
+    operator_version=$(awk '/^version/{print $2}' pkg/addons/embeddedclusteroperator/static/metadata.yaml)
 
     # check if the binary already exists in the bucket
     local operator_binary_exists=
@@ -86,7 +86,7 @@ function operatorbin() {
 
     if [ -n "${operator_override}" ] && [ "${operator_override}" != '' ]; then
         if ! echo "${operator_version}" | grep -q "-" ; then
-            echo "EMBEDDED_OPERATOR_CHART_VERSION is not a pre-release version, but EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE is set. This is likely a mistake."
+            echo "embedded operator version is not a pre-release version, but EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE is set. This is likely a mistake."
             exit 1
         fi
         echo "EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE is set to '${operator_override}', using that source"

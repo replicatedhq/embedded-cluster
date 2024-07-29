@@ -2,60 +2,46 @@ package velero
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 
-	"github.com/Masterminds/semver/v3"
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (
-	chartURL              = "oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero"
 	releaseName           = "velero"
 	credentialsSecretName = "cloud-credentials"
 )
 
-// Overwritten by -ldflags in Makefile
 var (
-	Version      = "v0.0.0"
-	VeleroTag    = "v0.0.0"
-	AwsPluginTag = "v0.0.0"
+	//go:embed static/values.yaml
+	rawvalues []byte
+	// helmValues is the unmarshal version of rawvalues.
+	helmValues map[string]interface{}
+	//go:embed static/metadata.yaml
+	rawmetadata []byte
+	// Metadata is the unmarshal version of rawmetadata.
+	Metadata release.AddonMetadata
 )
 
-var helmValues = map[string]interface{}{
-	"backupsEnabled":   false,
-	"snapshotsEnabled": false,
-	"deployNodeAgent":  true,
-	"nodeAgent": map[string]interface{}{
-		"podVolumePath": "/var/lib/k0s/kubelet/pods",
-	},
-	"image": map[string]interface{}{
-		"tag": VeleroTag,
-	},
-	"initContainers": []map[string]interface{}{
-		{
-			"name":            "velero-plugin-for-aws",
-			"image":           fmt.Sprintf("velero/velero-plugin-for-aws:%s", AwsPluginTag),
-			"imagePullPolicy": "IfNotPresent",
-			"volumeMounts": []map[string]interface{}{
-				{
-					"mountPath": "/target",
-					"name":      "plugins",
-				},
-			},
-		},
-	},
-	"credentials": map[string]interface{}{
-		"existingSecret": credentialsSecretName,
-	},
+func init() {
+	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
+	helmValues = make(map[string]interface{})
+	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	}
 }
 
 // Velero manages the installation of the Velero helm chart.
@@ -67,7 +53,7 @@ type Velero struct {
 
 // Version returns the version of the Velero chart.
 func (o *Velero) Version() (map[string]string, error) {
-	return map[string]string{"Velero": "v" + Version}, nil
+	return map[string]string{"Velero": "v" + Metadata.Version}, nil
 }
 
 func (a *Velero) Name() string {
@@ -88,24 +74,17 @@ func (o *Velero) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Velero chart.
-func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1beta1.Repository, error) {
+func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
 	if !o.isEnabled {
 		return nil, nil, nil
 	}
 
-	chartConfig := v1beta1.Chart{
+	chartConfig := eckinds.Chart{
 		Name:      releaseName,
-		ChartName: chartURL,
-		Version:   Version,
+		ChartName: Metadata.Location,
+		Version:   Metadata.Version,
 		TargetNS:  o.namespace,
 		Order:     3,
-	}
-
-	kubectlVersion := semver.MustParse(defaults.K0sVersion)
-	helmValues["kubectl"] = map[string]interface{}{
-		"image": map[string]interface{}{
-			"tag": fmt.Sprintf("%d.%d", kubectlVersion.Major(), kubectlVersion.Minor()),
-		},
 	}
 
 	if len(o.proxyEnv) > 0 {
@@ -124,11 +103,26 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]v1beta1.Chart, []v1bet
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []v1beta1.Chart{chartConfig}, nil, nil
+	return []eckinds.Chart{chartConfig}, nil, nil
+}
+
+func (a *Velero) GetImages() []string {
+	var images []string
+	for image, tag := range Metadata.Images {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(image), tag))
+	}
+	return images
 }
 
 func (o *Velero) GetAdditionalImages() []string {
-	return []string{fmt.Sprintf("velero/velero-restore-helper:%s", VeleroTag)}
+	var images []string
+	if tag, ok := Metadata.Images["velero-restore-helper"]; ok {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("velero-restore-helper"), tag))
+	}
+	if tag, ok := Metadata.Images["kubectl"]; ok {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("kubectl"), tag))
+	}
+	return images
 }
 
 // Outro is executed after the cluster deployment.

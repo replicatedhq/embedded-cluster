@@ -24,8 +24,9 @@ func main() {
 	logging.SetupLogging()
 	name := path.Base(os.Args[0])
 	var app = &cli.App{
-		Name:  name,
-		Usage: fmt.Sprintf("Install and manage %s", name),
+		Name:    name,
+		Usage:   fmt.Sprintf("Install and manage %s", name),
+		Suggest: true,
 		Commands: []*cli.Command{
 			installCommand,
 			shellCommand,
