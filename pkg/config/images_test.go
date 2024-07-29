@@ -26,19 +26,20 @@ func TestListK0sImages(t *testing.T) {
 		}
 	}
 	if !foundKubeRouter {
-		t.Errorf("ListK0sImages() = %v, want to contain kube-router", original)
+		t.Errorf("airgap.GetImageURIs() = %v, want to contain kube-router", original)
 	}
 	if !foundCNINode {
-		t.Errorf("ListK0sImages() = %v, want to contain kube-router", original)
+		t.Errorf("airgap.GetImageURIs() = %v, want to contain kube-router", original)
 	}
 	if !foundKonnectivity {
-		t.Errorf("ListK0sImages() = %v, want to contain apiserver-network-proxy-agent", original)
+		t.Errorf("airgap.GetImageURIs() = %v, want to contain apiserver-network-proxy-agent", original)
 	}
 
 	filtered := ListK0sImages(RenderK0sConfig())
 	if len(filtered) == 0 {
 		t.Errorf("ListK0sImages() = %v, want not empty", filtered)
 	}
+	var foundEnvoyProxy bool
 	for _, image := range filtered {
 		if strings.Contains(image, "kube-router") {
 			t.Errorf("ListK0sImages() = %v, want not to contain kube-router", filtered)
@@ -52,5 +53,14 @@ func TestListK0sImages(t *testing.T) {
 		if strings.Contains(image, constant.KubePauseContainerImage) {
 			t.Errorf("ListK0sImages() = %v, want the ec pause image", filtered)
 		}
+		if strings.Contains(image, "envoy-distroless") {
+			foundEnvoyProxy = true
+			if !strings.HasPrefix(image, "proxy.replicated.com/anonymous/") {
+				t.Errorf("ListK0sImages() = %v, want envoy-distroless to be proxied", filtered)
+			}
+		}
+	}
+	if !foundEnvoyProxy {
+		t.Errorf("ListK0sImages() = %v, want to contain envoy-distroless", filtered)
 	}
 }
