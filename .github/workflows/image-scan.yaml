@@ -92,4 +92,4 @@ jobs:
       - uses: ./.github/actions/scan-image
         with:
           image-ref: '${{ matrix.image }}'
-          upload-sarif: ${{ github.ref == 'refs/heads/main' }}
+          upload-sarif: true # ${{ github.ref == 'refs/heads/main' }}
