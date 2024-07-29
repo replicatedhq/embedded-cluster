@@ -39,7 +39,7 @@ resourceModifierRules:
     namespaces:
     - registry
   patches:
-  - operation: replace
+  - operation: add
     path: "/spec/clusterIP"
     value: "__REGISTRY_SERVICE_IP__"
 # preserve the seaweedfs s3 service IP from the original cluster
@@ -49,6 +49,6 @@ resourceModifierRules:
     namespaces:
     - seaweedfs
   patches:
-  - operation: replace
+  - operation: add
     path: "/spec/clusterIP"
     value: "__SEAWEEDFS_S3_SERVICE_IP__"
