@@ -12,6 +12,13 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Get image id
+      id: image-id
+      shell: bash
+      run: |
+        image_id=$(${{github.action_path}}/image_id.sh '${{ inputs.image-ref }}')
+        echo "image_id=$image_id" >> $GITHUB_OUTPUT
+
     - name: Scan image
       uses: aquasecurity/trivy-action@0.24.0
       with:
@@ -35,3 +42,4 @@ runs:
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: trivy-results.sarif
+        category: 'image-scan:${{ steps.image-id.outputs.image_id }}'
