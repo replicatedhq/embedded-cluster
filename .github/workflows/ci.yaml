@@ -71,18 +71,6 @@ jobs:
           make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
           make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-upgrade"
 
-      - name: Build and push utils image
-        run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
-          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-utils-image VERSION="${SHORT_SHA}"
-          make build-and-push-utils-image VERSION="${SHORT_SHA}-previous-k0s"
-          make build-and-push-utils-image VERSION="${SHORT_SHA}-upgrade"
-
   buildtools:
     name: Build Buildtools
     runs-on: ubuntu-latest
@@ -119,7 +107,6 @@ jobs:
         run: |
           export SHORT_SHA=dev-${GITHUB_SHA::7}
           export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
-          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
           make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) K0S_BINARY_SOURCE_OVERRIDE=$(make print-PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE) VERSION="${SHORT_SHA}-previous-k0s"
           tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
@@ -150,7 +137,6 @@ jobs:
         run: |
           export SHORT_SHA=dev-${GITHUB_SHA::7}
           export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
-          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
           echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
