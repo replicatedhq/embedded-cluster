@@ -10,7 +10,6 @@ on:
     #   - '**/metadata.yaml'
     branches:
       - main
-      - emosbaugh/sc-109430/fix-sarif-results
 
 permissions:
   security-events: write
@@ -93,4 +92,4 @@ jobs:
       - uses: ./.github/actions/scan-image
         with:
           image-ref: '${{ matrix.image }}'
-          upload-sarif: true # ${{ github.ref == 'refs/heads/main' }}
+          upload-sarif: ${{ github.ref == 'refs/heads/main' }}
