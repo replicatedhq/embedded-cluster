@@ -75,23 +75,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push utils image (production)
-        run: |
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-utils-image VERSION=${{ needs.get-tag.outputs.tag-name }}
-
-      - name: Build and push utils image (staging)
-        run: |
-          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-utils-image VERSION=${{ needs.get-tag.outputs.tag-name }}
-
       - name: Build linux-amd64
         run: |
           make embedded-cluster-linux-amd64 \
