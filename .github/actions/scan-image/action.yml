@@ -12,6 +12,19 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Get image id
+      id: image-id
+      shell: bash
+      run: |
+        image_id="${{ inputs.image-ref }}"
+        image_id=$(echo "$image_id" | cut -d'@' -f1) # remove digest
+        # make sure if there is only one colon it is not the port
+        if ! echo "$image_id" | rev | cut -d':' -f1 | rev | grep -q '/' ; then
+          image_id=$(echo "$image_id" | rev | cut -d':' -f2- | rev) # remove tag
+        fi
+        echo $image_id
+        echo "::set-output name=image-id::$(echo ${{ inputs.image-ref }} | cut -d@ -f2)"
+
     - name: Scan image
       uses: aquasecurity/trivy-action@0.24.0
       with:
@@ -35,4 +48,4 @@ runs:
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: trivy-results.sarif
-        category: image-scan
+        category: 'image-scan:${{ steps.image-id.outputs.image-id }}'
