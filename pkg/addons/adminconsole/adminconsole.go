@@ -28,6 +28,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
 const (
@@ -64,7 +65,7 @@ func init() {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
 	}
 
-	helmValues["embeddedClusterVersion"] = defaults.Version
+	helmValues["embeddedClusterVersion"] = versions.Version
 
 	if AdminConsoleImageOverride != "" {
 		helmValues["images"].(map[string]interface{})["kotsadm"] = AdminConsoleImageOverride

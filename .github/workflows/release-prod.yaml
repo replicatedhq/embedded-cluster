@@ -6,21 +6,67 @@ on:
 permissions:
   contents: write
 jobs:
-  releaser:
+
+  get-tag:
     runs-on: ubuntu-latest
+    outputs:
+      tag-name: ${{ steps.get-tag.outputs.tag-name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Extract tag name
+        id: get-tag
         run: |
           # remove the "refs/tags/" prefix to get the tag that was pushed
           export RAW_TAG=${GITHUB_REF#refs/tags/}
           # add a 'v' prefix to the tag if it doesn't already have one
           export V_TAG=$(echo "$RAW_TAG" | sed 's/^[^v]/v&/')
-          # store the tag name in a github environment variable for later steps
-          echo "TAG_NAME=${V_TAG}" >> $GITHUB_ENV
+          # store the tag name in an output for later steps
+          echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
+
+  build-images:
+    runs-on: ubuntu-latest
+    needs: [get-tag]
+    outputs:
+      local-artifact-mirror: ${{ steps.local-artifact-mirror.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Melange
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/.melange-cache
+          key: melange-cache
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Setup Melange
+        uses: chainguard-dev/actions/setup-melange@main
+
+      - name: Build and push local-artifact-mirror image
+        id: local-artifact-mirror
+        env:
+          REGISTRY: docker.io
+          USERNAME: ${{ secrets.DOCKERHUB_USER }}
+          PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+        run: |
+          make -C local-artifact-mirror apko build-and-push-local-artifact-mirror-image \
+            PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
+          echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [get-tag, build-images]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -29,39 +75,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - uses: actions/cache@v4
-        with:
-          path: |
-            build/.melange-cache
-          key: melange-cache
-
-      - name: Setup Melange
-        uses: chainguard-dev/actions/setup-melange@main
-
-      - name: Build and push local-artifact-mirror image (production)
-        run: |
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
-
-      - name: Build and push local-artifact-mirror image (staging)
-        run: |
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-local-artifact-mirror-image VERSION=$TAG_NAME
-
       - name: Build and push utils image (production)
         run: |
           export REGISTRY=docker.io
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
           make apko
-          make build-and-push-utils-image VERSION=$TAG_NAME
+          make build-and-push-utils-image VERSION=${{ needs.get-tag.outputs.tag-name }}
 
       - name: Build and push utils image (staging)
         run: |
@@ -70,12 +90,15 @@ jobs:
           export USERNAME=${{ secrets.DOCKERHUB_USER }}
           export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
           make apko
-          make build-and-push-utils-image VERSION=$TAG_NAME
+          make build-and-push-utils-image VERSION=${{ needs.get-tag.outputs.tag-name }}
 
       - name: Build linux-amd64
         run: |
-          make embedded-cluster-linux-amd64 VERSION=$TAG_NAME
+          make embedded-cluster-linux-amd64 \
+            VERSION=${{ needs.get-tag.outputs.tag-name }} \
+            LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
+
       - name: Output Metadata
         run: |
           ./output/bin/embedded-cluster version metadata > metadata.json
@@ -86,8 +109,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          export EC_VERSION="$TAG_NAME"
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           ./scripts/cache-files.sh
+
       - name: Cache Prod Files
         env:
           S3_BUCKET: "tf-embedded-cluster-binaries"
@@ -95,8 +119,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          export EC_VERSION="$TAG_NAME"
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           ./scripts/cache-files.sh
+
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
         with:

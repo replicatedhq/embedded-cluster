@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
 var metadataCommand = &cli.Command{
@@ -48,18 +49,18 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 		addons.Quiet(),
 	)
 
-	versions, err := applier.Versions(config.AdditionalCharts())
+	versionsMap, err := applier.Versions(config.AdditionalCharts())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get versions: %w", err)
 	}
-	versions["Kubernetes"] = defaults.K0sVersion
-	versions["Installer"] = defaults.Version
-	versions["Troubleshoot"] = defaults.TroubleshootVersion
-	versions["Kubectl"] = defaults.KubectlVersion
+	versionsMap["Kubernetes"] = versions.K0sVersion
+	versionsMap["Installer"] = versions.Version
+	versionsMap["Troubleshoot"] = versions.TroubleshootVersion
+	versionsMap["Kubectl"] = versions.KubectlVersion
 
 	channelRelease, err := release.GetChannelRelease()
 	if err == nil && channelRelease != nil {
-		versions[defaults.BinaryName()] = channelRelease.VersionLabel
+		versionsMap[defaults.BinaryName()] = channelRelease.VersionLabel
 	}
 
 	sha, err := goods.K0sBinarySHA256()
@@ -70,11 +71,11 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	artifacts := map[string]string{
 		"kots":                        fmt.Sprintf("kots-binaries/%s.tar.gz", adminconsole.KotsVersion),
 		"operator":                    fmt.Sprintf("operator-binaries/%s.tar.gz", embeddedclusteroperator.Metadata.Version),
-		"local-artifact-mirror-image": defaults.LocalArtifactMirrorImage,
+		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
 	}
 
 	meta := types.ReleaseMetadata{
-		Versions:  versions,
+		Versions:  versionsMap,
 		K0sSHA:    sha,
 		Artifacts: artifacts,
 	}
@@ -126,7 +127,7 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	}
 	meta.Images = append(meta.Images, images...)
 
-	meta.Images = append(meta.Images, defaults.LocalArtifactMirrorImage)
+	meta.Images = append(meta.Images, versions.LocalArtifactMirrorImage)
 
 	meta.Images = helpers.UniqueStringSlice(meta.Images)
 	sort.Strings(meta.Images)

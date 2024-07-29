@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
 var versionCommand = &cli.Command{
@@ -25,7 +26,7 @@ var versionCommand = &cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
-		versions, err := addons.NewApplier(opts...).Versions(config.AdditionalCharts())
+		applierVersions, err := addons.NewApplier(opts...).Versions(config.AdditionalCharts())
 		if err != nil {
 			return fmt.Errorf("unable to get versions: %w", err)
 		}
@@ -35,16 +36,16 @@ var versionCommand = &cli.Command{
 		if err == nil && channelRelease != nil {
 			writer.AppendRow(table.Row{defaults.BinaryName(), channelRelease.VersionLabel})
 		}
-		writer.AppendRow(table.Row{"Installer", defaults.Version})
-		writer.AppendRow(table.Row{"Kubernetes", defaults.K0sVersion})
+		writer.AppendRow(table.Row{"Installer", versions.Version})
+		writer.AppendRow(table.Row{"Kubernetes", versions.K0sVersion})
 
 		keys := []string{}
-		for k := range versions {
+		for k := range applierVersions {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			version := versions[k]
+			version := applierVersions[k]
 			if !strings.HasPrefix(version, "v") {
 				version = fmt.Sprintf("v%s", version)
 			}
