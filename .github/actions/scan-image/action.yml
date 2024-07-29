@@ -16,8 +16,7 @@ runs:
       id: image-id
       shell: bash
       run: |
-        cd ${{github.action_path}}
-        image_id=$(./image_id.sh '${{ inputs.image-ref }}')
+        image_id=$(${{github.action_path}}/image_id.sh '${{ inputs.image-ref }}')
         echo "image_id=$image_id" >> $GITHUB_OUTPUT
 
     - name: Scan image
