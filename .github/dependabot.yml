@@ -3,13 +3,18 @@ version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
+    open-pull-requests-limit: 25
+    schedule:
+      interval: "weekly"
+      day: "saturday"
     labels:
       - "dependencies"
       - "go"
       - "type::chore"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 25
+    groups:
+      security:
+        update-types:
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -19,3 +24,4 @@ updates:
       - "type::chore"
     schedule:
       interval: "weekly"
+      day: "saturday"
