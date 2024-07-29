@@ -13,7 +13,6 @@ image:
   tag: 0.0.8
   pullPolicy: IfNotPresent
 
-kubeProxyImage: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
 utilsImage: busybox:latest
 
 extraEnv: []
@@ -58,6 +57,10 @@ affinity:
           operator: In
           values:
           - linux
+
+metrics:
+  enabled: false
+kubeProxyImage: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
 
 crds:
   enabled: true
