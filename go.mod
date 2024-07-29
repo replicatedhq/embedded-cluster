@@ -4,7 +4,7 @@ go 1.22.5
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
-	github.com/aws/aws-sdk-go v1.54.19
+	github.com/aws/aws-sdk-go v1.55.3
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/containers/image/v5 v5.31.1
 	github.com/coreos/go-semver v0.3.1
