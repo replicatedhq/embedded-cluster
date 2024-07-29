@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 )
@@ -10,6 +11,7 @@ type addonComponent struct {
 	getWolfiPackageName              func(opts addonComponentOptions) string
 	getWolfiPackageVersionComparison func(opts addonComponentOptions) string
 	upstreamVersionInputOverride     string
+	useUpstreamImage                 bool
 }
 
 type addonComponentOptions struct {
@@ -21,7 +23,7 @@ type addonComponentOptions struct {
 func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, upstreamVersion string) (string, string, error) {
 	packageName := ""
 	if c.getWolfiPackageName == nil {
-		return packageName, upstreamVersion, nil
+		return packageName, strings.TrimPrefix(upstreamVersion, "v"), nil
 	}
 
 	k0sVersion, err := getK0sVersion()

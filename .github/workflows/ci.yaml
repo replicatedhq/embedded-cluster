@@ -27,6 +27,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.54
+
   tests:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -43,11 +44,17 @@ jobs:
 
   build-images:
     name: Build Images
+    outputs:
+      local-artifact-mirror: ${{ steps.local-artifact-mirror.outputs.image }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - uses: actions/cache@v4
+        with:
+          fetch-depth: 0 # fetch all history so that we can get the previous tag
+
+      - name: Cache Melange
+        uses: actions/cache@v4
         with:
           path: |
             build/.melange-cache
@@ -60,28 +67,10 @@ jobs:
         uses: chainguard-dev/actions/setup-melange@main
 
       - name: Build and push local-artifact-mirror image
+        id: local-artifact-mirror
         run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}"
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-previous-k0s"
-          make build-and-push-local-artifact-mirror-image VERSION="${SHORT_SHA}-upgrade"
-
-      - name: Build and push utils image
-        run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
-          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
-          export REGISTRY=docker.io
-          export USERNAME=${{ secrets.DOCKERHUB_USER }}
-          export PASSWORD=${{ secrets.DOCKERHUB_PASSWORD }}
-          make apko
-          make build-and-push-utils-image VERSION="${SHORT_SHA}"
-          make build-and-push-utils-image VERSION="${SHORT_SHA}-previous-k0s"
-          make build-and-push-utils-image VERSION="${SHORT_SHA}-upgrade"
+          make -C local-artifact-mirror apko build-ttl.sh
+          echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
 
   buildtools:
     name: Build Buildtools
@@ -105,6 +94,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    needs: [build-images]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -118,8 +108,7 @@ jobs:
       - name: Build Linux AMD64 and Output Metadata
         run: |
           export SHORT_SHA=dev-${GITHUB_SHA::7}
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
-          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
           make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) K0S_BINARY_SOURCE_OVERRIDE=$(make print-PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE) VERSION="${SHORT_SHA}-previous-k0s"
           tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
@@ -136,7 +125,7 @@ jobs:
           path: |
             output/bin/embedded-cluster
       - name: Publish development release
-        if: github.branch == 'main'
+        if: github.ref == 'refs/heads/main'
         uses: marvinpinto/action-automatic-releases@latest
         with:
           automatic_release_tag: development
@@ -149,8 +138,7 @@ jobs:
       - name: Build CI binary
         run: |
           export SHORT_SHA=dev-${GITHUB_SHA::7}
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=replicated/embedded-cluster-local-artifact-mirror-staging
-          export EMBEDDED_OPERATOR_UTILS_IMAGE=replicated/embedded-cluster-utils-staging
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
           echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
@@ -388,6 +376,7 @@ jobs:
       - e2e
       - sanitize
       - tests
+      - check-images
     if: always()
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context

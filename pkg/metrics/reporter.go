@@ -13,6 +13,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -60,7 +61,7 @@ func ClusterID() uuid.UUID {
 func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License) {
 	Send(ctx, BaseURL(license), InstallationStarted{
 		ClusterID:  ClusterID(),
-		Version:    defaults.Version,
+		Version:    versions.Version,
 		Flags:      strings.Join(os.Args[1:], " "),
 		BinaryName: defaults.BinaryName(),
 		Type:       "centralized",

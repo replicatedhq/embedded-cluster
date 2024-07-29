@@ -13,13 +13,6 @@ import (
 	"github.com/gosimple/slug"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -27,6 +20,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const releaseName = "embedded-cluster-operator"
@@ -44,7 +44,6 @@ var (
 
 // Overwritten by -ldflags in Makefile
 var (
-	UtilsImage                    = "busybox:latest"
 	EmbeddedOperatorImageOverride = ""
 )
 
@@ -59,8 +58,8 @@ func init() {
 	}
 
 	helmValues["kotsVersion"] = adminconsole.Metadata.Version
-	helmValues["embeddedClusterVersion"] = defaults.Version
-	helmValues["embeddedClusterK0sVersion"] = defaults.K0sVersion
+	helmValues["embeddedClusterVersion"] = versions.Version
+	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
 
 	if EmbeddedOperatorImageOverride != "" {
 		// split ImageOverride into the image and tag
@@ -72,10 +71,6 @@ func init() {
 			"repository": parts[0],
 			"tag":        parts[1],
 		}
-	}
-
-	if UtilsImage != "" {
-		helmValues["utilsImage"] = UtilsImage
 	}
 }
 
@@ -152,17 +147,20 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embed
 func (a *EmbeddedClusterOperator) GetImages() []string {
 	var images []string
 	for image, tag := range Metadata.Images {
-		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", image, tag))
+		// we use replicated/embedded-cluster-operator-image from upstream
+		if image == "replicated/embedded-cluster-operator-image" {
+			images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", image, tag))
+		} else {
+			images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(image), tag))
+		}
 	}
 	return images
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
 	var images []string
-	if UtilsImage != "" {
-		images = append(images, UtilsImage)
-	} else if tag, ok := Metadata.Images["busybox"]; ok {
-		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/busybox:%s", tag))
+	if tag, ok := Metadata.Images["utils"]; ok {
+		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("utils"), tag))
 	}
 	return images
 }
@@ -176,7 +174,7 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 
 	// we trim out the prefix v from the version and then slugify it, we use
 	// the result as a suffix for the config map name.
-	slugver := slug.Make(strings.TrimPrefix(defaults.Version, "v"))
+	slugver := slug.Make(strings.TrimPrefix(versions.Version, "v"))
 	configmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("version-metadata-%s", slugver),
