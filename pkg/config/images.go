@@ -74,7 +74,17 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 	cfg.Spec.Images.Pause.Image = helpers.AddonImageFromComponentName("pause")
 	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"]
 
-	// TODO (salah): uncomment when upstream PR for digest support is released: https://github.com/k0sproject/k0s/pull/4792
+	// TODO (salah): remove the following and uncomment when upstream PR for digest support is released: https://github.com/k0sproject/k0s/pull/4792
+	if cfg.Spec.Network != nil &&
+		cfg.Spec.Network.NodeLocalLoadBalancing != nil &&
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy != nil &&
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image != nil &&
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image != "" {
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = fmt.Sprintf(
+			"proxy.replicated.com/anonymous/%s",
+			cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image,
+		)
+	}
 	// if cfg.Spec.Network == nil {
 	// 	cfg.Spec.Network = &k0sv1beta1.Network{}
 	// }
