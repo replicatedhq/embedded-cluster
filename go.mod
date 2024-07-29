@@ -19,7 +19,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.7-0.20240618090010-edbb703218fd
 	github.com/replicatedhq/embedded-cluster-kinds v1.4.7
-	github.com/replicatedhq/embedded-cluster-operator v0.40.2
+	github.com/replicatedhq/embedded-cluster-operator v0.42.0
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.97.0
