@@ -390,7 +390,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh"}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -591,7 +591,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
