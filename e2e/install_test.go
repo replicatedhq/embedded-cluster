@@ -1865,12 +1865,12 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Logf("stdout: %s", stdout)
 		t.Logf("stderr: %s", stderr)
-		t.Errorf("fail to generate cluster support from node %s bundle: %v", node, err)
-	}
-
-	t.Logf("%s: copying cluster support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
-	if err := cluster.CopyFileFromNode(node, "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
-		t.Errorf("fail to copy cluster support bundle from node %s to local machine: %v", node, err)
+		t.Logf("fail to generate cluster support from node %s bundle: %v", node, err)
+	} else {
+		t.Logf("%s: copying cluster support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
+		if err := cluster.CopyFileFromNode(node, "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
+			t.Logf("fail to copy cluster support bundle from node %s to local machine: %v", node, err)
+		}
 	}
 
 	for i, node := range tc.Nodes {
@@ -1879,12 +1879,13 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 		if stdout, stderr, err := RunCommandOnNode(t, tc, i, line); err != nil {
 			t.Logf("stdout: %s", stdout)
 			t.Logf("stderr: %s", stderr)
-			t.Errorf("fail to generate support from node %s bundle: %v", node, err)
+			t.Logf("fail to generate support from node %s bundle: %v", node, err)
+			continue
 		}
 
 		t.Logf("%s: copying host support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
 		if err := cluster.CopyFileFromNode(node, "/root/host.tar.gz", fmt.Sprintf("support-bundle-host-%s.tar.gz", node)); err != nil {
-			t.Errorf("fail to copy host support bundle from node %s to local machine: %v", node, err)
+			t.Logf("fail to copy host support bundle from node %s to local machine: %v", node, err)
 		}
 	}
 }
@@ -1894,29 +1895,27 @@ func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
 	if tc.Proxy != "" {
 		t.Logf("%s: compressing playwright report on proxy node", time.Now().Format(time.RFC3339))
 		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
-			t.Errorf("fail to compress playwright report on node %s: %v", tc.Proxy, err)
+			t.Logf("fail to compress playwright report on node %s: %v", tc.Proxy, err)
 			return
 		}
 		t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
 		if err := cluster.CopyFileFromNode(tc.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
-			t.Errorf("fail to copy playwright report to local machine: %v", err)
+			t.Logf("fail to copy playwright report to local machine: %v", err)
 		}
 	} else {
 		t.Logf("%s: compressing playwright report on node 0", time.Now().Format(time.RFC3339))
 		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			t.Errorf("fail to compress playwright report on node %s: %v", tc.Nodes[0], err)
+			t.Logf("fail to compress playwright report on node %s: %v", tc.Nodes[0], err)
 			return
 		}
 		t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
 		if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
-			t.Errorf("fail to copy playwright report to local machine: %v", err)
+			t.Logf("fail to copy playwright report to local machine: %v", err)
 		}
 	}
 }
 
 func cleanupCluster(t *testing.T, tc *cluster.Output) {
-	if t.Failed() {
-		generateAndCopySupportBundle(t, tc)
-		copyPlaywrightReport(t, tc)
-	}
+	generateAndCopySupportBundle(t, tc)
+	copyPlaywrightReport(t, tc)
 }
