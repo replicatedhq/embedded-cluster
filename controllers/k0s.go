@@ -8,9 +8,12 @@ import (
 	"github.com/k0sproject/version"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func (r *InstallationReconciler) shouldUpgradeK0s(ctx context.Context, in *clusterv1beta1.Installation, desiredK0sVersion string) (bool, error) {
+	log := ctrl.LoggerFrom(ctx)
+
 	// if the kubernetes version has changed we create an upgrade command.
 	serverVersion, err := r.Discovery.ServerVersion()
 	if err != nil {
@@ -24,9 +27,12 @@ func (r *InstallationReconciler) shouldUpgradeK0s(ctx context.Context, in *clust
 	if err != nil {
 		return false, fmt.Errorf("parse desired server version: %w", err)
 	}
+
 	if desiredServerVersion.GreaterThan(runningServerVersion) {
+		log.Info("K0s upgrade required", "desired", desiredServerVersion, "running", runningServerVersion)
 		return true, nil
 	} else if desiredServerVersion.LessThan(runningServerVersion) {
+		log.V(5).Info("K0s downgrade not supported", "desired", desiredServerVersion, "running", runningServerVersion)
 		return false, nil
 	}
 
@@ -36,7 +42,12 @@ func (r *InstallationReconciler) shouldUpgradeK0s(ctx context.Context, in *clust
 	if err != nil {
 		return false, fmt.Errorf("discover previous k0s version: %w", err)
 	}
-	return previousK0sVersion != "" && desiredK0sVersion != previousK0sVersion, nil
+	if previousK0sVersion != "" && desiredK0sVersion != previousK0sVersion {
+		log.Info("K0s upgrade required", "desired", desiredK0sVersion, "previous", previousK0sVersion)
+		return true, nil
+	}
+	log.V(5).Info("K0s upgrade not required", "desired", desiredK0sVersion, "previous", previousK0sVersion)
+	return false, nil
 }
 
 // discoverPreviousK0sVersion gets the k0s version from the previous installation object.

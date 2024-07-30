@@ -396,7 +396,7 @@ func getAutopilotAirgapArtifactsPlan(ctx context.Context, cli client.Client, in 
 			Kind:       "Plan",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "autopilot",
+			Name: "autopilot", // this is a fixed name and should not be changed
 			Annotations: map[string]string{
 				installationNameAnnotation: in.Name,
 			},

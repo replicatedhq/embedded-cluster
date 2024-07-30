@@ -60,16 +60,13 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
-    - uses: actions/cache@v4
+    - name: Cache melange
+      uses: actions/cache@v4
       with:
         path: |
           build/.melange-cache
         key: melange-cache
-    - name: Setup Melange
+    - name: Setup melange
       uses: chainguard-dev/actions/setup-melange@main
     - name: Build melange package
       run: |

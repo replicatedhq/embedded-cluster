@@ -30,6 +30,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	"github.com/k0sproject/version"
+	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -283,6 +284,8 @@ func (r *InstallationReconciler) HasOnlyOneInstallation(ctx context.Context) (bo
 // upgrade plan already exists we make sure the installation status is updated with the
 // latest plan status.
 func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1beta1.Installation) error {
+	log := ctrl.LoggerFrom(ctx)
+
 	// starts by checking if this is the unique installation object in the cluster. if
 	// this is true then we don't need to sync anything as this is part of the initial
 	// cluster installation.
@@ -354,12 +357,27 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	if err := r.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get upgrade plan: %w", err)
 	} else if errors.IsNotFound(err) {
-		// there is no autopilot plan in the cluster so we are free to
-		// start our own plan. here we link the plan to the installation
-		// by its name.
-		if err := r.StartAutopilotUpgrade(ctx, in); err != nil {
-			return fmt.Errorf("failed to start upgrade: %w", err)
+		// if the kubernetes version has changed we create an upgrade command
+		shouldUpgrade, err := r.shouldUpgradeK0s(ctx, in, meta.Versions["Kubernetes"])
+		if err != nil {
+			return fmt.Errorf("failed to determine if k0s should be upgraded: %w", err)
 		}
+		if shouldUpgrade {
+			log.Info("Starting k0s autopilot upgrade plan", "version", desiredVersion)
+
+			// there is no autopilot plan in the cluster so we are free to
+			// start our own plan. here we link the plan to the installation
+			// by its name.
+			if err := r.StartAutopilotUpgrade(ctx, in, meta); err != nil {
+				return fmt.Errorf("failed to start upgrade: %w", err)
+			}
+			return nil
+		}
+
+		// if we are here it means that the k0s version has not changed and there is no
+		// autopilot plan in the cluster. we can safely set the installation state to
+		// installed and continue on the next reconcile cycle.
+		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
 		return nil
 	}
 
@@ -369,8 +387,14 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	// of the plan id is deprecated in favour of the annotation.
 	annotation := plan.Annotations[InstallationNameAnnotation]
 	if annotation == in.Name || plan.Spec.ID == in.Name {
-		r.SetStateBasedOnPlan(in, plan)
-		return nil
+		// there are two plans needed to be run in sequence for airgap upgrades. the first one is
+		// the one that copies the artifacts to the nodes and the second one is the one that
+		// actually upgrades the k0s version. we need to make sure that this is the second plan
+		// before setting the installation state to the plan state.
+		if isAutopilotUpgradeToVersion(&plan, desiredVersion) {
+			r.SetStateBasedOnPlan(in, plan)
+			return nil
+		}
 	}
 
 	// this is most likely a plan that has been created by a previous installation
@@ -389,6 +413,15 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 		return fmt.Errorf("failed to delete previous upgrade plan: %w", err)
 	}
 	return nil
+}
+
+func isAutopilotUpgradeToVersion(plan *apv1b2.Plan, version string) bool {
+	for _, command := range plan.Spec.Commands {
+		if command.K0sUpdate != nil && command.K0sUpdate.Version == version {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *InstallationReconciler) ReconcileOpenebs(ctx context.Context, in *v1beta1.Installation) error {
@@ -709,14 +742,10 @@ func (r *InstallationReconciler) DetermineUpgradeTargets(ctx context.Context) (a
 }
 
 // StartAutopilotUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
-func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *v1beta1.Installation) error {
+func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *v1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
 	targets, err := r.DetermineUpgradeTargets(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to determine upgrade targets: %w", err)
-	}
-	meta, err := release.MetadataFor(ctx, in, r.Client)
-	if err != nil {
-		return fmt.Errorf("failed to get release bundle: %w", err)
 	}
 
 	k0surl := fmt.Sprintf(
@@ -725,40 +754,16 @@ func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *
 		meta.Versions["Kubernetes"],
 	)
 
-	// we need to assess what commands should autopilot run upon this upgrade. we can have four
-	// different scenarios: 1) we are upgrading only the airgap artifacts, 2) we are upgrading
-	// only k0s binaries, 3) we are upgrading both, 4) we are upgrading neither. we populate the
-	// 'commands' slice with the commands necessary to execute these operations.
-	var commands []apv1b2.PlanCommand
-
-	// if the kubernetes version has changed we create an upgrade command
-	shouldUpgrade, err := r.shouldUpgradeK0s(ctx, in, meta.Versions["Kubernetes"])
-	if err != nil {
-		return fmt.Errorf("failed to determine if k0s should be upgraded: %w", err)
-	}
-	if shouldUpgrade {
-		commands = append(commands, apv1b2.PlanCommand{
-			K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
-				Version: meta.Versions["Kubernetes"],
-				Targets: targets,
-				Platforms: apv1b2.PlanPlatformResourceURLMap{
-					"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},
-				},
-			},
-		})
-	}
-
-	// if no airgap nor k0s upgrade has been defined it means we are up to date so we set
-	// the installation state to 'Installed' and return. no extra autopilot plan creation
-	// is necessary at this stage.
-	if len(commands) == 0 {
-		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
-		return nil
+	if in.Spec.AirGap {
+		// if we are running in an airgap environment all assets are already present in the
+		// node and are served by the local-artifact-mirror binary listening on localhost
+		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
+		k0surl = "http://127.0.0.1:50000/bin/k0s-upgrade"
 	}
 
 	plan := apv1b2.Plan{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "autopilot",
+			Name: "autopilot", // this is a fixed name and should not be changed
 			Annotations: map[string]string{
 				InstallationNameAnnotation: in.Name,
 			},
@@ -766,7 +771,17 @@ func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *
 		Spec: apv1b2.PlanSpec{
 			Timestamp: "now",
 			ID:        uuid.New().String(),
-			Commands:  commands,
+			Commands: []apv1b2.PlanCommand{
+				apv1b2.PlanCommand{
+					K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
+						Version: meta.Versions["Kubernetes"],
+						Targets: targets,
+						Platforms: apv1b2.PlanPlatformResourceURLMap{
+							"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},
+						},
+					},
+				},
+			},
 		},
 	}
 	if err := r.Create(ctx, &plan); err != nil {
