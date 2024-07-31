@@ -10,6 +10,15 @@ concurrency:
 permissions:
   contents: write
 jobs:
+  git-sha:
+    name: Git SHA
+    runs-on: ubuntu-latest
+    outputs:
+      git_sha: ${{ steps.git_sha.outputs.git_sha }}
+    steps:
+      - uses: ./.github/actions/git-sha
+        id: git_sha
+
   sanitize:
     name: Sanitize
     runs-on: ubuntu-latest
@@ -94,7 +103,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [build-images]
+    needs: [git-sha, build-images]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -107,7 +116,7 @@ jobs:
 
       - name: Build Linux AMD64 and Output Metadata
         run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           export LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
           make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) K0S_BINARY_SOURCE_OVERRIDE=$(make print-PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE) VERSION="${SHORT_SHA}-previous-k0s"
           tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
@@ -137,7 +146,7 @@ jobs:
             metadata.json
       - name: Build CI binary
         run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           export LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
@@ -161,7 +170,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           export EC_VERSION="v${SHORT_SHA}"
           ./scripts/cache-files.sh
           ./scripts/create-upgrade-release.sh
@@ -222,6 +231,7 @@ jobs:
     permissions:
       pull-requests: write
     needs:
+      - git-sha
       - build
       - build-images
     steps:
@@ -244,7 +254,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           echo "${SHORT_SHA}"
           sed -i "s/__version_string__/${SHORT_SHA}/g" e2e/kots-release-install/cluster-config.yaml
           sed -i "s/__version_string__/${SHORT_SHA}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
@@ -268,7 +278,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           echo "${SHORT_SHA}"
 
           # airgap tests install the previous k0s version to ensure an upgrade occurs
@@ -283,7 +293,7 @@ jobs:
       - name: Create download link message text
         if: github.event_name == 'pull_request'
         run: |
-          export SHORT_SHA=dev-${GITHUB_SHA::7}
+          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           
           echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
           echo "" >> download-link.txt
