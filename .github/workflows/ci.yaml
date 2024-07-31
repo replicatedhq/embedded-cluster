@@ -359,6 +359,8 @@ jobs:
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHADisasterRecovery
             runner: embedded-cluster
+          - test: TestFiveNodesAirgapUpgrade
+            runner: embedded-cluster
     steps:
       - name: Checkout
         uses: actions/checkout@v4

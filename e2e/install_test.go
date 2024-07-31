@@ -1871,6 +1871,13 @@ func maybeDownloadAirgapBundle(t *testing.T, versionLabel string, destPath strin
 	return airgapBundlePath, size
 }
 
+func setupPlaywrightAndRunTest(t *testing.T, tc *cluster.Output, testName string, args ...string) (stdout, stderr string, err error) {
+	if err := setupPlaywright(t, tc); err != nil {
+		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
+	}
+	return runPlaywrightTest(t, tc, testName, args...)
+}
+
 func setupPlaywright(t *testing.T, tc *cluster.Output) error {
 	t.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"bypass-kurl-proxy.sh"}
@@ -1972,4 +1979,131 @@ func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
 func cleanupCluster(t *testing.T, tc *cluster.Output) {
 	generateAndCopySupportBundle(t, tc)
 	copyPlaywrightReport(t, tc)
+}
+
+func TestFiveNodesAirgapUpgrade(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	wg.Wait()
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                       t,
+		Nodes:                   5,
+		Image:                   "debian/12",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	})
+	defer cleanupCluster(t, tc)
+
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
+
+	// delete airgap bundles once they've been copied to the nodes
+	os.Remove(airgapInstallBundlePath)
+	os.Remove(airgapUpgradeBundlePath)
+
+	t.Logf("%s: preparing and installing embedded cluster on node 0", time.Now().Format(time.RFC3339))
+	installCommands := [][]string{
+		{"airgap-prepare.sh"},
+		{"single-node-airgap-install.sh"},
+		{"rm", "/assets/release.airgap"},
+		{"rm", "/usr/local/bin/embedded-cluster"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, installCommands); err != nil {
+		t.Fatalf("failed to install on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	// generate controller node join command.
+	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+	if err != nil {
+		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	controllerCommand, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v", err)
+	}
+	t.Log("controller join token command:", controllerCommand)
+
+	// join the controller nodes
+	joinCommandsSequence := [][]string{
+		{"rm", "/assets/ec-release-upgrade.tgz"},
+		{"airgap-prepare.sh"},
+		strings.Split(controllerCommand, " "),
+		{"rm", "/assets/release.airgap"},
+		{"rm", "/usr/local/bin/embedded-cluster"},
+	}
+	for i := 1; i < 5; i++ {
+		if err := RunCommandsOnNode(t, tc, i, joinCommandsSequence); err != nil {
+			t.Fatalf("fail to join controller node %s: %v", tc.Nodes[i], err)
+		}
+	}
+
+	// wait for the nodes to report as ready.
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	if stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "5"}); err != nil {
+		t.Log(stdout)
+		t.Fatalf("fail to wait for ready nodes: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line := []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA"))}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	upgradeCommands := [][]string{
+		{"airgap-update.sh"},
+		{"rm", "/assets/upgrade/release.airgap"},
+		{"rm", "/usr/local/bin/embedded-cluster-upgrade"},
+	}
+	if err := RunCommandsOnNode(t, tc, 0, upgradeCommands); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	testArgs := []string{fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
