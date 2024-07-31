@@ -157,18 +157,19 @@ func (m *Materializer) Kubectl() error {
 	// https://github.com/k0sproject/k0s/blob/5d48d20767851fe8e299aacd3d5aae6fcfbeab37/main.go#L40
 	dstpath := m.def.PathToEmbeddedClusterBinary("kubectl")
 	_ = os.RemoveAll(dstpath)
-	err := os.Symlink("./k0s", dstpath)
+	k0spath := m.def.K0sBinaryPath()
+	err := os.Symlink(k0spath, dstpath)
 	if err != nil {
 		return fmt.Errorf("unable to create kubectl symlink: %w", err)
 	}
 
 	dstpath = m.def.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
 	_ = os.RemoveAll(dstpath)
-	contentBytes, err := completionAliasBash("kubectl", "k0s kubectl")
+	content, err := completionAliasBash("kubectl", "k0s kubectl")
 	if err != nil {
 		return fmt.Errorf("generate kubectl completion: %w", err)
 	}
-	if err := os.WriteFile(dstpath, contentBytes, 0755); err != nil {
+	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
 		return fmt.Errorf("write kubectl completion: %w", err)
 	}
 	return nil
