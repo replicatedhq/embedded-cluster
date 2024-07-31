@@ -1,0 +1,22 @@
+name: Git SHA
+description: 'Get the Git SHA for the current workflow run'
+inputs:
+  short:
+    description: 'Return the short SHA (length 7)'
+    default: 'true'
+outputs:
+  git_sha:
+    description: 'The Git SHA'
+    value: ${{ steps.git_sha.outputs.git_sha }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      id: git_sha
+      run: |
+        git_sha=${{ github.event.pull_request.head.sha || github.sha }}
+        if [[ "${{ inputs.short }}" == "true" ]]; then
+          git_sha=$(echo $git_sha | cut -c1-7)
+        fi
+        echo "git_sha=$git_sha" >> $GITHUB_OUTPUT
