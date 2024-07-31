@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/alias"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
@@ -78,6 +79,9 @@ func (m *Materializer) Materialize() error {
 	if err := m.Binaries(); err != nil {
 		return fmt.Errorf("unable to materialize embedded binaries: %w", err)
 	}
+	if err := m.Kubectl(); err != nil {
+		return fmt.Errorf("unable to materialize kubectl: %w", err)
+	}
 	if err := m.SupportFiles(); err != nil {
 		return fmt.Errorf("unable to materialize embedded support files: %w", err)
 	}
@@ -146,6 +150,18 @@ func (m *Materializer) Binaries() error {
 		}
 	}
 
+	return nil
+}
+
+func (m *Materializer) Kubectl() error {
+	dstpath := m.def.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
+	content, err := alias.CompaliasBash("kubectl", "k0s kubectl")
+	if err != nil {
+		return fmt.Errorf("generate kubectl alias: %w", err)
+	}
+	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
+		return fmt.Errorf("write kubectl alias: %w", err)
+	}
 	return nil
 }
 

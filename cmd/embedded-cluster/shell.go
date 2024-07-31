@@ -99,13 +99,20 @@ var shellCommand = &cli.Command{
 
 		// if /etc/bash_completion is present enable kubectl auto completion.
 		if _, err := os.Stat("/etc/bash_completion"); err == nil {
-			config = fmt.Sprintf("source <(kubectl completion %s)\n", filepath.Base(shpath))
+			config = fmt.Sprintf("source <(k0s completion %s)\n", filepath.Base(shpath))
 			_, _ = shellpty.WriteString(config)
 			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-			config = "source /etc/bash_completion\n"
-			_, _ = shellpty.WriteString(config)
-			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+			if filepath.Base(shpath) == "bash" {
+				comppath := defaults.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
+				config = fmt.Sprintf("source <(cat %s)\n", comppath)
+				_, _ = shellpty.WriteString(config)
+				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+
+				config = "source /etc/bash_completion\n"
+				_, _ = shellpty.WriteString(config)
+				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+			}
 		}
 
 		go func() { _, _ = io.Copy(shellpty, os.Stdin) }()
