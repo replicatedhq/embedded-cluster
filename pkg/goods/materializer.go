@@ -78,6 +78,9 @@ func (m *Materializer) Materialize() error {
 	if err := m.Binaries(); err != nil {
 		return fmt.Errorf("unable to materialize embedded binaries: %w", err)
 	}
+	if err := m.Kubectl(); err != nil {
+		return fmt.Errorf("unable to materialize kubectl: %w", err)
+	}
 	if err := m.SupportFiles(); err != nil {
 		return fmt.Errorf("unable to materialize embedded support files: %w", err)
 	}
@@ -146,6 +149,34 @@ func (m *Materializer) Binaries() error {
 		}
 	}
 
+	return nil
+}
+
+const (
+	kubectlScript = "#!/bin/sh\nexec %s kubectl \"$@\""
+)
+
+func (m *Materializer) Kubectl() error {
+	// k0s supports symlinking kubectl, which would be ideal, but it cannot be a symlink because
+	// local-artifact-mirror needs to serve the kubectl binary.
+	// https://github.com/k0sproject/k0s/blob/5d48d20767851fe8e299aacd3d5aae6fcfbeab37/main.go#L40
+	dstpath := m.def.PathToEmbeddedClusterBinary("kubectl")
+	_ = os.RemoveAll(dstpath)
+	k0spath := m.def.K0sBinaryPath()
+	content := fmt.Sprintf(kubectlScript, k0spath)
+	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
+		return fmt.Errorf("write kubectl completion: %w", err)
+	}
+
+	dstpath = m.def.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
+	_ = os.RemoveAll(dstpath)
+	contentBytes, err := completionAliasBash("kubectl", "k0s kubectl")
+	if err != nil {
+		return fmt.Errorf("generate kubectl completion: %w", err)
+	}
+	if err := os.WriteFile(dstpath, contentBytes, 0755); err != nil {
+		return fmt.Errorf("write kubectl completion: %w", err)
+	}
 	return nil
 }
 

@@ -141,7 +141,7 @@ var helmChartsCommand = &cli.Command{
 
 // binariesCommands pulls the binary artifact from the registry running in the cluster and stores
 // it locally. This command is used during cluster upgrades when we want to fetch the most up to
-// date binaries. The binaries is stored in the /usr/local/bin directory and they overwrite the
+// date binaries. The binaries are stored in the /usr/local/bin directory and they overwrite the
 // existing binaries.
 var binariesCommand = &cli.Command{
 	Name:      "binaries",
