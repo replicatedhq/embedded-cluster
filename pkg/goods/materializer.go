@@ -153,11 +153,13 @@ func (m *Materializer) Binaries() error {
 }
 
 func (m *Materializer) Kubectl() error {
-	binDstpath := m.def.PathToEmbeddedClusterBinary("kubectl")
+	// k0s handles kubectl as a symlink to k0s binary.
+	// https://github.com/k0sproject/k0s/blob/5d48d20767851fe8e299aacd3d5aae6fcfbeab37/main.go#L40
+	linkDstpath := m.def.PathToEmbeddedClusterBinary("kubectl")
 	k0spath := m.def.K0sBinaryPath()
-	binContent := fmt.Sprintf(`exec %s kubectl "$@"`, k0spath)
-	if err := os.WriteFile(binDstpath, []byte(binContent), 0755); err != nil {
-		return fmt.Errorf("write kubectl script: %w", err)
+	err := os.Symlink(k0spath, linkDstpath)
+	if err != nil {
+		return fmt.Errorf("unable to create kubectl symlink: %w", err)
 	}
 
 	compDstpath := m.def.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
