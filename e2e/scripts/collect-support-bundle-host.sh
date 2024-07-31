@@ -9,5 +9,5 @@ main() {
 }
 
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export PATH=\$PATH:/var/lib/embedded-cluster/bin
+export PATH=$PATH:/var/lib/embedded-cluster/bin
 main "$@"
