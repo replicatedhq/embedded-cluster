@@ -2,14 +2,13 @@
 
 _compalias()
 {
-    local name val valarr fn
-    name="${COMP_WORDS[0]}"
-    val="${BASH_ALIASES[$name]}"
+    local alias command valarr fn
+    alias="${COMP_WORDS[0]}"
+    command="{{ .Command }}"
 
-    [ -z "$val" ] && return 1
-    read -ra valarr <<< "$val"
+    read -ra valarr <<< "$command"
     COMP_WORDS=("${valarr[@]}" "${COMP_WORDS[@]:1}")
-    COMP_LINE="${COMP_LINE//$name/$val}"
+    COMP_LINE="${COMP_LINE//$alias/$command}"
     COMP_CWORD="$((${#COMP_WORDS[@]} - 1))"
     COMP_POINT="${#COMP_LINE}"
 
@@ -20,12 +19,5 @@ _compalias()
     "$fn" "${COMP_WORDS[0]}" "${COMP_WORDS[-1]}" "${COMP_WORDS[-2]}"
 }
 
-compalias()
-{
-    # builtin alias "$@"
-    # nospace to prevent 2 spaces if default completion adds one
-    complete -o nospace -F _compalias "${@%%=*}"
-}
-
-# it also supports multiple aliases at once now!
-compalias {{ .Alias }}='{{ .Command }}'
+# nospace to prevent 2 spaces if default completion adds one
+complete -o nospace -F _compalias {{ .Alias }}
