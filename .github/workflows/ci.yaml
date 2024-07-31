@@ -16,6 +16,7 @@ jobs:
     outputs:
       git_sha: ${{ steps.git_sha.outputs.git_sha }}
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/git-sha
         id: git_sha
 
