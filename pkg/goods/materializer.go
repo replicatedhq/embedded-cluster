@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/alias"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
@@ -162,7 +161,7 @@ func (m *Materializer) Kubectl() error {
 	}
 
 	compDstpath := m.def.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
-	compContent, err := alias.CompaliasBash("kubectl", "k0s kubectl")
+	compContent, err := completionAliasBash("kubectl", "k0s kubectl")
 	if err != nil {
 		return fmt.Errorf("generate kubectl completion: %w", err)
 	}

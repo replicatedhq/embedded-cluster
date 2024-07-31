@@ -1,4 +1,4 @@
-package alias
+package goods
 
 import (
 	"bytes"
@@ -15,7 +15,8 @@ var (
 	compaliasBashTmpl = template.Must(template.New("compalias_bash").Parse(string(compaliasBashText)))
 )
 
-func CompaliasBash(alias, command string) ([]byte, error) {
+// completionAliasBash generates bash completion for the given alias and command.
+func completionAliasBash(alias, command string) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	err := compaliasBashTmpl.Execute(buf, struct {
 		Alias   string
