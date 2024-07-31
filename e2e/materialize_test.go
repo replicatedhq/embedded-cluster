@@ -18,11 +18,9 @@ func TestMaterialize(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	commands := [][]string{
-		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl"},
 		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl-preflight"},
 		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl-support_bundle"},
 		{"embedded-cluster", "materialize"},
-		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl"},
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl-preflight"},
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl-support_bundle"},
 	}

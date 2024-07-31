@@ -103,16 +103,14 @@ var shellCommand = &cli.Command{
 			_, _ = shellpty.WriteString(config)
 			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-			if filepath.Base(shpath) == "bash" {
-				comppath := defaults.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
-				config = fmt.Sprintf("source <(cat %s)\n", comppath)
-				_, _ = shellpty.WriteString(config)
-				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+			comppath := defaults.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
+			config = fmt.Sprintf("source <(cat %s)\n", comppath)
+			_, _ = shellpty.WriteString(config)
+			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-				config = "source /etc/bash_completion\n"
-				_, _ = shellpty.WriteString(config)
-				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
-			}
+			config = "source /etc/bash_completion\n"
+			_, _ = shellpty.WriteString(config)
+			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 		}
 
 		go func() { _, _ = io.Copy(shellpty, os.Stdin) }()
