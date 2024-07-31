@@ -74,7 +74,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+          token: ${{ secrets.GH_PAT }}
           commit-message: updated ${{ matrix.addon }} version
           title: "feat: update ${{ matrix.addon }} version"
           branch: automation/update-makefile-${{ matrix.addon }}

@@ -87,7 +87,7 @@ jobs:
       uses: peter-evans/create-pull-request@v6
       id: cpr
       with:
-        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        token: ${{ secrets.GH_PAT }}
         commit-message: 'Update image versions'
         title: "chore: update ${{ matrix.addon }} images"
         branch: automation/${{ matrix.addon }}-image-dependencies
