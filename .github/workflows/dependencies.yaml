@@ -36,7 +36,7 @@ jobs:
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v6
       with:
-        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        token: ${{ secrets.GH_PAT }}
         commit-message: Update Makefile versions
         title: 'Update Makefile versions'
         branch: automation/update-makefile
