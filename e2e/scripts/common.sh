@@ -203,6 +203,16 @@ ensure_node_config() {
     fi
 }
 
+ensure_nodes_match_kube_version() {
+    local version="$1"
+    if kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}' | grep -v "$version"; then
+        echo "Node kubelet version does not match expected version $version"
+        kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}'
+        kubectl get nodes
+        return 1
+    fi
+}
+
 check_pod_install_order() {
     local ingress_install_time=
     ingress_install_time=$(kubectl get pods --no-headers=true -n ingress-nginx -o jsonpath='{.items[*].metadata.creationTimestamp}' | sort | head -n 1)

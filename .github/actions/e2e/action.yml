@@ -31,6 +31,9 @@ inputs:
   dr-aws-secret-access-key:
     description: 'Disaster Recovery AWS Secret Access Key'
     required: true
+  k0s-version:
+    description: 'k0s version to expect after upgrades in e2e tests'
+    required: true
 
 runs:
   using: composite
@@ -104,28 +107,29 @@ runs:
       export DR_AWS_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
       export DR_AWS_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
       export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
+      export K0S_VERSION=${{ inputs.k0s-version }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Upload Host Support Bundle
     uses: actions/upload-artifact@v4
-    if: ${{ failure() }}
+    if: ${{ ! cancelled() }}
     with:
       name: ${{ inputs.test-name }}-support-bundle-host.tar.gz
       path: ./e2e/support-bundle-host-*.tar.gz
   - name: Upload Cluster Support Bundle
     uses: actions/upload-artifact@v4
-    if: ${{ failure() }}
+    if: ${{ ! cancelled() }}
     with:
       name: ${{ inputs.test-name }}-support-bundle-cluster.tar.gz
       path: ./e2e/support-bundle-cluster.tar.gz
   - name: Upload Playwright Report
     id: upload-playwright-report
     uses: actions/upload-artifact@v4
-    if: ${{ failure() }}
+    if: ${{ ! cancelled() }}
     with:
       name: ${{ inputs.test-name }}-playwright-report.tar.gz
       path: ./e2e/playwright-report.tar.gz
   - name: Print instructions to view Playwright report
-    if: ${{ failure() && steps.upload-playwright-report.outputs.artifact-url != '' }}
+    if: ${{ ! cancelled() && steps.upload-playwright-report.outputs.artifact-url != '' }}
     run: |
       echo -e "\e[1;33m┌──────────────────────────────────────────────────────────────────────────────────────────────────────┐\e[0m"
       echo -e "\e[1;33m                                  To view the Playwright test report:                                   \e[0m"

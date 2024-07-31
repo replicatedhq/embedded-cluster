@@ -48,7 +48,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -499,7 +499,61 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestUpgradeFromReplicatedApp(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:     t,
+		Nodes: 1,
+		Image: "debian/12",
+	})
+	defer cleanupCluster(t, tc)
+
+	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-install.sh", "ui"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA"))}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -653,7 +707,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -763,7 +817,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -875,7 +929,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -1055,7 +1109,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -1219,7 +1273,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -1334,7 +1388,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -1546,7 +1600,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -1606,7 +1660,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
@@ -1865,12 +1919,12 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Logf("stdout: %s", stdout)
 		t.Logf("stderr: %s", stderr)
-		t.Errorf("fail to generate cluster support from node %s bundle: %v", node, err)
-	}
-
-	t.Logf("%s: copying cluster support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
-	if err := cluster.CopyFileFromNode(node, "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
-		t.Errorf("fail to copy cluster support bundle from node %s to local machine: %v", node, err)
+		t.Logf("fail to generate cluster support from node %s bundle: %v", node, err)
+	} else {
+		t.Logf("%s: copying cluster support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
+		if err := cluster.CopyFileFromNode(node, "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
+			t.Logf("fail to copy cluster support bundle from node %s to local machine: %v", node, err)
+		}
 	}
 
 	for i, node := range tc.Nodes {
@@ -1879,12 +1933,13 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 		if stdout, stderr, err := RunCommandOnNode(t, tc, i, line); err != nil {
 			t.Logf("stdout: %s", stdout)
 			t.Logf("stderr: %s", stderr)
-			t.Errorf("fail to generate support from node %s bundle: %v", node, err)
+			t.Logf("fail to generate support from node %s bundle: %v", node, err)
+			continue
 		}
 
 		t.Logf("%s: copying host support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
 		if err := cluster.CopyFileFromNode(node, "/root/host.tar.gz", fmt.Sprintf("support-bundle-host-%s.tar.gz", node)); err != nil {
-			t.Errorf("fail to copy host support bundle from node %s to local machine: %v", node, err)
+			t.Logf("fail to copy host support bundle from node %s to local machine: %v", node, err)
 		}
 	}
 }
@@ -1894,29 +1949,27 @@ func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
 	if tc.Proxy != "" {
 		t.Logf("%s: compressing playwright report on proxy node", time.Now().Format(time.RFC3339))
 		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
-			t.Errorf("fail to compress playwright report on node %s: %v", tc.Proxy, err)
+			t.Logf("fail to compress playwright report on node %s: %v", tc.Proxy, err)
 			return
 		}
 		t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
 		if err := cluster.CopyFileFromNode(tc.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
-			t.Errorf("fail to copy playwright report to local machine: %v", err)
+			t.Logf("fail to copy playwright report to local machine: %v", err)
 		}
 	} else {
 		t.Logf("%s: compressing playwright report on node 0", time.Now().Format(time.RFC3339))
 		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			t.Errorf("fail to compress playwright report on node %s: %v", tc.Nodes[0], err)
+			t.Logf("fail to compress playwright report on node %s: %v", tc.Nodes[0], err)
 			return
 		}
 		t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
 		if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
-			t.Errorf("fail to copy playwright report to local machine: %v", err)
+			t.Logf("fail to copy playwright report to local machine: %v", err)
 		}
 	}
 }
 
 func cleanupCluster(t *testing.T, tc *cluster.Output) {
-	if t.Failed() {
-		generateAndCopySupportBundle(t, tc)
-		copyPlaywrightReport(t, tc)
-	}
+	generateAndCopySupportBundle(t, tc)
+	copyPlaywrightReport(t, tc)
 }

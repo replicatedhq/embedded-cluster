@@ -159,3 +159,12 @@ func injectString(original, injection, after string) string {
 	// Construct the new string by adding the injection between the parts
 	return parts[0] + after + " " + injection + parts[1]
 }
+
+func k8sVersion() string {
+	// split the version string (like 'v1.29.6+k0s.0') into the k8s version and the k0s revision
+	verParts := strings.Split(os.Getenv("K0S_VERSION"), "+")
+	if len(verParts) < 2 {
+		panic(fmt.Sprintf("failed to parse k8s version %q", os.Getenv("K0S_VERSION")))
+	}
+	return verParts[0]
+}
