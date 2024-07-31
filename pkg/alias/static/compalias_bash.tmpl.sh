@@ -22,7 +22,7 @@ _compalias()
 
 compalias()
 {
-    builtin alias "$@"
+    # builtin alias "$@"
     # nospace to prevent 2 spaces if default completion adds one
     complete -o nospace -F _compalias "${@%%=*}"
 }

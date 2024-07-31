@@ -154,13 +154,20 @@ func (m *Materializer) Binaries() error {
 }
 
 func (m *Materializer) Kubectl() error {
-	dstpath := m.def.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
-	content, err := alias.CompaliasBash("kubectl", "k0s kubectl")
-	if err != nil {
-		return fmt.Errorf("generate kubectl alias: %w", err)
+	binDstpath := m.def.PathToEmbeddedClusterBinary("kubectl")
+	k0spath := m.def.K0sBinaryPath()
+	binContent := fmt.Sprintf(`exec %s kubectl "$@"`, k0spath)
+	if err := os.WriteFile(binDstpath, []byte(binContent), 0755); err != nil {
+		return fmt.Errorf("write kubectl script: %w", err)
 	}
-	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
-		return fmt.Errorf("write kubectl alias: %w", err)
+
+	compDstpath := m.def.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
+	compContent, err := alias.CompaliasBash("kubectl", "k0s kubectl")
+	if err != nil {
+		return fmt.Errorf("generate kubectl completion: %w", err)
+	}
+	if err := os.WriteFile(compDstpath, []byte(compContent), 0755); err != nil {
+		return fmt.Errorf("write kubectl completion: %w", err)
 	}
 	return nil
 }
