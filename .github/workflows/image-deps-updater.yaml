@@ -97,7 +97,7 @@ jobs:
           images
           type::security
         draft: false
-        base: main
+        base: ${{ github.ref_name }}
         body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
 
     - name: Check outputs

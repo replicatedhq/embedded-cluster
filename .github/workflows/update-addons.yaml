@@ -83,6 +83,6 @@ jobs:
             automated-pr
             type::chore
           draft: false
-          base: "main"
+          base: ${{ github.ref_name }}
           body: |
             Automated changes by the [update-addons](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/update-addons.yaml) GitHub action
