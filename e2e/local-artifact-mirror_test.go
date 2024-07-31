@@ -34,9 +34,9 @@ func TestLocalArtifactMirror(t *testing.T) {
 		{"systemctl", "stop", "local-artifact-mirror"},
 		{"systemctl", "start", "local-artifact-mirror"},
 		{"systemctl", "status", "local-artifact-mirror"},
-		{"curl", "-o", "/tmp/kubectl", "127.0.0.1:50000/bin/kubectl"},
-		{"chmod", "755", "/tmp/kubectl"},
-		{"/tmp/kubectl", "version", "--client"},
+		{"curl", "-o", "/tmp/kubectl-test", "127.0.0.1:50000/bin/kubectl"},
+		{"chmod", "755", "/tmp/kubectl-test"},
+		{"/tmp/kubectl-test", "version", "--client"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail testing local artifact mirror: %v", err)
