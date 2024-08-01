@@ -21,6 +21,7 @@ var k0sImageComponents = map[string]string{
 	"registry.k8s.io/metrics-server/metrics-server": "metrics-server",
 	"quay.io/k0sproject/kube-proxy":                 "kube-proxy",
 	"quay.io/k0sproject/envoy-distroless":           "envoy-distroless",
+	"registry.k8s.io/pause":                         "pause",
 }
 
 var k0sComponents = map[string]addonComponent{
@@ -59,6 +60,9 @@ var k0sComponents = map[string]addonComponent{
 			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
 	},
+	"pause": {
+		useUpstreamImage: true,
+	},
 }
 
 var updateK0sImagesCommand = &cli.Command{
@@ -90,16 +94,29 @@ var updateK0sImagesCommand = &cli.Command{
 			upstreamVersion = strings.TrimPrefix(upstreamVersion, "v")
 			upstreamVersion = strings.Split(upstreamVersion, "-")[0]
 
-			image = RemoveTagFromImage(image)
+			imageNoTag := RemoveTagFromImage(image)
 
-			componentName, ok := k0sImageComponents[image]
+			componentName, ok := k0sImageComponents[imageNoTag]
 			if !ok {
-				return fmt.Errorf("no component found for image %s", image)
+				return fmt.Errorf("no component found for image %s", imageNoTag)
 			}
 
 			component, ok := k0sComponents[componentName]
 			if !ok {
 				return fmt.Errorf("no component found for component name %s", componentName)
+			}
+
+			if component.useUpstreamImage {
+				logrus.Infof("fetching digest for image %s", image)
+				sha, err := GetImageDigest(c.Context, image)
+				if err != nil {
+					return fmt.Errorf("failed to get image %s digest: %w", image, err)
+				}
+				logrus.Infof("image %s digest: %s", image, sha)
+				tag := TagFromImage(image)
+				image = RemoveTagFromImage(image)
+				newmeta.Images[FamiliarImageName(image)] = fmt.Sprintf("%s@%s", tag, sha)
+				continue
 			}
 
 			packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, upstreamVersion)
