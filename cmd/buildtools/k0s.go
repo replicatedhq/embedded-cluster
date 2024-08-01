@@ -21,7 +21,6 @@ var k0sImageComponents = map[string]string{
 	"registry.k8s.io/metrics-server/metrics-server": "metrics-server",
 	"quay.io/k0sproject/kube-proxy":                 "kube-proxy",
 	"quay.io/k0sproject/envoy-distroless":           "envoy-distroless",
-	"registry.k8s.io/pause":                         "pause",
 }
 
 var k0sComponents = map[string]addonComponent{
@@ -58,14 +57,6 @@ var k0sComponents = map[string]addonComponent{
 	"envoy-distroless": {
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
-		},
-	},
-	"pause": {
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return fmt.Sprintf("kubernetes-pause-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
-		},
-		getWolfiPackageVersionComparison: func(opts addonComponentOptions) string {
-			return latestPatchComparison(opts.k0sVersion) // pause package version follows the k8s version
 		},
 	},
 }
