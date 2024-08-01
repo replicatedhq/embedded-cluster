@@ -79,7 +79,7 @@ jobs:
         run: |
           make embedded-cluster-linux-amd64 \
             VERSION=${{ needs.get-tag.outputs.tag-name }} \
-            LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
+            LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
 
       - name: Output Metadata
