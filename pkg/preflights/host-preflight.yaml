@@ -49,7 +49,7 @@ spec:
     - hostOS: {}
   analyzers:
     - cpu:
-        checkName: 'Number of CPU cores'
+        checkName: CPU
         outcomes:
           - fail:
               when: 'count < 2'
@@ -57,7 +57,7 @@ spec:
           - pass:
               message: At least 2 CPU cores are present
     - memory:
-        checkName: Amount of Memory
+        checkName: Memory
         outcomes:
           - fail:
               when: '< 2G'
@@ -110,11 +110,12 @@ spec:
         outcomes:
           - fail:
               when: 'false'
-              message: 'No default route found. A default route is required.'
+              message: No default route found. A default route is required.
           - pass:
               when: 'true'
-              message: 'Host has a default route'
+              message: Host has a default route
     - ipv4Interfaces:
+        checkName: IPv4 Interface
         outcomes:
           - fail:
               when: 'count == 0'
@@ -127,15 +128,15 @@ spec:
         outcomes:
           - fail:
               when: 'ntp == unsynchronized+inactive'
-              message: 'System clock is not synchronized'
+              message: System clock is not synchronized
           - fail:
               when: 'ntp == unsynchronized+active'
               message: System clock is not yet synchronized
           - pass:
               when: 'ntp == synchronized+active'
-              message: 'System clock is synchronized'
+              message: System clock is synchronized
     - jsonCompare:
-        checkName: Check if either cgroup v1 or v2 is enabled
+        checkName: Cgroups
         fileName: host-collectors/system/cgroups.json
         path: 'cgroup-enabled'
         value: |
@@ -143,12 +144,12 @@ spec:
         outcomes:
           - fail:
               when: 'false'
-              message: 'Neither cgroup v1 nor v2 is enabled'
+              message: Neither cgroup v1 nor v2 is enabled
           - pass:
               when: 'true'
-              message: 'One of cgroup v1 or v2 is enabled'
+              message: One of cgroup v1 or v2 is enabled
     - jsonCompare:
-        checkName: Check if cpu cgroup controller is enabled
+        checkName: "'cpu' Cgroup Controller"
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'cpu')]}"
         value: |
@@ -161,7 +162,7 @@ spec:
               when: 'true'
               message: "'cpu' cgroup controller is enabled"
     - jsonCompare:
-        checkName: Check if cpuacct cgroup controller is enabled
+        checkName: "'cpuacct' Cgroup Controller"
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'cpuacct')]}"
         value: |
@@ -174,7 +175,7 @@ spec:
               when: 'true'
               message: "'cpuacct' cgroup controller is enabled"
     - jsonCompare:
-        checkName: Check if cpuset cgroup controller is enabled
+        checkName: "'cpuset' Cgroup Controller"
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'cpuset')]}"
         value: |
@@ -187,7 +188,7 @@ spec:
               when: 'true'
               message: "'cpuset' cgroup controller is enabled"
     - jsonCompare:
-        checkName: Check if memory cgroup controller is enabled
+        checkName: "'memory' Cgroup Controller"
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'memory')]}"
         value: |
@@ -200,7 +201,7 @@ spec:
               when: 'true'
               message: "'memory' cgroup controller is enabled"
     - jsonCompare:
-        checkName: Check if devices cgroup controller is enabled
+        checkName: "'devices' Cgroup Controller"
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'devices')]}"
         value: |
@@ -213,7 +214,7 @@ spec:
               when: 'true'
               message: "'devices' cgroup controller is enabled"
     - jsonCompare:
-        checkName: Check if freezer cgroup controller is enabled
+        checkName: "'freezer' Cgroup Controller"
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'freezer')]}"
         value: |
@@ -226,7 +227,7 @@ spec:
               when: 'true'
               message: "'freezer' cgroup controller is enabled"
     - jsonCompare:
-        checkName: Check if pids cgroup controller is enabled
+        checkName: "'pids' Cgroup Controller"
         fileName: host-collectors/system/cgroups.json
         jsonPath: "{$.allControllers[?(@ == 'pids')]}"
         value: |
@@ -239,18 +240,18 @@ spec:
               when: 'true'
               message: "'pids' cgroup controller is enabled"
     - textAnalyze:
-        checkName: Check if /proc filesystem is mounted
+        checkName: /proc Filesystem
         fileName: host-collectors/run-host/check-proc-filesystem.txt
         regex: 'proc'
         outcomes:
           - pass:
               when: "true"
-              message: "/proc filesystem is mounted"
+              message: /proc filesystem is mounted
           - fail:
               when: "false"
-              message: "/proc filesystem is not mounted"
+              message: /proc filesystem is not mounted
     - textAnalyze:
-        checkName: Check if 'modprobe' command exists in PATH
+        checkName: "'modprobe' Command"
         fileName: host-collectors/run-host/check-modprobe.txt
         regex: '/usr/sbin/modprobe'
         outcomes:
@@ -261,7 +262,7 @@ spec:
               when: "false"
               message: "'modprobe' command does not exist in PATH"
     - textAnalyze:
-        checkName: Check if 'mount' command exists in PATH
+        checkName: "'mount' Command"
         fileName: host-collectors/run-host/check-mount.txt
         regex: '/usr/bin/mount'
         outcomes:
@@ -272,7 +273,7 @@ spec:
               when: "false"
               message: "'mount' command does not exist in PATH"
     - textAnalyze:
-        checkName: Check if 'umount' command exists in PATH
+        checkName: "'umount' Command"
         fileName: host-collectors/run-host/check-umount.txt
         regex: '/usr/bin/umount'
         outcomes:
@@ -283,10 +284,10 @@ spec:
               when: "false"
               message: "'umount' command does not exist in PATH"
     - hostOS:
-        checkName: Check minimum kernel version
+        checkName: Kernel Version
         outcomes:
           - pass:
               when: "kernelVersion >= 3.10"
-              message: "Minimum kernel version of 3.10 has been met"
+              message: Kernel meets minimum version version of 3.10
           - fail:
-              message: "Minimum kernel version of 3.10 has not been met"
+              message: Kernel doesn't meet minimum version of 3.10

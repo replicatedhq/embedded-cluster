@@ -71,8 +71,7 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 	cfg.Spec.Images.KubeProxy.Image = helpers.AddonImageFromComponentName("kube-proxy")
 	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"]
 
-	cfg.Spec.Images.Pause.Image = helpers.AddonImageFromComponentName("pause")
-	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"]
+	cfg.Spec.Images.Pause.Image = fmt.Sprintf("proxy.replicated.com/anonymous/%s", cfg.Spec.Images.Pause.Image)
 
 	// TODO (salah): remove the following and uncomment when upstream PR for digest support is released: https://github.com/k0sproject/k0s/pull/4792
 	if cfg.Spec.Network != nil &&
