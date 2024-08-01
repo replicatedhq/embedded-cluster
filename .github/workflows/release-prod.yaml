@@ -56,7 +56,7 @@ jobs:
           USERNAME: ${{ secrets.DOCKERHUB_USER }}
           PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          make -C local-artifact-mirror apko build-and-push-local-artifact-mirror-image \
+          make -C local-artifact-mirror apko apko-login build-and-push-local-artifact-mirror-image \
             PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
           echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
 
