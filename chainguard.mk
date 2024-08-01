@@ -52,9 +52,7 @@ apko-build: check-env-IMAGE apko-template
 .PHONY: apko-build-and-publish
 apko-build-and-publish: ARCHS ?= amd64
 apko-build-and-publish: check-env-IMAGE apko-template
-	cd build && ${APKO_CMD} \
-		publish apko.yaml ${IMAGE} \
-		--arch ${ARCHS} | tee digest
+	@bash -c 'set -o pipefail && cd build && ${APKO_CMD} publish apko.yaml ${IMAGE} --arch ${ARCHS} | tee digest'
 	$(MAKE) apko-output-image
 
 .PHONY: apko-login
@@ -67,7 +65,12 @@ apko-login:
 
 .PHONY: apko-output-image
 apko-output-image:
-	printf "${IMAGE}@$(shell cat build/digest | awk -F'@' '{print $$2}')" > build/image
+	@digest=$$(cut -s -d'@' -f2 build/digest); \
+	if [ -z "$$digest" ]; then \
+		echo "error: no image digest found" >&2; \
+		exit 1; \
+	fi ; \
+	echo "$(IMAGE)@$$digest" > build/image
 
 .PHONY: melange-build
 melange-build: ARCHS ?= amd64
