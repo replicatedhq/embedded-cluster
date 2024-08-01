@@ -121,7 +121,7 @@ jobs:
       - name: Build Linux AMD64 and Output Metadata
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
           make -B embedded-cluster-linux-amd64 K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) K0S_BINARY_SOURCE_OVERRIDE=$(make print-PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE) VERSION="${SHORT_SHA}-previous-k0s"
           tar -C output/bin -czvf embedded-cluster-linux-amd64-previous-k0s.tgz embedded-cluster
           ./output/bin/embedded-cluster version metadata > metadata-previous-k0s.json
@@ -151,7 +151,7 @@ jobs:
       - name: Build CI binary
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
           echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
