@@ -13,7 +13,6 @@ ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_IMAGE_OVERRIDE =
 EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
-KUBECTL_VERSION = v1.28.11
 K0S_VERSION = v1.28.11+k0s.0
 K0S_GO_VERSION = v1.28.11+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
@@ -28,7 +27,6 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/versions.KubectlVersion=$(KUBECTL_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
@@ -56,12 +54,6 @@ pkg/goods/bins/k0s: Makefile
 	fi
 	chmod +x pkg/goods/bins/k0s
 	touch pkg/goods/bins/k0s
-
-pkg/goods/bins/kubectl: Makefile
-	mkdir -p pkg/goods/bins
-	curl -fL -o pkg/goods/bins/kubectl "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
-	chmod +x pkg/goods/bins/kubectl
-	touch pkg/goods/bins/kubectl
 
 pkg/goods/bins/kubectl-support_bundle: Makefile
 	mkdir -p pkg/goods/bins
@@ -116,7 +108,6 @@ go.mod: Makefile
 .PHONY: static
 static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-preflight \
-	pkg/goods/bins/kubectl \
 	pkg/goods/bins/kubectl-support_bundle \
 	pkg/goods/bins/local-artifact-mirror \
 	pkg/goods/internal/bins/kubectl-kots

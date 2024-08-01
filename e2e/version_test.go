@@ -56,7 +56,7 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("fail to parse metadata output: %v", err)
 	}
 
-	expectedVersions := []string{"Kubernetes", "Troubleshoot", "Kubectl", "EmbeddedClusterOperator", "AdminConsole", "OpenEBS", "goldpinger", "ingress-nginx"}
+	expectedVersions := []string{"Kubernetes", "Troubleshoot", "EmbeddedClusterOperator", "AdminConsole", "OpenEBS", "goldpinger", "ingress-nginx"}
 	for _, v := range expectedVersions {
 		if val, ok := parsed.Versions[v]; !ok || val == "" {
 			t.Errorf("missing %q version in 'metadata' output", v)

@@ -56,7 +56,7 @@ jobs:
           USERNAME: ${{ secrets.DOCKERHUB_USER }}
           PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          make -C local-artifact-mirror apko build-and-push-local-artifact-mirror-image \
+          make -C local-artifact-mirror apko apko-login build-and-push-local-artifact-mirror-image \
             PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
           echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
 
@@ -79,7 +79,7 @@ jobs:
         run: |
           make embedded-cluster-linux-amd64 \
             VERSION=${{ needs.get-tag.outputs.tag-name }} \
-            LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
+            LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
 
       - name: Output Metadata

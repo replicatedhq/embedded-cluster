@@ -87,7 +87,7 @@ jobs:
       uses: peter-evans/create-pull-request@v6
       id: cpr
       with:
-        token: ${{ secrets.AUTOMATED_PR_GH_PAT }}
+        token: ${{ secrets.GH_PAT }}
         commit-message: 'Update image versions'
         title: "chore: update ${{ matrix.addon }} images"
         branch: automation/${{ matrix.addon }}-image-dependencies
@@ -97,7 +97,7 @@ jobs:
           images
           type::security
         draft: false
-        base: main
+        base: ${{ github.ref_name }}
         body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
 
     - name: Check outputs

@@ -32,12 +32,18 @@ inputs:
     description: 'Disaster Recovery AWS Secret Access Key'
     required: true
   k0s-version:
-    description: 'k0s version to expect after upgrades in e2e tests'
+    description: 'k0s version to expect in e2e tests'
+    required: true
+  k0s-version-previous:
+    description: 'k0s previous version to expect in e2e tests'
     required: true
 
 runs:
   using: composite
   steps:
+  - name: Git SHA
+    id: git_sha
+    uses: ./.github/actions/git-sha
   - name: Remove MS repo
     shell: bash
     run: |
@@ -92,7 +98,7 @@ runs:
   - name: E2E
     shell: bash
     run: |
-      export SHORT_SHA=dev-${GITHUB_SHA::7}
+      export SHORT_SHA=dev-${{ steps.git_sha.outputs.git_sha }}
       echo "${SHORT_SHA}"
       export LICENSE_ID=${{ inputs.license-id }}
       export AIRGAP_LICENSE_ID=${{ inputs.airgap-license-id }}
@@ -107,7 +113,8 @@ runs:
       export DR_AWS_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
       export DR_AWS_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
       export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
-      export K0S_VERSION=${{ inputs.k0s-version }}
+      export EXPECT_K0S_VERSION=${{ inputs.k0s-version }}
+      export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Upload Host Support Bundle
     uses: actions/upload-artifact@v4

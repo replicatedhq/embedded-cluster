@@ -6,7 +6,15 @@ DIR=/usr/local/bin
 
 main() {
     local version="$1"
+    local k8s_version="$2"
+
     sleep 10 # wait for kubectl to become available
+
+    echo "ensure that all nodes are running k8s $k8s_version"
+    if ! ensure_nodes_match_kube_version "$k8s_version"; then
+        echo "not all nodes are running k8s $k8s_version"
+        exit 1
+    fi
 
     echo "pods"
     kubectl get pods -A

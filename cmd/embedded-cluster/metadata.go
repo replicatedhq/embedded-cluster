@@ -56,7 +56,6 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	versionsMap["Kubernetes"] = versions.K0sVersion
 	versionsMap["Installer"] = versions.Version
 	versionsMap["Troubleshoot"] = versions.TroubleshootVersion
-	versionsMap["Kubectl"] = versions.KubectlVersion
 
 	channelRelease, err := release.GetChannelRelease()
 	if err == nil && channelRelease != nil {

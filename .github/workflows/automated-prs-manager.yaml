@@ -32,7 +32,7 @@ jobs:
 
           replicated_ci_prs=$(
             gh pr list \
-              --author 'replicated-ci' \
+              --author 'replicated-ci-ec' \
               --json url,createdAt,headRefName,headRepository,headRepositoryOwner \
               -q '.[] | select((.createdAt | fromdateiso8601 > now - 24*60*60) and .headRepositoryOwner.login == "replicatedhq" and .headRepository.name == "embedded-cluster")'
           )
