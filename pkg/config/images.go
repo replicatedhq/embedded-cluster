@@ -3,12 +3,10 @@ package config
 import (
 	_ "embed"
 	"fmt"
-	"strings"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"gopkg.in/yaml.v2"
@@ -36,13 +34,7 @@ func ListK0sImages(cfg *k0sconfig.ClusterConfig) []string {
 			cfg.Spec.Images.KubeRouter.CNIInstaller.URI(),
 			cfg.Spec.Images.Konnectivity.URI():
 		default:
-			if strings.Contains(image, constant.KubePauseContainerImage) {
-				// there's a bug in GetImageURIs where it always returns the original pause image
-				// instead of the one in the config, make sure to use the one in the config.
-				images = append(images, cfg.Spec.Images.Pause.URI())
-			} else {
-				images = append(images, image)
-			}
+			images = append(images, image)
 		}
 	}
 	return images
@@ -71,8 +63,7 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 	cfg.Spec.Images.KubeProxy.Image = helpers.AddonImageFromComponentName("kube-proxy")
 	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"]
 
-	cfg.Spec.Images.Pause.Image = helpers.AddonImageFromComponentName("pause")
-	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"]
+	cfg.Spec.Images.Pause.Image = fmt.Sprintf("proxy.replicated.com/anonymous/%s", cfg.Spec.Images.Pause.Image)
 
 	// TODO (salah): remove the following and uncomment when upstream PR for digest support is released: https://github.com/k0sproject/k0s/pull/4792
 	if cfg.Spec.Network != nil &&
