@@ -4,7 +4,7 @@ global:
     replicated.com/disaster-recovery-chart: embedded-cluster-operator
 {{- if .ReplaceImages }}
 image:
-  repository: proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image
-  tag: {{ index .Images "replicated/embedded-cluster-operator-image" }}
-utilsImage: '{{ index .Images "utils" | FormatImage "proxy.replicated.com/anonymous/replicated/ec-utils" }}'
+  repository: '{{ (index .Images "embedded-cluster-operator").Repo }}'
+  tag: '{{ (index .Images "embedded-cluster-operator").Tag }}'
+utilsImage: '{{ (index .Images "utils").Repo }}:{{ (index .Images "utils").Tag }}'
 {{- end }}

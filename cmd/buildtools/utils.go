@@ -1,20 +1,14 @@
 package main
 
 import (
-	"archive/tar"
 	"bufio"
-	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -27,147 +21,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/repo"
 )
-
-const (
-	wolfiAPKIndexURL = "https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz"
-)
-
-func GetWolfiAPKIndex() ([]byte, error) {
-	tmpdir, err := os.MkdirTemp("", "wolfi-apk-index")
-	if err != nil {
-		return nil, fmt.Errorf("create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tmpdir)
-	if err := DownloadFile(wolfiAPKIndexURL, filepath.Join(tmpdir, "APKINDEX.tar.gz")); err != nil {
-		return nil, fmt.Errorf("download APKINDEX.tar.gz: %w", err)
-	}
-	if err := ExtractTGZArchive(filepath.Join(tmpdir, "APKINDEX.tar.gz"), tmpdir); err != nil {
-		return nil, fmt.Errorf("extract APKINDEX.tar.gz: %w", err)
-	}
-	contents, err := os.ReadFile(filepath.Join(tmpdir, "APKINDEX"))
-	if err != nil {
-		return nil, fmt.Errorf("read APKINDEX: %w", err)
-	}
-	return contents, nil
-}
-
-type PackageVersion struct {
-	semver   semver.Version
-	revision int
-}
-
-func (v *PackageVersion) String() string {
-	return fmt.Sprintf("%s-r%d", v.semver.Original(), v.revision)
-}
-
-type PackageVersions []*PackageVersion
-
-func (pvs PackageVersions) Len() int {
-	return len(pvs)
-}
-
-func (pvs PackageVersions) Less(i, j int) bool {
-	if pvs[i].semver.Equal(&pvs[j].semver) {
-		return pvs[i].revision < pvs[j].revision
-	}
-	return pvs[i].semver.LessThan(&pvs[j].semver)
-}
-
-func (pvs PackageVersions) Swap(i, j int) {
-	pvs[i], pvs[j] = pvs[j], pvs[i]
-}
-
-func ParsePackageVersion(version string) (*PackageVersion, error) {
-	parts := strings.Split(version, "-r")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("incorrect number of parts in version %s", version)
-	}
-	sv, err := semver.NewVersion(parts[0])
-	if err != nil {
-		return nil, fmt.Errorf("parse version: %w", err)
-	}
-	revision, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("parse revision: %w", err)
-	}
-	return &PackageVersion{semver: *sv, revision: revision}, nil
-}
-
-func MustParsePackageVersion(version string) *PackageVersion {
-	pv, err := ParsePackageVersion(version)
-	if err != nil {
-		panic(err)
-	}
-	return pv
-}
-
-// listWolfiPackageVersions returns a list of all versions for a given package name
-func listWolfiPackageVersions(wolfiAPKIndex []byte, pkgName string) ([]*PackageVersion, error) {
-	var versions []*PackageVersion
-	scanner := bufio.NewScanner(bytes.NewReader(wolfiAPKIndex))
-	for scanner.Scan() {
-		line := scanner.Text()
-		// filter by package name
-		if line != "P:"+pkgName {
-			continue
-		}
-		scanner.Scan()
-		line = scanner.Text()
-		if !strings.HasPrefix(line, "V:") {
-			return nil, fmt.Errorf("incorrect APKINDEX version line: %s", line)
-		}
-		// extract the version
-		pv, err := ParsePackageVersion(line[2:])
-		if err != nil {
-			return nil, fmt.Errorf("parse package version from line %s: %w", line, err)
-		}
-		versions = append(versions, pv)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scan APKINDEX: %w", err)
-	}
-	return versions, nil
-}
-
-// listMatchingWolfiPackageVersions returns a list of all versions for a given package name that
-// match the semver constraints.
-func listMatchingWolfiPackageVersions(wolfiAPKIndex []byte, pkgName string, constraints *semver.Constraints) ([]*PackageVersion, error) {
-	versions, err := listWolfiPackageVersions(wolfiAPKIndex, pkgName)
-	if err != nil {
-		return nil, fmt.Errorf("list package versions: %w", err)
-	}
-
-	if constraints == nil {
-		return versions, nil
-	}
-
-	var matchingVersions []*PackageVersion
-	for _, version := range versions {
-		if !constraints.Check(&version.semver) {
-			continue
-		}
-		matchingVersions = append(matchingVersions, version)
-	}
-	return matchingVersions, nil
-}
-
-// FindWolfiPackageVersion returns the latest version and revision of a package in the wolfi APK
-// index that matches the semver constraints.
-func FindWolfiPackageVersion(wolfiAPKIndex []byte, pkgName string, constraints *semver.Constraints) (string, error) {
-	versions, err := listMatchingWolfiPackageVersions(wolfiAPKIndex, pkgName, constraints)
-	if err != nil {
-		return "", fmt.Errorf("list package versions: %w", err)
-	}
-
-	if len(versions) == 0 {
-		return "", fmt.Errorf("package %q not found with the provided constraints", pkgName)
-	}
-
-	sorted := PackageVersions(versions)
-	sort.Sort(sorted)
-
-	return sorted[len(sorted)-1].String(), nil
-}
 
 func ApkoLogin() error {
 	cmd := exec.Command("make", "apko")
@@ -189,24 +42,16 @@ func ApkoLogin() error {
 	return nil
 }
 
-func latestPatchComparison(s *semver.Version) string {
-	return fmt.Sprintf(
-		">=%d.%d, <%d.%d",
-		s.Major(),
-		s.Minor(),
-		s.Major(),
-		s.Minor()+1,
-	)
-}
-
-func ApkoBuildAndPublish(componentName string, packageName string, packageVersion string, upstreamVersion string) error {
+func ApkoBuildAndPublish(componentName, packageName, packageVersion string) error {
+	image, err := ComponentImageName(componentName, packageName, packageVersion)
+	if err != nil {
+		return fmt.Errorf("component image name: %w", err)
+	}
 	args := []string{
 		"apko-build-and-publish",
-		fmt.Sprintf("IMAGE=%s", ComponentImageName(componentName, packageVersion)),
+		fmt.Sprintf("IMAGE=%s", image),
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
-		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
-		fmt.Sprintf("UPSTREAM_VERSION=%s", upstreamVersion),
 	}
 	cmd := exec.Command("make", args...)
 	if err := RunCommand(cmd); err != nil {
@@ -215,12 +60,51 @@ func ApkoBuildAndPublish(componentName string, packageName string, packageVersio
 	return nil
 }
 
-func ComponentImageName(componentName string, packageVersion string) string {
-	return fmt.Sprintf("%s:%s", ComponentImageRepo(componentName), packageVersion)
+func ComponentImageName(componentName, packageName, packageVersion string) (string, error) {
+	tag, err := ComponentImageTag(componentName, packageName, packageVersion)
+	if err != nil {
+		return "", fmt.Errorf("component image tag: %w", err)
+	}
+	return fmt.Sprintf("%s/replicated/ec-%s:%s", os.Getenv("IMAGES_REGISTRY_SERVER"), componentName, tag), nil
 }
 
-func ComponentImageRepo(componentName string) string {
-	return fmt.Sprintf("%s/replicated/ec-%s", os.Getenv("IMAGES_REGISTRY_SERVER"), componentName)
+func ComponentImageTag(componentName, packageName, packageVersion string) (string, error) {
+	if packageName == "" {
+		return packageVersion, nil
+	}
+	tag, err := ResolveApkoPackageVersion(componentName, packageName, packageVersion)
+	if err != nil {
+		return "", fmt.Errorf("apko output tag: %w", err)
+	}
+	return tag, nil
+}
+
+// ResolveApkoPackageVersion resolves the fuzzy version matching in the apko config file to a specific version.
+func ResolveApkoPackageVersion(componentName, packageName, packageVersion string) (string, error) {
+	args := []string{
+		"--silent",
+		"apko-print-pkg-version",
+		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
+		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
+		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
+	}
+	cmd := exec.Command("make", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("run command: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func GetImageNameFromBuildFile() (string, error) {
+	contents, err := os.ReadFile("build/image")
+	if err != nil {
+		return "", fmt.Errorf("read build file: %w", err)
+	}
+	if len(contents) == 0 {
+		return "", fmt.Errorf("empty build/image file")
+	}
+	return strings.TrimSpace(string(contents)), nil
 }
 
 func FamiliarImageName(imageName string) string {
@@ -231,18 +115,6 @@ func FamiliarImageName(imageName string) string {
 	return reference.FamiliarName(ref)
 }
 
-func GetDigestFromBuildFile() (string, error) {
-	contents, err := os.ReadFile("build/digest")
-	if err != nil {
-		return "", fmt.Errorf("read build file: %w", err)
-	}
-	parts := strings.Split(string(contents), "@")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("incorrect number of parts in build file")
-	}
-	return strings.TrimSpace(parts[1]), nil
-}
-
 func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {
 	client := github.NewClient(nil)
 	release, _, err := client.Repositories.GetLatestRelease(ctx, owner, repo)
@@ -250,6 +122,10 @@ func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, er
 		return "", err
 	}
 	return release.GetName(), nil
+}
+
+func latestPatchConstraint(s *semver.Version) string {
+	return fmt.Sprintf(">=%d.%d,<%d.%d", s.Major(), s.Minor(), s.Major(), s.Minor()+1)
 }
 
 type filterFn func(string) bool
@@ -262,11 +138,14 @@ func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) 
 	if err != nil {
 		return "", err
 	}
-	for _, release := range releases {
-		if !filter(release.GetTagName()) {
+	for _, r := range releases {
+		if r.Prerelease != nil && *r.Prerelease {
 			continue
 		}
-		return release.GetTagName(), nil
+		if !filter(r.GetTagName()) {
+			continue
+		}
+		return r.GetTagName(), nil
 	}
 	return "", fmt.Errorf("filter returned no record")
 }
@@ -514,80 +393,6 @@ func MirrorChart(repo *repo.Entry, name, ver string) error {
 	}
 	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
 	logrus.Infof("pushed %s/%s chart: %s", repo, name, remote)
-	return nil
-}
-
-func DownloadFile(url, dest string) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("http get %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-
-	out, err := os.Create(dest)
-	if err != nil {
-		return fmt.Errorf("create file %s: %w", dest, err)
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	return err
-}
-
-func ExtractTGZArchive(tgzFile string, destDir string) error {
-	fileReader, err := os.Open(tgzFile)
-	if err != nil {
-		return fmt.Errorf("open tgz file %q: %w", tgzFile, err)
-	}
-	defer fileReader.Close()
-
-	gzReader, err := gzip.NewReader(fileReader)
-	if err != nil {
-		return fmt.Errorf("create gzip reader: %w", err)
-	}
-	defer gzReader.Close()
-
-	tarReader := tar.NewReader(gzReader)
-	for {
-		hdr, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("read tar data: %w", err)
-		}
-
-		if hdr.Typeflag != tar.TypeReg {
-			continue
-		}
-
-		err = func() error {
-			fileName := filepath.Join(destDir, hdr.Name)
-
-			parentDir := filepath.Dir(fileName)
-			err := os.MkdirAll(parentDir, 0755)
-			if err != nil {
-				return fmt.Errorf("create directory %q: %w", parentDir, err)
-			}
-
-			fileWriter, err := os.Create(fileName)
-			if err != nil {
-				return fmt.Errorf("create file %q: %w", hdr.Name, err)
-			}
-			defer fileWriter.Close()
-
-			_, err = io.Copy(fileWriter, tarReader)
-			if err != nil {
-				return fmt.Errorf("write file %q: %w", hdr.Name, err)
-			}
-
-			return nil
-		}()
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

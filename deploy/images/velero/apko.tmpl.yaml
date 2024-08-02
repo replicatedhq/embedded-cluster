@@ -9,9 +9,9 @@ contents:
     - glibc
     - ld-linux
     - libcrypt1
-    - velero=${PACKAGE_VERSION}
-    - velero-compat=${PACKAGE_VERSION}
-    - velero-restore-helper=${PACKAGE_VERSION}
+    - velero~${PACKAGE_VERSION}
+    - velero-compat~${PACKAGE_VERSION}
+    - velero-restore-helper~${PACKAGE_VERSION}
 
 accounts:
   groups:

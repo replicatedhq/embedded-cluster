@@ -7,7 +7,7 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
     - wolfi-base
-    - seaweedfs=${PACKAGE_VERSION}
+    - seaweedfs~${PACKAGE_VERSION}
     - fuse3 # for weed mount
 
 accounts:

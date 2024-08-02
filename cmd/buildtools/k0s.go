@@ -3,65 +3,63 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
-var k0sImageComponents = map[string]string{
-	"quay.io/k0sproject/coredns":                    "coredns",
-	"quay.io/k0sproject/calico-node":                "calico-node",
-	"quay.io/k0sproject/calico-cni":                 "calico-cni",
-	"quay.io/k0sproject/calico-kube-controllers":    "calico-kube-controllers",
-	"registry.k8s.io/metrics-server/metrics-server": "metrics-server",
-	"quay.io/k0sproject/kube-proxy":                 "kube-proxy",
-	"quay.io/k0sproject/envoy-distroless":           "envoy-distroless",
-	"registry.k8s.io/pause":                         "pause",
-}
-
-var k0sComponents = map[string]addonComponent{
-	"coredns": {
+var k0sImageComponents = map[string]addonComponent{
+	"quay.io/k0sproject/coredns": {
+		name: "coredns",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "coredns"
 		},
 	},
-	"calico-node": {
+	"quay.io/k0sproject/calico-node": {
+		name: "calico-node",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-node"
 		},
 	},
-	"calico-cni": {
+	"quay.io/k0sproject/calico-cni": {
+		name: "calico-cni",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-cni"
 		},
 	},
-	"calico-kube-controllers": {
+	"quay.io/k0sproject/calico-kube-controllers": {
+		name: "calico-kube-controllers",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "calico-kube-controllers"
 		},
 	},
-	"metrics-server": {
+	"registry.k8s.io/metrics-server/metrics-server": {
+		name: "metrics-server",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "metrics-server"
 		},
 	},
-	"kube-proxy": {
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return fmt.Sprintf("kube-proxy-%d.%d-default", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
+	"quay.io/k0sproject/kube-proxy": {
+		name: "kube-proxy",
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			// latest patch version of the current minor version
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			tag, err := GetGreatestGitHubTag(opts.ctx, "kubernetes", "kubernetes", constraints)
+			if err != nil {
+				return "", fmt.Errorf("failed to get gh release: %w", err)
+			}
+			return fmt.Sprintf("registry.k8s.io/kube-proxy:%s", tag), nil
 		},
 	},
-	"envoy-distroless": {
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
+	"registry.k8s.io/pause": {
+		name: "pause",
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			return fmt.Sprintf("registry.k8s.io/pause:%s", opts.upstreamVersion.Original()), nil
 		},
-	},
-	"pause": {
-		useUpstreamImage: true,
 	},
 }
 
@@ -73,69 +71,28 @@ var updateK0sImagesCommand = &cli.Command{
 		logrus.Infof("updating k0s images")
 
 		newmeta := release.K0sMetadata{
-			Images: make(map[string]string),
+			Images: make(map[string]release.K0sImage),
 		}
 
-		k0sImages := config.ListK0sImages(k0sconfig.DefaultClusterConfig())
+		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
 
 		if err := ApkoLogin(); err != nil {
 			return fmt.Errorf("failed to apko login: %w", err)
 		}
 
-		wolfiAPKIndex, err := GetWolfiAPKIndex()
-		if err != nil {
-			return fmt.Errorf("failed to get APK index: %w", err)
-		}
-
 		for _, image := range k0sImages {
-			logrus.Infof("updating image %s", image)
-
-			upstreamVersion := TagFromImage(image)
-			upstreamVersion = strings.TrimPrefix(upstreamVersion, "v")
-			upstreamVersion = strings.Split(upstreamVersion, "-")[0]
-
-			imageNoTag := RemoveTagFromImage(image)
-
-			componentName, ok := k0sImageComponents[imageNoTag]
+			component, ok := k0sImageComponents[RemoveTagFromImage(image)]
 			if !ok {
-				return fmt.Errorf("no component found for image %s", imageNoTag)
+				return fmt.Errorf("no component found for image %s", image)
 			}
-
-			component, ok := k0sComponents[componentName]
-			if !ok {
-				return fmt.Errorf("no component found for component name %s", componentName)
-			}
-
-			if component.useUpstreamImage {
-				logrus.Infof("fetching digest for image %s", image)
-				sha, err := GetImageDigest(c.Context, image)
-				if err != nil {
-					return fmt.Errorf("failed to get image %s digest: %w", image, err)
-				}
-				logrus.Infof("image %s digest: %s", image, sha)
-				tag := TagFromImage(image)
-				image = RemoveTagFromImage(image)
-				newmeta.Images[FamiliarImageName(image)] = fmt.Sprintf("%s@%s", tag, sha)
-				continue
-			}
-
-			packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, upstreamVersion)
+			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image)
 			if err != nil {
-				return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
+				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
-
-			logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
-
-			if err := ApkoBuildAndPublish(componentName, packageName, packageVersion, upstreamVersion); err != nil {
-				return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
+			newmeta.Images[component.name] = release.K0sImage{
+				Image:   repo,
+				Version: tag,
 			}
-
-			digest, err := GetDigestFromBuildFile()
-			if err != nil {
-				return fmt.Errorf("failed to get digest from build file: %w", err)
-			}
-
-			newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
 		}
 
 		logrus.Infof("saving k0s metadata")

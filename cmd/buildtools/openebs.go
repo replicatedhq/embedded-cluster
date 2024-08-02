@@ -13,35 +13,28 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
-var openebsImageComponents = map[string]string{
-	"docker.io/bitnami/kubectl":             "kubectl",
-	"docker.io/openebs/linux-utils":         "openebs-linux-utils",
-	"docker.io/openebs/provisioner-localpv": "openebs-provisioner-localpv",
-}
-
 var openebsRepo = &repo.Entry{
 	Name: "openebs",
 	URL:  "https://openebs.github.io/openebs",
 }
 
-var openebsComponents = map[string]addonComponent{
-	"openebs-provisioner-localpv": {
+var openebsImageComponents = map[string]addonComponent{
+	"docker.io/openebs/provisioner-localpv": {
+		name: "openebs-provisioner-localpv",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			// package name is not the same as the component name
 			return "dynamic-localpv-provisioner"
 		},
 		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
-	"openebs-linux-utils": {
+	"docker.io/openebs/linux-utils": {
+		name:                         "openebs-linux-utils",
 		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
-	"kubectl": {
+	"docker.io/bitnami/kubectl": {
+		name: "kubectl",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return fmt.Sprintf("kubectl-%d.%d-default", opts.latestK8sVersion.Major(), opts.latestK8sVersion.Minor())
-		},
-		getWolfiPackageVersionComparison: func(opts addonComponentOptions) string {
-			// use latest available patch in wolfi as latest upstream might not be available yet
-			return latestPatchComparison(opts.latestK8sVersion)
+			return "kubectl"
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
@@ -118,13 +111,7 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
-		Images:   make(map[string]string),
-	}
-
-	logrus.Infof("fetching wolfi apk index")
-	wolfiAPKIndex, err := GetWolfiAPKIndex()
-	if err != nil {
-		return fmt.Errorf("failed to get APK index: %w", err)
+		Images:   make(map[string]release.AddonImage),
 	}
 
 	values, err := release.GetValuesWithOriginalImages("openebs")
@@ -146,46 +133,18 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 	}
 
 	for _, image := range images {
-		logrus.Infof("updating image %s", image)
-
-		upstreamVersion := TagFromImage(image)
-		image = RemoveTagFromImage(image)
-
-		componentName, ok := openebsImageComponents[image]
+		component, ok := openebsImageComponents[RemoveTagFromImage(image)]
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-
-		component, ok := openebsComponents[componentName]
-		if !ok {
-			return fmt.Errorf("no component found for component name %s", componentName)
-		}
-
-		if component.upstreamVersionInputOverride != "" {
-			v := os.Getenv(component.upstreamVersionInputOverride)
-			if v != "" {
-				logrus.Infof("using input override from %s: %s", component.upstreamVersionInputOverride, v)
-				upstreamVersion = v
-			}
-		}
-
-		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, upstreamVersion)
+		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
 		if err != nil {
-			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
+			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
-
-		logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
-
-		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion, upstreamVersion); err != nil {
-			return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
+		newmeta.Images[component.name] = release.AddonImage{
+			Repo: repo,
+			Tag:  tag,
 		}
-
-		digest, err := GetDigestFromBuildFile()
-		if err != nil {
-			return fmt.Errorf("failed to get digest from build file: %w", err)
-		}
-
-		newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
 	}
 
 	logrus.Infof("saving addon manifest")

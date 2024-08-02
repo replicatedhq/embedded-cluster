@@ -8,7 +8,7 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
     - busybox
-    - ${PACKAGE_NAME}=${PACKAGE_VERSION}
+    - kubectl
 
 accounts:
   groups:
