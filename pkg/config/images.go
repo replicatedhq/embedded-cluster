@@ -9,7 +9,6 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"gopkg.in/yaml.v2"
 )
@@ -53,26 +52,26 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
 
-	cfg.Spec.Images.CoreDNS.Image = helpers.AddonImageFromComponentName("coredns")
-	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"]
+	cfg.Spec.Images.CoreDNS.Image = Metadata.Images["coredns"].Image
+	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Version
 
-	cfg.Spec.Images.Calico.Node.Image = helpers.AddonImageFromComponentName("calico-node")
-	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"]
+	cfg.Spec.Images.Calico.Node.Image = Metadata.Images["calico-node"].Image
+	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"].Version
 
-	cfg.Spec.Images.Calico.CNI.Image = helpers.AddonImageFromComponentName("calico-cni")
-	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"]
+	cfg.Spec.Images.Calico.CNI.Image = Metadata.Images["calico-cni"].Image
+	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"].Version
 
-	cfg.Spec.Images.Calico.KubeControllers.Image = helpers.AddonImageFromComponentName("calico-kube-controllers")
-	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"]
+	cfg.Spec.Images.Calico.KubeControllers.Image = Metadata.Images["calic-kube-controllers"].Image
+	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"].Version
 
-	cfg.Spec.Images.MetricsServer.Image = helpers.AddonImageFromComponentName("metrics-server")
-	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"]
+	cfg.Spec.Images.MetricsServer.Image = Metadata.Images["metrics-server"].Image
+	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"].Version
 
-	cfg.Spec.Images.KubeProxy.Image = helpers.AddonImageFromComponentName("kube-proxy")
-	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"]
+	cfg.Spec.Images.KubeProxy.Image = Metadata.Images["kube-proxy"].Image
+	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"].Version
 
-	cfg.Spec.Images.Pause.Image = "proxy.replicated.com/anonymous/registry.k8s.io/pause"
-	cfg.Spec.Images.Pause.Version = Metadata.Images["registry.k8s.io/pause"]
+	cfg.Spec.Images.Pause.Image = Metadata.Images["pause"].Image
+	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Version
 
 	// TODO (salah): remove the following and uncomment when upstream PR for digest support is released: https://github.com/k0sproject/k0s/pull/4792
 	if cfg.Spec.Network != nil &&

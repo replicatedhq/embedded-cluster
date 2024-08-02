@@ -6,11 +6,27 @@
 # $ output/bin/buildtools update images k0s
 #
 images:
-    calico-cni: 3.26.4-r2@sha256:84ba84fd7bd080ea4ba5445aa25e7df83b8b0217ee28a944aa3d202c8b3625f7
-    calico-kube-controllers: 3.26.4-r2@sha256:09aee898cb37819c1a20c87c288dd3cadc4821bd799ab8458d417ee4f81153a0
-    calico-node: 3.26.4-r2@sha256:b950cfeafdf8b445943866ffdbe16cc241617172a47079413ed57642a054cd68
-    coredns: 1.11.3-r3@sha256:e8aa52ab1af3ed44f664ea79cba6099fea7fc8a3a4af3601a08244c6d5b34de6
-    envoy-distroless: 1.29.6-r0@sha256:70b84e4366a692ec5a5bd9751ce95e89a2182b2f83d207338b76c980ac92738e
-    kube-proxy: 1.29.5-r0@sha256:2eedefa76a33aa075e8b2260c26353060fa2a3fa74754bad6e0b9ebfe91b43f3
-    metrics-server: 0.6.4-r9@sha256:58516a4f46ba645f4e0f367af41df6506951c3cd7903efd5f4ae3e17fd753e4a
-    registry.k8s.io/pause: 3.9@sha256:8d4106c88ec0bd28001e34c975d65175d994072d65341f62a8ab0754b0fafe10
+    calico-cni:
+        image: proxy.replicated.com/anonymous/calico/cni
+        version: v3.28.1@sha256:4bf108485f738856b2a56dbcfb3848c8fb9161b97c967a7cd479a60855e13370
+    calico-kube-controllers:
+        image: proxy.replicated.com/anonymous/calico/kube-controllers
+        version: v3.28.1@sha256:8579fad4baca75ce79644db84d6a1e776a3c3f5674521163e960ccebd7206669
+    calico-node:
+        image: proxy.replicated.com/anonymous/calico/node
+        version: v3.28.1@sha256:f72bd42a299e280eed13231cc499b2d9d228ca2f51f6fd599d2f4176049d7880
+    coredns:
+        image: proxy.replicated.com/anonymous/coredns/coredns
+        version: 1.11.3@sha256:f0b8c589314ed010a0c326e987a52b50801f0145ac9b75423af1b5c66dbd6d50
+    envoy-distroless:
+        image: proxy.replicated.com/anonymous/envoyproxy/envoy
+        version: v1.31.0@sha256:079085d7f507469704d8f0aedc2b4c191dc38e0f79548c3133f9733fe85f26bf
+    kube-proxy:
+        image: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
+        version: v1.29.7@sha256:16fa6e5fc8471af8bd5cb2819ae41f012ebdb0979a3c3032a594da0d361f0f86
+    metrics-server:
+        image: proxy.replicated.com/anonymous/registry.k8s.io/metrics-server/metrics-server
+        version: v0.7.1@sha256:31f034feb3f16062e93be7c40efc596553c89de172e2e412e588f02382388872
+    pause:
+        image: proxy.replicated.com/anonymous/registry.k8s.io/pause
+        version: 3.9@sha256:8d4106c88ec0bd28001e34c975d65175d994072d65341f62a8ab0754b0fafe10

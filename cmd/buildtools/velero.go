@@ -250,7 +250,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 			}
 		}
 
-		packageName, packageVersion, err := component.getPackageNameAndVersion(wolfiAPKIndex, upstreamVersion)
+		packageName, packageVersion, err := component.getPackageNameAndVersion(ctx, wolfiAPKIndex, upstreamVersion)
 		if err != nil {
 			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
 		}

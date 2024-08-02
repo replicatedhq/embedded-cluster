@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 )
 
 type addonComponent struct {
+	getImageName                     func(opts addonComponentOptions) (string, error)
 	getWolfiPackageName              func(opts addonComponentOptions) string
 	getWolfiPackageVersionComparison func(opts addonComponentOptions) string
 	upstreamVersionInputOverride     string
@@ -15,12 +17,13 @@ type addonComponent struct {
 }
 
 type addonComponentOptions struct {
+	ctx              context.Context
 	k0sVersion       *semver.Version
 	upstreamVersion  *semver.Version
 	latestK8sVersion *semver.Version
 }
 
-func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, upstreamVersion string) (string, string, error) {
+func (c *addonComponent) getPackageNameAndVersion(ctx context.Context, wolfiAPKIndex []byte, upstreamVersion string) (string, string, error) {
 	packageName := ""
 	if c.getWolfiPackageName == nil {
 		return packageName, strings.TrimPrefix(upstreamVersion, "v"), nil
@@ -38,6 +41,7 @@ func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, upstream
 
 	if c.getWolfiPackageName != nil {
 		packageName = c.getWolfiPackageName(addonComponentOptions{
+			ctx:              ctx,
 			k0sVersion:       k0sVersion,
 			upstreamVersion:  semver.MustParse(upstreamVersion),
 			latestK8sVersion: latestK8sVersion,
@@ -47,6 +51,7 @@ func (c *addonComponent) getPackageNameAndVersion(wolfiAPKIndex []byte, upstream
 	comparison := latestPatchComparison(semver.MustParse(upstreamVersion))
 	if c.getWolfiPackageVersionComparison != nil {
 		comparison = c.getWolfiPackageVersionComparison(addonComponentOptions{
+			ctx:              ctx,
 			k0sVersion:       k0sVersion,
 			upstreamVersion:  semver.MustParse(upstreamVersion),
 			latestK8sVersion: latestK8sVersion,

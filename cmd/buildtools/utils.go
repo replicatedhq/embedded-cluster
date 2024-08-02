@@ -254,6 +254,26 @@ func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, er
 
 type filterFn func(string) bool
 
+func latestMinorTagFilter(s *semver.Version) filterFn {
+	return func(tag string) bool {
+		v, err := semver.NewVersion(tag)
+		if err != nil {
+			return false
+		}
+		return v.Major() == s.Major()
+	}
+}
+
+func latestPatchTagFilter(s *semver.Version) filterFn {
+	return func(tag string) bool {
+		v, err := semver.NewVersion(tag)
+		if err != nil {
+			return false
+		}
+		return v.Major() == s.Major() && v.Minor() == s.Minor()
+	}
+}
+
 func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) (string, error) {
 	client := github.NewClient(nil)
 	releases, _, err := client.Repositories.ListReleases(
@@ -262,11 +282,14 @@ func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) 
 	if err != nil {
 		return "", err
 	}
-	for _, release := range releases {
-		if !filter(release.GetTagName()) {
+	for _, r := range releases {
+		if r.Prerelease != nil && *r.Prerelease {
 			continue
 		}
-		return release.GetTagName(), nil
+		if !filter(r.GetTagName()) {
+			continue
+		}
+		return r.GetTagName(), nil
 	}
 	return "", fmt.Errorf("filter returned no record")
 }
