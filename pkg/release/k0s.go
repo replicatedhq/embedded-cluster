@@ -27,6 +27,10 @@ type K0sImage struct {
 	Version string `yaml:"version"`
 }
 
+func (i K0sImage) URI() string {
+	return fmt.Sprintf("%s:%s", i.Image, i.Version)
+}
+
 func (a *K0sMetadata) Save() error {
 	buf := bytes.NewBufferString(k0sMetadataPreface)
 	if err := yaml.NewEncoder(buf).Encode(a); err != nil {

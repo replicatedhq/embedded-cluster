@@ -18,9 +18,6 @@ images:
     coredns:
         image: proxy.replicated.com/anonymous/coredns/coredns
         version: 1.11.3@sha256:f0b8c589314ed010a0c326e987a52b50801f0145ac9b75423af1b5c66dbd6d50
-    envoy-distroless:
-        image: proxy.replicated.com/anonymous/envoyproxy/envoy
-        version: v1.31.0@sha256:079085d7f507469704d8f0aedc2b4c191dc38e0f79548c3133f9733fe85f26bf
     kube-proxy:
         image: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
         version: v1.29.7@sha256:16fa6e5fc8471af8bd5cb2819ae41f012ebdb0979a3c3032a594da0d361f0f86

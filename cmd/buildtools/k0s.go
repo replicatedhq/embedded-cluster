@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
@@ -20,7 +20,6 @@ var k0sImageComponents = map[string]string{
 	"quay.io/k0sproject/calico-kube-controllers":    "calico-kube-controllers",
 	"registry.k8s.io/metrics-server/metrics-server": "metrics-server",
 	"quay.io/k0sproject/kube-proxy":                 "kube-proxy",
-	"quay.io/k0sproject/envoy-distroless":           "envoy-distroless",
 	"registry.k8s.io/pause":                         "pause",
 }
 
@@ -79,15 +78,6 @@ var k0sComponents = map[string]addonComponent{
 			return fmt.Sprintf("registry.k8s.io/kube-proxy:%s", tag), nil
 		},
 	},
-	"envoy-distroless": {
-		getImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := GetGitHubRelease(opts.ctx, "envoyproxy", "envoy", latestMinorTagFilter(opts.upstreamVersion))
-			if err != nil {
-				return "", fmt.Errorf("failed to get gh release: %w", err)
-			}
-			return fmt.Sprintf("envoyproxy/envoy:%s", tag), nil
-		},
-	},
 	"pause": {
 		getImageName: func(opts addonComponentOptions) (string, error) {
 			return fmt.Sprintf("registry.k8s.io/pause:%s", opts.upstreamVersion.Original()), nil
@@ -106,7 +96,7 @@ var updateK0sImagesCommand = &cli.Command{
 			Images: make(map[string]release.K0sImage),
 		}
 
-		k0sImages := config.ListK0sImages(k0sconfig.DefaultClusterConfig())
+		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
 
 		if err := ApkoLogin(); err != nil {
 			return fmt.Errorf("failed to apko login: %w", err)

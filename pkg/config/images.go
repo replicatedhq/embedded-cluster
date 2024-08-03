@@ -33,7 +33,8 @@ func ListK0sImages(cfg *k0sconfig.ClusterConfig) []string {
 		// skip these images
 		case cfg.Spec.Images.KubeRouter.CNI.URI(),
 			cfg.Spec.Images.KubeRouter.CNIInstaller.URI(),
-			cfg.Spec.Images.Konnectivity.URI():
+			cfg.Spec.Images.Konnectivity.URI(),
+			cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.URI():
 		default:
 			if strings.Contains(image, constant.KubePauseContainerImage) {
 				// there's a bug in GetImageURIs where it always returns the original pause image
@@ -61,7 +62,7 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 	cfg.Spec.Images.Calico.CNI.Image = Metadata.Images["calico-cni"].Image
 	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"].Version
 
-	cfg.Spec.Images.Calico.KubeControllers.Image = Metadata.Images["calic-kube-controllers"].Image
+	cfg.Spec.Images.Calico.KubeControllers.Image = Metadata.Images["calico-kube-controllers"].Image
 	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"].Version
 
 	cfg.Spec.Images.MetricsServer.Image = Metadata.Images["metrics-server"].Image
@@ -72,30 +73,4 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 
 	cfg.Spec.Images.Pause.Image = Metadata.Images["pause"].Image
 	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Version
-
-	// TODO (salah): remove the following and uncomment when upstream PR for digest support is released: https://github.com/k0sproject/k0s/pull/4792
-	if cfg.Spec.Network != nil &&
-		cfg.Spec.Network.NodeLocalLoadBalancing != nil &&
-		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy != nil &&
-		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image != nil &&
-		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image != "" {
-		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = fmt.Sprintf(
-			"proxy.replicated.com/anonymous/%s",
-			cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image,
-		)
-	}
-	// if cfg.Spec.Network == nil {
-	// 	cfg.Spec.Network = &k0sv1beta1.Network{}
-	// }
-	// if cfg.Spec.Network.NodeLocalLoadBalancing == nil {
-	// 	cfg.Spec.Network.NodeLocalLoadBalancing = &k0sv1beta1.NodeLocalLoadBalancing{}
-	// }
-	// if cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy == nil {
-	// 	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy = &k0sv1beta1.EnvoyProxy{}
-	// }
-	// if cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image == nil {
-	// 	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image = &k0sv1beta1.ImageSpec{}
-	// }
-	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = helpers.AddonImageFromComponentName("envoy-distroless")
-	// cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"]
 }
