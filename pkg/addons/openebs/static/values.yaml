@@ -35,7 +35,7 @@ localpv-provisioner:
     image:
       registry: proxy.replicated.com/anonymous/
       repository: replicated/ec-openebs-provisioner-localpv
-      tag: '4.1.0-r0@sha256:072a77f3bf6edbddd3fcb2c5bfcf3428297f4c1433bd88362003f0a47cb5be3b'
+      tag: '4.1.0-r0@sha256:cb87c128762b961bd949691cdb4476f692c6f56a6dde2a1f161ecce26aa098cd'
 lvm-localpv:
   enabled: false
 mayastor:
