@@ -15,6 +15,7 @@ import (
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
+	"github.com/distribution/reference"
 	"github.com/google/go-github/v62/github"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/sirupsen/logrus"
@@ -108,6 +109,14 @@ func GetImageNameFromBuildFile() (string, error) {
 		return "", fmt.Errorf("empty build/image file")
 	}
 	return strings.TrimSpace(string(contents)), nil
+}
+
+func FamiliarImageName(imageName string) string {
+	ref, err := reference.ParseNormalizedNamed(imageName)
+	if err != nil {
+		panic(fmt.Errorf("parse image name %s: %w", imageName, err))
+	}
+	return reference.FamiliarName(ref)
 }
 
 func GetLatestGitHubRelease(ctx context.Context, owner, repo string) (string, error) {

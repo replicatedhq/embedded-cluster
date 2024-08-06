@@ -47,17 +47,8 @@ type AddonImage struct {
 }
 
 var funcMap = template.FuncMap{
-	"FormatImage": func(repo, tag string) string {
-		switch {
-		case tag == "":
-			return repo
-		// The image appears in containerd images without the "latest" tag and causes an
-		// ImagePullBackOff error
-		case strings.HasPrefix(tag, "latest@"):
-			return fmt.Sprintf("%s@%s", repo, strings.TrimPrefix(tag, "latest@"))
-		default:
-			return fmt.Sprintf("%s:%s", repo, tag)
-		}
+	"TrimPrefix": func(prefix, s string) string {
+		return strings.TrimPrefix(s, prefix)
 	},
 }
 
