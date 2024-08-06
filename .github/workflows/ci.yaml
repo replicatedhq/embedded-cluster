@@ -224,7 +224,7 @@ jobs:
           ./output/bin/embedded-cluster version list-images > expected.txt
           echo "Found $(wc -l < expected.txt) images"
           ./output/bin/buildtools metadata extract-helm-chart-images --metadata-path version-metadata.json > images.txt
-          echo "Found $(wc -l < images.txt) images"
+          echo "Found images: $(cat images.txt)"
           missing_images=0
           while read img; do
             grep -q "$img" expected.txt || { echo "Missing image: $img" && missing_images=$((missing_images+1)) ; }
