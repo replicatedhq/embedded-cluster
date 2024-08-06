@@ -16,6 +16,6 @@ global:
     replicated.com/disaster-recovery: infra
     replicated.com/disaster-recovery-chart: embedded-cluster-operator
 image:
-  repository: 'proxy.replicated.com/anonymous/docker.io/replicated/embedded-cluster-operator-image'
+  repository: 'proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image'
   tag: '0.42.1@sha256:bc293473dd59a03f82e1328bed58c6ba24b8fbdaacc4559b8c338c933239a042'
-utilsImage: 'proxy.replicated.com/anonymous/index.docker.io/replicated/ec-utils:latest@sha256:88c0e2ba4daa9682ca85de32e11aad545d338cdaf91edf6ab52eb0c2d6b825a3'
+utilsImage: 'proxy.replicated.com/anonymous/replicated/ec-utils:latest@sha256:88c0e2ba4daa9682ca85de32e11aad545d338cdaf91edf6ab52eb0c2d6b825a3'
