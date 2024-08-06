@@ -4,10 +4,10 @@ credentials:
 deployNodeAgent: true
 {{- if .ReplaceImages }}
 image:
-  repository: proxy.replicated.com/anonymous/replicated/ec-velero
-  tag: '{{ index .Images "velero" }}'
+  repository: '{{ (index .Images "velero").Repo }}'
+  tag: '{{ (index .Images "velero").Tag }}'
 initContainers:
-- image: 'proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws:{{ index .Images "velero-plugin-for-aws" }}'
+- image: '{{ ImageString (index .Images "velero-plugin-for-aws") }}'
   imagePullPolicy: IfNotPresent
   name: velero-plugin-for-aws
   volumeMounts:
@@ -15,15 +15,15 @@ initContainers:
     name: plugins
 kubectl:
   image:
-    repository: proxy.replicated.com/anonymous/replicated/ec-kubectl
-    tag: '{{ index .Images "kubectl" }}'
+    repository: '{{ (index .Images "kubectl").Repo }}'
+    tag: '{{ (index .Images "kubectl").Tag }}'
 configMaps:
   fs-restore-action-config:
     labels:
       velero.io/plugin-config: ""
       velero.io/pod-volume-restore: RestoreItemAction
     data:
-      image: 'proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper:{{ index .Images "velero-restore-helper" }}'
+      image: '{{ ImageString (index .Images "velero-restore-helper") }}'
 {{- end }}
 nodeAgent:
   podVolumePath: /var/lib/k0s/kubelet/pods

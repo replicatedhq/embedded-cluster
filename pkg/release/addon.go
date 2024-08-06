@@ -35,24 +35,32 @@ const valuesPreface = `#
 `
 
 type AddonMetadata struct {
-	Version       string            `yaml:"version"`
-	Location      string            `yaml:"location"`
-	Images        map[string]string `yaml:"images"`
-	ReplaceImages bool              `yaml:"-"`
+	Version       string                `yaml:"version"`
+	Location      string                `yaml:"location"`
+	Images        map[string]AddonImage `yaml:"images"`
+	ReplaceImages bool                  `yaml:"-"`
+}
+
+type AddonImage struct {
+	Repo string `yaml:"repo"`
+	Tag  string `yaml:"tag"`
+}
+
+func (i AddonImage) String() string {
+	if strings.HasPrefix(i.Tag, "latest@") {
+		// The image appears in containerd images without the "latest" tag and causes an
+		// ImagePullBackOff error
+		return fmt.Sprintf("%s@%s", i.Repo, strings.TrimPrefix(i.Tag, "latest@"))
+	}
+	return fmt.Sprintf("%s:%s", i.Repo, i.Tag)
 }
 
 var funcMap = template.FuncMap{
-	"FormatImage": func(repo, tag string) string {
-		switch {
-		case tag == "":
-			return repo
-		// The image appears in containerd images without the "latest" tag and causes an
-		// ImagePullBackOff error
-		case strings.HasPrefix(tag, "latest@"):
-			return fmt.Sprintf("%s@%s", repo, strings.TrimPrefix(tag, "latest@"))
-		default:
-			return fmt.Sprintf("%s:%s", repo, tag)
-		}
+	"TrimPrefix": func(prefix, s string) string {
+		return strings.TrimPrefix(s, prefix)
+	},
+	"ImageString": func(i AddonImage) string {
+		return i.String()
 	},
 }
 

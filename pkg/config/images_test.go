@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
-	"github.com/k0sproject/k0s/pkg/constant"
 )
 
 func TestListK0sImages(t *testing.T) {
@@ -13,7 +12,7 @@ func TestListK0sImages(t *testing.T) {
 	if len(original) == 0 {
 		t.Errorf("airgap.GetImageURIs() = %v, want not empty", original)
 	}
-	var foundKubeRouter, foundCNINode, foundKonnectivity bool
+	var foundKubeRouter, foundCNINode, foundKonnectivity, foundEnvoy bool
 	for _, image := range original {
 		if strings.Contains(image, "kube-router") {
 			foundKubeRouter = true
@@ -23,6 +22,9 @@ func TestListK0sImages(t *testing.T) {
 		}
 		if strings.Contains(image, "apiserver-network-proxy-agent") {
 			foundKonnectivity = true
+		}
+		if strings.Contains(image, "envoy-distroless") {
+			foundEnvoy = true
 		}
 	}
 	if !foundKubeRouter {
@@ -34,13 +36,37 @@ func TestListK0sImages(t *testing.T) {
 	if !foundKonnectivity {
 		t.Errorf("airgap.GetImageURIs() = %v, want to contain apiserver-network-proxy-agent", original)
 	}
+	if !foundEnvoy {
+		t.Errorf("airgap.GetImageURIs() = %v, want to contain envoy-distroless", original)
+	}
 
 	filtered := ListK0sImages(RenderK0sConfig())
 	if len(filtered) == 0 {
 		t.Errorf("ListK0sImages() = %v, want not empty", filtered)
 	}
-	var foundPause bool
-	var foundEnvoyProxy bool
+
+	// make sure the list includes all images from the metadata
+	for _, i := range Metadata.Images {
+		found := false
+		for _, f := range filtered {
+			if f == i.URI() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("ListK0sImages() = %v, want to contain %s", filtered, i.URI())
+		}
+	}
+
+	// make sure images are proxied
+	for _, image := range filtered {
+		if !strings.HasPrefix(image, "proxy.replicated.com/anonymous/") {
+			t.Errorf("ListK0sImages() = %v, want %s to be proxied", filtered, image)
+		}
+	}
+
+	// make sure the list does not contain excluded images
 	for _, image := range filtered {
 		if strings.Contains(image, "kube-router") {
 			t.Errorf("ListK0sImages() = %v, want not to contain kube-router", filtered)
@@ -51,23 +77,8 @@ func TestListK0sImages(t *testing.T) {
 		if strings.Contains(image, "apiserver-network-proxy-agent") {
 			t.Errorf("ListK0sImages() = %v, want not to contain apiserver-network-proxy-agent", filtered)
 		}
-		if strings.Contains(image, constant.KubePauseContainerImage) {
-			foundPause = true
-			if !strings.HasPrefix(image, "proxy.replicated.com/anonymous/") {
-				t.Errorf("ListK0sImages() = %v, want pause to be proxied", filtered)
-			}
-		}
 		if strings.Contains(image, "envoy-distroless") {
-			foundEnvoyProxy = true
-			if !strings.HasPrefix(image, "proxy.replicated.com/anonymous/") {
-				t.Errorf("ListK0sImages() = %v, want envoy-distroless to be proxied", filtered)
-			}
+			t.Errorf("ListK0sImages() = %v, want not to contain envoy-distroless", filtered)
 		}
-	}
-	if !foundPause {
-		t.Errorf("ListK0sImages() = %v, want to contain pause", filtered)
-	}
-	if !foundEnvoyProxy {
-		t.Errorf("ListK0sImages() = %v, want to contain envoy-distroless", filtered)
 	}
 }

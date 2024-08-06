@@ -6,7 +6,7 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
     - busybox
-    - calico-node=${PACKAGE_VERSION}
+    - calico-node
 
 accounts:
   groups:

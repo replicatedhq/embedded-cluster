@@ -5,8 +5,8 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
-    - calico-cni=${PACKAGE_VERSION}
-    - calico-cni-compat=${PACKAGE_VERSION}
+    - calico-cni
+    - calico-cni-compat
 
 accounts:
   groups:
