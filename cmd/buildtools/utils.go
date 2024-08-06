@@ -138,14 +138,11 @@ func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) 
 	if err != nil {
 		return "", err
 	}
-	for _, r := range releases {
-		if r.Prerelease != nil && *r.Prerelease {
+	for _, release := range releases {
+		if !filter(release.GetTagName()) {
 			continue
 		}
-		if !filter(r.GetTagName()) {
-			continue
-		}
-		return r.GetTagName(), nil
+		return release.GetTagName(), nil
 	}
 	return "", fmt.Errorf("filter returned no record")
 }
