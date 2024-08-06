@@ -222,9 +222,9 @@ jobs:
           chmod +x ./output/bin/embedded-cluster
           ./output/bin/embedded-cluster version metadata > version-metadata.json
           ./output/bin/embedded-cluster version list-images > expected.txt
-          echo "Found $(wc -l < expected.txt) images"
+          printf "Expected images:\n$(cat expected.txt)\n"
           ./output/bin/buildtools metadata extract-helm-chart-images --metadata-path version-metadata.json > images.txt
-          echo "Found images: $(cat images.txt)"
+          printf "Found images:\n$(cat images.txt)\n"
           missing_images=0
           while read img; do
             grep -q "$img" expected.txt || { echo "Missing image: $img" && missing_images=$((missing_images+1)) ; }

@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -108,19 +107,19 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckin
 
 func (a *Velero) GetImages() []string {
 	var images []string
-	for image, tag := range Metadata.Images {
-		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(image), tag))
+	for _, image := range Metadata.Images {
+		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
 	}
 	return images
 }
 
 func (o *Velero) GetAdditionalImages() []string {
 	var images []string
-	if tag, ok := Metadata.Images["velero-restore-helper"]; ok {
-		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("velero-restore-helper"), tag))
+	if image, ok := Metadata.Images["velero-restore-helper"]; ok {
+		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
 	}
-	if tag, ok := Metadata.Images["kubectl"]; ok {
-		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("kubectl"), tag))
+	if image, ok := Metadata.Images["kubectl"]; ok {
+		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
 	}
 	return images
 }

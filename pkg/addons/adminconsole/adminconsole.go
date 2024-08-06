@@ -169,8 +169,8 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, [
 
 func (a *AdminConsole) GetImages() []string {
 	var images []string
-	for image, tag := range Metadata.Images {
-		images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", image, tag))
+	for _, image := range Metadata.Images {
+		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
 	}
 	return images
 }

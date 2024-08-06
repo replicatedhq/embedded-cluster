@@ -146,21 +146,16 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embed
 
 func (a *EmbeddedClusterOperator) GetImages() []string {
 	var images []string
-	for image, tag := range Metadata.Images {
-		// we use replicated/embedded-cluster-operator-image from upstream
-		if image == "replicated/embedded-cluster-operator-image" {
-			images = append(images, fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", image, tag))
-		} else {
-			images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName(image), tag))
-		}
+	for _, image := range Metadata.Images {
+		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
 	}
 	return images
 }
 
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
 	var images []string
-	if tag, ok := Metadata.Images["utils"]; ok {
-		images = append(images, fmt.Sprintf("%s:%s", helpers.AddonImageFromComponentName("utils"), tag))
+	if image, ok := Metadata.Images["utils"]; ok {
+		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
 	}
 	return images
 }
