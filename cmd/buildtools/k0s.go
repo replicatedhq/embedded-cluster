@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -13,64 +12,40 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var k0sImageComponents = map[string]string{
-	"quay.io/k0sproject/coredns":                    "coredns",
-	"quay.io/k0sproject/calico-node":                "calico-node",
-	"quay.io/k0sproject/calico-cni":                 "calico-cni",
-	"quay.io/k0sproject/calico-kube-controllers":    "calico-kube-controllers",
-	"registry.k8s.io/metrics-server/metrics-server": "metrics-server",
-	"quay.io/k0sproject/kube-proxy":                 "kube-proxy",
-	"registry.k8s.io/pause":                         "pause",
-}
-
-var k0sComponents = map[string]addonComponent{
-	"coredns": {
-		getImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := GetGitHubRelease(opts.ctx, "coredns", "coredns", latestMinorTagFilter(opts.upstreamVersion))
-			if err != nil {
-				return "", fmt.Errorf("failed to get gh release: %w", err)
-			}
-			return fmt.Sprintf("coredns/coredns:%s", strings.TrimPrefix(tag, "v")), nil
+var k0sImageComponents = map[string]addonComponent{
+	"quay.io/k0sproject/coredns": {
+		name: "coredns",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "coredns"
 		},
 	},
-	"calico-node": {
-		getImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := GetGitHubRelease(opts.ctx, "projectcalico", "calico", latestMinorTagFilter(opts.upstreamVersion))
-			if err != nil {
-				return "", fmt.Errorf("failed to get gh release: %w", err)
-			}
-			return fmt.Sprintf("calico/node:%s", tag), nil
+	"quay.io/k0sproject/calico-node": {
+		name: "calico-node",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "calico-node"
 		},
 	},
-	"calico-cni": {
-		getImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := GetGitHubRelease(opts.ctx, "projectcalico", "calico", latestMinorTagFilter(opts.upstreamVersion))
-			if err != nil {
-				return "", fmt.Errorf("failed to get gh release: %w", err)
-			}
-			return fmt.Sprintf("calico/cni:%s", tag), nil
+	"quay.io/k0sproject/calico-cni": {
+		name: "calico-cni",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "calico-cni"
 		},
 	},
-	"calico-kube-controllers": {
-		getImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := GetGitHubRelease(opts.ctx, "projectcalico", "calico", latestMinorTagFilter(opts.upstreamVersion))
-			if err != nil {
-				return "", fmt.Errorf("failed to get gh release: %w", err)
-			}
-			return fmt.Sprintf("calico/kube-controllers:%s", tag), nil
+	"quay.io/k0sproject/calico-kube-controllers": {
+		name: "calico-kube-controllers",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "calico-kube-controllers"
 		},
 	},
-	"metrics-server": {
-		getImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := GetGitHubRelease(opts.ctx, "kubernetes-sigs", "metrics-server", latestMinorTagFilter(opts.upstreamVersion))
-			if err != nil {
-				return "", fmt.Errorf("failed to get gh release: %w", err)
-			}
-			return fmt.Sprintf("registry.k8s.io/metrics-server/metrics-server:%s", tag), nil
+	"registry.k8s.io/metrics-server/metrics-server": {
+		name: "metrics-server",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "metrics-server"
 		},
 	},
-	"kube-proxy": {
-		getImageName: func(opts addonComponentOptions) (string, error) {
+	"quay.io/k0sproject/kube-proxy": {
+		name: "kube-proxy",
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			tag, err := GetGitHubRelease(opts.ctx, "kubernetes", "kubernetes", latestPatchTagFilter(opts.upstreamVersion))
 			if err != nil {
 				return "", fmt.Errorf("failed to get gh release: %w", err)
@@ -78,8 +53,9 @@ var k0sComponents = map[string]addonComponent{
 			return fmt.Sprintf("registry.k8s.io/kube-proxy:%s", tag), nil
 		},
 	},
-	"pause": {
-		getImageName: func(opts addonComponentOptions) (string, error) {
+	"registry.k8s.io/pause": {
+		name: "pause",
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			return fmt.Sprintf("registry.k8s.io/pause:%s", opts.upstreamVersion.Original()), nil
 		},
 	},
@@ -103,52 +79,17 @@ var updateK0sImagesCommand = &cli.Command{
 		}
 
 		for _, image := range k0sImages {
-			logrus.Infof("updating image %s", image)
-
-			componentName, ok := k0sImageComponents[RemoveTagFromImage(image)]
+			component, ok := k0sImageComponents[RemoveTagFromImage(image)]
 			if !ok {
 				return fmt.Errorf("no component found for image %s", image)
 			}
-
-			component, ok := k0sComponents[componentName]
-			if !ok {
-				return fmt.Errorf("no component found for component name %s", componentName)
-			}
-
-			k0sVersion, err := getK0sVersion()
+			img, tag, err := component.resolveImageAndTag(c.Context, image)
 			if err != nil {
-				return fmt.Errorf("get k0s version: %w", err)
+				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
-
-			latestK8sVersion, err := GetLatestKubernetesVersion()
-			if err != nil {
-				return fmt.Errorf("get latest k8s version: %w", err)
-			}
-
-			upstreamVersion := TagFromImage(image)
-			upstreamVersion = strings.TrimPrefix(upstreamVersion, "v")
-			upstreamVersion = strings.Split(upstreamVersion, "-")[0]
-
-			image, err = component.getImageName(addonComponentOptions{
-				ctx:              c.Context,
-				k0sVersion:       k0sVersion,
-				upstreamVersion:  semver.MustParse(upstreamVersion),
-				latestK8sVersion: latestK8sVersion,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to get image name for %s: %w", componentName, err)
-			}
-
-			logrus.Infof("fetching digest for image %s", image)
-			sha, err := GetImageDigest(c.Context, image)
-			if err != nil {
-				return fmt.Errorf("failed to get image %s digest: %w", image, err)
-			}
-			logrus.Infof("image %s digest: %s", image, sha)
-
-			newmeta.Images[componentName] = release.K0sImage{
-				Image:   fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(image)),
-				Version: fmt.Sprintf("%s@%s", TagFromImage(image), sha),
+			newmeta.Images[component.name] = release.K0sImage{
+				Image:   img,
+				Version: tag,
 			}
 		}
 

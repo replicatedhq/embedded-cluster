@@ -20,39 +20,35 @@ var veleroPluginForAWSCompatibility = map[string]*semver.Constraints{
 	"1.13": mustParseSemverConstraints(">=1.9,<1.10"),
 }
 
-var veleroImageComponents = map[string]string{
-	"docker.io/velero/velero":                "velero",
-	"docker.io/velero/velero-plugin-for-aws": "velero-plugin-for-aws",
-	"docker.io/velero/velero-restore-helper": "velero-restore-helper",
-	"docker.io/bitnami/kubectl":              "kubectl",
-}
-
-var veleroComponents = map[string]addonComponent{
-	"velero": {
+var veleroImageComponents = map[string]addonComponent{
+	"docker.io/velero/velero": {
+		name: "velero",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
-	"velero-plugin-for-aws": {
+	"docker.io/velero/velero-plugin-for-aws": {
+		name: "velero-plugin-for-aws",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero-plugin-for-aws"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
 	},
-	"velero-restore-helper": {
+	"docker.io/velero/velero-restore-helper": {
+		name: "velero-restore-helper",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "velero-restore-helper"
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
-	"kubectl": {
+	"docker.io/bitnami/kubectl": {
+		name: "kubectl",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return fmt.Sprintf("kubectl-%d.%d-default", opts.latestK8sVersion.Major(), opts.latestK8sVersion.Minor())
+			return "kubectl"
 		},
-		getWolfiPackageVersionComparison: func(opts addonComponentOptions) string {
-			// use latest available patch in wolfi as latest upstream might not be available yet
-			return latestPatchComparison(opts.latestK8sVersion)
+		getWolfiPackageVersion: func(opts addonComponentOptions) string {
+			return latestPatchConstraint(opts.latestK8sVersion)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
@@ -136,14 +132,14 @@ var updateVeleroImagesCommand = &cli.Command{
 		if !ok {
 			return fmt.Errorf("failed to find velero restore helper image")
 		}
-		restoreHelperVersion, _, _ := strings.Cut(image, "@")
+		restoreHelperVersion, _, _ := strings.Cut(image.Tag, "@")
 		restoreHelperVersion = strings.TrimPrefix(restoreHelperVersion, "v")
 
 		image, ok = velero.Metadata.Images["velero-plugin-for-aws"]
 		if !ok {
 			return fmt.Errorf("failed to find velero plugin for aws image")
 		}
-		awsPluginVersion, _, _ := strings.Cut(image, "@")
+		awsPluginVersion, _, _ := strings.Cut(image.Tag, "@")
 		awsPluginVersion = strings.TrimPrefix(awsPluginVersion, "v")
 
 		err := updateVeleroAddonImages(c.Context, current.Location, current.Version, restoreHelperVersion, awsPluginVersion)
@@ -198,13 +194,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
-		Images:   make(map[string]string),
-	}
-
-	logrus.Infof("fetching wolfi apk index")
-	wolfiAPKIndex, err := GetWolfiAPKIndex()
-	if err != nil {
-		return fmt.Errorf("failed to get APK index: %w", err)
+		Images:   make(map[string]release.AddonImage),
 	}
 
 	values, err := release.GetValuesWithOriginalImages("velero")
@@ -227,46 +217,18 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 	}
 
 	for _, image := range images {
-		logrus.Infof("updating image %s", image)
-
-		upstreamVersion := strings.TrimPrefix(TagFromImage(image), "v")
-		image = RemoveTagFromImage(image)
-
-		componentName, ok := veleroImageComponents[image]
+		component, ok := veleroImageComponents[RemoveTagFromImage(image)]
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-
-		component, ok := veleroComponents[componentName]
-		if !ok {
-			return fmt.Errorf("no component found for component name %s", componentName)
-		}
-
-		if component.upstreamVersionInputOverride != "" {
-			v := os.Getenv(component.upstreamVersionInputOverride)
-			if v != "" {
-				logrus.Infof("using input override from %s: %s", component.upstreamVersionInputOverride, v)
-				upstreamVersion = v
-			}
-		}
-
-		packageName, packageVersion, err := component.getPackageNameAndVersion(ctx, wolfiAPKIndex, upstreamVersion)
+		img, tag, err := component.resolveImageAndTag(ctx, image)
 		if err != nil {
-			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
+			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
-
-		logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
-
-		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion, upstreamVersion); err != nil {
-			return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
+		newmeta.Images[component.name] = release.AddonImage{
+			Image: img,
+			Tag:   tag,
 		}
-
-		digest, err := GetDigestFromBuildFile()
-		if err != nil {
-			return fmt.Errorf("failed to get digest from build file: %w", err)
-		}
-
-		newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
 	}
 
 	logrus.Infof("saving addon manifest")

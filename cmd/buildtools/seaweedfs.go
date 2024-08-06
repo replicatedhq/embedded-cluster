@@ -13,22 +13,19 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
-var seaweedfsImageComponents = map[string]string{
-	"docker.io/chrislusf/seaweedfs": "seaweedfs",
+var seaweedfsRepo = &repo.Entry{
+	Name: "seaweedfs",
+	URL:  "https://seaweedfs.github.io/seaweedfs/helm",
 }
 
-var seaweedfsComponents = map[string]addonComponent{
-	"seaweedfs": {
+var seaweedfsImageComponents = map[string]addonComponent{
+	"docker.io/chrislusf/seaweedfs": {
+		name: "seaweedfs",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "seaweedfs"
 		},
 		upstreamVersionInputOverride: "INPUT_SEAWEEDFS_VERSION",
 	},
-}
-
-var seaweedfsRepo = &repo.Entry{
-	Name: "seaweedfs",
-	URL:  "https://seaweedfs.github.io/seaweedfs/helm",
 }
 
 var updateSeaweedFSAddonCommand = &cli.Command{
@@ -102,13 +99,7 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
-		Images:   make(map[string]string),
-	}
-
-	logrus.Infof("fetching wolfi apk index")
-	wolfiAPKIndex, err := GetWolfiAPKIndex()
-	if err != nil {
-		return fmt.Errorf("failed to get APK index: %w", err)
+		Images:   make(map[string]release.AddonImage),
 	}
 
 	values, err := release.GetValuesWithOriginalImages("seaweedfs")
@@ -127,46 +118,18 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 	}
 
 	for _, image := range images {
-		logrus.Infof("updating image %s", image)
-
-		upstreamVersion := TagFromImage(image)
-		image = RemoveTagFromImage(image)
-
-		componentName, ok := seaweedfsImageComponents[image]
+		component, ok := seaweedfsImageComponents[RemoveTagFromImage(image)]
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-
-		component, ok := seaweedfsComponents[componentName]
-		if !ok {
-			return fmt.Errorf("no component found for component name %s", componentName)
-		}
-
-		if component.upstreamVersionInputOverride != "" {
-			v := os.Getenv(component.upstreamVersionInputOverride)
-			if v != "" {
-				logrus.Infof("using input override from %s: %s", component.upstreamVersionInputOverride, v)
-				upstreamVersion = v
-			}
-		}
-
-		packageName, packageVersion, err := component.getPackageNameAndVersion(ctx, wolfiAPKIndex, upstreamVersion)
+		img, tag, err := component.resolveImageAndTag(ctx, image)
 		if err != nil {
-			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
+			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
-
-		logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
-
-		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion, upstreamVersion); err != nil {
-			return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
+		newmeta.Images[component.name] = release.AddonImage{
+			Image: img,
+			Tag:   tag,
 		}
-
-		digest, err := GetDigestFromBuildFile()
-		if err != nil {
-			return fmt.Errorf("failed to get digest from build file: %w", err)
-		}
-
-		newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
 	}
 
 	logrus.Infof("saving addon manifest")

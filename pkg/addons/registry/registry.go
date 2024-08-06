@@ -41,7 +41,7 @@ var (
 	rawvaluesha []byte
 	// helmValuesHA is the unmarshal version of rawvaluesha.
 	helmValuesHA map[string]interface{}
-	//go:embed static/metadata.yaml
+
 	rawmetadata []byte
 	// Metadata is the unmarshal version of rawmetadata.
 	Metadata         release.AddonMetadata

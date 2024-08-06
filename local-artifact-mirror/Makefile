@@ -29,6 +29,7 @@ export APKO_CONFIG := deploy/apko.tmpl.yaml
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image: melange-build-local-artifact-mirror apko-build
 
+# TODO NOW: does this still work?
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image: melange-build-local-artifact-mirror apko-build-and-publish
 

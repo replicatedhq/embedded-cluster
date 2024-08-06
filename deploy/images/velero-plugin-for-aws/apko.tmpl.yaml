@@ -7,8 +7,8 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
-    - velero-plugin-for-aws=${PACKAGE_VERSION}
-    - velero-plugin-for-aws-compat=${PACKAGE_VERSION}
+    - velero-plugin-for-aws~${PACKAGE_VERSION}
+    - velero-plugin-for-aws-compat~${PACKAGE_VERSION}
 
 accounts:
   groups:

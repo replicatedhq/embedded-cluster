@@ -13,16 +13,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var operatorImageComponents = map[string]string{
-	"docker.io/replicated/embedded-cluster-operator-image": "embedded-cluster-operator",
-	"docker.io/library/busybox":                            "utils",
-}
-
-var operatorComponents = map[string]addonComponent{
-	"embedded-cluster-operator": {
+var operatorImageComponents = map[string]addonComponent{
+	"docker.io/replicated/embedded-cluster-operator-image": {
+		name:             "embedded-cluster-operator",
 		useUpstreamImage: true,
 	},
-	"utils": {},
+	"docker.io/library/busybox": {
+		name: "utils",
+	},
 }
 
 var updateOperatorAddonCommand = &cli.Command{
@@ -91,13 +89,7 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
-		Images:   make(map[string]string),
-	}
-
-	logrus.Infof("fetching wolfi apk index")
-	wolfiAPKIndex, err := GetWolfiAPKIndex()
-	if err != nil {
-		return fmt.Errorf("failed to get APK index: %w", err)
+		Images:   make(map[string]release.AddonImage),
 	}
 
 	values, err := release.GetValuesWithOriginalImages("embeddedclusteroperator")
@@ -120,59 +112,18 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	}
 
 	for _, image := range images {
-		logrus.Infof("updating image %s", image)
-
-		upstreamVersion := TagFromImage(image)
-		imageNoTag := RemoveTagFromImage(image)
-
-		componentName, ok := operatorImageComponents[imageNoTag]
+		component, ok := operatorImageComponents[RemoveTagFromImage(image)]
 		if !ok {
-			return fmt.Errorf("no component found for image %s", imageNoTag)
+			return fmt.Errorf("no component found for image %s", image)
 		}
-
-		component, ok := operatorComponents[componentName]
-		if !ok {
-			return fmt.Errorf("no component found for component name %s", componentName)
-		}
-
-		if component.useUpstreamImage {
-			logrus.Infof("fetching digest for image %s", image)
-			sha, err := GetImageDigest(ctx, image)
-			if err != nil {
-				return fmt.Errorf("failed to get image %s digest: %w", image, err)
-			}
-			logrus.Infof("image %s digest: %s", image, sha)
-			tag := TagFromImage(image)
-			image = RemoveTagFromImage(image)
-			newmeta.Images[FamiliarImageName(image)] = fmt.Sprintf("%s@%s", tag, sha)
-			continue
-		}
-
-		if component.upstreamVersionInputOverride != "" {
-			v := os.Getenv(component.upstreamVersionInputOverride)
-			if v != "" {
-				logrus.Infof("using input override from %s: %s", component.upstreamVersionInputOverride, v)
-				upstreamVersion = v
-			}
-		}
-
-		packageName, packageVersion, err := component.getPackageNameAndVersion(ctx, wolfiAPKIndex, upstreamVersion)
+		img, tag, err := component.resolveImageAndTag(ctx, image)
 		if err != nil {
-			return fmt.Errorf("failed to get package name and version for %s: %w", componentName, err)
+			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
-
-		logrus.Infof("building and publishing %s, %s=%s", componentName, packageName, packageVersion)
-
-		if err := ApkoBuildAndPublish(componentName, packageName, packageVersion, upstreamVersion); err != nil {
-			return fmt.Errorf("failed to apko build and publish for %s: %w", componentName, err)
+		newmeta.Images[component.name] = release.AddonImage{
+			Image: img,
+			Tag:   tag,
 		}
-
-		digest, err := GetDigestFromBuildFile()
-		if err != nil {
-			return fmt.Errorf("failed to get digest from build file: %w", err)
-		}
-
-		newmeta.Images[componentName] = fmt.Sprintf("%s@%s", packageVersion, digest)
 	}
 
 	logrus.Infof("saving addon manifest")

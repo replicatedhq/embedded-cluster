@@ -35,10 +35,15 @@ const valuesPreface = `#
 `
 
 type AddonMetadata struct {
-	Version       string            `yaml:"version"`
-	Location      string            `yaml:"location"`
-	Images        map[string]string `yaml:"images"`
-	ReplaceImages bool              `yaml:"-"`
+	Version       string                `yaml:"version"`
+	Location      string                `yaml:"location"`
+	Images        map[string]AddonImage `yaml:"images"`
+	ReplaceImages bool                  `yaml:"-"`
+}
+
+type AddonImage struct {
+	Image string `yaml:"image"`
+	Tag   string `yaml:"tag"`
 }
 
 var funcMap = template.FuncMap{
