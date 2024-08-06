@@ -91,7 +91,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 func (a *OpenEBS) GetImages() []string {
 	var images []string
 	for _, image := range Metadata.Images {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }
@@ -99,7 +99,7 @@ func (a *OpenEBS) GetImages() []string {
 func (o *OpenEBS) GetAdditionalImages() []string {
 	var images []string
 	if image, ok := Metadata.Images["openebs-linux-utils"]; ok {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }

@@ -1,9 +1,9 @@
 {{- if .ReplaceImages }}
 images:
-    kotsadm: '{{ (index .Images "kotsadm").Repo }}:{{ (index .Images "kotsadm").Tag }}'
-    kurlProxy: '{{ (index .Images "kurl-proxy").Repo }}:{{ (index .Images "kurl-proxy").Tag }}'
-    migrations: '{{ (index .Images "kotsadm-migrations").Repo }}:{{ (index .Images "kotsadm-migrations").Tag }}'
-    rqlite: '{{ (index .Images "rqlite").Repo }}:{{ (index .Images "rqlite").Tag }}'
+    kotsadm: '{{ ImageString (index .Images "kotsadm") }}'
+    kurlProxy: '{{ ImageString (index .Images "kurl-proxy") }}'
+    migrations: '{{ ImageString (index .Images "kotsadm-migrations") }}'
+    rqlite: '{{ ImageString (index .Images "rqlite") }}'
 {{- end }}
 isHA: false
 isHelmManaged: false

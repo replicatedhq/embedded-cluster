@@ -149,7 +149,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eck
 func (a *Registry) GetImages() []string {
 	var images []string
 	for _, image := range Metadata.Images {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }

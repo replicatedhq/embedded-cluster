@@ -7,7 +7,7 @@ image:
   repository: '{{ (index .Images "velero").Repo }}'
   tag: '{{ (index .Images "velero").Tag }}'
 initContainers:
-- image: '{{ (index .Images "velero-plugin-for-aws").Repo }}:{{ (index .Images "velero-plugin-for-aws").Tag }}'
+- image: '{{ ImageString (index .Images "velero-plugin-for-aws") }}'
   imagePullPolicy: IfNotPresent
   name: velero-plugin-for-aws
   volumeMounts:
@@ -23,7 +23,7 @@ configMaps:
       velero.io/plugin-config: ""
       velero.io/pod-volume-restore: RestoreItemAction
     data:
-      image: '{{ (index .Images "velero-restore-helper").Repo }}:{{ (index .Images "velero-restore-helper").Tag }}'
+      image: '{{ ImageString (index .Images "velero-restore-helper") }}'
 {{- end }}
 nodeAgent:
   podVolumePath: /var/lib/k0s/kubelet/pods

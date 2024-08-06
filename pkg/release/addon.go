@@ -46,9 +46,16 @@ type AddonImage struct {
 	Tag  string `yaml:"tag"`
 }
 
+func (i AddonImage) String() string {
+	return fmt.Sprintf("%s:%s", i.Repo, i.Tag)
+}
+
 var funcMap = template.FuncMap{
 	"TrimPrefix": func(prefix, s string) string {
 		return strings.TrimPrefix(s, prefix)
+	},
+	"ImageString": func(i AddonImage) string {
+		return i.String()
 	},
 }
 

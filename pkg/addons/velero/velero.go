@@ -108,7 +108,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckin
 func (a *Velero) GetImages() []string {
 	var images []string
 	for _, image := range Metadata.Images {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }
@@ -116,10 +116,10 @@ func (a *Velero) GetImages() []string {
 func (o *Velero) GetAdditionalImages() []string {
 	var images []string
 	if image, ok := Metadata.Images["velero-restore-helper"]; ok {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	if image, ok := Metadata.Images["kubectl"]; ok {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }

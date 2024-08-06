@@ -96,7 +96,7 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ec
 func (a *SeaweedFS) GetImages() []string {
 	var images []string
 	for _, image := range Metadata.Images {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }

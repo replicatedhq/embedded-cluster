@@ -6,5 +6,5 @@ global:
 image:
   repository: '{{ (index .Images "embedded-cluster-operator").Repo }}'
   tag: '{{ (index .Images "embedded-cluster-operator").Tag }}'
-utilsImage: '{{ (index .Images "utils").Repo }}:{{ (index .Images "utils").Tag }}'
+utilsImage: '{{ ImageString (index .Images "utils") }}'
 {{- end }}

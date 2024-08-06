@@ -147,7 +147,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embed
 func (a *EmbeddedClusterOperator) GetImages() []string {
 	var images []string
 	for _, image := range Metadata.Images {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }
@@ -155,7 +155,7 @@ func (a *EmbeddedClusterOperator) GetImages() []string {
 func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
 	var images []string
 	if image, ok := Metadata.Images["utils"]; ok {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }

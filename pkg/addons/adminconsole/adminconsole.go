@@ -170,7 +170,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, [
 func (a *AdminConsole) GetImages() []string {
 	var images []string
 	for _, image := range Metadata.Images {
-		images = append(images, fmt.Sprintf("%s:%s", image.Repo, image.Tag))
+		images = append(images, image.String())
 	}
 	return images
 }
