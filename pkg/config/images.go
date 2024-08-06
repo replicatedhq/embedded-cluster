@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	//go:embed static/metadata.yaml
 	rawmetadata []byte
 	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.K0sMetadata
