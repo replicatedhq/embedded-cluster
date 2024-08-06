@@ -83,12 +83,12 @@ var updateK0sImagesCommand = &cli.Command{
 			if !ok {
 				return fmt.Errorf("no component found for image %s", image)
 			}
-			img, tag, err := component.resolveImageAndTag(c.Context, image)
+			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image)
 			if err != nil {
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
 			newmeta.Images[component.name] = release.K0sImage{
-				Image:   img,
+				Image:   repo,
 				Version: tag,
 			}
 		}

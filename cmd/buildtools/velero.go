@@ -221,13 +221,13 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-		img, tag, err := component.resolveImageAndTag(ctx, image)
+		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
 		if err != nil {
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
 		newmeta.Images[component.name] = release.AddonImage{
-			Image: img,
-			Tag:   tag,
+			Repo: repo,
+			Tag:  tag,
 		}
 	}
 

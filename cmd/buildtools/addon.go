@@ -26,14 +26,14 @@ type addonComponentOptions struct {
 	latestK8sVersion *semver.Version
 }
 
-func (c *addonComponent) resolveImageAndTag(ctx context.Context, image string) (string, string, error) {
+func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image string) (string, string, error) {
 	if c.useUpstreamImage {
-		return c.resolveUpstreamImageAndTag(ctx, image)
+		return c.resolveUpstreamImageRepoAndTag(ctx, image)
 	}
 	if c.getCustomImageName != nil {
-		return c.resolveCustomImageAndTag(ctx, c.getUpstreamVersion(ctx, image))
+		return c.resolveCustomImageRepoAndTag(ctx, c.getUpstreamVersion(ctx, image))
 	}
-	return c.resolveApkoImageAndTag(ctx, c.getUpstreamVersion(ctx, image))
+	return c.resolveApkoImageRepoAndTag(ctx, c.getUpstreamVersion(ctx, image))
 }
 
 func (c *addonComponent) getUpstreamVersion(ctx context.Context, image string) string {
@@ -46,17 +46,17 @@ func (c *addonComponent) getUpstreamVersion(ctx context.Context, image string) s
 	return TagFromImage(image)
 }
 
-func (c *addonComponent) resolveUpstreamImageAndTag(ctx context.Context, image string) (string, string, error) {
+func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, image string) (string, string, error) {
 	digest, err := GetImageDigest(ctx, image)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", image, err)
 	}
 	tag := fmt.Sprintf("%s@%s", TagFromImage(image), digest)
-	proxiedImage := fmt.Sprintf("proxy.replicated.com/anonymous/%s", RemoveTagFromImage(image))
-	return proxiedImage, tag, nil
+	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", RemoveTagFromImage(image))
+	return repo, tag, nil
 }
 
-func (c *addonComponent) resolveCustomImageAndTag(ctx context.Context, upstreamVersion string) (string, string, error) {
+func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, upstreamVersion string) (string, string, error) {
 	k0sVersion, err := getK0sVersion()
 	if err != nil {
 		return "", "", fmt.Errorf("get k0s version: %w", err)
@@ -79,11 +79,11 @@ func (c *addonComponent) resolveCustomImageAndTag(ctx context.Context, upstreamV
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", customImage, err)
 	}
 	tag := fmt.Sprintf("%s@%s", TagFromImage(customImage), digest)
-	proxiedImage := fmt.Sprintf("proxy.replicated.com/anonymous/%s", RemoveTagFromImage(customImage))
-	return proxiedImage, tag, nil
+	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", RemoveTagFromImage(customImage))
+	return repo, tag, nil
 }
 
-func (c *addonComponent) resolveApkoImageAndTag(ctx context.Context, upstreamVersion string) (string, string, error) {
+func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, upstreamVersion string) (string, string, error) {
 	packageName, packageVersion, err := c.getPackageNameAndVersion(ctx, upstreamVersion)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get package name and version constraint for %s: %w", c.name, err)

@@ -42,8 +42,8 @@ type AddonMetadata struct {
 }
 
 type AddonImage struct {
-	Image string `yaml:"image"`
-	Tag   string `yaml:"tag"`
+	Repo string `yaml:"repo"`
+	Tag  string `yaml:"tag"`
 }
 
 var funcMap = template.FuncMap{
