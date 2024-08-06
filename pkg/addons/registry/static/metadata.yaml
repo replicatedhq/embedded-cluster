@@ -9,5 +9,5 @@ version: 2.2.3
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/docker-registry
 images:
     registry:
-        repo: proxy.replicated.com/anonymous/registry
-        tag: 2.8.3@sha256:5d4d001e01c8543f233d392f5519deb0d299ca89447484dab98bbd957e18c2eb
+        repo: proxy.replicated.com/anonymous/replicated/ec-registry
+        tag: 3.0.0-r1@sha256:13e64b7ce464672c55306e7bcbe21692d8b7816640607f13d006fba4e351d44d
