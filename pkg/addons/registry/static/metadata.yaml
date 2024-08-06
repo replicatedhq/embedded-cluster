@@ -6,7 +6,7 @@
 # $ output/bin/buildtools update addon <addon name>
 #
 version: 2.2.3
-location: oci://proxy.replicated.com/anonymous/ttl.sh/sgalsaleh/docker-registry
+location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/docker-registry
 images:
     registry:
         image: proxy.replicated.com/anonymous/docker.io/library/registry
