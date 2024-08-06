@@ -31,12 +31,12 @@ func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image strin
 		return c.resolveUpstreamImageRepoAndTag(ctx, image)
 	}
 	if c.getCustomImageName != nil {
-		return c.resolveCustomImageRepoAndTag(ctx, c.getUpstreamVersion(ctx, image))
+		return c.resolveCustomImageRepoAndTag(ctx, c.getUpstreamVersion(image))
 	}
-	return c.resolveApkoImageRepoAndTag(ctx, c.getUpstreamVersion(ctx, image))
+	return c.resolveApkoImageRepoAndTag(ctx, c.getUpstreamVersion(image))
 }
 
-func (c *addonComponent) getUpstreamVersion(ctx context.Context, image string) string {
+func (c *addonComponent) getUpstreamVersion(image string) string {
 	if c.upstreamVersionInputOverride != "" {
 		if uv := os.Getenv(c.upstreamVersionInputOverride); uv != "" {
 			logrus.Infof("using input override from %s: %s", c.upstreamVersionInputOverride, uv)

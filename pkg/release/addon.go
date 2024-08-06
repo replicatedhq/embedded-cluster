@@ -47,6 +47,11 @@ type AddonImage struct {
 }
 
 func (i AddonImage) String() string {
+	if strings.HasPrefix(i.Tag, "latest@") {
+		// The image appears in containerd images without the "latest" tag and causes an
+		// ImagePullBackOff error
+		return fmt.Sprintf("%s@%s", i.Repo, strings.TrimPrefix(i.Tag, "latest@"))
+	}
 	return fmt.Sprintf("%s:%s", i.Repo, i.Tag)
 }
 
