@@ -74,7 +74,7 @@ func ComponentImageTag(componentName, packageName, packageVersion string) (strin
 	}
 	tag, err := ResolveApkoPackageVersion(componentName, packageName, packageVersion)
 	if err != nil {
-		return "", fmt.Errorf("apko output tag: %w", err)
+		return "", fmt.Errorf("resolve apko package version: %w", err)
 	}
 	return tag, nil
 }

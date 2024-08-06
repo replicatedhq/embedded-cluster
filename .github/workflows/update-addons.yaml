@@ -11,6 +11,9 @@ on:
       velero_chart_version:
         description: 'Velero chart version for updating the chart and images'
         required: false
+      registry_chart_version:
+        description: 'Registry chart version for updating the chart and images'
+        required: false
       seaweedfs_chart_version:
         description: 'SeaweedFS chart version for updating the chart and images'
         required: false
@@ -67,6 +70,7 @@ jobs:
           CHARTS_DESTINATION: registry.replicated.com/ec-charts
           INPUT_OPENEBS_CHART_VERSION: ${{ github.event.inputs.openebs_chart_version }}
           INPUT_VELERO_CHART_VERSION: ${{ github.event.inputs.velero_chart_version }}
+          INPUT_REGISTRY_CHART_VERSION: ${{ github.event.inputs.registry_chart_version }}
           INPUT_SEAWEEDFS_CHART_VERSION: ${{ github.event.inputs.seaweedfs_chart_version }}
         run: |
           chmod 755 ./output/bin/buildtools
