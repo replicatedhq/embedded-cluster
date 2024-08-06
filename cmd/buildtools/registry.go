@@ -139,5 +139,10 @@ func updateRegistryAddonImages(ctx context.Context, chartURL string, chartVersio
 		return fmt.Errorf("failed to save metadata: %w", err)
 	}
 
+	logrus.Infof("rendering values for registry ha")
+	if err := newmeta.RenderValues("registry", "values-ha.tpl.yaml", "values-ha.yaml"); err != nil {
+		return fmt.Errorf("failed to render ha values: %w", err)
+	}
+
 	return nil
 }
