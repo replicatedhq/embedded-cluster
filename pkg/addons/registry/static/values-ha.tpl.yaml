@@ -16,6 +16,7 @@ configData:
   storage:
     s3:
       secure: false
+      forcepathstyle: true
 extraVolumeMounts:
 - mountPath: /auth
   name: auth
