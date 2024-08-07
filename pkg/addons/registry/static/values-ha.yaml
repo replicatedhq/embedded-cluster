@@ -38,8 +38,8 @@ extraVolumes:
     secretName: registry-auth
 fullnameOverride: registry
 image:
-  repository: 'proxy.replicated.com/anonymous/registry'
-  tag: '2.8.3@sha256:5d4d001e01c8543f233d392f5519deb0d299ca89447484dab98bbd957e18c2eb'
+  repository: 'proxy.replicated.com/anonymous/replicated/ec-registry'
+  tag: '2.8.3-r0@sha256:5b76ebd0a362009e31a05ac487c690f5ece0e11f6c4d9261ca63a3f162b57660'
 replicaCount: 2
 s3:
   bucket: registry
