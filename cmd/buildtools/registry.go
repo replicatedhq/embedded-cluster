@@ -22,7 +22,7 @@ var registryImageComponents = map[string]addonComponent{
 		name: "registry",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			// TODO (@salah): build with apko once distribution is out of beta: https://github.com/wolfi-dev/os/blob/main/distribution.yaml
-			return "docker.io/library/registry:2.8.3", nil
+			return "docker.io/replicated/ec-registry:2.8.3-r0", nil
 		},
 	},
 }
