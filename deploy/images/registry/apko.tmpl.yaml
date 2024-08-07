@@ -1,12 +1,14 @@
 contents:
   repositories:
     - https://packages.wolfi.dev/os
+    - ./packages/
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    - ./melange.rsa.pub
   packages:
     - busybox
-    - distribution
-    - distribution-compat
+    - distribution-local # This is expected to be built by melange
+    - distribution-local-compat # This is expected to be built by melange
 
 accounts:
   groups:
@@ -45,4 +47,6 @@ paths:
     recursive: true
 
 entrypoint:
-  command: /entrypoint.sh
+  command: registry
+
+cmd: serve /etc/docker/registry/config.yml
