@@ -11,10 +11,10 @@ images:
         version: 3.28.1-r0@sha256:65a10af6dbfaf616ae237cec7d9b438727d8167415b698b858235c5c3897dcec
     calico-kube-controllers:
         image: proxy.replicated.com/anonymous/replicated/ec-calico-kube-controllers
-        version: 3.28.1-r0@sha256:346a58eb18c04a06a52964db29a4c75b9e15b0b3dfde4bd9855e7f74a782f888
+        version: 3.28.1-r0@sha256:97dbf50d60f1999c0b6c14dfe69b3512562a18e1a5b84967b2df65c77077ec78
     calico-node:
         image: proxy.replicated.com/anonymous/replicated/ec-calico-node
-        version: 3.28.1-r0@sha256:40cb53886ac86d56005feb93e74394b1c6507c3bca7c689e49fa63870c8761f0
+        version: 3.28.1-r0@sha256:347e801cd0012c287c6ae39270b3f84455ec0e1414a65d7cc1b2d4bf7a3583ba
     coredns:
         image: proxy.replicated.com/anonymous/replicated/ec-coredns
         version: 1.11.3-r3@sha256:4797c669a931d2d2baba1da7d618faf4c70a4f9b322525b984c93d5609bf49d6
