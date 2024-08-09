@@ -4,7 +4,7 @@ go 1.22.5
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
-	github.com/aws/aws-sdk-go v1.55.3
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/containers/image/v5 v5.32.0
 	github.com/coreos/go-semver v0.3.1
@@ -19,7 +19,7 @@ require (
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.28.12-0.20240618130209-434229eed353
 	github.com/replicatedhq/embedded-cluster-kinds v1.4.7
-	github.com/replicatedhq/embedded-cluster-operator v0.42.0
+	github.com/replicatedhq/embedded-cluster-operator v0.42.1
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.98.0

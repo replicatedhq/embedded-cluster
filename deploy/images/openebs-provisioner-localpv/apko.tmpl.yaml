@@ -7,7 +7,7 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
     - busybox
-    - dynamic-localpv-provisioner=${PACKAGE_VERSION}
+    - dynamic-localpv-provisioner~${PACKAGE_VERSION}
 
 accounts:
   groups:

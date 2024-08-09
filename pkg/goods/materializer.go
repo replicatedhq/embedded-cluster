@@ -100,7 +100,7 @@ func (m *Materializer) SupportFiles() error {
 			return fmt.Errorf("unable to read asset: %w", err)
 		}
 		dstpath := m.def.PathToEmbeddedClusterSupportFile(entry.Name())
-		if err := os.WriteFile(dstpath, srcfile, 0700); err != nil {
+		if err := os.WriteFile(dstpath, srcfile, 0644); err != nil {
 			return fmt.Errorf("unable to write file: %w", err)
 		}
 	}

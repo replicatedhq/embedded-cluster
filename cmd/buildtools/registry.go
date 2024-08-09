@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coreos/go-semver/semver"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"helm.sh/helm/v3/pkg/repo"
@@ -16,6 +15,16 @@ import (
 var registryRepo = &repo.Entry{
 	Name: "twuni",
 	URL:  "https://helm.twun.io",
+}
+
+var registryImageComponents = map[string]addonComponent{
+	"docker.io/library/registry": {
+		name: "registry",
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			// TODO (@salah): build with apko once distribution is out of beta: https://github.com/wolfi-dev/os/blob/main/distribution.yaml
+			return "docker.io/replicated/ec-registry:2.8.3-r0", nil
+		},
+	},
 }
 
 var updateRegistryAddonCommand = &cli.Command{
@@ -45,7 +54,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		newmeta := release.AddonMetadata{
 			Version:  latest,
 			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
-			Images:   make(map[string]string),
+			Images:   make(map[string]release.AddonImage),
 		}
 
 		values, err := release.GetValuesWithOriginalImages("registry")
@@ -60,33 +69,19 @@ var updateRegistryAddonCommand = &cli.Command{
 			return fmt.Errorf("failed to get images from chart: %w", err)
 		}
 
-		// XXX we have already released a helm chart using registry 2.8.3 so we need
-		// to avoid downgrading the registry version.
-		minver, err := semver.NewVersion("2.8.3")
-		if err != nil {
-			return fmt.Errorf("unable to parse min version: %v", err)
-		}
-
-		logrus.Infof("fetching digest for images")
 		for _, image := range images {
-			tag := TagFromImage(image)
-			withoutTag := RemoveTagFromImage(image)
-			if withoutTag == "registry" {
-				// replace the registry image with the minimum version if needed.
-				if v, err := semver.NewVersion(tag); err == nil && v.LessThan(*minver) {
-					logrus.Warnf("using registry %s instead of %s", minver, v)
-					tag = minver.String()
-					image = fmt.Sprintf("%s:%s", withoutTag, tag)
-				}
+			component, ok := registryImageComponents[RemoveTagFromImage(image)]
+			if !ok {
+				return fmt.Errorf("no component found for image %s", image)
 			}
-
-			sha, err := GetImageDigest(c.Context, image)
+			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image)
 			if err != nil {
-				return fmt.Errorf("failed to get image %s digest: %w", image, err)
+				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
-			logrus.Infof("image %s digest: %s", image, sha)
-
-			newmeta.Images[FamiliarImageName(withoutTag)] = fmt.Sprintf("%s@%s", tag, sha)
+			newmeta.Images[component.name] = release.AddonImage{
+				Repo: repo,
+				Tag:  tag,
+			}
 		}
 
 		logrus.Infof("saving addon manifest")

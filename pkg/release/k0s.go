@@ -19,7 +19,16 @@ const k0sMetadataPreface = `#
 `
 
 type K0sMetadata struct {
-	Images map[string]string `yaml:"images"`
+	Images map[string]K0sImage `yaml:"images"`
+}
+
+type K0sImage struct {
+	Image   string `yaml:"image"`
+	Version string `yaml:"version"`
+}
+
+func (i K0sImage) URI() string {
+	return fmt.Sprintf("%s:%s", i.Image, i.Version)
 }
 
 func (a *K0sMetadata) Save() error {

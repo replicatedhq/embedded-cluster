@@ -5,7 +5,7 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
-    - calico-kube-controllers=${PACKAGE_VERSION}
+    - calico-kube-controllers
 
 accounts:
   groups:

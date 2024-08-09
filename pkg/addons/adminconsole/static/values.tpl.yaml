@@ -1,9 +1,9 @@
 {{- if .ReplaceImages }}
 images:
-    kotsadm: 'proxy.replicated.com/anonymous/kotsadm/kotsadm:{{ index .Images "kotsadm/kotsadm" }}'
-    kurlProxy: 'proxy.replicated.com/anonymous/kotsadm/kurl-proxy:{{ index .Images "kotsadm/kurl-proxy" }}'
-    migrations: 'proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations:{{ index .Images "kotsadm/kotsadm-migrations" }}'
-    rqlite: 'proxy.replicated.com/anonymous/kotsadm/rqlite:{{ index .Images "kotsadm/rqlite" }}'
+    kotsadm: '{{ ImageString (index .Images "kotsadm") }}'
+    kurlProxy: '{{ ImageString (index .Images "kurl-proxy") }}'
+    migrations: '{{ ImageString (index .Images "kotsadm-migrations") }}'
+    rqlite: '{{ ImageString (index .Images "rqlite") }}'
 {{- end }}
 isHA: false
 isHelmManaged: false

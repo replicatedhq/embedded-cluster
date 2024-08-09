@@ -10,6 +10,25 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var adminconsoleImageComponents = map[string]addonComponent{
+	"docker.io/kotsadm/kotsadm": {
+		name:             "kotsadm",
+		useUpstreamImage: true,
+	},
+	"docker.io/kotsadm/kotsadm-migrations": {
+		name:             "kotsadm-migrations",
+		useUpstreamImage: true,
+	},
+	"docker.io/kotsadm/kurl-proxy": {
+		name:             "kurl-proxy",
+		useUpstreamImage: true,
+	},
+	"docker.io/kotsadm/rqlite": {
+		name:             "rqlite",
+		useUpstreamImage: true,
+	},
+}
+
 var updateAdminConsoleAddonCommand = &cli.Command{
 	Name:      "adminconsole",
 	Usage:     "Updates the Admin Console addon",
@@ -35,7 +54,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		newmeta := release.AddonMetadata{
 			Version:  latest,
 			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
-			Images:   make(map[string]string),
+			Images:   make(map[string]release.AddonImage),
 		}
 
 		values, err := release.GetValuesWithOriginalImages("adminconsole")
@@ -50,16 +69,19 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 			return fmt.Errorf("failed to get images from admin console chart: %w", err)
 		}
 
-		logrus.Infof("fetching digest for images")
 		for _, image := range images {
-			sha, err := GetImageDigest(c.Context, image)
-			if err != nil {
-				return fmt.Errorf("failed to get image %s digest: %w", image, err)
+			component, ok := adminconsoleImageComponents[RemoveTagFromImage(image)]
+			if !ok {
+				return fmt.Errorf("no component found for image %s", image)
 			}
-			logrus.Infof("image %s digest: %s", image, sha)
-			tag := TagFromImage(image)
-			image = RemoveTagFromImage(image)
-			newmeta.Images[FamiliarImageName(image)] = fmt.Sprintf("%s@%s", tag, sha)
+			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image)
+			if err != nil {
+				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
+			}
+			newmeta.Images[component.name] = release.AddonImage{
+				Repo: repo,
+				Tag:  tag,
+			}
 		}
 
 		logrus.Infof("saving addon manifest")

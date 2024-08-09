@@ -6,9 +6,9 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
-    - velero=${PACKAGE_VERSION}
-    - velero-compat=${PACKAGE_VERSION}
-    - velero-restore-helper=${PACKAGE_VERSION}
+    - velero~${PACKAGE_VERSION}
+    - velero-compat~${PACKAGE_VERSION}
+    - velero-restore-helper~${PACKAGE_VERSION}
 
 accounts:
   groups:

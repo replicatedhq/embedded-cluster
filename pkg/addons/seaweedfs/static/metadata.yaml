@@ -8,4 +8,6 @@
 version: 4.0.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/seaweedfs
 images:
-    seaweedfs: 3.71-r1@sha256:1089b455e0281a809620354f56a0d294e90d2d8c961dfc1a226e91bc5a63e1e0
+    seaweedfs:
+        repo: proxy.replicated.com/anonymous/replicated/ec-seaweedfs
+        tag: 3.71-r1@sha256:62701f9d4a6a3bf0aaa1914b8e03c44ebcd38ad25ea09ba9dbcbdb7d64e1a332

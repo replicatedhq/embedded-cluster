@@ -25,8 +25,8 @@ extraVolumes:
     secretName: registry-auth
 fullnameOverride: registry
 image:
-  repository: proxy.replicated.com/anonymous/registry
-  tag: '2.8.3@sha256:97479ff6bb309b6f667458d9f3391dbd1ba87a3d5c4a1b486570ae87e8261a16'
+  repository: 'proxy.replicated.com/anonymous/replicated/ec-registry'
+  tag: '2.8.3-r0@sha256:5b76ebd0a362009e31a05ac487c690f5ece0e11f6c4d9261ca63a3f162b57660'
 persistence:
   accessMode: ReadWriteOnce
   enabled: true

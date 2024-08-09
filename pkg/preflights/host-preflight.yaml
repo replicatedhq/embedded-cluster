@@ -15,7 +15,7 @@ spec:
         path: /var/lib/k0s
     - diskUsage:
         collectorName: openebs-path-usage
-        path: /opt/openebs
+        path: /var/openebs
     - diskUsage:
         collectorName: tmp-path-usage
         path: /tmp
@@ -91,9 +91,9 @@ spec:
         outcomes:
           - fail:
               when: 'total < 5Gi'
-              message: The filesystem at /opt/openebs has less than 5Gi of total space
+              message: The filesystem at /var/openebs has less than 5Gi of total space
           - pass:
-              message: The filesystem at /opt/openebs has sufficient space
+              message: The filesystem at /var/openebs has sufficient space
     - diskUsage:
         checkName: tmp Disk Space
         collectorName: tmp-path-usage
