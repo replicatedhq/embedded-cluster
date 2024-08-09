@@ -164,7 +164,7 @@ func GetLatestGitHubTag(ctx context.Context, owner, repo string) (string, error)
 // that matches the provided constraints.
 func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *semver.Constraints) (string, error) {
 	client := github.NewClient(nil)
-	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{})
+	tags, _, err := client.Repositories.ListTags(ctx, owner, repo, &github.ListOptions{PerPage: 100})
 	if err != nil {
 		return "", fmt.Errorf("list tags: %w", err)
 	}
