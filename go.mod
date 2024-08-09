@@ -7,7 +7,6 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/canonical/lxd v0.0.0-20230814092713-c77ee90f5032
 	github.com/containers/image/v5 v5.32.0
-	github.com/coreos/go-semver v0.3.1
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/creack/pty v1.1.21
 	github.com/distribution/reference v0.6.0
@@ -57,6 +56,7 @@ require (
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/containers/ocicrypt v1.2.0 // indirect
 	github.com/containers/storage v1.55.0 // indirect
+	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.3.1 // indirect
 	github.com/docker/cli v27.1.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
