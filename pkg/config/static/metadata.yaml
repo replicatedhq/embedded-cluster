@@ -17,7 +17,7 @@ images:
         version: 3.28.1-r0@sha256:ba9315f5238a0dfa4110dfd7bef4782477f32f2360eaaff96632a3a27702e24a
     coredns:
         image: proxy.replicated.com/anonymous/replicated/ec-coredns
-        version: 1.11.3-r3@sha256:4797c669a931d2d2baba1da7d618faf4c70a4f9b322525b984c93d5609bf49d6
+        version: 1.11.3-r5@sha256:b17e790fc623cd2712536225b20a94740eb1c69599e4e5dec63bb849147166a5
     kube-proxy:
         image: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
         version: v1.29.7@sha256:16fa6e5fc8471af8bd5cb2819ae41f012ebdb0979a3c3032a594da0d361f0f86
