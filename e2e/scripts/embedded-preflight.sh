@@ -155,6 +155,11 @@ main() {
     mv /tmp/log /tmp/log-failure
     # Warnings should not fail installations
     embed_preflight "$preflight_with_warning"
+    if ! /usr/local/bin/embedded-cluster install run-preflights --no-prompt 2>&1 | tee /tmp/log ; then
+        cat /etc/os-release
+        echo "preflight_with_warning: Failed to run embedded-cluster preflights"
+        exit 1
+    fi
     if ! /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "preflight_with_warning: Failed to install embedded-cluster"

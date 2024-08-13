@@ -6,7 +6,18 @@ set env(KUBECONFIG) "/var/lib/k0s/pki/admin.conf"
 set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
 
 set join_command [lindex $argv 0]
+set join_preflights_command [regsub -all {join} $join_command {join run-preflights}]
 set join_command [regsub -all {join} $join_command {join --enable-ha}]
+
+spawn {*}$join_preflights_command
+
+expect {
+    -timeout 120 "Host preflights completed successfully" {}
+    timeout {
+      puts "\n\nFailed to find successful host preflights message."
+      exit 1
+    }
+}
 
 spawn {*}$join_command
 

@@ -9,9 +9,9 @@ var (
 )
 
 // Holds the default no proxy values.
-var (
-	DefaultNoProxy = []string{"localhost", "127.0.0.1", ".default", ".local", ".svc", "kubernetes", "kotsadm-rqlite"}
-)
+var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".default", ".local", ".svc", "kubernetes", "kotsadm-rqlite"}
+
+var ProxyRegistryAddress = "proxy.replicated.com"
 
 const KotsadmNamespace = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"

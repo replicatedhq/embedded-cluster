@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -84,13 +83,18 @@ func configureNetworkManager(c *cli.Context) error {
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context, applier *addons.Applier) error {
+func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
-	chpfs, err := preflights.GetClusterHostPreflights(c.Context)
+	data := preflights.TemplateData{
+		ReplicatedAPIURL: replicatedAPIURL,
+		ProxyRegistryURL: proxyRegistryURL,
+		IsAirgap:         isAirgap,
+	}
+	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
 		return fmt.Errorf("unable to get cluster host preflights: %w", err)
 	}
@@ -185,10 +189,10 @@ func isAlreadyInstalled() (bool, error) {
 	}
 }
 
-func checkLicenseMatches(licenseFile string) error {
+func checkLicenseMatches(licenseFile string) (*kotsv1beta1.License, error) {
 	rel, err := release.GetChannelRelease()
 	if err != nil {
-		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+		return nil, fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
 	}
 
 	// handle the three cases that do not require parsing the license file
@@ -197,47 +201,47 @@ func checkLicenseMatches(licenseFile string) error {
 	// 3. a license and no release, which is not OK
 	if rel == nil && licenseFile == "" {
 		// no license and no release, this is OK
-		return nil
+		return nil, nil
 	} else if rel == nil && licenseFile != "" {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
-		return fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
+		return nil, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
 	} else if rel != nil && licenseFile == "" {
 		// release is present but no license, this is not OK
-		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
+		return nil, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
 	license, err := helpers.ParseLicense(licenseFile)
 	if err != nil {
-		return fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
+		return nil, fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
 	}
 
 	// Check if the license matches the application version data
 	if rel.AppSlug != license.Spec.AppSlug {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
 	}
 	if rel.ChannelID != license.Spec.ChannelID {
 		// if the channel is different, we will not be able to install the pinned vendor application version within kots
 		// this may result in an immediate k8s upgrade after installation, which is undesired
-		return fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+		return nil, fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
 	}
 
 	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
 		// read the expiration date, and check it against the current date
 		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
 		if err != nil {
-			return fmt.Errorf("unable to parse expiration date: %w", err)
+			return nil, fmt.Errorf("unable to parse expiration date: %w", err)
 		}
 		if time.Now().After(expiration) {
-			return fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
 		}
 	}
 
 	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
-		return fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
 	}
 
-	return nil
+	return license, nil
 }
 
 func checkAirgapMatches(c *cli.Context) error {
@@ -321,6 +325,7 @@ func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.Cluste
 	cfg := config.RenderK0sConfig()
 	cfg.Spec.Network.PodCIDR = getPodCIDR(c)
 	cfg.Spec.Network.ServiceCIDR = getServiceCIDR(c)
+	// cfg = setSubnetCIDRFromFlags(c, cfg)
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -440,14 +445,7 @@ func installAndWaitForK0s(c *cli.Context, applier *addons.Applier) (*k0sconfig.C
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
-	var proxy *ecv1beta1.ProxySpec
-	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		proxy = &ecv1beta1.ProxySpec{
-			HTTPProxy:  c.String("http-proxy"),
-			HTTPSProxy: c.String("https-proxy"),
-			NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
-		}
-	}
+	proxy := getProxySpecFromFlags(c)
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
@@ -523,6 +521,9 @@ func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 var installCommand = &cli.Command{
 	Name:  "install",
 	Usage: fmt.Sprintf("Install %s", binName),
+	Subcommands: []*cli.Command{
+		installRunPreflightsCommand,
+	},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("install command must be run as root")
@@ -532,70 +533,45 @@ var installCommand = &cli.Command{
 		}
 		return nil
 	},
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:   "admin-console-password",
-			Usage:  "Password for the Admin Console",
-			Hidden: false,
+	Flags: withProxyFlags(withSubnetCIDRFlags(
+		[]cli.Flag{
+			&cli.StringFlag{
+				Name:   "admin-console-password",
+				Usage:  "Password for the Admin Console",
+				Hidden: false,
+			},
+			&cli.StringFlag{
+				Name:   "airgap-bundle",
+				Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
+				Hidden: true,
+			},
+			&cli.StringFlag{
+				Name:    "license",
+				Aliases: []string{"l"},
+				Usage:   "Path to the license file.",
+				Hidden:  false,
+			},
+			&cli.BoolFlag{
+				Name:  "no-prompt",
+				Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
+				Value: false,
+			},
+			&cli.StringFlag{
+				Name:   "overrides",
+				Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
+				Hidden: true,
+			},
+			&cli.BoolFlag{
+				Name:  "skip-host-preflights",
+				Usage: "Skip host preflight checks. This is not recommended.",
+				Value: false,
+			},
 		},
-		&cli.StringFlag{
-			Name:   "airgap-bundle",
-			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "http-proxy",
-			Usage:  "Proxy server to use for HTTP",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "https-proxy",
-			Usage:  "Proxy server to use for HTTPS",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:    "license",
-			Aliases: []string{"l"},
-			Usage:   "Path to the license file",
-			Hidden:  false,
-		},
-		&cli.BoolFlag{
-			Name:  "no-prompt",
-			Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
-			Value: false,
-		},
-		&cli.StringFlag{
-			Name:   "no-proxy",
-			Usage:  "Comma-separated list of hosts for which not to use a proxy",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "overrides",
-			Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "pod-cidr",
-			Usage:  "IP address range for pods",
-			Hidden: false,
-		},
-		&cli.BoolFlag{
-			Name:   "proxy",
-			Usage:  "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "service-cidr",
-			Usage:  "IP address range for services",
-			Hidden: false,
-		},
-		&cli.BoolFlag{
-			Name:  "skip-host-preflights",
-			Usage: "Skip host preflight checks. This is not recommended.",
-			Value: false,
-		},
-	},
+	)),
 	Action: func(c *cli.Context) error {
+		proxy := getProxySpecFromFlags(c)
+		setProxyEnv(proxy)
+
 		logrus.Debugf("checking if %s is already installed", binName)
 		if installed, err := isAlreadyInstalled(); err != nil {
 			return err
@@ -612,12 +588,14 @@ var installCommand = &cli.Command{
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 		logrus.Debugf("checking license matches")
-		if err := checkLicenseMatches(c.String("license")); err != nil {
+		license, err := checkLicenseMatches(c.String("license"))
+		if err != nil {
 			metricErr := fmt.Errorf("unable to check license: %w", err)
 			metrics.ReportApplyFinished(c, metricErr)
 			return err // do not return the metricErr, as we want the user to see the error message without a prefix
 		}
-		if c.String("airgap-bundle") != "" {
+		isAirgap := c.String("airgap-bundle") != ""
+		if isAirgap {
 			logrus.Debugf("checking airgap bundle matches binary")
 			if err := checkAirgapMatches(c); err != nil {
 				return err // we want the user to see the error message without a prefix
@@ -639,7 +617,12 @@ var installCommand = &cli.Command{
 			return err
 		}
 		logrus.Debugf("running host preflights")
-		if err := RunHostPreflights(c, applier); err != nil {
+		var replicatedAPIURL, proxyRegistryURL string
+		if license != nil {
+			replicatedAPIURL = license.Spec.Endpoint
+			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
+		}
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
@@ -668,11 +651,9 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, 
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
-	if c.Bool("proxy") {
-		opts = append(opts, addons.WithProxyFromEnv(getPodCIDR(c), getServiceCIDR(c)))
-	}
-	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), getPodCIDR(c), getServiceCIDR(c)))
+	proxy := getProxySpecFromFlags(c)
+	if proxy != nil {
+		opts = append(opts, addons.WithProxy(proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy))
 	}
 	if c.String("overrides") != "" {
 		eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))

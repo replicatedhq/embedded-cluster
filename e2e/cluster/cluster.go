@@ -220,8 +220,19 @@ func NewTestCluster(in *Input) *Output {
 	for _, node := range out.Nodes {
 		CopyFilesToNode(in, node)
 		CopyDirsToNode(in, node)
+		NodeHasInternet(in, node)
+		in.T.Logf("Installing deps on node %s", node)
+		RunCommandOnNode(in, []string{"install-deps.sh"}, node)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, node)
+		}
+	}
+	for _, node := range out.Nodes {
+		if in.WithProxy {
+			DisableInternetOnNode(in, node)
+			NodeHasNoInternet(in, node)
+		} else {
+			NodeHasInternet(in, node)
 		}
 	}
 	// We create a proxy node for all installations to run playwright tests.
@@ -375,9 +386,10 @@ func RunCommandOnNode(in *Input, cmdline []string, name string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	if err := Run(ctx, in.T, cmd); err != nil {
-		in.T.Logf("stdout: %s", stdout.String())
-		in.T.Logf("stderr: %s", stderr.String())
+	err := Run(ctx, in.T, cmd)
+	in.T.Logf("stdout: %s", stdout.String())
+	in.T.Logf("stderr: %s", stderr.String())
+	if err != nil {
 		in.T.Fatalf("Failed to run command: %v", err)
 	}
 }
@@ -554,9 +566,6 @@ func CreateNodes(in *Input) []string {
 	nodes := []string{}
 	for i := 0; i < in.Nodes; i++ {
 		node := CreateNode(in, i)
-		if !in.WithProxy {
-			NodeHasInternet(in, node)
-		}
 		nodes = append(nodes, node)
 	}
 	return nodes
@@ -606,6 +615,40 @@ func NodeHasInternet(in *Input, node string) {
 		in.T.Fatalf("Timed out trying to reach internet from %s: %v", node, lastErr)
 	}
 	in.T.Logf("Node %s can reach the internet", node)
+}
+
+// NodeHasNoInternet checks if the node has internet access and fails if so. It does this by
+// pinging google.com.
+func NodeHasNoInternet(in *Input, node string) {
+	in.T.Logf("Ensuring node %s cannot reach the internet", node)
+	fp, err := os.CreateTemp("/tmp", "internet-XXXXX.sh")
+	if err != nil {
+		in.T.Fatalf("Failed to create temporary file: %v", err)
+	}
+	fp.Close()
+	defer func() {
+		os.RemoveAll(fp.Name())
+	}()
+	if err := os.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
+		in.T.Fatalf("Failed to write script: %v", err)
+	}
+	file := File{
+		SourcePath: fp.Name(),
+		DestPath:   "/usr/local/bin/check_internet.sh",
+		Mode:       0755,
+	}
+	CopyFileToNode(in, node, file)
+	cmd := Command{
+		Node:   node,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Line:   []string{"/usr/local/bin/check_internet.sh"},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := Run(ctx, in.T, cmd); err == nil {
+		in.T.Fatalf("Air gap node %s can reach the internet", node)
+	}
 }
 
 // CreateNode creates a single node. The i here is used to create a unique
@@ -688,10 +731,6 @@ func CreateNetworks(in *Input) {
 	if err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create external network: %v", err)
 	}
-	open := "true"
-	if in.WithProxy {
-		open = "false"
-	}
 	request = api.NetworksPost{
 		Name: fmt.Sprintf("internal-%s", in.id),
 		Type: "ovn",
@@ -699,13 +738,33 @@ func CreateNetworks(in *Input) {
 			Config: map[string]string{
 				"bridge.mtu":   "1500",
 				"ipv4.address": "10.0.0.1/24",
-				"ipv4.nat":     open,
+				"ipv4.nat":     "true",
 				"network":      fmt.Sprintf("external-%s", in.id),
 			},
 		},
 	}
 	if err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create internal network: %v", err)
+	}
+}
+
+func DisableInternetOnNode(in *Input, node string) {
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		in.T.Fatalf("Failed to connect to LXD: %v", err)
+	}
+	name := fmt.Sprintf("internal-%s", in.id)
+	network, eTag, err := client.GetNetwork(name)
+	if err != nil {
+		in.T.Fatalf("Failed to get network: %v", err)
+	}
+	network.Config["ipv4.nat"] = "false"
+	request := api.NetworkPut{
+		Config:      network.Config,
+		Description: network.Description,
+	}
+	if err := client.UpdateNetwork(name, request, eTag); err != nil {
+		in.T.Fatalf("Failed to disable internet on network: %v", err)
 	}
 }
 

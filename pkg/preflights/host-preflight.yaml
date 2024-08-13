@@ -47,6 +47,18 @@ spec:
         command: 'sh'
         args: ['-c', 'command -v umount']
     - hostOS: {}
+    - http:
+        collectorName: http-replicated-app
+        get:
+          url: '{{ .ReplicatedAPIURL }}'
+          timeout: 5s
+        exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
+    - http:
+        collectorName: http-proxy-replicated-com
+        get:
+          url: '{{ .ProxyRegistryURL }}/v2/'
+          timeout: 5s
+        exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
   analyzers:
     - cpu:
         checkName: CPU
@@ -291,3 +303,35 @@ spec:
               message: Kernel meets minimum version version of 3.10
           - fail:
               message: Kernel doesn't meet minimum version of 3.10
+    - http:
+        checkName: Can Access API
+        collectorName: http-replicated-app
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAPIURL "") }}'
+        outcomes:
+          - fail:
+              when: error
+              message: >
+                Error connecting to {{ .ReplicatedAPIURL }}.
+                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
+                and `--no-proxy` flags if there is a proxy server.'
+          - pass:
+              when: 'statusCode == 200'
+              message: 'Connected to {{ .ReplicatedAPIURL }}'
+          - fail:
+              message: 'Unexpected response from {{ .ReplicatedAPIURL }}'
+    - http:
+        checkName: Proxy Registry Access
+        collectorName: http-proxy-replicated-com
+        exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
+        outcomes:
+          - fail:
+              when: error
+              message: >
+                Error connecting to {{ .ProxyRegistryURL }}.
+                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
+                and `--no-proxy` flags if there is a proxy server.'
+          - pass:
+              when: 'statusCode == 401'
+              message: 'Connected to {{ .ProxyRegistryURL }}'
+          - fail:
+              message: 'Unexpected response from {{ .ProxyRegistryURL }}'
