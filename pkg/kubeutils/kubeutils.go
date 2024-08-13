@@ -9,6 +9,7 @@ import (
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -174,7 +175,10 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 
 func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
 	var installList embeddedclusterv1beta1.InstallationList
-	if err := cli.List(ctx, &installList); err != nil {
+	if err := cli.List(ctx, &installList); meta.IsNoMatchError(err) {
+		// this will happen if the CRD is not yet installed
+		return nil, ErrNoInstallations{}
+	} else if err != nil {
 		return nil, fmt.Errorf("unable to list installations: %v", err)
 	}
 
