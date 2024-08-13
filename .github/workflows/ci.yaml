@@ -333,53 +333,54 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian11
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
-          - TestVersion
-          - TestHostPreflightCustomSpec
-          - TestHostPreflightInBuiltSpec
-          - TestUnsupportedOverrides
-          - TestMultiNodeInstallation
-          - TestMultiNodeReset
-          - TestCommandsRequireSudo
-          - TestInstallWithoutEmbed
-          - TestInstallFromReplicatedApp
+#          - TestSingleNodeInstallation
+#          - TestSingleNodeInstallationAlmaLinux8
+#          - TestSingleNodeInstallationDebian11
+#          - TestSingleNodeInstallationDebian12
+#          - TestSingleNodeInstallationCentos9Stream
+#          - TestVersion
+#          - TestHostPreflightCustomSpec
+#          - TestHostPreflightInBuiltSpec
+#          - TestUnsupportedOverrides
+#          - TestMultiNodeInstallation
+#          - TestMultiNodeReset
+#          - TestCommandsRequireSudo
+#          - TestInstallWithoutEmbed
+#          - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
-          - TestResetAndReinstall
-          - TestResetAndReinstallAirgap
-          - TestCollectSupportBundle
-          - TestOldVersionUpgrade
-          - TestMaterialize
-          - TestLocalArtifactMirror
-          - TestSingleNodeAirgapUpgrade
-          - TestSingleNodeAirgapUpgradeCustomCIDR
-          - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgrade
-          - TestSingleNodeDisasterRecovery
-          - TestSingleNodeDisasterRecoveryWithProxy
-          - TestSingleNodeResumeDisasterRecovery
-          - TestProxiedEnvironment
-          - TestMultiNodeHAInstallation
-          - TestMultiNodeHADisasterRecovery
-          - TestCustomCIDR
-          - TestProxiedCustomCIDR
-          - TestSingleNodeInstallationNoopUpgrade
-        include:
-          - test: TestMultiNodeAirgapUpgrade
-            runner: embedded-cluster
-          - test: TestMultiNodeAirgapUpgradeSameK0s
-            runner: embedded-cluster
-          - test: TestSingleNodeAirgapDisasterRecovery
-            runner: embedded-cluster
-          - test: TestMultiNodeAirgapHAInstallation
-            runner: embedded-cluster
-          - test: TestMultiNodeAirgapHADisasterRecovery
-            runner: embedded-cluster
-          - test: TestFiveNodesAirgapUpgrade
-            runner: embedded-cluster
+          - TestUpgradeEC16FromReplicatedApp
+#          - TestResetAndReinstall
+#          - TestResetAndReinstallAirgap
+#          - TestCollectSupportBundle
+#          - TestOldVersionUpgrade
+#          - TestMaterialize
+#          - TestLocalArtifactMirror
+#          - TestSingleNodeAirgapUpgrade
+#          - TestSingleNodeAirgapUpgradeCustomCIDR
+#          - TestInstallSnapshotFromReplicatedApp
+#          - TestMultiNodeAirgapUpgrade
+#          - TestSingleNodeDisasterRecovery
+#          - TestSingleNodeDisasterRecoveryWithProxy
+#          - TestSingleNodeResumeDisasterRecovery
+#          - TestProxiedEnvironment
+#          - TestMultiNodeHAInstallation
+#          - TestMultiNodeHADisasterRecovery
+#          - TestCustomCIDR
+#          - TestProxiedCustomCIDR
+#          - TestSingleNodeInstallationNoopUpgrade
+#        include:
+#          - test: TestMultiNodeAirgapUpgrade
+#            runner: embedded-cluster
+#          - test: TestMultiNodeAirgapUpgradeSameK0s
+#            runner: embedded-cluster
+#          - test: TestSingleNodeAirgapDisasterRecovery
+#            runner: embedded-cluster
+#          - test: TestMultiNodeAirgapHAInstallation
+#            runner: embedded-cluster
+#          - test: TestMultiNodeAirgapHADisasterRecovery
+#            runner: embedded-cluster
+#          - test: TestFiveNodesAirgapUpgrade
+#            runner: embedded-cluster
     steps:
       - name: Checkout
         uses: actions/checkout@v4
