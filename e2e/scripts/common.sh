@@ -174,8 +174,10 @@ ensure_app_deployed_airgap() {
     echo "kotsadm_port: $kotsadm_port"
 
     echo "ensuring app version ${version} is deployed"
-    if ! curl -k -X GET "http://${kotsadm_ip}:${kotsadm_port}/api/v1/app/embedded-cluster-smoke-test-staging-app/versions?currentPage=0&pageSize=1" -H "Authorization: $kotsadm_auth_string" | grep -P "(?=.*\"versionLabel\":\"${version}\").*(?=.*\"status\":\"deployed\")"; then
-        echo "application version ${version} not deployed"
+    local versions=
+    versions=$(curl -k -X GET "http://${kotsadm_ip}:${kotsadm_port}/api/v1/app/embedded-cluster-smoke-test-staging-app/versions?currentPage=0&pageSize=1" -H "Authorization $kotsadm_auth_string")
+    if ! echo "$versions" | grep -P "(?=.*\"versionLabel\":\"${version}\").*(?=.*\"status\":\"deployed\")"; then
+        echo "application version ${version} not deployed, current versions ${versions}"
         return 1
     fi
 }
