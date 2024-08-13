@@ -9,6 +9,8 @@ original: |-
       etcd:
         peerAddress: 192.168.68.110
     api:
+      extraArgs:
+        service-node-port-range: 80-32767
       externalAddress: my-lb-address.example.com
       address: 192.168.68.107
       sans:
@@ -23,6 +25,7 @@ override: |-
           spec:
             api:
               extraArgs:
+                service-node-port-range: 80-60000
                 key0: value0
                 key1: value1
                 key2: value2
@@ -42,6 +45,7 @@ expected: |-
       sans:
       - 192.168.68.107
       extraArgs:
+        service-node-port-range: 80-60000
         key0: value0
         key1: value1
         key2: value2

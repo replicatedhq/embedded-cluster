@@ -5,6 +5,8 @@ original: |-
     name: k0s
   spec:
     api:
+      extraArgs:
+        service-node-port-range: 80-32767
       externalAddress: my-lb-address.example.com
       address: 192.168.68.107
       sans:
@@ -26,6 +28,8 @@ expected: |-
     name: k0s
   spec:
     api:
+      extraArgs:
+        service-node-port-range: 80-32767
       externalAddress: test.com
       address: 192.168.68.107
       sans:
