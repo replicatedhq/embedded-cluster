@@ -5,7 +5,7 @@ DIR=/usr/local/bin
 . $DIR/common.sh
 
 main() {
-    local version="appver-$1"
+    local version="$1"
     local k8s_version="$2"
 
     sleep 10 # wait for kubectl to become available
