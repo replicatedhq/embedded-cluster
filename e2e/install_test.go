@@ -1016,7 +1016,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("1.8.0+k8s-1.28", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		downloadAirgapBundle(t, "1.8.0+k8s-1.28", airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		wg.Done()
 	}()
 	go func() {
