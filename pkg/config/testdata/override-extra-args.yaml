@@ -18,7 +18,7 @@ override: |-
     spec:
       api:
         extraArgs:
-         service-node-port-range: 80-60000
+          service-node-port-range: 80-60000
 expected: |-
   apiVersion: k0s.k0sproject.io/v1beta1
   kind: ClusterConfig
