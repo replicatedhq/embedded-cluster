@@ -599,7 +599,7 @@ func TestUpgradeEC16FromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", "1.8.0+k8s-1.28", "v1.28.10"}
+	line = []string{"check-installation-state.sh", "1.8.0+k8s-1.28", "v1.28.11"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
