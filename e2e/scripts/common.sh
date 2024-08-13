@@ -176,7 +176,9 @@ ensure_app_deployed_airgap() {
     echo "ensuring app version ${version} is deployed"
     local versions=
     versions=$(curl -k -X GET "http://${kotsadm_ip}:${kotsadm_port}/api/v1/app/embedded-cluster-smoke-test-staging-app/versions?currentPage=0&pageSize=1" -H "Authorization: $kotsadm_auth_string")
-    if ! echo "$versions" | grep -P "(?=.*\"versionLabel\":\"${version}\").*(?=.*\"status\":\"deployed\")"; then
+    # search for the version and that it is deployed
+    # there should not be a '}' between the version and the status, as that would indicate a different version
+    if ! echo "$versions" | grep -P "(\"versionLabel\":\"${version}\")[^}](\"status\":\"deployed\")"; then
         echo "application version ${version} not deployed, current versions ${versions}"
         return 1
     fi

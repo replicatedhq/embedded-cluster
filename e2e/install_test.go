@@ -1082,7 +1082,12 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", "1.8.0+k8s-1.28", "v1.28.11"}
+	line = []string{
+		"check-airgap-installation-state.sh",
+		// the initially installed version is 1.8.0+k8s-1.28
+		// the '+' character is problematic in the regex used to validate the version, so we use '.' instead
+		"1.8.0.k8s-1.28",
+		"v1.28.11"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
