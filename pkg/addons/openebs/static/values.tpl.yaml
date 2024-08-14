@@ -13,7 +13,7 @@ localpv-provisioner:
 {{- if .ReplaceImages }}
   helperPod:
     image:
-      registry: '{{ .ReplicatedProxyDomain }}/anonymous/'
+      registry: '{{ "{{ .ReplicatedProxyDomain }}" }}/anonymous/'
       repository: '{{ TrimPrefix "{{ .ReplicatedProxyDomain }}/anonymous/" (index .Images "openebs-linux-utils").Repo }}'
       tag: '{{ (index .Images "openebs-linux-utils").Tag }}'
 {{- end }}
@@ -23,7 +23,7 @@ localpv-provisioner:
 {{- if .ReplaceImages }}
   localpv:
     image:
-      registry: '{{ .ReplicatedProxyDomain }}/anonymous/'
+      registry: '{{ "{{ .ReplicatedProxyDomain }}" }}/anonymous/'
       repository: '{{ TrimPrefix "{{ .ReplicatedProxyDomain }}/anonymous/" (index .Images "openebs-provisioner-localpv").Repo }}'
       tag: '{{ (index .Images "openebs-provisioner-localpv").Tag }}'
 {{- end }}
@@ -34,7 +34,7 @@ mayastor:
 {{- if .ReplaceImages }}
 preUpgradeHook:
   image:
-    registry: '{{ .ReplicatedProxyDomain }}/anonymous/'
+    registry: '{{ "{{ .ReplicatedProxyDomain }}" }}/anonymous/'
     repo: '{{ TrimPrefix "{{ .ReplicatedProxyDomain }}/anonymous/" (index .Images "kubectl").Repo }}'
     tag: '{{ (index .Images "kubectl").Tag }}'
 {{- end }}
