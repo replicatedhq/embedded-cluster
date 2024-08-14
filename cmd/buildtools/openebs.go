@@ -120,7 +120,11 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := GetImagesFromOCIChart(chartURL, "openebs", chartVersion, values)
+	templatedChartURL, err := release.Template(chartURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to template chart url: %w", err)
+	}
+	images, err := GetImagesFromOCIChart(templatedChartURL, "openebs", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from openebs chart: %w", err)
 	}

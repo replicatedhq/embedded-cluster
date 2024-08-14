@@ -51,9 +51,11 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		}
 
 		upstream := "registry.replicated.com/library/admin-console"
+		chartURL := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
+
 		newmeta := release.AddonMetadata{
 			Version:  latest,
-			Location: fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream),
+			Location: chartURL,
 			Images:   make(map[string]release.AddonImage),
 		}
 
@@ -63,8 +65,11 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("extracting images from chart")
-		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "adminconsole", latest, values)
+		templatedChartURL, err := release.Template(chartURL, nil)
+		if err != nil {
+			return fmt.Errorf("failed to template chart url: %w", err)
+		}
+		images, err := GetImagesFromOCIChart(templatedChartURL, "adminconsole", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from admin console chart: %w", err)
 		}

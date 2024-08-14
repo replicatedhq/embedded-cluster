@@ -51,9 +51,11 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/docker-registry", os.Getenv("CHARTS_DESTINATION"))
+		chartURL := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
+
 		newmeta := release.AddonMetadata{
 			Version:  latest,
-			Location: fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream),
+			Location: chartURL,
 			Images:   make(map[string]release.AddonImage),
 		}
 
@@ -63,8 +65,11 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("extracting images from chart")
-		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "docker-registry", latest, values)
+		templatedChartURL, err := release.Template(chartURL, nil)
+		if err != nil {
+			return fmt.Errorf("failed to template chart url: %w", err)
+		}
+		images, err := GetImagesFromOCIChart(templatedChartURL, "docker-registry", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from chart: %w", err)
 		}

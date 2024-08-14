@@ -12,21 +12,21 @@ type TemplateData struct {
 	ReplicatedProxyDomain string
 }
 
-func Template(raw []byte, license *kotsv1beta1.License) ([]byte, error) {
-	tmpl, err := template.New("release").Parse(string(raw))
+func Template(raw string, license *kotsv1beta1.License) (string, error) {
+	tmpl, err := template.New("release").Parse(raw)
 	if err != nil {
-		return nil, fmt.Errorf("parse template: %w", err)
+		return "", fmt.Errorf("parse template: %w", err)
 	}
 	data, err := getTemplateData(license)
 	if err != nil {
-		return nil, fmt.Errorf("get template data: %w", err)
+		return "", fmt.Errorf("get template data: %w", err)
 	}
 	buf := bytes.NewBuffer(nil)
 	err = tmpl.Execute(buf, data)
 	if err != nil {
-		return nil, fmt.Errorf("execute template: %w", err)
+		return "", fmt.Errorf("execute template: %w", err)
 	}
-	return buf.Bytes(), nil
+	return buf.String(), nil
 }
 
 func getTemplateData(license *kotsv1beta1.License) (*TemplateData, error) {

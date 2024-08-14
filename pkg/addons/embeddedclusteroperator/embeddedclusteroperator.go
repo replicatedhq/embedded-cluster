@@ -33,11 +33,11 @@ const releaseName = "embedded-cluster-operator"
 
 var (
 	//go:embed static/values.yaml
-	rawvalues []byte
+	rawvalues string
 	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
 	//go:embed static/metadata.yaml
-	rawmetadata []byte
+	rawmetadata string
 	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.AddonMetadata
 )

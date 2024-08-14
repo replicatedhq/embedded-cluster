@@ -108,7 +108,11 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := GetImagesFromOCIChart(chartURL, "seaweedfs", chartVersion, values)
+	templatedChartURL, err := release.Template(chartURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to template chart url: %w", err)
+	}
+	images, err := GetImagesFromOCIChart(templatedChartURL, "seaweedfs", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from seaweedfs chart: %w", err)
 	}

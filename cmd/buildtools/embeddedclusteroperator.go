@@ -98,7 +98,11 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := GetImagesFromOCIChart(chartURL, "embeddedclusteroperator", chartVersion, values)
+	templatedChartURL, err := release.Template(chartURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to template chart url: %w", err)
+	}
+	images, err := GetImagesFromOCIChart(templatedChartURL, "embeddedclusteroperator", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from embedded cluster operator chart: %w", err)
 	}
