@@ -2,7 +2,7 @@ global:
   enableReplication: true
   replicationPlacment: "001"
 {{- if .ReplaceImages }}
-  registry: "proxy.replicated.com/anonymous/"
+  registry: '{{ .ReplicatedProxyDomain }}/anonymous/'
 {{- end }}
 master:
 {{- if .ReplaceImages }}
