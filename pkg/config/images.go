@@ -53,6 +53,8 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
 
+	// TODO NOW: template the images
+
 	cfg.Spec.Images.CoreDNS.Image = Metadata.Images["coredns"].Image
 	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Version
 

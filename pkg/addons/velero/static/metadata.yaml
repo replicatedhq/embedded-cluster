@@ -5,18 +5,18 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 7.1.4
-location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
+version: 7.1.5
+location: oci://{{ .ReplicatedProxyDomain }}/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
-        repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
+        repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-kubectl'
         tag: 1.31.0-r0@sha256:94987788d6af71fa656964d2d2cf6bd30db27dac76839f3d1695f7f5049405af
     velero:
-        repo: proxy.replicated.com/anonymous/replicated/ec-velero
+        repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-velero'
         tag: 1.14.0-r2@sha256:8d6bfab30bae50869cb517181f880569653994241bf096826337ad9c860ad323
     velero-plugin-for-aws:
-        repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
+        repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-velero-plugin-for-aws'
         tag: 1.10.0-r1@sha256:fa692948046d02f8cebc16c26ba972556450b95cd4741bf63c4a9286df9444fb
     velero-restore-helper:
-        repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
+        repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-velero-restore-helper'
         tag: 1.14.0-r2@sha256:b1e64bb01591f45e4d3922d2ea066ccadbfd2405eb1c60eaa4179923ba0acdd4

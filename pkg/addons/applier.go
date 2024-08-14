@@ -417,6 +417,37 @@ func printKotsadmLinkMessage(licenseFile string) error {
 	return nil
 }
 
+// init initializes the addons.
+func (a *Applier) init() error {
+	var license *kotsv1beta1.License
+	if a.licenseFile != "" {
+		l, err := helpers.ParseLicense(a.licenseFile)
+		if err != nil {
+			return fmt.Errorf("parse license: %w", err)
+		}
+		license = l
+	}
+	if err := openebs.Init(license); err != nil {
+		return fmt.Errorf("init openebs addon: %w", err)
+	}
+	if err := registry.Init(license); err != nil {
+		return fmt.Errorf("init registry addon: %w", err)
+	}
+	if err := seaweedfs.Init(license); err != nil {
+		return fmt.Errorf("init seaweedfs addon: %w", err)
+	}
+	if err := adminconsole.Init(license); err != nil {
+		return fmt.Errorf("init admin console addon: %w", err)
+	}
+	if err := embeddedclusteroperator.Init(license); err != nil {
+		return fmt.Errorf("init embedded cluster operator addon: %w", err)
+	}
+	if err := velero.Init(license); err != nil {
+		return fmt.Errorf("init velero addon: %w", err)
+	}
+	return nil
+}
+
 // NewApplier creates a new Applier instance with all addons registered.
 func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
@@ -427,6 +458,9 @@ func NewApplier(opts ...Option) *Applier {
 	}
 	for _, fn := range opts {
 		fn(applier)
+	}
+	if err := applier.init(); err != nil {
+		panic(err)
 	}
 	return applier
 }

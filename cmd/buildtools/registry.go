@@ -8,7 +8,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"helm.sh/helm/v3/pkg/repo"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
@@ -39,21 +38,17 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 		logrus.Printf("latest registry chart version: %s", latest)
 
-		current := registry.Metadata
-		if current.Version == latest && !c.Bool("force") {
-			logrus.Infof("registry version is already up-to-date")
-			return nil
-		}
-
 		logrus.Infof("mirroring registry chart version %s", latest)
 		if err := MirrorChart(registryRepo, "docker-registry", latest); err != nil {
 			return fmt.Errorf("unable to mirror chart: %w", err)
 		}
 
 		upstream := fmt.Sprintf("%s/docker-registry", os.Getenv("CHARTS_DESTINATION"))
+		chartURL := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
+
 		newmeta := release.AddonMetadata{
 			Version:  latest,
-			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
+			Location: chartURL,
 			Images:   make(map[string]release.AddonImage),
 		}
 
@@ -63,8 +58,11 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("extracting images from chart")
-		withproto := fmt.Sprintf("oci://%s", upstream)
-		images, err := GetImagesFromOCIChart(withproto, "docker-registry", latest, values)
+		templatedChartURL, err := release.Template(chartURL, nil)
+		if err != nil {
+			return fmt.Errorf("failed to template chart url: %w", err)
+		}
+		images, err := GetImagesFromOCIChart(templatedChartURL, "docker-registry", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from chart: %w", err)
 		}

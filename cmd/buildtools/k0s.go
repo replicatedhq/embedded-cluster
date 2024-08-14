@@ -63,7 +63,7 @@ var k0sImageComponents = map[string]addonComponent{
 	},
 }
 
-var updateK0sImagesCommand = &cli.Command{
+var updateK0sAddonCommand = &cli.Command{
 	Name:      "k0s",
 	Usage:     "Updates the k0s images",
 	UsageText: environmentUsageText,

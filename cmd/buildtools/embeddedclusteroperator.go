@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -50,7 +49,7 @@ var updateOperatorAddonCommand = &cli.Command{
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		upstream := "registry.replicated.com/library/embedded-cluster-operator"
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		withproto := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
 
 		logrus.Infof("updating embedded cluster operator images")
 
@@ -60,26 +59,6 @@ var updateOperatorAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("successfully updated embedded cluster operator addon")
-
-		return nil
-	},
-}
-
-var updateOperatorImagesCommand = &cli.Command{
-	Name:      "embeddedclusteroperator",
-	Usage:     "Updates the embedded cluster operator images",
-	UsageText: environmentUsageText,
-	Action: func(c *cli.Context) error {
-		logrus.Infof("updating embedded cluster operator images")
-
-		current := embeddedclusteroperator.Metadata
-
-		err := updateOperatorAddonImages(c.Context, current.Location, current.Version)
-		if err != nil {
-			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
-		}
-
-		logrus.Infof("successfully updated embedded cluster operator images")
 
 		return nil
 	},
@@ -98,7 +77,11 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := GetImagesFromOCIChart(chartURL, "embeddedclusteroperator", chartVersion, values)
+	templatedChartURL, err := release.Template(chartURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to template chart url: %w", err)
+	}
+	images, err := GetImagesFromOCIChart(templatedChartURL, "embeddedclusteroperator", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from embedded cluster operator chart: %w", err)
 	}

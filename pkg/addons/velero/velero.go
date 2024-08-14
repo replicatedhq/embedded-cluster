@@ -8,6 +8,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -26,23 +27,28 @@ const (
 
 var (
 	//go:embed static/values.yaml
-	rawvalues []byte
+	rawvalues string
 	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
 	//go:embed static/metadata.yaml
-	rawmetadata []byte
+	rawmetadata string
 	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
+	Metadata *release.AddonMetadata
 )
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+func Init(license *kotsv1beta1.License) error {
+	m, err := release.ParseAddonMetadata(rawmetadata, license)
+	if err != nil {
+		return fmt.Errorf("parse metadata: %w", err)
 	}
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	Metadata = m
+
+	hv, err := release.ParseAddonHelmValues(rawvalues, license)
+	if err != nil {
+		return fmt.Errorf("parse helm values: %w", err)
 	}
+	helmValues = hv
+	return nil
 }
 
 // Velero manages the installation of the Velero helm chart.

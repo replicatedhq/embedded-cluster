@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -49,18 +48,13 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		}
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
-		current := seaweedfs.Metadata
-		if current.Version == nextChartVersion && !c.Bool("force") {
-			logrus.Infof("seaweedfs chart version is already up-to-date")
-		} else {
-			logrus.Infof("mirroring seaweedfs chart version %s", nextChartVersion)
-			if err := MirrorChart(seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
-				return fmt.Errorf("failed to mirror seaweedfs chart: %v", err)
-			}
+		logrus.Infof("mirroring seaweedfs chart version %s", nextChartVersion)
+		if err := MirrorChart(seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
+			return fmt.Errorf("failed to mirror seaweedfs chart: %v", err)
 		}
 
 		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("CHARTS_DESTINATION"))
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		withproto := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
 
 		logrus.Infof("updating seaweedfs images")
 
@@ -70,26 +64,6 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("successfully updated seaweedfs addon")
-
-		return nil
-	},
-}
-
-var updateSeaweedFSImagesCommand = &cli.Command{
-	Name:      "seaweedfs",
-	Usage:     "Updates the seaweedfs images",
-	UsageText: environmentUsageText,
-	Action: func(c *cli.Context) error {
-		logrus.Infof("updating seaweedfs images")
-
-		current := seaweedfs.Metadata
-
-		err := updateSeaweedFSAddonImages(c.Context, current.Location, current.Version)
-		if err != nil {
-			return fmt.Errorf("failed to update seaweedfs images: %w", err)
-		}
-
-		logrus.Infof("successfully updated seaweedfs images")
 
 		return nil
 	},
@@ -108,7 +82,11 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := GetImagesFromOCIChart(chartURL, "seaweedfs", chartVersion, values)
+	templatedChartURL, err := release.Template(chartURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to template chart url: %w", err)
+	}
+	images, err := GetImagesFromOCIChart(templatedChartURL, "seaweedfs", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from seaweedfs chart: %w", err)
 	}

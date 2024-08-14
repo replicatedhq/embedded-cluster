@@ -12,6 +12,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -39,13 +40,13 @@ const (
 
 var (
 	//go:embed static/values.yaml
-	rawvalues []byte
+	rawvalues string
 	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
 	//go:embed static/metadata.yaml
-	rawmetadata []byte
+	rawmetadata string
 	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
+	Metadata *release.AddonMetadata
 	// protectedFields are helm values that are not overwritten when upgrading the addon.
 	protectedFields = []string{"automation", "embeddedClusterID", "isAirgap"}
 	// Overwritten by -ldflags in Makefile
@@ -56,15 +57,18 @@ var (
 	KotsVersion                         = ""
 )
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+func Init(license *kotsv1beta1.License) error {
+	m, err := release.ParseAddonMetadata(rawmetadata, license)
+	if err != nil {
+		return fmt.Errorf("parse metadata: %w", err)
 	}
+	Metadata = m
 
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
+	hv, err := release.ParseAddonHelmValues(rawvalues, license)
+	if err != nil {
+		return fmt.Errorf("parse helm values: %w", err)
 	}
+	helmValues = hv
 
 	helmValues["embeddedClusterVersion"] = versions.Version
 
@@ -77,6 +81,7 @@ func init() {
 	if AdminConsoleKurlProxyImageOverride != "" {
 		helmValues["images"].(map[string]interface{})["kurlProxy"] = AdminConsoleKurlProxyImageOverride
 	}
+	return nil
 }
 
 // AdminConsole manages the admin console helm chart installation.
@@ -136,7 +141,7 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 
 	chartName := Metadata.Location
 	if AdminConsoleChartRepoOverride != "" {
-		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
+		chartName = fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", AdminConsoleChartRepoOverride)
 	}
 
 	chartConfig := ecv1beta1.Chart{
