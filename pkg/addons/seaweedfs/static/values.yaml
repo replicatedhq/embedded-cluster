@@ -14,7 +14,7 @@
 global:
   enableReplication: true
   replicationPlacment: "001"
-  registry: "proxy.replicated.com/anonymous/"
+  registry: '{{ .ReplicatedProxyDomain }}/anonymous/'
 master:
   imageOverride: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-seaweedfs:3.71-r1@sha256:62701f9d4a6a3bf0aaa1914b8e03c44ebcd38ad25ea09ba9dbcbdb7d64e1a332'
   replicas: 1
