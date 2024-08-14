@@ -47,15 +47,18 @@ var (
 	EmbeddedOperatorImageOverride = ""
 )
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+func Init(license *kotsv1beta1.License) error {
+	m, err := release.ParseAddonMetadata(rawmetadata, license)
+	if err != nil {
+		return fmt.Errorf("parse metadata: %w", err)
 	}
+	Metadata = *m
 
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
+	hv, err := release.ParseAddonHelmValues(rawvalues, license)
+	if err != nil {
+		return fmt.Errorf("parse helm values: %w", err)
 	}
+	helmValues = hv
 
 	helmValues["kotsVersion"] = adminconsole.Metadata.Version
 	helmValues["embeddedClusterVersion"] = versions.Version
@@ -65,13 +68,14 @@ func init() {
 		// split ImageOverride into the image and tag
 		parts := strings.Split(EmbeddedOperatorImageOverride, ":")
 		if len(parts) != 2 {
-			panic(fmt.Sprintf("invalid image override: %s", EmbeddedOperatorImageOverride))
+			return fmt.Errorf("invalid image override: %s", EmbeddedOperatorImageOverride)
 		}
 		helmValues["image"] = map[string]interface{}{
 			"repository": parts[0],
 			"tag":        parts[1],
 		}
 	}
+	return nil
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator

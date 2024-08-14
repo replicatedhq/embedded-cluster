@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"gopkg.in/yaml.v3"
 )
 
@@ -122,4 +123,28 @@ func (a *AddonMetadata) RenderValues(addon, tplfile, dest string) error {
 	}
 
 	return nil
+}
+
+func ParseAddonMetadata(rawmetadata []byte, license *kotsv1beta1.License) (*AddonMetadata, error) {
+	templated, err := Template(rawmetadata, license)
+	if err != nil {
+		return nil, fmt.Errorf("template metadata: %w", err)
+	}
+	var parsed AddonMetadata
+	if err := yaml.Unmarshal(templated, &parsed); err != nil {
+		return nil, fmt.Errorf("unmarshal metadata: %w", err)
+	}
+	return &parsed, nil
+}
+
+func ParseAddonHelmValues(rawvalues []byte, license *kotsv1beta1.License) (map[string]interface{}, error) {
+	templated, err := Template(rawvalues, license)
+	if err != nil {
+		return nil, fmt.Errorf("template helm values: %w", err)
+	}
+	parsed := make(map[string]interface{})
+	if err := yaml.Unmarshal(templated, &parsed); err != nil {
+		return nil, fmt.Errorf("unmarshal helm values: %w", err)
+	}
+	return parsed, nil
 }

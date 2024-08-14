@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,15 +34,19 @@ var (
 	Metadata release.AddonMetadata
 )
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+func Init(license *kotsv1beta1.License) error {
+	m, err := release.ParseAddonMetadata(rawmetadata, license)
+	if err != nil {
+		return fmt.Errorf("parse metadata: %w", err)
 	}
+	Metadata = *m
 
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	hv, err := release.ParseAddonHelmValues(rawvalues, license)
+	if err != nil {
+		return fmt.Errorf("parse helm values: %w", err)
 	}
+	helmValues = hv
+	return nil
 }
 
 // OpenEBS manages the installation of the OpenEBS helm chart.
