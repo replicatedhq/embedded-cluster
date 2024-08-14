@@ -323,7 +323,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
 	stdout, _, err := RunCommandOnNode(t, tc, 0, line)
 	if err != nil {
 		t.Log(stdout)
@@ -365,7 +365,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
 	t.Logf("%s: checking installation state after restoring app", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}

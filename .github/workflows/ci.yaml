@@ -348,6 +348,7 @@ jobs:
           - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
+          - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
           - TestResetAndReinstallAirgap
           - TestCollectSupportBundle
@@ -355,6 +356,7 @@ jobs:
           - TestMaterialize
           - TestLocalArtifactMirror
           - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeFromEC18
           - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeAirgapUpgrade

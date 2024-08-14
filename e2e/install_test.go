@@ -472,7 +472,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
 	}
@@ -526,7 +526,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
 	}
@@ -546,6 +546,60 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:     t,
+		Nodes: 1,
+		Image: "debian/12",
+	})
+	defer cleanupCluster(t, tc)
+
+	t.Logf("%s: downloading embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", "1.8.0+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-install.sh", "ui"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", "1.8.0+k8s-1.28", "v1.28.11"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -689,7 +743,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
 	}
@@ -798,7 +852,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -910,7 +964,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -946,6 +1000,121 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 		t.Log(stdout)
 		t.Log(stderr)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		downloadAirgapBundle(t, "1.8.0+k8s-1.28", airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	go func() {
+		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		wg.Done()
+	}()
+	wg.Wait()
+
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "debian/12",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	})
+	defer cleanupCluster(t, tc)
+
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
+		t.Logf("failed to remove airgap upgrade bundle: %v", err)
+	}
+
+	// install "curl" dependency on node 0 for app version checks.
+	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "-y"},
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  cluster.HTTPProxy,
+		"https_proxy": cluster.HTTPProxy,
+	})
+	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	// remove the airgap bundle after installation
+	line = []string{"rm", "/assets/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if err := setupPlaywright(t, tc); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{
+		"check-airgap-installation-state.sh",
+		// the initially installed version is 1.8.0+k8s-1.28
+		// the '+' character is problematic in the regex used to validate the version, so we use '.' instead
+		"1.8.0.k8s-1.28",
+		"v1.28.11"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+	// remove the airgap bundle after upgrade
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -1086,7 +1255,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	t.Log(stdout)
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -1250,7 +1419,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	t.Log(stdout)
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -1508,7 +1677,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -1627,7 +1796,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", os.Getenv("SHORT_SHA"), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0 %s: %v", tc.Nodes[0], err)
 	}
@@ -2084,7 +2253,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line := []string{"check-airgap-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line := []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
