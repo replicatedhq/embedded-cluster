@@ -299,7 +299,7 @@ var joinCommand = &cli.Command{
 
 func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 	if jcmd.Network != nil {
-		clusterSpec := k0sconfig.DefaultClusterConfig()
+		clusterSpec := config.RenderK0sConfig()
 		clusterSpec.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
 		clusterSpec.Spec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
 		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)

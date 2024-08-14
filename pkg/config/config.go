@@ -19,6 +19,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
+const (
+	DefaultServiceNodePortRange = "80-32767"
+)
+
 // ReadConfigFile reads the cluster configuration from the provided file.
 func ReadConfigFile(cfgPath string) (dig.Mapping, error) {
 	data, err := os.ReadFile(cfgPath)
@@ -41,6 +45,10 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
 	cfg.Spec.Telemetry.Enabled = false
+	if cfg.Spec.API.ExtraArgs == nil {
+		cfg.Spec.API.ExtraArgs = map[string]string{}
+	}
+	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
 	overrideK0sImages(cfg)
 	return cfg
 }
