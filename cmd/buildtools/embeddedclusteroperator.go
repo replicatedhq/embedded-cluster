@@ -50,7 +50,7 @@ var updateOperatorAddonCommand = &cli.Command{
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		upstream := "registry.replicated.com/library/embedded-cluster-operator"
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		withproto := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
 
 		logrus.Infof("updating embedded cluster operator images")
 

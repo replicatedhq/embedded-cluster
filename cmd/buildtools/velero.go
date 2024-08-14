@@ -88,7 +88,7 @@ var updateVeleroAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/velero", os.Getenv("CHARTS_DESTINATION"))
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		withproto := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
 
 		veleroVersion, err := findVeleroVersionFromChart(c.Context, withproto, nextChartVersion)
 		if err != nil {

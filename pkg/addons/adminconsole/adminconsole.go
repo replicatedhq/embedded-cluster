@@ -158,7 +158,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, [
 
 	chartName := Metadata.Location
 	if AdminConsoleChartRepoOverride != "" {
-		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
+		chartName = fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", AdminConsoleChartRepoOverride)
 	}
 
 	chartConfig := eckinds.Chart{

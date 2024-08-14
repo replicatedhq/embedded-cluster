@@ -53,7 +53,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		upstream := fmt.Sprintf("%s/docker-registry", os.Getenv("CHARTS_DESTINATION"))
 		newmeta := release.AddonMetadata{
 			Version:  latest,
-			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
+			Location: fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream),
 			Images:   make(map[string]release.AddonImage),
 		}
 
