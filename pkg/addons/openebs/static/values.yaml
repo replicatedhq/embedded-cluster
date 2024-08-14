@@ -25,16 +25,16 @@ localpv-provisioner:
     enabled: false
   helperPod:
     image:
-      registry: proxy.replicated.com/anonymous/
-      repository: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-openebs-linux-utils'
+      registry: '{{ .ReplicatedProxyDomain }}/anonymous/'
+      repository: 'replicated/ec-openebs-linux-utils'
       tag: '4.1.0@sha256:be50f86e82133c337d18022c9f96fda787520f37818d613d508a5d7d5f35828c'
   hostpathClass:
     enabled: true
     isDefaultClass: true
   localpv:
     image:
-      registry: proxy.replicated.com/anonymous/
-      repository: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-openebs-provisioner-localpv'
+      registry: '{{ .ReplicatedProxyDomain }}/anonymous/'
+      repository: 'replicated/ec-openebs-provisioner-localpv'
       tag: '4.1.0-r0@sha256:a414407f0d54ad228621ea69335104b1ed2bd59a01eed86983e9cf63a05a4b2e'
 lvm-localpv:
   enabled: false
@@ -42,8 +42,8 @@ mayastor:
   enabled: false
 preUpgradeHook:
   image:
-    registry: proxy.replicated.com/anonymous
-    repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-kubectl'
+    registry: '{{ .ReplicatedProxyDomain }}/anonymous/'
+    repo: 'replicated/ec-kubectl'
     tag: '1.31.0-r0@sha256:94987788d6af71fa656964d2d2cf6bd30db27dac76839f3d1695f7f5049405af'
 zfs-localpv:
   enabled: false
