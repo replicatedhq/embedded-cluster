@@ -6,14 +6,14 @@
 # $ output/bin/buildtools update addon <addon name>
 #
 version: 4.1.0
-location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs
+location: oci://{{ .ReplicatedProxyDomain }}/anonymous/registry.replicated.com/ec-charts/openebs
 images:
     kubectl:
-        repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
+        repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-kubectl'
         tag: 1.31.0-r0@sha256:94987788d6af71fa656964d2d2cf6bd30db27dac76839f3d1695f7f5049405af
     openebs-linux-utils:
-        repo: proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils
-        tag: 4.1.0@sha256:1d5f6aaa0ad41d8cfe9ec158bcd05d21d7922115f5b5b90195bf4f5112dd3e51
+        repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-openebs-linux-utils'
+        tag: 4.1.0@sha256:be50f86e82133c337d18022c9f96fda787520f37818d613d508a5d7d5f35828c
     openebs-provisioner-localpv:
-        repo: proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv
+        repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-openebs-provisioner-localpv'
         tag: 4.1.0-r0@sha256:a414407f0d54ad228621ea69335104b1ed2bd59a01eed86983e9cf63a05a4b2e
