@@ -200,10 +200,8 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 	}
 	loading.Closef("Embedded Cluster Operator is ready!")
 
-	if e.airgap {
-		if err := e.createVersionMetadataConfigmap(ctx, cli, releaseMetadata); err != nil {
-			return fmt.Errorf("unable to create version metadata: %w", err)
-		}
+	if err := e.createVersionMetadataConfigmap(ctx, cli, releaseMetadata); err != nil {
+		return fmt.Errorf("unable to create version metadata: %w", err)
 	}
 
 	cfg, err := release.GetEmbeddedClusterConfig()
