@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -68,10 +69,8 @@ func init() {
 // Registry manages the installation of the Registry helm chart.
 type Registry struct {
 	namespace string
-	config    v1beta1.ClusterConfig
 	isAirgap  bool
 	isHA      bool
-	net       *eckinds.NetworkSpec
 }
 
 // Version returns the version of the Registry chart.
@@ -97,12 +96,12 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
-func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
+func (o *Registry) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
 
-	chartConfig := eckinds.Chart{
+	chartConfig := ecv1beta1.Chart{
 		Name:      releaseName,
 		ChartName: Metadata.Location,
 		Version:   Metadata.Version,
@@ -118,13 +117,11 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eck
 	}
 
 	// use a static cluster IP for the registry service based on the cluster CIDR range
-	serviceCIDR := v1beta1.DefaultNetwork().ServiceCIDR
-	if o.config.Spec != nil && o.config.Spec.Network != nil {
-		serviceCIDR = o.config.Spec.Network.ServiceCIDR
+	serviceCIDR := k0sv1beta1.DefaultNetwork().ServiceCIDR
+	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil && k0sCfg.Spec.Network.ServiceCIDR != "" {
+		serviceCIDR = k0sCfg.Spec.Network.ServiceCIDR
 	}
-	if o.net != nil && o.net.ServiceCIDR != "" {
-		serviceCIDR = o.net.ServiceCIDR
-	}
+
 	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get cluster IP for registry service: %w", err)
@@ -143,7 +140,7 @@ func (o *Registry) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eck
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, nil, nil
+	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (a *Registry) GetImages() []string {
@@ -159,7 +156,7 @@ func (o *Registry) GetAdditionalImages() []string {
 }
 
 func (o *Registry) generateRegistryTLS(ctx context.Context, cli client.Client) (string, string, error) {
-	nsn := types.NamespacedName{Name: "registry", Namespace: o.namespace}
+	nsn := apitypes.NamespacedName{Name: "registry", Namespace: o.namespace}
 	var svc corev1.Service
 	if err := cli.Get(ctx, nsn, &svc); err != nil {
 		return "", "", fmt.Errorf("unable to get registry service: %w", err)
@@ -261,7 +258,7 @@ func (o *Registry) generateRegistryMigrationRole(ctx context.Context, cli client
 }
 
 // Outro is executed after the cluster deployment.
-func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
+func (o *Registry) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	if !o.isAirgap {
 		return nil
 	}
@@ -356,8 +353,8 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new Registry addon.
-func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool, isHA bool, net *eckinds.NetworkSpec) (*Registry, error) {
-	return &Registry{namespace: namespace, config: config, isAirgap: isAirgap, isHA: isHA, net: net}, nil
+func New(namespace string, isAirgap bool, isHA bool) (*Registry, error) {
+	return &Registry{namespace: namespace, isAirgap: isAirgap, isHA: isHA}, nil
 }
 
 func GetRegistryPassword() string {

@@ -194,7 +194,13 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		if err := RunHostPreflights(c); err != nil {
+		applier, err := getAddonsApplier(c, "")
+		if err != nil {
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
+		if err := RunHostPreflights(c, applier); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -300,8 +306,16 @@ var joinCommand = &cli.Command{
 func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 	if jcmd.Network != nil {
 		clusterSpec := config.RenderK0sConfig()
+		// NOTE: we should be copying everything from the in cluster config spec and overriding
+		// the node specific config from clusterSpec.GetClusterWideConfig()
 		clusterSpec.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
 		clusterSpec.Spec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
+		if jcmd.Network.NodePortRange != "" {
+			if clusterSpec.Spec.API.ExtraArgs == nil {
+				clusterSpec.Spec.API.ExtraArgs = map[string]string{}
+			}
+			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.Network.NodePortRange
+		}
 		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
 
 		if err != nil {

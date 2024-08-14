@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -236,12 +236,12 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 	if rel == nil {
 		return nil, fmt.Errorf("no release found in binary")
 	}
-	net, err := getConfiguredNetwork()
+	k0sCfg, err := getK0sConfigFromDisk()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get configured network: %w", err)
+		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
-	if restorable, reason := isBackupRestorable(backup, rel, isAirgap, *net); !restorable {
+	if restorable, reason := isBackupRestorable(backup, rel, isAirgap, k0sCfg); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
 	}
 	return backup, nil
@@ -296,8 +296,8 @@ func validateS3BackupStore(s *s3BackupStore) error {
 // RunHostPreflightsForRestore runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts for restore operations.
-func RunHostPreflightsForRestore(c *cli.Context) error {
-	hpf, err := addons.NewApplier().HostPreflightsForRestore()
+func RunHostPreflightsForRestore(c *cli.Context, applier *addons.Applier) error {
+	hpf, err := applier.HostPreflightsForRestore()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
@@ -307,7 +307,7 @@ func RunHostPreflightsForRestore(c *cli.Context) error {
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.
 // The file is saved in the global location (as returned by defaults.PathToK0sConfig()).
 // If a file already sits there, this function returns an error.
-func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
+func ensureK0sConfigForRestore(c *cli.Context, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
@@ -322,18 +322,12 @@ func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
 	if c.String("service-cidr") != "" {
 		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	}
-	opts := []addons.Option{}
-	if c.Bool("proxy") {
-		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
-	}
-	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
-	}
-	if err := config.UpdateHelmConfigsForRestore(cfg, opts...); err != nil {
+	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
 	var err error
-	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
+	cfg, err = applyUnsupportedOverrides(c, cfg)
+	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 	if c.String("airgap-bundle") != "" {
@@ -357,21 +351,11 @@ func ensureK0sConfigForRestore(c *cli.Context) (*v1beta1.ClusterConfig, error) {
 }
 
 // runOutroForRestore calls Outro() in all enabled addons for restore operations by means of Applier.
-func runOutroForRestore(c *cli.Context, cfg *v1beta1.ClusterConfig) error {
-	opts := []addons.Option{}
-	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
-	}
-
-	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
-		PodCIDR:     cfg.Spec.Network.PodCIDR,
-		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
-	}))
-
-	return addons.NewApplier(opts...).OutroForRestore(c.Context)
+func runOutroForRestore(c *cli.Context, applier *addons.Applier, cfg *k0sv1beta1.ClusterConfig) error {
+	return applier.OutroForRestore(c.Context, cfg)
 }
 
-func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, net ecv1beta1.NetworkSpec) (bool, string) {
+func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
@@ -419,9 +403,11 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 		podCIDR := backup.Annotations["kots.io/embedded-cluster-pod-cidr"]
 		serviceCIDR := backup.Annotations["kots.io/embedded-cluster-service-cidr"]
 
-		if podCIDR != "" || serviceCIDR != "" {
-			if podCIDR != net.PodCIDR || serviceCIDR != net.ServiceCIDR {
-				return false, fmt.Sprintf("has a different network configuration than the current cluster. Please rerun with '--pod-cidr %s --service-cidr %s'.", podCIDR, serviceCIDR)
+		if k0sCfg != nil && k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
+			if k0sCfg.Spec.Network.PodCIDR != "" || k0sCfg.Spec.Network.ServiceCIDR != "" {
+				if podCIDR != k0sCfg.Spec.Network.PodCIDR || serviceCIDR != k0sCfg.Spec.Network.ServiceCIDR {
+					return false, fmt.Sprintf("has a different network configuration than the current cluster. Please rerun with '--pod-cidr %s --service-cidr %s'.", podCIDR, serviceCIDR)
+				}
 			}
 		}
 	}
@@ -461,9 +447,9 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		return nil, fmt.Errorf("no release found in binary")
 	}
 
-	net, err := getConfiguredNetwork()
+	k0sCfg, err := getK0sConfigFromDisk()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get configured network: %w", err)
+		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
 	for i := 0; i < 30; i++ {
@@ -483,7 +469,7 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		invalidReasons := []string{}
 
 		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup, rel, isAirgap, *net)
+			restorable, reason := isBackupRestorable(&backup, rel, isAirgap, k0sCfg)
 			if restorable {
 				validBackups = append(validBackups, backup)
 			} else {
@@ -526,24 +512,19 @@ func pickBackupToRestore(backups []velerov1.Backup) *velerov1.Backup {
 	return latestBackup
 }
 
-// getConfiguredNetwork reads the k0s config and returns the network configuration.
-func getConfiguredNetwork() (*ecv1beta1.NetworkSpec, error) {
+// getK0sConfigFromDisk reads and returns the k0s config from disk.
+func getK0sConfigFromDisk() (*k0sv1beta1.ClusterConfig, error) {
 	cfgBytes, err := os.ReadFile(defaults.PathToK0sConfig())
 	if err != nil {
 		return nil, fmt.Errorf("unable to read k0s config file: %w", err)
 	}
 
-	cfg := &v1beta1.ClusterConfig{}
+	cfg := &k0sv1beta1.ClusterConfig{}
 	if err := k8syaml.Unmarshal(cfgBytes, cfg); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
 
-	net := &ecv1beta1.NetworkSpec{
-		PodCIDR:     cfg.Spec.Network.PodCIDR,
-		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
-	}
-
-	return net, nil
+	return cfg, nil
 }
 
 // waitForVeleroRestoreCompleted waits for a Velero restore to complete.
@@ -858,13 +839,13 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool) error {
 	return nil
 }
 
-func installAndWaitForRestoredK0sNode(c *cli.Context) (*v1beta1.ClusterConfig, error) {
+func installAndWaitForRestoredK0sNode(c *cli.Context, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", binName)
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := ensureK0sConfigForRestore(c)
+	cfg, err := ensureK0sConfigForRestore(c, applier)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
@@ -979,6 +960,11 @@ var restoreCommand = &cli.Command{
 			}
 		}
 
+		applier, err := getAddonsApplier(c, "")
+		if err != nil {
+			return err
+		}
+
 		switch state {
 		case ecRestoreStateNew:
 			logrus.Debugf("checking if %s is already installed", binName)
@@ -1010,11 +996,11 @@ var restoreCommand = &cli.Command{
 				return fmt.Errorf("unable to materialize binaries: %w", err)
 			}
 			logrus.Debugf("running host preflights")
-			if err := RunHostPreflightsForRestore(c); err != nil {
+			if err := RunHostPreflightsForRestore(c, applier); err != nil {
 				return fmt.Errorf("unable to finish preflight checks: %w", err)
 			}
 
-			cfg, err := installAndWaitForRestoredK0sNode(c)
+			cfg, err := installAndWaitForRestoredK0sNode(c, applier)
 			if err != nil {
 				return err
 			}
@@ -1032,7 +1018,7 @@ var restoreCommand = &cli.Command{
 			}()
 
 			logrus.Debugf("running outro")
-			if err := runOutroForRestore(c, cfg); err != nil {
+			if err := runOutroForRestore(c, applier, cfg); err != nil {
 				return fmt.Errorf("unable to run outro: %w", err)
 			}
 

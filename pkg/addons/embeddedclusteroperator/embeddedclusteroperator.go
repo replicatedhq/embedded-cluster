@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -77,14 +78,12 @@ func init() {
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
 // helm chart.
 type EmbeddedClusterOperator struct {
-	namespace       string
-	deployName      string
-	endUserConfig   *embeddedclusterv1beta1.Config
-	licenseFile     string
-	airgap          bool
-	releaseMetadata *types.ReleaseMetadata
-	proxyEnv        map[string]string
-	net             *embeddedclusterv1beta1.NetworkSpec
+	namespace     string
+	deployName    string
+	endUserConfig *ecv1beta1.Config
+	licenseFile   string
+	airgap        bool
+	proxyEnv      map[string]string
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -112,8 +111,8 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
-	chartConfig := embeddedclusterv1beta1.Chart{
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+	chartConfig := ecv1beta1.Chart{
 		Name:      releaseName,
 		ChartName: Metadata.Location,
 		Version:   Metadata.Version,
@@ -141,7 +140,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(onlyDefaults bool) ([]embed
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
 	chartConfig.Values = string(valuesStringData)
-	return []embeddedclusterv1beta1.Chart{chartConfig}, nil, nil
+	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (a *EmbeddedClusterOperator) GetImages() []string {
@@ -161,8 +160,8 @@ func (e *EmbeddedClusterOperator) GetAdditionalImages() []string {
 }
 
 // createVersionMetadataConfigMap creates a ConfigMap with the version metadata for the embedded cluster operator.
-func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Context, client client.Client) error {
-	data, err := json.Marshal(e.releaseMetadata)
+func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Context, client client.Client, releaseMetadata *types.ReleaseMetadata) error {
+	data, err := json.Marshal(releaseMetadata)
 	if err != nil {
 		return fmt.Errorf("unable to marshal release metadata: %w", err)
 	}
@@ -192,7 +191,7 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 // Outro is executed after the cluster deployment. Waits for the embedded cluster operator
 // to finish its deployment, creates the version metadata configmap (if in airgap) and
 // the installation object.
-func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) error {
+func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
 	if err := kubeutils.WaitForDeployment(ctx, cli, e.namespace, e.deployName); err != nil {
@@ -201,8 +200,8 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	}
 	loading.Closef("Embedded Cluster Operator is ready!")
 
-	if e.releaseMetadata != nil {
-		if err := e.createVersionMetadataConfigmap(ctx, cli); err != nil {
+	if e.airgap {
+		if err := e.createVersionMetadataConfigmap(ctx, cli, releaseMetadata); err != nil {
 			return fmt.Errorf("unable to create version metadata: %w", err)
 		}
 	}
@@ -211,7 +210,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	if err != nil {
 		return err
 	}
-	var cfgspec *embeddedclusterv1beta1.ConfigSpec
+	var cfgspec *ecv1beta1.ConfigSpec
 	if cfg != nil {
 		cfgspec = &cfg.Spec
 	}
@@ -229,32 +228,32 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 	}
 
 	// Configure proxy
-	var proxySpec *embeddedclusterv1beta1.ProxySpec
+	var proxySpec *ecv1beta1.ProxySpec
 	if len(e.proxyEnv) > 0 {
-		proxySpec = &embeddedclusterv1beta1.ProxySpec{
+		proxySpec = &ecv1beta1.ProxySpec{
 			HTTPProxy:  e.proxyEnv["HTTP_PROXY"],
 			HTTPSProxy: e.proxyEnv["HTTPS_PROXY"],
 			NoProxy:    e.proxyEnv["NO_PROXY"],
 		}
 	}
 
-	installation := embeddedclusterv1beta1.Installation{
+	installation := ecv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
 			Labels: map[string]string{
 				"replicated.com/disaster-recovery": "ec-install",
 			},
 		},
-		Spec: embeddedclusterv1beta1.InstallationSpec{
+		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
 			MetricsBaseURL:            metrics.BaseURL(license),
 			AirGap:                    e.airgap,
 			Proxy:                     proxySpec,
-			Network:                   e.net,
+			Network:                   k0sConfigToNetworkSpec(k0sCfg),
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
-			LicenseInfo: &embeddedclusterv1beta1.LicenseInfo{
+			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(license),
 			},
 		},
@@ -266,16 +265,14 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client) 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *embeddedclusterv1beta1.Config, licenseFile string, airgapEnabled bool, releaseMetadata *types.ReleaseMetadata, proxyEnv map[string]string, net *embeddedclusterv1beta1.NetworkSpec) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *ecv1beta1.Config, licenseFile string, airgapEnabled bool, proxyEnv map[string]string) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
-		namespace:       "embedded-cluster",
-		deployName:      "embedded-cluster-operator",
-		endUserConfig:   endUserConfig,
-		licenseFile:     licenseFile,
-		airgap:          airgapEnabled,
-		releaseMetadata: releaseMetadata,
-		proxyEnv:        proxyEnv,
-		net:             net,
+		namespace:     "embedded-cluster",
+		deployName:    "embedded-cluster-operator",
+		endUserConfig: endUserConfig,
+		licenseFile:   licenseFile,
+		airgap:        airgapEnabled,
+		proxyEnv:      proxyEnv,
 	}, nil
 }
 
@@ -284,4 +281,21 @@ func licenseDisasterRecoverySupported(license *kotsv1beta1.License) bool {
 		return false
 	}
 	return license.Spec.IsDisasterRecoverySupported
+}
+
+func k0sConfigToNetworkSpec(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.NetworkSpec {
+	network := &ecv1beta1.NetworkSpec{}
+
+	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
+		network.PodCIDR = k0sCfg.Spec.Network.PodCIDR
+		network.ServiceCIDR = k0sCfg.Spec.Network.ServiceCIDR
+	}
+
+	if k0sCfg.Spec.API != nil {
+		if val, ok := k0sCfg.Spec.API.ExtraArgs["service-node-port-range"]; ok {
+			network.NodePortRange = val
+		}
+	}
+
+	return network
 }

@@ -84,8 +84,8 @@ func configureNetworkManager(c *cli.Context) error {
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context) error {
-	hpf, err := addons.NewApplier().HostPreflights()
+func RunHostPreflights(c *cli.Context, applier *addons.Applier) error {
+	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
@@ -310,7 +310,7 @@ func materializeFiles(c *cli.Context) error {
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
-func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
+func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.ClusterConfig, error) {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
@@ -319,37 +319,14 @@ func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
-	if c.String("pod-cidr") != "" {
-		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
-	}
-	if c.String("service-cidr") != "" {
-		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
-	}
-	opts := []addons.Option{}
-	if c.Bool("no-prompt") {
-		opts = append(opts, addons.WithoutPrompt())
-	}
-	if l := c.String("license"); l != "" {
-		opts = append(opts, addons.WithLicense(l))
-	}
-	if ab := c.String("airgap-bundle"); ab != "" {
-		opts = append(opts, addons.WithAirgapBundle(ab))
-	}
-	if c.Bool("proxy") {
-		opts = append(opts, addons.WithProxyFromEnv(cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
-	}
-	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
-	}
-	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
-		PodCIDR:     cfg.Spec.Network.PodCIDR,
-		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
-	}))
-	if err := config.UpdateHelmConfigs(cfg, opts...); err != nil {
+	cfg.Spec.Network.PodCIDR = getPodCIDR(c)
+	cfg.Spec.Network.ServiceCIDR = getServiceCIDR(c)
+	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
 	var err error
-	if cfg, err = applyUnsupportedOverrides(c, cfg); err != nil {
+	cfg, err = applyUnsupportedOverrides(c, cfg)
+	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 	if c.String("airgap-bundle") != "" {
@@ -377,32 +354,38 @@ func ensureK0sConfig(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 // overrides embedded into the binary and after the ones provided by the user (--overrides).
 // we first apply the k0s config override and then apply the built in overrides.
 func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k0sconfig.ClusterConfig, error) {
-	var err error
-	if embcfg, err := release.GetEmbeddedClusterConfig(); err != nil {
+	embcfg, err := release.GetEmbeddedClusterConfig()
+	if err != nil {
 		return nil, fmt.Errorf("unable to get embedded cluster config: %w", err)
-	} else if embcfg != nil {
+	}
+	if embcfg != nil {
 		overrides := embcfg.Spec.UnsupportedOverrides.K0s
-		if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
+		cfg, err = config.PatchK0sConfig(cfg, overrides)
+		if err != nil {
 			return nil, fmt.Errorf("unable to patch k0s config: %w", err)
 		}
-		if cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, embcfg); err != nil {
+		cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, embcfg)
+		if err != nil {
 			return nil, fmt.Errorf("unable to release built in overrides: %w", err)
 		}
 	}
-	if c.String("overrides") == "" {
-		return cfg, nil
-	}
+
 	eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to process overrides file: %w", err)
 	}
-	overrides := eucfg.Spec.UnsupportedOverrides.K0s
-	if cfg, err = config.PatchK0sConfig(cfg, overrides); err != nil {
-		return nil, fmt.Errorf("unable to apply overrides: %w", err)
+	if eucfg != nil {
+		overrides := eucfg.Spec.UnsupportedOverrides.K0s
+		cfg, err = config.PatchK0sConfig(cfg, overrides)
+		if err != nil {
+			return nil, fmt.Errorf("unable to apply overrides: %w", err)
+		}
+		cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, eucfg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to end user built in overrides: %w", err)
+		}
 	}
-	if cfg, err = config.ApplyBuiltInExtensionsOverrides(cfg, eucfg); err != nil {
-		return nil, fmt.Errorf("unable to end user built in overrides: %w", err)
-	}
+
 	return cfg, nil
 }
 
@@ -446,12 +429,12 @@ func waitForK0s() error {
 }
 
 // installAndWaitForK0s installs the k0s binary and waits for it to be ready
-func installAndWaitForK0s(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
+func installAndWaitForK0s(c *cli.Context, applier *addons.Applier) (*k0sconfig.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", defaults.BinaryName())
 	logrus.Debugf("creating k0s configuration file")
-	cfg, err := ensureK0sConfig(c)
+	cfg, err := ensureK0sConfig(c, applier)
 	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
 		metrics.ReportApplyFinished(c, err)
@@ -490,41 +473,23 @@ func installAndWaitForK0s(c *cli.Context) (*k0sconfig.ClusterConfig, error) {
 }
 
 // runOutro calls Outro() in all enabled addons by means of Applier.
-func runOutro(c *cli.Context, cfg *k0sconfig.ClusterConfig, adminConsolePwd string) error {
+func runOutro(c *cli.Context, applier *addons.Applier, cfg *k0sconfig.ClusterConfig) error {
 	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
-	opts := []addons.Option{}
 
-	metadata, err := gatherVersionMetadata()
+	metadata, err := gatherVersionMetadata(cfg)
 	if err != nil {
 		return fmt.Errorf("unable to gather release metadata: %w", err)
 	}
-	opts = append(opts, addons.WithVersionMetadata(metadata))
 
-	if l := c.String("license"); l != "" {
-		opts = append(opts, addons.WithLicense(l))
+	eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
+	if err != nil {
+		return fmt.Errorf("unable to process overrides file: %w", err)
 	}
-	if c.String("overrides") != "" {
-		eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
-		if err != nil {
-			return fmt.Errorf("unable to load overrides: %w", err)
-		}
-		opts = append(opts, addons.WithEndUserConfig(eucfg))
-	}
-	if ab := c.String("airgap-bundle"); ab != "" {
-		opts = append(opts, addons.WithAirgapBundle(ab))
-	}
-	opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
-	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), cfg.Spec.Network.PodCIDR, cfg.Spec.Network.ServiceCIDR))
-	}
-	opts = append(opts, addons.WithNetwork(&ecv1beta1.NetworkSpec{
-		PodCIDR:     cfg.Spec.Network.PodCIDR,
-		ServiceCIDR: cfg.Spec.Network.ServiceCIDR,
-	}))
-	return addons.NewApplier(opts...).Outro(c.Context)
+
+	return applier.Outro(c.Context, cfg, eucfg, metadata)
 }
 
-func askAdminConsolePassword(c *cli.Context) (string, error) {
+func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 	defaultPassword := "password"
 	userProvidedPassword := c.String("admin-console-password")
 	if c.Bool("no-prompt") {
@@ -658,7 +623,7 @@ var installCommand = &cli.Command{
 				return err // we want the user to see the error message without a prefix
 			}
 		}
-		adminConsolePwd, err := askAdminConsolePassword(c)
+		adminConsolePwd, err := maybeAskAdminConsolePassword(c)
 		if err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
@@ -668,21 +633,70 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		logrus.Debugf("running host preflights")
-		if err := RunHostPreflights(c); err != nil {
+		applier, err := getAddonsApplier(c, adminConsolePwd)
+		if err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		cfg, err := installAndWaitForK0s(c)
+		logrus.Debugf("running host preflights")
+		if err := RunHostPreflights(c, applier); err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
+		cfg, err := installAndWaitForK0s(c, applier)
 		if err != nil {
 			return err
 		}
 		logrus.Debugf("running outro")
-		if err := runOutro(c, cfg, adminConsolePwd); err != nil {
+		if err := runOutro(c, applier, cfg); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
 		metrics.ReportApplyFinished(c, nil)
 		return nil
 	},
+}
+
+func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, error) {
+	opts := []addons.Option{}
+	if c.Bool("no-prompt") {
+		opts = append(opts, addons.WithoutPrompt())
+	}
+	if l := c.String("license"); l != "" {
+		opts = append(opts, addons.WithLicense(l))
+	}
+	if ab := c.String("airgap-bundle"); ab != "" {
+		opts = append(opts, addons.WithAirgapBundle(ab))
+	}
+	if c.Bool("proxy") {
+		opts = append(opts, addons.WithProxyFromEnv(getPodCIDR(c), getServiceCIDR(c)))
+	}
+	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
+		opts = append(opts, addons.WithProxyFromArgs(c.String("http-proxy"), c.String("https-proxy"), c.String("no-proxy"), getPodCIDR(c), getServiceCIDR(c)))
+	}
+	if c.String("overrides") != "" {
+		eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))
+		if err != nil {
+			return nil, fmt.Errorf("unable to process overrides file: %w", err)
+		}
+		opts = append(opts, addons.WithEndUserConfig(eucfg))
+	}
+	if adminConsolePwd != "" {
+		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
+	}
+	return addons.NewApplier(opts...), nil
+}
+
+func getPodCIDR(c *cli.Context) string {
+	if c.String("pod-cidr") != "" {
+		return c.String("pod-cidr")
+	}
+	return k0sconfig.DefaultNetwork().PodCIDR
+}
+
+func getServiceCIDR(c *cli.Context) string {
+	if c.String("service-cidr") != "" {
+		return c.String("service-cidr")
+	}
+	return k0sconfig.DefaultNetwork().ServiceCIDR
 }
