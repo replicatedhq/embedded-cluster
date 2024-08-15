@@ -6,7 +6,7 @@
 # $ output/bin/buildtools update addon <addon name>
 #
 version: 4.0.0
-location: oci://{{ .ReplicatedProxyDomain }}/anonymous/registry.replicated.com/ec-charts/seaweedfs
+location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/seaweedfs
 images:
     seaweedfs:
         repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-seaweedfs'
