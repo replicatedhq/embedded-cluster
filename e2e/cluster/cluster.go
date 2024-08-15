@@ -220,19 +220,8 @@ func NewTestCluster(in *Input) *Output {
 	for _, node := range out.Nodes {
 		CopyFilesToNode(in, node)
 		CopyDirsToNode(in, node)
-		NodeHasInternet(in, node)
-		in.T.Logf("Installing deps on node %s", node)
-		RunCommandOnNode(in, []string{"install-deps.sh"}, node)
 		if in.CreateRegularUser {
 			CreateRegularUser(in, node)
-		}
-	}
-	for _, node := range out.Nodes {
-		if in.WithProxy {
-			DisableInternetOnNode(in, node)
-			NodeHasNoInternet(in, node)
-		} else {
-			NodeHasInternet(in, node)
 		}
 	}
 	// We create a proxy node for all installations to run playwright tests.
@@ -245,6 +234,14 @@ func NewTestCluster(in *Input) *Output {
 	ConfigureProxyNode(in)
 	if in.WithProxy {
 		ConfigureProxy(in)
+	}
+	withEnv := WithEnv(map[string]string{
+		"http_proxy":  HTTPProxy,
+		"https_proxy": HTTPProxy,
+	})
+	for _, node := range out.Nodes {
+		in.T.Logf("Installing deps on node %s", node)
+		RunCommandOnNode(in, []string{"install-deps.sh"}, node, withEnv)
 	}
 	return out
 }
@@ -372,9 +369,17 @@ func ConfigureProxy(in *Input) {
 	}
 }
 
+type RunCommandOption func(cmd *Command)
+
+func WithEnv(env map[string]string) RunCommandOption {
+	return func(cmd *Command) {
+		cmd.Env = env
+	}
+}
+
 // RunCommand runs the provided command on the provided node (name). Implements a
 // timeout of 2 minutes for the command to run and if it fails calls T.Failf().
-func RunCommandOnNode(in *Input, cmdline []string, name string) {
+func RunCommandOnNode(in *Input, cmdline []string, name string, opts ...RunCommandOption) {
 	in.T.Logf("Running `%s` on node %s", strings.Join(cmdline, " "), name)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
@@ -383,6 +388,9 @@ func RunCommandOnNode(in *Input, cmdline []string, name string) {
 		Line:   cmdline,
 		Stdout: &NoopCloser{stdout},
 		Stderr: &NoopCloser{stderr},
+	}
+	for _, fn := range opts {
+		fn(&cmd)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -566,6 +574,11 @@ func CreateNodes(in *Input) []string {
 	nodes := []string{}
 	for i := 0; i < in.Nodes; i++ {
 		node := CreateNode(in, i)
+		if !in.WithProxy {
+			NodeHasInternet(in, node)
+		} else {
+			NodeHasNoInternet(in, node)
+		}
 		nodes = append(nodes, node)
 	}
 	return nodes
@@ -714,6 +727,10 @@ func CreateNetworks(in *Input) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
+	open := "true"
+	if in.WithProxy {
+		open = "false"
+	}
 	request := api.NetworksPost{
 		Name: fmt.Sprintf("external-%s", in.id),
 		Type: "bridge",
@@ -722,7 +739,7 @@ func CreateNetworks(in *Input) {
 				"ipv4.address":     fmt.Sprintf("%s.1/24", in.network),
 				"ipv4.dhcp":        "true",
 				"ipv4.dhcp.ranges": fmt.Sprintf("%[1]s.2-%[1]s.254", in.network),
-				"ipv4.nat":         "true",
+				"ipv4.nat":         open,
 				"ipv4.ovn.ranges":  fmt.Sprintf("%[1]s.100-%[1]s.253", in.network),
 				"ipv4.routes":      "10.0.0.0/24",
 			},
@@ -745,26 +762,6 @@ func CreateNetworks(in *Input) {
 	}
 	if err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create internal network: %v", err)
-	}
-}
-
-func DisableInternetOnNode(in *Input, node string) {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
-	name := fmt.Sprintf("internal-%s", in.id)
-	network, eTag, err := client.GetNetwork(name)
-	if err != nil {
-		in.T.Fatalf("Failed to get network: %v", err)
-	}
-	network.Config["ipv4.nat"] = "false"
-	request := api.NetworkPut{
-		Config:      network.Config,
-		Description: network.Description,
-	}
-	if err := client.UpdateNetwork(name, request, eTag); err != nil {
-		in.T.Fatalf("Failed to disable internet on network: %v", err)
 	}
 }
 
