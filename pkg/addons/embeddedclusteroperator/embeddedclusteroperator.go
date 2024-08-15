@@ -47,6 +47,12 @@ var (
 	EmbeddedOperatorImageOverride = ""
 )
 
+func init() {
+	if err := Init(nil); err != nil {
+		panic(fmt.Sprintf("failed to init embedded cluster operator: %v", err))
+	}
+}
+
 func Init(license *kotsv1beta1.License) error {
 	m, err := release.ParseAddonMetadata(rawmetadata, license)
 	if err != nil {
