@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/urfave/cli/v2"
@@ -25,7 +26,8 @@ var metadataCommand = &cli.Command{
 	Usage:  "Print metadata about this release",
 	Hidden: true,
 	Action: func(c *cli.Context) error {
-		metadata, err := gatherVersionMetadata()
+		k0sCfg := config.RenderK0sConfig()
+		metadata, err := gatherVersionMetadata(k0sCfg)
 		if err != nil {
 			return fmt.Errorf("failed to gather version metadata: %w", err)
 		}
@@ -42,7 +44,7 @@ var metadataCommand = &cli.Command{
 // embedded cluster. Release metadata involves the default versions of the
 // components that are included in the release plus the default values used
 // when deploying them.
-func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
+func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetadata, error) {
 	applier := addons.NewApplier(
 		addons.WithoutPrompt(),
 		addons.OnlyDefaults(),
@@ -80,6 +82,7 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	}
 
 	chtconfig, repconfig, err := applier.GenerateHelmConfigs(
+		k0sCfg,
 		config.AdditionalCharts(),
 		config.AdditionalRepositories(),
 	)
@@ -100,14 +103,13 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	meta.Protected = protectedFields
 
 	// Additional builtin addons
-	builtinCharts, err := applier.GetBuiltinCharts()
+	builtinCharts, err := applier.GetBuiltinCharts(k0sCfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get builtin charts: %w", err)
 	}
 	meta.BuiltinConfigs = builtinCharts
 
-	cfg := config.RenderK0sConfig()
-	meta.K0sImages = config.ListK0sImages(cfg)
+	meta.K0sImages = config.ListK0sImages(k0sCfg)
 
 	additionalImages, err := applier.GetAdditionalImages()
 	if err != nil {
@@ -118,7 +120,7 @@ func gatherVersionMetadata() (*types.ReleaseMetadata, error) {
 	meta.K0sImages = helpers.UniqueStringSlice(meta.K0sImages)
 	sort.Strings(meta.K0sImages)
 
-	meta.Images = config.ListK0sImages(cfg)
+	meta.Images = config.ListK0sImages(k0sCfg)
 
 	images, err := applier.GetImages()
 	if err != nil {

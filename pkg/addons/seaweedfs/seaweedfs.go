@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -44,7 +45,6 @@ func init() {
 // SeaweedFS manages the installation of the SeaweedFS helm chart.
 type SeaweedFS struct {
 	namespace string
-	config    v1beta1.ClusterConfig
 	isAirgap  bool
 }
 
@@ -71,12 +71,12 @@ func (o *SeaweedFS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the SeaweedFS chart.
-func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
+func (o *SeaweedFS) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
 
-	chartConfig := eckinds.Chart{
+	chartConfig := ecv1beta1.Chart{
 		Name:      releaseName,
 		ChartName: Metadata.Location,
 		Version:   Metadata.Version,
@@ -90,7 +90,7 @@ func (o *SeaweedFS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ec
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, nil, nil
+	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (a *SeaweedFS) GetImages() []string {
@@ -106,14 +106,14 @@ func (o *SeaweedFS) GetAdditionalImages() []string {
 }
 
 // Outro is executed after the cluster deployment.
-func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client) error {
+func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	// SeaweedFS is applied by the operator
 	return nil
 }
 
 // New creates a new SeaweedFS addon.
-func New(namespace string, config v1beta1.ClusterConfig, isAirgap bool) (*SeaweedFS, error) {
-	return &SeaweedFS{namespace: namespace, config: config, isAirgap: isAirgap}, nil
+func New(namespace string, isAirgap bool) (*SeaweedFS, error) {
+	return &SeaweedFS{namespace: namespace, isAirgap: isAirgap}, nil
 }
 
 // WaitForReady waits for SeaweedFS to be ready.

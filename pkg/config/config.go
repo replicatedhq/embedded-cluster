@@ -54,25 +54,23 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 }
 
 // UpdateHelmConfigs updates the helm config in the provided cluster configuration.
-func UpdateHelmConfigs(cfg *k0sconfig.ClusterConfig, opts ...addons.Option) error {
-	applier := addons.NewApplier(opts...)
+func UpdateHelmConfigs(applier *addons.Applier, k0sCfg *k0sconfig.ClusterConfig) error {
 	chtconfig, repconfig, err := applier.GenerateHelmConfigs(
-		AdditionalCharts(), AdditionalRepositories(),
+		k0sCfg, AdditionalCharts(), AdditionalRepositories(),
 	)
 	if err != nil {
 		return fmt.Errorf("unable to apply addons: %w", err)
 	}
-	return updateHelmConfigs(cfg, chtconfig, repconfig)
+	return updateHelmConfigs(k0sCfg, chtconfig, repconfig)
 }
 
 // UpdateHelmConfigsForRestore updates the helm config in the provided cluster configuration for a restore operation.
-func UpdateHelmConfigsForRestore(cfg *k0sconfig.ClusterConfig, opts ...addons.Option) error {
-	applier := addons.NewApplier(opts...)
-	chtconfig, repconfig, err := applier.GenerateHelmConfigsForRestore()
+func UpdateHelmConfigsForRestore(applier *addons.Applier, k0sCfg *k0sconfig.ClusterConfig) error {
+	chtconfig, repconfig, err := applier.GenerateHelmConfigsForRestore(k0sCfg)
 	if err != nil {
 		return fmt.Errorf("unable to apply addons: %w", err)
 	}
-	return updateHelmConfigs(cfg, chtconfig, repconfig)
+	return updateHelmConfigs(k0sCfg, chtconfig, repconfig)
 }
 
 func updateHelmConfigs(cfg *k0sconfig.ClusterConfig, chtconfig []embeddedclusterv1beta1.Chart, repconfig []embeddedclusterv1beta1.Repository) error {

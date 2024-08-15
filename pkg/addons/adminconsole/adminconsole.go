@@ -9,8 +9,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -82,7 +83,6 @@ func init() {
 type AdminConsole struct {
 	namespace    string
 	password     string
-	config       v1beta1.ClusterConfig
 	licenseFile  string
 	airgapBundle string
 	proxyEnv     map[string]string
@@ -108,26 +108,9 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 	return release.GetHostPreflights()
 }
 
-// GetCurrentChartConfig returns the current adminconsole chart config from the cluster config.
-func (a *AdminConsole) GetCurrentChartConfig() *v1beta1.Chart {
-	if a.config.Spec == nil || a.config.Spec.Extensions == nil {
-		return nil
-	}
-	if a.config.Spec.Extensions.Helm == nil {
-		return nil
-	}
-	chtlist := a.config.Spec.Extensions.Helm.Charts
-	for _, chart := range chtlist {
-		if chart.Name == releaseName {
-			return &chart
-		}
-	}
-	return nil
-}
-
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !onlyDefaults {
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if a.airgapBundle != "" {
@@ -156,7 +139,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, [
 		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
 	}
 
-	chartConfig := eckinds.Chart{
+	chartConfig := ecv1beta1.Chart{
 		Name:      releaseName,
 		ChartName: chartName,
 		Version:   Metadata.Version,
@@ -164,7 +147,7 @@ func (a *AdminConsole) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, [
 		TargetNS:  a.namespace,
 		Order:     5,
 	}
-	return []eckinds.Chart{chartConfig}, nil, nil
+	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (a *AdminConsole) GetImages() []string {
@@ -180,7 +163,7 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 }
 
 // Outro waits for the adminconsole to be ready.
-func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
+func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for the Admin Console to deploy")
 	defer loading.Close()
@@ -222,11 +205,10 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client) error {
 }
 
 // New creates a new AdminConsole object.
-func New(ns, password string, config v1beta1.ClusterConfig, licenseFile string, airgapBundle string, proxyEnv map[string]string) (*AdminConsole, error) {
+func New(ns, password string, licenseFile string, airgapBundle string, proxyEnv map[string]string) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:    ns,
 		password:     password,
-		config:       config,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
 		proxyEnv:     proxyEnv,

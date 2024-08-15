@@ -5,7 +5,9 @@ import (
 	_ "embed"
 	"fmt"
 
-	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -73,12 +75,12 @@ func (o *Velero) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Velero chart.
-func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
+func (o *Velero) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !o.isEnabled {
 		return nil, nil, nil
 	}
 
-	chartConfig := eckinds.Chart{
+	chartConfig := ecv1beta1.Chart{
 		Name:      releaseName,
 		ChartName: Metadata.Location,
 		Version:   Metadata.Version,
@@ -102,7 +104,7 @@ func (o *Velero) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckin
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, nil, nil
+	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (a *Velero) GetImages() []string {
@@ -125,7 +127,7 @@ func (o *Velero) GetAdditionalImages() []string {
 }
 
 // Outro is executed after the cluster deployment.
-func (o *Velero) Outro(ctx context.Context, cli client.Client) error {
+func (o *Velero) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	if !o.isEnabled {
 		return nil
 	}

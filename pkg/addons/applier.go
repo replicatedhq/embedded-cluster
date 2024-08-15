@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -32,8 +32,8 @@ type AddOn interface {
 	Version() (map[string]string, error)
 	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(onlyDefaults bool) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error)
-	Outro(context.Context, client.Client) error
+	GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error)
+	Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error
 	GetProtectedFields() map[string][]string
 	GetImages() []string
 	GetAdditionalImages() []string
@@ -44,18 +44,15 @@ type Applier struct {
 	prompt          bool
 	verbose         bool
 	adminConsolePwd string // admin console password
-	config          v1beta1.ClusterConfig
 	licenseFile     string
 	onlyDefaults    bool
-	endUserConfig   *embeddedclusterv1beta1.Config
+	endUserConfig   *ecv1beta1.Config
 	airgapBundle    string
-	releaseMetadata *types.ReleaseMetadata
 	proxyEnv        map[string]string
-	network         *embeddedclusterv1beta1.NetworkSpec
 }
 
 // Outro runs the outro in all enabled add-ons.
-func (a *Applier) Outro(ctx context.Context) error {
+func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, endUserCfg *ecv1beta1.Config, releaseMetadata *types.ReleaseMetadata) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
@@ -74,7 +71,7 @@ func (a *Applier) Outro(ctx context.Context) error {
 	}()
 
 	for _, addon := range addons {
-		if err := addon.Outro(ctx, kcli); err != nil {
+		if err := addon.Outro(ctx, kcli, k0sCfg, releaseMetadata); err != nil {
 			return err
 		}
 	}
@@ -88,7 +85,7 @@ func (a *Applier) Outro(ctx context.Context) error {
 }
 
 // OutroForRestore runs the outro in all enabled add-ons for restore operations.
-func (a *Applier) OutroForRestore(ctx context.Context) error {
+func (a *Applier) OutroForRestore(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
@@ -98,7 +95,7 @@ func (a *Applier) OutroForRestore(ctx context.Context) error {
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
-		if err := addon.Outro(ctx, kcli); err != nil {
+		if err := addon.Outro(ctx, kcli, k0sCfg, nil); err != nil {
 			return err
 		}
 	}
@@ -106,9 +103,9 @@ func (a *Applier) OutroForRestore(ctx context.Context) error {
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs(additionalCharts []embeddedclusterv1beta1.Chart, additionalRepositories []embeddedclusterv1beta1.Repository) ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
-	charts := []embeddedclusterv1beta1.Chart{}
-	repositories := []embeddedclusterv1beta1.Repository{}
+func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, additionalCharts []ecv1beta1.Chart, additionalRepositories []ecv1beta1.Repository) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+	charts := []ecv1beta1.Chart{}
+	repositories := []ecv1beta1.Repository{}
 	addons, err := a.load()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
@@ -116,7 +113,7 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []embeddedclusterv1beta1.
 
 	// charts required by embedded-cluster
 	for _, addon := range addons {
-		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.onlyDefaults)
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(k0sCfg, a.onlyDefaults)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
@@ -132,9 +129,9 @@ func (a *Applier) GenerateHelmConfigs(additionalCharts []embeddedclusterv1beta1.
 }
 
 // GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
-func (a *Applier) GenerateHelmConfigsForRestore() ([]embeddedclusterv1beta1.Chart, []embeddedclusterv1beta1.Repository, error) {
-	charts := []embeddedclusterv1beta1.Chart{}
-	repositories := []embeddedclusterv1beta1.Repository{}
+func (a *Applier) GenerateHelmConfigsForRestore(k0sCfg *k0sv1beta1.ClusterConfig) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+	charts := []ecv1beta1.Chart{}
+	repositories := []ecv1beta1.Repository{}
 	addons, err := a.loadForRestore()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
@@ -142,7 +139,7 @@ func (a *Applier) GenerateHelmConfigsForRestore() ([]embeddedclusterv1beta1.Char
 
 	// charts required for restore
 	for _, addon := range addons {
-		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.onlyDefaults)
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(k0sCfg, a.onlyDefaults)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
@@ -155,8 +152,8 @@ func (a *Applier) GenerateHelmConfigsForRestore() ([]embeddedclusterv1beta1.Char
 
 // GetBuiltinCharts returns a map of charts that are not applied at install time and instead
 // included in metadata for later use by the operator.
-func (a *Applier) GetBuiltinCharts() (map[string]embeddedclusterv1beta1.Helm, error) {
-	builtinCharts := map[string]embeddedclusterv1beta1.Helm{}
+func (a *Applier) GetBuiltinCharts(k0sCfg *k0sv1beta1.ClusterConfig) (map[string]ecv1beta1.Helm, error) {
+	builtinCharts := map[string]ecv1beta1.Helm{}
 
 	addons, err := a.loadBuiltIn()
 	if err != nil {
@@ -164,11 +161,11 @@ func (a *Applier) GetBuiltinCharts() (map[string]embeddedclusterv1beta1.Helm, er
 	}
 
 	for name, addon := range addons {
-		chart, repo, err := addon.GenerateHelmConfig(true)
+		chart, repo, err := addon.GenerateHelmConfig(k0sCfg, true)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate helm config for %s: %w", name, err)
 		}
-		builtinCharts[name] = embeddedclusterv1beta1.Helm{
+		builtinCharts[name] = ecv1beta1.Helm{
 			Repositories: repo,
 			Charts:       chart,
 		}
@@ -276,13 +273,13 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.config, a.airgapBundle != "", false, a.network)
+	reg, err := registry.New(defaults.RegistryNamespace, a.airgapBundle != "", false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons = append(addons, reg)
 
-	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.releaseMetadata, a.proxyEnv, a.network)
+	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
@@ -298,7 +295,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, vel)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.adminConsolePwd, a.config, a.licenseFile, a.airgapBundle, a.proxyEnv)
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.adminConsolePwd, a.licenseFile, a.airgapBundle, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
@@ -316,19 +313,19 @@ func (a *Applier) loadBuiltIn() (map[string]AddOn, error) {
 	}
 	addons["velero"] = vel
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.config, true, false, a.network)
+	reg, err := registry.New(defaults.RegistryNamespace, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons["registry"] = reg
 
-	regHA, err := registry.New(defaults.RegistryNamespace, a.config, true, true, a.network)
+	regHA, err := registry.New(defaults.RegistryNamespace, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons["registry-ha"] = regHA
 
-	seaweed, err := seaweedfs.New(defaults.SeaweedFSNamespace, a.config, true)
+	seaweed, err := seaweedfs.New(defaults.SeaweedFSNamespace, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
 	}
@@ -355,7 +352,7 @@ func (a *Applier) loadForRestore() ([]AddOn, error) {
 }
 
 // Versions returns a map with the version of each addon that will be applied.
-func (a *Applier) Versions(additionalCharts []embeddedclusterv1beta1.Chart) (map[string]string, error) {
+func (a *Applier) Versions(additionalCharts []ecv1beta1.Chart) (map[string]string, error) {
 	addons, err := a.load()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load addons: %w", err)
@@ -425,7 +422,6 @@ func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
 		prompt:       true,
 		verbose:      true,
-		config:       v1beta1.ClusterConfig{},
 		licenseFile:  "",
 		airgapBundle: "",
 	}
