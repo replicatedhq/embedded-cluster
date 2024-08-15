@@ -439,14 +439,14 @@ func (a *Applier) init() error {
 	if err := seaweedfs.Init(license); err != nil {
 		return fmt.Errorf("init seaweedfs addon: %w", err)
 	}
+	if err := adminconsole.Init(license); err != nil {
+		return fmt.Errorf("init admin console addon: %w", err)
+	}
 	if err := embeddedclusteroperator.Init(license); err != nil {
 		return fmt.Errorf("init embedded cluster operator addon: %w", err)
 	}
 	if err := velero.Init(license); err != nil {
 		return fmt.Errorf("init velero addon: %w", err)
-	}
-	if err := adminconsole.Init(license); err != nil {
-		return fmt.Errorf("init admin console addon: %w", err)
 	}
 	return nil
 }

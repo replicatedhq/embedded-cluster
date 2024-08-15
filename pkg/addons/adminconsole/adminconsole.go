@@ -45,7 +45,7 @@ var (
 	//go:embed static/metadata.yaml
 	rawmetadata string
 	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
+	Metadata *release.AddonMetadata
 	// protectedFields are helm values that are not overwritten when upgrading the addon.
 	protectedFields = []string{"automation", "embeddedClusterID", "isAirgap"}
 	// Overwritten by -ldflags in Makefile
@@ -56,18 +56,12 @@ var (
 	KotsVersion                         = ""
 )
 
-func init() {
-	if err := Init(nil); err != nil {
-		panic(fmt.Sprintf("failed to init admin console: %v", err))
-	}
-}
-
 func Init(license *kotsv1beta1.License) error {
 	m, err := release.ParseAddonMetadata(rawmetadata, license)
 	if err != nil {
 		return fmt.Errorf("parse metadata: %w", err)
 	}
-	Metadata = *m
+	Metadata = m
 
 	hv, err := release.ParseAddonHelmValues(rawvalues, license)
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"helm.sh/helm/v3/pkg/repo"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
@@ -38,12 +37,6 @@ var updateRegistryAddonCommand = &cli.Command{
 			return fmt.Errorf("unable to get the latest registry version: %v", err)
 		}
 		logrus.Printf("latest registry chart version: %s", latest)
-
-		current := registry.Metadata
-		if current.Version == latest && !c.Bool("force") {
-			logrus.Infof("registry version is already up-to-date")
-			return nil
-		}
 
 		logrus.Infof("mirroring registry chart version %s", latest)
 		if err := MirrorChart(registryRepo, "docker-registry", latest); err != nil {

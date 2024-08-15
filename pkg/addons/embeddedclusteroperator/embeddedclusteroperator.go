@@ -39,7 +39,7 @@ var (
 	//go:embed static/metadata.yaml
 	rawmetadata string
 	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.AddonMetadata
+	Metadata *release.AddonMetadata
 )
 
 // Overwritten by -ldflags in Makefile
@@ -47,18 +47,12 @@ var (
 	EmbeddedOperatorImageOverride = ""
 )
 
-func init() {
-	if err := Init(nil); err != nil {
-		panic(fmt.Sprintf("failed to init embedded cluster operator: %v", err))
-	}
-}
-
 func Init(license *kotsv1beta1.License) error {
 	m, err := release.ParseAddonMetadata(rawmetadata, license)
 	if err != nil {
 		return fmt.Errorf("parse metadata: %w", err)
 	}
-	Metadata = *m
+	Metadata = m
 
 	hv, err := release.ParseAddonHelmValues(rawvalues, license)
 	if err != nil {

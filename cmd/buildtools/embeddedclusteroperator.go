@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -60,26 +59,6 @@ var updateOperatorAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("successfully updated embedded cluster operator addon")
-
-		return nil
-	},
-}
-
-var updateOperatorImagesCommand = &cli.Command{
-	Name:      "embeddedclusteroperator",
-	Usage:     "Updates the embedded cluster operator images",
-	UsageText: environmentUsageText,
-	Action: func(c *cli.Context) error {
-		logrus.Infof("updating embedded cluster operator images")
-
-		current := embeddedclusteroperator.Metadata
-
-		err := updateOperatorAddonImages(c.Context, current.Location, current.Version)
-		if err != nil {
-			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
-		}
-
-		logrus.Infof("successfully updated embedded cluster operator images")
 
 		return nil
 	},

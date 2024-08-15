@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -43,12 +42,6 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		}
 		logrus.Infof("latest tag found: %s", latest)
 		latest = strings.TrimPrefix(latest, "v")
-
-		current := adminconsole.Metadata
-		if current.Version == latest && !c.Bool("force") {
-			logrus.Infof("admin console chart version is already up-to-date")
-			return nil
-		}
 
 		upstream := "registry.replicated.com/library/admin-console"
 		chartURL := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)

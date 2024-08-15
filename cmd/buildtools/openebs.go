@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -61,14 +60,9 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		}
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
-		current := openebs.Metadata
-		if current.Version == nextChartVersion && !c.Bool("force") {
-			logrus.Infof("openebs chart version is already up-to-date")
-		} else {
-			logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
-			if err := MirrorChart(openebsRepo, "openebs", nextChartVersion); err != nil {
-				return fmt.Errorf("failed to mirror openebs chart: %v", err)
-			}
+		logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
+		if err := MirrorChart(openebsRepo, "openebs", nextChartVersion); err != nil {
+			return fmt.Errorf("failed to mirror openebs chart: %v", err)
 		}
 
 		upstream := fmt.Sprintf("%s/openebs", os.Getenv("CHARTS_DESTINATION"))
@@ -82,26 +76,6 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("successfully updated openebs addon")
-
-		return nil
-	},
-}
-
-var updateOpenEBSImagesCommand = &cli.Command{
-	Name:      "openebs",
-	Usage:     "Updates the openebs images",
-	UsageText: environmentUsageText,
-	Action: func(c *cli.Context) error {
-		logrus.Infof("updating openebs images")
-
-		current := openebs.Metadata
-
-		err := updateOpenEBSAddonImages(c.Context, current.Location, current.Version, current.Version)
-		if err != nil {
-			return fmt.Errorf("failed to update openebs images: %w", err)
-		}
-
-		logrus.Infof("successfully updated openebs images")
 
 		return nil
 	},
