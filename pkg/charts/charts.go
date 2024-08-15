@@ -259,7 +259,7 @@ func patchExtensionsForAirGap(config *v1beta1.Helm) *v1beta1.Helm {
 	config.Repositories = nil
 	for idx, chart := range config.Charts {
 		chartName := fmt.Sprintf("%s-%s.tgz", chart.Name, chart.Version)
-		chartPath := filepath.Join("var", "lib", "embedded-cluster", "charts", chartName)
+		chartPath := filepath.Join("/var/lib/embedded-cluster/charts", chartName)
 		config.Charts[idx].ChartName = chartPath
 	}
 	return config
