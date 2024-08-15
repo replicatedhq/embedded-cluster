@@ -400,7 +400,10 @@ var resetCommand = &cli.Command{
 			}
 		}
 
-		numControllerNodes, _ := kubeutils.NumOfControlPlaneNodes(c.Context, currentHost.Kclient)
+		var numControllerNodes int
+		if currentHost.KclientError == nil {
+			numControllerNodes, _ = kubeutils.NumOfControlPlaneNodes(c.Context, currentHost.Kclient)
+		}
 		// do not drain node if this is the only controller node in the cluster
 		// if there is an error (numControllerNodes == 0), drain anyway to be safe
 		if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
