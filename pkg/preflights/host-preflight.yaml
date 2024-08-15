@@ -313,12 +313,15 @@ spec:
               message: >
                 Error connecting to {{ .ReplicatedAPIURL }}.
                 Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
-                and `--no-proxy` flags if there is a proxy server.'
+                and `--no-proxy` flags if there is a proxy server.
           - pass:
               when: 'statusCode == 200'
               message: 'Connected to {{ .ReplicatedAPIURL }}'
           - fail:
-              message: 'Unexpected response from {{ .ReplicatedAPIURL }}'
+              message: >
+                Unexpected response from {{ .ReplicatedAPIURL }}.
+                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
+                and `--no-proxy` flags if there is a proxy server.
     - http:
         checkName: Proxy Registry Access
         collectorName: http-proxy-replicated-com
@@ -329,9 +332,12 @@ spec:
               message: >
                 Error connecting to {{ .ProxyRegistryURL }}.
                 Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
-                and `--no-proxy` flags if there is a proxy server.'
+                and `--no-proxy` flags if there is a proxy server.
           - pass:
               when: 'statusCode == 401'
               message: 'Connected to {{ .ProxyRegistryURL }}'
           - fail:
-              message: 'Unexpected response from {{ .ProxyRegistryURL }}'
+              message: >
+                Unexpected response from {{ .ProxyRegistryURL }}.
+                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
+                and `--no-proxy` flags if there is a proxy server.
