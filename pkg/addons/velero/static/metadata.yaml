@@ -6,7 +6,7 @@
 # $ output/bin/buildtools update addon <addon name>
 #
 version: 7.1.4
-location: oci://{{ .ReplicatedProxyDomain }}/anonymous/registry.replicated.com/ec-charts/velero
+location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
         repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-kubectl'
