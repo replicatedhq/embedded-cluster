@@ -6,7 +6,7 @@
 # $ output/bin/buildtools update addon <addon name>
 #
 version: 4.1.0
-location: oci://{{ .ReplicatedProxyDomain }}/anonymous/registry.replicated.com/ec-charts/openebs
+location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs
 images:
     kubectl:
         repo: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-kubectl'
