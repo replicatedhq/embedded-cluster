@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_checkLicenseMatches(t *testing.T) {
+func Test_getLicenseFromFilepath(t *testing.T) {
 	tests := []struct {
 		name            string
 		licenseContents string
@@ -136,9 +136,9 @@ versionLabel: testversion
 			req.NoError(err)
 
 			if tt.licenseContents != "" {
-				_, err = checkLicenseMatches(filepath.Join(tmpdir, "license.yaml"))
+				_, err = getLicenseFromFilepath(filepath.Join(tmpdir, "license.yaml"))
 			} else {
-				_, err = checkLicenseMatches("")
+				_, err = getLicenseFromFilepath("")
 			}
 
 			if tt.wantErr != "" {

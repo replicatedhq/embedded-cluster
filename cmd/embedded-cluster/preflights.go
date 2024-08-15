@@ -44,9 +44,9 @@ var installRunPreflightsCommand = &cli.Command{
 		proxy := getProxySpecFromFlags(c)
 		setProxyEnv(proxy)
 
-		license, err := checkLicenseMatches(c.String("license"))
+		license, err := getLicenseFromFilepath(c.String("license"))
 		if err != nil {
-			return err // do not return the metricErr, as we want the user to see the error message without a prefix
+			return err
 		}
 
 		isAirgap := c.String("airgap-bundle") != ""

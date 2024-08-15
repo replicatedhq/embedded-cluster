@@ -189,7 +189,7 @@ func isAlreadyInstalled() (bool, error) {
 	}
 }
 
-func checkLicenseMatches(licenseFile string) (*kotsv1beta1.License, error) {
+func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 	rel, err := release.GetChannelRelease()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
@@ -588,9 +588,9 @@ var installCommand = &cli.Command{
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 		logrus.Debugf("checking license matches")
-		license, err := checkLicenseMatches(c.String("license"))
+		license, err := getLicenseFromFilepath(c.String("license"))
 		if err != nil {
-			metricErr := fmt.Errorf("unable to check license: %w", err)
+			metricErr := fmt.Errorf("unable to get license: %w", err)
 			metrics.ReportApplyFinished(c, metricErr)
 			return err // do not return the metricErr, as we want the user to see the error message without a prefix
 		}
