@@ -235,13 +235,16 @@ func NewTestCluster(in *Input) *Output {
 	if in.WithProxy {
 		ConfigureProxy(in)
 	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  HTTPProxy,
-		"https_proxy": HTTPProxy,
-	})
+	opts := []RunCommandOption{}
+	if in.WithProxy {
+		opts = append(opts, WithEnv(map[string]string{
+			"http_proxy":  HTTPProxy,
+			"https_proxy": HTTPProxy,
+		}))
+	}
 	for _, node := range out.Nodes {
 		in.T.Logf("Installing deps on node %s", node)
-		RunCommandOnNode(in, []string{"install-deps.sh"}, node, withEnv)
+		RunCommandOnNode(in, []string{"install-deps.sh"}, node, opts...)
 	}
 	return out
 }
