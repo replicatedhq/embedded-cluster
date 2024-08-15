@@ -325,7 +325,6 @@ func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.Cluste
 	cfg := config.RenderK0sConfig()
 	cfg.Spec.Network.PodCIDR = getPodCIDR(c)
 	cfg.Spec.Network.ServiceCIDR = getServiceCIDR(c)
-	// cfg = setSubnetCIDRFromFlags(c, cfg)
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -666,18 +665,4 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, 
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}
 	return addons.NewApplier(opts...), nil
-}
-
-func getPodCIDR(c *cli.Context) string {
-	if c.String("pod-cidr") != "" {
-		return c.String("pod-cidr")
-	}
-	return k0sconfig.DefaultNetwork().PodCIDR
-}
-
-func getServiceCIDR(c *cli.Context) string {
-	if c.String("service-cidr") != "" {
-		return c.String("service-cidr")
-	}
-	return k0sconfig.DefaultNetwork().ServiceCIDR
 }

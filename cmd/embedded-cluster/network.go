@@ -1,7 +1,7 @@
 package main
 
 import (
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/urfave/cli/v2"
 )
 
@@ -20,12 +20,16 @@ func withSubnetCIDRFlags(flags []cli.Flag) []cli.Flag {
 	)
 }
 
-func setSubnetCIDRFromFlags(c *cli.Context, cfg *k0sconfig.ClusterConfig) *k0sconfig.ClusterConfig {
+func getPodCIDR(c *cli.Context) string {
 	if c.String("pod-cidr") != "" {
-		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+		return c.String("pod-cidr")
 	}
+	return k0sv1beta1.DefaultNetwork().PodCIDR
+}
+
+func getServiceCIDR(c *cli.Context) string {
 	if c.String("service-cidr") != "" {
-		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+		return c.String("service-cidr")
 	}
-	return cfg
+	return k0sv1beta1.DefaultNetwork().ServiceCIDR
 }
