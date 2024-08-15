@@ -727,10 +727,6 @@ func CreateNetworks(in *Input) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	open := "true"
-	if in.WithProxy {
-		open = "false"
-	}
 	request := api.NetworksPost{
 		Name: fmt.Sprintf("external-%s", in.id),
 		Type: "bridge",
@@ -739,7 +735,7 @@ func CreateNetworks(in *Input) {
 				"ipv4.address":     fmt.Sprintf("%s.1/24", in.network),
 				"ipv4.dhcp":        "true",
 				"ipv4.dhcp.ranges": fmt.Sprintf("%[1]s.2-%[1]s.254", in.network),
-				"ipv4.nat":         open,
+				"ipv4.nat":         "true",
 				"ipv4.ovn.ranges":  fmt.Sprintf("%[1]s.100-%[1]s.253", in.network),
 				"ipv4.routes":      "10.0.0.0/24",
 			},
@@ -748,6 +744,10 @@ func CreateNetworks(in *Input) {
 	if err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create external network: %v", err)
 	}
+	open := "true"
+	if in.WithProxy {
+		open = "false"
+	}
 	request = api.NetworksPost{
 		Name: fmt.Sprintf("internal-%s", in.id),
 		Type: "ovn",
@@ -755,7 +755,7 @@ func CreateNetworks(in *Input) {
 			Config: map[string]string{
 				"bridge.mtu":   "1500",
 				"ipv4.address": "10.0.0.1/24",
-				"ipv4.nat":     "true",
+				"ipv4.nat":     open,
 				"network":      fmt.Sprintf("external-%s", in.id),
 			},
 		},
