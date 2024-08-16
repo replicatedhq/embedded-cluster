@@ -2,7 +2,7 @@ global:
   enableReplication: true
   replicationPlacment: "001"
 {{- if .ReplaceImages }}
-  registry: '{{ "{{ .ReplicatedProxyDomain }}" }}/anonymous/'
+    registry: '{{ (index .Images "seaweedfs").Registry }}'
 {{- end }}
 master:
 {{- if .ReplaceImages }}

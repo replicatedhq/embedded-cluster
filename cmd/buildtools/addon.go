@@ -52,7 +52,7 @@ func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, ima
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", image, err)
 	}
 	tag := fmt.Sprintf("%s@%s", TagFromImage(image), digest)
-	repo := fmt.Sprintf("{{ .ReplicatedProxyDomain }}/anonymous/%s", FamiliarImageName(RemoveTagFromImage(image)))
+	repo := FamiliarImageName(RemoveTagFromImage(image))
 	return repo, tag, nil
 }
 
@@ -79,7 +79,7 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, upstr
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", customImage, err)
 	}
 	tag := fmt.Sprintf("%s@%s", TagFromImage(customImage), digest)
-	repo := fmt.Sprintf("{{ .ReplicatedProxyDomain }}/anonymous/%s", FamiliarImageName(RemoveTagFromImage(customImage)))
+	repo := FamiliarImageName(RemoveTagFromImage(customImage))
 	return repo, tag, nil
 }
 
@@ -105,7 +105,7 @@ func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, upstrea
 		return "", "", fmt.Errorf("invalid image name: %s", builtImage)
 	}
 
-	return fmt.Sprintf("{{ .ReplicatedProxyDomain }}/anonymous/%s", FamiliarImageName(parts[0])), parts[1], nil
+	return parts[0], parts[1], nil
 }
 
 func (c *addonComponent) getPackageNameAndVersion(ctx context.Context, upstreamVersion string) (string, string, error) {
@@ -148,4 +148,12 @@ func (c *addonComponent) getPackageNameAndVersion(ctx context.Context, upstreamV
 
 func latestPatchVersion(s *semver.Version) string {
 	return fmt.Sprintf("%d.%d", s.Major(), s.Minor())
+}
+
+func chartURLTemplate(upstream string) string {
+	return fmt.Sprintf("oci://{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}%s", upstream)
+}
+
+func imageRegistryTemplate() string {
+	return fmt.Sprintf("{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}")
 }

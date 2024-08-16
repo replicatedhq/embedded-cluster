@@ -43,23 +43,21 @@ type AddonMetadata struct {
 }
 
 type AddonImage struct {
-	Repo string `yaml:"repo"`
-	Tag  string `yaml:"tag"`
+	Registry string `yaml:"registry"`
+	Repo     string `yaml:"repo"`
+	Tag      string `yaml:"tag"`
 }
 
 func (i AddonImage) String() string {
 	if strings.HasPrefix(i.Tag, "latest@") {
 		// The image appears in containerd images without the "latest" tag and causes an
 		// ImagePullBackOff error
-		return fmt.Sprintf("%s@%s", i.Repo, strings.TrimPrefix(i.Tag, "latest@"))
+		return fmt.Sprintf("%s%s@%s", i.Registry, i.Repo, strings.TrimPrefix(i.Tag, "latest@"))
 	}
-	return fmt.Sprintf("%s:%s", i.Repo, i.Tag)
+	return fmt.Sprintf("%s%s:%s", i.Registry, i.Repo, i.Tag)
 }
 
 var funcMap = template.FuncMap{
-	"TrimPrefix": func(prefix, s string) string {
-		return strings.TrimPrefix(s, prefix)
-	},
 	"ImageString": func(i AddonImage) string {
 		return i.String()
 	},
@@ -125,8 +123,8 @@ func (a *AddonMetadata) RenderValues(addon, tplfile, dest string) error {
 	return nil
 }
 
-func ParseAddonMetadata(rawmetadata string, license *kotsv1beta1.License) (*AddonMetadata, error) {
-	templated, err := Template(rawmetadata, license)
+func ParseAddonMetadata(rawmetadata string, license *kotsv1beta1.License, isAirgap bool) (*AddonMetadata, error) {
+	templated, err := Template(rawmetadata, license, isAirgap)
 	if err != nil {
 		return nil, fmt.Errorf("template metadata: %w", err)
 	}
@@ -137,8 +135,8 @@ func ParseAddonMetadata(rawmetadata string, license *kotsv1beta1.License) (*Addo
 	return &parsed, nil
 }
 
-func ParseAddonHelmValues(rawvalues string, license *kotsv1beta1.License) (map[string]interface{}, error) {
-	templated, err := Template(rawvalues, license)
+func ParseAddonHelmValues(rawvalues string, license *kotsv1beta1.License, isAirgap bool) (map[string]interface{}, error) {
+	templated, err := Template(rawvalues, license, isAirgap)
 	if err != nil {
 		return nil, fmt.Errorf("template helm values: %w", err)
 	}

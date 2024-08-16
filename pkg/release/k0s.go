@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"gopkg.in/yaml.v3"
 )
 
@@ -41,4 +42,16 @@ func (a *K0sMetadata) Save() error {
 		return fmt.Errorf("failed to write k0s metadata: %w", err)
 	}
 	return nil
+}
+
+func ParseK0sMetadata(rawmetadata string, license *kotsv1beta1.License, isAirgap bool) (*K0sMetadata, error) {
+	templated, err := Template(rawmetadata, license, isAirgap)
+	if err != nil {
+		return nil, fmt.Errorf("template metadata: %w", err)
+	}
+	var parsed K0sMetadata
+	if err := yaml.Unmarshal([]byte(templated), &parsed); err != nil {
+		return nil, fmt.Errorf("unmarshal metadata: %w", err)
+	}
+	return &parsed, nil
 }

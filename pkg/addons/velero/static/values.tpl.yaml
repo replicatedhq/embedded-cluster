@@ -15,7 +15,7 @@ initContainers:
     name: plugins
 kubectl:
   image:
-    repository: '{{ (index .Images "kubectl").Repo }}'
+    repository: '{{ (index .Images "kubectl").Registry }}{{ (index .Images "kubectl").Repo }}'
     tag: '{{ (index .Images "kubectl").Tag }}'
 configMaps:
   fs-restore-action-config:

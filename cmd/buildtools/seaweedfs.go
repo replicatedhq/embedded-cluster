@@ -54,7 +54,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("CHARTS_DESTINATION"))
-		withproto := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
+		withproto := chartURLTemplate(upstream)
 
 		logrus.Infof("updating seaweedfs images")
 
@@ -82,7 +82,7 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	templatedChartURL, err := release.Template(chartURL, nil)
+	templatedChartURL, err := release.Template(chartURL, nil, false)
 	if err != nil {
 		return fmt.Errorf("failed to template chart url: %w", err)
 	}
@@ -105,8 +105,9 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
 		newmeta.Images[component.name] = release.AddonImage{
-			Repo: repo,
-			Tag:  tag,
+			Registry: imageRegistryTemplate(),
+			Repo:     repo,
+			Tag:      tag,
 		}
 	}
 

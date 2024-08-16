@@ -51,20 +51,20 @@ var (
 	registryAddress  = ""
 )
 
-func Init(license *kotsv1beta1.License) error {
-	m, err := release.ParseAddonMetadata(rawmetadata, license)
+func Init(license *kotsv1beta1.License, isAirgap bool) error {
+	m, err := release.ParseAddonMetadata(rawmetadata, license, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse metadata: %w", err)
 	}
 	Metadata = m
 
-	hv, err := release.ParseAddonHelmValues(rawvalues, license)
+	hv, err := release.ParseAddonHelmValues(rawvalues, license, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse helm values: %w", err)
 	}
 	helmValues = hv
 
-	hvHA, err := release.ParseAddonHelmValues(rawvaluesha, license)
+	hvHA, err := release.ParseAddonHelmValues(rawvaluesha, license, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse helm values ha: %w", err)
 	}

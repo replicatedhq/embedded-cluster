@@ -10,20 +10,23 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"gopkg.in/yaml.v2"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 var (
 	//go:embed static/metadata.yaml
-	rawmetadata []byte
+	rawmetadata string
 	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.K0sMetadata
+	Metadata *release.K0sMetadata
 )
 
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+func Init(license *kotsv1beta1.License, isAirgap bool) error {
+	m, err := release.ParseK0sMetadata(rawmetadata, license, isAirgap)
+	if err != nil {
+		return fmt.Errorf("parse metadata: %w", err)
 	}
+	Metadata = m
+	return nil
 }
 
 func ListK0sImages(cfg *k0sconfig.ClusterConfig) []string {

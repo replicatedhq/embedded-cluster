@@ -9,15 +9,16 @@ import (
 )
 
 type TemplateData struct {
+	IsAirgap              bool
 	ReplicatedProxyDomain string
 }
 
-func Template(raw string, license *kotsv1beta1.License) (string, error) {
+func Template(raw string, license *kotsv1beta1.License, isAirgap bool) (string, error) {
 	tmpl, err := template.New("release").Parse(raw)
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)
 	}
-	data, err := getTemplateData(license)
+	data, err := getTemplateData(license, isAirgap)
 	if err != nil {
 		return "", fmt.Errorf("get template data: %w", err)
 	}
@@ -29,8 +30,8 @@ func Template(raw string, license *kotsv1beta1.License) (string, error) {
 	return buf.String(), nil
 }
 
-func getTemplateData(license *kotsv1beta1.License) (*TemplateData, error) {
-	data := defaultTemplateData()
+func getTemplateData(license *kotsv1beta1.License, isAirgap bool) (*TemplateData, error) {
+	data := defaultTemplateData(isAirgap)
 	if license == nil {
 		return data, nil
 	}
@@ -51,9 +52,10 @@ func getTemplateData(license *kotsv1beta1.License) (*TemplateData, error) {
 	return data, nil
 }
 
-func defaultTemplateData() *TemplateData {
+func defaultTemplateData(isAirgap bool) *TemplateData {
 	return &TemplateData{
-		ReplicatedProxyDomain: "proxy.replicated.com",
+		IsAirgap:              isAirgap,
+		ReplicatedProxyDomain: "proxy.replicated.com/anonymous/",
 	}
 }
 

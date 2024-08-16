@@ -13,8 +13,8 @@ localpv-provisioner:
 {{- if .ReplaceImages }}
   helperPod:
     image:
-      registry: '{{ "{{ .ReplicatedProxyDomain }}" }}/anonymous/'
-      repository: '{{ TrimPrefix "{{ .ReplicatedProxyDomain }}/anonymous/" (index .Images "openebs-linux-utils").Repo }}'
+      registry: '{{ (index .Images "openebs-linux-utils").Registry }}'
+      repository: '{{ (index .Images "openebs-linux-utils").Repo }}'
       tag: '{{ (index .Images "openebs-linux-utils").Tag }}'
 {{- end }}
   hostpathClass:
@@ -23,8 +23,8 @@ localpv-provisioner:
 {{- if .ReplaceImages }}
   localpv:
     image:
-      registry: '{{ "{{ .ReplicatedProxyDomain }}" }}/anonymous/'
-      repository: '{{ TrimPrefix "{{ .ReplicatedProxyDomain }}/anonymous/" (index .Images "openebs-provisioner-localpv").Repo }}'
+      registry: '{{ (index .Images "openebs-provisioner-localpv").Registry }}'
+      repository: '{{ (index .Images "openebs-provisioner-localpv").Repo }}'
       tag: '{{ (index .Images "openebs-provisioner-localpv").Tag }}'
 {{- end }}
 lvm-localpv:
@@ -34,8 +34,8 @@ mayastor:
 {{- if .ReplaceImages }}
 preUpgradeHook:
   image:
-    registry: '{{ "{{ .ReplicatedProxyDomain }}" }}/anonymous/'
-    repo: '{{ TrimPrefix "{{ .ReplicatedProxyDomain }}/anonymous/" (index .Images "kubectl").Repo }}'
+    registry: '{{ (index .Images "kubectl").Registry }}'
+    repo: '{{ (index .Images "kubectl").Repo }}'
     tag: '{{ (index .Images "kubectl").Tag }}'
 {{- end }}
 zfs-localpv:

@@ -44,7 +44,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		latest = strings.TrimPrefix(latest, "v")
 
 		upstream := "registry.replicated.com/library/admin-console"
-		chartURL := fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", upstream)
+		chartURL := chartURLTemplate(upstream)
 
 		newmeta := release.AddonMetadata{
 			Version:  latest,
@@ -58,7 +58,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("extracting images from chart")
-		templatedChartURL, err := release.Template(chartURL, nil)
+		templatedChartURL, err := release.Template(chartURL, nil, false)
 		if err != nil {
 			return fmt.Errorf("failed to template chart url: %w", err)
 		}
@@ -77,8 +77,9 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
 			newmeta.Images[component.name] = release.AddonImage{
-				Repo: repo,
-				Tag:  tag,
+				Registry: imageRegistryTemplate(),
+				Repo:     repo,
+				Tag:      tag,
 			}
 		}
 

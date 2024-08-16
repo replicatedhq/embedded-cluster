@@ -427,22 +427,23 @@ func (a *Applier) init() error {
 		}
 		license = l
 	}
-	if err := openebs.Init(license); err != nil {
+	isAirgap := a.airgapBundle != ""
+	if err := openebs.Init(license, isAirgap); err != nil {
 		return fmt.Errorf("init openebs addon: %w", err)
 	}
-	if err := registry.Init(license); err != nil {
+	if err := registry.Init(license, isAirgap); err != nil {
 		return fmt.Errorf("init registry addon: %w", err)
 	}
-	if err := seaweedfs.Init(license); err != nil {
+	if err := seaweedfs.Init(license, isAirgap); err != nil {
 		return fmt.Errorf("init seaweedfs addon: %w", err)
 	}
-	if err := adminconsole.Init(license); err != nil {
+	if err := adminconsole.Init(license, isAirgap); err != nil {
 		return fmt.Errorf("init admin console addon: %w", err)
 	}
-	if err := embeddedclusteroperator.Init(license); err != nil {
+	if err := embeddedclusteroperator.Init(license, isAirgap); err != nil {
 		return fmt.Errorf("init embedded cluster operator addon: %w", err)
 	}
-	if err := velero.Init(license); err != nil {
+	if err := velero.Init(license, isAirgap); err != nil {
 		return fmt.Errorf("init velero addon: %w", err)
 	}
 	return nil

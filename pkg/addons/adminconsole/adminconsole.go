@@ -57,14 +57,14 @@ var (
 	KotsVersion                         = ""
 )
 
-func Init(license *kotsv1beta1.License) error {
-	m, err := release.ParseAddonMetadata(rawmetadata, license)
+func Init(license *kotsv1beta1.License, isAirgap bool) error {
+	m, err := release.ParseAddonMetadata(rawmetadata, license, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse metadata: %w", err)
 	}
 	Metadata = m
 
-	hv, err := release.ParseAddonHelmValues(rawvalues, license)
+	hv, err := release.ParseAddonHelmValues(rawvalues, license, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse helm values: %w", err)
 	}
@@ -141,7 +141,7 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 
 	chartName := Metadata.Location
 	if AdminConsoleChartRepoOverride != "" {
-		chartName = fmt.Sprintf("oci://{{ .ReplicatedProxyDomain }}/anonymous/%s", AdminConsoleChartRepoOverride)
+		chartName = fmt.Sprintf("oci://%s", AdminConsoleChartRepoOverride)
 	}
 
 	chartConfig := ecv1beta1.Chart{

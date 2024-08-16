@@ -7,23 +7,23 @@
 #
 images:
     calico-cni:
-        image: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-calico-cni'
+        image: '{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}replicated/ec-calico-cni'
         version: 3.28.1-r0@sha256:65a10af6dbfaf616ae237cec7d9b438727d8167415b698b858235c5c3897dcec
     calico-kube-controllers:
-        image: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-calico-kube-controllers'
+        image: '{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}replicated/ec-calico-kube-controllers'
         version: 3.28.1-r0@sha256:97dbf50d60f1999c0b6c14dfe69b3512562a18e1a5b84967b2df65c77077ec78
     calico-node:
-        image: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-calico-node'
+        image: '{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}replicated/ec-calico-node'
         version: 3.28.1-r0@sha256:ba9315f5238a0dfa4110dfd7bef4782477f32f2360eaaff96632a3a27702e24a
     coredns:
-        image: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-coredns'
+        image: '{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}replicated/ec-coredns'
         version: 1.11.3-r6@sha256:aa186c347c7548f1850cfeb4870b11ed6de7c6bcf03523d2468abf3a5d5496f1
     kube-proxy:
-        image: '{{ .ReplicatedProxyDomain }}/anonymous/registry.k8s.io/kube-proxy'
+        image: '{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}registry.k8s.io/kube-proxy'
         version: v1.29.8@sha256:c257d390d3fa14c3ff6617852c91eaf75b2f16033899438a17e3e13fff798712
     metrics-server:
-        image: '{{ .ReplicatedProxyDomain }}/anonymous/replicated/ec-metrics-server'
+        image: '{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}replicated/ec-metrics-server'
         version: 0.7.1-r5@sha256:a0a95e462b04ff21fecba51321936c97837b7039bcf5ae700d48d026e6355a26
     pause:
-        image: '{{ .ReplicatedProxyDomain }}/anonymous/registry.k8s.io/pause'
+        image: '{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}registry.k8s.io/pause'
         version: 3.9@sha256:8d4106c88ec0bd28001e34c975d65175d994072d65341f62a8ab0754b0fafe10

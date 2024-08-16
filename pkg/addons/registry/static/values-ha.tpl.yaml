@@ -26,7 +26,7 @@ extraVolumes:
 fullnameOverride: registry
 {{- if .ReplaceImages }}
 image:
-  repository: '{{ (index .Images "registry").Repo }}'
+  repository: '{{ (index .Images "registry").Registry }}{{ (index .Images "registry").Repo }}'
   tag: '{{ (index .Images "registry").Tag }}'
 {{- end }}
 replicaCount: 2

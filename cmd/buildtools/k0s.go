@@ -90,7 +90,7 @@ var updateK0sAddonCommand = &cli.Command{
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
 			newmeta.Images[component.name] = release.K0sImage{
-				Image:   repo,
+				Image:   fmt.Sprintf("%s%s", imageRegistryTemplate(), repo),
 				Version: tag,
 			}
 		}
