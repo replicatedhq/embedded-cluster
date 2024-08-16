@@ -253,7 +253,7 @@ spec:
     - textAnalyze:
         checkName: "'modprobe' Command"
         fileName: host-collectors/run-host/check-modprobe.txt
-        regex: 'modprobe'
+        regex: '/modprobe$'
         outcomes:
           - pass:
               when: "true"
