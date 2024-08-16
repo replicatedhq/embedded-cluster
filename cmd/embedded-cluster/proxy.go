@@ -64,6 +64,8 @@ func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 	return proxy
 }
 
+// setProxyEnv sets the HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment variables based on the provided ProxySpec.
+// If the provided ProxySpec is nil, this environment variables are not set.
 func setProxyEnv(proxy *ecv1beta1.ProxySpec) {
 	if proxy == nil {
 		return

@@ -251,7 +251,7 @@ func NewTestCluster(in *Input) *Output {
 
 const ProxyImage = "debian/12"
 const HTTPProxy = "http://10.0.0.254:3128"
-const NOProxy = "10.0.0.0/8"
+const NOProxy = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
 // CreateProxy creates a node that attaches to both networks (external and internal),
 // once this is done we install squid and configure it to be a proxy. We also make

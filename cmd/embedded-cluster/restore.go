@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
@@ -295,12 +296,12 @@ func validateS3BackupStore(s *s3BackupStore) error {
 // RunHostPreflightsForRestore runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts for restore operations.
-func RunHostPreflightsForRestore(c *cli.Context, applier *addons.Applier) error {
+func RunHostPreflightsForRestore(c *cli.Context, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) error {
 	hpf, err := applier.HostPreflightsForRestore()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
-	return runHostPreflights(c, hpf)
+	return runHostPreflights(c, hpf, proxy)
 }
 
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.
@@ -964,7 +965,7 @@ var restoreCommand = &cli.Command{
 				return fmt.Errorf("unable to materialize binaries: %w", err)
 			}
 			logrus.Debugf("running host preflights")
-			if err := RunHostPreflightsForRestore(c, applier); err != nil {
+			if err := RunHostPreflightsForRestore(c, applier, proxy); err != nil {
 				return fmt.Errorf("unable to finish preflight checks: %w", err)
 			}
 

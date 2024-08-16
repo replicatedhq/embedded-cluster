@@ -7,6 +7,7 @@ import (
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -83,7 +84,7 @@ func configureNetworkManager(c *cli.Context) error {
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool) error {
+func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
@@ -104,10 +105,10 @@ func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL
 		hpf.Analyzers = append(hpf.Analyzers, h.Spec.Analyzers...)
 	}
 
-	return runHostPreflights(c, hpf)
+	return runHostPreflights(c, hpf, proxy)
 }
 
-func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
+func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -118,7 +119,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec) error {
 		return nil
 	}
 	pb.Infof("Running host preflights")
-	output, err := preflights.Run(c.Context, hpf)
+	output, err := preflights.Run(c.Context, hpf, proxy)
 	if err != nil {
 		pb.CloseWithError()
 		return fmt.Errorf("host preflights failed to run: %w", err)
@@ -621,7 +622,7 @@ var installCommand = &cli.Command{
 			replicatedAPIURL = license.Spec.Endpoint
 			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 		}
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap); err != nil {
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

@@ -44,6 +44,17 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "proxy from env flag set should not set proxy for lowercase env vars",
+			init: func(t *testing.T, flagSet *flag.FlagSet) {
+				t.Setenv("http_proxy", "http://proxy")
+				t.Setenv("https_proxy", "https://proxy")
+				t.Setenv("no_proxy", "no-proxy-1,no-proxy-2")
+
+				flagSet.Set("proxy", "true")
+			},
+			want: nil,
+		},
+		{
 			name: "proxy flags set should set proxy",
 			init: func(t *testing.T, flagSet *flag.FlagSet) {
 				t.Setenv("HTTP_PROXY", "http://proxy")

@@ -67,7 +67,7 @@ var installRunPreflightsCommand = &cli.Command{
 			replicatedAPIURL = license.Spec.Endpoint
 			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 		}
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap); err != nil {
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
 			return err
 		}
 
@@ -129,7 +129,7 @@ var joinRunPreflightsCommand = &cli.Command{
 		logrus.Debugf("running host preflights")
 		replicatedAPIURL := jcmd.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap); err != nil {
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.Proxy); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			return err
 		}
