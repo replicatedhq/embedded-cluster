@@ -9,10 +9,8 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/loader"
 )
 
-var (
-	//go:embed host-preflight.yaml
-	clusterHostPreflightYAML string
-)
+//go:embed host-preflight.yaml
+var clusterHostPreflightYAML string
 
 func GetClusterHostPreflights(ctx context.Context, data TemplateData) ([]v1beta2.HostPreflight, error) {
 	spec, err := renderTemplate(clusterHostPreflightYAML, data)

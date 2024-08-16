@@ -52,7 +52,7 @@ spec:
         get:
           url: '{{ .ReplicatedAPIURL }}'
           timeout: 5s
-        exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAPIURL "") }}'
     - http:
         collectorName: http-proxy-replicated-com
         get:
