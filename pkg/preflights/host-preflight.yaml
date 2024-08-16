@@ -264,7 +264,7 @@ spec:
     - textAnalyze:
         checkName: "'mount' Command"
         fileName: host-collectors/run-host/check-mount.txt
-        regex: 'mount'
+        regex: '/mount$'
         outcomes:
           - pass:
               when: "true"
