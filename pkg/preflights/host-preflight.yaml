@@ -275,7 +275,7 @@ spec:
     - textAnalyze:
         checkName: "'umount' Command"
         fileName: host-collectors/run-host/check-umount.txt
-        regex: 'umount'
+        regex: '/umount$'
         outcomes:
           - pass:
               when: "true"
