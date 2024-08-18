@@ -21,6 +21,23 @@ check_airgap_pvc() {
     fi
 }
 
+pull_files() {
+    current_installation=$(kubectl get installations --no-headers | awk '{print $1}')
+    echo "installation_id: $current_installation"
+    if ! /var/lib/embedded-cluster/bin/local-artifact-mirror pull binaries $current_installation; then
+        echo "Failed to pull binaries"
+        return 1
+    fi
+    if ! /var/lib/embedded-cluster/bin/local-artifact-mirror pull images $current_installation; then
+        echo "Failed to pull images"
+        return 1
+    fi
+    if ! /var/lib/embedded-cluster/bin/local-artifact-mirror pull helmcharts $current_installation; then
+        echo "Failed to pull helm charts"
+        return 1
+    fi
+}
+
 main() {
     local additional_args=
     if [ -n "${1:-}" ]; then
@@ -71,6 +88,16 @@ main() {
 
     echo "ensure that installation is installed"
     kubectl get installations --no-headers | grep -q "Installed"
+
+    echo "get installation debug logs"
+    ls -l /var/lib/embedded-cluster/logs/
+    cat /var/lib/embedded-cluster/logs/*
+
+    echo "pulling files"
+    if ! pull_files ; then
+        echo "Failed to pull files"
+        exit 1
+    fi
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
