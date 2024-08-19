@@ -59,9 +59,10 @@ spec:
           url: '{{ .ProxyRegistryURL }}/v2/'
           timeout: 5s
         exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
-    - copy:
+    - run:
         collectorName: resolv.conf
-        source: /etc/resolv.conf
+        command: 'sh'
+        args: ['-c', 'cat /etc/resolv.conf']
   analyzers:
     - cpu:
         checkName: CPU
@@ -346,7 +347,7 @@ spec:
                 and `--no-proxy` flags if there is a proxy server.
     - textAnalyze:
         checkName: localhost in resolv.conf
-        collectorName: resolv.conf
+        fileName: host-collectors/run-host/resolv.conf.txt
         regex: 'nameserver localhost'
         outcomes:
           - fail:
@@ -357,7 +358,7 @@ spec:
               message: "resolv.conf does not reference 'localhost'"
     - textAnalyze:
         checkName: 127.0.0.1 in resolv.conf
-        collectorName: resolv.conf
+        fileName: host-collectors/run-host/resolv.conf.txt
         regex: 'nameserver 127.0.0.1'
         outcomes:
           - fail:
