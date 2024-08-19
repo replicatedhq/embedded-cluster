@@ -59,6 +59,10 @@ spec:
           url: '{{ .ProxyRegistryURL }}/v2/'
           timeout: 5s
         exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
+    - run:
+        collectorName: resolv.conf
+        command: 'sh'
+        args: ['-c', 'cat /etc/resolv.conf']
   analyzers:
     - cpu:
         checkName: CPU
@@ -341,3 +345,25 @@ spec:
                 Unexpected response from {{ .ProxyRegistryURL }}.
                 Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
                 and `--no-proxy` flags if there is a proxy server.
+    - textAnalyze:
+        checkName: localhost in resolv.conf
+        fileName: host-collectors/run-host/resolv.conf.txt
+        regex: 'nameserver localhost'
+        outcomes:
+          - fail:
+              when: "true"
+              message: "resolv.conf should not reference 'localhost', this will prevent coredns within the cluster from resolving"
+          - pass:
+              when: "false"
+              message: "resolv.conf does not reference 'localhost'"
+    - textAnalyze:
+        checkName: 127.0.0.1 in resolv.conf
+        fileName: host-collectors/run-host/resolv.conf.txt
+        regex: 'nameserver 127.0.0.1'
+        outcomes:
+          - fail:
+              when: "true"
+              message: "resolv.conf should not reference '127.0.0.1', this will prevent coredns within the cluster from resolving"
+          - pass:
+              when: "false"
+              message: "resolv.conf does not reference '127.0.0.1'"
