@@ -145,8 +145,7 @@ func findJoinCommandInOutput(stdout string) (string, error) {
 	command := strings.TrimPrefix(r.Command, "sudo ./")
 	// replace the airgap bundle path (if any) with the local path.
 	command = strings.ReplaceAll(command, "embedded-cluster.airgap", "/assets/release.airgap")
-	// Skip running host preflights
-	return injectString(command, "--skip-host-preflights", "join"), nil
+	return command, nil
 }
 
 func injectString(original, injection, after string) string {

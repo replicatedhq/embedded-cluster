@@ -296,12 +296,12 @@ func validateS3BackupStore(s *s3BackupStore) error {
 // RunHostPreflightsForRestore runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts for restore operations.
-func RunHostPreflightsForRestore(c *cli.Context, applier *addons.Applier) error {
+func RunHostPreflightsForRestore(c *cli.Context, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) error {
 	hpf, err := applier.HostPreflightsForRestore()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
-	return runHostPreflights(c, hpf)
+	return runHostPreflights(c, hpf, proxy)
 }
 
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.
@@ -316,12 +316,8 @@ func ensureK0sConfigForRestore(c *cli.Context, applier *addons.Applier) (*k0sv1b
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
-	if c.String("pod-cidr") != "" {
-		cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
-	}
-	if c.String("service-cidr") != "" {
-		cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
-	}
+	cfg.Spec.Network.PodCIDR = getPodCIDR(c)
+	cfg.Spec.Network.ServiceCIDR = getServiceCIDR(c)
 	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -849,14 +845,7 @@ func installAndWaitForRestoredK0sNode(c *cli.Context, applier *addons.Applier) (
 	if err != nil {
 		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
-	var proxy *ecv1beta1.ProxySpec
-	if c.String("http-proxy") != "" || c.String("https-proxy") != "" || c.String("no-proxy") != "" {
-		proxy = &ecv1beta1.ProxySpec{
-			HTTPProxy:  c.String("http-proxy"),
-			HTTPSProxy: c.String("https-proxy"),
-			NoProxy:    strings.Join(append(defaults.DefaultNoProxy, c.String("no-proxy")), ","),
-		}
-	}
+	proxy := getProxySpecFromFlags(c)
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
 		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
@@ -877,48 +866,25 @@ func installAndWaitForRestoredK0sNode(c *cli.Context, applier *addons.Applier) (
 var restoreCommand = &cli.Command{
 	Name:  "restore",
 	Usage: fmt.Sprintf("Restore a %s cluster", binName),
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:   "airgap-bundle",
-			Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
-			Hidden: true,
+	Flags: withProxyFlags(withSubnetCIDRFlags(
+		[]cli.Flag{
+			&cli.StringFlag{
+				Name:   "airgap-bundle",
+				Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
+				Hidden: true,
+			},
+			&cli.BoolFlag{
+				Name:  "no-prompt",
+				Usage: "Disable interactive prompts.",
+				Value: false,
+			},
+			&cli.BoolFlag{
+				Name:  "skip-host-preflights",
+				Usage: "Skip host preflight checks. This is not recommended.",
+				Value: false,
+			},
 		},
-		&cli.StringFlag{
-			Name:   "http-proxy",
-			Usage:  "Proxy server to use for HTTP",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "https-proxy",
-			Usage:  "Proxy server to use for HTTPS",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "no-proxy",
-			Usage:  "Comma-separated list of hosts for which not to use a proxy",
-			Hidden: false,
-		},
-		&cli.BoolFlag{
-			Name:   "proxy",
-			Usage:  "Use the system proxy settings for the restore operation. These variables are currently only passed through to Velero.",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:   "pod-cidr",
-			Usage:  "IP address range for pods. Must match range provided during install.",
-			Hidden: false,
-		},
-		&cli.StringFlag{
-			Name:   "service-cidr",
-			Usage:  "IP address range for services. Must match range provided during install.",
-			Hidden: false,
-		},
-		&cli.BoolFlag{
-			Name:  "skip-host-preflights",
-			Usage: "Skip host preflight checks. This is not recommended.",
-			Value: false,
-		},
-	},
+	)),
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("restore command must be run as root")
@@ -927,6 +893,9 @@ var restoreCommand = &cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
+		proxy := getProxySpecFromFlags(c)
+		setProxyEnv(proxy)
+
 		logrus.Debugf("getting restore state")
 		state := getECRestoreState(c.Context)
 		logrus.Debugf("restore state is: %q", state)
@@ -996,7 +965,7 @@ var restoreCommand = &cli.Command{
 				return fmt.Errorf("unable to materialize binaries: %w", err)
 			}
 			logrus.Debugf("running host preflights")
-			if err := RunHostPreflightsForRestore(c, applier); err != nil {
+			if err := RunHostPreflightsForRestore(c, applier, proxy); err != nil {
 				return fmt.Errorf("unable to finish preflight checks: %w", err)
 			}
 

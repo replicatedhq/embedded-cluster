@@ -23,7 +23,7 @@ if {$num_args > 6} {
   set additional_args [lrange $argv 6 end]
 }
 
-set cmd [concat embedded-cluster restore --skip-host-preflights $additional_args]
+set cmd [concat embedded-cluster restore $additional_args]
 eval spawn $cmd
 
 expect {
