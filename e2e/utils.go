@@ -176,3 +176,18 @@ func k8sVersionPrevious() string {
 	}
 	return verParts[0]
 }
+
+func runInParallel(t *testing.T, fns ...func(t *testing.T) error) {
+	t.Helper()
+	errCh := make(chan error, len(fns))
+	for _, fn := range fns {
+		go func(fn func(t *testing.T) error) {
+			errCh <- fn(t)
+		}(fn)
+	}
+	for range fns {
+		if err := <-errCh; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
