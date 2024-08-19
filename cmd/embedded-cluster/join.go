@@ -305,7 +305,6 @@ var joinCommand = &cli.Command{
 
 func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 	if jcmd.Network != nil {
-		// TODO NOW: return images from kots join command
 		clusterSpec := config.RenderK0sConfig()
 		// NOTE: we should be copying everything from the in cluster config spec and overriding
 		// the node specific config from clusterSpec.GetClusterWideConfig()

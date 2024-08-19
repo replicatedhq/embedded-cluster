@@ -48,14 +48,14 @@ var (
 	EmbeddedOperatorImageOverride = ""
 )
 
-func Init(license *kotsv1beta1.License, isAirgap bool) error {
-	m, err := release.ParseAddonMetadata(rawmetadata, license, isAirgap)
+func Init(isAirgap bool) error {
+	m, err := release.ParseAddonMetadata(rawmetadata, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse metadata: %w", err)
 	}
 	Metadata = m
 
-	hv, err := release.ParseAddonHelmValues(rawvalues, license, isAirgap)
+	hv, err := release.ParseAddonHelmValues(rawvalues, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse helm values: %w", err)
 	}

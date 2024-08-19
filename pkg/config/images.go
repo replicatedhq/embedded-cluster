@@ -10,7 +10,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 var (
@@ -20,7 +19,7 @@ var (
 	Metadata *release.K0sMetadata
 )
 
-func Init(license *kotsv1beta1.License, isAirgap bool) error {
+func Init(isAirgap bool) error {
 	m, err := release.ParseK0sMetadata(rawmetadata, license, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse metadata: %w", err)

@@ -44,7 +44,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/docker-registry", os.Getenv("CHARTS_DESTINATION"))
-		chartURL := chartURLTemplate(upstream)
+		chartURL := getChartURL(upstream)
 
 		newmeta := release.AddonMetadata{
 			Version:  latest,
@@ -58,11 +58,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("extracting images from chart")
-		templatedChartURL, err := release.Template(chartURL, nil, false)
-		if err != nil {
-			return fmt.Errorf("failed to template chart url: %w", err)
-		}
-		images, err := GetImagesFromOCIChart(templatedChartURL, "docker-registry", latest, values)
+		images, err := GetImagesFromOCIChart(chartURL, "docker-registry", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from chart: %w", err)
 		}
@@ -77,7 +73,7 @@ var updateRegistryAddonCommand = &cli.Command{
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
 			newmeta.Images[component.name] = release.AddonImage{
-				Registry: imageRegistryTemplate(),
+				Registry: getImageRegistry(),
 				Repo:     repo,
 				Tag:      tag,
 			}

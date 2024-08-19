@@ -54,7 +54,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("CHARTS_DESTINATION"))
-		withproto := chartURLTemplate(upstream)
+		withproto := getChartURL(upstream)
 
 		logrus.Infof("updating seaweedfs images")
 
@@ -82,11 +82,7 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	templatedChartURL, err := release.Template(chartURL, nil, false)
-	if err != nil {
-		return fmt.Errorf("failed to template chart url: %w", err)
-	}
-	images, err := GetImagesFromOCIChart(templatedChartURL, "seaweedfs", chartVersion, values)
+	images, err := GetImagesFromOCIChart(chartURL, "seaweedfs", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from seaweedfs chart: %w", err)
 	}
@@ -105,7 +101,7 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
 		newmeta.Images[component.name] = release.AddonImage{
-			Registry: imageRegistryTemplate(),
+			Registry: getImageRegistry(),
 			Repo:     repo,
 			Tag:      tag,
 		}

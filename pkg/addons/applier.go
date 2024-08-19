@@ -419,31 +419,23 @@ func printKotsadmLinkMessage(licenseFile string) error {
 
 // init initializes the addons.
 func (a *Applier) init() error {
-	var license *kotsv1beta1.License
-	if a.licenseFile != "" {
-		l, err := helpers.ParseLicense(a.licenseFile)
-		if err != nil {
-			return fmt.Errorf("parse license: %w", err)
-		}
-		license = l
-	}
 	isAirgap := a.airgapBundle != ""
-	if err := openebs.Init(license, isAirgap); err != nil {
+	if err := openebs.Init(isAirgap); err != nil {
 		return fmt.Errorf("init openebs addon: %w", err)
 	}
-	if err := registry.Init(license, isAirgap); err != nil {
+	if err := registry.Init(isAirgap); err != nil {
 		return fmt.Errorf("init registry addon: %w", err)
 	}
-	if err := seaweedfs.Init(license, isAirgap); err != nil {
+	if err := seaweedfs.Init(isAirgap); err != nil {
 		return fmt.Errorf("init seaweedfs addon: %w", err)
 	}
-	if err := adminconsole.Init(license, isAirgap); err != nil {
+	if err := adminconsole.Init(isAirgap); err != nil {
 		return fmt.Errorf("init admin console addon: %w", err)
 	}
-	if err := embeddedclusteroperator.Init(license, isAirgap); err != nil {
+	if err := embeddedclusteroperator.Init(isAirgap); err != nil {
 		return fmt.Errorf("init embedded cluster operator addon: %w", err)
 	}
-	if err := velero.Init(license, isAirgap); err != nil {
+	if err := velero.Init(isAirgap); err != nil {
 		return fmt.Errorf("init velero addon: %w", err)
 	}
 	return nil

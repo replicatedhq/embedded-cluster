@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/template"
 
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"gopkg.in/yaml.v3"
 )
 
@@ -123,11 +122,12 @@ func (a *AddonMetadata) RenderValues(addon, tplfile, dest string) error {
 	return nil
 }
 
-func ParseAddonMetadata(rawmetadata string, license *kotsv1beta1.License, isAirgap bool) (*AddonMetadata, error) {
-	templated, err := Template(rawmetadata, license, isAirgap)
+func ParseAddonMetadata(rawmetadata string, isAirgap bool) (*AddonMetadata, error) {
+	rprefix, err := GetReplicatedProxyPrefix(isAirgap)
 	if err != nil {
-		return nil, fmt.Errorf("template metadata: %w", err)
+		return nil, fmt.Errorf("get replicated proxy prefix: %w", err)
 	}
+	templated := strings.ReplaceAll(rawmetadata, DefaultReplicatedProxyPrefix, rprefix)
 	var parsed AddonMetadata
 	if err := yaml.Unmarshal([]byte(templated), &parsed); err != nil {
 		return nil, fmt.Errorf("unmarshal metadata: %w", err)
@@ -135,11 +135,12 @@ func ParseAddonMetadata(rawmetadata string, license *kotsv1beta1.License, isAirg
 	return &parsed, nil
 }
 
-func ParseAddonHelmValues(rawvalues string, license *kotsv1beta1.License, isAirgap bool) (map[string]interface{}, error) {
-	templated, err := Template(rawvalues, license, isAirgap)
+func ParseAddonHelmValues(rawvalues string, isAirgap bool) (map[string]interface{}, error) {
+	rprefix, err := GetReplicatedProxyPrefix(isAirgap)
 	if err != nil {
-		return nil, fmt.Errorf("template helm values: %w", err)
+		return nil, fmt.Errorf("get replicated proxy prefix: %w", err)
 	}
+	templated := strings.ReplaceAll(rawvalues, DefaultReplicatedProxyPrefix, rprefix)
 	parsed := make(map[string]interface{})
 	if err := yaml.Unmarshal([]byte(templated), &parsed); err != nil {
 		return nil, fmt.Errorf("unmarshal helm values: %w", err)

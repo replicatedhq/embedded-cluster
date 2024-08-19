@@ -49,7 +49,7 @@ var updateOperatorAddonCommand = &cli.Command{
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		upstream := "registry.replicated.com/library/embedded-cluster-operator"
-		withproto := chartURLTemplate(upstream)
+		withproto := getChartURL(upstream)
 
 		logrus.Infof("updating embedded cluster operator images")
 
@@ -77,11 +77,7 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	templatedChartURL, err := release.Template(chartURL, nil, false)
-	if err != nil {
-		return fmt.Errorf("failed to template chart url: %w", err)
-	}
-	images, err := GetImagesFromOCIChart(templatedChartURL, "embeddedclusteroperator", chartVersion, values)
+	images, err := GetImagesFromOCIChart(chartURL, "embeddedclusteroperator", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from embedded cluster operator chart: %w", err)
 	}
@@ -104,7 +100,7 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
 		newmeta.Images[component.name] = release.AddonImage{
-			Registry: imageRegistryTemplate(),
+			Registry: getImageRegistry(),
 			Repo:     repo,
 			Tag:      tag,
 		}

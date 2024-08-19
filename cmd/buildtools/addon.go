@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 )
 
@@ -150,10 +151,10 @@ func latestPatchVersion(s *semver.Version) string {
 	return fmt.Sprintf("%d.%d", s.Major(), s.Minor())
 }
 
-func chartURLTemplate(upstream string) string {
-	return fmt.Sprintf("oci://{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}%s", upstream)
+func getChartURL(upstream string) string {
+	return fmt.Sprintf("oci://%s%s", release.DefaultReplicatedProxyPrefix, upstream)
 }
 
-func imageRegistryTemplate() string {
-	return fmt.Sprintf("{{ if not .IsAirgap }}{{ .ReplicatedProxyDomain }}/anonymous/{{ end }}")
+func getImageRegistry() string {
+	return release.DefaultReplicatedProxyPrefix
 }

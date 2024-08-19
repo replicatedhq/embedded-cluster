@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"gopkg.in/yaml.v3"
 )
 
@@ -44,11 +44,12 @@ func (a *K0sMetadata) Save() error {
 	return nil
 }
 
-func ParseK0sMetadata(rawmetadata string, license *kotsv1beta1.License, isAirgap bool) (*K0sMetadata, error) {
-	templated, err := Template(rawmetadata, license, isAirgap)
+func ParseK0sMetadata(rawmetadata string, isAirgap bool) (*K0sMetadata, error) {
+	rprefix, err := GetReplicatedProxyPrefix(isAirgap)
 	if err != nil {
-		return nil, fmt.Errorf("template metadata: %w", err)
+		return nil, fmt.Errorf("get replicated proxy prefix: %w", err)
 	}
+	templated := strings.ReplaceAll(rawmetadata, DefaultReplicatedProxyPrefix, rprefix)
 	var parsed K0sMetadata
 	if err := yaml.Unmarshal([]byte(templated), &parsed); err != nil {
 		return nil, fmt.Errorf("unmarshal metadata: %w", err)

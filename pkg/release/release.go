@@ -23,6 +23,10 @@ var (
 	releaseData *ReleaseData
 )
 
+const (
+	DefaultReplicatedProxyPrefix = "proxy.replicated.com/anonymous/"
+)
+
 // ReleaseData holds the parsed data from a Kots Release.
 type ReleaseData struct {
 	data                  []byte
@@ -151,10 +155,13 @@ func (r *ReleaseData) GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config
 
 // ChannelRelease contains information about a specific app release inside a channel.
 type ChannelRelease struct {
-	VersionLabel string `yaml:"versionLabel"`
-	ChannelID    string `yaml:"channelID"`
-	ChannelSlug  string `yaml:"channelSlug"`
-	AppSlug      string `yaml:"appSlug"`
+	VersionLabel          string `yaml:"versionLabel"`
+	ChannelID             string `yaml:"channelID"`
+	ChannelSlug           string `yaml:"channelSlug"`
+	AppSlug               string `yaml:"appSlug"`
+	ChannelSequence       int64  `yaml:"channelSequence"`
+	ReplicatedAppEndpoint string `yaml:"replicatedAppEndpoint"`
+	ReplicatedProxyDomain string `yaml:"replicatedProxyDomain"`
 }
 
 // GetChannelRelease reads the embedded channel release object. If no channel release
@@ -270,4 +277,18 @@ func SetReleaseDataForTests(data map[string][]byte) error {
 	}
 	releaseData = rd
 	return nil
+}
+
+func GetReplicatedProxyPrefix(isAirgap bool) (string, error) {
+	if isAirgap {
+		return "", nil
+	}
+	rel, err := GetChannelRelease()
+	if err != nil {
+		return "", fmt.Errorf("get channel release: %w", err)
+	}
+	if rel == nil || rel.ReplicatedProxyDomain == "" {
+		return DefaultReplicatedProxyPrefix, nil
+	}
+	return fmt.Sprintf("%s/anonymous/", rel.ReplicatedProxyDomain), nil
 }

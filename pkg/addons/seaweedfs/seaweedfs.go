@@ -9,7 +9,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster-kinds/types"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -33,14 +32,14 @@ var (
 	Metadata *release.AddonMetadata
 )
 
-func Init(license *kotsv1beta1.License, isAirgap bool) error {
-	m, err := release.ParseAddonMetadata(rawmetadata, license, isAirgap)
+func Init(isAirgap bool) error {
+	m, err := release.ParseAddonMetadata(rawmetadata, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse metadata: %w", err)
 	}
 	Metadata = m
 
-	hv, err := release.ParseAddonHelmValues(rawvalues, license, isAirgap)
+	hv, err := release.ParseAddonHelmValues(rawvalues, isAirgap)
 	if err != nil {
 		return fmt.Errorf("parse helm values: %w", err)
 	}

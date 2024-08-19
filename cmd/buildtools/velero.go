@@ -82,7 +82,7 @@ var updateVeleroAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/velero", os.Getenv("CHARTS_DESTINATION"))
-		withproto := chartURLTemplate(upstream)
+		withproto := getChartURL(upstream)
 
 		veleroVersion, err := findVeleroVersionFromChart(withproto, nextChartVersion)
 		if err != nil {
@@ -116,11 +116,7 @@ func findVeleroVersionFromChart(chartURL string, chartVersion string) (string, e
 		return "", fmt.Errorf("failed to get velero values: %v", err)
 	}
 
-	templatedChartURL, err := release.Template(chartURL, nil, false)
-	if err != nil {
-		return "", fmt.Errorf("failed to template chart url: %w", err)
-	}
-	images, err := GetImagesFromOCIChart(templatedChartURL, "velero", chartVersion, values)
+	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
 	if err != nil {
 		return "", fmt.Errorf("failed to get images from velero chart: %w", err)
 	}
@@ -165,11 +161,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	templatedChartURL, err := release.Template(chartURL, nil, false)
-	if err != nil {
-		return fmt.Errorf("failed to template chart url: %w", err)
-	}
-	images, err := GetImagesFromOCIChart(templatedChartURL, "velero", chartVersion, values)
+	images, err := GetImagesFromOCIChart(chartURL, "velero", chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from velero chart: %w", err)
 	}
@@ -192,7 +184,7 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
 		newmeta.Images[component.name] = release.AddonImage{
-			Registry: imageRegistryTemplate(),
+			Registry: getImageRegistry(),
 			Repo:     repo,
 			Tag:      tag,
 		}
