@@ -253,7 +253,7 @@ spec:
     - textAnalyze:
         checkName: "'modprobe' Command"
         fileName: host-collectors/run-host/check-modprobe.txt
-        regex: '/usr/sbin/modprobe'
+        regex: 'modprobe'
         outcomes:
           - pass:
               when: "true"
@@ -264,7 +264,7 @@ spec:
     - textAnalyze:
         checkName: "'mount' Command"
         fileName: host-collectors/run-host/check-mount.txt
-        regex: '/usr/bin/mount'
+        regex: 'mount'
         outcomes:
           - pass:
               when: "true"
@@ -275,7 +275,7 @@ spec:
     - textAnalyze:
         checkName: "'umount' Command"
         fileName: host-collectors/run-host/check-umount.txt
-        regex: '/usr/bin/umount'
+        regex: 'umount'
         outcomes:
           - pass:
               when: "true"
