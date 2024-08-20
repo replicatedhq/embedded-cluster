@@ -166,12 +166,12 @@ func Test_pathEnv(t *testing.T) {
 			args: args{
 				env: []string{
 					"TEST=test",
-					"PATH=/usr/bin,/usr/local/bin",
+					"PATH=/usr/bin:/usr/local/bin",
 				},
 			},
 			want: []string{
 				"TEST=test",
-				"PATH=/usr/bin,/usr/local/bin," + binDir,
+				"PATH=/usr/bin:/usr/local/bin:" + binDir,
 			},
 		},
 	}
