@@ -2,10 +2,8 @@ package e2e
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -689,7 +687,10 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
 	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
-	downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+	err := downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
 
@@ -783,17 +784,13 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	wg.Wait()
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
@@ -893,17 +890,13 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	wg.Wait()
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
@@ -1013,17 +1006,13 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		downloadAirgapBundle(t, "1.8.0+k8s-1.28", airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	wg.Wait()
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, "1.8.0+k8s-1.28", airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
@@ -1128,17 +1117,13 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	wg.Wait()
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
@@ -1300,17 +1285,13 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	wg.Wait()
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
@@ -1593,17 +1574,13 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	wg.Wait()
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
@@ -1994,58 +1971,6 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) string {
-	for i := 0; i < 5; i++ {
-		airgapBundlePath, size := maybeDownloadAirgapBundle(t, versionLabel, destPath, licenseID)
-		if size > 1024*1024*1024 { // more than a GB
-			t.Logf("downloaded airgap bundle to %s (%d bytes)", airgapBundlePath, size)
-			return airgapBundlePath
-		}
-		t.Logf("downloaded airgap bundle to %s (%d bytes), retrying as it is less than 1GB", airgapBundlePath, size)
-		err := os.RemoveAll(airgapBundlePath)
-		if err != nil {
-			t.Fatalf("failed to remove airgap bundle at %s: %v", airgapBundlePath, err)
-		}
-		time.Sleep(2 * time.Minute)
-	}
-	t.Errorf("failed to download airgap bundle after 5 attempts")
-	return ""
-}
-
-func maybeDownloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) (string, int64) {
-	// download airgap bundle
-	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
-
-	req, err := http.NewRequest("GET", airgapURL, nil)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	req.Header.Set("Authorization", licenseID)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("failed to download airgap bundle: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("failed to download airgap bundle: %s", resp.Status)
-	}
-
-	// pipe response to a temporary file
-	airgapBundlePath := destPath
-	f, err := os.Create(airgapBundlePath)
-	if err != nil {
-		t.Fatalf("failed to create temporary file: %v", err)
-	}
-	defer f.Close()
-	size, err := f.ReadFrom(resp.Body)
-	if err != nil {
-		t.Fatalf("failed to write response to temporary file: %v", err)
-	}
-
-	return airgapBundlePath, size
-}
-
 func setupPlaywrightAndRunTest(t *testing.T, tc *cluster.Output, testName string, args ...string) (stdout, stderr string, err error) {
 	if err := setupPlaywright(t, tc); err != nil {
 		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
@@ -2164,17 +2089,13 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	go func() {
-		downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
-		wg.Done()
-	}()
-	wg.Wait()
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
