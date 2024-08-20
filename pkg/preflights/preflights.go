@@ -106,7 +106,7 @@ func proxyEnv(env []string, proxy *ecv1beta1.ProxySpec) []string {
 	for _, e := range env {
 		switch strings.SplitN(e, "=", 2)[0] {
 		// Unset proxy environment variables
-		case "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy", "PATH":
+		case "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy":
 		default:
 			next = append(next, e)
 		}

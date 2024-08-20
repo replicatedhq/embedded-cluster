@@ -167,9 +167,6 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 		}
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		if stderr != "" {
-			logrus.Debugf("preflight stderr: %s", stderr)
-		}
 		if !prompts.New().Confirm("Do you want to continue ?", false) {
 			return fmt.Errorf("user aborted")
 		}
