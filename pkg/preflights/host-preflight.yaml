@@ -64,7 +64,7 @@ spec:
         command: 'sh'
         args: ['-c', 'cat /etc/resolv.conf']
     - filesystemPerformance:
-        collectorName: filesystem-latency-etcd
+        collectorName: filesystem-write-latency-etcd
         timeout: 2m
         directory: /var/lib/k0s/etcd
         fileSize: 22Mi
@@ -381,11 +381,11 @@ spec:
               when: "false"
               message: "resolv.conf does not reference '127.0.0.1'"
     - filesystemPerformance:
-        checkName: Filesystem Latency
-        collectorName: filesystem-latency-etcd
+        checkName: Filesystem Write Latency
+        collectorName: filesystem-write-latency-etcd
         outcomes:
           - pass:
               when: "p99 < 10ms"
               message: 'Write latency is ok (p99 target < 10ms, actual: {{ "{{" }} .P99 {{ "}}" }})'
           - fail:
-              message: 'Write latency is high. p99 target < 10ms, actual:{{ "{{" }} .String {{ "}}" }}'
+              message: 'Write latency is high (p99 target < 10ms, actual: {{ "{{" }} .String {{ "}}" }})'

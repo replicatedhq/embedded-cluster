@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -32,31 +31,34 @@ func SerializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) 
 
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*Output, error) {
+func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*Output, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
 
 	fpath, err := saveHostPreflightFile(spec)
 	if err != nil {
-		return nil, fmt.Errorf("unable to save preflight locally: %w", err)
+		return nil, "", fmt.Errorf("unable to save preflight locally: %w", err)
 	}
 	defer os.Remove(fpath)
 	binpath := defaults.PathToEmbeddedClusterBinary("kubectl-preflight")
 	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
 	cmd.Env = os.Environ()
 	cmd.Env = proxyEnv(cmd.Env, proxy)
 	cmd.Env = pathEnv(cmd.Env)
-	cmd.Stdout, cmd.Stderr = stdout, io.Discard
+	cmd.Stdout, cmd.Stderr = stdout, stderr
 	if err = cmd.Run(); err == nil {
-		return OutputFromReader(stdout)
+		out, err := OutputFromReader(stdout)
+		return out, stderr.String(), err
 	}
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) || exit.ExitCode() < 2 {
-		return nil, fmt.Errorf("unknown error running host preflight: %w", err)
+		return nil, stderr.String(), fmt.Errorf("error running host preflight: %w, stderr=%q", err, stderr.String())
 	}
-	return OutputFromReader(stdout)
+	out, err := OutputFromReader(stdout)
+	return out, stderr.String(), err
 }
 
 // saveHostPreflightFile saves the provided spec to a temporary file and returns
@@ -130,7 +132,7 @@ func pathEnv(env []string) []string {
 		}
 	}
 	if path != "" {
-		next = append(next, fmt.Sprintf("PATH=%s,%s", path, defaults.EmbeddedClusterBinsSubDir()))
+		next = append(next, fmt.Sprintf("PATH=%s:%s", path, defaults.EmbeddedClusterBinsSubDir()))
 	} else {
 		next = append(next, fmt.Sprintf("PATH=%s", defaults.EmbeddedClusterBinsSubDir()))
 	}
