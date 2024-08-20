@@ -13,4 +13,4 @@ images:
         tag: 0.42.1@sha256:bc293473dd59a03f82e1328bed58c6ba24b8fbdaacc4559b8c338c933239a042
     utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-utils
-        tag: latest@sha256:813db456973c37fcb20f960498d1c39643c85786ee35330d0e363eb8a9289e57
+        tag: latest@sha256:12a38ef9783948e310e09675cdbfcf5a1bc661d4f9312ee7327dd80af0640e68
