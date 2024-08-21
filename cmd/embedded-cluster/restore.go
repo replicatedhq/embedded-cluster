@@ -279,7 +279,6 @@ func validateS3BackupStore(s *s3BackupStore) error {
 		Region:           aws.String(s.region),
 		Endpoint:         aws.String(s.endpoint),
 		Credentials:      credentials.NewStaticCredentials(s.accessKeyID, s.secretAccessKey, ""),
-		DisableSSL:       aws.Bool(!isAWS),
 		S3ForcePathStyle: aws.Bool(!isAWS),
 	})
 	if err != nil {
@@ -951,15 +950,15 @@ var restoreCommand = &cli.Command{
 		switch state {
 		case ecRestoreStateNew:
 			logrus.Debugf("checking if %s is already installed", binName)
-			if installed, err := isAlreadyInstalled(); err != nil {
-				return err
-			} else if installed {
-				logrus.Errorf("An installation has been detected on this machine.")
-				logrus.Infof("If you want to restore you need to remove the existing installation")
-				logrus.Infof("first. You can do this by running the following command:")
-				logrus.Infof("\n  sudo ./%s reset\n", binName)
-				return ErrNothingElseToAdd
-			}
+			// if installed, err := isAlreadyInstalled(); err != nil {
+			// 	return err
+			// } else if installed {
+			// 	logrus.Errorf("An installation has been detected on this machine.")
+			// 	logrus.Infof("If you want to restore you need to remove the existing installation")
+			// 	logrus.Infof("first. You can do this by running the following command:")
+			// 	logrus.Infof("\n  sudo ./%s reset\n", binName)
+			// 	return ErrNothingElseToAdd
+			// }
 
 			logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", binName)
 			logrus.Info("Enter information to configure access to your backup storage location.\n")
