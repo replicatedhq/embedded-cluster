@@ -27,14 +27,34 @@ main() {
         additional_args="$*"
         echo "Running install with additional args: $additional_args"
     fi
+
+    if embedded-cluster install --no-prompt --airgap-bundle /assets/release.airgap $additional_args 2>&1 | tee /tmp/log ; then
+        echo "Expected installation to fail without a license provided"
+        exit 1
+    fi
+
     if ! embedded-cluster install --no-prompt --license /assets/license.yaml --airgap-bundle /assets/release.airgap $additional_args 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
+        kubectl get pods -A
+        kubectl get storageclass -A
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
         echo "Failed to validate that the Admin Console is ready"
         exit 1
     fi
+    if ! ensure_version_metadata_present; then
+        echo "Failed to check the presence of the version metadata configmap"
+        exit 1
+    fi
+    if ! ensure_binary_copy; then
+        echo "Failed to ensure the embedded binary has been copied to /var/lib/embedded-cluster/bin"
+        exit 1
+    fi
+    # if ! install_kots_cli; then
+    #     echo "Failed to install kots cli"
+    #     exit 1
+    # fi
     if ! wait_for_healthy_node; then
         echo "Failed to wait for healthy node"
         exit 1
@@ -43,6 +63,12 @@ main() {
         echo "Cluster did not respect node config"
         exit 1
     fi
+    # if [[ "$app_deploy_method" == "cli" ]]; then
+    #     if ! deploy_app; then
+    #         echo "Failed to deploy app"
+    #         exit 1
+    #     fi
+    # fi
     if ! wait_for_pods_running 900; then
         echo "Failed to wait for pods to be running"
         exit 1
@@ -51,6 +77,12 @@ main() {
         echo "Failed to validate if only openebs storage class is present"
         exit 1
     fi
+    # if [[ "$app_deploy_method" == "cli" ]]; then
+    #     if ! wait_for_nginx_pods; then
+    #         echo "Failed waiting for the application's nginx pods"
+    #         exit 1
+    #     fi
+    # fi
     if ! wait_for_ingress_pods; then
         echo "Failed waiting for ingress pods"
         exit 1
@@ -59,6 +91,12 @@ main() {
         exit 1
     fi
     if ! check_pod_install_order; then
+        exit 1
+    fi
+    if ! ensure_installation_label; then
+        exit 1
+    fi
+    if ! ensure_release_builtin_overrides; then
         exit 1
     fi
     if ! check_airgap_pvc; then
@@ -71,6 +109,14 @@ main() {
 
     echo "ensure that installation is installed"
     kubectl get installations --no-headers | grep -q "Installed"
+
+    echo "kotsadm logs"
+    kubectl logs -n kotsadm -l app=kotsadm --tail=50 || true
+    echo "previous kotsadm logs"
+    kubectl logs -n kotsadm -l app=kotsadm --tail=50 --previous || true
+
+    echo "all pods"
+    kubectl get pods -A
 }
 
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
