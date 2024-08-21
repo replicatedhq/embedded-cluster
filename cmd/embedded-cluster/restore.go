@@ -893,7 +893,7 @@ var restoreCommand = &cli.Command{
 			},
 			&cli.BoolFlag{
 				Name:   "skip-store-validation",
-				Usage:  "Skip validation of the backup storage location. This is not recommended.",
+				Usage:  "Skip validation of the backup store. This is not recommended.",
 				Value:  false,
 				Hidden: true,
 			},
