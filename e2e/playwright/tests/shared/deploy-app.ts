@@ -17,3 +17,4 @@ export const deployApp = async (page, expect) => {
   await expect(page.locator('#app')).toContainText('Currently deployed version', { timeout: 90000 });
   await expect(page.locator('#app')).toContainText('Ready', { timeout: 30000 });
   await expect(page.locator('#app')).toContainText('Up to date');
+};
