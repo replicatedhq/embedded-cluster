@@ -7,7 +7,7 @@ test('get join controller command', async ({ page }) => {
   await page.getByRole('button', { name: 'Add node', exact: true }).click();
   await expect(page.locator('.Modal-body')).toBeVisible();
   await expect(page.getByRole('heading')).toContainText('Add a Node');
-  await expect(page.getByText("Roles:")).toBeVisible();
+  await expect(page.getByText('Roles:')).toBeVisible();
   await expect(page.locator('#controller-testNodeType')).toBeChecked();
   const joinCommand = await page.locator('.react-prism.language-bash').first().textContent();
   console.log(`{"command":"${joinCommand}"}`);
