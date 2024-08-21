@@ -49,9 +49,9 @@ default: build-ttl.sh
 pkg/goods/bins/k0s: Makefile
 	mkdir -p pkg/goods/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
-	    curl -fL -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
+	    curl --retry 5 --retry-all-errors -fL -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
 	else \
-	    curl -fL -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
+	    curl --retry 5 --retry-all-errors -fL -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
 	fi
 	chmod +x pkg/goods/bins/k0s
 	touch pkg/goods/bins/k0s
@@ -59,7 +59,7 @@ pkg/goods/bins/k0s: Makefile
 pkg/goods/bins/kubectl-support_bundle: Makefile
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/support-bundle
-	curl -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
 	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/kubectl-support_bundle
 	touch pkg/goods/bins/kubectl-support_bundle
@@ -67,7 +67,7 @@ pkg/goods/bins/kubectl-support_bundle: Makefile
 pkg/goods/bins/kubectl-preflight: Makefile
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/preflight
-	curl -fL -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
 	touch pkg/goods/bins/kubectl-preflight
@@ -91,9 +91,9 @@ pkg/goods/internal/bins/kubectl-kots: Makefile
 	mkdir -p pkg/goods/internal/bins
 	mkdir -p output/tmp/kots
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
-	    curl -fL -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
+	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
 	else \
-	    curl -fL -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
+	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
 	fi
 	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
 	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots

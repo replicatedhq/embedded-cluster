@@ -37,14 +37,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
+	installTestDependencies(t, tc, 0, false)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -58,6 +51,13 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
 	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
@@ -72,6 +72,12 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	line = append([]string{"restore-installation.exp"}, testArgs...)
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -105,25 +111,14 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-proxy-install.sh"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", cluster.NOProxy)
-	withEnv = WithEnv(map[string]string{
+	withEnv := WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    cluster.NOProxy,
@@ -192,14 +187,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
+	installTestDependencies(t, tc, 0, false)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -274,18 +262,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	// install "curl" dependency on node 0 for app version checks.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -300,7 +277,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
-	withEnv = WithEnv(map[string]string{
+	withEnv := WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    cluster.NOProxy,
@@ -336,18 +313,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands = [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	withEnv = WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	testArgs = append(testArgs, "--pod-cidr", "10.128.0.0/20", "--service-cidr", "10.129.0.0/20")
 	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
@@ -422,17 +388,8 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
-	if err := RunCommandsOnNode(t, tc, 2, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, false)
+	installTestDependencies(t, tc, 2, false)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"single-node-install.sh", "ui"}); err != nil {
@@ -630,21 +587,8 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[0], err)
-	}
-	if err := RunCommandsOnNode(t, tc, 2, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
+	installTestDependencies(t, tc, 2, true)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -659,7 +603,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
-	withEnv = WithEnv(map[string]string{
+	withEnv := WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
 		"NO_PROXY":    cluster.NOProxy,

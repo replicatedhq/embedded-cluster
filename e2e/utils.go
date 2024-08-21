@@ -191,3 +191,22 @@ func runInParallel(t *testing.T, fns ...func(t *testing.T) error) {
 		}
 	}
 }
+
+func installTestDependencies(t *testing.T, tc *cluster.Output, node int, withProxy bool) {
+	t.Helper()
+	t.Logf("%s: installing test dependencies on node %s", time.Now().Format(time.RFC3339), tc.Nodes[node])
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "expect", "-y"},
+	}
+	var opts []RunCommandOption
+	if withProxy {
+		opts = append(opts, WithEnv(map[string]string{
+			"http_proxy":  cluster.HTTPProxy,
+			"https_proxy": cluster.HTTPProxy,
+		}))
+	}
+	if err := RunCommandsOnNode(t, tc, node, commands, opts...); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[node], err)
+	}
+}

@@ -250,7 +250,7 @@ jobs:
           fetch-depth: 0
       - name: Install Replicated CLI
         run: |
-          curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
+          curl --retry 5 --retry-all-errors -fs https://api.github.com/repos/replicatedhq/replicated/releases/latest \
           | grep "browser_download_url.*linux_amd64.tar.gz" \
           | cut -d : -f 2,3 \
           | tr -d \" \

@@ -130,15 +130,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "ca-certificates", "curl", "-y"},
-		{"update-ca-certificates"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node 0: %v", err)
-	}
+	installTestDependencies(t, tc, 0, false)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -190,15 +182,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "ca-certificates", "curl", "-y"},
-		{"update-ca-certificates"},
-	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail to install ssh on node 0: %v", err)
-	}
+	installTestDependencies(t, tc, 0, false)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -703,6 +687,9 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
+	// install "curl" dependency on node 0 for app version checks.
+	installTestDependencies(t, tc, 0, true)
+
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
 
@@ -837,18 +824,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	// install "curl" dependency on node 0 for app version checks.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -943,18 +919,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	}
 
 	// install "curl" dependency on node 0 for app version checks.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -1059,18 +1024,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	}
 
 	// install "curl" dependency on node 0 for app version checks.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -1170,18 +1124,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	}
 
 	// install "curl" dependency on node 0 for app version checks.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	// upgrade airgap bundle is only needed on the first node
 	line := []string{"rm", "/assets/ec-release-upgrade.tgz"}
@@ -1330,18 +1273,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	// install "curl" dependency on node 0 for app version checks.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -1477,14 +1409,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	// install "expect" dependency on node 3 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies on node 3", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	if err := RunCommandsOnNode(t, tc, 3, commands); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[3], err)
-	}
+	installTestDependencies(t, tc, 3, false)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -1624,32 +1549,10 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	// install "curl" dependency on node 0 for app version checks.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	t.Logf("%s: installing test dependencies on node 2", time.Now().Format(time.RFC3339))
-	commands = [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "expect", "-y"},
-	}
-	withEnv = WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 2, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 2, true)
 
 	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -2134,18 +2037,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	// install "curl" dependency on node 0 for app version checks.
-	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"apt-get", "update", "-y"},
-		{"apt-get", "install", "curl", "-y"},
-	}
-	withEnv := WithEnv(map[string]string{
-		"http_proxy":  cluster.HTTPProxy,
-		"https_proxy": cluster.HTTPProxy,
-	})
-	if err := RunCommandsOnNode(t, tc, 0, commands, withEnv); err != nil {
-		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[2], err)
-	}
+	installTestDependencies(t, tc, 0, true)
 
 	// delete airgap bundles once they've been copied to the nodes
 	os.Remove(airgapInstallBundlePath)
