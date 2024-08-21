@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -269,13 +270,19 @@ func newS3BackupStore() *s3BackupStore {
 // validateS3BackupStore validates the S3 backup store configuration.
 // It tries to list objects in the bucket and prefix to ensure that the bucket exists and has backups.
 func validateS3BackupStore(s *s3BackupStore) error {
+	u, err := url.Parse(s.endpoint)
+	if err != nil {
+		return fmt.Errorf("parse endpoint: %v", err)
+	}
+	isAWS := strings.HasSuffix(u.Hostname(), ".amazonaws.com")
 	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(s.region),
-		Endpoint:    aws.String(s.endpoint),
-		Credentials: credentials.NewStaticCredentials(s.accessKeyID, s.secretAccessKey, ""),
+		Region:           aws.String(s.region),
+		Endpoint:         aws.String(s.endpoint),
+		Credentials:      credentials.NewStaticCredentials(s.accessKeyID, s.secretAccessKey, ""),
+		S3ForcePathStyle: aws.Bool(!isAWS),
 	})
 	if err != nil {
-		return fmt.Errorf("unable to create s3 session: %v", err)
+		return fmt.Errorf("create s3 session: %v", err)
 	}
 	input := &s3.ListObjectsV2Input{
 		Bucket:    aws.String(s.bucket),
@@ -285,7 +292,7 @@ func validateS3BackupStore(s *s3BackupStore) error {
 	svc := s3.New(sess)
 	result, err := svc.ListObjectsV2(input)
 	if err != nil {
-		return fmt.Errorf("unable to list objects: %v", err)
+		return fmt.Errorf("list objects: %v", err)
 	}
 	if len(result.CommonPrefixes) == 0 {
 		return fmt.Errorf("no backups found in %s", filepath.Join(s.bucket, s.prefix))
@@ -883,6 +890,12 @@ var restoreCommand = &cli.Command{
 				Usage: "Skip host preflight checks. This is not recommended.",
 				Value: false,
 			},
+			&cli.BoolFlag{
+				Name:   "skip-store-validation",
+				Usage:  "Skip validation of the backup store. This is not recommended.",
+				Value:  false,
+				Hidden: true,
+			},
 		},
 	)),
 	Before: func(c *cli.Context) error {
@@ -951,9 +964,11 @@ var restoreCommand = &cli.Command{
 			logrus.Info("Enter information to configure access to your backup storage location.\n")
 			s3Store := newS3BackupStore()
 
-			logrus.Debugf("validating backup store configuration")
-			if err := validateS3BackupStore(s3Store); err != nil {
-				return fmt.Errorf("unable to validate backup store: %w", err)
+			if !c.Bool("skip-store-validation") {
+				logrus.Debugf("validating backup store configuration")
+				if err := validateS3BackupStore(s3Store); err != nil {
+					return fmt.Errorf("unable to validate backup store: %w", err)
+				}
 			}
 
 			logrus.Debugf("configuring network manager")
