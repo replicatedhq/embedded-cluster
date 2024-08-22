@@ -192,7 +192,7 @@ func runInParallel(t *testing.T, fns ...func(t *testing.T) error) {
 	}
 }
 
-func installTestDependencies(t *testing.T, tc *cluster.Output, node int, withProxy bool) {
+func installTestDependenciesDebian(t *testing.T, tc *cluster.Output, node int, withProxy bool) {
 	t.Helper()
 	t.Logf("%s: installing test dependencies on node %s", time.Now().Format(time.RFC3339), tc.Nodes[node])
 	commands := [][]string{
@@ -209,4 +209,12 @@ func installTestDependencies(t *testing.T, tc *cluster.Output, node int, withPro
 	if err := RunCommandsOnNode(t, tc, node, commands, opts...); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[node], err)
 	}
+}
+
+func withProxyEnv() RunCommandOption {
+	return WithEnv(map[string]string{
+		"HTTP_PROXY":  cluster.HTTPProxy,
+		"HTTPS_PROXY": cluster.HTTPProxy,
+		"NO_PROXY":    cluster.NOProxy,
+	})
 }

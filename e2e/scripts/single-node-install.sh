@@ -163,8 +163,10 @@ main() {
         exit 1
     fi
 
-    echo "ensure that installation is installed"
-    kubectl get installations --no-headers | grep -q "Installed"
+    if ! ensure_installation_is_installed; then
+        echo "installation is not installed"
+        exit 1
+    fi
 
     echo "kotsadm logs"
     kubectl logs -n kotsadm -l app=kotsadm --tail=50 || true

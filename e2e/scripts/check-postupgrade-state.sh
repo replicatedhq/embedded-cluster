@@ -17,8 +17,6 @@ main() {
     echo "ensure that installation is installed"
     wait_for_installation
 
-    kubectl get installations --no-headers | grep -q "Installed"
-
     echo "pods"
     kubectl get pods -A
     echo "charts"

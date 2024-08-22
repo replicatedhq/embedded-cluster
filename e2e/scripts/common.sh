@@ -34,6 +34,25 @@ wait_for_healthy_node() {
     return 0
 }
 
+ensure_installation_is_installed() {
+    echo "ensure that installation is installed"
+    if ! kubectl get installations --no-headers | grep -q "Installed"; then
+        echo "installation is not installed"
+        kubectl get installations 2>&1 || true
+        kubectl describe installations 2>&1 || true
+        kubectl get charts -A
+        kubectl get secrets -A
+        kubectl describe clusterconfig -A
+        kubectl get pods -A
+        echo "node $1 charts"
+        kubectl get charts -n node-role.kubernetes.io/control-plane -A
+        kubectl get secrets -n node-role.kubernetes.io/control-plane -A
+        echo "node $1 pods"
+        kubectl get pods -n node-role.kubernetes.io/control-plane -A
+        exit 1
+    fi
+}
+
 wait_for_installation() {
     ready=$(kubectl get installations --no-headers | grep -c "Installed" || true)
     counter=0

@@ -37,7 +37,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	installTestDependencies(t, tc, 0, false)
+	installTestDependenciesDebian(t, tc, 0, false)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -45,10 +45,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -111,28 +108,27 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	installTestDependencies(t, tc, 0, true)
+	installTestDependenciesDebian(t, tc, 0, true)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-proxy-install.sh"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", cluster.NOProxy)
-	withEnv := WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
 	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
@@ -148,13 +144,14 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", cluster.NOProxy)
-	withEnv = WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -187,7 +184,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 
-	installTestDependencies(t, tc, 0, false)
+	installTestDependenciesDebian(t, tc, 0, false)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -195,12 +192,16 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
 	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
@@ -215,6 +216,12 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	line = append([]string{"resume-restore.exp"}, testArgs...)
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -262,7 +269,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	// install "curl" dependency on node 0 for app version checks.
-	installTestDependencies(t, tc, 0, true)
+	installTestDependenciesDebian(t, tc, 0, true)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -277,18 +284,10 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
-	withEnv := WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
@@ -305,24 +304,19 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
-	t.Log(stdout)
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
-	installTestDependencies(t, tc, 0, true)
+	installTestDependenciesDebian(t, tc, 0, true)
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	testArgs = append(testArgs, "--pod-cidr", "10.128.0.0/20", "--service-cidr", "10.129.0.0/20")
 	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
-	withEnv = WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
 	t.Logf("%s: checking installation state after restoring app", time.Now().Format(time.RFC3339))
@@ -388,18 +382,15 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	installTestDependencies(t, tc, 0, false)
-	installTestDependencies(t, tc, 2, false)
+	installTestDependenciesDebian(t, tc, 0, false)
+	installTestDependenciesDebian(t, tc, 2, false)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"single-node-install.sh", "ui"}); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -440,9 +431,9 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3"})
 	if err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+		t.Log(stdout)
+		t.Fatalf("fail to wait for ready nodes: %v", err)
 	}
-	t.Log(stdout)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
@@ -519,9 +510,9 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3", "true"})
 	if err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+		t.Log(stdout)
+		t.Fatalf("fail to wait for ready nodes: %v", err)
 	}
-	t.Log(stdout)
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"restore-multi-node-phase2.exp"}); err != nil {
@@ -587,8 +578,8 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	installTestDependencies(t, tc, 0, true)
-	installTestDependencies(t, tc, 2, true)
+	installTestDependenciesDebian(t, tc, 0, true)
+	installTestDependenciesDebian(t, tc, 2, true)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -603,19 +594,11 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
-	withEnv := WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -666,9 +649,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3"})
 	if err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+		t.Log(stdout)
+		t.Fatalf("fail to wait for ready nodes: %v", err)
 	}
-	t.Log(stdout)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
@@ -702,12 +685,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// begin restoring the cluster
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-multi-node-airgap-phase1.exp"}, testArgs...)
-	withEnv = WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to restore phase 1 of the installation: %v", err)
 	}
 
@@ -750,18 +728,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3", "true"})
 	if err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+		t.Log(stdout)
+		t.Fatalf("fail to wait for ready nodes: %v", err)
 	}
-	t.Log(stdout)
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	line = []string{"restore-multi-node-airgap-phase2.exp"}
-	withEnv = WithEnv(map[string]string{
-		"HTTP_PROXY":  cluster.HTTPProxy,
-		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
-	})
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
 	}
 

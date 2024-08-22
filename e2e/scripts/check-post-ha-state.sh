@@ -23,8 +23,10 @@ main() {
     kubectl get installations
     kubectl describe installations
 
-    echo "ensure that installation is installed"
-    kubectl get installations --no-headers | grep -q "Installed"
+    if ! ensure_installation_is_installed; then
+        echo "installation is not installed"
+        exit 1
+    fi
 
     # ensure rqlite is running in HA mode
     kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3
