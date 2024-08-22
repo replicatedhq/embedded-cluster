@@ -20,7 +20,7 @@ images:
         version: 1.11.3-r6@sha256:aa186c347c7548f1850cfeb4870b11ed6de7c6bcf03523d2468abf3a5d5496f1
     kube-proxy:
         image: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
-        version: v1.28.12@sha256:c903c38e908f9b6a51d0b6ad8dbbbc2f9a98082df15a2bd8dab4b41929120640
+        version: v1.28.13@sha256:e611fbef93b34f47078c5b2c05422275f070f400802e49ab7ea4a2c2e12ffcab
     metrics-server:
         image: proxy.replicated.com/anonymous/replicated/ec-metrics-server
         version: 0.7.1-r5@sha256:a0a95e462b04ff21fecba51321936c97837b7039bcf5ae700d48d026e6355a26
