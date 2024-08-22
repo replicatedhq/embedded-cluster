@@ -43,6 +43,10 @@ main() {
         echo "Failed to ensure the embedded binary has been copied to /var/lib/embedded-cluster/bin"
         exit 1
     fi
+    if ! install_kots_cli; then
+        echo "Failed to install kots cli"
+        exit 1
+    fi
     if ! wait_for_healthy_node; then
         echo "Failed to wait for healthy node"
         exit 1

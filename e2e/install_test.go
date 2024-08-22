@@ -1460,7 +1460,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
 
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-nodes-removed.sh", "2"})
+	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-nodes-removed.sh", "3"})
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to remove worker node %s:", err)
