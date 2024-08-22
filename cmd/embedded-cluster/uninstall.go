@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"time"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
@@ -15,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -64,10 +66,16 @@ func (h *hostInfo) deleteNode(ctx context.Context) error {
 		return fmt.Errorf("unable to delete Node: %w", h.KclientError)
 	}
 	if h.NodeError != nil {
+		if k8serrors.IsNotFound(h.NodeError) {
+			return nil
+		}
 		return fmt.Errorf("unable to delete Node: %w", h.NodeError)
 	}
 	err := h.Kclient.Delete(ctx, &h.Node)
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
 		return fmt.Errorf("unable to delete Node: %w", err)
 	}
 	return nil
@@ -79,14 +87,24 @@ func (h *hostInfo) deleteControlNode(ctx context.Context) error {
 		return fmt.Errorf("unable to delete ControlNode: %w", h.KclientError)
 	}
 	if h.ControlNodeError != nil {
+		if k8serrors.IsNotFound(h.ControlNodeError) {
+			return nil
+		}
 		return fmt.Errorf("unable to delete ControlNode: %w", h.ControlNodeError)
 	}
 	err := h.Kclient.Delete(ctx, &h.ControlNode)
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
 		return fmt.Errorf("unable to delete ControlNode: %w", err)
 	}
 	return nil
 }
+
+var (
+	notFoundRegex = regexp.MustCompile(`nodes ".+" not found`)
+)
 
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() error {
@@ -101,6 +119,9 @@ func (h *hostInfo) drainNode() error {
 	}
 	out, err := exec.Command(k0s, drainArgList...).CombinedOutput()
 	if err != nil {
+		if notFoundRegex.Match(out) {
+			return nil
+		}
 		return fmt.Errorf("could not drain node: %w, %s", err, out)
 	}
 	return nil
@@ -379,39 +400,46 @@ var resetCommand = &cli.Command{
 			}
 		}
 
-		// drain node
-		logrus.Info("Draining node...")
-		err = currentHost.drainNode()
-		if !checkErrPrompt(c, err) {
-			return err
+		var numControllerNodes int
+		if currentHost.KclientError == nil {
+			numControllerNodes, _ = kubeutils.NumOfControlPlaneNodes(c.Context, currentHost.Kclient)
 		}
-
-		// remove node from cluster
-		logrus.Info("Removing node from cluster...")
-		removeCtx, removeCancel := context.WithTimeout(c.Context, time.Minute)
-		defer removeCancel()
-		err = currentHost.deleteNode(removeCtx)
-		if !checkErrPrompt(c, err) {
-			return err
-		}
-
-		// controller pre-reset
-		if currentHost.Status.Role == "controller" {
-
-			// delete controlNode object from cluster
-			deleteControlCtx, deleteCancel := context.WithTimeout(c.Context, time.Minute)
-			defer deleteCancel()
-			err := currentHost.deleteControlNode(deleteControlCtx)
+		// do not drain node if this is the only controller node in the cluster
+		// if there is an error (numControllerNodes == 0), drain anyway to be safe
+		if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
+			logrus.Info("Draining node...")
+			err = currentHost.drainNode()
 			if !checkErrPrompt(c, err) {
 				return err
 			}
 
-			// try and leave etcd cluster
-			err = currentHost.leaveEtcdcluster()
+			// remove node from cluster
+			logrus.Info("Removing node from cluster...")
+			removeCtx, removeCancel := context.WithTimeout(c.Context, time.Minute)
+			defer removeCancel()
+			err = currentHost.deleteNode(removeCtx)
 			if !checkErrPrompt(c, err) {
 				return err
 			}
 
+			// controller pre-reset
+			if currentHost.Status.Role == "controller" {
+
+				// delete controlNode object from cluster
+				deleteControlCtx, deleteCancel := context.WithTimeout(c.Context, time.Minute)
+				defer deleteCancel()
+				err := currentHost.deleteControlNode(deleteControlCtx)
+				if !checkErrPrompt(c, err) {
+					return err
+				}
+
+				// try and leave etcd cluster
+				err = currentHost.leaveEtcdcluster()
+				if !checkErrPrompt(c, err) {
+					return err
+				}
+
+			}
 		}
 
 		// reset

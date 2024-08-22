@@ -145,8 +145,7 @@ func findJoinCommandInOutput(stdout string) (string, error) {
 	command := strings.TrimPrefix(r.Command, "sudo ./")
 	// replace the airgap bundle path (if any) with the local path.
 	command = strings.ReplaceAll(command, "embedded-cluster.airgap", "/assets/release.airgap")
-	// Skip running host preflights
-	return injectString(command, "--skip-host-preflights", "join"), nil
+	return command, nil
 }
 
 func injectString(original, injection, after string) string {
@@ -176,4 +175,19 @@ func k8sVersionPrevious() string {
 		panic(fmt.Sprintf("failed to parse previous k8s version %q", os.Getenv("EXPECT_K0S_VERSION_PREVIOUS")))
 	}
 	return verParts[0]
+}
+
+func runInParallel(t *testing.T, fns ...func(t *testing.T) error) {
+	t.Helper()
+	errCh := make(chan error, len(fns))
+	for _, fn := range fns {
+		go func(fn func(t *testing.T) error) {
+			errCh <- fn(t)
+		}(fn)
+	}
+	for range fns {
+		if err := <-errCh; err != nil {
+			t.Fatal(err)
+		}
+	}
 }

@@ -5,6 +5,8 @@ config: |-
     name: embedded-cluster
   spec:
     api:
+      extraArgs:
+        service-node-port-range: 80-32767
       externalAddress: my-lb-address.example.com
       sans:
       - 192.168.68.106
@@ -25,6 +27,8 @@ expected: |-
   spec:
     api:
       externalAddress: my-lb-address.example.com
+      extraArgs:
+        service-node-port-range: 80-32767
     network:
       provider: calico
     telemetry:

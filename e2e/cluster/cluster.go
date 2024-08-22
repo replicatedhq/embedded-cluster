@@ -235,12 +235,23 @@ func NewTestCluster(in *Input) *Output {
 	if in.WithProxy {
 		ConfigureProxy(in)
 	}
+	opts := []RunCommandOption{}
+	if in.WithProxy {
+		opts = append(opts, WithEnv(map[string]string{
+			"http_proxy":  HTTPProxy,
+			"https_proxy": HTTPProxy,
+		}))
+	}
+	for _, node := range out.Nodes {
+		in.T.Logf("Installing deps on node %s", node)
+		RunCommandOnNode(in, []string{"install-deps.sh"}, node, opts...)
+	}
 	return out
 }
 
 const ProxyImage = "debian/12"
 const HTTPProxy = "http://10.0.0.254:3128"
-const NOProxy = "10.0.0.0/8"
+const NOProxy = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
 // CreateProxy creates a node that attaches to both networks (external and internal),
 // once this is done we install squid and configure it to be a proxy. We also make
@@ -361,9 +372,17 @@ func ConfigureProxy(in *Input) {
 	}
 }
 
+type RunCommandOption func(cmd *Command)
+
+func WithEnv(env map[string]string) RunCommandOption {
+	return func(cmd *Command) {
+		cmd.Env = env
+	}
+}
+
 // RunCommand runs the provided command on the provided node (name). Implements a
 // timeout of 2 minutes for the command to run and if it fails calls T.Failf().
-func RunCommandOnNode(in *Input, cmdline []string, name string) {
+func RunCommandOnNode(in *Input, cmdline []string, name string, opts ...RunCommandOption) {
 	in.T.Logf("Running `%s` on node %s", strings.Join(cmdline, " "), name)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
@@ -373,11 +392,15 @@ func RunCommandOnNode(in *Input, cmdline []string, name string) {
 		Stdout: &NoopCloser{stdout},
 		Stderr: &NoopCloser{stderr},
 	}
+	for _, fn := range opts {
+		fn(&cmd)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	if err := Run(ctx, in.T, cmd); err != nil {
-		in.T.Logf("stdout: %s", stdout.String())
-		in.T.Logf("stderr: %s", stderr.String())
+	err := Run(ctx, in.T, cmd)
+	in.T.Logf("stdout: %s", stdout.String())
+	in.T.Logf("stderr: %s", stderr.String())
+	if err != nil {
 		in.T.Fatalf("Failed to run command: %v", err)
 	}
 }
@@ -556,6 +579,8 @@ func CreateNodes(in *Input) []string {
 		node := CreateNode(in, i)
 		if !in.WithProxy {
 			NodeHasInternet(in, node)
+		} else {
+			NodeHasNoInternet(in, node)
 		}
 		nodes = append(nodes, node)
 	}
@@ -606,6 +631,40 @@ func NodeHasInternet(in *Input, node string) {
 		in.T.Fatalf("Timed out trying to reach internet from %s: %v", node, lastErr)
 	}
 	in.T.Logf("Node %s can reach the internet", node)
+}
+
+// NodeHasNoInternet checks if the node has internet access and fails if so. It does this by
+// pinging google.com.
+func NodeHasNoInternet(in *Input, node string) {
+	in.T.Logf("Ensuring node %s cannot reach the internet", node)
+	fp, err := os.CreateTemp("/tmp", "internet-XXXXX.sh")
+	if err != nil {
+		in.T.Fatalf("Failed to create temporary file: %v", err)
+	}
+	fp.Close()
+	defer func() {
+		os.RemoveAll(fp.Name())
+	}()
+	if err := os.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
+		in.T.Fatalf("Failed to write script: %v", err)
+	}
+	file := File{
+		SourcePath: fp.Name(),
+		DestPath:   "/usr/local/bin/check_internet.sh",
+		Mode:       0755,
+	}
+	CopyFileToNode(in, node, file)
+	cmd := Command{
+		Node:   node,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Line:   []string{"/usr/local/bin/check_internet.sh"},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := Run(ctx, in.T, cmd); err == nil {
+		in.T.Fatalf("Air gap node %s can reach the internet", node)
+	}
 }
 
 // CreateNode creates a single node. The i here is used to create a unique

@@ -11,6 +11,9 @@ import (
 
 // ParseEndUserConfig parses the end user configuration from the given file.
 func ParseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
+	if fpath == "" {
+		return nil, nil
+	}
 	data, err := os.ReadFile(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read overrides file: %w", err)

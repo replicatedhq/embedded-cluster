@@ -28,7 +28,7 @@ spec:
         spec:
           api:
             extraArgs:
-              service-node-port-range: 80-32767
+              service-node-port-range: 3001-32767
   extensions:
     helm:
       repositories:

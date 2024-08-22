@@ -8,6 +8,9 @@ config: |-
       provider: calico
     telemetry:
       enabled: false
+    api:
+      extraArgs:
+        service-node-port-range: 80-32767
 override: |-
   config:
     metadata:
@@ -15,17 +18,17 @@ override: |-
     spec:
       api:
         extraArgs:
-         service-node-port-range: 80-32767
+          service-node-port-range: 80-60000
 expected: |-
   apiVersion: k0s.k0sproject.io/v1beta1
   kind: ClusterConfig
   metadata:
     name: foo
   spec:
+    api:
+      extraArgs:
+        service-node-port-range: 80-60000
     network:
       provider: calico
     telemetry:
       enabled: false
-    api:
-      extraArgs:
-        service-node-port-range: 80-32767

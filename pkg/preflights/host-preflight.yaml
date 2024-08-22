@@ -47,6 +47,35 @@ spec:
         command: 'sh'
         args: ['-c', 'command -v umount']
     - hostOS: {}
+    - http:
+        collectorName: http-replicated-app
+        get:
+          url: '{{ .ReplicatedAPIURL }}'
+          timeout: 5s
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAPIURL "") }}'
+    - http:
+        collectorName: http-proxy-replicated-com
+        get:
+          url: '{{ .ProxyRegistryURL }}/v2/'
+          timeout: 5s
+        exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
+    - run:
+        collectorName: resolv.conf
+        command: 'sh'
+        args: ['-c', 'cat /etc/resolv.conf']
+    - filesystemPerformance:
+        collectorName: filesystem-write-latency-etcd
+        timeout: 2m
+        directory: /var/lib/k0s/etcd
+        fileSize: 22Mi
+        operationSizeBytes: 2300
+        datasync: true
+        enableBackgroundIOPS: true
+        backgroundIOPSWarmupSeconds: 10
+        backgroundWriteIOPS: 300
+        backgroundWriteIOPSJobs: 6
+        backgroundReadIOPS: 50
+        backgroundReadIOPSJobs: 1
   analyzers:
     - cpu:
         checkName: CPU
@@ -253,7 +282,7 @@ spec:
     - textAnalyze:
         checkName: "'modprobe' Command"
         fileName: host-collectors/run-host/check-modprobe.txt
-        regex: '/usr/sbin/modprobe'
+        regex: 'modprobe'
         outcomes:
           - pass:
               when: "true"
@@ -264,7 +293,7 @@ spec:
     - textAnalyze:
         checkName: "'mount' Command"
         fileName: host-collectors/run-host/check-mount.txt
-        regex: '/usr/bin/mount'
+        regex: 'mount'
         outcomes:
           - pass:
               when: "true"
@@ -275,7 +304,7 @@ spec:
     - textAnalyze:
         checkName: "'umount' Command"
         fileName: host-collectors/run-host/check-umount.txt
-        regex: '/usr/bin/umount'
+        regex: 'umount'
         outcomes:
           - pass:
               when: "true"
@@ -291,3 +320,72 @@ spec:
               message: Kernel meets minimum version version of 3.10
           - fail:
               message: Kernel doesn't meet minimum version of 3.10
+    - http:
+        checkName: API Access
+        collectorName: http-replicated-app
+        exclude: '{{ or .IsAirgap (eq .ReplicatedAPIURL "") }}'
+        outcomes:
+          - fail:
+              when: error
+              message: >
+                Error connecting to {{ .ReplicatedAPIURL }}.
+                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
+                and `--no-proxy` flags if there is a proxy server.
+          - pass:
+              when: 'statusCode == 200'
+              message: 'Connected to {{ .ReplicatedAPIURL }}'
+          - fail:
+              message: >
+                Unexpected response from {{ .ReplicatedAPIURL }}.
+                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
+                and `--no-proxy` flags if there is a proxy server.
+    - http:
+        checkName: Proxy Registry Access
+        collectorName: http-proxy-replicated-com
+        exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
+        outcomes:
+          - fail:
+              when: error
+              message: >
+                Error connecting to {{ .ProxyRegistryURL }}.
+                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
+                and `--no-proxy` flags if there is a proxy server.
+          - pass:
+              when: 'statusCode == 401'
+              message: 'Connected to {{ .ProxyRegistryURL }}'
+          - fail:
+              message: >
+                Unexpected response from {{ .ProxyRegistryURL }}.
+                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
+                and `--no-proxy` flags if there is a proxy server.
+    - textAnalyze:
+        checkName: localhost in resolv.conf
+        fileName: host-collectors/run-host/resolv.conf.txt
+        regex: 'nameserver localhost'
+        outcomes:
+          - fail:
+              when: "true"
+              message: "resolv.conf should not reference 'localhost', this will prevent coredns within the cluster from resolving"
+          - pass:
+              when: "false"
+              message: "resolv.conf does not reference 'localhost'"
+    - textAnalyze:
+        checkName: 127.0.0.1 in resolv.conf
+        fileName: host-collectors/run-host/resolv.conf.txt
+        regex: 'nameserver 127.0.0.1'
+        outcomes:
+          - fail:
+              when: "true"
+              message: "resolv.conf should not reference '127.0.0.1', this will prevent coredns within the cluster from resolving"
+          - pass:
+              when: "false"
+              message: "resolv.conf does not reference '127.0.0.1'"
+    - filesystemPerformance:
+        checkName: Filesystem Write Latency
+        collectorName: filesystem-write-latency-etcd
+        outcomes:
+          - pass:
+              when: "p99 < 10ms"
+              message: 'Write latency is ok (p99 target < 10ms, actual: {{ "{{" }} .P99 {{ "}}" }})'
+          - fail:
+              message: 'Write latency is high (p99 target < 10ms, actual: {{ "{{" }} .String {{ "}}" }})'

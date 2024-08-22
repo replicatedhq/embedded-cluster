@@ -7,7 +7,9 @@ import (
 	_ "embed"
 	"fmt"
 
-	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -70,8 +72,8 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
-func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []eckinds.Repository, error) {
-	chartConfig := eckinds.Chart{
+func (o *OpenEBS) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+	chartConfig := ecv1beta1.Chart{
 		Name:      releaseName,
 		ChartName: Metadata.Location,
 		Version:   Metadata.Version,
@@ -85,7 +87,7 @@ func (o *OpenEBS) GenerateHelmConfig(onlyDefaults bool) ([]eckinds.Chart, []ecki
 	}
 	chartConfig.Values = string(valuesStringData)
 
-	return []eckinds.Chart{chartConfig}, nil, nil
+	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
 
 func (a *OpenEBS) GetImages() []string {
@@ -105,7 +107,7 @@ func (o *OpenEBS) GetAdditionalImages() []string {
 }
 
 // Outro is executed after the cluster deployment.
-func (o *OpenEBS) Outro(ctx context.Context, cli client.Client) error {
+func (o *OpenEBS) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Storage to be ready")
 	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "openebs-localpv-provisioner"); err != nil {

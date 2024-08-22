@@ -1,14 +1,15 @@
 package main
 
 import (
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/stretchr/testify/require"
 )
 
-func Test_checkLicenseMatches(t *testing.T) {
+func Test_getLicenseFromFilepath(t *testing.T) {
 	tests := []struct {
 		name            string
 		licenseContents string
@@ -135,9 +136,9 @@ versionLabel: testversion
 			req.NoError(err)
 
 			if tt.licenseContents != "" {
-				err = checkLicenseMatches(filepath.Join(tmpdir, "license.yaml"))
+				_, err = getLicenseFromFilepath(filepath.Join(tmpdir, "license.yaml"))
 			} else {
-				err = checkLicenseMatches("")
+				_, err = getLicenseFromFilepath("")
 			}
 
 			if tt.wantErr != "" {

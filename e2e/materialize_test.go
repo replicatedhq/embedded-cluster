@@ -21,10 +21,12 @@ func TestMaterialize(t *testing.T) {
 		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl"},
 		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl-preflight"},
 		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl-support_bundle"},
+		{"rm", "-rf", "/var/lib/embedded-cluster/bin/fio"},
 		{"embedded-cluster", "materialize"},
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl"},
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl-preflight"},
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl-support_bundle"},
+		{"ls", "-la", "/var/lib/embedded-cluster/bin/fio"},
 	}
 	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
 		t.Fatalf("fail testing materialize assets: %v", err)

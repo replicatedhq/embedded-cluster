@@ -34,15 +34,16 @@ import (
 
 // JoinCommandResponse is the response from the kots api we use to fetch the k0s join token.
 type JoinCommandResponse struct {
-	K0sJoinCommand            string                 `json:"k0sJoinCommand"`
-	K0sToken                  string                 `json:"k0sToken"`
-	ClusterID                 uuid.UUID              `json:"clusterID"`
-	K0sUnsupportedOverrides   string                 `json:"k0sUnsupportedOverrides"`
-	EndUserK0sConfigOverrides string                 `json:"endUserK0sConfigOverrides"`
-	MetricsBaseURL            string                 `json:"metricsBaseURL"`
-	AirgapRegistryAddress     string                 `json:"airgapRegistryAddress"`
-	Proxy                     *ecv1beta1.ProxySpec   `json:"proxy"`
-	Network                   *ecv1beta1.NetworkSpec `json:"network"`
+	K0sJoinCommand            string    `json:"k0sJoinCommand"`
+	K0sToken                  string    `json:"k0sToken"`
+	ClusterID                 uuid.UUID `json:"clusterID"`
+	K0sUnsupportedOverrides   string    `json:"k0sUnsupportedOverrides"`
+	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
+	// MetricsBaseURL is the https://replicated.app endpoint url
+	MetricsBaseURL        string                 `json:"metricsBaseURL"`
+	AirgapRegistryAddress string                 `json:"airgapRegistryAddress"`
+	Proxy                 *ecv1beta1.ProxySpec   `json:"proxy"`
+	Network               *ecv1beta1.NetworkSpec `json:"network"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -131,6 +132,9 @@ var joinCommand = &cli.Command{
 	Name:      "join",
 	Usage:     fmt.Sprintf("Join the current node to a %s cluster", binName),
 	ArgsUsage: "<url> <token>",
+	Subcommands: []*cli.Command{
+		joinRunPreflightsCommand,
+	},
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:   "airgap-bundle",
@@ -139,8 +143,13 @@ var joinCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:   "enable-ha",
-			Usage:  "Enable high availability",
+			Usage:  "Enable high availability.",
 			Hidden: true,
+		},
+		&cli.BoolFlag{
+			Name:  "no-prompt",
+			Usage: "Disable interactive prompts.",
+			Value: false,
 		},
 		&cli.BoolFlag{
 			Name:  "skip-host-preflights",
@@ -150,7 +159,7 @@ var joinCommand = &cli.Command{
 	},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
-			return fmt.Errorf("node join command must be run as root")
+			return fmt.Errorf("join command must be run as root")
 		}
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
@@ -171,7 +180,7 @@ var joinCommand = &cli.Command{
 		}
 
 		if c.Args().Len() != 2 {
-			return fmt.Errorf("usage: %s node join <url> <token>", binName)
+			return fmt.Errorf("usage: %s join <url> <token>", binName)
 		}
 
 		logrus.Debugf("fetching join token remotely")
@@ -180,7 +189,11 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to get join token: %w", err)
 		}
 
-		if c.String("airgap-bundle") != "" {
+		setProxyEnv(jcmd.Proxy)
+
+		isAirgap := c.String("airgap-bundle") != ""
+
+		if isAirgap {
 			logrus.Debugf("checking airgap bundle matches binary")
 			if err := checkAirgapMatches(c); err != nil {
 				return err // we want the user to see the error message without a prefix
@@ -194,7 +207,16 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		if err := RunHostPreflights(c); err != nil {
+		applier, err := getAddonsApplier(c, "")
+		if err != nil {
+			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
+			return err
+		}
+
+		// jcmd.MetricsBaseURL is the replicated.app endpoint url
+		replicatedAPIURL := jcmd.MetricsBaseURL
+		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.Proxy); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -299,9 +321,17 @@ var joinCommand = &cli.Command{
 
 func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
 	if jcmd.Network != nil {
-		clusterSpec := k0sconfig.DefaultClusterConfig()
+		clusterSpec := config.RenderK0sConfig()
+		// NOTE: we should be copying everything from the in cluster config spec and overriding
+		// the node specific config from clusterSpec.GetClusterWideConfig()
 		clusterSpec.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
 		clusterSpec.Spec.Network.ServiceCIDR = jcmd.Network.ServiceCIDR
+		if jcmd.Network.NodePortRange != "" {
+			if clusterSpec.Spec.API.ExtraArgs == nil {
+				clusterSpec.Spec.API.ExtraArgs = map[string]string{}
+			}
+			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.Network.NodePortRange
+		}
 		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
 
 		if err != nil {

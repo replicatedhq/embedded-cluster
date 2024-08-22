@@ -38,9 +38,6 @@ spec:
         spec:
           telemetry:
             enabled: false
-          api:
-            extraArgs:
-              service-node-port-range: 80-32767
   extensions:
     helm:
       repositories:

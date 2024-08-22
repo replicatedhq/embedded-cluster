@@ -17,7 +17,7 @@ credentials:
 deployNodeAgent: true
 image:
   repository: 'proxy.replicated.com/anonymous/replicated/ec-velero'
-  tag: '1.14.0-r2@sha256:8d6bfab30bae50869cb517181f880569653994241bf096826337ad9c860ad323'
+  tag: '1.14.0-r2@sha256:1e410eab49daf4a81a278ecc0b74e44d27a64cf2219ceff28fa035f08445098a'
 initContainers:
 - image: 'proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws:1.10.0-r1@sha256:fa692948046d02f8cebc16c26ba972556450b95cd4741bf63c4a9286df9444fb'
   imagePullPolicy: IfNotPresent
@@ -28,7 +28,7 @@ initContainers:
 kubectl:
   image:
     repository: 'proxy.replicated.com/anonymous/replicated/ec-kubectl'
-    tag: '1.30.3-r0@sha256:d24e3a74b352aae83f8ed50a0280fae68c1e4287fb63a55624e2de113ca5a097'
+    tag: '1.31.0-r0@sha256:6823e987c947163eb206670ae879d49ea1603617738ab210b5a9121c811288f4'
 configMaps:
   fs-restore-action-config:
     labels:

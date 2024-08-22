@@ -1,13 +1,7 @@
 package addons
 
 import (
-	"os"
-	"strings"
-
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-kinds/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 // Option sets and option on an Applier reference.
@@ -24,13 +18,6 @@ func WithoutPrompt() Option {
 func Quiet() Option {
 	return func(a *Applier) {
 		a.verbose = false
-	}
-}
-
-// WithConfig sets the helm config for the addons.
-func WithConfig(config v1beta1.ClusterConfig) Option {
-	return func(a *Applier) {
-		a.config = config
 	}
 }
 
@@ -64,24 +51,12 @@ func WithAirgapBundle(airgapBundle string) Option {
 	}
 }
 
-// WithVersionMetadata sets the release version metadata to be used during addons installation.
-func WithVersionMetadata(metadata *types.ReleaseMetadata) Option {
-	return func(a *Applier) {
-		a.releaseMetadata = metadata
-	}
-}
-
-// WithProxyFromEnv sets the proxy environment variables to be used during addons installation.
-func WithProxyFromEnv(podCIDR, serviceCIDR string) Option {
-	return WithProxyFromArgs(os.Getenv("HTTP_PROXY"), os.Getenv("HTTPS_PROXY"), os.Getenv("NO_PROXY"), podCIDR, serviceCIDR)
-}
-
-// WithProxyFromArgs sets the proxy environment variables to be used during addons installation.
-func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string, podCIDR string, serviceCIDR string) Option {
+// WithProxy sets the proxy environment variables to be used during addons installation.
+func WithProxy(httpProxy string, httpsProxy string, noProxy string) Option {
 	proxyEnv := map[string]string{
 		"HTTP_PROXY":  httpProxy,
 		"HTTPS_PROXY": httpsProxy,
-		"NO_PROXY":    strings.Join(append(defaults.DefaultNoProxy, noProxy, podCIDR, serviceCIDR), ","),
+		"NO_PROXY":    noProxy,
 	}
 
 	return func(a *Applier) {
@@ -93,12 +68,5 @@ func WithProxyFromArgs(httpProxy string, httpsProxy string, noProxy string, podC
 func WithAdminConsolePassword(password string) Option {
 	return func(a *Applier) {
 		a.adminConsolePwd = password
-	}
-}
-
-// WithNetwork sets the network configuration for the cluster
-func WithNetwork(network *embeddedclusterv1beta1.NetworkSpec) Option {
-	return func(a *Applier) {
-		a.network = network
 	}
 }
