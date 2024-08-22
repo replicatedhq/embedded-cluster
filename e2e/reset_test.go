@@ -118,10 +118,10 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Fatalf("fail to remove worker node %s:", err)
 	}
 
-	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion()}
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
+		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

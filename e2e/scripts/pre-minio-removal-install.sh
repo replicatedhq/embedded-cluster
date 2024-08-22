@@ -4,24 +4,6 @@ set -euox pipefail
 DIR=/usr/local/bin
 . $DIR/common.sh
 
-maybe_install_curl() {
-    if ! command -v curl; then
-        apt-get update
-        apt-get install -y curl
-    fi
-}
-
-install_kots_cli() {
-    maybe_install_curl
-
-    # install kots CLI
-    echo "installing kots cli"
-    local ec_version=
-    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1)
-    curl "https://kots.io/install/$ec_version" | bash
-
-}
-
 deploy_app() {
     echo "getting apps"
     # run a no-op kots command to populate the authstring secret

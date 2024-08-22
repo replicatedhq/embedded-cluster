@@ -314,3 +314,21 @@ has_stored_host_preflight_results() {
         return 1
     fi
 }
+
+install_kots_cli() {
+    maybe_install_curl
+
+    # install kots CLI
+    echo "installing kots cli"
+    local ec_version=
+    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1)
+    curl "https://kots.io/install/$ec_version" | bash
+
+}
+
+maybe_install_curl() {
+    if ! command -v curl; then
+        apt-get update
+        apt-get install -y curl
+    fi
+}
