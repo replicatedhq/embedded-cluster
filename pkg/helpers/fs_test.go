@@ -3,9 +3,11 @@ package helpers
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMoveFile(t *testing.T) {
@@ -84,4 +86,110 @@ func TestMoveFile_Symlink(t *testing.T) {
 	target, err := os.Readlink(symlinkPath)
 	assert.Error(t, err)
 	assert.Empty(t, target)
+}
+
+func TestRemoveAll(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T) (string, bool)
+		isDir bool
+	}{
+		{
+			name: "remove file",
+			setup: func(t *testing.T) (string, bool) {
+				f, err := os.CreateTemp("", "test-file")
+				if err != nil {
+					t.Fatal(err)
+				}
+				return f.Name(), true
+			},
+		},
+		{
+			name: "remove directory",
+			setup: func(t *testing.T) (string, bool) {
+				dir, err := os.MkdirTemp("", "test-dir")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "file1"), []byte("test"), 0644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Mkdir(filepath.Join(dir, "subdir"), 0755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "subdir", "file2"), []byte("test"), 0644); err != nil {
+					t.Fatal(err)
+				}
+				return dir, true
+			},
+			isDir: true,
+		},
+		{
+			name: "remove symlink",
+			setup: func(t *testing.T) (string, bool) {
+				f, err := os.CreateTemp("", "test-file")
+				if err != nil {
+					t.Fatal(err)
+				}
+				slink := filepath.Join(os.TempDir(), "test-symlink")
+				if err := os.Symlink(f.Name(), slink); err != nil {
+					t.Fatal(err)
+				}
+				return slink, true
+			},
+		},
+		{
+			name: "remove non-existent path",
+			setup: func(t *testing.T) (string, bool) {
+				return filepath.Join(os.TempDir(), "non-existent-path"), false
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			path, shouldExist := tt.setup(t)
+			_, err := os.Lstat(path)
+			if shouldExist {
+				req.NoError(err)
+			} else {
+				req.Error(err)
+			}
+
+			if tt.isDir {
+				// validate dir has contents
+				d, err := os.Open(path)
+				req.NoError(err)
+				defer d.Close()
+
+				names, err := d.Readdirnames(-1)
+				req.NoError(err)
+				req.NotEmpty(names)
+			}
+
+			// remove the path
+			err = RemoveAll(path)
+			req.NoError(err)
+
+			if !tt.isDir {
+				// file should be gone
+				_, err := os.Lstat(path)
+				req.Error(err)
+			} else {
+				// dir should exist and be empty
+				_, err := os.Lstat(path)
+				req.NoError(err)
+
+				d, err := os.Open(path)
+				req.NoError(err)
+				defer d.Close()
+
+				names, err := d.Readdirnames(-1)
+				req.NoError(err)
+				req.Empty(names)
+			}
+		})
+	}
 }
