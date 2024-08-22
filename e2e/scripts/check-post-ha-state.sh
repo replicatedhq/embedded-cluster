@@ -29,7 +29,11 @@ main() {
     fi
 
     # ensure rqlite is running in HA mode
-    kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3
+    if ! kubectl get sts -n kotsadm kotsadm-rqlite -o jsonpath='{.status.readyReplicas}' | grep -q 3; then
+        echo "kotsadm-rqlite is not ready and HA"
+        kubectl get sts -n kotsadm kotsadm-rqlite
+        exit 1
+    fi
 
     if [ "$from_restore" == "true" ]; then
         # ensure volumes were restored
