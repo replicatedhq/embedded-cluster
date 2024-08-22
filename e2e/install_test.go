@@ -1724,7 +1724,7 @@ func TestCustomCIDR(t *testing.T) {
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	// this uses the proxy install script because that accepts arbitrary install flags
-	line := []string{"single-node-proxy-install.sh"}
+	line := []string{"single-node-install.sh"}
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {

@@ -24,6 +24,9 @@ func TestProxiedEnvironment(t *testing.T) {
 	defer cleanupCluster(t, tc)
 	t.Log("Proxied infrastructure created")
 
+	// install "curl" dependency on node 0 for app version checks.
+	installTestDependenciesDebian(t, tc, 0, true)
+
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -117,6 +120,9 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	})
 	defer cleanupCluster(t, tc)
 	t.Log("Proxied infrastructure created")
+
+	// install "curl" dependency on node 0 for app version checks.
+	installTestDependenciesDebian(t, tc, 0, true)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
