@@ -1,4 +1,4 @@
-export const deployOldVersionApp = async (page, expect) => {
+export const deployOldAppVersion = async (page, expect) => {
     await expect(page.getByRole('button', { name: 'Add node', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.locator('h3')).toContainText('The First Config Group');
