@@ -7,7 +7,12 @@ test('get join worker command', async ({ page }) => {
   await page.getByRole('button', { name: 'Add node', exact: true }).click();
   await expect(page.locator('.Modal-body')).toBeVisible();
   await expect(page.getByRole('heading')).toContainText('Add a Node');
-  await page.locator('.BoxedCheckbox').getByText('abc', { exact: true }).click();
+  await expect(page.getByText('Roles:')).toBeVisible();
+  await expect(page.locator('#controller-testNodeType')).toBeChecked();
+  await page.locator('.nodeType-selector').getByText('controller-test').click()
+  await page.locator('.nodeType-selector').getByText('abc').click()
+  await expect(page.locator('#abcNodeType')).toBeChecked();
+  await expect(page.locator('#controller-testNodeType')).not.toBeChecked();
   const joinCommand = await page.locator('.react-prism.language-bash').first().textContent();
   console.log(`{"command":"${joinCommand}"}`);
 });
