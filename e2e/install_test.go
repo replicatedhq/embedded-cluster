@@ -592,8 +592,8 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	if err := setupPlaywright(t, tc); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-old-version-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-old-version-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
@@ -1066,8 +1066,8 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	if err := setupPlaywright(t, tc); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-old-version-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-old-version-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
