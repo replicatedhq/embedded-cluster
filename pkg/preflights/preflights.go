@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -31,34 +32,29 @@ func SerializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) 
 
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*Output, string, error) {
+func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*Output, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
 
 	fpath, err := saveHostPreflightFile(spec)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to save preflight locally: %w", err)
+		return nil, fmt.Errorf("unable to save preflight locally: %w", err)
 	}
 	defer os.Remove(fpath)
 	binpath := defaults.PathToEmbeddedClusterBinary("kubectl-preflight")
 	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
-	cmd.Env = os.Environ()
-	cmd.Env = proxyEnv(cmd.Env, proxy)
-	cmd.Env = pathEnv(cmd.Env)
-	cmd.Stdout, cmd.Stderr = stdout, stderr
+	cmd.Env = proxyEnv(proxy)
+	cmd.Stdout, cmd.Stderr = stdout, io.Discard
 	if err = cmd.Run(); err == nil {
-		out, err := OutputFromReader(stdout)
-		return out, stderr.String(), err
+		return OutputFromReader(stdout)
 	}
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) || exit.ExitCode() < 2 {
-		return nil, stderr.String(), fmt.Errorf("error running host preflight: %w, stderr=%q", err, stderr.String())
+		return nil, fmt.Errorf("unknown error running host preflight: %w", err)
 	}
-	out, err := OutputFromReader(stdout)
-	return out, stderr.String(), err
+	return OutputFromReader(stdout)
 }
 
 // saveHostPreflightFile saves the provided spec to a temporary file and returns
@@ -101,40 +97,20 @@ func dedup[T any](objs []T) []T {
 	return out
 }
 
-func proxyEnv(env []string, proxy *ecv1beta1.ProxySpec) []string {
-	next := []string{}
-	for _, e := range env {
+func proxyEnv(proxy *ecv1beta1.ProxySpec) []string {
+	env := []string{}
+	for _, e := range os.Environ() {
 		switch strings.SplitN(e, "=", 2)[0] {
 		// Unset proxy environment variables
 		case "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy":
-		default:
-			next = append(next, e)
+			continue
 		}
+		env = append(env, e)
 	}
 	if proxy != nil {
-		next = append(next, fmt.Sprintf("HTTP_PROXY=%s", proxy.HTTPProxy))
-		next = append(next, fmt.Sprintf("HTTPS_PROXY=%s", proxy.HTTPSProxy))
-		next = append(next, fmt.Sprintf("NO_PROXY=%s", proxy.NoProxy))
+		env = append(env, fmt.Sprintf("HTTP_PROXY=%s", proxy.HTTPProxy))
+		env = append(env, fmt.Sprintf("HTTPS_PROXY=%s", proxy.HTTPSProxy))
+		env = append(env, fmt.Sprintf("NO_PROXY=%s", proxy.NoProxy))
 	}
-	return next
-}
-
-func pathEnv(env []string) []string {
-	path := ""
-	next := []string{}
-	for _, e := range env {
-		switch strings.SplitN(e, "=", 2)[0] {
-		// Unset PATH environment variable
-		case "PATH":
-			path = strings.SplitN(e, "=", 2)[1]
-		default:
-			next = append(next, e)
-		}
-	}
-	if path != "" {
-		next = append(next, fmt.Sprintf("PATH=%s:%s", path, defaults.EmbeddedClusterBinsSubDir()))
-	} else {
-		next = append(next, fmt.Sprintf("PATH=%s", defaults.EmbeddedClusterBinsSubDir()))
-	}
-	return next
+	return env
 }

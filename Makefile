@@ -36,7 +36,6 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.EmbeddedOperatorImageOverride=$(EMBEDDED_OPERATOR_IMAGE_OVERRIDE)
-DISABLE_FIO_BUILD ?= 0
 
 export PATH := $(shell pwd)/bin:$(PATH)
 
@@ -77,16 +76,6 @@ pkg/goods/bins/local-artifact-mirror: Makefile
 	$(MAKE) -C local-artifact-mirror build GOOS=linux GOARCH=amd64
 	cp local-artifact-mirror/bin/local-artifact-mirror-$(GOOS)-$(GOARCH) pkg/goods/bins/local-artifact-mirror
 
-pkg/goods/bins/fio: PLATFORM = linux/amd64
-pkg/goods/bins/fio: Makefile
-ifneq ($(DISABLE_FIO_BUILD),1)
-	mkdir -p pkg/goods/bins
-	docker build -t fio --build-arg PLATFORM=$(PLATFORM) fio
-	docker rm -f fio && docker run --name fio fio
-	docker cp fio:/output/fio pkg/goods/bins/fio
-	touch pkg/goods/bins/fio
-endif
-
 pkg/goods/internal/bins/kubectl-kots: Makefile
 	mkdir -p pkg/goods/internal/bins
 	mkdir -p output/tmp/kots
@@ -121,7 +110,6 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-preflight \
 	pkg/goods/bins/kubectl-support_bundle \
 	pkg/goods/bins/local-artifact-mirror \
-	pkg/goods/bins/fio \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
