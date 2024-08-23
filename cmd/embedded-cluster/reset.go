@@ -453,10 +453,8 @@ var resetCommand = &cli.Command{
 			logrus.Infof("Node has been reset. Please reboot to ensure transient configuration is also reset.")
 		}
 
-		if _, err := os.Stat(defaults.PathToK0sConfig()); err == nil {
-			if err := os.Remove(defaults.PathToK0sConfig()); err != nil {
-				return err
-			}
+		if err := helpers.RemoveAll(defaults.PathToK0sConfig()); err != nil {
+			return fmt.Errorf("failed to remove k0s config: %w", err)
 		}
 
 		lamPath := "/etc/systemd/system/local-artifact-mirror.service"
@@ -464,59 +462,43 @@ var resetCommand = &cli.Command{
 			if _, err := helpers.RunCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
 				return err
 			}
-			if err := os.RemoveAll(lamPath); err != nil {
-				return err
-			}
+		}
+		if err := helpers.RemoveAll(lamPath); err != nil {
+			return fmt.Errorf("failed to remove local-artifact-mirror path: %w", err)
 		}
 
 		proxyControllerPath := "/etc/systemd/system/k0scontroller.service.d"
-		if _, err := os.Stat(proxyControllerPath); err == nil {
-			if err := os.RemoveAll(proxyControllerPath); err != nil {
-				return err
-			}
+		if err := helpers.RemoveAll(proxyControllerPath); err != nil {
+			return fmt.Errorf("failed to remove proxy controller path: %w", err)
 		}
 
 		proxyWorkerPath := "/etc/systemd/system/k0sworker.service.d"
-		if _, err := os.Stat(proxyWorkerPath); err == nil {
-			if err := os.RemoveAll(proxyWorkerPath); err != nil {
-				return err
-			}
+		if err := helpers.RemoveAll(proxyWorkerPath); err != nil {
+			return fmt.Errorf("failed to remove proxy worker path: %w", err)
 		}
 
-		if _, err := os.Stat(defaults.EmbeddedClusterHomeDirectory()); err == nil {
-			if err := os.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
-				return fmt.Errorf("failed to remove embedded cluster home directory: %w", err)
-			}
+		if err := helpers.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
+			return fmt.Errorf("failed to remove embedded cluster directory: %w", err)
 		}
 
-		if _, err := os.Stat(defaults.PathToK0sContainerdConfig()); err == nil {
-			if err := os.RemoveAll(defaults.PathToK0sContainerdConfig()); err != nil {
-				return fmt.Errorf("failed to remove containerd config: %w", err)
-			}
+		if err := helpers.RemoveAll(defaults.PathToK0sContainerdConfig()); err != nil {
+			return fmt.Errorf("failed to remove containerd config: %w", err)
 		}
 
-		if _, err := os.Lstat(systemdUnitFileName()); err == nil {
-			if err := os.Remove(systemdUnitFileName()); err != nil {
-				return fmt.Errorf("failed to remove systemd unit file: %w", err)
-			}
+		if err := helpers.RemoveAll(systemdUnitFileName()); err != nil {
+			return fmt.Errorf("failed to remove systemd unit file: %w", err)
 		}
 
-		if _, err := os.Stat("/var/openebs"); err == nil {
-			if err := os.RemoveAll("/var/openebs"); err != nil {
-				return fmt.Errorf("failed to remove openebs storage: %w", err)
-			}
+		if err := helpers.RemoveAll("/var/openebs"); err != nil {
+			return fmt.Errorf("failed to remove openebs storage: %w", err)
 		}
 
-		if _, err := os.Stat("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err == nil {
-			if err := os.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
-				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
-			}
+		if err := helpers.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
+			return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
 		}
 
-		if _, err := os.Stat("/usr/local/bin/k0s"); err == nil {
-			if err := os.RemoveAll("/usr/local/bin/k0s"); err != nil {
-				return fmt.Errorf("failed to remove k0s binary: %w", err)
-			}
+		if err := helpers.RemoveAll("/usr/local/bin/k0s"); err != nil {
+			return fmt.Errorf("failed to remove k0s binary: %w", err)
 		}
 
 		if c.Bool("reboot") {
