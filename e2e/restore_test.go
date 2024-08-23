@@ -111,7 +111,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	installTestDependenciesDebian(t, tc, 0, true)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-proxy-install.sh"}
+	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", cluster.NOProxy)

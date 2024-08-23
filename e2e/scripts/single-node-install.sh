@@ -69,6 +69,12 @@ check_openebs_storage_class() {
 main() {
     local app_deploy_method="$1"
 
+    local additional_args
+    if [ -n "${2:-}" ]; then
+        additional_args="${*:2}"
+        echo "Running install with additional args: $additional_args"
+    fi
+
     if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail without a license provided"
         exit 1

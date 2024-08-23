@@ -1790,6 +1790,12 @@ func TestCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to wait for ready nodes: %v", err)
 	}
 
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})

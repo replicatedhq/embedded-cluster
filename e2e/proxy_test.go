@@ -30,7 +30,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-proxy-install.sh"}
+	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", cluster.NOProxy)
@@ -127,7 +127,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-proxy-install.sh"}
+	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", cluster.NOProxy)
