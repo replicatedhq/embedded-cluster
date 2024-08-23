@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -28,10 +29,7 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if err := setupPlaywright(t, tc); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -86,33 +84,45 @@ func TestMultiNodeReset(t *testing.T) {
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+		t.Log(stdout)
+		t.Fatalf("fail to wait for ready nodes: %v", err)
 	}
-	t.Log(stdout)
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line := []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
 
 	bin := strings.Split(command, " ")[0]
 	// reset worker node
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 3, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to reset worker node")
 	}
-	t.Log(stdout)
 
 	// reset a controller node
 	// this should fail with a prompt to override
 	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
 	stdout, _, err = RunCommandOnNode(t, tc, 2, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to remove controller node %s:", err)
 	}
-	t.Log(stdout)
 
 	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-nodes-removed.sh", "2"})
 	if err != nil {
+		t.Log(stdout)
 		t.Fatalf("fail to remove worker node %s:", err)
 	}
-	t.Log(stdout)
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

@@ -4,24 +4,6 @@ set -euox pipefail
 DIR=/usr/local/bin
 . $DIR/common.sh
 
-maybe_install_curl() {
-    if ! command -v curl; then
-        apt-get update
-        apt-get install -y curl
-    fi
-}
-
-install_kots_cli() {
-    maybe_install_curl
-
-    # install kots CLI
-    echo "installing kots cli"
-    local ec_version=
-    ec_version=$(embedded-cluster version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1)
-    curl "https://kots.io/install/$ec_version" | bash
-
-}
-
 deploy_app() {
     echo "getting apps"
     # run a no-op kots command to populate the authstring secret
@@ -84,71 +66,21 @@ check_openebs_storage_class() {
     fi
 }
 
-# ensure_version_metadata_present verifies if a configmap containig the embedded cluster version
-# metadata is present in the embedded-cluster namespace. this configmap should always exists.
-ensure_version_metadata_present() {
-    echo "ensure that versions configmap is present"
-    if ! kubectl get cm -n embedded-cluster | grep -q version-metadata-; then
-        echo "version metadata configmap not found"
-        kubectl get cm -n embedded-cluster
-        return 1
-    fi
-    local name
-    name=$(kubectl get cm -n embedded-cluster | grep version-metadata- | awk '{print $1}')
-    if ! kubectl get cm -n embedded-cluster "$name" -o yaml | grep -q Versions ; then
-        echo "version metadata configmap does not contain Versions entry"
-        kubectl get cm -n embedded-cluster "$name" -o yaml
-        return 1
-    fi
-}
-
-# ensure_binary_copy verifies that the installer is copying itself to the default location of
-# banaries in the node.
-ensure_binary_copy() {
-    if ! ls /var/lib/embedded-cluster/bin/embedded-cluster ; then
-        echo "embedded-cluster binary not found on default location"
-        ls -la /var/lib/embedded-cluster/bin
-        return 1
-    fi
-    if ! /var/lib/embedded-cluster/bin/embedded-cluster version ; then
-        echo "embedded-cluster binary is not executable"
-        return 1
-    fi
-}
-
-ensure_installation_label() {
-    # ensure that the installation has the kots backup label
-    if ! kubectl get installations -l "replicated.com/disaster-recovery=ec-install" --no-headers; then
-        echo "installation does not have the replicated.com/disaster-recovery=ec-install label"
-        kubectl describe installations --no-headers
-        return 1
-    fi
-}
-
-# ensure_release_builtin_overrides verifies if the built in overrides we provide as part
-# of the release have been applied to the helm charts.
-ensure_release_builtin_overrides() {
-    if ! kubectl get charts.helm.k0sproject.io -n kube-system k0s-addon-chart-admin-console -o yaml | grep -q -E "^ +release-custom-label"; then
-        echo "release-custom-label not found in k0s-addon-chart-admin-console"
-        kubectl get charts.helm.k0sproject.io -n kube-system k0s-addon-chart-admin-console -o yaml
-        return 1
-    fi
-    if ! kubectl get charts.helm.k0sproject.io -n kube-system k0s-addon-chart-embedded-cluster-operator -o yaml | grep -q -E "^ +release-custom-label"; then
-        echo "release-custom-label not found in k0s-addon-chart-embedded-cluster-operator"
-        kubectl get charts.helm.k0sproject.io -n kube-system k0s-addon-chart-embedded-cluster-operator -o yaml
-        return 1
-    fi
-}
-
 main() {
     local app_deploy_method="$1"
 
-    if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
+    local additional_args=
+    if [ -n "${2:-}" ]; then
+        additional_args="${*:2}"
+        echo "Running install with additional args: $additional_args"
+    fi
+
+    if embedded-cluster install --no-prompt $additional_args 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail without a license provided"
         exit 1
     fi
 
-    if ! embedded-cluster install --no-prompt --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         kubectl get pods -A
         kubectl get storageclass -A
@@ -216,6 +148,11 @@ main() {
     fi
     if ! systemctl status embedded-cluster; then
         echo "Failed to get status of embedded-cluster service"
+        exit 1
+    fi
+
+    if ! ensure_installation_is_installed; then
+        echo "installation is not installed"
         exit 1
     fi
 

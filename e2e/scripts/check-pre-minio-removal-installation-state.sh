@@ -11,9 +11,7 @@ main() {
     echo "pods"
     kubectl get pods -A
 
-    echo "ensure that installation is installed"
     wait_for_installation
-    kubectl get installations --no-headers | grep -q "Installed"
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"

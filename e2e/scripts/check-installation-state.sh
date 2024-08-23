@@ -24,7 +24,10 @@ main() {
         echo "waiting for installation as this is a pre-minio-removal embedded-cluster version (and so the installer doesn't wait for the installation to be ready itself)"
         wait_for_installation
     fi
-    kubectl get installations --no-headers | grep -q "Installed"
+    if ! ensure_installation_is_installed; then
+        echo "installation is not installed"
+        exit 1
+    fi
 
     if ! wait_for_nginx_pods; then
         echo "Failed waiting for the application's nginx pods"
