@@ -24,4 +24,6 @@ RUN make -j$(nproc)
 
 FROM ubuntu:22.04
 COPY --from=build /fio/fio /output/fio
+# ensure that the binary is statically linked
+RUN ldd /output/fio 2>&1 | grep 'not a dynamic executable'
 CMD [ "echo", "Done" ]

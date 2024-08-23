@@ -18,7 +18,7 @@ K0S_GO_VERSION = v1.29.7+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.97.0
+TROUBLESHOOT_VERSION = v0.100.0
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 KOTS_BINARY_URL_OVERRIDE =
 # TODO: move this to a manifest file

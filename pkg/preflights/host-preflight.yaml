@@ -65,17 +65,12 @@ spec:
         args: ['-c', 'cat /etc/resolv.conf']
     - filesystemPerformance:
         collectorName: filesystem-write-latency-etcd
-        timeout: 2m
+        timeout: 5m
         directory: /var/lib/k0s/etcd
         fileSize: 22Mi
-        operationSizeBytes: 2300
+        operationSize: 2300
         datasync: true
-        enableBackgroundIOPS: true
-        backgroundIOPSWarmupSeconds: 10
-        backgroundWriteIOPS: 300
-        backgroundWriteIOPSJobs: 6
-        backgroundReadIOPS: 50
-        backgroundReadIOPSJobs: 1
+        runTime: "0" # let it run to completion
   analyzers:
     - cpu:
         checkName: CPU
@@ -388,4 +383,4 @@ spec:
               when: "p99 < 10ms"
               message: 'Write latency is ok (p99 target < 10ms, actual: {{ "{{" }} .P99 {{ "}}" }})'
           - fail:
-              message: 'Write latency is high (p99 target < 10ms, actual: {{ "{{" }} .String {{ "}}" }})'
+              message: 'Write latency is high (p99 target < 10ms, actual: {{ "{{" }} .P99 {{ "}}" }})'
