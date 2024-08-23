@@ -63,6 +63,19 @@ spec:
         collectorName: resolv.conf
         command: 'sh'
         args: ['-c', 'cat /etc/resolv.conf']
+    - filesystemPerformance:
+        collectorName: filesystem-write-latency-etcd
+        timeout: 2m
+        directory: /var/lib/k0s/etcd
+        fileSize: 22Mi
+        operationSizeBytes: 2300
+        datasync: true
+        enableBackgroundIOPS: true
+        backgroundIOPSWarmupSeconds: 10
+        backgroundWriteIOPS: 300
+        backgroundWriteIOPSJobs: 6
+        backgroundReadIOPS: 50
+        backgroundReadIOPSJobs: 1
   analyzers:
     - cpu:
         checkName: CPU
@@ -367,3 +380,12 @@ spec:
           - pass:
               when: "false"
               message: "resolv.conf does not reference '127.0.0.1'"
+    - filesystemPerformance:
+        checkName: Filesystem Write Latency
+        collectorName: filesystem-write-latency-etcd
+        outcomes:
+          - pass:
+              when: "p99 < 10ms"
+              message: 'Write latency is ok (p99 target < 10ms, actual: {{ "{{" }} .P99 {{ "}}" }})'
+          - fail:
+              message: 'Write latency is high (p99 target < 10ms, actual: {{ "{{" }} .String {{ "}}" }})'
