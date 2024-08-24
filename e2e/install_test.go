@@ -1512,8 +1512,8 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	// install "curl" dependency on node 0 for app version checks.
 	installTestDependenciesDebian(t, tc, 0, true)
 
-	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	installTestDependenciesDebian(t, tc, 2, true)
+	// install "expect" dependency on node 3 as that's where the HA join command will run.
+	installTestDependenciesDebian(t, tc, 3, true)
 
 	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
