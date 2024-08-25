@@ -10,7 +10,7 @@ location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts
 images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
-        tag: 1.31.0-r0@sha256:6823e987c947163eb206670ae879d49ea1603617738ab210b5a9121c811288f4
+        tag: 1.31.0-r1@sha256:70b2e76f316eb753b70d1349861d9b5bd58fff2cfa551072917dd68b50bdb2af
     velero:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero
         tag: 1.14.0-r2@sha256:1e410eab49daf4a81a278ecc0b74e44d27a64cf2219ceff28fa035f08445098a
