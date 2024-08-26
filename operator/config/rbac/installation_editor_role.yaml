@@ -1,0 +1,31 @@
+# permissions for end users to edit installations.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: installation-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: embedded-cluster-operator
+    app.kubernetes.io/part-of: embedded-cluster-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: installation-editor-role
+rules:
+- apiGroups:
+  - embeddedcluster.replicated.com
+  resources:
+  - installations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - embeddedcluster.replicated.com
+  resources:
+  - installations/status
+  verbs:
+  - get

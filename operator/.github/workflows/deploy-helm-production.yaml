@@ -1,0 +1,94 @@
+name: publish-production
+on:
+  push:
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+'
+    - 'v[0-9]+.[0-9]+.[0-9]+\-build\.[0-9]+'
+
+jobs:
+
+  get-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+    - name: Get tag
+      id: tag
+      run: |
+        TAG=${{ github.ref_name }}
+        echo "tag=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+  package-and-publish-operator:
+    runs-on: ubuntu-latest
+    needs: [get-tag]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+    - uses: actions/cache@v4
+      with:
+        path: |
+          build/.melange-cache
+        key: melange-cache
+    - name: Setup Melange
+      uses: chainguard-dev/actions/setup-melange@main
+    - name: Build melange package
+      run: |
+        export VERSION=${{needs.get-tag.outputs.tag}}
+        export MELANGE_CONFIG=deploy/melange.tmpl.yaml
+        make melange-build
+    - name: Publish apko image
+      run: |
+        export VERSION=${{needs.get-tag.outputs.tag}}
+        export IMAGE=replicated/embedded-cluster-operator-image:${VERSION}
+        export APKO_CONFIG=deploy/apko.tmpl.yaml
+        make apko apko-login \
+          REGISTRY=docker.io \
+          USERNAME=${{secrets.DOCKERHUB_USER}} \
+          PASSWORD=${{secrets.DOCKERHUB_PASSWORD}}
+        make apko-build-and-publish
+        echo ::notice title=digest::$(cat build/digest)
+
+  package-and-publish-helmchart:
+    runs-on: 'ubuntu-20.04'
+    needs: [get-tag, package-and-publish-operator]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: v3.8.1
+    - name: Run Package and Publish
+      working-directory: charts/embedded-cluster-operator
+      env:
+        HELM_USER: ${{secrets.KOTS_HELM_USER_PROD}}
+        HELM_PASS: ${{secrets.KOTS_HELM_PASS_PROD}}
+        HELM_REGISTRY: registry.replicated.com
+        CHART_VERSION: ${{needs.get-tag.outputs.tag}}
+      run: |
+        export OPERATOR_IMAGE_NAME=replicated/embedded-cluster-operator-image
+        export OPERATOR_IMAGE_TAG=${CHART_VERSION}
+        export CHART_REMOTE=oci://registry.replicated.com/library
+
+        ../../scripts/publish-helm-chart.sh
+
+  releaser:
+    runs-on: ubuntu-latest
+    needs: [get-tag, package-and-publish-helmchart]
+    steps:
+      - uses: imjasonh/setup-crane@v0.4
+      - name: Download artifact
+        run: |
+          mkdir -p bin
+          crane export --platform linux/amd64 docker.io/replicated/embedded-cluster-operator-image:${{needs.get-tag.outputs.tag}} \
+            | tar -Oxf - manager > bin/manager
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref, '-build') }}
+          files: |
+            bin/manager

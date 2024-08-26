@@ -1,0 +1,73 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autopilot.k0sproject.io
+  resources:
+  - plans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - embeddedcluster.replicated.com
+  resources:
+  - installations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - embeddedcluster.replicated.com
+  resources:
+  - installations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - embeddedcluster.replicated.com
+  resources:
+  - installations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - helm.k0sproject.io
+  resources:
+  - charts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - k0s.k0sproject.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

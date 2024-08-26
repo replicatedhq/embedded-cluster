@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: embedded-cluster-cluster-support-bundle
+  labels:
+    troubleshoot.sh/kind: support-bundle
+    {{- with (include "embedded-cluster-operator.labels" $ | fromYaml) }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+data:
+  support-bundle-spec: {{ .Files.Get "troubleshoot/cluster-support-bundle.yaml" | quote }}
