@@ -1599,10 +1599,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
 		t.Fatalf("fail to remove airgap bundle on node 2: %v", err)
 	}
-	line = []string{"rm", "/usr/local/bin/embedded-cluster"}
-	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
-		t.Fatalf("fail to remove embedded-cluster binary on node 2: %v", err)
-	}
+	// don't remove the embedded-cluster binary as it is used for reset
 
 	// join another controller in HA mode
 	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
@@ -1674,9 +1671,10 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	bin := strings.Split(command, " ")[0]
-	t.Logf("%s: resetting controller node 2", time.Now().Format(time.RFC3339))
+	t.Logf("%s: resetting controller node 2 with bin %q", time.Now().Format(time.RFC3339), bin)
 	stdout, stderr, err = RunCommandOnNode(t, tc, 2, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
+		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to remove controller node %s:", err)
 	}
 	if !strings.Contains(stderr, "High-availability clusters must maintain at least three controller nodes") {
