@@ -63,6 +63,10 @@ func generateSchemas(v *viper.Viper) error {
 	}
 
 	if err := filepath.Walk(filepath.Join(workdir, "config", "crd", "bases"), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("walk: %w", err)
+		}
+
 		if info.IsDir() {
 			return nil
 		}

@@ -44,10 +44,6 @@ func RegistryData(ctx context.Context) error {
 	conf, err := config.LoadDefaultConfig(ctx,
 		config.WithCredentialsProvider(creds),
 		config.WithRegion("us-east-1"),
-		config.WithEndpointResolverWithOptions(
-			aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-				return aws.Endpoint{URL: "http://seaweedfs-s3.seaweedfs:8333"}, nil
-			})),
 	)
 	if err != nil {
 		return fmt.Errorf("load aws config: %w", err)
@@ -55,6 +51,7 @@ func RegistryData(ctx context.Context) error {
 
 	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {
 		o.UsePathStyle = true
+		o.BaseEndpoint = aws.String("http://seaweedfs-s3.seaweedfs:8333/")
 	})
 	registryStr := "registry"
 	_, err = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
@@ -68,6 +65,10 @@ func RegistryData(ctx context.Context) error {
 
 	fmt.Printf("Running registry data migration\n")
 	err = filepath.Walk("/var/lib/embedded-cluster/registry", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("walk: %w", err)
+		}
+
 		if info.IsDir() {
 			return nil
 		}

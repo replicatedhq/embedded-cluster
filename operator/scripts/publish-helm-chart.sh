@@ -4,8 +4,8 @@ set -euo pipefail
 
 required_env_vars=(
   CHART_VERSION
-  OPERATOR_IMAGE_NAME
-  OPERATOR_IMAGE_TAG
+  IMAGE_NAME
+  IMAGE_TAG
   CHART_REMOTE
 )
 
@@ -17,8 +17,8 @@ for var in "${required_env_vars[@]}"; do
 done
 
 export CHART_VERSION
-export OPERATOR_IMAGE_NAME
-export OPERATOR_IMAGE_TAG
+export IMAGE_NAME
+export IMAGE_TAG
 
 envsubst < Chart.yaml.tmpl > Chart.yaml
 envsubst < values.yaml.tmpl > values.yaml

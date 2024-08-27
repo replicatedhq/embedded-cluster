@@ -14,12 +14,13 @@ environment:
       - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
     packages:
       - busybox
+      - git
       - go
 
 pipeline:
   - runs: |
       set -exuo pipefail
 
-      make build
-      cp bin/manager "${{targets.contextdir}}/manager"
+      make -C operator build
+      cp operator/bin/manager "${{targets.contextdir}}/manager"
   - uses: strip

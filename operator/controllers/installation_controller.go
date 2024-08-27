@@ -772,7 +772,7 @@ func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *
 			Timestamp: "now",
 			ID:        uuid.New().String(),
 			Commands: []apv1b2.PlanCommand{
-				apv1b2.PlanCommand{
+				{
 					K0sUpdate: &apv1b2.PlanCommandK0sUpdate{
 						Version: meta.Versions["Kubernetes"],
 						Targets: targets,
