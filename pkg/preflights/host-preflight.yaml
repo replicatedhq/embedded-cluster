@@ -381,6 +381,6 @@ spec:
         outcomes:
           - pass:
               when: "p99 < 10ms"
-              message: 'Write latency is ok (p99 target < 10ms, actual: {{ "{{" }} .P99 {{ "}}" }})'
+              message: 'P99 write latency for the disk at /var/lib/k0s/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
           - fail:
-              message: 'Write latency is high (p99 target < 10ms, actual: {{ "{{" }} .P99 {{ "}}" }})'
+              message: 'P99 write latency for the disk at /var/lib/k0s/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'
