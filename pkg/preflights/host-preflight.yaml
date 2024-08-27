@@ -85,40 +85,40 @@ spec:
         collectorName: embedded-cluster-path-usage
         outcomes:
           - fail:
-              when: 'total < 40Gi'
-              message: The filesystem at /var/lib/embedded-cluster has less than 40Gi of total space
+              when: 'available < 40Gi'
+              message: The filesystem at /var/lib/embedded-cluster must have at least 40Gi of space available. Free up space or increase the filesystem's capacity to continue.
           - pass:
-              message: The filesystem at /var/lib/embedded-cluster has sufficient space
+              message: The filesystem at /var/lib/embedded-cluster has at least 40Gi of space available
     - diskUsage:
         checkName: k0s Disk Space
         collectorName: k0s-path-usage
         outcomes:
           - fail:
               when: 'total < 40Gi'
-              message: The filesystem at /var/lib/k0s has less than 40Gi of total space
+              message: The filesystem at /var/lib/k0s must have at least 40Gi of space available. Free up space or increase the filesystem's capacity to continue.
           - fail:
               when: 'used/total > 80%'
-              message: The filesystem at /var/lib/k0s is more than 80% full
+              message: The filesystem at /var/lib/k0s must be less than 80% full. Free up space or increase the filesystem's capacity to continue.
           - pass:
-              message: The filesystem at /var/lib/k0s has sufficient space
+              message: The filesystem at /var/lib/k0s is less than 80% full
     - diskUsage:
         checkName: OpenEBS Disk Space
         collectorName: openebs-path-usage
         outcomes:
           - fail:
-              when: 'total < 5Gi'
-              message: The filesystem at /var/openebs has less than 5Gi of total space
+              when: 'available < 5Gi'
+              message: The filesystem at /var/openebs must have at least 5Gi of space available. Free up space or increase the filesystem's capacity to continue.
           - pass:
-              message: The filesystem at /var/openebs has sufficient space
+              message: The filesystem at /var/openebs has at least 5Gi of space available
     - diskUsage:
         checkName: tmp Disk Space
         collectorName: tmp-path-usage
         outcomes:
           - fail:
-              when: 'total < 5Gi'
-              message: The filesystem at /tmp has less than 5Gi of total space
+              when: 'available < 5Gi'
+              message:  The filesystem at /tmp must have at least 5Gi of space available. Free up space or increase the filesystem's capacity to continue.
           - pass:
-              message: The filesystem at /tmp has sufficient space
+              message: The filesystem at /tmp has at least 5Gi of space available
     - textAnalyze:
         checkName: Default Route
         fileName: host-collectors/run-host/ip-route-table.txt
