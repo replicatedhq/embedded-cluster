@@ -548,7 +548,7 @@ var installCommand = &cli.Command{
 			&cli.StringFlag{
 				Name:    "license",
 				Aliases: []string{"l"},
-				Usage:   "Path to the license file.",
+				Usage:   "Path to the license file",
 				Hidden:  false,
 			},
 			&cli.BoolFlag{
