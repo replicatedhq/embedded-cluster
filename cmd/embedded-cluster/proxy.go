@@ -55,7 +55,7 @@ func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 	}
 	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
 		noProxy = append(defaults.DefaultNoProxy, noProxy...)
-		noProxy = append(noProxy, getPodCIDR(c), getServiceCIDR(c))
+		noProxy = append(noProxy, c.String("pod-cidr"), c.String("service-cidr"))
 		proxy.NoProxy = strings.Join(noProxy, ",")
 	}
 	if proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" && proxy.NoProxy == "" {
