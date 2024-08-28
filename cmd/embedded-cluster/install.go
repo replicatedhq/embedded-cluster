@@ -324,8 +324,8 @@ func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.Cluste
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
-	cfg.Spec.Network.PodCIDR = getPodCIDR(c)
-	cfg.Spec.Network.ServiceCIDR = getServiceCIDR(c)
+	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -548,7 +548,7 @@ var installCommand = &cli.Command{
 			&cli.StringFlag{
 				Name:    "license",
 				Aliases: []string{"l"},
-				Usage:   "Path to the license file.",
+				Usage:   "Path to the license file",
 				Hidden:  false,
 			},
 			&cli.BoolFlag{
