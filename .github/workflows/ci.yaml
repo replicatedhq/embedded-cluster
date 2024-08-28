@@ -226,7 +226,7 @@ jobs:
           export APP_VERSION="appver-${SHORT_SHA}"
 
           export LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
-          export OPERATOR_IMAGE_OVERRIDE=proxy.replicated.com/anonymous/${{ needs.build-operator.outputs.operator-image }}
+          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-operator.outputs.operator-image }}
           echo "# channel release object" > e2e/kots-release-install/release.yaml
           echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
           echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
@@ -252,9 +252,9 @@ jobs:
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           export EC_VERSION="v${SHORT_SHA}"
-
-          export OPERATOR_IMAGE_OVERRIDE=proxy.replicated.com/anonymous/${{ needs.build-operator.outputs.operator-image }}
+          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-operator.outputs.operator-image }}
           export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
+
           ./scripts/cache-files.sh
           ./scripts/create-upgrade-release.sh
           ./scripts/create-previous-k0s-release.sh
