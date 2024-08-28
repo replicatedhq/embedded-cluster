@@ -1,0 +1,73 @@
+global:
+  labels: {}
+
+kotsVersion: v0.0.0
+embeddedClusterVersion: v0.0.0
+embeddedClusterK0sVersion: v0.0.0
+embeddedBinaryName: v0.0.0
+embeddedClusterID: 123456789
+
+image:
+  repository: ${IMAGE_NAME}
+  tag: ${IMAGE_TAG}
+  pullPolicy: IfNotPresent
+
+utilsImage: busybox:latest
+
+extraEnv: []
+#  - name: HTTP_PROXY
+#    value: http://proxy.example.com
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8081
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8081
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+          - amd64
+          - arm64
+          - ppc64le
+          - s390x
+        - key: kubernetes.io/os
+          operator: In
+          values:
+          - linux
+
+metrics:
+  enabled: false
+kubeProxyImage: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+
+crds:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: embedded-cluster-operator
+  annotations: {}
+  labels: {}
+
+terminationGracePeriodSeconds: 10

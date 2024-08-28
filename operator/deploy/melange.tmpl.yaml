@@ -1,0 +1,26 @@
+package:
+  name: embedded-cluster-operator
+  version: ${VERSION}
+  epoch: 0
+  description: Embedded Cluster Operator
+  copyright:
+    - license: Apache-2.0
+
+environment:
+  contents:
+    repositories:
+      - https://packages.wolfi.dev/os
+    keyring:
+      - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    packages:
+      - busybox
+      - git
+      - go
+
+pipeline:
+  - runs: |
+      set -exuo pipefail
+
+      make -C operator build
+      cp operator/bin/manager "${{targets.contextdir}}/manager"
+  - uses: strip

@@ -1,8 +1,8 @@
 SHELL := /bin/bash
 
-include chainguard.mk
+include common.mk
 
-VERSION ?= $(shell git describe --tags --dirty)
+VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
 CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
@@ -11,8 +11,6 @@ ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-EMBEDDED_OPERATOR_IMAGE_OVERRIDE =
-EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE =
 K0S_VERSION = v1.29.7+k0s.0
 K0S_GO_VERSION = v1.29.7+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
@@ -34,8 +32,7 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleMigrationsImageOverride=$(ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator.EmbeddedOperatorImageOverride=$(EMBEDDED_OPERATOR_IMAGE_OVERRIDE)
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleKurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE)
 DISABLE_FIO_BUILD ?= 0
 
 export PATH := $(shell pwd)/bin:$(PATH)
@@ -150,6 +147,7 @@ unit-tests:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go test -v ./pkg/... ./cmd/...
+	$(MAKE) -C operator test
 
 .PHONY: vet
 vet: static
@@ -202,7 +200,6 @@ buildtools:
 	go build -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: cache-files
-cache-files: export EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE
 cache-files:
 	./scripts/cache-files.sh
 

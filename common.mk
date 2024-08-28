@@ -79,6 +79,7 @@ apko-output-image:
 		echo "error: no image digest found" >&2; \
 		exit 1; \
 	fi ; \
+	mkdir -p build; \
 	echo "$(IMAGE)@$$digest" > build/image
 
 .PHONY: melange-build
