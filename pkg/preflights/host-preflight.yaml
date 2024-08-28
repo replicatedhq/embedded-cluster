@@ -71,6 +71,10 @@ spec:
         operationSize: 2300
         datasync: true
         runTime: "0" # let it run to completion
+    - run:
+        collectorName: "sysctl"
+        command: "sysctl"
+        args: ["-a"]
   analyzers:
     - cpu:
         checkName: CPU
@@ -373,3 +377,58 @@ spec:
               message: 'P99 write latency for the disk at /var/lib/k0s/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
           - fail:
               message: 'P99 write latency for the disk at /var/lib/k0s/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'
+    - textAnalyze:
+        checkName: IPv4 Forwarding Status Check
+        fileName: host-collectors/run-host/sysctl.txt
+        regex: net.ipv4.conf.all.forwarding = 1
+        outcomes:
+        - pass:
+            when: "true"
+            message: IPv4 Forwarding Enabled
+        - fail:
+            when: "false"
+            message: IPv4 forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.all.forwarding = 1', and run 'sudo sysctl -p'.
+    - textAnalyze:
+        checkName: IPv6 Forwarding Status Check
+        fileName: host-collectors/run-host/sysctl.txt
+        regex: net.ipv6.conf.all.forwarding = 1
+        outcomes:
+        - pass:
+            when: "true"
+            message: IPv6 Forwarding Enabled
+        - fail:
+            when: "false"
+            message: IPv6 forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv6.conf.all.forwarding = 1', and run 'sudo sysctl -p'.
+    - textAnalyze:
+        checkName: New Interface Default IPv4 Forwarding Check
+        fileName: host-collectors/run-host/sysctl.txt
+        regex: net.ipv4.conf.default.forwarding = 1
+        outcomes:
+        - pass:
+            when: "true"
+            message: New Interface Default IPv4 Forwarding Enabled
+        - fail:
+            when: "false"
+            message: New Interface Default IPv4 Forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.conf.default.forwarding = 1', and run 'sudo sysctl -p'.
+    - textAnalyze:
+        checkName: New Interface Default IPv6 Forwarding Check
+        fileName: host-collectors/run-host/sysctl.txt
+        regex: net.ipv6.conf.default.forwarding = 1
+        outcomes:
+        - pass:
+            when: "true"
+            message: New Interface Default IPv6 Forwarding Enabled
+        - fail:
+            when: "false"
+            message: New Interface Default IPv6 Forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv6.conf.default.forwarding = 1', and run 'sudo sysctl -p'.
+    - textAnalyze:
+        checkName: Bridge IP Tables IPv6 Call Check
+        fileName: host-collectors/run-host/sysctl.txt
+        regex: net.bridge.bridge-nf-call-ip6tables = 1
+        outcomes:
+        - pass:
+            when: "true"
+            message: Bridge IP Tables IPv6 Call Enabled
+        - fail:
+            when: "false"
+            message: Bridge IP Tables IPv6 Call must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.bridge.bridge-nf-call-ip6tables = 1', and run 'sudo sysctl -p'.
