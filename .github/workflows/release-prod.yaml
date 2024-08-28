@@ -28,6 +28,25 @@ jobs:
           # store the tag name in an output for later steps
           echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
 
+  buildtools:
+    name: Build Buildtools
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Compile buildtools
+        run: |
+          make buildtools
+      - name: Upload buildtools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildtools
+          path: output/bin/buildtools
+
   publish-operator-image:
     runs-on: ubuntu-latest
     needs: [get-tag]
@@ -111,15 +130,21 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [get-tag, publish-images, publish-operator-image, publish-operator-chart]
+    needs: [get-tag, buildtools, publish-images, publish-operator-image, publish-operator-chart]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      - name: Download buildtools artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: buildtools
+          path: output/bin
 
       - name: Update embedded-cluster-operator metadata.yaml
         env:
