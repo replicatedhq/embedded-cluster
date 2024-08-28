@@ -66,7 +66,7 @@ function k0sbin() {
 }
 
 function operatorbin() {
-    docker run --platform linux/amd64 -d --name operator "$OPERATOR_IMAGE_OVERRIDE"
+    docker run --platform linux/amd64 -d --name operator "$OPERATOR_IMAGE"
     mkdir -p operator/bin
     docker cp operator:/manager operator/bin/operator
     docker rm -f operator
