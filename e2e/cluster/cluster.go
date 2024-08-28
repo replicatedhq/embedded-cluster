@@ -33,6 +33,18 @@ echo "Internet connection is down"
 exit 1
 `
 
+// setSysctl is a script that sets the sysctl rules required by the embedded
+// cluster. this script implements the behaviour we expect the user to
+// execute, ie. add the rules to /etc/systctl.conf and then run systctl -p.
+const setSysctl = `#!/bin/bash
+echo net.bridge.bridge-nf-call-ip6tables = 1 >> /etc/sysctl.conf
+echo net.ipv6.conf.default.forwarding = 1 >> /etc/sysctl.conf
+echo net.ipv4.conf.default.forwarding = 1 >> /etc/sysctl.conf
+echo net.ipv6.conf.all.forwarding = 1 >> /etc/sysctl.conf
+echo net.ipv4.conf.all.forwarding = 1 >> /etc/sysctl.conf
+sysctl -p
+`
+
 func init() {
 	networkaddr = make(chan string, 255)
 	for i := 2; i < 255; i++ {
@@ -64,6 +76,7 @@ type Input struct {
 	network                           string
 	T                                 *testing.T
 	WithProxy                         bool
+	WithoutSysctlRules                bool
 	id                                string
 }
 
@@ -582,16 +595,57 @@ func CreateNodes(in *Input) []string {
 		} else {
 			NodeHasNoInternet(in, node)
 		}
+		if !in.WithoutSysctlRules {
+			SetSysctlRules(in, node)
+		}
 		nodes = append(nodes, node)
 	}
 	return nodes
+}
+
+func SetSysctlRules(in *Input, node string) {
+	in.T.Logf("Setting sysctl rules on node %s", node)
+	fp, err := os.CreateTemp("/tmp", "sysctl-*.sh")
+	if err != nil {
+		in.T.Fatalf("Failed to create temporary file: %v", err)
+	}
+	fp.Close()
+	defer func() {
+		os.RemoveAll(fp.Name())
+	}()
+	if err := os.WriteFile(fp.Name(), []byte(setSysctl), 0755); err != nil {
+		in.T.Fatalf("Failed to write script: %v", err)
+	}
+
+	CopyFileToNode(
+		in, node, File{
+			SourcePath: fp.Name(),
+			DestPath:   "/usr/local/bin/set-sysctl-rules.sh",
+			Mode:       0755,
+		},
+	)
+
+	cmd := Command{
+		Node:   node,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Line:   []string{"/usr/local/bin/set-sysctl-rules.sh"},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := Run(ctx, in.T, cmd); err != nil {
+		in.T.Fatalf("Failed to set sysctl rules on node %s: %v", node, err)
+	}
+
+	in.T.Logf("Sysctl rules set on node %s", node)
 }
 
 // NodeHasInternet checks if the node has internet access. It does this by
 // pinging google.com.
 func NodeHasInternet(in *Input, node string) {
 	in.T.Logf("Testing if node %s can reach the internet", node)
-	fp, err := os.CreateTemp("/tmp", "internet-XXXXX.sh")
+	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
 		in.T.Fatalf("Failed to create temporary file: %v", err)
 	}
