@@ -158,6 +158,7 @@ build-and-push-operator-image: melange-build-operator apko-build-and-publish
 .PHONY: build-chart
 build-chart:
 	cd charts/embedded-cluster-operator && ../../scripts/publish-helm-chart.sh
+	mkdir -p build
 	echo "$(CHART_REMOTE)/embedded-cluster-operator:$(CHART_VERSION)" > build/chart
 
 .PHONY: build-ttl.sh
