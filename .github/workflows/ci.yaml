@@ -323,7 +323,8 @@ jobs:
         with:
           message-path: download-link.txt
 
-  e2e-light:
+  # e2e-docker runs the e2e tests inside a docker container rather than a full VM
+  e2e-docker:
     runs-on: ubuntu-latest
     needs:
       - build
@@ -442,7 +443,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - e2e
-      - e2e-light
+      - e2e-docker
       - sanitize
       - tests
       - check-images
