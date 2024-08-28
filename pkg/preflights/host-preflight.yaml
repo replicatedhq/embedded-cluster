@@ -150,7 +150,7 @@ spec:
               message: NTP is enabled but the system clock is not synchronized. Synchronize the system clock to continue.
           - pass:
               when: 'ntp == synchronized+active'
-              message: The system clock is synchronized
+              message: NTP is enabled and the system clock is synchronized
     - jsonCompare:
         checkName: Cgroups
         fileName: host-collectors/system/cgroups.json
