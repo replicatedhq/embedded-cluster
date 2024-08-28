@@ -77,7 +77,7 @@ spec:
         outcomes:
           - fail:
               when: 'count < 2'
-              message: At least 2 CPU cores are required
+              message: At least 2 CPU cores are required, but fewer are present
           - pass:
               message: At least 2 CPU cores are present
     - memory:
@@ -85,7 +85,7 @@ spec:
         outcomes:
           - fail:
               when: '< 2G'
-              message: At least 2GB of memory is required
+              message: At least 2GB of memory is required, but less is present
           - pass:
               message: At least 2GB of memory is present
     - diskUsage:
@@ -134,16 +134,16 @@ spec:
         outcomes:
           - fail:
               when: 'false'
-              message: No default route found. A default route is required.
+              message: A default route is required in the main routing table. Add a default route to continue.
           - pass:
               when: 'true'
-              message: Host has a default route
+              message: Default route found in the main routing table
     - ipv4Interfaces:
         checkName: IPv4 Interface
         outcomes:
           - fail:
               when: 'count == 0'
-              message: No IPv4 interfaces detected
+              message: No IPv4 interfaces detected. Add an IPv4 interface to continue.
           - pass:
               when: 'count >= 1'
               message: IPv4 interface detected
@@ -152,13 +152,13 @@ spec:
         outcomes:
           - fail:
               when: 'ntp == unsynchronized+inactive'
-              message: System clock is not synchronized
+              message: NTP is inactive and the system clock is not synchronized. Enable NTP and synchronize the system clock to continue.
           - fail:
               when: 'ntp == unsynchronized+active'
-              message: System clock is not yet synchronized
+              message: NTP is enabled but the system clock is not synchronized. Synchronize the system clock to continue.
           - pass:
               when: 'ntp == synchronized+active'
-              message: System clock is synchronized
+              message: NTP is enabled and the system clock is synchronized
     - jsonCompare:
         checkName: Cgroups
         fileName: host-collectors/system/cgroups.json
@@ -168,7 +168,7 @@ spec:
         outcomes:
           - fail:
               when: 'false'
-              message: Neither cgroup v1 nor v2 is enabled
+              message: cgroup v1 or v2 must be enabled to continue
           - pass:
               when: 'true'
               message: One of cgroup v1 or v2 is enabled
@@ -273,7 +273,7 @@ spec:
               message: /proc filesystem is mounted
           - fail:
               when: "false"
-              message: /proc filesystem is not mounted
+              message: /proc filesystem must be mounted, but it currently is not
     - textAnalyze:
         checkName: "'modprobe' Command"
         fileName: host-collectors/run-host/check-modprobe.txt
@@ -284,7 +284,7 @@ spec:
               message: "'modprobe' command exists in PATH"
           - fail:
               when: "false"
-              message: "'modprobe' command does not exist in PATH"
+              message: "'modprobe' command must exist in PATH"
     - textAnalyze:
         checkName: "'mount' Command"
         fileName: host-collectors/run-host/check-mount.txt
@@ -295,7 +295,7 @@ spec:
               message: "'mount' command exists in PATH"
           - fail:
               when: "false"
-              message: "'mount' command does not exist in PATH"
+              message: "'mount' command must exist in PATH"
     - textAnalyze:
         checkName: "'umount' Command"
         fileName: host-collectors/run-host/check-umount.txt
@@ -306,15 +306,15 @@ spec:
               message: "'umount' command exists in PATH"
           - fail:
               when: "false"
-              message: "'umount' command does not exist in PATH"
+              message: "'umount' command must exist in PATH"
     - hostOS:
         checkName: Kernel Version
         outcomes:
           - pass:
               when: "kernelVersion >= 3.10"
-              message: Kernel meets minimum version version of 3.10
+              message: Kernel version is at least 3.10
           - fail:
-              message: Kernel doesn't meet minimum version of 3.10
+              message: Kernel version must be at least 3.10
     - http:
         checkName: API Access
         collectorName: http-replicated-app
@@ -324,16 +324,16 @@ spec:
               when: error
               message: >
                 Error connecting to {{ .ReplicatedAPIURL }}.
-                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
-                and `--no-proxy` flags if there is a proxy server.
+                Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
+                and --no-proxy flags if there is a proxy server.
           - pass:
               when: 'statusCode == 200'
               message: 'Connected to {{ .ReplicatedAPIURL }}'
           - fail:
               message: >
                 Unexpected response from {{ .ReplicatedAPIURL }}.
-                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
-                and `--no-proxy` flags if there is a proxy server.
+                Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
+                and --no-proxy flags if there is a proxy server.
     - http:
         checkName: Proxy Registry Access
         collectorName: http-proxy-replicated-com
@@ -343,27 +343,27 @@ spec:
               when: error
               message: >
                 Error connecting to {{ .ProxyRegistryURL }}.
-                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
-                and `--no-proxy` flags if there is a proxy server.
+                Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
+                and --no-proxy flags if there is a proxy server.
           - pass:
               when: 'statusCode == 401'
               message: 'Connected to {{ .ProxyRegistryURL }}'
           - fail:
               message: >
                 Unexpected response from {{ .ProxyRegistryURL }}.
-                Ensure your firewall is properly configured, or use the `--http-proxy`, `--https-proxy`,
-                and `--no-proxy` flags if there is a proxy server.
+                Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
+                and --no-proxy flags if there is a proxy server.
     - textAnalyze:
-        checkName: localhost in resolv.conf
+        checkName: Resolver Configuration
         fileName: host-collectors/run-host/resolv.conf.txt
-        regex: 'nameserver localhost'
+        regex: 'nameserver\s*(localhost|127\.0\.0\.1)'
         outcomes:
           - fail:
               when: "true"
-              message: "resolv.conf should not reference 'localhost', this will prevent coredns within the cluster from resolving"
+              message: "Neither 'nameserver localhost' nor 'nameserver 127.0.0.1' can be present in resolv.conf. Remove them to continue."
           - pass:
               when: "false"
-              message: "resolv.conf does not reference 'localhost'"
+              message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf"
     - textAnalyze:
         checkName: 127.0.0.1 in resolv.conf
         fileName: host-collectors/run-host/resolv.conf.txt

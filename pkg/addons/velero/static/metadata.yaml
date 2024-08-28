@@ -10,13 +10,13 @@ location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts
 images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
-        tag: 1.31.0-r0@sha256:6823e987c947163eb206670ae879d49ea1603617738ab210b5a9121c811288f4
+        tag: 1.31.0-r1@sha256:70b2e76f316eb753b70d1349861d9b5bd58fff2cfa551072917dd68b50bdb2af
     velero:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero
-        tag: 1.14.0-r2@sha256:1e410eab49daf4a81a278ecc0b74e44d27a64cf2219ceff28fa035f08445098a
+        tag: 1.14.1-r0@sha256:13235e66a97035fc62599641ef82fa7f07222a857766bb793d19f639b08a6c19
     velero-plugin-for-aws:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
-        tag: 1.10.0-r1@sha256:fa692948046d02f8cebc16c26ba972556450b95cd4741bf63c4a9286df9444fb
+        tag: 1.10.1-r0@sha256:c8555cc7874caaef9b4da3bb5c88f247612aee9d55ab131057419c62e5be8209
     velero-restore-helper:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
-        tag: 1.14.0-r2@sha256:b1e64bb01591f45e4d3922d2ea066ccadbfd2405eb1c60eaa4179923ba0acdd4
+        tag: 1.14.1-r0@sha256:cf1795245954f83bc3c1b8a833df64b76d75674cf5e713946ede2a58384209a8
