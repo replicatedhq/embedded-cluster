@@ -75,7 +75,7 @@ jobs:
           HELM_REGISTRY: registry.replicated.com
           CHART_VERSION: ${{needs.get-tag.outputs.tag-name}}
         run: |
-          make build-chart \
+          make -C operator build-chart \
             PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
           echo "chart=$(cat operator/build/chart)" >> $GITHUB_OUTPUT
 
