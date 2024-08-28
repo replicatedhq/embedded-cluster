@@ -43,11 +43,6 @@ var (
 	Metadata release.AddonMetadata
 )
 
-// Overwritten by -ldflags in Makefile
-var (
-	EmbeddedOperatorImageOverride = ""
-)
-
 func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
@@ -61,18 +56,6 @@ func init() {
 	helmValues["kotsVersion"] = adminconsole.Metadata.Version
 	helmValues["embeddedClusterVersion"] = versions.Version
 	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
-
-	if EmbeddedOperatorImageOverride != "" {
-		// split ImageOverride into the image and tag
-		parts := strings.Split(EmbeddedOperatorImageOverride, ":")
-		if len(parts) != 2 {
-			panic(fmt.Sprintf("invalid image override: %s", EmbeddedOperatorImageOverride))
-		}
-		helmValues["image"] = map[string]interface{}{
-			"repository": parts[0],
-			"tag":        parts[1],
-		}
-	}
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator

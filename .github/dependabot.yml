@@ -16,6 +16,21 @@ updates:
         update-types:
           - "patch"
 
+  - package-ecosystem: "gomod"
+    directory: "/operator/"
+    open-pull-requests-limit: 25
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+    labels:
+      - "dependencies"
+      - "go"
+      - "type::chore"
+    groups:
+      security:
+        update-types:
+          - "patch"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     labels:

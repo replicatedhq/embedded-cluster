@@ -176,7 +176,7 @@ func (h *Helm) PullOCI(url, version string) (string, error) {
 	}
 	path, _, err := dl.DownloadTo(url, version, h.tmpdir)
 	if err != nil {
-		return "", fmt.Errorf("download chart: %w", err)
+		return "", fmt.Errorf("download chart %s: %w", url, err)
 	}
 	return path, nil
 }
@@ -196,7 +196,7 @@ func (h *Helm) Pull(repo, chart, version string) (string, error) {
 	ref := fmt.Sprintf("%s/%s", repo, chart)
 	dst, _, err := dl.DownloadTo(ref, version, os.TempDir())
 	if err != nil {
-		return "", fmt.Errorf("download chart: %w", err)
+		return "", fmt.Errorf("download chart %s: %w", ref, err)
 	}
 	return dst, nil
 }
