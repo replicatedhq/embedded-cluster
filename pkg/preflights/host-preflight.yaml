@@ -144,10 +144,10 @@ spec:
         outcomes:
           - fail:
               when: 'ntp == unsynchronized+inactive'
-              message: The system clock is not synchronized. Synchronize the system clock to continue.
+              message: NTP is inactive and the system clock is not synchronized. Enable NTP and synchronize the system clock to continue.
           - fail:
               when: 'ntp == unsynchronized+active'
-              message: The system clock is not yet synchronized
+              message: NTP is enabled but the system clock is not synchronized. Synchronize the system clock to continue.
           - pass:
               when: 'ntp == synchronized+active'
               message: The system clock is synchronized
