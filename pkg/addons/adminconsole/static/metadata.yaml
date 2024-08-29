@@ -5,8 +5,8 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 1.114.0
-location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console
+version: 0.0.0-main
+location: oci://ttl.sh/salah/admin-console
 images:
     kotsadm:
         repo: kotsadm/kotsadm
