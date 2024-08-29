@@ -139,7 +139,7 @@ export IMAGE_NAME ?= $(IMAGE_NAMESPACE)/embedded-cluster-operator-image
 export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')
 export IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
 export CHART_REMOTE ?= oci://registry.replicated.com/library
-export CHART_VERSION ?= $(PACKAGE_VERSION)
+export CHART_VERSION ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/^v//')
 
 export MELANGE_CONFIG := deploy/melange.tmpl.yaml
 

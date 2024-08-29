@@ -251,7 +251,7 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="v${SHORT_SHA}"
+          export EC_VERSION="${SHORT_SHA}"
           export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-operator.outputs.operator-image }}
           export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
 

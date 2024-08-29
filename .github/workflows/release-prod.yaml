@@ -94,7 +94,6 @@ jobs:
           HELM_USER: ${{secrets.REPLICATED_LIBRARY_SERVICE_ACCOUNT}}
           HELM_PASS: ${{secrets.REPLICATED_LIBRARY_SERVICE_ACCOUNT}}
           HELM_REGISTRY: registry.replicated.com
-          CHART_VERSION: ${{needs.get-tag.outputs.tag-name}}
         run: |
           make -C operator build-chart \
             PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
