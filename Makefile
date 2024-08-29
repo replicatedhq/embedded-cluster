@@ -48,7 +48,7 @@ pkg/goods/bins/k0s: Makefile
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
 	    curl --retry 5 --retry-all-errors -fL -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
 	else \
-	    curl --retry 5 --retry-all-errors -fL -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
+	    curl --retry 5 --retry-all-errors -fL -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-$(GOARCH)" ; \
 	fi
 	chmod +x pkg/goods/bins/k0s
 	touch pkg/goods/bins/k0s
@@ -56,7 +56,7 @@ pkg/goods/bins/k0s: Makefile
 pkg/goods/bins/kubectl-support_bundle: Makefile
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/support-bundle
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_$(GOARCH).tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
 	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/kubectl-support_bundle
 	touch pkg/goods/bins/kubectl-support_bundle
@@ -64,17 +64,17 @@ pkg/goods/bins/kubectl-support_bundle: Makefile
 pkg/goods/bins/kubectl-preflight: Makefile
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/preflight
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_$(GOARCH).tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
 	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
 	touch pkg/goods/bins/kubectl-preflight
 
 pkg/goods/bins/local-artifact-mirror: Makefile
 	mkdir -p pkg/goods/bins
-	$(MAKE) -C local-artifact-mirror build GOOS=linux GOARCH=amd64
-	cp local-artifact-mirror/bin/local-artifact-mirror-$(GOOS)-$(GOARCH) pkg/goods/bins/local-artifact-mirror
+	$(MAKE) -C local-artifact-mirror build GOOS=linux GOARCH=$(GOARCH)
+	cp local-artifact-mirror/bin/local-artifact-mirror-linux-$(GOARCH) pkg/goods/bins/local-artifact-mirror
 
-pkg/goods/bins/fio: PLATFORM = linux/amd64
+pkg/goods/bins/fio: PLATFORM = linux/$(GOARCH)
 pkg/goods/bins/fio: Makefile
 ifneq ($(DISABLE_FIO_BUILD),1)
 	mkdir -p pkg/goods/bins
@@ -90,7 +90,7 @@ pkg/goods/internal/bins/kubectl-kots: Makefile
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
 	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
 	else \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
+	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_$(GOARCH).tar.gz ; \
 	fi
 	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
 	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots
@@ -102,10 +102,11 @@ output/tmp/release.tar.gz: e2e/kots-release-install/*
 
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
-	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) \
+		go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
 .PHONY: embedded-release
-embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
+embedded-release: embedded-cluster-linux-$(GOARCH) output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 .PHONY: go.mod
@@ -133,6 +134,13 @@ embedded-cluster-linux-amd64: static go.mod embedded-cluster
 embedded-cluster-darwin-arm64: GOOS = darwin
 embedded-cluster-darwin-arm64: GOARCH = arm64
 embedded-cluster-darwin-arm64: go.mod embedded-cluster
+	mkdir -p ./output/bin
+	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
+
+.PHONY: embedded-cluster-linux-arm64
+embedded-cluster-linux-arm64: GOOS = linux
+embedded-cluster-linux-arm64: GOARCH = arm64
+embedded-cluster-linux-arm64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
 
@@ -165,7 +173,7 @@ e2e-test:
 build-ttl.sh:
 	$(MAKE) -C local-artifact-mirror build-ttl.sh \
 		IMAGE_NAME=$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
-	make embedded-cluster-linux-amd64 \
+	make embedded-cluster-linux-$(GOARCH) \
 		LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/$(shell cat local-artifact-mirror/build/image)
 
 .PHONY: clean

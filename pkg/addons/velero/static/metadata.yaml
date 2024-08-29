@@ -9,14 +9,14 @@ version: 7.1.5
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
-        repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
-        tag: 1.31.0-r1@sha256:70b2e76f316eb753b70d1349861d9b5bd58fff2cfa551072917dd68b50bdb2af
+        repo: bitnami/kubectl
+        tag: "1.31.0"
     velero:
-        repo: proxy.replicated.com/anonymous/replicated/ec-velero
-        tag: 1.14.1-r0@sha256:13235e66a97035fc62599641ef82fa7f07222a857766bb793d19f639b08a6c19
+        repo: velero/velero
+        tag: v1.14.1
     velero-plugin-for-aws:
-        repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
-        tag: 1.10.1-r0@sha256:c8555cc7874caaef9b4da3bb5c88f247612aee9d55ab131057419c62e5be8209
+        repo: velero/velero-plugin-for-aws
+        tag: v1.10.1
     velero-restore-helper:
-        repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
-        tag: 1.14.1-r0@sha256:cf1795245954f83bc3c1b8a833df64b76d75674cf5e713946ede2a58384209a8
+        repo: velero/velero-restore-helper
+        tag: v1.14.1

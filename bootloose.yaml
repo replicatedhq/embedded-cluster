@@ -1,0 +1,28 @@
+cluster:
+  name: k0s
+  privateKey: cluster-key
+machines:
+- count: 1
+  spec:
+    image: ttl.sh/ethan/bootloose-alpine
+    name: node%d
+    privileged: true
+    volumes:
+    - type: bind
+      source: /lib/modules
+      destination: /lib/modules
+      readOnly: true
+    - type: bind
+      source: /etc/localtime
+      destination: /etc/localtime
+      readOnly: true
+    - type: bind
+      source: /Users/salah/go/src/github.com/replicatedhq/embedded-cluster
+      destination: /embedded-cluster
+    portMappings:
+    - containerPort: 22
+      hostPort: 9222
+    - containerPort: 6443
+      hostPort: 6443
+    - containerPort: 8080
+      hostPort: 8080

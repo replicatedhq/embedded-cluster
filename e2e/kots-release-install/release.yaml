@@ -1,0 +1,5 @@
+# channel release object
+channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+channelSlug: "ci"
+appSlug: "embedded-cluster-smoke-test-staging-app"
+versionLabel: app-version

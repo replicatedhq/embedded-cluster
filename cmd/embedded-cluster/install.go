@@ -56,28 +56,28 @@ func installAndEnableLocalArtifactMirror() error {
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
 func configureNetworkManager(c *cli.Context) error {
-	if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
-		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
-	} else if !active {
-		logrus.Debugf("NetworkManager is not active, skipping configuration")
-		return nil
-	}
+	// if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
+	// 	return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
+	// } else if !active {
+	// 	logrus.Debugf("NetworkManager is not active, skipping configuration")
+	// 	return nil
+	// }
 
-	dir := "/etc/NetworkManager/conf.d"
-	if _, err := os.Stat(dir); err != nil {
-		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
-		return nil
-	}
+	// dir := "/etc/NetworkManager/conf.d"
+	// if _, err := os.Stat(dir); err != nil {
+	// 	logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
+	// 	return nil
+	// }
 
-	logrus.Debugf("creating NetworkManager config file")
-	if err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
-		return fmt.Errorf("unable to materialize configuration: %w", err)
-	}
+	// logrus.Debugf("creating NetworkManager config file")
+	// if err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
+	// 	return fmt.Errorf("unable to materialize configuration: %w", err)
+	// }
 
-	logrus.Debugf("network manager config created, restarting the service")
-	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
-		return fmt.Errorf("unable to restart network manager: %w", err)
-	}
+	// logrus.Debugf("network manager config created, restarting the service")
+	// if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
+	// 	return fmt.Errorf("unable to restart network manager: %w", err)
+	// }
 	return nil
 }
 
@@ -219,31 +219,31 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 		return nil, fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
 	}
 
-	// Check if the license matches the application version data
-	if rel.AppSlug != license.Spec.AppSlug {
-		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
-	}
-	if rel.ChannelID != license.Spec.ChannelID {
-		// if the channel is different, we will not be able to install the pinned vendor application version within kots
-		// this may result in an immediate k8s upgrade after installation, which is undesired
-		return nil, fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
-	}
+	// // Check if the license matches the application version data
+	// if rel.AppSlug != license.Spec.AppSlug {
+	// 	// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
+	// 	return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+	// }
+	// if rel.ChannelID != license.Spec.ChannelID {
+	// 	// if the channel is different, we will not be able to install the pinned vendor application version within kots
+	// 	// this may result in an immediate k8s upgrade after installation, which is undesired
+	// 	return nil, fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+	// }
 
-	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
-		// read the expiration date, and check it against the current date
-		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse expiration date: %w", err)
-		}
-		if time.Now().After(expiration) {
-			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
-		}
-	}
+	// if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
+	// 	// read the expiration date, and check it against the current date
+	// 	expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("unable to parse expiration date: %w", err)
+	// 	}
+	// 	if time.Now().After(expiration) {
+	// 		return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+	// 	}
+	// }
 
-	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
-		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
-	}
+	// if !license.Spec.IsEmbeddedClusterDownloadEnabled {
+	// 	return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+	// }
 
 	return license, nil
 }
@@ -448,13 +448,13 @@ func installAndWaitForK0s(c *cli.Context, applier *addons.Applier) (*k0sconfig.C
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
-	proxy := getProxySpecFromFlags(c)
-	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(false, proxy); err != nil {
-		err := fmt.Errorf("unable to create systemd unit files: %w", err)
-		metrics.ReportApplyFinished(c, err)
-		return nil, err
-	}
+	// proxy := getProxySpecFromFlags(c)
+	// logrus.Debugf("creating systemd unit files")
+	// if err := createSystemdUnitFiles(false, proxy); err != nil {
+	// 	err := fmt.Errorf("unable to create systemd unit files: %w", err)
+	// 	metrics.ReportApplyFinished(c, err)
+	// 	return nil, err
+	// }
 
 	logrus.Debugf("installing k0s")
 	if err := installK0s(); err != nil {

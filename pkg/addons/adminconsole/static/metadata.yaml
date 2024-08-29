@@ -9,14 +9,14 @@ version: 1.114.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console
 images:
     kotsadm:
-        repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
-        tag: v1.114.0@sha256:a6c9984a6a2c1837dc362cdba7f1e823b3a0612739861c2ead334f717a1a7c34
+        repo: kotsadm/kotsadm
+        tag: v1.114.0
     kotsadm-migrations:
-        repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
-        tag: v1.114.0@sha256:0df43ff5a12631700ef1bcb43f225641ad1f80ce20855da4ab015e517494b65b
+        repo: kotsadm/kotsadm-migrations
+        tag: v1.114.0
     kurl-proxy:
-        repo: proxy.replicated.com/anonymous/kotsadm/kurl-proxy
-        tag: v1.114.0@sha256:8cd8e4a481ce4a8a71cadc911e080f8e64f8b96189b9b63a731f9265bc81ab44
+        repo: kotsadm/kurl-proxy
+        tag: v1.114.0
     rqlite:
-        repo: proxy.replicated.com/anonymous/kotsadm/rqlite
-        tag: 8.28.0-r0@sha256:ccff59367feb0ea937d14a501316656595d2a48fd597d6975aefa47f1267a028
+        repo: kotsadm/rqlite
+        tag: 8.28.0-r0
