@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -78,22 +79,15 @@ var updateRegistryAddonCommand = &cli.Command{
 			if err != nil {
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
-			newmeta.Images[component.name] = release.AddonImage{
-				Repo: repo,
-				Tag:  tag,
-			}
+			newimage := registry.Metadata.Images[component.name]
+			newimage.Repo = repo
+			newimage.Tag[runtime.GOARCH] = tag
+			newmeta.Images[component.name] = newimage
 		}
 
 		logrus.Infof("saving addon manifest")
-		newmeta.ReplaceImages = true
 		if err := newmeta.Save("registry"); err != nil {
 			return fmt.Errorf("failed to save metadata: %w", err)
-		}
-
-		logrus.Infof("rendering values for registry ha")
-		err = newmeta.RenderValues("registry", "values-ha.tpl.yaml", "values-ha.yaml")
-		if err != nil {
-			return fmt.Errorf("failed to render values-ha: %w", err)
 		}
 
 		logrus.Infof("successfully updated registry addon")

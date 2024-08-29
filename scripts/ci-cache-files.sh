@@ -9,6 +9,7 @@ EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+CACHE_BINS=${CACHE_BINS:-1}
 MANGLE_METADATA=${MANGLE_METADATA:-0}
 
 require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
@@ -34,7 +35,7 @@ function k0sbin() {
 
     # check if the binary already exists in the bucket
     local k0s_binary_exists=
-    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}-amd64" || true)
+    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}-${ARCH}" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${k0s_binary_exists}" ]; then
@@ -48,12 +49,12 @@ function k0sbin() {
         curl --retry 5 --retry-all-errors -fL -o "${K0S_VERSION}" "${k0s_override}"
     else
         # download the k0s binary from official sources
-        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-amd64"
-        curl --retry 5 --retry-all-errors -fL -o "${K0S_VERSION}" "https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-amd64"
+        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-${ARCH}"
+        curl --retry 5 --retry-all-errors -fL -o "${K0S_VERSION}" "https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-${ARCH}"
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}-amd64"
+    retry 3 aws s3 cp --no-progress "${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}-${ARCH}"
 }
 
 function operatorbin() {
@@ -67,7 +68,7 @@ function operatorbin() {
     operator_image=$(cat "operator/build/image-$EC_VERSION")
     operator_version="${EC_VERSION#v}" # remove the 'v' prefix
 
-    docker run --platform linux/amd64 -d --name operator "$operator_image"
+    docker run --platform linux/$ARCH -d --name operator "$operator_image"
     mkdir -p operator/bin
     docker cp operator:/manager operator/bin/operator
     docker rm -f operator
@@ -76,7 +77,7 @@ function operatorbin() {
     tar -czvf "build/${operator_version}.tar.gz" -C operator/bin operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}-amd64.tar.gz"
+    retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}-${ARCH}.tar.gz"
 }
 
 function kotsbin() {
@@ -89,7 +90,7 @@ function kotsbin() {
 
     # check if the binary already exists in the bucket
     local kots_binary_exists=
-    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}-amd64.tar.gz" || true)
+    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}-${ARCH}.tar.gz" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${kots_binary_exists}" ]; then
@@ -99,15 +100,15 @@ function kotsbin() {
 
     if [ -n "${kots_override}" ] && [ "${kots_override}" != '' ]; then
         echo "KOTS_BINARY_URL_OVERRIDE is set to '${kots_override}', using that source"
-        curl --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "${kots_override}"
+        curl --retry 5 --retry-all-errors -fL -o "kots_linux_${ARCH}.tar.gz" "${kots_override}"
     else
         # download the kots binary from github
-        echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
-        curl --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
+        echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_${ARCH}.tar.gz"
+        curl --retry 5 --retry-all-errors -fL -o "kots_linux_${ARCH}.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_${ARCH}.tar.gz"
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "kots_linux_amd64.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}-amd64.tar.gz"
+    retry 3 aws s3 cp --no-progress "kots_linux_${ARCH}.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}-${ARCH}.tar.gz"
 }
 
 function metadata() {
@@ -123,13 +124,12 @@ function metadata() {
 
     # check if a file 'build/metadata.json' exists in the directory
     # if it does, upload it as metadata/v${EC_VERSION}.json
-    if [ -f build/metadata.json ]; then
+    if [ -f "build/metadata.json" ]; then
         # append a 'v' prefix to the version if it doesn't already have one
         retry 3 aws s3 cp --no-progress build/metadata.json "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}.json"
     else
         echo "build/metadata.json not found, skipping upload"
     fi
-
 }
 
 function embeddedcluster() {
@@ -138,13 +138,13 @@ function embeddedcluster() {
         return 0
     fi
 
-    # check if a file 'build/embedded-cluster-linux-amd64.tgz' exists in the directory
+    # check if a file 'build/embedded-cluster-linux-$ARCH.tgz' exists in the directory
     # if it does, upload it as releases/v${EC_VERSION}.tgz
-    if [ -f build/embedded-cluster-linux-amd64.tgz ]; then
+    if [ -f "build/embedded-cluster-linux-$ARCH.tgz" ]; then
         # append a 'v' prefix to the version if it doesn't already have one
-        retry 3 aws s3 cp --no-progress build/embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/v${EC_VERSION#v}.tgz"
+        retry 3 aws s3 cp --no-progress build/embedded-cluster-linux-$ARCH.tgz "s3://${S3_BUCKET}/releases/v${EC_VERSION#v}.tgz"
     else
-        echo "build/embedded-cluster-linux-amd64.tgz not found, skipping upload"
+        echo "build/embedded-cluster-linux-$ARCH.tgz not found, skipping upload"
     fi
 }
 
@@ -152,11 +152,13 @@ function embeddedcluster() {
 # the embedded cluster release does not exist for CI builds
 function main() {
     init_vars
-    k0sbin
-    operatorbin
-    kotsbin
     metadata
-    embeddedcluster
+    if [ "${CACHE_BINS}" == "1" ]; then
+        k0sbin
+        operatorbin
+        kotsbin
+        embeddedcluster
+    fi
 }
 
 main "$@"

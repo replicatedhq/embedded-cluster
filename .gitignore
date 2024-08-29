@@ -5,6 +5,7 @@ pkg/goods/internal/bins/*
 !pkg/goods/internal/bins/.placeholder
 pkg/goods/images
 *tgz
+*tar.gz
 .pre-commit-config.yaml
 vendor
 e2e/kots-release-install/license.yaml
@@ -13,3 +14,5 @@ e2e/kots-release-install/license.yaml
 /output/
 go.work
 go.work.sum
+.gocache
+.gomodcache

@@ -135,6 +135,8 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+          APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           USES_DEV_BUCKET: "0"
@@ -142,6 +144,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
+          CACHE_BINS: "1"
           SKIP_RELEASE: "1"
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
@@ -206,6 +209,8 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+          APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           USES_DEV_BUCKET: "0"
@@ -213,6 +218,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
+          CACHE_BINS: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
         run: |
@@ -275,6 +281,8 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+          APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-upgrade
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           USES_DEV_BUCKET: "0"
@@ -282,6 +290,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
+          CACHE_BINS: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
         run: |

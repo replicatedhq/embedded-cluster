@@ -7,6 +7,9 @@ set -euo pipefail
 
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
+REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
+APP_CHANNEL_ID=${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}
+APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-dev}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
@@ -48,9 +51,9 @@ function create_release_archive() {
 
     {
         echo "# channel release object"
-        echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"'
-        echo 'channelSlug: "ci"'
-        echo 'appSlug: "embedded-cluster-smoke-test-staging-app"'
+        echo "channelID: \"${APP_CHANNEL_ID}\""
+        echo "channelSlug: \"${APP_CHANNEL_SLUG}\""
+        echo "appSlug: \"${REPLICATED_APP}\""
         echo "versionLabel: \"${APP_VERSION}\""
     } > output/tmp/release/release.yaml
 

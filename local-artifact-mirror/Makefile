@@ -41,7 +41,7 @@ build-local-artifact-mirror-image-chainguard: melange-build-local-artifact-mirro
 
 .PHONY: build-local-artifact-mirror-image-dockerfile
 build-local-artifact-mirror-image-dockerfile:
-	docker build --platform="$(OS)/$(ARCH)" -t $(IMAGE) -f deploy/Dockerfile ../
+	docker build --platform="$(OS)/$(ARCH)" -t $(IMAGE) -f ../dev/dockerfiles/local-artifact-mirror/Dockerfile.ttlsh ../
 	mkdir -p build
 	echo "$(IMAGE)" > build/image
 

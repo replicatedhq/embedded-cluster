@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -311,7 +312,7 @@ func GetImageDigest(ctx context.Context, image string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("get manifest instance: %w", err)
 		}
-		if manifest.ReadOnly.Platform.Architecture != "amd64" {
+		if manifest.ReadOnly.Platform.Architecture != runtime.GOARCH {
 			continue
 		}
 		if manifest.ReadOnly.Platform.OS != "linux" {

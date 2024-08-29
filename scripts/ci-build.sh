@@ -45,7 +45,7 @@ function binary() {
     fi
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
 
-    make embedded-cluster-linux-amd64 \
+    make embedded-cluster-linux-$ARCH \
         K0S_VERSION="$K0S_VERSION" \
         VERSION="$EC_VERSION" \
         METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
@@ -89,13 +89,13 @@ function update_operator_metadata() {
 
 function archive() {
     mkdir -p build
-    tar -C output/bin -czvf "build/embedded-cluster-linux-amd64.tgz" embedded-cluster
-    log "created build/embedded-cluster-linux-amd64.tgz"
+    tar -C output/bin -czvf "build/embedded-cluster-linux-$ARCH.tgz" embedded-cluster
+    log "created build/embedded-cluster-linux-$ARCH.tgz"
 }
 
 function metadata() {
     mkdir -p build
-    docker run --rm --platform linux/amd64 -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
+    docker run --rm --platform linux/$ARCH -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
         ./embedded-cluster version metadata > "build/metadata.json"
     log "created build/metadata.json"
 }
