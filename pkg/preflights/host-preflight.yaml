@@ -63,6 +63,14 @@ spec:
         collectorName: resolv.conf
         command: 'sh'
         args: ['-c', 'cat /etc/resolv.conf']
+    - filesystemPerformance:
+        collectorName: filesystem-write-latency-etcd
+        timeout: 5m
+        directory: /var/lib/k0s/etcd
+        fileSize: 22Mi
+        operationSize: 2300
+        datasync: true
+        runTime: "0" # let it run to completion
   analyzers:
     - cpu:
         checkName: CPU
@@ -356,3 +364,12 @@ spec:
           - pass:
               when: "false"
               message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf"
+    - filesystemPerformance:
+        checkName: Filesystem Write Latency
+        collectorName: filesystem-write-latency-etcd
+        outcomes:
+          - pass:
+              when: "p99 < 10ms"
+              message: 'P99 write latency for the disk at /var/lib/k0s/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
+          - fail:
+              message: 'P99 write latency for the disk at /var/lib/k0s/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'

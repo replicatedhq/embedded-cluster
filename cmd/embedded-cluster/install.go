@@ -119,10 +119,13 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 		return nil
 	}
 	pb.Infof("Running host preflights")
-	output, err := preflights.Run(c.Context, hpf, proxy)
+	output, stderr, err := preflights.Run(c.Context, hpf, proxy)
 	if err != nil {
 		pb.CloseWithError()
 		return fmt.Errorf("host preflights failed to run: %w", err)
+	}
+	if stderr != "" {
+		logrus.Debugf("preflight stderr: %s", stderr)
 	}
 
 	err = output.SaveToDisk()
