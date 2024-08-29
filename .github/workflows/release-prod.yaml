@@ -165,6 +165,7 @@ jobs:
       - name: Output Metadata
         run: |
           ./output/bin/embedded-cluster version metadata > metadata.json
+
       - name: Cache Staging Files
         env:
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
@@ -173,6 +174,9 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
+          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
+          export OPERATOR_VERSION=${{ needs.get-tag.outputs.tag-name }}
+
           ./scripts/cache-files.sh
 
       - name: Cache Prod Files
