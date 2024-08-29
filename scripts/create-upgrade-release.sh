@@ -66,12 +66,6 @@ function embeddedcluster() {
         return 0
     fi
 
-    # append a 'v' prefix to the version if it doesn't already have one
-    local version="$EC_VERSION"
-    if ! echo "$version" | grep -q "^v"; then
-        version="v$version"
-    fi
-
     # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
     # if it does, upload it as releases/${version}.tgz
     if [ -f embedded-cluster-linux-amd64.tgz ]; then
