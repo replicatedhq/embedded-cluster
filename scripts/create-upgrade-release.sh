@@ -67,9 +67,9 @@ function embeddedcluster() {
     fi
 
     # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
-    # if it does, upload it as releases/${version}.tgz
+    # if it does, upload it as releases/${EC_VERSION}.tgz
     if [ -f embedded-cluster-linux-amd64.tgz ]; then
-        retry 3 aws s3 cp --no-progress embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${version}.tgz"
+        retry 3 aws s3 cp --no-progress embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${EC_VERSION}.tgz"
     else
         echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
     fi
