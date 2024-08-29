@@ -175,7 +175,7 @@ jobs:
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
-          export OPERATOR_VERSION=${{ needs.get-tag.outputs.tag-name }}
+          export OPERATOR_VERSION=$(echo "${{ needs.get-tag.outputs.tag-name }}" | sed 's/^v//')
 
           ./scripts/cache-files.sh
 
@@ -188,7 +188,7 @@ jobs:
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
-          export OPERATOR_VERSION=${{ needs.get-tag.outputs.tag-name }}
+          export OPERATOR_VERSION=$(echo "${{ needs.get-tag.outputs.tag-name }}" | sed 's/^v//')
 
           ./scripts/cache-files.sh
 
