@@ -364,17 +364,6 @@ spec:
           - pass:
               when: "false"
               message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf"
-    - textAnalyze:
-        checkName: 127.0.0.1 in resolv.conf
-        fileName: host-collectors/run-host/resolv.conf.txt
-        regex: 'nameserver 127.0.0.1'
-        outcomes:
-          - fail:
-              when: "true"
-              message: "resolv.conf should not reference '127.0.0.1', this will prevent coredns within the cluster from resolving"
-          - pass:
-              when: "false"
-              message: "resolv.conf does not reference '127.0.0.1'"
     - filesystemPerformance:
         checkName: Filesystem Write Latency
         collectorName: filesystem-write-latency-etcd
