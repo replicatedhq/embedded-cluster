@@ -23,7 +23,7 @@ images:
         version: v1.29.8@sha256:c257d390d3fa14c3ff6617852c91eaf75b2f16033899438a17e3e13fff798712
     metrics-server:
         image: proxy.replicated.com/anonymous/replicated/ec-metrics-server
-        version: 0.7.1-r5@sha256:a0a95e462b04ff21fecba51321936c97837b7039bcf5ae700d48d026e6355a26
+        version: 0.7.2-r0@sha256:1ed93939ecf3111d031c36a6b3ab1349b8d42facb7666209ae13e51fc5a29a17
     pause:
         image: proxy.replicated.com/anonymous/registry.k8s.io/pause
         version: 3.9@sha256:8d4106c88ec0bd28001e34c975d65175d994072d65341f62a8ab0754b0fafe10
