@@ -153,7 +153,6 @@ export APKO_CONFIG := deploy/apko.tmpl.yaml
 build-operator-image: melange-build-operator apko-build
 
 .PHONY: build-and-push-operator-image
-build-and-push-operator-image: ARCHS ?= arm64
 build-and-push-operator-image: melange-build-operator apko-build-and-publish
 
 .PHONY: build-chart
