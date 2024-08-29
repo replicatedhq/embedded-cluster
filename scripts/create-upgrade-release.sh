@@ -40,6 +40,12 @@ function metadata() {
         return 0
     fi
 
+    # append a 'v' prefix to the version if it doesn't already have one
+    local version="$EC_VERSION"
+    if ! echo "$version" | grep -q "^v"; then
+        version="v$version"
+    fi
+
     # mutate the metadata.json to create a suitable upgrade
     if [ -f metadata.json ]; then
         sudo apt-get install jq -y
@@ -47,7 +53,7 @@ function metadata() {
         jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' metadata-upgrade.json > upgrade-metadata.json
         cat upgrade-metadata.json
 
-        retry 3 aws s3 cp --no-progress upgrade-metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
+        retry 3 aws s3 cp --no-progress upgrade-metadata.json "s3://${S3_BUCKET}/metadata/${version}.json"
     else
         echo "metadata.json not found, skipping upload"
     fi
