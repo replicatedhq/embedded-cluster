@@ -71,12 +71,14 @@ pkg/goods/internal/bins/kubectl-kots-%: VERSION = $(call split-hyph,$*,1)
 pkg/goods/internal/bins/kubectl-kots-%: ARCH = $(call split-hyph,$*,2)
 pkg/goods/internal/bins/kubectl-kots-%:
 	mkdir -p pkg/goods/bins
+	mkdir -p output/tmp/kots
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
-	    curl --retry 5 --retry-all-errors -fL -o $@ "$(KOTS_BINARY_URL_OVERRIDE)" ; \
+	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
 	else \
-	    curl --retry 5 --retry-all-errors -fL -o $@ "output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(VERSION)/kots_linux_$(ARCH).tar.gz ; \
+	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(VERSION)/kots_linux_$(ARCH).tar.gz" ; \
 	fi
-	chmod +x $@
+	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
+	mv output/tmp/kots/kots $@
 	touch $@
 
 .PHONY: pkg/goods/bins/kubectl-support_bundle
@@ -89,7 +91,7 @@ pkg/goods/bins/kubectl-support_bundle-%: ARCH = $(call split-hyph,$*,2)
 pkg/goods/bins/kubectl-support_bundle-%:
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/support-bundle
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(VERSION)/support-bundle_linux_$(ARCH).tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle/support-bundle.tar.gz "https://github.com/replicatedhq/troubleshoot/releases/download/$(VERSION)/support-bundle_linux_$(ARCH).tar.gz"
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
 	mv output/tmp/support-bundle/support-bundle $@
 	touch $@
