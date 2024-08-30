@@ -614,20 +614,24 @@ func NodeHasInternet(in *Input, node string) {
 		Stderr: os.Stderr,
 		Line:   []string{"/usr/local/bin/check_internet.sh"},
 	}
-	var success bool
+	var success int
 	var lastErr error
 	for i := 0; i < 60; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := Run(ctx, in.T, cmd); err != nil {
+			success = 0
 			lastErr = fmt.Errorf("failed to check internet: %v", err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(2 * time.Second)
 			continue
 		}
-		success = true
-		break
+		success++
+		// we need to wait for 3 checks to be successful before we break
+		if success >= 3 {
+			break
+		}
 	}
-	if !success {
+	if success < 3 {
 		in.T.Fatalf("Timed out trying to reach internet from %s: %v", node, lastErr)
 	}
 	in.T.Logf("Node %s can reach the internet", node)
@@ -660,9 +664,22 @@ func NodeHasNoInternet(in *Input, node string) {
 		Stderr: os.Stderr,
 		Line:   []string{"/usr/local/bin/check_internet.sh"},
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := Run(ctx, in.T, cmd); err == nil {
+	var success int
+	for i := 0; i < 60; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := Run(ctx, in.T, cmd); err == nil {
+			success = 0
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		success++
+		// we need to wait for 3 checks to be successful before we break
+		if success >= 3 {
+			break
+		}
+	}
+	if success < 3 {
 		in.T.Fatalf("Air gap node %s can reach the internet", node)
 	}
 }
