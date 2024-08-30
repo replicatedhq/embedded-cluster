@@ -43,58 +43,90 @@ GOARCH ?= $(shell go env GOARCH)
 .DEFAULT_GOAL := default
 default: build-ttl.sh
 
-pkg/goods/bins/k0s: Makefile
+split-hyph = $(word $2,$(subst -, ,$1))
+
+.PHONY: pkg/goods/bins/k0s
+pkg/goods/bins/k0s: pkg/goods/bins/k0s-$(K0S_VERSION)-amd64
+pkg/goods/bins/k0s:
+	cp pkg/goods/bins/k0s-$(K0S_VERSION)-amd64 pkg/goods/bins/k0s
+
+pkg/goods/bins/k0s-%: VERSION = $(call split-hyph,$*,1)
+pkg/goods/bins/k0s-%: ARCH = $(call split-hyph,$*,2)
+pkg/goods/bins/k0s-%:
 	mkdir -p pkg/goods/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
-	    curl --retry 5 --retry-all-errors -fL -o pkg/goods/bins/k0s "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
+	    curl --retry 5 --retry-all-errors -fL -o $@ "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
 	else \
-	    curl --retry 5 --retry-all-errors -fL -o pkg/goods/bins/k0s "https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-amd64" ; \
+	    curl --retry 5 --retry-all-errors -fL -o $@ "https://github.com/k0sproject/k0s/releases/download/$(VERSION)/k0s-$(VERSION)-$(ARCH)" ; \
 	fi
-	chmod +x pkg/goods/bins/k0s
-	touch pkg/goods/bins/k0s
+	chmod +x $@
+	touch $@
 
-pkg/goods/bins/kubectl-support_bundle: Makefile
+.PHONY: pkg/goods/internal/bins/kubectl-kots
+pkg/goods/internal/bins/kubectl-kots: pkg/goods/internal/bins/kubectl-kots-$(KOTS_VERSION)-amd64
+pkg/goods/internal/bins/kubectl-kots:
+	cp pkg/goods/internal/bins/kubectl-kots-$(KOTS_VERSION)-amd64 pkg/goods/internal/bins/kubectl-kots
+
+pkg/goods/internal/bins/kubectl-kots-%: VERSION = $(call split-hyph,$*,1)
+pkg/goods/internal/bins/kubectl-kots-%: ARCH = $(call split-hyph,$*,2)
+pkg/goods/internal/bins/kubectl-kots-%:
+	mkdir -p pkg/goods/bins
+	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
+	    curl --retry 5 --retry-all-errors -fL -o $@ "$(KOTS_BINARY_URL_OVERRIDE)" ; \
+	else \
+	    curl --retry 5 --retry-all-errors -fL -o $@ "output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(VERSION)/kots_linux_$(ARCH).tar.gz ; \
+	fi
+	chmod +x $@
+	touch $@
+
+.PHONY: pkg/goods/bins/kubectl-support_bundle
+pkg/goods/bins/kubectl-support_bundle: pkg/goods/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-amd64
+pkg/goods/bins/kubectl-support_bundle:
+	cp pkg/goods/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-amd64 pkg/goods/bins/kubectl-support_bundle
+
+pkg/goods/bins/kubectl-support_bundle-%: VERSION = $(call split-hyph,$*,1)
+pkg/goods/bins/kubectl-support_bundle-%: ARCH = $(call split-hyph,$*,2)
+pkg/goods/bins/kubectl-support_bundle-%:
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/support-bundle
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/support-bundle_linux_amd64.tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle/support-bundle.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(VERSION)/support-bundle_linux_$(ARCH).tar.gz
 	tar -xzf output/tmp/support-bundle/support-bundle.tar.gz -C output/tmp/support-bundle
-	mv output/tmp/support-bundle/support-bundle pkg/goods/bins/kubectl-support_bundle
-	touch pkg/goods/bins/kubectl-support_bundle
+	mv output/tmp/support-bundle/support-bundle $@
+	touch $@
 
-pkg/goods/bins/kubectl-preflight: Makefile
+.PHONY: pkg/goods/bins/kubectl-preflight
+pkg/goods/bins/kubectl-preflight: pkg/goods/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-amd64
+pkg/goods/bins/kubectl-preflight:
+	cp pkg/goods/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-amd64 pkg/goods/bins/kubectl-preflight
+
+pkg/goods/bins/kubectl-preflight-%: VERSION = $(call split-hyph,$*,1)
+pkg/goods/bins/kubectl-preflight-%: ARCH = $(call split-hyph,$*,2)
+pkg/goods/bins/kubectl-preflight-%:
 	mkdir -p pkg/goods/bins
 	mkdir -p output/tmp/preflight
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(TROUBLESHOOT_VERSION)/preflight_linux_amd64.tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(VERSION)/preflight_linux_$(ARCH).tar.gz
 	tar -xzf output/tmp/preflight/preflight.tar.gz -C output/tmp/preflight
-	mv output/tmp/preflight/preflight pkg/goods/bins/kubectl-preflight
-	touch pkg/goods/bins/kubectl-preflight
+	mv output/tmp/preflight/preflight $@
+	touch $@
 
-pkg/goods/bins/local-artifact-mirror: Makefile
+.PHONY: pkg/goods/bins/local-artifact-mirror
+pkg/goods/bins/local-artifact-mirror: GOARCH = amd64
+pkg/goods/bins/local-artifact-mirror:
 	mkdir -p pkg/goods/bins
-	$(MAKE) -C local-artifact-mirror build GOOS=linux GOARCH=amd64
-	cp local-artifact-mirror/bin/local-artifact-mirror-$(GOOS)-$(GOARCH) pkg/goods/bins/local-artifact-mirror
+	$(MAKE) -C local-artifact-mirror build GOOS=linux GOARCH=$(GOARCH)
+	cp local-artifact-mirror/bin/local-artifact-mirror-linux-$(GOARCH) pkg/goods/bins/local-artifact-mirror
+	touch pkg/goods/bins/local-artifact-mirror
 
 pkg/goods/bins/fio: PLATFORM = linux/amd64
-pkg/goods/bins/fio: Makefile
+pkg/goods/bins/fio: Makefile fio/Dockerfile
 ifneq ($(DISABLE_FIO_BUILD),1)
 	mkdir -p pkg/goods/bins
 	docker build -t fio --build-arg PLATFORM=$(PLATFORM) fio
 	docker rm -f fio && docker run --name fio fio
 	docker cp fio:/output/fio pkg/goods/bins/fio
+	docker rm -f fio
 	touch pkg/goods/bins/fio
 endif
-
-pkg/goods/internal/bins/kubectl-kots: Makefile
-	mkdir -p pkg/goods/internal/bins
-	mkdir -p output/tmp/kots
-	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
-	else \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots/kots.tar.gz https://github.com/replicatedhq/kots/releases/download/$(KOTS_VERSION)/kots_linux_amd64.tar.gz ; \
-	fi
-	tar -xzf output/tmp/kots/kots.tar.gz -C output/tmp/kots
-	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots
-	touch pkg/goods/internal/bins/kubectl-kots
 
 output/tmp/release.tar.gz: e2e/kots-release-install/*
 	mkdir -p output/tmp
