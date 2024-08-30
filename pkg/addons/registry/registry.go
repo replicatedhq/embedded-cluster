@@ -34,11 +34,11 @@ const (
 )
 
 var (
-	//go:embed static/values.yaml
+	//go:embed static/values.tpl.yaml
 	rawvalues []byte
 	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
-	//go:embed static/values-ha.yaml
+	//go:embed static/values-ha.tpl.yaml
 	rawvaluesha []byte
 	// helmValuesHA is the unmarshal version of rawvaluesha.
 	helmValuesHA map[string]interface{}
@@ -55,15 +55,17 @@ func init() {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
 
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
 	}
+	helmValues = hv
 
-	helmValuesHA = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvaluesha, &helmValuesHA); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
+	if err != nil {
+		panic(fmt.Sprintf("unable to unmarshal ha values: %v", err))
 	}
+	helmValuesHA = hvHA
 }
 
 // Registry manages the installation of the Registry helm chart.

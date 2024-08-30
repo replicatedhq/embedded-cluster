@@ -27,7 +27,7 @@ fullnameOverride: registry
 {{- if .ReplaceImages }}
 image:
   repository: '{{ (index .Images "registry").Repo }}'
-  tag: '{{ (index .Images "registry").Tag }}'
+  tag: '{{ index (index .Images "registry").Tag .GOARCH }}'
 {{- end }}
 replicaCount: 2
 s3:

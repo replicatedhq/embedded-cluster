@@ -135,12 +135,15 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 		}
 		newmeta.Images[component.name] = release.AddonImage{
 			Repo: repo,
-			Tag:  tag,
+			Tag: map[string]string{
+				"amd64": tag,
+				// TODO (@salah): automate updating the arm64 tag
+				"arm64": embeddedclusteroperator.Metadata.Images[component.name].Tag["arm64"],
+			},
 		}
 	}
 
 	logrus.Infof("saving addon manifest")
-	newmeta.ReplaceImages = true
 	if err := newmeta.Save("embeddedclusteroperator"); err != nil {
 		return fmt.Errorf("failed to save metadata: %w", err)
 	}

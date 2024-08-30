@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	//go:embed static/values.yaml
+	//go:embed static/values.tpl.yaml
 	rawvalues []byte
 	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
@@ -61,10 +61,11 @@ func init() {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
 
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
 	}
+	helmValues = hv
 
 	helmValues["embeddedClusterVersion"] = versions.Version
 

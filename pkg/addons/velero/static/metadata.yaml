@@ -10,13 +10,21 @@ location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts
 images:
     kubectl:
         repo: bitnami/kubectl
-        tag: "1.31.0"
+        tag:
+            amd64: "1.31.0"
+            arm64: "1.31.0"
     velero:
         repo: velero/velero
-        tag: v1.14.1
+        tag:
+            amd64: v1.14.1
+            arm64: v1.14.1
     velero-plugin-for-aws:
         repo: velero/velero-plugin-for-aws
-        tag: v1.10.1
+        tag:
+            amd64: v1.10.1
+            arm64: v1.10.1
     velero-restore-helper:
         repo: velero/velero-restore-helper
-        tag: v1.14.1
+        tag:
+            amd64: v1.14.1
+            arm64: v1.14.1

@@ -10,10 +10,16 @@ location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts
 images:
     kubectl:
         repo: bitnami/kubectl
-        tag: "1.31.0"
+        tag:
+            amd64: "1.31.0"
+            arm64: "1.31.0"
     openebs-linux-utils:
         repo: openebs/linux-utils
-        tag: "4.0.0"
+        tag:
+            amd64: "4.0.0"
+            arm64: "4.0.0"
     openebs-provisioner-localpv:
         repo: openebs/provisioner-localpv
-        tag: "4.1.0"
+        tag:
+            amd64: "4.1.0"
+            arm64: "4.1.0"

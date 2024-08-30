@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -129,14 +130,14 @@ var updateVeleroImagesCommand = &cli.Command{
 		if !ok {
 			return fmt.Errorf("failed to find velero restore helper image")
 		}
-		restoreHelperVersion, _, _ := strings.Cut(image.Tag, "@")
+		restoreHelperVersion, _, _ := strings.Cut(image.Tag[runtime.GOARCH], "@")
 		restoreHelperVersion = strings.TrimPrefix(restoreHelperVersion, "v")
 
 		image, ok = velero.Metadata.Images["velero-plugin-for-aws"]
 		if !ok {
 			return fmt.Errorf("failed to find velero plugin for aws image")
 		}
-		awsPluginVersion, _, _ := strings.Cut(image.Tag, "@")
+		awsPluginVersion, _, _ := strings.Cut(image.Tag[runtime.GOARCH], "@")
 		awsPluginVersion = strings.TrimPrefix(awsPluginVersion, "v")
 
 		err := updateVeleroAddonImages(c.Context, current.Location, current.Version, restoreHelperVersion, awsPluginVersion)
@@ -224,12 +225,15 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 		}
 		newmeta.Images[component.name] = release.AddonImage{
 			Repo: repo,
-			Tag:  tag,
+			Tag: map[string]string{
+				"amd64": tag,
+				// TODO (@salah): automate updating the arm64 tag
+				"arm64": velero.Metadata.Images[component.name].Tag["arm64"],
+			},
 		}
 	}
 
 	logrus.Infof("saving addon manifest")
-	newmeta.ReplaceImages = true
 	if err := newmeta.Save("velero"); err != nil {
 		return fmt.Errorf("failed to save metadata: %w", err)
 	}

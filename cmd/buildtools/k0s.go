@@ -90,8 +90,12 @@ var updateK0sImagesCommand = &cli.Command{
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
 			newmeta.Images[component.name] = release.K0sImage{
-				Image:   repo,
-				Version: tag,
+				Image: repo,
+				Version: map[string]string{
+					"amd64": tag,
+					// TODO (@salah): automate updating the arm64 tag
+					"arm64": config.Metadata.Images[component.name].Version["arm64"],
+				},
 			}
 		}
 

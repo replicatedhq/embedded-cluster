@@ -10,4 +10,6 @@ location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts
 images:
     seaweedfs:
         repo: proxy.replicated.com/anonymous/replicated/ec-seaweedfs
-        tag: 3.71-r1@sha256:7f56eaf2a75b77b38d26949a722436ba13c11336347d7a3ba59304c1e982f02d
+        tag:
+            amd64: 3.71-r1@sha256:7f56eaf2a75b77b38d26949a722436ba13c11336347d7a3ba59304c1e982f02d
+            arm64: 3.71-r1@sha256:7f56eaf2a75b77b38d26949a722436ba13c11336347d7a3ba59304c1e982f02d

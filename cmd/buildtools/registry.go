@@ -80,20 +80,17 @@ var updateRegistryAddonCommand = &cli.Command{
 			}
 			newmeta.Images[component.name] = release.AddonImage{
 				Repo: repo,
-				Tag:  tag,
+				Tag: map[string]string{
+					"amd64": tag,
+					// TODO (@salah): automate updating the arm64 tag
+					"arm64": registry.Metadata.Images[component.name].Tag["arm64"],
+				},
 			}
 		}
 
 		logrus.Infof("saving addon manifest")
-		newmeta.ReplaceImages = true
 		if err := newmeta.Save("registry"); err != nil {
 			return fmt.Errorf("failed to save metadata: %w", err)
-		}
-
-		logrus.Infof("rendering values for registry ha")
-		err = newmeta.RenderValues("registry", "values-ha.tpl.yaml", "values-ha.yaml")
-		if err != nil {
-			return fmt.Errorf("failed to render values-ha: %w", err)
 		}
 
 		logrus.Infof("successfully updated registry addon")

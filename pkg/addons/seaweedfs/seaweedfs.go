@@ -22,7 +22,7 @@ import (
 const releaseName = "seaweedfs"
 
 var (
-	//go:embed static/values.yaml
+	//go:embed static/values.tpl.yaml
 	rawvalues []byte
 	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
@@ -36,10 +36,11 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Errorf("failed to unmarshal metadata: %w", err))
 	}
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
-		panic(fmt.Errorf("failed to unmarshal helm values: %w", err))
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
+		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
 	}
+	helmValues = hv
 }
 
 // SeaweedFS manages the installation of the SeaweedFS helm chart.

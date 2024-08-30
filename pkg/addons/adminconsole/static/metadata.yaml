@@ -5,18 +5,26 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 0.0.0-main
-location: oci://ttl.sh/salah/admin-console
+version: 1.115.1
+location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console
 images:
     kotsadm:
-        repo: kotsadm/kotsadm
-        tag: v1.114.0
+        repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
+        tag:
+            amd64: v1.115.1@sha256:9772a075a24586d2fd8550285f95a0bc466b280e960fd00ccb585ac9999592bb
+            arm64: v1.114.0-arm64
     kotsadm-migrations:
-        repo: kotsadm/kotsadm-migrations
-        tag: v1.114.0
+        repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
+        tag:
+            amd64: v1.115.1@sha256:22673b6d3729fe48607516314f59095b6da8ded4b61aa381c6ada5583f130c5e
+            arm64: v1.114.0-arm64
     kurl-proxy:
-        repo: kotsadm/kurl-proxy
-        tag: v1.114.0
+        repo: proxy.replicated.com/anonymous/kotsadm/kurl-proxy
+        tag:
+            amd64: v1.115.1@sha256:771901bff6459dde393d0df93c1a1ff50c4013dc8264903f89b71d3d10f0b459
+            arm64: v1.114.0-arm64
     rqlite:
-        repo: kotsadm/rqlite
-        tag: 8.28.0-r0
+        repo: proxy.replicated.com/anonymous/kotsadm/rqlite
+        tag:
+            amd64: 8.28.1-r0@sha256:f7f9dd7d67999d95d90b8bf26f3508f4f3fcfb89783c7d5abcf94b5aed406ba0
+            arm64: 8.28.0-r0-arm64
