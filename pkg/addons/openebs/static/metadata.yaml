@@ -9,17 +9,17 @@ version: 4.1.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs
 images:
     kubectl:
-        repo: bitnami/kubectl
+        repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: "1.31.0"
-            arm64: "1.31.0"
+            amd64: 1.31.0-r1@sha256:70b2e76f316eb753b70d1349861d9b5bd58fff2cfa551072917dd68b50bdb2af
+            arm64: 1.31.0-r1@sha256:8e0463ce20811f258ef75a858dd2590b2c3c76a3c9670fe443ef23da70cc47ee
     openebs-linux-utils:
-        repo: openebs/linux-utils
+        repo: proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils
         tag:
-            amd64: "4.0.0"
-            arm64: "4.0.0"
+            amd64: 4.1.0@sha256:ba8167bbcaedd43a8be53325122566a3e6c0ee336daf2a3b5c396c7773db2611
+            arm64: 4.1.0@sha256:a1947ec08fcede8cf38fc7d940dbdd1c08bb5435c0ff71e6382def08c8fe7e1f
     openebs-provisioner-localpv:
-        repo: openebs/provisioner-localpv
+        repo: proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv
         tag:
-            amd64: "4.1.0"
-            arm64: "4.1.0"
+            amd64: 4.1.0-r0@sha256:77f54b4935376a4fe460853eb1eb3582ec1301f94ff61929444ddae2e8473972
+            arm64: 4.1.0-r0@sha256:9432a4e648a976e88d13cc56de6fcbbb03dac5d908a451db30fc6d95e78bd427

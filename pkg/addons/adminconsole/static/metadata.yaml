@@ -12,19 +12,19 @@ images:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
         tag:
             amd64: v1.115.1@sha256:9772a075a24586d2fd8550285f95a0bc466b280e960fd00ccb585ac9999592bb
-            arm64: v1.114.0-arm64
+            arm64: v1.115.1@sha256:17807ee0dc560d6906bf883dfe10ab16d2876f9a564500a37548ba269d6f6e4a
     kotsadm-migrations:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
         tag:
             amd64: v1.115.1@sha256:22673b6d3729fe48607516314f59095b6da8ded4b61aa381c6ada5583f130c5e
-            arm64: v1.114.0-arm64
+            arm64: v1.115.1@sha256:d57d0a2f01bb3deee40f9e52d4efb43062e477b29e00cf8d92cffefe569b6846
     kurl-proxy:
         repo: proxy.replicated.com/anonymous/kotsadm/kurl-proxy
         tag:
             amd64: v1.115.1@sha256:771901bff6459dde393d0df93c1a1ff50c4013dc8264903f89b71d3d10f0b459
-            arm64: v1.114.0-arm64
+            arm64: v1.115.1@sha256:cd20d0c16083f01a2ecca856a389987ada2222a1ec518895b615890daf940d66
     rqlite:
         repo: proxy.replicated.com/anonymous/kotsadm/rqlite
         tag:
             amd64: 8.28.1-r0@sha256:f7f9dd7d67999d95d90b8bf26f3508f4f3fcfb89783c7d5abcf94b5aed406ba0
-            arm64: 8.28.0-r0-arm64
+            arm64: 8.28.1-r0@sha256:b546d9e54c5a5ee6b0460a92b008d1422ae1d32d7d932b034187f6941fdf1101
