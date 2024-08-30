@@ -37,8 +37,8 @@ DISABLE_FIO_BUILD ?= 0
 
 export PATH := $(shell pwd)/bin:$(PATH)
 
-GOOS ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+OS ?= linux
+ARCH ?= $(shell go env GOARCH)
 
 .DEFAULT_GOAL := default
 default: build-ttl.sh
@@ -46,91 +46,82 @@ default: build-ttl.sh
 split-hyphen = $(word $2,$(subst -, ,$1))
 
 .PHONY: pkg/goods/bins/k0s
-pkg/goods/bins/k0s: output/bins/k0s-$(K0S_VERSION)-amd64
 pkg/goods/bins/k0s:
+	$(MAKE) output/bins/k0s-$(K0S_VERSION)-$(ARCH)
 	mkdir -p pkg/goods/bins
-	cp output/bins/k0s-$(K0S_VERSION)-amd64 pkg/goods/bins/k0s
+	cp output/bins/k0s-$(K0S_VERSION)-$(ARCH) $@
 
-output/bins/k0s-%: VERSION = $(call split-hyphen,$*,1)
-output/bins/k0s-%: ARCH = $(call split-hyphen,$*,2)
 output/bins/k0s-%:
 	mkdir -p output/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
 	    curl --retry 5 --retry-all-errors -fL -o $@ "$(K0S_BINARY_SOURCE_OVERRIDE)" ; \
 	else \
-	    curl --retry 5 --retry-all-errors -fL -o $@ "https://github.com/k0sproject/k0s/releases/download/$(VERSION)/k0s-$(VERSION)-$(ARCH)" ; \
+	    curl --retry 5 --retry-all-errors -fL -o $@ "https://github.com/k0sproject/k0s/releases/download/$(call split-hyphen,$*,1)/k0s-$(call split-hyphen,$*,1)-$(call split-hyphen,$*,2)" ; \
 	fi
 	chmod +x $@
 	touch $@
 
 .PHONY: pkg/goods/bins/kubectl-support_bundle
-pkg/goods/bins/kubectl-support_bundle: output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-amd64
 pkg/goods/bins/kubectl-support_bundle:
+	$(MAKE) output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-$(ARCH)
 	mkdir -p pkg/goods/bins
-	cp output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-amd64 pkg/goods/bins/kubectl-support_bundle
+	cp output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-$(ARCH) $@
 
-output/bins/kubectl-support_bundle-%: VERSION = $(call split-hyphen,$*,1)
-output/bins/kubectl-support_bundle-%: ARCH = $(call split-hyphen,$*,2)
 output/bins/kubectl-support_bundle-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle.tar.gz "https://github.com/replicatedhq/troubleshoot/releases/download/$(VERSION)/support-bundle_linux_$(ARCH).tar.gz"
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/support-bundle.tar.gz "https://github.com/replicatedhq/troubleshoot/releases/download/$(call split-hyphen,$*,1)/support-bundle_$(OS)_$(call split-hyphen,$*,2).tar.gz"
 	tar -xzf output/tmp/support-bundle.tar.gz -C output/tmp
 	mv output/tmp/support-bundle $@
 	rm -rf output/tmp
 	touch $@
 
 .PHONY: pkg/goods/bins/kubectl-preflight
-pkg/goods/bins/kubectl-preflight: output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-amd64
 pkg/goods/bins/kubectl-preflight:
+	$(MAKE) output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH)
 	mkdir -p pkg/goods/bins
-	cp output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-amd64 pkg/goods/bins/kubectl-preflight
+	cp output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH) $@
 
-output/bins/kubectl-preflight-%: VERSION = $(call split-hyphen,$*,1)
-output/bins/kubectl-preflight-%: ARCH = $(call split-hyphen,$*,2)
 output/bins/kubectl-preflight-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(VERSION)/preflight_linux_$(ARCH).tar.gz
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/preflight.tar.gz https://github.com/replicatedhq/troubleshoot/releases/download/$(call split-hyphen,$*,1)/preflight_$(OS)_$(call split-hyphen,$*,2).tar.gz
 	tar -xzf output/tmp/preflight.tar.gz -C output/tmp
 	mv output/tmp/preflight $@
 	rm -rf output/tmp
 	touch $@
 
 .PHONY: pkg/goods/bins/local-artifact-mirror
-pkg/goods/bins/local-artifact-mirror: GOARCH = amd64
 pkg/goods/bins/local-artifact-mirror:
 	mkdir -p pkg/goods/bins
-	$(MAKE) -C local-artifact-mirror build GOOS=linux GOARCH=$(GOARCH)
-	cp local-artifact-mirror/bin/local-artifact-mirror-linux-$(GOARCH) pkg/goods/bins/local-artifact-mirror
-	touch pkg/goods/bins/local-artifact-mirror
+	$(MAKE) -C local-artifact-mirror build GOOS=$(OS) GOARCH=$(ARCH)
+	cp local-artifact-mirror/bin/local-artifact-mirror-$(OS)-$(ARCH) $@
+	touch $@
 
-pkg/goods/bins/fio: PLATFORM = linux/amd64
+pkg/goods/bins/fio: PLATFORM = linux/$(ARCH)
 pkg/goods/bins/fio: Makefile fio/Dockerfile
 ifneq ($(DISABLE_FIO_BUILD),1)
 	mkdir -p pkg/goods/bins
 	docker build -t fio --build-arg PLATFORM=$(PLATFORM) fio
 	docker rm -f fio && docker run --name fio fio
-	docker cp fio:/output/fio pkg/goods/bins/fio
+	docker cp fio:/output/fio $@
 	docker rm -f fio
-	touch pkg/goods/bins/fio
+	touch $@
 endif
 
 .PHONY: pkg/goods/internal/bins/kubectl-kots
-pkg/goods/internal/bins/kubectl-kots: output/bins/kubectl-kots-$(KOTS_VERSION)-amd64
 pkg/goods/internal/bins/kubectl-kots:
+	$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH)
 	mkdir -p pkg/goods/internal/bins
-	cp output/bins/kubectl-kots-$(KOTS_VERSION)-amd64 pkg/goods/internal/bins/kubectl-kots
+	cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@
 
-output/bins/kubectl-kots-%: VERSION = $(call split-hyphen,$*,1)
-output/bins/kubectl-kots-%: ARCH = $(call split-hyphen,$*,2)
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
 	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
 	else \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(VERSION)/kots_linux_$(ARCH).tar.gz" ; \
+	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz" ; \
 	fi
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
@@ -162,24 +153,26 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: GOOS = linux
-embedded-cluster-linux-amd64: GOARCH = amd64
+embedded-cluster-linux-amd64: OS = linux
+embedded-cluster-linux-amd64: ARCH = amd64
 embedded-cluster-linux-amd64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
-	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
+	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 # for testing
 .PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: GOOS = darwin
-embedded-cluster-darwin-arm64: GOARCH = arm64
+embedded-cluster-darwin-arm64: OS = darwin
+embedded-cluster-darwin-arm64: ARCH = arm64
 embedded-cluster-darwin-arm64: go.mod embedded-cluster
 	mkdir -p ./output/bin
-	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
+	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster
 embedded-cluster:
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) \
-		go build -ldflags "$(LD_FLAGS)" -o ./build/embedded-cluster-$(GOOS)-$(GOARCH) \
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
+		-tags osusergo,netgo \
+		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
+		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
 		./cmd/embedded-cluster
 
 .PHONY: unit-tests
