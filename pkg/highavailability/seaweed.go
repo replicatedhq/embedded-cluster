@@ -8,7 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

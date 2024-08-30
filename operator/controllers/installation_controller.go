@@ -44,15 +44,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
 	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/charts"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/metadata"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/openebs"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 )
 
 // InstallationNameAnnotation is the annotation we keep in the autopilot plan so we can

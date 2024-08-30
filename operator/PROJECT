@@ -9,7 +9,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: embedded-cluster-operator
-repo: github.com/replicatedhq/embedded-cluster-operator
+repo: github.com/replicatedhq/embedded-cluster/operator
 resources:
 - api:
     crdVersion: v1

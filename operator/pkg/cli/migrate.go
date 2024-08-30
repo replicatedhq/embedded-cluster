@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/migrations"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/migrations"
 	"github.com/spf13/cobra"
 )
 

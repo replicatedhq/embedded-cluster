@@ -10,7 +10,7 @@ import (
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/charts"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
 
