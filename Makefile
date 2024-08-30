@@ -4,8 +4,6 @@ include common.mk
 
 VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
 CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
-UNAME := $(shell uname)
-ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
