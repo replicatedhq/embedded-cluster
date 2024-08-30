@@ -43,7 +43,7 @@ GOARCH ?= $(shell go env GOARCH)
 .DEFAULT_GOAL := default
 default: build-ttl.sh
 
-split-hyph = $(word $2,$(subst -, ,$1))
+split-hyphen = $(word $2,$(subst -, ,$1))
 
 .PHONY: pkg/goods/bins/k0s
 pkg/goods/bins/k0s: output/bins/k0s-$(K0S_VERSION)-amd64
@@ -51,8 +51,8 @@ pkg/goods/bins/k0s:
 	mkdir -p pkg/goods/bins
 	cp output/bins/k0s-$(K0S_VERSION)-amd64 pkg/goods/bins/k0s
 
-output/bins/k0s-%: VERSION = $(call split-hyph,$*,1)
-output/bins/k0s-%: ARCH = $(call split-hyph,$*,2)
+output/bins/k0s-%: VERSION = $(call split-hyphen,$*,1)
+output/bins/k0s-%: ARCH = $(call split-hyphen,$*,2)
 output/bins/k0s-%:
 	mkdir -p output/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
@@ -69,8 +69,8 @@ pkg/goods/bins/kubectl-support_bundle:
 	mkdir -p pkg/goods/bins
 	cp output/bins/kubectl-support_bundle-$(TROUBLESHOOT_VERSION)-amd64 pkg/goods/bins/kubectl-support_bundle
 
-output/bins/kubectl-support_bundle-%: VERSION = $(call split-hyph,$*,1)
-output/bins/kubectl-support_bundle-%: ARCH = $(call split-hyph,$*,2)
+output/bins/kubectl-support_bundle-%: VERSION = $(call split-hyphen,$*,1)
+output/bins/kubectl-support_bundle-%: ARCH = $(call split-hyphen,$*,2)
 output/bins/kubectl-support_bundle-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
@@ -86,8 +86,8 @@ pkg/goods/bins/kubectl-preflight:
 	mkdir -p pkg/goods/bins
 	cp output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-amd64 pkg/goods/bins/kubectl-preflight
 
-output/bins/kubectl-preflight-%: VERSION = $(call split-hyph,$*,1)
-output/bins/kubectl-preflight-%: ARCH = $(call split-hyph,$*,2)
+output/bins/kubectl-preflight-%: VERSION = $(call split-hyphen,$*,1)
+output/bins/kubectl-preflight-%: ARCH = $(call split-hyphen,$*,2)
 output/bins/kubectl-preflight-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
@@ -122,8 +122,8 @@ pkg/goods/internal/bins/kubectl-kots:
 	mkdir -p pkg/goods/internal/bins
 	cp output/bins/kubectl-kots-$(KOTS_VERSION)-amd64 pkg/goods/internal/bins/kubectl-kots
 
-output/bins/kubectl-kots-%: VERSION = $(call split-hyph,$*,1)
-output/bins/kubectl-kots-%: ARCH = $(call split-hyph,$*,2)
+output/bins/kubectl-kots-%: VERSION = $(call split-hyphen,$*,1)
+output/bins/kubectl-kots-%: ARCH = $(call split-hyphen,$*,2)
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
