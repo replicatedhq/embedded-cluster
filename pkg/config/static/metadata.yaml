@@ -11,19 +11,19 @@ images:
         version: 3.28.1-r0@sha256:65a10af6dbfaf616ae237cec7d9b438727d8167415b698b858235c5c3897dcec
     calico-kube-controllers:
         image: proxy.replicated.com/anonymous/replicated/ec-calico-kube-controllers
-        version: 3.28.1-r0@sha256:97dbf50d60f1999c0b6c14dfe69b3512562a18e1a5b84967b2df65c77077ec78
+        version: 3.28.1-r0@sha256:2c38dff2446170033eedcba11370621feaa6048efc220f9c64d3253d1d3cc790
     calico-node:
         image: proxy.replicated.com/anonymous/replicated/ec-calico-node
-        version: 3.28.1-r0@sha256:ba9315f5238a0dfa4110dfd7bef4782477f32f2360eaaff96632a3a27702e24a
+        version: 3.28.1-r0@sha256:9420c9271eae9a8329478fdad79817a4c381096e553bfecfea7e8a470a103145
     coredns:
         image: proxy.replicated.com/anonymous/replicated/ec-coredns
-        version: 1.11.3-r6@sha256:aa186c347c7548f1850cfeb4870b11ed6de7c6bcf03523d2468abf3a5d5496f1
+        version: 1.11.3-r6@sha256:d6964b8206f1bd14e41ddd4db5f3f5e8d8fd68616216aec2f8b80a4f9771a0fe
     kube-proxy:
         image: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
         version: v1.28.13@sha256:e611fbef93b34f47078c5b2c05422275f070f400802e49ab7ea4a2c2e12ffcab
     metrics-server:
         image: proxy.replicated.com/anonymous/replicated/ec-metrics-server
-        version: 0.7.1-r5@sha256:a0a95e462b04ff21fecba51321936c97837b7039bcf5ae700d48d026e6355a26
+        version: 0.7.2-r0@sha256:1ed93939ecf3111d031c36a6b3ab1349b8d42facb7666209ae13e51fc5a29a17
     pause:
         image: proxy.replicated.com/anonymous/registry.k8s.io/pause
         version: 3.8@sha256:f5944f2d1daf66463768a1503d0c8c5e8dde7c1674d3f85abc70cef9c7e32e95

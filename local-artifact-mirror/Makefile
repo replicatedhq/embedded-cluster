@@ -1,11 +1,11 @@
 SHELL := /bin/bash
 
--include ../chainguard.mk
+include ../common.mk
 
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-export PACKAGE_VERSION ?= $(shell git describe --tags --dirty)
+export PACKAGE_VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
 export IMAGE_NAME ?= replicated/embedded-cluster-local-artifact-mirror
 export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')
 export IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)

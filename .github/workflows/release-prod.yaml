@@ -2,7 +2,8 @@ name: Release
 on:
   push:
     tags:
-      - "*.*.*"
+      - '[0-9]+\.[0-9]+\.[0-9]+\+k8s-[0-9]+\.[0-9]+'
+      - '[0-9]+\.[0-9]+\.[0-9]+\+k8s-[0-9]+\.[0-9]+-.+'
 permissions:
   contents: write
 jobs:
@@ -21,13 +22,84 @@ jobs:
         id: get-tag
         run: |
           # remove the "refs/tags/" prefix to get the tag that was pushed
-          export RAW_TAG=${GITHUB_REF#refs/tags/}
+          export RAW_TAG=${{ github.ref_name }}
           # add a 'v' prefix to the tag if it doesn't already have one
           export V_TAG=$(echo "$RAW_TAG" | sed 's/^[^v]/v&/')
           # store the tag name in an output for later steps
           echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
 
-  build-images:
+  buildtools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Compile buildtools
+        run: |
+          make buildtools
+
+      - name: Upload buildtools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildtools
+          path: output/bin/buildtools
+
+  publish-operator-image:
+    runs-on: ubuntu-latest
+    needs: [get-tag]
+    outputs:
+      image: ${{ steps.operator-image.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Melange
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/.melange-cache
+          key: melange-cache
+
+      - name: Setup Melange
+        uses: chainguard-dev/actions/setup-melange@main
+
+      - name: Build and push operator image
+        id: operator-image
+        env:
+          REGISTRY: docker.io
+          USERNAME: ${{ secrets.DOCKERHUB_USER }}
+          PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+        run: |
+          make -C operator apko apko-login build-and-push-operator-image \
+            PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
+          echo "image=$(cat operator/build/image)" >> $GITHUB_OUTPUT
+
+  publish-operator-chart:
+    runs-on: ubuntu-latest
+    needs: [get-tag, publish-operator-image]
+    outputs:
+      chart: ${{ steps.operator-chart.outputs.chart }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and push operator chart
+        id: operator-chart
+        env:
+          HELM_USER: ${{secrets.REPLICATED_LIBRARY_SERVICE_ACCOUNT}}
+          HELM_PASS: ${{secrets.REPLICATED_LIBRARY_SERVICE_ACCOUNT}}
+          HELM_REGISTRY: registry.replicated.com
+        run: |
+          make -C operator build-chart \
+            PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
+          echo "chart=$(cat operator/build/chart)" >> $GITHUB_OUTPUT
+
+  publish-images:
     runs-on: ubuntu-latest
     needs: [get-tag]
     outputs:
@@ -42,9 +114,6 @@ jobs:
           path: |
             build/.melange-cache
           key: melange-cache
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Setup Melange
         uses: chainguard-dev/actions/setup-melange@main
@@ -62,29 +131,41 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [get-tag, build-images]
+    needs: [get-tag, buildtools, publish-images, publish-operator-image, publish-operator-chart]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Download buildtools artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: buildtools
+          path: output/bin
+
+      - name: Update embedded-cluster-operator metadata.yaml
+        env:
+          IMAGES_REGISTRY_SERVER: ttl.sh
+          OPERATOR_CHART: ${{ needs.publish-operator-chart.outputs.chart }}
+          OPERATOR_IMAGE: ${{ needs.publish-operator-image.outputs.image }}
+        run: |
+          ./scripts/ci-update-operator-metadata.sh
 
       - name: Build linux-amd64
         run: |
           make embedded-cluster-linux-amd64 \
             VERSION=${{ needs.get-tag.outputs.tag-name }} \
-            LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
+            LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-images.outputs.local-artifact-mirror }}
           tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
 
       - name: Output Metadata
         run: |
           ./output/bin/embedded-cluster version metadata > metadata.json
+
       - name: Cache Staging Files
         env:
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
@@ -93,6 +174,9 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
+          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
+          export OPERATOR_VERSION=$(echo "${{ needs.get-tag.outputs.tag-name }}" | sed 's/^v//')
+
           ./scripts/cache-files.sh
 
       - name: Cache Prod Files
@@ -103,13 +187,16 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
+          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
+          export OPERATOR_VERSION=$(echo "${{ needs.get-tag.outputs.tag-name }}" | sed 's/^v//')
+
           ./scripts/cache-files.sh
 
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          prerelease: false
+          prerelease: true
           files: |
             *.tgz
             metadata.json

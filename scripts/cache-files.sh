@@ -54,11 +54,11 @@ function k0sbin() {
     # if the override is set, we should download this binary and upload it to the bucket so as not to require end users hit the override url
     if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
         echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
-        curl --fail-with-body -L -o "${k0s_version}" "${k0s_override}"
+        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "${k0s_version}" "${k0s_override}"
     else
         # download the k0s binary from official sources
         echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
-        curl --fail-with-body -L -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
+        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
     fi
 
     # upload the binary to the bucket
@@ -66,44 +66,16 @@ function k0sbin() {
 }
 
 function operatorbin() {
-    # first, figure out what version of operator is in the current build
-    local operator_version=
-    operator_version=$(awk '/^version/{print $2}' pkg/addons/embeddedclusteroperator/static/metadata.yaml)
-
-    # check if the binary already exists in the bucket
-    local operator_binary_exists=
-    operator_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "operator-binaries/${operator_version}.tar.gz" || true)
-
-    # if the binary already exists, we don't need to upload it again
-    # even if we did upload it again, cloudflare caches the file so its not guaranteed you will get the new file
-    if [ -n "${operator_binary_exists}" ]; then
-        echo "operator binary ${operator_version} already exists in bucket ${S3_BUCKET}, skipping upload"
-        return 0
-    fi
-
-    local operator_override=
-    operator_override=$(awk '/^EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
-
-    if [ -n "${operator_override}" ] && [ "${operator_override}" != '' ]; then
-        if ! echo "${operator_version}" | grep -q "-" ; then
-            echo "embedded operator version is not a pre-release version, but EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE is set. This is likely a mistake."
-            exit 1
-        fi
-        echo "EMBEDDED_OPERATOR_BINARY_URL_OVERRIDE is set to '${operator_override}', using that source"
-        curl --fail-with-body -L -o operator "${operator_override}"
-    else
-        # download the operator binary from github
-        echo "downloading embedded cluster operator binary from https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
-        curl --fail-with-body -L -o operator "https://github.com/replicatedhq/embedded-cluster-operator/releases/download/v${operator_version}/manager"
-    fi
-
-    chmod +x operator
+    docker run --platform linux/amd64 -d --name operator "$OPERATOR_IMAGE"
+    mkdir -p operator/bin
+    docker cp operator:/manager operator/bin/operator
+    docker rm -f operator
 
     # compress the operator binary
-    tar -czvf "${operator_version}.tar.gz" operator
+    tar -czvf "${OPERATOR_VERSION}.tar.gz" -C operator/bin operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "${OPERATOR_VERSION}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${OPERATOR_VERSION}.tar.gz"
 }
 
 function kotsbin() {
@@ -126,11 +98,11 @@ function kotsbin() {
 
     if [ -n "${kots_override}" ] && [ "${kots_override}" != '' ]; then
         echo "KOTS_BINARY_URL_OVERRIDE is set to '${kots_override}', using that source"
-        curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "${kots_override}"
+        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "${kots_override}"
     else
         # download the kots binary from github
         echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
-        curl --fail-with-body -L -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
+        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
     fi
 
     # upload the binary to the bucket
@@ -143,10 +115,16 @@ function metadata() {
         return 0
     fi
 
+    # append a 'v' prefix to the version if it doesn't already have one
+    local version="$EC_VERSION"
+    if ! echo "$version" | grep -q "^v"; then
+        version="v$version"
+    fi
+
     # check if a file 'metadata.json' exists in the directory
-    # if it does, upload it as metadata/${ec_version}.json
+    # if it does, upload it as metadata/${version}.json
     if [ -f metadata.json ]; then
-        retry 3 aws s3 cp --no-progress metadata.json "s3://${S3_BUCKET}/metadata/${EC_VERSION}.json"
+        retry 3 aws s3 cp --no-progress metadata.json "s3://${S3_BUCKET}/metadata/${version}.json"
     else
         echo "metadata.json not found, skipping upload"
     fi
@@ -158,10 +136,17 @@ function embeddedcluster() {
         echo "EC_VERSION unset, not uploading embedded cluster release"
         return 0
     fi
+
+    # append a 'v' prefix to the version if it doesn't already have one
+    local version="$EC_VERSION"
+    if ! echo "$version" | grep -q "^v"; then
+        version="v$version"
+    fi
+
     # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
-    # if it does, upload it as releases/${ec_version}.tgz
+    # if it does, upload it as releases/${version}.tgz
     if [ -f embedded-cluster-linux-amd64.tgz ]; then
-        retry 3 aws s3 cp --no-progress embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${EC_VERSION}.tgz"
+        retry 3 aws s3 cp --no-progress embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${version}.tgz"
     else
         echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
     fi

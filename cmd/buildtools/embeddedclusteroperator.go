@@ -49,12 +49,25 @@ var updateOperatorAddonCommand = &cli.Command{
 		}
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
-		upstream := "registry.replicated.com/library/embedded-cluster-operator"
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		chartURL := os.Getenv("INPUT_OPERATOR_CHART_URL")
+		if chartURL != "" {
+			logrus.Infof("using input override from INPUT_OPERATOR_CHART_URL: %s", chartURL)
+		} else {
+			chartURL = "registry.replicated.com/library/embedded-cluster-operator"
+			chartURL = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartURL)
+		}
 
-		logrus.Infof("updating embedded cluster operator images")
+		imageOverride := os.Getenv("INPUT_OPERATOR_IMAGE")
+		if imageOverride != "" {
+			logrus.Infof("using input override from INPUT_OPERATOR_IMAGE: %s", imageOverride)
 
-		err := updateOperatorAddonImages(c.Context, withproto, nextChartVersion)
+			operatorImageComponents[imageOverride] = addonComponent{
+				name:             "embedded-cluster-operator",
+				useUpstreamImage: true,
+			}
+		}
+
+		err := updateOperatorAddonImages(c.Context, chartURL, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
 		}

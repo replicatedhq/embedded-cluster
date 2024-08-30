@@ -119,10 +119,13 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 		return nil
 	}
 	pb.Infof("Running host preflights")
-	output, err := preflights.Run(c.Context, hpf, proxy)
+	output, stderr, err := preflights.Run(c.Context, hpf, proxy)
 	if err != nil {
 		pb.CloseWithError()
 		return fmt.Errorf("host preflights failed to run: %w", err)
+	}
+	if stderr != "" {
+		logrus.Debugf("preflight stderr: %s", stderr)
 	}
 
 	err = output.SaveToDisk()
@@ -324,8 +327,8 @@ func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.Cluste
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
-	cfg.Spec.Network.PodCIDR = getPodCIDR(c)
-	cfg.Spec.Network.ServiceCIDR = getServiceCIDR(c)
+	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
+	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -548,7 +551,7 @@ var installCommand = &cli.Command{
 			&cli.StringFlag{
 				Name:    "license",
 				Aliases: []string{"l"},
-				Usage:   "Path to the license file.",
+				Usage:   "Path to the license file",
 				Hidden:  false,
 			},
 			&cli.BoolFlag{

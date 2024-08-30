@@ -1,0 +1,216 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  name: configs.embeddedcluster.replicated.com
+spec:
+  group: embeddedcluster.replicated.com
+  names:
+    kind: Config
+    listKind: ConfigList
+    plural: configs
+    singular: config
+  scope: Cluster
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: Config is the Schema for the configs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ConfigSpec defines the desired state of Config
+            properties:
+              extensions:
+                properties:
+                  helm:
+                    description: Helm contains helm extension settings
+                    properties:
+                      charts:
+                        items:
+                          description: Chart single helm addon
+                          properties:
+                            chartname:
+                              type: string
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                            order:
+                              type: integer
+                            timeout:
+                              description: Timeout specifies the timeout for how long
+                                to wait for the chart installation to finish.
+                              format: int64
+                              type: integer
+                            values:
+                              type: string
+                            version:
+                              type: string
+                          type: object
+                        type: array
+                      concurrencyLevel:
+                        type: integer
+                      repositories:
+                        items:
+                          properties:
+                            caFile:
+                              type: string
+                            certFile:
+                              type: string
+                            insecure:
+                              type: boolean
+                            keyfile:
+                              type: string
+                            name:
+                              type: string
+                            password:
+                              type: string
+                            url:
+                              type: string
+                            username:
+                              type: string
+                          type: object
+                        type: array
+                    type: object
+                type: object
+              roles:
+                description: Roles is the various roles in the cluster.
+                properties:
+                  controller:
+                    description: NodeRole is the role of a node in the cluster.
+                    properties:
+                      description:
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      name:
+                        type: string
+                      nodeCount:
+                        description: NodeCount holds a series of rules for a given
+                          node role.
+                        properties:
+                          range:
+                            description: |-
+                              NodeRange contains a min and max or only one of them (conflicts
+                              with Values).
+                            properties:
+                              max:
+                                description: Max is the maximum number of nodes.
+                                type: integer
+                              min:
+                                description: Min is the minimum number of nodes.
+                                type: integer
+                            type: object
+                          values:
+                            description: Values holds a list of allowed node counts.
+                            items:
+                              type: integer
+                            type: array
+                        type: object
+                    type: object
+                  custom:
+                    items:
+                      description: NodeRole is the role of a node in the cluster.
+                      properties:
+                        description:
+                          type: string
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        name:
+                          type: string
+                        nodeCount:
+                          description: NodeCount holds a series of rules for a given
+                            node role.
+                          properties:
+                            range:
+                              description: |-
+                                NodeRange contains a min and max or only one of them (conflicts
+                                with Values).
+                              properties:
+                                max:
+                                  description: Max is the maximum number of nodes.
+                                  type: integer
+                                min:
+                                  description: Min is the minimum number of nodes.
+                                  type: integer
+                              type: object
+                            values:
+                              description: Values holds a list of allowed node counts.
+                              items:
+                                type: integer
+                              type: array
+                          type: object
+                      type: object
+                    type: array
+                type: object
+              unsupportedOverrides:
+                description: |-
+                  UnsupportedOverrides holds the config overrides used to configure
+                  the cluster.
+                properties:
+                  builtInExtensions:
+                    description: |-
+                      BuiltInExtensions holds overrides for the default add-ons we ship
+                      with Embedded Cluster.
+                    items:
+                      description: BuiltInExtension holds the override for a built-in
+                        extension (add-on).
+                      properties:
+                        name:
+                          description: The name of the helm chart to override values
+                            of, for instance `openebs`.
+                          type: string
+                        values:
+                          description: |-
+                            YAML-formatted helm values that will override those provided to the
+                            chart by Embedded Cluster. Properties are overridden individually -
+                            setting a new value for `images.tag` here will not prevent Embedded
+                            Cluster from setting `images.pullPolicy = IfNotPresent`, for example.
+                          type: string
+                      required:
+                      - name
+                      - values
+                      type: object
+                    type: array
+                  k0s:
+                    description: |-
+                      K0s holds the overrides used to configure k0s. These overrides
+                      are merged on top of the default k0s configuration. As the data
+                      layout inside this configuration is very dynamic we have chosen
+                      to use a string here.
+                    type: string
+                type: object
+              version:
+                type: string
+            type: object
+          status:
+            description: ConfigStatus defines the observed state of Config
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
