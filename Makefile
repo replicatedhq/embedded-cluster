@@ -102,12 +102,16 @@ output/tmp/release.tar.gz: e2e/kots-release-install/*
 
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) \
-		go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
+	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
 .PHONY: embedded-release
+embedded-release: GOARCH = amd64
 embedded-release: embedded-cluster-linux-$(GOARCH) output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
 	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
+
+.PHONY: embedded-release-arm64
+embedded-release-arm64: GOARCH = arm64
+embedded-release-arm64: embedded-release
 
 .PHONY: go.mod
 go.mod: Makefile
@@ -129,18 +133,18 @@ embedded-cluster-linux-amd64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
 
+.PHONY: embedded-cluster-linux-arm64
+embedded-cluster-linux-arm64: GOOS = linux
+embedded-cluster-linux-arm64: GOARCH = arm64
+embedded-cluster-linux-arm64: static go.mod embedded-cluster
+	mkdir -p ./output/bin
+	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
+
 # for testing
 .PHONY: embedded-cluster-darwin-arm64
 embedded-cluster-darwin-arm64: GOOS = darwin
 embedded-cluster-darwin-arm64: GOARCH = arm64
 embedded-cluster-darwin-arm64: go.mod embedded-cluster
-	mkdir -p ./output/bin
-	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
-
-.PHONY: embedded-cluster-linux-arm64
-embedded-cluster-linux-arm64: GOOS = linux
-embedded-cluster-linux-arm64: GOARCH = arm64
-embedded-cluster-linux-arm64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
 
@@ -213,3 +217,17 @@ cache-files:
 
 print-%:
 	@echo -n $($*)
+
+vm:
+	@docker run -d \
+		--name k0s \
+		--hostname k0s \
+		--privileged \
+		-v /var/lib/k0s \
+		-v $(shell pwd):/embedded-cluster \
+		-p 30000:30000 \
+		--cgroupns=host \
+		ttl.sh/ethan/bootloose-alpine \
+		/sbin/init
+
+	@docker exec -it k0s bash

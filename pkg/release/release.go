@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster-utils/pkg/embed"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
@@ -56,7 +57,7 @@ func parseReleaseDataFromBinary() error {
 	if err != nil {
 		return fmt.Errorf("unable to get executable path: %w", err)
 	}
-	data, err := ExtractReleaseDataFromBinary(exe)
+	data, err := embed.ExtractReleaseDataFromBinary(exe)
 	if err != nil {
 		return fmt.Errorf("failed to extract data from binary: %w", err)
 	}
