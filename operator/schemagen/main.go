@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/replicatedhq/embedded-cluster-operator/schemagen/cli"
+	"github.com/replicatedhq/embedded-cluster/operator/schemagen/cli"
 )
 
 func main() {

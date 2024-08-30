@@ -29,7 +29,6 @@ require (
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
 	github.com/replicatedhq/embedded-cluster-kinds v1.4.7
-	github.com/replicatedhq/embedded-cluster-operator v0.42.1
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.100.0

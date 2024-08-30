@@ -2,7 +2,8 @@ package registry
 
 import (
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
+
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 )
 
 const (

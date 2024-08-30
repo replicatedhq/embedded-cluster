@@ -510,8 +510,6 @@ github.com/redis/go-redis/v9 v9.5.2 h1:L0L3fcSNReTRGyZ6AqAEN0K56wYeYAwapBIhkvh0f
 github.com/redis/go-redis/v9 v9.5.2/go.mod h1:hdY0cQFCN4fnSYT6TkisLufl/4W5UIXyv0b/CLO2V2M=
 github.com/replicatedhq/embedded-cluster-kinds v1.4.7 h1:CR55z8Q2ek90BwwwOEz+P3qFIgc84G7wp/FNs+ctfsw=
 github.com/replicatedhq/embedded-cluster-kinds v1.4.7/go.mod h1:AwopUvvGcaWO4mn9DkbPj5RnLuOy756CNLrcaAlmjMo=
-github.com/replicatedhq/embedded-cluster-operator v0.42.1 h1:x0R41d3FwMWjLsbWGL5PQa92++kYD7XmB43/VRtzVjc=
-github.com/replicatedhq/embedded-cluster-operator v0.42.1/go.mod h1:f6B+AFztqFXk6lTmPTfXFcHSEfHNnhd9SAa7NBMhNRI=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0 h1:Axdni1nYfl5zeOP9g5U79yvN8cRdClyU6hz0wV1Hmdc=
 github.com/replicatedhq/embedded-cluster-utils v1.0.0/go.mod h1:4JmMC2CwMCLxq05GEW3XSPPVotqyamAF/omrbB3pH+c=
 github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4 h1:nsNSod6wpFpaMUq1IqnU4y2XWQd2FEKtdr02UB2udkk=
