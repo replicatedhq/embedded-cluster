@@ -1,7 +1,7 @@
 package addons
 
 import (
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 )
 
 // Option sets and option on an Applier reference.

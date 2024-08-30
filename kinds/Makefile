@@ -1,3 +1,7 @@
+SHELL := /bin/bash
+
+include ../common.mk
+
 ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 .PHONY: generate
@@ -11,11 +15,6 @@ fmt: ## Run go fmt against code.
 .PHONY: vet
 vet: ## Run go vet against code.
 	go vet ./...
-
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen

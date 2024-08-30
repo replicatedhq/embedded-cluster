@@ -2,7 +2,7 @@ package util
 
 import (
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	v1beta12 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	v1beta12 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 )
 
 // ClusterServiceCIDR determines the service CIDR for the cluster

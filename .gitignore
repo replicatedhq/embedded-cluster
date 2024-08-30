@@ -9,3 +9,5 @@ vendor
 e2e/kots-release-install/license.yaml
 /build/
 /bin/
+go.work
+go.work.sum

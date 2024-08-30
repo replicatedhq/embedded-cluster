@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/stretchr/testify/assert"
 )

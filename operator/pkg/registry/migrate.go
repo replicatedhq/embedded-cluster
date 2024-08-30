@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

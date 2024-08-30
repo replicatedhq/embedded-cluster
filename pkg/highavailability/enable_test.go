@@ -2,7 +2,9 @@ package highavailability
 
 import (
 	"context"
-	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"testing"
+
+	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -11,7 +13,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
 func Test_canEnableHA(t *testing.T) {

@@ -1,7 +1,7 @@
 package k8sutil
 
 import (
-	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
