@@ -19,7 +19,7 @@ package main
 import (
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/cli"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli"
 )
 
 func main() {
