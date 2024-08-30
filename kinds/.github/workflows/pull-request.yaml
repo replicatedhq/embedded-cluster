@@ -1,0 +1,73 @@
+name: Pull request
+on:
+- pull_request
+jobs:
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+    - name: Unit tests
+      run: |
+        make unit-tests
+
+  vet:
+    name: vet, fmt and tidy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: vet
+        run: |
+          make vet
+      - name: fmt
+        run: |
+          make fmt
+      - name: Check Formatted Files
+        run: |
+          git diff --exit-code --name-only
+          if [ $? -eq 0 ]; then
+            echo "go fmt was up to date"
+          else
+            echo "go fmt was not up to date"
+            exit 1
+          fi
+      - name: tidy
+        run: |
+          go mod tidy
+      - name: Check 'go mod tidy'd Files
+        run: |
+          git diff --exit-code --name-only
+          if [ $? -eq 0 ]; then
+            echo "go mod tidy was up to date"
+          else
+            echo "go mod tidy was not up to date"
+            exit 1
+          fi
+
+  check-generate:
+    name: Check generated files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Make Generated Files
+        run: make generate
+      - name: Check Generated Files
+        run: |
+          git diff --exit-code --name-only
+          if [ $? -eq 0 ]; then
+            echo "Generated files are up to date"
+          else
+            echo "Generated files are out of date"
+            exit 1
+          fi
