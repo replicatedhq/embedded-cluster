@@ -201,7 +201,6 @@ func (r *ReleaseData) parse() error {
 			continue
 		}
 		content := bytes.NewBuffer(nil)
-		fmt.Println("+++ content", content.String())
 		if _, err := io.Copy(content, tr); err != nil {
 			return fmt.Errorf("unable to copy file out of tar: %w", err)
 		}
