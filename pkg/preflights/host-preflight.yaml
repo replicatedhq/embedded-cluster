@@ -75,6 +75,12 @@ spec:
         collectorName: "sysctl"
         command: "sysctl"
         args: ["-a"]
+    - run:
+        collectorName: 'available-kernel-modules'
+        command: 'sh'
+        args:
+          - -c
+          - find /lib/modules/$(uname -r) -type f -name '*.ko*'
   analyzers:
     - cpu:
         checkName: CPU
@@ -432,3 +438,25 @@ spec:
         - fail:
             when: "false"
             message: Bridge IP Tables IPv6 Call must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.bridge.bridge-nf-call-ip6tables = 1', and run 'sudo sysctl -p'.
+    - textAnalyze:
+        checkName: Bridge IP Tables Call Check
+        fileName: host-collectors/run-host/sysctl.txt
+        regex: net.bridge.bridge-nf-call-iptables = 1
+        outcomes:
+        - pass:
+            when: "true"
+            message: Bridge IP Tables Call Enabled
+        - fail:
+            when: "false"
+            message: Bridge IP Tables Call must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.bridge.bridge-nf-call-iptables = 1', and run 'sudo sysctl -p'.
+    - textAnalyze:
+        checkName: Kernel br_netfilter module available
+        fileName: host-collectors/run-host/available-kernel-modules.txt
+        regex: br_netfilter
+        outcomes:
+          - pass:
+              when: 'true'
+              message: Kernel module br_netfilter available for use.
+          - fail:
+              when: 'false'
+              message: Kernel module br_netfilter isn't available for dynamic loading. You may need to install the Kernel modules package. Please refer to your distribution documentation.

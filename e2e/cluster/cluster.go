@@ -845,6 +845,11 @@ func CreateProfile(in *Input) {
 					"network": "lxdbr0",
 					"type":    "nic",
 				},
+				"kernel-modules": {
+					"source": "/usr/lib/modules",
+					"path":   "/usr/lib/modules",
+					"type":   "disk",
+				},
 				"root": {
 					"path": "/",
 					"pool": "default",
