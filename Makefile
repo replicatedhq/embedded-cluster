@@ -226,9 +226,10 @@ vm:
 		--privileged \
 		--cgroupns=host \
 		-v /var/lib/k0s \
-		-v $(shell pwd):/embedded-cluster \
+		-v $(shell pwd):/replicatedhq/embedded-cluster \
+		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		-p 30000:30000 \
 		ttl.sh/ethan/bootloose-alpine \
 		/sbin/init
 
-	@docker exec -it k0s bash
+	@docker exec -it -w /replicatedhq/embedded-cluster k0s bash
