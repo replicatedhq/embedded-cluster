@@ -9,10 +9,10 @@ version: 0.42.1
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator
 images:
     embedded-cluster-operator:
-        repo: ttl.sh/replicated/embedded-cluster-operator-image
+        repo: proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image
         tag:
-            amd64: "48h"
-            arm64: "48h"
+            amd64: v1.11.1-k8s-1.29@sha256:7c52b5c4a19004b31988c4b24123b7dfe227d1744d505379f6b232b01f284af1
+            arm64: v1.11.1-k8s-1.29@sha256:2520e1593a323d5f7218d9501c6f6f08ef34d8eee4dbc4a7306878e3572aa4cb
     utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-utils
         tag:

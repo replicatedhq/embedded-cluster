@@ -12,4 +12,4 @@ images:
         repo: proxy.replicated.com/anonymous/replicated/ec-registry
         tag:
             amd64: 2.8.3-r0@sha256:5b76ebd0a362009e31a05ac487c690f5ece0e11f6c4d9261ca63a3f162b57660
-            arm64: 2.8.3-r0@sha256:5b76ebd0a362009e31a05ac487c690f5ece0e11f6c4d9261ca63a3f162b57660
+            arm64: 2.8.3-r0@sha256:b6b7345a1455ae1decd79f39e9ee9f8dff4dedf9fc52acebeba0903779c37cc3

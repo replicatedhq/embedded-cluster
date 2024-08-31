@@ -224,10 +224,10 @@ vm:
 		--name k0s \
 		--hostname k0s \
 		--privileged \
+		--cgroupns=host \
 		-v /var/lib/k0s \
 		-v $(shell pwd):/embedded-cluster \
 		-p 30000:30000 \
-		--cgroupns=host \
 		ttl.sh/ethan/bootloose-alpine \
 		/sbin/init
 
