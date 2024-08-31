@@ -13,7 +13,7 @@ images:
         tag: 1.31.0-r1@sha256:70b2e76f316eb753b70d1349861d9b5bd58fff2cfa551072917dd68b50bdb2af
     openebs-linux-utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils
-        tag: 4.1.0@sha256:ba8167bbcaedd43a8be53325122566a3e6c0ee336daf2a3b5c396c7773db2611
+        tag: 4.1.0@sha256:68fdd198429af23dc58110f85902e41d48cd54718846589e2a7b39799aac3fa6
     openebs-provisioner-localpv:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv
         tag: 4.1.0-r0@sha256:77f54b4935376a4fe460853eb1eb3582ec1301f94ff61929444ddae2e8473972
