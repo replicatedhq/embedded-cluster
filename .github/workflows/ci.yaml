@@ -20,8 +20,7 @@ jobs:
   #     - uses: ./.github/actions/git-sha
   #       id: git_sha
 
-  build-one-off-registry-image:
-    name: Build One-Off Registry Image
+  publish-operator-image:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,27 +33,18 @@ jobs:
             build/.melange-cache
           key: melange-cache
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Setup Melange
         uses: chainguard-dev/actions/setup-melange@main
 
-      - name: Build and push image
+      - name: Build and push operator image
+        id: operator-image
         env:
           REGISTRY: docker.io
           USERNAME: ${{ secrets.DOCKERHUB_USER }}
           PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          make melange-build \
-            MELANGE_CONFIG=deploy/images/registry/melange.yaml \
-            MELANGE_SOURCE_DIR=deploy/images/registry \
-            PACKAGE_VERSION=2.8.3
-
-          make apko apko-login apko-build-and-publish \
-            IMAGE=replicated/ec-registry:2.8.3-r0 \
-            APKO_CONFIG=deploy/images/registry/apko.yaml \
-            PACKAGE_VERSION=2.8.3
+          make -C operator apko apko-login build-and-push-operator-image \
+            PACKAGE_VERSION="v1.11.1+k8s-1.29"
 
   # sanitize:
   #   name: Sanitize
