@@ -13,10 +13,10 @@
 #
 
 images:
-    kotsadm: 'proxy.replicated.com/anonymous/kotsadm/kotsadm:v1.114.0@sha256:a6c9984a6a2c1837dc362cdba7f1e823b3a0612739861c2ead334f717a1a7c34'
-    kurlProxy: 'proxy.replicated.com/anonymous/kotsadm/kurl-proxy:v1.114.0@sha256:8cd8e4a481ce4a8a71cadc911e080f8e64f8b96189b9b63a731f9265bc81ab44'
-    migrations: 'proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations:v1.114.0@sha256:0df43ff5a12631700ef1bcb43f225641ad1f80ce20855da4ab015e517494b65b'
-    rqlite: 'proxy.replicated.com/anonymous/kotsadm/rqlite:8.28.0-r0@sha256:ccff59367feb0ea937d14a501316656595d2a48fd597d6975aefa47f1267a028'
+    kotsadm: 'proxy.replicated.com/anonymous/kotsadm/kotsadm:v1.115.1@sha256:9772a075a24586d2fd8550285f95a0bc466b280e960fd00ccb585ac9999592bb'
+    kurlProxy: 'proxy.replicated.com/anonymous/kotsadm/kurl-proxy:v1.115.1@sha256:771901bff6459dde393d0df93c1a1ff50c4013dc8264903f89b71d3d10f0b459'
+    migrations: 'proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations:v1.115.1@sha256:22673b6d3729fe48607516314f59095b6da8ded4b61aa381c6ada5583f130c5e'
+    rqlite: 'proxy.replicated.com/anonymous/kotsadm/rqlite:8.28.1-r0@sha256:f7f9dd7d67999d95d90b8bf26f3508f4f3fcfb89783c7d5abcf94b5aed406ba0'
 isHA: false
 isHelmManaged: false
 kurlProxy:
