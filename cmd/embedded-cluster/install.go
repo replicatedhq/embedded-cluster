@@ -56,28 +56,28 @@ func installAndEnableLocalArtifactMirror() error {
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
 func configureNetworkManager(c *cli.Context) error {
-	// if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
-	// 	return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
-	// } else if !active {
-	// 	logrus.Debugf("NetworkManager is not active, skipping configuration")
-	// 	return nil
-	// }
+	dir := "/etc/NetworkManager/conf.d"
+	if _, err := os.Stat(dir); err != nil {
+		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
+		return nil
+	}
 
-	// dir := "/etc/NetworkManager/conf.d"
-	// if _, err := os.Stat(dir); err != nil {
-	// 	logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
-	// 	return nil
-	// }
+	if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
+		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
+	} else if !active {
+		logrus.Debugf("NetworkManager is not active, skipping configuration")
+		return nil
+	}
 
-	// logrus.Debugf("creating NetworkManager config file")
-	// if err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
-	// 	return fmt.Errorf("unable to materialize configuration: %w", err)
-	// }
+	logrus.Debugf("creating NetworkManager config file")
+	if err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
+		return fmt.Errorf("unable to materialize configuration: %w", err)
+	}
 
-	// logrus.Debugf("network manager config created, restarting the service")
-	// if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
-	// 	return fmt.Errorf("unable to restart network manager: %w", err)
-	// }
+	logrus.Debugf("network manager config created, restarting the service")
+	if _, err := helpers.RunCommand("systemctl", "restart", "NetworkManager"); err != nil {
+		return fmt.Errorf("unable to restart network manager: %w", err)
+	}
 	return nil
 }
 

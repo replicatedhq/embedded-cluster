@@ -235,7 +235,7 @@ node%:
 		ttl.sh/ethan/bootloose-alpine \
 		/sbin/init
 
-	$(MAKE) ssh-node$*
+	@$(MAKE) ssh-node$*
 
 ssh-node%:
 	@docker exec -it -w /replicatedhq/embedded-cluster node$* bash
