@@ -1,9 +1,9 @@
-name: Kinds
+name: Utils
 
 on:
   pull_request:
     paths:
-      - 'kinds/**'
+      - 'utils/**'
 
 jobs:
   lint:
@@ -16,17 +16,14 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v5
         with:
-          go-version-file: kinds/go.mod
-          cache-dependency-path: kinds/*.sum
+          go-version-file: utils/go.mod
+          cache-dependency-path: utils/*.sum
 
       - name: Fmt
-        run: make -C kinds fmt
+        run: make -C utils fmt
 
       - name: Vet
-        run: make -C kinds vet
-
-      - name: Generate
-        run: make -C kinds generate
+        run: make -C utils vet
 
       - name: Check generated code to be consistent
         run: |
@@ -48,13 +45,13 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v5
         with:
-          go-version-file: kinds/go.mod
-          cache-dependency-path: kinds/*.sum
+          go-version-file: utils/go.mod
+          cache-dependency-path: utils/*.sum
 
       - name: Unit tests
-        run: make -C kinds unit-tests
+        run: make -C utils unit-tests
 
-  validate-success-kinds:
+  validate-success-utils:
     runs-on: ubuntu-latest
     needs:
       - lint

@@ -1,3 +1,3 @@
-# embedded-cluster-utils
+# embedded-cluster/utils
 
-This repository contains utility functions for working with embedded clusters.
+This module contains utility functions for working with embedded clusters.

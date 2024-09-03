@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 .PHONY: fmt
 fmt: ## Run go fmt against code.
 	go fmt ./...
@@ -6,6 +8,6 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-.PHONY: test
-test: fmt vet ## Run tests.
-	go test ./...
+.PHONY: unit-tests
+unit-tests:
+	go test -v ./...
