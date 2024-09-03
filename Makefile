@@ -98,8 +98,11 @@ pkg/goods/internal/bins/kubectl-kots: Makefile
 	touch pkg/goods/internal/bins/kubectl-kots
 
 output/tmp/release.tar.gz: e2e/kots-release-install/*
-	mkdir -p output/tmp
-	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
+	mkdir -p output/tmp/kots-release-install
+	cp -r e2e/kots-release-install/* output/tmp/kots-release-install/
+	@sed -i '' "s|__version_string__|${VERSION}|g" output/tmp/kots-release-install/cluster-config.yaml
+	tar -czf output/tmp/release.tar.gz -C output/tmp/kots-release-install .
+	rm -rf output/tmp/kots-release-install
 
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
@@ -219,17 +222,20 @@ cache-files:
 print-%:
 	@echo -n $($*)
 
-vm:
+node%:
 	@docker run -d \
-		--name k0s \
-		--hostname k0s \
+		--name node$* \
+		--hostname node$* \
 		--privileged \
 		--cgroupns=host \
 		-v /var/lib/k0s \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
-		-p 30000:30000 \
+		$(if $(filter node0,node$*),-p 30000:30000) \
 		ttl.sh/ethan/bootloose-alpine \
 		/sbin/init
 
-	@docker exec -it -w /replicatedhq/embedded-cluster k0s bash
+	$(MAKE) ssh-node$*
+
+ssh-node%:
+	@docker exec -it -w /replicatedhq/embedded-cluster node$* bash
