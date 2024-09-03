@@ -140,12 +140,12 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 		if len(output.Fail) == 1 {
 			s = "preflight"
 		}
-		msg := fmt.Sprintf("%d host %s failed", len(output.Fail), s)
 		if output.HasWarn() {
-			msg += fmt.Sprintf(" and %d warned", len(output.Warn))
+			pb.Errorf("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
+		} else {
+			pb.Errorf("%d host %s failed", len(output.Fail), s)
 		}
 
-		pb.Errorf(msg)
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
 		return fmt.Errorf("host preflight failures detected")
