@@ -28,8 +28,8 @@ require (
 	github.com/ohler55/ojg v1.23.0
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
-	github.com/replicatedhq/embedded-cluster-kinds v1.4.7
 	github.com/replicatedhq/embedded-cluster-utils v1.0.0
+	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.100.0
 	github.com/sirupsen/logrus v1.9.3
@@ -52,6 +52,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.19.0
 	sigs.k8s.io/yaml v1.4.0
 )
+
+replace github.com/replicatedhq/embedded-cluster/kinds v0.0.0 => ./kinds
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
@@ -150,6 +152,7 @@ require (
 	github.com/rubenv/sql-migrate v1.5.2 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect

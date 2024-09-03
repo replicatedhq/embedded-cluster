@@ -17,7 +17,7 @@ updates:
           - "patch"
 
   - package-ecosystem: "gomod"
-    directory: "/operator/"
+    directory: "/kinds/"
     open-pull-requests-limit: 25
     schedule:
       interval: "weekly"

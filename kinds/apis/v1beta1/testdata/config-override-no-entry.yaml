@@ -1,0 +1,6 @@
+secretData:
+  test.yaml: |
+    test: value
+configSpec:
+  version: 1.7.0
+error: entry config.yaml not found in secret

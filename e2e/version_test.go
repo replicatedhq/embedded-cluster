@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster-kinds/types"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/kinds/types"
 )
 
 func TestVersion(t *testing.T) {
