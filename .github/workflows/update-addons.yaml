@@ -73,7 +73,7 @@ jobs:
           chmod 755 ./output/bin/buildtools
           ./output/bin/buildtools update addon ${{ matrix.addon }}
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GH_PAT }}
           commit-message: updated ${{ matrix.addon }} version
