@@ -54,7 +54,7 @@ jobs:
       - name: Unit tests
         run: make -C kinds unit-tests
 
-  validate-success:
+  validate-success-kinds:
     runs-on: ubuntu-latest
     needs:
       - lint
