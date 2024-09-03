@@ -555,8 +555,8 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-ec18-app-version"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
@@ -1004,8 +1004,8 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-ec18-app-version"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
