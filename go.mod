@@ -28,8 +28,8 @@ require (
 	github.com/ohler55/ojg v1.23.0
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
-	github.com/replicatedhq/embedded-cluster-utils v1.0.0
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
+	github.com/replicatedhq/embedded-cluster/utils v0.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240621115447-55148ce032e4
 	github.com/replicatedhq/troubleshoot v0.100.0
 	github.com/sirupsen/logrus v1.9.3
@@ -53,7 +53,10 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
-replace github.com/replicatedhq/embedded-cluster/kinds v0.0.0 => ./kinds
+replace (
+	github.com/replicatedhq/embedded-cluster/kinds v0.0.0 => ./kinds
+	github.com/replicatedhq/embedded-cluster/utils v0.0.0 => ./utils
+)
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
