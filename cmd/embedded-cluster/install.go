@@ -56,16 +56,16 @@ func installAndEnableLocalArtifactMirror() error {
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
 func configureNetworkManager(c *cli.Context) error {
-	dir := "/etc/NetworkManager/conf.d"
-	if _, err := os.Stat(dir); err != nil {
-		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
-		return nil
-	}
-
 	if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
 	} else if !active {
 		logrus.Debugf("NetworkManager is not active, skipping configuration")
+		return nil
+	}
+
+	dir := "/etc/NetworkManager/conf.d"
+	if _, err := os.Stat(dir); err != nil {
+		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
 		return nil
 	}
 
@@ -448,13 +448,13 @@ func installAndWaitForK0s(c *cli.Context, applier *addons.Applier) (*k0sconfig.C
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
-	// proxy := getProxySpecFromFlags(c)
-	// logrus.Debugf("creating systemd unit files")
-	// if err := createSystemdUnitFiles(false, proxy); err != nil {
-	// 	err := fmt.Errorf("unable to create systemd unit files: %w", err)
-	// 	metrics.ReportApplyFinished(c, err)
-	// 	return nil, err
-	// }
+	proxy := getProxySpecFromFlags(c)
+	logrus.Debugf("creating systemd unit files")
+	if err := createSystemdUnitFiles(false, proxy); err != nil {
+		err := fmt.Errorf("unable to create systemd unit files: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return nil, err
+	}
 
 	logrus.Debugf("installing k0s")
 	if err := installK0s(); err != nil {

@@ -222,17 +222,19 @@ cache-files:
 print-%:
 	@echo -n $($*)
 
+bootloose-debian:
+	docker build -t bootloose-debian -f dev/dockerfiles/bootloose-debian.Dockerfile dev/dockerfiles
+
 node%:
 	@docker run -d \
 		--name node$* \
 		--hostname node$* \
 		--privileged \
 		--cgroupns=host \
-		-v /var/lib/k0s \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p 30000:30000) \
-		ttl.sh/ethan/bootloose-alpine \
+		bootloose-debian \
 		/sbin/init
 
 	@$(MAKE) ssh-node$*
