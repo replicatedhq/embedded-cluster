@@ -5,7 +5,7 @@ include common.mk
 VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
 CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
 APP_NAME = embedded-cluster
-ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
+ADMIN_CONSOLE_CHART_REPO_OVERRIDE = oci://ttl.sh/crdant/admin-console
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
