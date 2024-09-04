@@ -30,9 +30,9 @@ function build() {
     make -B embedded-cluster-linux-amd64 \
         K0S_VERSION="$K0S_VERSION" \
         VERSION="$EC_VERSION" \
-        K0S_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/k0s-binaries/${K0S_VERSION}" \
-        KOTS_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/kots-binaries/${KOTS_VERSION}" \
-        OPERATOR_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/operator-binaries/${OPERATOR_VERSION}"
+        METADATA_K0S_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/k0s-binaries/${K0S_VERSION}" \
+        METADATA_KOTS_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/kots-binaries/${KOTS_VERSION}" \
+        METADATA_OPERATOR_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/operator-binaries/${OPERATOR_VERSION}"
 }
 
 function archive() {
