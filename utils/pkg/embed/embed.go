@@ -26,10 +26,10 @@ func EmbedReleaseDataInBinary(binPath string, releasePath string, outputPath str
 	// in arm64 binaries, the delimiters will already be part of the binary content in plain text,
 	// so we need to check if the binary content _ends_ with the end delimiter in order to
 	// determine if a release data is already embedded in the binary.
-	if bytes.HasSuffix(binContent, endReleaseDelimiterBytes()) {
-		start := bytes.LastIndex(binContent, beginReleaseDelimiterBytes())
-		end := bytes.LastIndex(binContent, endReleaseDelimiterBytes())
-		binContent = append(binContent[:start], binContent[end+len(endReleaseDelimiterBytes()):]...)
+	if bytes.HasSuffix(binContent, delimiterBytes(endReleaseDelimiter)) {
+		start := lastIndexOfDelimiter(binContent, beginReleaseDelimiter)
+		end := lastIndexOfDelimiter(binContent, endReleaseDelimiter)
+		binContent = append(binContent[:start], binContent[end+lengthOfDelimiter(endReleaseDelimiter):]...)
 	}
 
 	binReader := bytes.NewReader(binContent)
@@ -62,15 +62,15 @@ func EmbedReleaseDataInBinaryReader(binReader io.Reader, binSize int64, releaseD
 	encodedRelease := base64.StdEncoding.EncodeToString(releaseData)
 
 	newBinSize := binSize
-	newBinSize += int64(len(beginReleaseDelimiterBytes()))
+	newBinSize += int64(lengthOfDelimiter(beginReleaseDelimiter))
 	newBinSize += int64(len(encodedRelease))
-	newBinSize += int64(len(endReleaseDelimiterBytes()))
+	newBinSize += int64(lengthOfDelimiter(endReleaseDelimiter))
 
 	newBinReader := io.MultiReader(
 		binReader,
-		bytes.NewReader(beginReleaseDelimiterBytes()),
+		bytes.NewReader(delimiterBytes(beginReleaseDelimiter)),
 		strings.NewReader(encodedRelease),
-		bytes.NewReader(endReleaseDelimiterBytes()),
+		bytes.NewReader(delimiterBytes(endReleaseDelimiter)),
 	)
 
 	return newBinReader, newBinSize
@@ -83,25 +83,25 @@ func ExtractReleaseDataFromBinary(exe string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read executable: %w", err)
 	}
 
-	start := bytes.LastIndex(binContent, beginReleaseDelimiterBytes())
+	start := lastIndexOfDelimiter(binContent, beginReleaseDelimiter)
 	if start == -1 {
 		return nil, nil
 	}
 
-	end := bytes.LastIndex(binContent, endReleaseDelimiterBytes())
+	end := lastIndexOfDelimiter(binContent, endReleaseDelimiter)
 	if end == -1 {
 		return nil, fmt.Errorf("failed to find end delimiter in executable")
 	}
 
-	if start+len(beginReleaseDelimiterBytes()) > len(binContent) {
+	if start+lengthOfDelimiter(beginReleaseDelimiter) > len(binContent) {
 		return nil, fmt.Errorf("invalid start delimiter")
-	} else if start+len(beginReleaseDelimiterBytes()) > end {
+	} else if start+lengthOfDelimiter(beginReleaseDelimiter) > end {
 		return nil, fmt.Errorf("start delimter after end delimter")
 	} else if end > len(binContent) {
 		return nil, fmt.Errorf("invalid end delimiter")
 	}
 
-	encoded := binContent[start+len(beginReleaseDelimiterBytes()) : end]
+	encoded := binContent[start+lengthOfDelimiter(beginReleaseDelimiter) : end]
 
 	decoded, err := base64.StdEncoding.DecodeString(string(encoded))
 	if err != nil {
@@ -111,10 +111,18 @@ func ExtractReleaseDataFromBinary(exe string) ([]byte, error) {
 	return decoded, nil
 }
 
-func beginReleaseDelimiterBytes() []byte {
-	return []byte(dashes + beginReleaseDelimiter + dashes)
+// the go compiler will optimize concatenation of bytes as a constant string which will cause
+// ExtractReleaseDataFromBinary to fail because it will find the delimiter in the wrong place.
+// This function is used to create a byte slice that will be used as a delimiter while working
+// around this issue.
+func delimiterBytes(delim string) []byte {
+	return []byte(dashes + delim + dashes)
 }
 
-func endReleaseDelimiterBytes() []byte {
-	return []byte(dashes + endReleaseDelimiter + dashes)
+func lastIndexOfDelimiter(s []byte, delim string) int {
+	return bytes.LastIndex(s, delimiterBytes(delim))
+}
+
+func lengthOfDelimiter(delim string) int {
+	return len(delimiterBytes(delim))
 }
