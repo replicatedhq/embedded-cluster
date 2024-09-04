@@ -92,6 +92,10 @@ spec:
                         type: array
                     type: object
                 type: object
+              metadataOverrideUrl:
+                type: string
+              releaseOverrideUrl:
+                type: string
               roles:
                 description: Roles is the various roles in the cluster.
                 properties:
