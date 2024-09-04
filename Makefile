@@ -231,6 +231,7 @@ node%:
 		--hostname node$* \
 		--privileged \
 		--cgroupns=host \
+		-v /var/lib/k0s \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p 30000:30000) \
