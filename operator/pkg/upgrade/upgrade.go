@@ -47,12 +47,14 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		if localArtifactMirrorImage == "" {
 			return fmt.Errorf("local artifact mirror image is required for airgap installations")
 		}
+	}
 
-		err := metadata.CopyVersionMetadataToCluster(ctx, cli, in)
-		if err != nil {
-			return fmt.Errorf("copy version metadata to cluster: %w", err)
-		}
+	err := metadata.CopyVersionMetadataToCluster(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("copy version metadata to cluster: %w", err)
+	}
 
+	if in.Spec.AirGap {
 		err = airgapDistributeArtifacts(ctx, cli, in, localArtifactMirrorImage)
 		if err != nil {
 			return fmt.Errorf("airgap distribute artifacts: %w", err)
@@ -61,7 +63,7 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 
 	// update the operator chart prior to creating the installation to update the crd
 
-	err := applyOperatorChart(ctx, cli, in)
+	err = applyOperatorChart(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("apply operator chart: %w", err)
 	}

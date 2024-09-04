@@ -201,10 +201,13 @@ jobs:
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           export LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
+          export S3_BUCKET_PUBLIC_URL=https://dev-embedded-cluster-bin.s3.amazonaws.com
 
           # build previous k0s
           export EC_VERSION="${SHORT_SHA}-previous-k0s"
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
+          export KOTS_VERSION=$(make print-KOTS_VERSION)
+          export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
           ./scripts/ci-build.sh
           mv embedded-cluster-linux-amd64.tgz embedded-cluster-linux-amd64-previous-k0s.tgz
           mv metadata.json metadata-previous-k0s.json
@@ -212,12 +215,17 @@ jobs:
           # build upgrade
           export EC_VERSION="${SHORT_SHA}-upgrade"
           export K0S_VERSION=$(make print-K0S_VERSION)
+          export KOTS_VERSION=$(make print-KOTS_VERSION)
+          export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
           ./scripts/ci-build.sh
           mv embedded-cluster-linux-amd64.tgz embedded-cluster-linux-amd64-upgrade.tgz
           mv metadata.json metadata-upgrade.json
 
           # build current
           export EC_VERSION="${SHORT_SHA}"
+          export K0S_VERSION=$(make print-K0S_VERSION)
+          export KOTS_VERSION=$(make print-KOTS_VERSION)
+          export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
           ./scripts/ci-build.sh
 
       - name: Upload binary
@@ -253,9 +261,9 @@ jobs:
 
       - name: Cache files for integration test
         env:
-          S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          S3_BUCKET: "dev-embedded-cluster-bin"
+          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}

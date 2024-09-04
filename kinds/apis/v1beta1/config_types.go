@@ -151,6 +151,8 @@ func ConvertFrom(e k0sv1beta1.HelmExtensions, t *Helm) (*Helm, error) {
 // ConfigSpec defines the desired state of Config
 type ConfigSpec struct {
 	Version              string               `json:"version,omitempty"`
+	ReleaseOverrideURL   string               `json:"releaseOverrideUrl,omitempty"`
+	MetadataOverrideURL  string               `json:"metadataOverrideUrl,omitempty"`
 	Roles                Roles                `json:"roles,omitempty"`
 	UnsupportedOverrides UnsupportedOverrides `json:"unsupportedOverrides,omitempty"`
 	Extensions           Extensions           `json:"extensions,omitempty"`

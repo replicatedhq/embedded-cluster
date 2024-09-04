@@ -19,11 +19,18 @@ KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/stat
 KOTS_BINARY_URL_OVERRIDE =
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
+# These are used to override the binary urls in dev and e2e tests
+K0S_BINARY_URL_OVERRIDE =
+KOTS_BINARY_URL_OVERRIDE =
+OPERATOR_BINARY_URL_OVERRIDE =
 LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE) \
+	-X github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/metadata.K0sBinaryURLOverride=$(K0S_BINARY_URL_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/metadata.KOTSBinaryURLOverride=$(KOTS_BINARY_URL_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/cmd/embedded-cluster/metadata.OperatorBinaryURLOverride=$(OPERATOR_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \

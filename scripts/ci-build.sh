@@ -13,7 +13,10 @@ function require() {
 
 require EC_VERSION "${EC_VERSION}"
 require K0S_VERSION "${K0S_VERSION}"
+require KOTS_VERSION "${KOTS_VERSION}"
+require OPERATOR_VERSION "${OPERATOR_VERSION}"
 require LOCAL_ARTIFACT_MIRROR_IMAGE "${LOCAL_ARTIFACT_MIRROR_IMAGE}"
+require S3_BUCKET_PUBLIC_URL "${S3_BUCKET_PUBLIC_URL}"
 
 WORKDIR=
 
@@ -26,7 +29,10 @@ function workdir() {
 function build() {
     make -B embedded-cluster-linux-amd64 \
         K0S_VERSION="$K0S_VERSION" \
-        VERSION="$EC_VERSION"
+        VERSION="$EC_VERSION" \
+        K0S_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/k0s-binaries/${K0S_VERSION}" \
+        KOTS_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/kots-binaries/${KOTS_VERSION}" \
+        OPERATOR_BINARY_URL_OVERRIDE="${S3_BUCKET_PUBLIC_URL}/operator-binaries/${OPERATOR_VERSION}"
 }
 
 function archive() {
