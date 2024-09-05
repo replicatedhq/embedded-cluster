@@ -1,6 +1,6 @@
 package:
   name: embedded-cluster-operator
-  version: ${VERSION}
+  version: ${PACKAGE_VERSION}
   epoch: 0
   description: Embedded Cluster Operator
   copyright:

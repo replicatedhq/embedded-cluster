@@ -159,9 +159,7 @@ build-and-push-operator-image: melange-build-operator apko-build-and-publish
 build-chart:
 	cd charts/embedded-cluster-operator && ../../scripts/publish-helm-chart.sh
 	mkdir -p build
-	# remove the oci:// prefix from the chart remote and then add it back
-	echo $(shell $(call proxy_prefix,"$(CHART_REMOTE:oci://%=%)/embedded-cluster-operator:$(CHART_VERSION)") | sed 's/^/oci:\/\//') \
-		> build/chart
+	echo "$(CHART_REMOTE)/embedded-cluster-operator:$(CHART_VERSION)" > build/chart
 
 .PHONY: build-ttl.sh
 build-ttl.sh:

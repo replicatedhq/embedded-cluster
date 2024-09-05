@@ -16,7 +16,7 @@ function update_operator_metadata() {
     operator_image="$OPERATOR_IMAGE"
 
     INPUT_OPERATOR_CHART_URL=$(echo "$operator_chart" | rev | cut -d':' -f2- | rev)
-    if ! echo "$INPUT_OPERATOR_CHART_URL" | grep -q "oci://" ; then
+    if ! echo "$INPUT_OPERATOR_CHART_URL" | grep -q "^oci://" ; then
         INPUT_OPERATOR_CHART_URL="oci://$INPUT_OPERATOR_CHART_URL"
     fi
     INPUT_OPERATOR_CHART_VERSION=$(echo "$operator_chart" | rev | cut -d':' -f1 | rev)

@@ -20,7 +20,7 @@ accounts:
   run-as: 65532
 
 environment:
-  VERSION: ${VERSION}
+  VERSION: ${PACKAGE_VERSION}
 
 entrypoint:
   command: /manager
