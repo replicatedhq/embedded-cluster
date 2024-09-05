@@ -226,7 +226,11 @@ print-%:
 bootloose-debian:
 	docker build -t bootloose-debian -f dev/dockerfiles/bootloose-debian.Dockerfile dev/dockerfiles
 
-node%:
+create-node%:
+	@if ! docker images | grep -q bootloose-debian; then \
+		$(MAKE) bootloose-debian; \
+	fi
+
 	@docker run -d \
 		--name node$* \
 		--hostname node$* \
@@ -243,3 +247,6 @@ node%:
 
 ssh-node%:
 	@docker exec -it -w /replicatedhq/embedded-cluster node$* bash
+
+delete-node%:
+	@docker rm -f node$*
