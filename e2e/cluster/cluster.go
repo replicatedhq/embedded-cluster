@@ -740,13 +740,11 @@ func CreateNode(in *Input, i int) (string, string) {
 		}
 	}
 	ip := ""
-	for key, netState := range state.Network {
-		for _, addr := range netState.Addresses {
-			fmt.Printf("key: %s Family: %s IP: %s\n", key, addr.Family, addr.Address)
-			if addr.Family == "inet" {
-				ip = addr.Address
-				break
-			}
+	for _, addr := range state.Network["eth0"].Addresses {
+		fmt.Printf("Family: %s IP: %s\n", addr.Family, addr.Address)
+		if addr.Family == "inet" {
+			ip = addr.Address
+			break
 		}
 	}
 
