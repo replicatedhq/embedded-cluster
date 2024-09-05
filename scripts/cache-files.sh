@@ -1,81 +1,79 @@
 #!/bin/bash
 
-set -euox pipefail
+set -euo pipefail
 
-function require() {
-    if [ -z "$2" ]; then
-        echo "validation failed: $1 unset"
-        exit 1
-    fi
-}
+# shellcheck source=./common.sh
+source ./scripts/common.sh
+
+EC_VERSION=${EC_VERSION:-}
+K0S_VERSION=${K0S_VERSION:-}
+AWS_REGION="${AWS_REGION:-us-east-1}"
+S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 
 require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
 require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
 require AWS_REGION "${AWS_REGION}"
 require S3_BUCKET "${S3_BUCKET}"
 
-function retry() {
-    local retries=$1
-    shift
+function init_vars() {
+    if [ -z "${EC_VERSION:-}" ]; then
+        EC_VERSION=$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
+    fi
+    if [ -z "${K0S_VERSION:-}" ]; then
+        K0S_VERSION=$(make print-K0S_VERSION)
+    fi
 
-    local count=0
-    until "$@"; do
-        exit=$?
-        wait=$((2 ** $count))
-        count=$(($count + 1))
-        if [ $count -lt $retries ]; then
-            echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
-            sleep $wait
-        else
-            echo "Retry $count/$retries exited $exit, no more retries left."
-            return $exit
-        fi
-    done
-    return 0
+    require EC_VERSION "${EC_VERSION:-}"
+    require K0S_VERSION "${K0S_VERSION:-}"
 }
 
 function k0sbin() {
-    # first, figure out what version of k0s is in the current build
-    local k0s_version=
-    k0s_version=$(awk '/^K0S_VERSION/{print $3}' Makefile)
     local k0s_override=
-    k0s_override=$(awk '/^K0S_BINARY_SOURCE_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
+    k0s_override=$(make print-K0S_BINARY_SOURCE_OVERRIDE)
 
     # check if the binary already exists in the bucket
     local k0s_binary_exists=
-    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${k0s_version}" || true)
+    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${k0s_binary_exists}" ]; then
-        echo "k0s binary ${k0s_version} already exists in bucket ${S3_BUCKET}, skipping upload"
+        echo "k0s binary ${K0S_VERSION} already exists in bucket ${S3_BUCKET}, skipping upload"
         return 0
     fi
 
     # if the override is set, we should download this binary and upload it to the bucket so as not to require end users hit the override url
     if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
         echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
-        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "${k0s_version}" "${k0s_override}"
+        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "${K0S_VERSION}" "${k0s_override}"
     else
         # download the k0s binary from official sources
-        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
-        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
+        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-amd64"
+        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "${K0S_VERSION}" "https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-amd64"
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${k0s_version}" "s3://${S3_BUCKET}/k0s-binaries/${k0s_version}"
+    retry 3 aws s3 cp --no-progress "${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}"
 }
 
 function operatorbin() {
-    docker run --platform linux/amd64 -d --name operator "$OPERATOR_IMAGE"
+    local operator_image=
+
+    if [ ! -f "operator/build/image-$EC_VERSION" ]; then
+        fail "file operator/build/image-$EC_VERSION not found"
+    fi
+
+    operator_image=$(cat "operator/build/image-$EC_VERSION")
+
+    docker run --platform linux/amd64 -d --name operator "$operator_image"
     mkdir -p operator/bin
     docker cp operator:/manager operator/bin/operator
     docker rm -f operator
 
     # compress the operator binary
-    tar -czvf "${OPERATOR_VERSION}.tar.gz" -C operator/bin operator
+    tar -czvf "${EC_VERSION}.tar.gz" -C operator/bin operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${OPERATOR_VERSION}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${OPERATOR_VERSION}.tar.gz"
+    retry 3 aws s3 cp --no-progress "${EC_VERSION}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${EC_VERSION}.tar.gz"
 }
 
 function kotsbin() {
@@ -84,7 +82,7 @@ function kotsbin() {
     kots_version=$(make print-KOTS_VERSION)
 
     local kots_override=
-    kots_override=$(awk '/^KOTS_BINARY_URL_OVERRIDE/{gsub("\"", "", $3); print $3}' Makefile)
+    kots_override=$(make print-KOTS_BINARY_URL_OVERRIDE)
 
     # check if the binary already exists in the bucket
     local kots_binary_exists=
@@ -155,6 +153,7 @@ function embeddedcluster() {
 # there are three files to be uploaded for each release - the k0s binary, the metadata file, and the embedded-cluster release
 # the embedded cluster release does not exist for CI builds
 function main() {
+    init_vars
     k0sbin
     operatorbin
     kotsbin

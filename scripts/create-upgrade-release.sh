@@ -2,37 +2,13 @@
 
 set -eo pipefail
 
-function require() {
-    if [ -z "$2" ]; then
-        echo "validation failed: $1 unset"
-        exit 1
-    fi
-}
+# shellcheck source=./common.sh
+source ./scripts/common.sh
 
 require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
 require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
 require AWS_REGION "${AWS_REGION}"
 require S3_BUCKET "${S3_BUCKET}"
-
-function retry() {
-    local retries=$1
-    shift
-
-    local count=0
-    until "$@"; do
-        exit=$?
-        wait=$((2 ** $count))
-        count=$(($count + 1))
-        if [ $count -lt $retries ]; then
-            echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
-            sleep $wait
-        else
-            echo "Retry $count/$retries exited $exit, no more retries left."
-            return $exit
-        fi
-    done
-    return 0
-}
 
 function metadata() {
     if [ -z "${EC_VERSION}" ]; then

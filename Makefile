@@ -132,17 +132,10 @@ output/bins/kubectl-kots-%:
 	mv output/tmp/kots $@
 	touch $@
 
-output/tmp/release.tar.gz: e2e/kots-release-install/*
-	mkdir -p output/tmp
-	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
-
+.PHONY: output/bin/embedded-cluster-release-builder
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
-
-.PHONY: embedded-release
-embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
-	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 .PHONY: go.mod
 go.mod: Makefile

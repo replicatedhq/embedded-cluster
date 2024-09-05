@@ -76,74 +76,6 @@ jobs:
           exit 1
         fi
 
-  build-operator:
-    name: Build Operator
-    runs-on: ubuntu-latest
-    needs: [git-sha]
-    outputs:
-      operator-version: ${{ steps.operator-version.outputs.version }}
-      operator-image: ${{ steps.operator-image.outputs.image }}
-      operator-chart: ${{ steps.operator-chart.outputs.chart }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # fetch all history so that we can get the previous tag
-
-      - name: Cache Melange
-        uses: actions/cache@v4
-        with:
-          path: |
-            operator/build/.melange-cache
-          key: melange-cache
-
-      - name: Setup Melange
-        uses: chainguard-dev/actions/setup-melange@main
-      
-      - name: Output operator version
-        id: operator-version
-        run: |
-          echo "version=$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')" >> $GITHUB_OUTPUT
-
-      - name: Build and push operator image
-        id: operator-image
-        run: |
-          make -C operator apko build-ttl.sh
-          echo "image=$(cat operator/build/image)" >> $GITHUB_OUTPUT
-
-      - name: Build and push operator chart
-        id: operator-chart
-        run: |
-          make -C operator build-chart-ttl.sh
-          echo "chart=$(cat operator/build/chart)" >> $GITHUB_OUTPUT
-
-  build-images:
-    name: Build Images
-    outputs:
-      local-artifact-mirror: ${{ steps.local-artifact-mirror.outputs.image }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # fetch all history so that we can get the previous tag
-
-      - name: Cache Melange
-        uses: actions/cache@v4
-        with:
-          path: |
-            local-artifact-mirror/build/.melange-cache
-          key: melange-cache
-
-      - name: Setup Melange
-        uses: chainguard-dev/actions/setup-melange@main
-
-      - name: Build and push local-artifact-mirror image
-        id: local-artifact-mirror
-        run: |
-          make -C local-artifact-mirror apko build-ttl.sh
-          echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
-
   buildtools:
     name: Build Buildtools
     runs-on: ubuntu-latest
@@ -167,7 +99,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [git-sha, buildtools, build-images, build-operator]
+    needs:
+      - git-sha
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
       k0s_version_previous: ${{ steps.export.outputs.k0s_version_previous }}
@@ -183,81 +116,46 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
-      - name: Download buildtools artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: buildtools
-          path: output/bin
-
-      - name: Update embedded-cluster-operator metadata.yaml
-        env:
-          IMAGES_REGISTRY_SERVER: ttl.sh
-          OPERATOR_CHART: ${{ needs.build-operator.outputs.operator-chart }}
-          OPERATOR_IMAGE: ${{ needs.build-operator.outputs.operator-image }}
+      - name: Build LAM and Operator
         run: |
-          ./scripts/ci-update-operator-metadata.sh
+          ./scripts/ci-build-deps.sh
 
-      - name: Build Linux AMD64 and Output Metadata
+      - name: Build previous k0s release
         run: |
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
-          export S3_BUCKET_PUBLIC_URL=https://dev-embedded-cluster-bin.s3.amazonaws.com
-
-          # build previous k0s
-          export EC_VERSION="${SHORT_SHA}-previous-k0s"
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
-          export KOTS_VERSION=$(make print-KOTS_VERSION)
-          export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
           ./scripts/ci-build.sh
+          mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
           mv embedded-cluster-linux-amd64.tgz embedded-cluster-linux-amd64-previous-k0s.tgz
           mv metadata.json metadata-previous-k0s.json
 
-          # build upgrade
-          export EC_VERSION="${SHORT_SHA}-upgrade"
+      - name: Build upgrade release
+        run: |
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')-upgrade" 
           export K0S_VERSION=$(make print-K0S_VERSION)
-          export KOTS_VERSION=$(make print-KOTS_VERSION)
-          export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
           ./scripts/ci-build.sh
+          mv output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
           mv embedded-cluster-linux-amd64.tgz embedded-cluster-linux-amd64-upgrade.tgz
           mv metadata.json metadata-upgrade.json
 
-          # build current
-          export EC_VERSION="${SHORT_SHA}"
+      - name: Build release
+        run: |
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
           export K0S_VERSION=$(make print-K0S_VERSION)
-          export KOTS_VERSION=$(make print-KOTS_VERSION)
-          export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
           ./scripts/ci-build.sh
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: embedded-binary
-          path: |
-            output/bin/embedded-cluster
+          cp output/bin/embedded-cluster output/bin/embedded-cluster-original
 
       - name: Build CI binary
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="${SHORT_SHA}"
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
 
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-images.outputs.local-artifact-mirror }}
-          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-operator.outputs.operator-image }}
-          echo "# channel release object" > e2e/kots-release-install/release.yaml
-          echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"' >> e2e/kots-release-install/release.yaml
-          echo 'channelSlug: "ci"' >> e2e/kots-release-install/release.yaml
-          echo 'appSlug: "embedded-cluster-smoke-test-staging-app"' >> e2e/kots-release-install/release.yaml
-          echo "versionLabel: \"${APP_VERSION}\"" >> e2e/kots-release-install/release.yaml
-          cat e2e/kots-release-install/release.yaml
+          ./scripts/ci-embed-release.sh EC_BINARY=output/bin/embedded-cluster-original
+          # this is done after the metadata.json is generated so as to not include additional charts
+          ./scripts/ci-embed-release.sh EC_BINARY=output/bin/embedded-cluster-previous-k0s
 
-          # ensure that the cluster config embedded in the CI binaries is correct
-          sed -i "s/__version_string__/${EC_VERSION}/g" e2e/kots-release-install/cluster-config.yaml
           sed -i "s/__version_string__/${EC_VERSION}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
-
-          cp output/bin/embedded-cluster output/bin/embedded-cluster-original
-          make -B embedded-release K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION) VERSION="${EC_VERSION}-previous-k0s"
-          mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
-          make -B embedded-release VERSION="${EC_VERSION}" # this is done after the metadata.json is generated so as to not include additional charts
 
       - name: Cache files for integration test
         env:
@@ -266,10 +164,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="${SHORT_SHA}"
-          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.build-operator.outputs.operator-image }}
-          export OPERATOR_VERSION=${{ needs.build-operator.outputs.operator-version }}
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
+          export K0S_VERSION=$(make print-K0S_VERSION)
 
           ./scripts/cache-files.sh
           ./scripts/create-upgrade-release.sh
@@ -283,7 +179,6 @@ jobs:
             output/bin/embedded-cluster
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-previous-k0s
-            output/bin/embedded-cluster-release-builder
 
       - name: Export K0s Version
         id: export
@@ -338,8 +233,6 @@ jobs:
     needs:
       - git-sha
       - build
-      - build-images
-      - build-operator
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -361,7 +254,7 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="${SHORT_SHA}"
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
 
           sed -i "s/__version_string__/${EC_VERSION}/g" e2e/kots-release-install/cluster-config.yaml
@@ -387,7 +280,7 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="${SHORT_SHA}"
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
 
           # airgap tests install the previous k0s version to ensure an upgrade occurs
@@ -403,7 +296,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="${SHORT_SHA}"
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
           
           echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
@@ -461,8 +354,6 @@ jobs:
     runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     needs:
       - build
-      - build-images
-      - build-operator
       - release-app
     strategy:
       fail-fast: false
