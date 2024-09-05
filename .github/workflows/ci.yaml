@@ -110,6 +110,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache Melange
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/.melange-cache
+          key: melange-cache
+
+      - name: Setup Melange
+        uses: chainguard-dev/actions/setup-melange@main
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:

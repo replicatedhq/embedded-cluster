@@ -2,14 +2,8 @@
 
 set -euo pipefail
 
-function require() {
-    if [ -z "$2" ]; then
-        echo "validation failed: $1 unset"
-        exit 1
-    else
-        echo "$1 is set to $2"
-    fi
-}
+# shellcheck source=./common.sh
+source ./scripts/common.sh
 
 require OPERATOR_CHART "${OPERATOR_CHART}"
 require OPERATOR_IMAGE "${OPERATOR_IMAGE}"
