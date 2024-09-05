@@ -277,10 +277,10 @@ jobs:
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}-pre-minio-removal"
 
           # install the previous k0s version to ensure an upgrade occurs
-          sed -i "s/${EC_VERSION}/${EC_VERSION}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i .bak "s/${EC_VERSION//./\\.}/${EC_VERSION//./\\.}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${APP_VERSION}-previous-k0s"
           # return the cluster config to the current version
-          sed -i "s/${EC_VERSION}-previous-k0s/${EC_VERSION}/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i .bak "s/${EC_VERSION//./\\.}-previous-k0s/${EC_VERSION//./\\.}/g" e2e/kots-release-install/cluster-config.yaml
 
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${APP_VERSION}"
           replicated release create --yaml-dir e2e/kots-release-install --promote CI --version "${APP_VERSION}-noop"
@@ -297,10 +297,10 @@ jobs:
           export APP_VERSION="appver-${SHORT_SHA}"
 
           # airgap tests install the previous k0s version to ensure an upgrade occurs
-          sed -i "s/${EC_VERSION}/${EC_VERSION}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i .bak "s/${EC_VERSION//./\\.}/${EC_VERSION//./\\.}-previous-k0s/g" e2e/kots-release-install/cluster-config.yaml
           replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "${APP_VERSION}-previous-k0s"
           # return the cluster config to the current version
-          sed -i "s/${EC_VERSION}-previous-k0s/${EC_VERSION}/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i .bak "s/${EC_VERSION//./\\.}-previous-k0s/${EC_VERSION//./\\.}/g" e2e/kots-release-install/cluster-config.yaml
 
           replicated release create --yaml-dir e2e/kots-release-install --promote CI-airgap --version "${APP_VERSION}"
           replicated release create --yaml-dir e2e/kots-release-upgrade --promote CI-airgap --version "${APP_VERSION}-upgrade"
