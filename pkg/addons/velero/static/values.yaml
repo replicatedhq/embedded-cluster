@@ -28,7 +28,7 @@ initContainers:
 kubectl:
   image:
     repository: 'proxy.replicated.com/anonymous/replicated/ec-kubectl'
-    tag: '1.31.0-r1@sha256:f700cf784d16b0b9071a9e03e7ff0419df020552425a4e6b2c2001712af26a81'
+    tag: '1.31.0-r2@sha256:df5a0eac8915bf61edbc05e3e9cd31772a565eee72163965c547acf8665ff3b3'
 configMaps:
   fs-restore-action-config:
     labels:
