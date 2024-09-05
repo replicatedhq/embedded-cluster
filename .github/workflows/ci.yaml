@@ -126,9 +126,15 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - name: Export env vars
+        run: |
+          echo "K0S_VERSION=$(make print-K0S_VERSION)" >> $GITHUB_ENV
+          echo "EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')" >> $GITHUB_ENV
+          echo "SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}" >> $GITHUB_ENV
+          echo "APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}" >> $GITHUB_ENV
+
       - name: Build LAM and Operator
         run: |
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
           ./scripts/ci-build-deps.sh
           cp "local-artifact-mirror/build/image-$EC_VERSION" "local-artifact-mirror/build/image-$EC_VERSION-previous-k0s"
           cp "local-artifact-mirror/build/image-$EC_VERSION" "local-artifact-mirror/build/image-$EC_VERSION-upgrade"
@@ -139,7 +145,7 @@ jobs:
 
       - name: Build previous k0s release
         run: |
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
+          export EC_VERSION="${EC_VERSION}-previous-k0s"
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
           ./scripts/ci-build.sh
           mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
@@ -148,8 +154,7 @@ jobs:
 
       - name: Build upgrade release
         run: |
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')-upgrade" 
-          export K0S_VERSION=$(make print-K0S_VERSION)
+          export EC_VERSION="${EC_VERSION}-upgrade"
           ./scripts/ci-build.sh
           mv output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
           mv embedded-cluster-linux-amd64.tgz embedded-cluster-linux-amd64-upgrade.tgz
@@ -157,17 +162,11 @@ jobs:
 
       - name: Build release
         run: |
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
-          export K0S_VERSION=$(make print-K0S_VERSION)
           ./scripts/ci-build.sh
           cp output/bin/embedded-cluster output/bin/embedded-cluster-original
 
       - name: Build CI binary
         run: |
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
-          export APP_VERSION="appver-${SHORT_SHA}"
-
           ./scripts/ci-embed-release.sh EC_BINARY=output/bin/embedded-cluster-original
           # this is done after the metadata.json is generated so as to not include additional charts
           ./scripts/ci-embed-release.sh EC_BINARY=output/bin/embedded-cluster-previous-k0s
@@ -181,9 +180,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
-          export K0S_VERSION=$(make print-K0S_VERSION)
-
           ./scripts/cache-files.sh
           ./scripts/create-upgrade-release.sh
           ./scripts/create-previous-k0s-release.sh
@@ -271,7 +267,7 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
 
           sed -i "s/__version_string__/${EC_VERSION}/g" e2e/kots-release-install/cluster-config.yaml
@@ -297,7 +293,7 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
 
           # airgap tests install the previous k0s version to ensure an upgrade occurs
@@ -313,9 +309,9 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
-          
+
           echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
           echo "" >> download-link.txt
           echo "Online Installer:" >> download-link.txt

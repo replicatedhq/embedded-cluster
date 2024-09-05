@@ -11,7 +11,7 @@ EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
-        EC_VERSION=$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
+        EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
     fi
     if [ -z "${APP_VERSION:-}" ]; then
         local short_sha=

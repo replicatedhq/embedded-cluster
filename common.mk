@@ -9,12 +9,26 @@ $(LOCALBIN):
 MELANGE ?= $(LOCALBIN)/melange
 APKO ?= $(LOCALBIN)/apko
 
+## Version to use for building
+VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+.PHONY: print-%
+print-%:
+	@echo -n $($*)
+
+.PHONY: check-env-%
+check-env-%:
+	@ if [ "${${*}}" = "" ]; then \
+		echo "Environment variable $* not set"; \
+		exit 1; \
+	fi
 
 melange: $(MELANGE)
 $(MELANGE): $(LOCALBIN)
@@ -105,9 +119,3 @@ melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
 apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
 	envsubst '$${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
-
-check-env-%:
-	@ if [ "${${*}}" = "" ]; then \
-		echo "Environment variable $* not set"; \
-		exit 1; \
-	fi

@@ -2,7 +2,6 @@ SHELL := /bin/bash
 
 include common.mk
 
-VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
 CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
@@ -233,6 +232,3 @@ buildtools:
 .PHONY: cache-files
 cache-files:
 	./scripts/cache-files.sh
-
-print-%:
-	@echo -n $($*)

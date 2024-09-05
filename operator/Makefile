@@ -133,7 +133,7 @@ $(ENVTEST): $(LOCALBIN)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-export PACKAGE_VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
+export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAMESPACE ?= replicated
 export IMAGE_NAME ?= $(IMAGE_NAMESPACE)/embedded-cluster-operator-image
 export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')
