@@ -191,6 +191,7 @@ jobs:
             output/bin/embedded-cluster
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-previous-k0s
+            output/bin/embedded-cluster-release-builder
 
       - name: Export K0s Version
         id: export
@@ -217,7 +218,7 @@ jobs:
       - name: Download embedded-cluster artifact
         uses: actions/download-artifact@v4
         with:
-          name: embedded-binary
+          name: embedded-release
           path: output/bin
       - name: Check for missing images
         run: |
