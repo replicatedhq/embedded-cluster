@@ -33,8 +33,8 @@ func TestProxiedEnvironment(t *testing.T) {
 	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	line = append(line, "--no-proxy", cluster.NOProxy)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -130,10 +130,10 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	line = append(line, "--no-proxy", cluster.NOProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
