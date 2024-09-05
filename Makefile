@@ -240,8 +240,7 @@ create-node%:
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p 30000:30000) \
-		bootloose-debian \
-		/sbin/init
+		bootloose-debian
 
 	@$(MAKE) ssh-node$*
 
