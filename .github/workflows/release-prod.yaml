@@ -176,8 +176,7 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
-          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
-          export OPERATOR_VERSION=$(echo "${{ needs.get-tag.outputs.tag-name }}" | sed 's/^v//')
+          echo "${{ needs.publish-operator-image.outputs.image }}" > "operator/build/image-$EC_VERSION"
 
           ./scripts/cache-files.sh
 
@@ -189,8 +188,7 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
-          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
-          export OPERATOR_VERSION=$(echo "${{ needs.get-tag.outputs.tag-name }}" | sed 's/^v//')
+          echo "${{ needs.publish-operator-image.outputs.image }}" > "operator/build/image-$EC_VERSION"
 
           ./scripts/cache-files.sh
 

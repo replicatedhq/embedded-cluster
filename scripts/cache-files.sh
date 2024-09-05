@@ -56,13 +56,15 @@ function k0sbin() {
 }
 
 function operatorbin() {
-    local operator_image=
+    local operator_image=""
+    local operator_version=""
 
     if [ ! -f "operator/build/image-$EC_VERSION" ]; then
         fail "file operator/build/image-$EC_VERSION not found"
     fi
 
     operator_image=$(cat "operator/build/image-$EC_VERSION")
+    operator_version="${EC_VERSION#v}" # remove the 'v' prefix
 
     docker run --platform linux/amd64 -d --name operator "$operator_image"
     mkdir -p operator/bin
@@ -70,10 +72,10 @@ function operatorbin() {
     docker rm -f operator
 
     # compress the operator binary
-    tar -czvf "${EC_VERSION}.tar.gz" -C operator/bin operator
+    tar -czvf "${operator_version}.tar.gz" -C operator/bin operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${EC_VERSION}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${EC_VERSION}.tar.gz"
+    retry 3 aws s3 cp --no-progress "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
 }
 
 function kotsbin() {
