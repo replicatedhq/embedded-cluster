@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            build/.melange-cache
+            operator/build/.melange-cache
           key: melange-cache
 
       - name: Setup Melange
@@ -113,7 +113,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            build/.melange-cache
+            local-artifact-mirror/build/.melange-cache
           key: melange-cache
 
       - name: Setup Melange

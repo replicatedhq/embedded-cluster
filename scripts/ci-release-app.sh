@@ -3,12 +3,17 @@
 # shellcheck source=./common.sh
 source ./scripts/common.sh
 
-set -euxo pipefail
+set -euo pipefail
 
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
+APP_CHANNEL=${APP_CHANNEL:-Unstable}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
-EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
+REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
+
+require REPLICATED_APP "${REPLICATED_APP:-}"
+require REPLICATED_API_TOKEN "${REPLICATED_API_TOKEN:-}"
+require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -25,49 +30,32 @@ function init_vars() {
 
     require EC_VERSION "${EC_VERSION:-}"
     require APP_VERSION "${APP_VERSION:-}"
+    require APP_CHANNEL "${APP_CHANNEL:-}"
     require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
-    require EC_BINARY "${EC_BINARY:-}"
 }
 
-function deps() {
-    make output/bin/embedded-cluster-release-builder
+function ensure_app_channel() {
+    if ! replicated app channels list | grep -q "${APP_CHANNEL}"; then
+        fail "app channel ${APP_CHANNEL} not found"
+    fi
 }
 
 function create_release() {
+    if ! command -v replicated &> /dev/null; then
+        fail "replicated command not found"
+    fi
+
     rm -rf output/tmp/release
     mkdir -p output/tmp
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
 
-    {
-        echo "# channel release object"
-        echo 'channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"'
-        echo 'channelSlug: "ci"'
-        echo 'appSlug: "embedded-cluster-smoke-test-staging-app"'
-        echo "versionLabel: \"${APP_VERSION}\""
-    } > output/tmp/release/release.yaml
-
-    # ensure that the cluster config embedded in the CI binaries is correct
     sed -i.bak "s/__version_string__/${EC_VERSION}/g" output/tmp/release/cluster-config.yaml
-
-    tar -czf output/tmp/release.tar.gz -C output/tmp/release .
-
-    log "created output/tmp/release.tar.gz"
-}
-
-function build() {
-    if [ ! -f "$EC_BINARY" ]; then
-        fail "file $EC_BINARY not found"
-    fi
-
-    ./output/bin/embedded-cluster-release-builder \
-        "$EC_BINARY" output/tmp/release.tar.gz "$EC_BINARY"
+    replicated release create --yaml-dir output/tmp/release --promote "${APP_CHANNEL}" --version "${APP_VERSION}"
 }
 
 function main() {
     init_vars
-    deps
     create_release
-    build
 }
 
 main "$@"
