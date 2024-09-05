@@ -128,7 +128,14 @@ jobs:
 
       - name: Build LAM and Operator
         run: |
+          export EC_VERSION="$(git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')"
           ./scripts/ci-build-deps.sh
+          cp "local-artifact-mirror/build/image-$EC_VERSION" "local-artifact-mirror/build/image-$EC_VERSION-previous-k0s"
+          cp "local-artifact-mirror/build/image-$EC_VERSION" "local-artifact-mirror/build/image-$EC_VERSION-upgrade"
+          cp "operator/build/image-$EC_VERSION" "operator/build/image-$EC_VERSION-previous-k0s"
+          cp "operator/build/image-$EC_VERSION" "operator/build/image-$EC_VERSION-upgrade"
+          cp "operator/build/chart-$EC_VERSION" "operator/build/chart-$EC_VERSION-previous-k0s"
+          cp "operator/build/chart-$EC_VERSION" "operator/build/chart-$EC_VERSION-upgrade"
 
       - name: Build previous k0s release
         run: |
