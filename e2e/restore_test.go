@@ -115,7 +115,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -125,7 +125,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
@@ -144,13 +144,13 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
 	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
@@ -220,7 +220,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
@@ -284,7 +284,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
@@ -316,7 +316,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	testArgs = append(testArgs, "--pod-cidr", "10.128.0.0/20", "--service-cidr", "10.129.0.0/20")
 	line = append([]string{"restore-installation-airgap.exp"}, testArgs...)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
 	t.Logf("%s: checking installation state after restoring app", time.Now().Format(time.RFC3339))
@@ -594,7 +594,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh", "--proxy"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -685,7 +685,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// begin restoring the cluster
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-multi-node-airgap-phase1.exp"}, testArgs...)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to restore phase 1 of the installation: %v", err)
 	}
 
@@ -734,7 +734,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	line = []string{"restore-multi-node-airgap-phase2.exp"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
 	}
 
