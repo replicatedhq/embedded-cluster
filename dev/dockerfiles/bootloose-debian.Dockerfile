@@ -3,6 +3,7 @@ FROM debian:bookworm-slim
 
 # Install necessary packages
 RUN apt-get update && apt-get install -y \
+  sudo \
   systemd \
   openssh-server \
   bash \
