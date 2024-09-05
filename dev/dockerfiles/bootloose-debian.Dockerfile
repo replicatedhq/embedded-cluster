@@ -21,3 +21,5 @@ COPY ./timesyncd-override.conf /etc/systemd/system/systemd-timesyncd.service.d/o
 
 # Export kube config
 ENV KUBECONFIG=/var/lib/k0s/pki/admin.conf
+
+CMD ["/sbin/init"]
