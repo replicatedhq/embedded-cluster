@@ -44,7 +44,7 @@ function create_release() {
     } > output/tmp/kots-release-install/release.yaml
 
     # ensure that the cluster config embedded in the CI binaries is correct
-    sed -i .bak "s/__version_string__/$EC_VERSION/g" output/tmp/kots-release-install/cluster-config.yaml
+    sed -i .bak "s/__version_string__/$EC_VERSION//./\\./g" output/tmp/kots-release-install/cluster-config.yaml
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/kots-release-install .
 

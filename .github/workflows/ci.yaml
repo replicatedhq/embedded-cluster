@@ -270,8 +270,8 @@ jobs:
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
 
-          sed -i "s/__version_string__/${EC_VERSION}/g" e2e/kots-release-install/cluster-config.yaml
-          sed -i "s/__version_string__/${EC_VERSION}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+          sed -i .bak "s/__version_string__/${EC_VERSION//./\\.}/g" e2e/kots-release-install/cluster-config.yaml
+          sed -i .bak "s/__version_string__/${EC_VERSION//./\\.}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
 
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}-pre-minio-removal"
