@@ -84,6 +84,7 @@ type Dir struct {
 // names and the cluster id.
 type Output struct {
 	Nodes   []string
+	IPs     []string
 	network string
 	id      string
 	T       *testing.T
@@ -216,7 +217,7 @@ func NewTestCluster(in *Input) *Output {
 	}
 	CreateProfile(in)
 	CreateNetworks(in)
-	out.Nodes = CreateNodes(in)
+	out.Nodes, out.IPs = CreateNodes(in)
 	for _, node := range out.Nodes {
 		CopyFilesToNode(in, node)
 		CopyDirsToNode(in, node)
@@ -573,18 +574,20 @@ func CopyFileFromNode(node, source, dest string) error {
 
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
-func CreateNodes(in *Input) []string {
+func CreateNodes(in *Input) ([]string, []string) {
 	nodes := []string{}
+	IPs := []string{}
 	for i := 0; i < in.Nodes; i++ {
-		node := CreateNode(in, i)
+		node, ip := CreateNode(in, i)
 		if !in.WithProxy {
 			NodeHasInternet(in, node)
 		} else {
 			NodeHasNoInternet(in, node)
 		}
 		nodes = append(nodes, node)
+		IPs = append(IPs, ip)
 	}
-	return nodes
+	return nodes, IPs
 }
 
 // NodeHasInternet checks if the node has internet access. It does this by
@@ -687,7 +690,7 @@ func NodeHasNoInternet(in *Input, node string) {
 // CreateNode creates a single node. The i here is used to create a unique
 // name for the node. Node is named as "node-<cluster id>-<i>". The node
 // name is returned.
-func CreateNode(in *Input, i int) string {
+func CreateNode(in *Input, i int) (string, string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -736,7 +739,18 @@ func CreateNode(in *Input, i int) string {
 			in.T.Fatalf("Failed to get node state %s: %v", name, err)
 		}
 	}
-	return name
+	ip := ""
+	for key, netState := range state.Network {
+		for _, addr := range netState.Addresses {
+			fmt.Printf("key: %s Family: %s IP: %s\n", key, addr.Family, addr.Address)
+			if addr.Family == "inet" {
+				ip = addr.Address
+				break
+			}
+		}
+	}
+
+	return name, ip
 }
 
 // CreateNetworks create two networks, one of type bridge and inside of it another one of

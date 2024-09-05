@@ -114,7 +114,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	line = append(line, "--no-proxy", cluster.NOProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -143,7 +143,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line = append([]string{"restore-installation.exp"}, testArgs...)
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	line = append(line, "--no-proxy", cluster.NOProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv()); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
