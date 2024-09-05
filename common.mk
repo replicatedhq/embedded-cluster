@@ -94,7 +94,7 @@ apko-output-image:
 		exit 1; \
 	fi ; \
 	mkdir -p build; \
-	echo "$(IMAGE)@$$digest" > build/image
+	echo "proxy.replicated.com/anonymous/$(IMAGE)@$$digest" > build/image
 
 .PHONY: melange-build
 melange-build: ARCHS ?= amd64
