@@ -10,10 +10,10 @@ location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts
 images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
-        tag: 1.31.0-r1@sha256:f700cf784d16b0b9071a9e03e7ff0419df020552425a4e6b2c2001712af26a81
+        tag: 1.31.0-r2@sha256:df5a0eac8915bf61edbc05e3e9cd31772a565eee72163965c547acf8665ff3b3
     openebs-linux-utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils
-        tag: 4.1.0@sha256:b131d871392d490712221179858f2a12be1f45d16870f583a437474a5c442683
+        tag: 4.1.0@sha256:7bf9009eec94ad8693e76e38bf437b254d275436291df365ac4e8861c2f98902
     openebs-provisioner-localpv:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv
         tag: 4.1.0-r0@sha256:db2f923716896fbb18835e488f70dd68bfa97b3edbf4dc14c5942c0761e6747c
