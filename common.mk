@@ -19,6 +19,11 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+define proxy_prefix
+    $(eval $@_IMAGE = $(1))
+    echo "proxy.replicated.com/anonymous/$(shell echo ${$@_IMAGE} | sed 's/^proxy.replicated.com\/anonymous\///g')"
+endef
+
 .PHONY: print-%
 print-%:
 	@echo -n $($*)
@@ -94,7 +99,7 @@ apko-output-image:
 		exit 1; \
 	fi ; \
 	mkdir -p build; \
-	echo "proxy.replicated.com/anonymous/$(IMAGE)@$$digest" > build/image
+	$(call proxy_prefix,"$(IMAGE)@$$digest") > build/image
 
 .PHONY: melange-build
 melange-build: ARCHS ?= amd64

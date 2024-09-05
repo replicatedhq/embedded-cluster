@@ -159,7 +159,7 @@ build-and-push-operator-image: melange-build-operator apko-build-and-publish
 build-chart:
 	cd charts/embedded-cluster-operator && ../../scripts/publish-helm-chart.sh
 	mkdir -p build
-	echo "oci://proxy.replicated.com/anonymous/$(shell echo $(CHART_REMOTE) | sed 's/^oci:\/\///g')/embedded-cluster-operator:$(CHART_VERSION)" \
+	$(call proxy_prefix,"$(shell echo $(CHART_REMOTE) | sed 's/^oci:\/\///g')/embedded-cluster-operator:$(CHART_VERSION)") \
 		> build/chart
 
 .PHONY: build-ttl.sh
