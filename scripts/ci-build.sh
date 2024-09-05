@@ -64,11 +64,14 @@ function update_operator_metadata() {
     operator_image=$(cat "operator/build/image-$EC_VERSION")
 
     INPUT_OPERATOR_CHART_URL=$(echo "$operator_chart" | rev | cut -d':' -f2- | rev)
-    if ! echo "$INPUT_OPERATOR_CHART_URL" | grep -q "oci://" ; then
-        INPUT_OPERATOR_CHART_URL="oci://$INPUT_OPERATOR_CHART_URL"
-    fi
+    # ensure that the chart url is in the format oci://proxy.replicated.com/anonymous/<chart-url>
+    INPUT_OPERATOR_CHART_URL="$(echo "$INPUT_OPERATOR_CHART_URL" | sed 's/^oci:\/\///g' | sed 's/proxy.replicated.com\/anonymous\///g')"
+    INPUT_OPERATOR_CHART_URL="oci://proxy.replicated.com/anonymous/$INPUT_OPERATOR_CHART_URL"
     INPUT_OPERATOR_CHART_VERSION=$(echo "$operator_chart" | rev | cut -d':' -f1 | rev)
     INPUT_OPERATOR_IMAGE=$(echo "$operator_image" | cut -d':' -f1)
+    # ensure that the image url is in the format oci://proxy.replicated.com/anonymous/<image-url>
+    INPUT_OPERATOR_IMAGE="$(echo "$INPUT_OPERATOR_IMAGE" | sed 's/^oci:\/\///g' | sed 's/proxy.replicated.com\/anonymous\///g')"
+    INPUT_OPERATOR_IMAGE="oci://proxy.replicated.com/anonymous/$INPUT_OPERATOR_IMAGE"
 
     export IMAGES_REGISTRY_SERVER=ttl.sh
     export INPUT_OPERATOR_CHART_URL
