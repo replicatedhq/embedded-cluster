@@ -171,7 +171,7 @@ jobs:
           # this is done after the metadata.json is generated so as to not include additional charts
           ./scripts/ci-embed-release.sh EC_BINARY=output/bin/embedded-cluster-previous-k0s
 
-          sed -i "s/__version_string__/${EC_VERSION}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
+          sed -i .bak "s/__version_string__/${EC_VERSION//./\\.}-upgrade/g" e2e/kots-release-upgrade/cluster-config.yaml
 
       - name: Cache files for integration test
         env:
