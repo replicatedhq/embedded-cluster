@@ -10,7 +10,9 @@ APP_VERSION=${APP_VERSION:-}
 APP_CHANNEL=${APP_CHANNEL:-Unstable}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
+S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 
+require S3_BUCKET "${S3_BUCKET:-}"
 require REPLICATED_APP "${REPLICATED_APP:-}"
 require REPLICATED_API_TOKEN "${REPLICATED_API_TOKEN:-}"
 require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
@@ -49,7 +51,13 @@ function create_release() {
     mkdir -p output/tmp
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
 
-    sed -i.bak "s/__version_string__/${EC_VERSION}/g" output/tmp/release/cluster-config.yaml
+    local release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v${EC_VERSION#v}.tgz"
+    local metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v${EC_VERSION#v}.json"
+
+    sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
+    sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
+    sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
+
     replicated release create --yaml-dir output/tmp/release --promote "${APP_CHANNEL}" --version "${APP_VERSION}"
 }
 

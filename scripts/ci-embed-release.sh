@@ -47,7 +47,10 @@ function create_release() {
     } > output/tmp/release/release.yaml
 
     # ensure that the cluster config embedded in the CI binaries is correct
-    sed -i.bak "s/__version_string__/${EC_VERSION}/g" output/tmp/release/cluster-config.yaml
+    sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
+    # remove the release and metadata override urls
+    sed -i.bak "s|__release_url__||g" output/tmp/release/cluster-config.yaml
+    sed -i.bak "s|__metadata_url__||g" output/tmp/release/cluster-config.yaml
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 

@@ -115,16 +115,11 @@ function metadata() {
         return 0
     fi
 
-    # append a 'v' prefix to the version if it doesn't already have one
-    local version="$EC_VERSION"
-    if ! echo "$version" | grep -q "^v"; then
-        version="v$version"
-    fi
-
     # check if a file 'metadata.json' exists in the directory
-    # if it does, upload it as metadata/${version}.json
+    # if it does, upload it as metadata/v${EC_VERSION}.json
     if [ -f metadata.json ]; then
-        retry 3 aws s3 cp --no-progress metadata.json "s3://${S3_BUCKET}/metadata/${version}.json"
+        # append a 'v' prefix to the version if it doesn't already have one
+        retry 3 aws s3 cp --no-progress metadata.json "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}.json"
     else
         echo "metadata.json not found, skipping upload"
     fi
@@ -137,16 +132,11 @@ function embeddedcluster() {
         return 0
     fi
 
-    # append a 'v' prefix to the version if it doesn't already have one
-    local version="$EC_VERSION"
-    if ! echo "$version" | grep -q "^v"; then
-        version="v$version"
-    fi
-
     # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
-    # if it does, upload it as releases/${version}.tgz
+    # if it does, upload it as releases/v${EC_VERSION}.tgz
     if [ -f embedded-cluster-linux-amd64.tgz ]; then
-        retry 3 aws s3 cp --no-progress embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/${version}.tgz"
+        # append a 'v' prefix to the version if it doesn't already have one
+        retry 3 aws s3 cp --no-progress embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/v${EC_VERSION#v}.tgz"
     else
         echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
     fi

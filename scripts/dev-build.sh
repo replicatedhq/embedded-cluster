@@ -16,6 +16,8 @@ REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.co
 require REPLICATED_APP "${REPLICATED_APP:-}"
 require REPLICATED_API_TOKEN "${REPLICATED_API_TOKEN:-}"
 require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
+require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID:-}"
+require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY:-}"
 
 function main() {
     if [ -z "${EC_VERSION:-}" ]; then
