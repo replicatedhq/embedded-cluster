@@ -74,7 +74,7 @@ function update_operator_metadata() {
     export INPUT_OPERATOR_CHART_URL
     export INPUT_OPERATOR_CHART_VERSION
     export INPUT_OPERATOR_IMAGE
-    ./output/bin/buildtools update addon embeddedclusteroperator
+    ./output/bin/buildtools update addon embeddedclusteroperator --skip-build-and-publish
 }
 
 function archive() {

@@ -27,6 +27,12 @@ var updateOperatorAddonCommand = &cli.Command{
 	Name:      "embeddedclusteroperator",
 	Usage:     "Updates the Embedded Cluster Operator addon",
 	UsageText: environmentUsageText,
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "skip-build-and-publish",
+			Usage: "Skip building and publishing the operator image",
+		},
+	},
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating embedded cluster operator addon")
 
@@ -69,7 +75,7 @@ var updateOperatorAddonCommand = &cli.Command{
 			}
 		}
 
-		err := updateOperatorAddonImages(c.Context, chartURL, nextChartVersion)
+		err := updateOperatorAddonImages(c.Context, chartURL, nextChartVersion, c.Bool("skip-build-and-publish"))
 		if err != nil {
 			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
 		}
@@ -84,12 +90,18 @@ var updateOperatorImagesCommand = &cli.Command{
 	Name:      "embeddedclusteroperator",
 	Usage:     "Updates the embedded cluster operator images",
 	UsageText: environmentUsageText,
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "skip-build-and-publish",
+			Usage: "Skip building and publishing the operator image",
+		},
+	},
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating embedded cluster operator images")
 
 		current := embeddedclusteroperator.Metadata
 
-		err := updateOperatorAddonImages(c.Context, current.Location, current.Version)
+		err := updateOperatorAddonImages(c.Context, current.Location, current.Version, c.Bool("skip-build-and-publish"))
 		if err != nil {
 			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
 		}
@@ -100,7 +112,7 @@ var updateOperatorImagesCommand = &cli.Command{
 	},
 }
 
-func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersion string) error {
+func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersion string, skipBuildAndPublish bool) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -131,7 +143,7 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
+		repo, tag, err := component.resolveImageRepoAndTag(ctx, image, skipBuildAndPublish)
 		if err != nil {
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}

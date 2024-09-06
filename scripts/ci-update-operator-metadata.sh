@@ -26,7 +26,7 @@ function update_operator_metadata() {
     export INPUT_OPERATOR_CHART_VERSION
     export INPUT_OPERATOR_IMAGE
     chmod +x ./output/bin/buildtools
-    ./output/bin/buildtools update addon embeddedclusteroperator
+    ./output/bin/buildtools update addon embeddedclusteroperator --skip-build-and-publish
 }
 
 function main() {
