@@ -33,7 +33,7 @@ function deps() {
     make output/bin/embedded-cluster-release-builder
 }
 
-function create_release() {
+function create_release_archive() {
     rm -rf output/tmp/release
     mkdir -p output/tmp
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
@@ -69,7 +69,7 @@ function build() {
 function main() {
     init_vars
     deps
-    create_release
+    create_release_archive
     build
 }
 
