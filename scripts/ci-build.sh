@@ -73,6 +73,10 @@ function update_operator_metadata() {
     export INPUT_OPERATOR_CHART_URL
     export INPUT_OPERATOR_CHART_VERSION
     export INPUT_OPERATOR_IMAGE
+
+    mkdir -p build
+    cp "operator/build/image-$EC_VERSION" build/image
+
     ./output/bin/buildtools update addon embeddedclusteroperator --skip-build-and-publish
 }
 
