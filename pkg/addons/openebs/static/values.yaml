@@ -27,7 +27,7 @@ localpv-provisioner:
     image:
       registry: proxy.replicated.com/anonymous/
       repository: 'replicated/ec-openebs-linux-utils'
-      tag: '4.1.0@sha256:7bf9009eec94ad8693e76e38bf437b254d275436291df365ac4e8861c2f98902'
+      tag: '4.1.0@sha256:2d327da15096714a9faee10d1e27b0949b239d5fdf9a262caaa32f66a3c4fb70'
   hostpathClass:
     enabled: true
     isDefaultClass: true
