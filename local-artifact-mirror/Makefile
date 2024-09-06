@@ -5,6 +5,8 @@ include ../common.mk
 OS ?= linux
 ARCH ?= $(shell go env GOARCH)
 
+USE_CHAINGUARD ?= 1
+
 export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAME ?= replicated/embedded-cluster-local-artifact-mirror
 export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')
@@ -27,10 +29,35 @@ melange-build-local-artifact-mirror:
 export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: build-local-artifact-mirror-image
-build-local-artifact-mirror-image: melange-build-local-artifact-mirror apko-build
+build-local-artifact-mirror-image:
+	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+		$(MAKE) build-local-artifact-mirror-image-chainguard; \
+	else \
+		$(MAKE) build-local-artifact-mirror-image-dockerfile; \
+	fi
+
+.PHONY: build-local-artifact-mirror-image-chainguard
+build-local-artifact-mirror-image-chainguard: melange-build-local-artifact-mirror apko-build
+
+.PHONY: build-local-artifact-mirror-image-dockerfile
+build-local-artifact-mirror-image-dockerfile:
+	docker build --platform="$(OS)/$(ARCH)" -t $(IMAGE) -f deploy/Dockerfile ../
+	echo "$(IMAGE)" > build/image
 
 .PHONY: build-and-push-local-artifact-mirror-image
-build-and-push-local-artifact-mirror-image: melange-build-local-artifact-mirror apko-build-and-publish
+build-and-push-local-artifact-mirror-image:
+	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+		$(MAKE) build-and-push-local-artifact-mirror-image-chainguard; \
+	else \
+		$(MAKE) build-and-push-local-artifact-mirror-image-dockerfile; \
+	fi
+
+.PHONY: build-and-push-local-artifact-mirror-image-chainguard
+build-and-push-local-artifact-mirror-image-chainguard: melange-build-local-artifact-mirror apko-build-and-publish
+
+.PHONY: build-and-push-local-artifact-mirror-image-dockerfile
+build-and-push-local-artifact-mirror-image-dockerfile: build-local-artifact-mirror-image-dockerfile
+	docker push $(IMAGE)
 
 .PHONY: build-ttl.sh
 build-ttl.sh:

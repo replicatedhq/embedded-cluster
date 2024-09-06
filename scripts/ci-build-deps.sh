@@ -7,6 +7,7 @@ set -euo pipefail
 
 WORKDIR=${WORKDIR:-$(pwd)}
 EC_VERSION=${EC_VERSION:-}
+USE_CHAINGUARD=${USE_CHAINGUARD:-}
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -17,7 +18,9 @@ function init_vars() {
 }
 
 function deps() {
-    make melange apko
+    if [ "$USE_CHAINGUARD" == "1" ]; then
+        make melange apko
+    fi
 }
 
 function local_artifact_mirror() {

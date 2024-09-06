@@ -2,6 +2,9 @@ SHELL := /bin/bash
 
 include ../common.mk
 
+OS ?= linux
+ARCH ?= $(shell go env GOARCH)
+
 # VERSION defines the project version for the bundle.
 # Update this value when you upgrade the version of your project.
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
@@ -75,7 +78,7 @@ test: manifests fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: ## Build manager binary.
-	go build \
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
 		-ldflags="-s -w -extldflags=-static" \
 		-o bin/manager main.go
@@ -130,8 +133,7 @@ $(ENVTEST): $(LOCALBIN)
 		ln -sf $(GOBIN)/setup-envtest $(LOCALBIN)/setup-envtest || \
 		ln -sf $(GOBIN)/$(shell go env GOOS)_$(shell go env GOARCH)/setup-envtest $(LOCALBIN)/setup-envtest
 
-GOOS ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+USE_CHAINGUARD ?= 1
 
 export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAMESPACE ?= replicated
@@ -150,10 +152,35 @@ melange-build-operator:
 export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: build-operator-image
-build-operator-image: melange-build-operator apko-build
+build-operator-image:
+	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+		$(MAKE) build-operator-image-chainguard; \
+	else \
+		$(MAKE) build-operator-image-dockerfile; \
+	fi
+
+.PHONY: build-operator-image-chainguard
+build-operator-image-chainguard: melange-build-operator apko-build
+
+.PHONY: build-operator-image-dockerfile
+build-operator-image-dockerfile:
+	docker build --platform="$(OS)/$(ARCH)" -t $(IMAGE) -f deploy/Dockerfile ../
+	echo "$(IMAGE)" > build/image
 
 .PHONY: build-and-push-operator-image
-build-and-push-operator-image: melange-build-operator apko-build-and-publish
+build-and-push-operator-image:
+	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+		$(MAKE) build-and-push-operator-image-chainguard; \
+	else \
+		$(MAKE) build-and-push-operator-image-dockerfile; \
+	fi
+
+.PHONY: build-and-push-operator-image-chainguard
+build-and-push-operator-image-chainguard: melange-build-operator apko-build-and-publish
+
+.PHONY: build-and-push-operator-image-dockerfile
+build-and-push-operator-image-dockerfile: build-operator-image-dockerfile
+	docker push $(IMAGE)
 
 .PHONY: build-chart
 build-chart:
