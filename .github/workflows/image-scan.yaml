@@ -32,8 +32,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            local-artifact-mirror/build/.melange-cache
-            operator/build/.melange-cache
+            local-artifact-mirror/cache/.melange-cache
+            operator/cache/.melange-cache
           key: melange-cache
 
       - name: Setup Melange

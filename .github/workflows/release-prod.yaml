@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            operator/build/.melange-cache
+            operator/cache/.melange-cache
           key: melange-cache
 
       - name: Setup Melange
@@ -113,7 +113,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            local-artifact-mirror/build/.melange-cache
+            local-artifact-mirror/cache/.melange-cache
           key: melange-cache
 
       - name: Setup Melange
@@ -159,14 +159,16 @@ jobs:
 
       - name: Build linux-amd64
         run: |
+          mkdir -p build
           make embedded-cluster-linux-amd64 \
             VERSION=${{ needs.get-tag.outputs.tag-name }} \
             LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-images.outputs.local-artifact-mirror }}
-          tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
+          tar -C output/bin -czvf build/embedded-cluster-linux-amd64.tgz embedded-cluster
 
       - name: Output Metadata
         run: |
-          ./output/bin/embedded-cluster version metadata > metadata.json
+          mkdir -p build
+          ./output/bin/embedded-cluster version metadata > build/metadata.json
 
       - name: Cache Staging Files
         env:
@@ -198,5 +200,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: true
           files: |
-            *.tgz
-            metadata.json
+            build/*.tgz
+            build/metadata.json

@@ -3,7 +3,7 @@
 # shellcheck source=./common.sh
 source ./scripts/common.sh
 
-set -euxo pipefail
+set -euo pipefail
 
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}

@@ -16,17 +16,17 @@ function metadata() {
         return 0
     fi
 
-    # mutate the metadata.json to create a suitable upgrade
-    if [ -f metadata.json ]; then
+    # mutate the build/metadata.json to create a suitable upgrade
+    if [ -f build/metadata.json ]; then
         sudo apt-get install jq -y
 
-        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' metadata-upgrade.json > upgrade-metadata.json
-        cat upgrade-metadata.json
+        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' build/metadata-upgrade.json > build/upgrade-metadata.json
+        cat build/upgrade-metadata.json
 
         # append a 'v' prefix to the version if it doesn't already have one
-        retry 3 aws s3 cp --no-progress upgrade-metadata.json "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}.json"
+        retry 3 aws s3 cp --no-progress build/upgrade-metadata.json "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}.json"
     else
-        echo "metadata.json not found, skipping upload"
+        echo "build/metadata.json not found, skipping upload"
     fi
 
 }
@@ -37,13 +37,13 @@ function embeddedcluster() {
         return 0
     fi
 
-    # check if a file 'embedded-cluster-linux-${ARCH}.tgz' exists in the directory
+    # check if a file 'build/embedded-cluster-linux-$ARCH.tgz' exists in the directory
     # if it does, upload it as releases/${version}.tgz
-    if [ -f "embedded-cluster-linux-${ARCH}.tgz" ]; then
+    if [ -f "build/embedded-cluster-linux-$ARCH.tgz" ]; then
         # append a 'v' prefix to the version if it doesn't already have one
-        retry 3 aws s3 cp --no-progress embedded-cluster-linux-$ARCH.tgz "s3://${S3_BUCKET}/releases/v${EC_VERSION#v}.tgz"
+        retry 3 aws s3 cp --no-progress build/embedded-cluster-linux-$ARCH.tgz "s3://${S3_BUCKET}/releases/v${EC_VERSION#v}.tgz"
     else
-        echo "embedded-cluster-linux-${ARCH}.tgz not found, skipping upload"
+        echo "build/embedded-cluster-linux-$ARCH.tgz not found, skipping upload"
     fi
 }
 

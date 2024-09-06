@@ -24,19 +24,33 @@ require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
 export EC_VERSION APP_VERSION APP_CHANNEL RELEASE_YAML_DIR ARCH USE_CHAINGUARD
 export REPLICATED_API_ORIGIN REPLICATED_APP REPLICATED_API_TOKEN AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 
-function main() {
+function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
         EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
     fi
     if [ -z "${APP_VERSION:-}" ]; then
         APP_VERSION="appver-dev-$(git rev-parse --short HEAD)"
     fi
+}
 
+function build() {
     ./scripts/ci-build-deps.sh
     ./scripts/ci-build.sh
     ./scripts/ci-embed-release.sh
     ./scripts/cache-files.sh
     ./scripts/ci-release-app.sh
+}
+
+function clean() {
+    rm -rf bin build \
+        local-artifact-mirror/bin local-artifact-mirror/build \
+        operator/bin operator/build || true
+}
+
+function main() {
+    init_vars
+    build
+    clean
 }
 
 main "$@"

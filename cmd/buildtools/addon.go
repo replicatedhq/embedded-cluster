@@ -97,7 +97,7 @@ func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, upstrea
 		}
 	}
 
-	builtImage, err := GetImageNameFromBuildFile()
+	builtImage, err := GetImageNameFromBuildFile("build/image")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get digest from build file: %w", err)
 	}

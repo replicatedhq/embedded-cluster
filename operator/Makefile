@@ -17,10 +17,6 @@ IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.0
 
-# Set the current user to the GITHUB_USER env variable if it is set, which is useful when using Github Codespaces.
-# Otherwise, set it to the current user.
-CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -192,10 +188,14 @@ build-chart:
 .PHONY: build-ttl.sh
 build-ttl.sh:
 	$(MAKE) build-and-push-operator-image \
-		IMAGE=ttl.sh/$(IMAGE)
+		IMAGE=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image:$(IMAGE_TAG)
 
 .PHONY: build-chart-ttl.sh
 build-chart-ttl.sh:
 	$(MAKE) build-chart \
-		IMAGE_NAME=ttl.sh/$(IMAGE_NAME) \
-		CHART_REMOTE=oci://ttl.sh/$(IMAGE_NAMESPACE)
+		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image \
+		CHART_REMOTE=oci://ttl.sh/$(CURRENT_USER)
+
+.PHONY: clean
+clean:
+	rm -rf bin build

@@ -5,9 +5,8 @@ source ./scripts/common.sh
 
 set -euo pipefail
 
-WORKDIR=${WORKDIR:-$(pwd)}
 EC_VERSION=${EC_VERSION:-}
-USE_CHAINGUARD=${USE_CHAINGUARD:-}
+USE_CHAINGUARD=${USE_CHAINGUARD:-1}
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then

@@ -96,8 +96,8 @@ func ResolveApkoPackageVersion(componentName, packageName, packageVersion string
 	return strings.TrimSpace(string(out)), nil
 }
 
-func GetImageNameFromBuildFile() (string, error) {
-	contents, err := os.ReadFile("build/image")
+func GetImageNameFromBuildFile(imageBuildFile string) (string, error) {
+	contents, err := os.ReadFile(imageBuildFile)
 	if err != nil {
 		return "", fmt.Errorf("read build file: %w", err)
 	}

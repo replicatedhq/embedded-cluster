@@ -5,7 +5,6 @@ source ./scripts/common.sh
 
 set -euo pipefail
 
-WORKDIR=${WORKDIR:-$(pwd)}
 EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
@@ -71,22 +70,27 @@ function update_operator_metadata() {
     INPUT_OPERATOR_IMAGE=$(echo "$operator_image" | cut -d':' -f1)
 
     export IMAGES_REGISTRY_SERVER=ttl.sh
-    export IMAGES_REGISTRY_USER=$CURRENT_USER
     export INPUT_OPERATOR_CHART_URL
     export INPUT_OPERATOR_CHART_VERSION
     export INPUT_OPERATOR_IMAGE
+
+    mkdir -p build
+    cp "operator/build/image-$EC_VERSION" build/image
+
     ./output/bin/buildtools update addon embeddedclusteroperator --skip-build-and-publish
 }
 
 function archive() {
-    tar -C output/bin -czvf "$WORKDIR/embedded-cluster-linux-$ARCH.tgz" embedded-cluster
-    log "created $WORKDIR/embedded-cluster-linux-$ARCH.tgz"
+    mkdir -p build
+    tar -C output/bin -czvf "build/embedded-cluster-linux-$ARCH.tgz" embedded-cluster
+    log "created build/embedded-cluster-linux-$ARCH.tgz"
 }
 
 function metadata() {
+    mkdir -p build
     docker run --rm --platform linux/$ARCH -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
-        ./embedded-cluster version metadata > "$WORKDIR/metadata.json"
-    log "created $WORKDIR/metadata.json"
+        ./embedded-cluster version metadata > "build/metadata.json"
+    log "created build/metadata.json"
 }
 
 function main() {

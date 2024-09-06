@@ -135,8 +135,10 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	// chart.
 	images = append(images, "docker.io/library/busybox:latest")
 
-	if err := ApkoLogin(); err != nil {
-		return fmt.Errorf("failed to apko login: %w", err)
+	if !skipBuildAndPublish {
+		if err := ApkoLogin(); err != nil {
+			return fmt.Errorf("failed to apko login: %w", err)
+		}
 	}
 
 	for _, image := range images {
