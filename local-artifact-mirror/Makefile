@@ -63,7 +63,6 @@ build-and-push-local-artifact-mirror-image-dockerfile: build-local-artifact-mirr
 .PHONY: build-ttl.sh
 build-ttl.sh:
 	$(MAKE) build-and-push-local-artifact-mirror-image \
-		IMAGE_NAME=$(CURRENT_USER)/embedded-cluster-local-artifact-mirror \
 		IMAGE=ttl.sh/$(CURRENT_USER)/embedded-cluster-local-artifact-mirror:$(IMAGE_TAG)
 
 .PHONY: clean

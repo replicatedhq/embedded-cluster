@@ -188,7 +188,6 @@ build-chart:
 .PHONY: build-ttl.sh
 build-ttl.sh:
 	$(MAKE) build-and-push-operator-image \
-		IMAGE_NAME=$(CURRENT_USER)/embedded-cluster-operator-image \
 		IMAGE=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image:$(IMAGE_TAG)
 
 .PHONY: build-chart-ttl.sh
