@@ -193,7 +193,7 @@ build-ttl.sh:
 .PHONY: build-chart-ttl.sh
 build-chart-ttl.sh:
 	$(MAKE) build-chart \
-		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image:$(IMAGE_TAG) \
+		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image \
 		CHART_REMOTE=oci://ttl.sh/$(CURRENT_USER)
 
 .PHONY: clean
