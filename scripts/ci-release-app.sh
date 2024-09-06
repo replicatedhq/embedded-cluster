@@ -43,6 +43,8 @@ function ensure_app_channel() {
 }
 
 function create_release() {
+    local release_url metadata_url
+
     if ! command -v replicated &> /dev/null; then
         fail "replicated command not found"
     fi
@@ -51,13 +53,14 @@ function create_release() {
     mkdir -p output/tmp
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
 
-    local release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v${EC_VERSION#v}.tgz"
-    local metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v${EC_VERSION#v}.json"
+    release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
+    metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
 
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
 
+    export REPLICATED_APP REPLICATED_API_TOKEN REPLICATED_API_ORIGIN
     replicated release create --yaml-dir output/tmp/release --promote "${APP_CHANNEL}" --version "${APP_VERSION}"
 }
 

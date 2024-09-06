@@ -36,3 +36,7 @@ function retry() {
     done
     return 0
 }
+
+function url_encode_semver() {
+    echo "${1//+/%2B}"
+}
