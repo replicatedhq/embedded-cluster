@@ -97,6 +97,7 @@ pkg/goods/internal/bins/kubectl-kots: Makefile
 	mv output/tmp/kots/kots pkg/goods/internal/bins/kubectl-kots
 	touch pkg/goods/internal/bins/kubectl-kots
 
+.PHONY: output/tmp/release.tar.gz
 output/tmp/release.tar.gz: e2e/kots-release-install/*
 	mkdir -p output/tmp/kots-release-install
 	cp -r e2e/kots-release-install/* output/tmp/kots-release-install/
@@ -104,6 +105,7 @@ output/tmp/release.tar.gz: e2e/kots-release-install/*
 	tar -czf output/tmp/release.tar.gz -C output/tmp/kots-release-install .
 	rm -rf output/tmp/kots-release-install
 
+.PHONY: output/bin/embedded-cluster-release-builder
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
