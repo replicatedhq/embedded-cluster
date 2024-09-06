@@ -5,7 +5,6 @@ include common.mk
 VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
 CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
 UNAME := $(shell uname)
-ARCH := $(shell uname -m)
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
@@ -17,7 +16,7 @@ PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.100.0
-# revert this
+# TODO NOW: revert this
 KOTS_VERSION = v1.115.1
 KOTS_BINARY_URL_OVERRIDE =
 # TODO: move this to a manifest file
