@@ -40,7 +40,7 @@ function binary() {
     operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")"
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
 
-    make -B embedded-cluster-linux-amd64 \
+    make embedded-cluster-linux-$ARCH \
         K0S_VERSION="$K0S_VERSION" \
         VERSION="$EC_VERSION" \
         METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
@@ -71,6 +71,7 @@ function update_operator_metadata() {
     INPUT_OPERATOR_IMAGE=$(echo "$operator_image" | cut -d':' -f1)
 
     export IMAGES_REGISTRY_SERVER=ttl.sh
+    export IMAGES_REGISTRY_USER=$CURRENT_USER
     export INPUT_OPERATOR_CHART_URL
     export INPUT_OPERATOR_CHART_VERSION
     export INPUT_OPERATOR_IMAGE
@@ -78,12 +79,12 @@ function update_operator_metadata() {
 }
 
 function archive() {
-    tar -C output/bin -czvf "$WORKDIR/embedded-cluster-linux-amd64.tgz" embedded-cluster
-    log "created $WORKDIR/embedded-cluster-linux-amd64.tgz"
+    tar -C output/bin -czvf "$WORKDIR/embedded-cluster-linux-$ARCH.tgz" embedded-cluster
+    log "created $WORKDIR/embedded-cluster-linux-$ARCH.tgz"
 }
 
 function metadata() {
-    docker run --rm --platform linux/amd64 -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
+    docker run --rm --platform linux/$ARCH -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
         ./embedded-cluster version metadata > "$WORKDIR/metadata.json"
     log "created $WORKDIR/metadata.json"
 }

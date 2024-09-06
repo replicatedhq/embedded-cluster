@@ -10,8 +10,8 @@ K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 
-require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
-require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
+# require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
+# require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
 require AWS_REGION "${AWS_REGION}"
 require S3_BUCKET "${S3_BUCKET}"
 
@@ -47,8 +47,8 @@ function k0sbin() {
         curl --retry 5 --retry-all-errors -fL -o "${K0S_VERSION}" "${k0s_override}"
     else
         # download the k0s binary from official sources
-        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-amd64"
-        curl --retry 5 --retry-all-errors -fL -o "${K0S_VERSION}" "https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-amd64"
+        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-${ARCH}"
+        curl --retry 5 --retry-all-errors -fL -o "${K0S_VERSION}" "https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-${ARCH}"
     fi
 
     # upload the binary to the bucket
@@ -66,7 +66,7 @@ function operatorbin() {
     operator_image=$(cat "operator/build/image-$EC_VERSION")
     operator_version="${EC_VERSION#v}" # remove the 'v' prefix
 
-    docker run --platform linux/amd64 -d --name operator "$operator_image"
+    docker run --platform linux/$ARCH -d --name operator "$operator_image"
     mkdir -p operator/bin
     docker cp operator:/manager operator/bin/operator
     docker rm -f operator
@@ -98,15 +98,15 @@ function kotsbin() {
 
     if [ -n "${kots_override}" ] && [ "${kots_override}" != '' ]; then
         echo "KOTS_BINARY_URL_OVERRIDE is set to '${kots_override}', using that source"
-        curl --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "${kots_override}"
+        curl --retry 5 --retry-all-errors -fL -o "kots_linux_${ARCH}.tar.gz" "${kots_override}"
     else
         # download the kots binary from github
-        echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
-        curl --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
+        echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_${ARCH}.tar.gz"
+        curl --retry 5 --retry-all-errors -fL -o "kots_linux_${ARCH}.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_${ARCH}.tar.gz"
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "kots_linux_amd64.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "kots_linux_${ARCH}.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
 }
 
 function metadata() {
@@ -132,13 +132,13 @@ function embeddedcluster() {
         return 0
     fi
 
-    # check if a file 'embedded-cluster-linux-amd64.tgz' exists in the directory
+    # check if a file 'embedded-cluster-linux-${ARCH}.tgz' exists in the directory
     # if it does, upload it as releases/v${EC_VERSION}.tgz
-    if [ -f embedded-cluster-linux-amd64.tgz ]; then
+    if [ -f "embedded-cluster-linux-$ARCH.tgz" ]; then
         # append a 'v' prefix to the version if it doesn't already have one
-        retry 3 aws s3 cp --no-progress embedded-cluster-linux-amd64.tgz "s3://${S3_BUCKET}/releases/v${EC_VERSION#v}.tgz"
+        retry 3 aws s3 cp --no-progress embedded-cluster-linux-$ARCH.tgz "s3://${S3_BUCKET}/releases/v${EC_VERSION#v}.tgz"
     else
-        echo "embedded-cluster-linux-amd64.tgz not found, skipping upload"
+        echo "embedded-cluster-linux-${ARCH}.tgz not found, skipping upload"
     fi
 }
 

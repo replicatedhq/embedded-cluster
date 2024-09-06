@@ -1,5 +1,7 @@
 SHELL := /bin/bash
 
+ARCH ?= $(shell go env GOARCH)
+
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
@@ -57,14 +59,14 @@ $(MELANGE_CACHE_DIR):
 	mkdir -p $(MELANGE_CACHE_DIR)
 
 .PHONY: apko-build
-apko-build: ARCHS ?= amd64
+apko-build: ARCHS ?= $(ARCH)
 apko-build: check-env-IMAGE apko-template
 	cd build && ${APKO_CMD} \
 		build apko.yaml ${IMAGE} apko.tar \
 		--arch ${ARCHS}
 
 .PHONY: apko-build-and-publish
-apko-build-and-publish: ARCHS ?= amd64
+apko-build-and-publish: ARCHS ?= $(ARCH)
 apko-build-and-publish: check-env-IMAGE apko-template
 	@bash -c 'set -o pipefail && cd build && ${APKO_CMD} publish apko.yaml ${IMAGE} --arch ${ARCHS} | tee digest'
 	$(MAKE) apko-output-image
@@ -78,7 +80,7 @@ apko-login:
 		--password "${PASSWORD}" "${REGISTRY}"
 
 .PHONY: apko-print-pkg-version
-apko-print-pkg-version: ARCHS ?= amd64
+apko-print-pkg-version: ARCHS ?= $(ARCH)
 apko-print-pkg-version: apko-template check-env-PACKAGE_NAME
 		cd build && \
 		${APKO_CMD} show-packages apko.yaml --arch=${ARCHS} | \
@@ -97,7 +99,7 @@ apko-output-image:
 	echo "$(IMAGE)@$$digest" > build/image
 
 .PHONY: melange-build
-melange-build: ARCHS ?= amd64
+melange-build: ARCHS ?= $(ARCH)
 melange-build: MELANGE_SOURCE_DIR ?= .
 melange-build: $(MELANGE_CACHE_DIR) melange-template
 	${MELANGE_CMD} \

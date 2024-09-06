@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -78,14 +79,10 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 			if err != nil {
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
-			newmeta.Images[component.name] = release.AddonImage{
-				Repo: repo,
-				Tag: map[string]string{
-					"amd64": tag,
-					// TODO (@salah): automate updating the arm64 tag
-					"arm64": adminconsole.Metadata.Images[component.name].Tag["arm64"],
-				},
-			}
+			newimage := adminconsole.Metadata.Images[component.name]
+			newimage.Repo = repo
+			newimage.Tag[runtime.GOARCH] = tag
+			newmeta.Images[component.name] = newimage
 		}
 
 		logrus.Infof("saving addon manifest")

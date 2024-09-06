@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -141,14 +142,10 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 		if err != nil {
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
-		newmeta.Images[component.name] = release.AddonImage{
-			Repo: repo,
-			Tag: map[string]string{
-				"amd64": tag,
-				// TODO (@salah): automate updating the arm64 tag
-				"arm64": openebs.Metadata.Images[component.name].Tag["arm64"],
-			},
-		}
+		newimage := openebs.Metadata.Images[component.name]
+		newimage.Repo = repo
+		newimage.Tag[runtime.GOARCH] = tag
+		newmeta.Images[component.name] = newimage
 	}
 
 	logrus.Infof("saving addon manifest")

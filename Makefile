@@ -158,17 +158,9 @@ embedded-cluster-linux-amd64: static go.mod embedded-cluster
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-linux-arm64
-embedded-cluster-linux-arm64: GOOS = linux
-embedded-cluster-linux-arm64: GOARCH = arm64
+embedded-cluster-linux-arm64: OS = linux
+embedded-cluster-linux-arm64: ARCH = arm64
 embedded-cluster-linux-arm64: static go.mod embedded-cluster
-	mkdir -p ./output/bin
-	cp ./build/embedded-cluster-$(GOOS)-$(GOARCH) ./output/bin/$(APP_NAME)
-
-# for testing
-.PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: OS = darwin
-embedded-cluster-darwin-arm64: ARCH = arm64
-embedded-cluster-darwin-arm64: go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
