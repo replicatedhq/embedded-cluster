@@ -29,15 +29,15 @@ function deps() {
 }
 
 function binary() {
-    local local_artifact_mirror_image="" k0s_binary_url="" kots_binary_url="" operator_binary_url=""
+    local local_artifact_mirror_image k0s_binary_url kots_binary_url operator_binary_url
 
     if [ ! -f "local-artifact-mirror/build/image-$EC_VERSION" ]; then
         fail "file local-artifact-mirror/build/image-$EC_VERSION not found"
     fi
 
-    k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$K0S_VERSION"
-    kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(make print-KOTS_VERSION)"
-    operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$EC_VERSION"
+    k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$(url_encode_semver "$K0S_VERSION")"
+    kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")"
+    operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")"
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
 
     make -B embedded-cluster-linux-amd64 \
