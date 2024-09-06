@@ -5,7 +5,6 @@ source ./scripts/common.sh
 
 set -euo pipefail
 
-WORKDIR=${WORKDIR:-$(pwd)}
 EC_VERSION=${EC_VERSION:-}
 USE_CHAINGUARD=${USE_CHAINGUARD:-}
 

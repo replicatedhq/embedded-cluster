@@ -114,8 +114,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            local-artifact-mirror/build/.melange-cache
-            operator/build/.melange-cache
+            local-artifact-mirror/cache/.melange-cache
+            operator/cache/.melange-cache
           key: melange-cache
 
       - name: Setup Melange
@@ -150,16 +150,16 @@ jobs:
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
           ./scripts/ci-build.sh
           mv output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
-          mv embedded-cluster-linux-amd64.tgz embedded-cluster-linux-amd64-previous-k0s.tgz
-          mv metadata.json metadata-previous-k0s.json
+          mv build/embedded-cluster-linux-amd64.tgz build/embedded-cluster-linux-amd64-previous-k0s.tgz
+          mv build/metadata.json build/metadata-previous-k0s.json
 
       - name: Build upgrade release
         run: |
           export EC_VERSION="${EC_VERSION}-upgrade"
           ./scripts/ci-build.sh
           mv output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
-          mv embedded-cluster-linux-amd64.tgz embedded-cluster-linux-amd64-upgrade.tgz
-          mv metadata.json metadata-upgrade.json
+          mv build/embedded-cluster-linux-amd64.tgz build/embedded-cluster-linux-amd64-upgrade.tgz
+          mv build/metadata.json build/metadata-upgrade.json
 
       - name: Build release
         run: |

@@ -5,7 +5,6 @@ source ./scripts/common.sh
 
 set -euo pipefail
 
-WORKDIR=${WORKDIR:-$(pwd)}
 EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
@@ -40,7 +39,7 @@ function binary() {
     operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")"
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
 
-    make -B embedded-cluster-linux-amd64 \
+    make embedded-cluster-linux-amd64 \
         K0S_VERSION="$K0S_VERSION" \
         VERSION="$EC_VERSION" \
         METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
@@ -78,14 +77,16 @@ function update_operator_metadata() {
 }
 
 function archive() {
-    tar -C output/bin -czvf "$WORKDIR/embedded-cluster-linux-amd64.tgz" embedded-cluster
-    log "created $WORKDIR/embedded-cluster-linux-amd64.tgz"
+    mkdir -p build
+    tar -C output/bin -czvf "build/embedded-cluster-linux-amd64.tgz" embedded-cluster
+    log "created build/embedded-cluster-linux-amd64.tgz"
 }
 
 function metadata() {
+    mkdir -p build
     docker run --rm --platform linux/amd64 -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
-        ./embedded-cluster version metadata > "$WORKDIR/metadata.json"
-    log "created $WORKDIR/metadata.json"
+        ./embedded-cluster version metadata > "build/metadata.json"
+    log "created build/metadata.json"
 }
 
 function main() {
