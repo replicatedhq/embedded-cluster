@@ -20,7 +20,7 @@ function metadata() {
     if [ -f build/metadata.json ]; then
         sudo apt-get install jq -y
 
-        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' metadata-upgrade.json > build/upgrade-metadata.json
+        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' build/metadata-upgrade.json > build/upgrade-metadata.json
         cat build/upgrade-metadata.json
 
         # append a 'v' prefix to the version if it doesn't already have one
