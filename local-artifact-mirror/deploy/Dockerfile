@@ -23,4 +23,7 @@ FROM debian:bookworm-slim
 COPY --from=build /app/local-artifact-mirror/bin/local-artifact-mirror /usr/bin/local-artifact-mirror
 RUN ln -s /usr/bin/local-artifact-mirror /usr/local/bin/local-artifact-mirror
 
+RUN useradd -c 'eco lam user' -m -d /home/lam -s /bin/bash -u 1001 lam
+USER 1001
+
 ENTRYPOINT ["/manager"]

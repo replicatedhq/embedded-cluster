@@ -165,6 +165,7 @@ build-operator-image-chainguard: melange-build-operator apko-build
 .PHONY: build-operator-image-dockerfile
 build-operator-image-dockerfile:
 	docker build --platform="$(OS)/$(ARCH)" -t $(IMAGE) -f deploy/Dockerfile ../
+	mkdir -p build
 	echo "$(IMAGE)" > build/image
 
 .PHONY: build-and-push-operator-image
