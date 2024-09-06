@@ -2,10 +2,10 @@ SHELL := /bin/bash
 
 include ../common.mk
 
-GOOS ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+OS ?= linux
+ARCH ?= $(shell go env GOARCH)
 
-export PACKAGE_VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
+export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAME ?= replicated/embedded-cluster-local-artifact-mirror
 export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')
 export IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
@@ -13,10 +13,10 @@ export IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
 .PHONY: build
 build:
 	mkdir -p bin
-	go build \
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
 		-ldflags="-s -w -extldflags=-static" \
-		-o bin/local-artifact-mirror-$(GOOS)-$(GOARCH) ../cmd/local-artifact-mirror
+		-o bin/local-artifact-mirror-$(OS)-$(ARCH) ../cmd/local-artifact-mirror
 
 export MELANGE_CONFIG := deploy/melange.tmpl.yaml
 

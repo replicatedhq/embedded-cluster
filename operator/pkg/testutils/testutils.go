@@ -3,7 +3,7 @@ package testutils
 import (
 	"testing"
 
-	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

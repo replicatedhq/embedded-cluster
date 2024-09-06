@@ -11,7 +11,7 @@ This ingestion happens at k0s daemon startup on controller nodes.
 
 It can be dynamically updated, and the k0s config reconciliation process will apply any changes to the cluster except from `spec.api` and `spec.storage`.
 
-The [embedded cluster operator](https://github.com/replicatedhq/embedded-cluster-operator/) reconciles helm chart updates against the `ClusterConfig` object to initiate helm chart upgrades via the k0s helm reconciler.
+The [embedded cluster operator](https://github.com/replicatedhq/embedded-cluster/operator/) reconciles helm chart updates against the `ClusterConfig` object to initiate helm chart upgrades via the k0s helm reconciler.
 
 ## Chart
 - **Owner**: k0s
@@ -39,4 +39,4 @@ The `Installation` object is used by the Embedded Cluster Operator to both initi
 
 The `Installation` object can contain errors surfaced from the `Plan` and `Chart` resources.
 
-Possible Installation statuses can be found here: https://github.com/replicatedhq/embedded-cluster-operator/blob/e4fbb42919ad3b58cdc563dca77471cf76099393/api/v1beta1/installation_types.go#L24
+Possible Installation statuses can be found here: https://github.com/replicatedhq/embedded-cluster/kinds/blob/f54d45f99095ac6beaac61a3c8b735b9f7473329/apis/v1beta1/installation_types.go#L29-L42

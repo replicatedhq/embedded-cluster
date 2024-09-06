@@ -1,0 +1,8 @@
+secretData:
+  config.yaml: |
+    apiVersion: embeddedcluster.replicated.com/v1beta1
+    kind: Config
+    spec:
+      version: 1.29.1+ec.6
+expected:
+  version:  1.29.1+ec.6

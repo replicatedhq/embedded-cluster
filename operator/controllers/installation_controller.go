@@ -30,7 +30,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	"github.com/k0sproject/version"
-	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
+	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,16 +43,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
-	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/charts"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/metadata"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/openebs"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/registry"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 )
 
 // InstallationNameAnnotation is the annotation we keep in the autopilot plan so we can
@@ -303,13 +303,10 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 		return nil
 	}
 
-	// in airgap installation the first thing we need to do is to ensure that the embedded
-	// cluster version metadata is available inside the cluster. we can't use the internet
-	// to fetch it directly from our remote servers.
-	if in.Spec.AirGap {
-		if err := metadata.CopyVersionMetadataToCluster(ctx, r.Client, in); err != nil {
-			return fmt.Errorf("failed to copy version metadata to cluster: %w", err)
-		}
+	// for all installations the first thing we need to do is to ensure that the embedded cluster
+	// version metadata is available inside the cluster.
+	if err := metadata.CopyVersionMetadataToCluster(ctx, r.Client, in); err != nil {
+		return fmt.Errorf("failed to copy version metadata to cluster: %w", err)
 	}
 
 	// fetch the metadata for the desired embedded cluster version.
@@ -748,17 +745,23 @@ func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *
 		return fmt.Errorf("failed to determine upgrade targets: %w", err)
 	}
 
-	k0surl := fmt.Sprintf(
-		"%s/embedded-cluster-public-files/k0s-binaries/%s",
-		in.Spec.MetricsBaseURL,
-		meta.Versions["Kubernetes"],
-	)
-
+	var k0surl string
 	if in.Spec.AirGap {
 		// if we are running in an airgap environment all assets are already present in the
 		// node and are served by the local-artifact-mirror binary listening on localhost
 		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
 		k0surl = "http://127.0.0.1:50000/bin/k0s-upgrade"
+	} else {
+		if strings.HasPrefix(meta.Artifacts["k0s"], "https://") || strings.HasPrefix(meta.Artifacts["k0s"], "http://") {
+			// for dev and e2e tests we allow the url to be overridden
+			k0surl = meta.Artifacts["k0s"]
+		} else {
+			k0surl = fmt.Sprintf(
+				"%s/embedded-cluster-public-files/%s",
+				in.Spec.MetricsBaseURL,
+				meta.Artifacts["k0s"],
+			)
+		}
 	}
 
 	plan := apv1b2.Plan{

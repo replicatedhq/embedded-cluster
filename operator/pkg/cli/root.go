@@ -13,8 +13,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/replicatedhq/embedded-cluster-operator/controllers"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/controllers"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 )
 
 var (

@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/k0sproject/version"
-	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
+	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 

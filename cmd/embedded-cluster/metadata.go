@@ -6,8 +6,8 @@ import (
 	"sort"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	eckinds "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -19,6 +19,18 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+)
+
+var (
+	// K0sBinaryURLOverride is used to override the k0s binary url and is overridden using LD_FLAGS
+	// in the Makefile
+	K0sBinaryURLOverride string
+	// KOTSBinaryURLOverride is used to override the KOTS binary url and is overridden using
+	// LD_FLAGS in the Makefile
+	KOTSBinaryURLOverride string
+	// OperatorBinaryURLOverride is used to override the Operator binary url and is overridden
+	// using LD_FLAGS in the Makefile
+	OperatorBinaryURLOverride string
 )
 
 var metadataCommand = &cli.Command{
@@ -70,9 +82,19 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetad
 	}
 
 	artifacts := map[string]string{
+		"k0s":                         fmt.Sprintf("k0s-binaries/%s", versions.K0sVersion),
 		"kots":                        fmt.Sprintf("kots-binaries/%s.tar.gz", adminconsole.KotsVersion),
 		"operator":                    fmt.Sprintf("operator-binaries/%s.tar.gz", embeddedclusteroperator.Metadata.Version),
 		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
+	}
+	if K0sBinaryURLOverride != "" {
+		artifacts["k0s"] = K0sBinaryURLOverride
+	}
+	if KOTSBinaryURLOverride != "" {
+		artifacts["kots"] = KOTSBinaryURLOverride
+	}
+	if OperatorBinaryURLOverride != "" {
+		artifacts["operator"] = OperatorBinaryURLOverride
 	}
 
 	meta := types.ReleaseMetadata{

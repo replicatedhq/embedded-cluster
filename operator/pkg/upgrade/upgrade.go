@@ -10,14 +10,14 @@ import (
 	"github.com/google/uuid"
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	clusterv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/artifacts"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/charts"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/k8sutil"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/metadata"
-	"github.com/replicatedhq/embedded-cluster-operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,12 +47,14 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		if localArtifactMirrorImage == "" {
 			return fmt.Errorf("local artifact mirror image is required for airgap installations")
 		}
+	}
 
-		err := metadata.CopyVersionMetadataToCluster(ctx, cli, in)
-		if err != nil {
-			return fmt.Errorf("copy version metadata to cluster: %w", err)
-		}
+	err := metadata.CopyVersionMetadataToCluster(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("copy version metadata to cluster: %w", err)
+	}
 
+	if in.Spec.AirGap {
 		err = airgapDistributeArtifacts(ctx, cli, in, localArtifactMirrorImage)
 		if err != nil {
 			return fmt.Errorf("airgap distribute artifacts: %w", err)
@@ -61,7 +63,7 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 
 	// update the operator chart prior to creating the installation to update the crd
 
-	err := applyOperatorChart(ctx, cli, in)
+	err = applyOperatorChart(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("apply operator chart: %w", err)
 	}

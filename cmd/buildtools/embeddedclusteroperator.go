@@ -52,10 +52,12 @@ var updateOperatorAddonCommand = &cli.Command{
 		chartURL := os.Getenv("INPUT_OPERATOR_CHART_URL")
 		if chartURL != "" {
 			logrus.Infof("using input override from INPUT_OPERATOR_CHART_URL: %s", chartURL)
+			chartURL = strings.TrimPrefix(chartURL, "oci://")
+			chartURL = strings.TrimPrefix(chartURL, "proxy.replicated.com/anonymous/")
 		} else {
 			chartURL = "registry.replicated.com/library/embedded-cluster-operator"
-			chartURL = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartURL)
 		}
+		chartURL = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartURL)
 
 		imageOverride := os.Getenv("INPUT_OPERATOR_IMAGE")
 		if imageOverride != "" {

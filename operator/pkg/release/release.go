@@ -7,13 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/gosimple/slug"
-	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
+	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -22,9 +21,8 @@ import (
 )
 
 var (
-	metaURL = "%s/embedded-cluster-public-files/metadata/v%s.json"
-	cache   = map[string]*ectypes.ReleaseMetadata{}
-	mutex   = sync.Mutex{}
+	cache = map[string]*ectypes.ReleaseMetadata{}
+	mutex = sync.Mutex{}
 )
 
 // LocalVersionMetadataConfigmap returns the namespaced name for a config map name that contains
@@ -61,10 +59,7 @@ func configureRegistryTLS(meta *ectypes.ReleaseMetadata, ext *v1beta1.Helm) erro
 // MetadataFor determines from where to read the metadata (from the cluster or remotely) and calls
 // the appropriate function.
 func MetadataFor(ctx context.Context, in *v1beta1.Installation, cli client.Client) (*ectypes.ReleaseMetadata, error) {
-	if in.Spec.AirGap {
-		return localMetadataFor(ctx, cli, in.Spec.Config.Version)
-	}
-	return remoteMetadataFor(ctx, in.Spec.Config.Version, in.Spec.MetricsBaseURL)
+	return localMetadataFor(ctx, cli, in.Spec.Config.Version)
 }
 
 // localMetadataFor reads metadata for a given release. Attempts to read a local config map.
@@ -122,35 +117,6 @@ func localMetadataFor(ctx context.Context, cli client.Client, version string) (*
 	}
 
 	cache[version] = meta
-	return metaFromCache(version)
-}
-
-// remoteMetadataFor reads metadata for a given release. Goes to replicated.app and reads release metadata file
-func remoteMetadataFor(ctx context.Context, version string, upstream string) (*ectypes.ReleaseMetadata, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	version = strings.TrimPrefix(version, "v")
-	if _, ok := cache[version]; ok {
-		return metaFromCache(version)
-	}
-	url := fmt.Sprintf(metaURL, upstream, version)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get bundle from %q: %w", url, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get bundle from %q: %s", url, resp.Status)
-	}
-	var meta ectypes.ReleaseMetadata
-	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
-		return nil, fmt.Errorf("failed to decode bundle: %w", err)
-	}
-	cache[version] = &meta
 	return metaFromCache(version)
 }
 

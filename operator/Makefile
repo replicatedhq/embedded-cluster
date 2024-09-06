@@ -56,7 +56,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: kustomize controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1" output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1" output:crd:artifacts:config=config/crd/bases
 	$(KUSTOMIZE) build config/crd > charts/embedded-cluster-operator/charts/crds/templates/resources.yaml
 
 .PHONY: fmt
@@ -133,7 +133,7 @@ $(ENVTEST): $(LOCALBIN)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-export PACKAGE_VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
+export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAMESPACE ?= replicated
 export IMAGE_NAME ?= $(IMAGE_NAMESPACE)/embedded-cluster-operator-image
 export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')

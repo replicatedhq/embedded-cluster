@@ -7,7 +7,7 @@ import (
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -140,12 +140,12 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 		if len(output.Fail) == 1 {
 			s = "preflight"
 		}
-		msg := fmt.Sprintf("%d host %s failed", len(output.Fail), s)
 		if output.HasWarn() {
-			msg += fmt.Sprintf(" and %d warned", len(output.Warn))
+			pb.Errorf("%d host %s failed and %d warned", len(output.Fail), s, len(output.Warn))
+		} else {
+			pb.Errorf("%d host %s failed", len(output.Fail), s)
 		}
 
-		pb.Errorf(msg)
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
 		return fmt.Errorf("host preflight failures detected")

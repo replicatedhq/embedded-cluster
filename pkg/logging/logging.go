@@ -48,7 +48,7 @@ func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
 	default:
 		writer = color.New(color.FgWhite)
 	}
-	writer.Fprintf(output, message)
+	writer.Fprint(output, message)
 	return nil
 }
 

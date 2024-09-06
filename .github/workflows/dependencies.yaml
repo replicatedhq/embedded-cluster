@@ -15,6 +15,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
+        cache-dependency-path: "**/*.sum"
     - name: Kubectl
       run: |
         export VERSION=`curl -L -s https://dl.k8s.io/release/stable.txt`
@@ -34,7 +35,7 @@ jobs:
         export VERSION=`curl https://api.github.com/repos/replicatedhq/troubleshoot/releases/latest | jq -r .name`
         sed -i "/^TROUBLESHOOT_VERSION/c\TROUBLESHOOT_VERSION = $VERSION" Makefile
     - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v6
+      uses: peter-evans/create-pull-request@v7
       with:
         token: ${{ secrets.GH_PAT }}
         commit-message: Update Makefile versions

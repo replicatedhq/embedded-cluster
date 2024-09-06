@@ -95,6 +95,7 @@ runs:
     uses: actions/setup-go@v5
     with:
       go-version-file: go.mod
+      cache-dependency-path: "**/*.sum"
   - name: E2E
     shell: bash
     run: |
