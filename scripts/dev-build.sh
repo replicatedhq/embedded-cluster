@@ -12,7 +12,7 @@ RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 
-ARCH=${ARCH:-amd64}
+ARCH=${ARCH:-arm64}
 USE_CHAINGUARD=${USE_CHAINGUARD:-0}
 
 require REPLICATED_APP "${REPLICATED_APP:-}"
