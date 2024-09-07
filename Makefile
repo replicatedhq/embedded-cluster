@@ -136,6 +136,14 @@ output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
+.PHONY: initial-release
+initial-release:
+	CACHE_BINS=0 ./scripts/dev-build.sh
+
+.PHONY: upgrade-release
+upgrade-release:
+	CACHE_BINS=1 ./scripts/dev-build.sh
+
 .PHONY: go.mod
 go.mod: Makefile
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)

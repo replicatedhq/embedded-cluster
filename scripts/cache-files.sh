@@ -9,6 +9,7 @@ EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+CACHE_BINS="${CACHE_BINS:-1}"
 
 # require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
 # require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
@@ -117,7 +118,7 @@ function metadata() {
 
     # check if a file 'build/metadata.json' exists in the directory
     # if it does, upload it as metadata/v${EC_VERSION}.json
-    if [ -f build/metadata.json ]; then
+    if [ -f "build/metadata.json" ]; then
         # append a 'v' prefix to the version if it doesn't already have one
         retry 3 aws s3 cp --no-progress build/metadata.json "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}.json"
     else
@@ -146,11 +147,13 @@ function embeddedcluster() {
 # the embedded cluster release does not exist for CI builds
 function main() {
     init_vars
-    k0sbin
-    operatorbin
-    kotsbin
     metadata
-    embeddedcluster
+    if [ "${CACHE_BINS}" == "1" ]; then
+        k0sbin
+        operatorbin
+        kotsbin
+        embeddedcluster
+    fi
 }
 
 main "$@"
