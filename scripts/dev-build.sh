@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euox pipefail
+set -euo pipefail
 
 # shellcheck source=./common.sh
 source ./scripts/common.sh
