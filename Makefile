@@ -138,11 +138,15 @@ output/bin/embedded-cluster-release-builder:
 
 .PHONY: initial-release
 initial-release:
-	CACHE_BINS=0 ./scripts/dev-build.sh
+	EC_VERSION=$(VERSION) \
+	CACHE_BINS=0 \
+		./scripts/dev-build.sh
 
 .PHONY: upgrade-release
 upgrade-release:
-	CACHE_BINS=1 ./scripts/dev-build.sh
+	EC_VERSION=$(VERSION)-upgrade \
+	CACHE_BINS=1 \
+		./scripts/dev-build.sh
 
 .PHONY: go.mod
 go.mod: Makefile
