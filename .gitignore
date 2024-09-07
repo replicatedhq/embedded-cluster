@@ -3,6 +3,7 @@ pkg/goods/bins
 pkg/goods/internal/bins
 pkg/goods/images
 *tgz
+*tar.gz
 .pre-commit-config.yaml
 vendor
 e2e/kots-release-install/license.yaml
