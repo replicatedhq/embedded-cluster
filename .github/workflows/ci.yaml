@@ -30,7 +30,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Go
+      - name: Setup go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -49,7 +49,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Go
+      - name: Setup go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -64,7 +64,7 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Make Manifests
+    - name: Make manifests
       run: make -C operator manifests
     - name: Check CRDs
       run: |
@@ -77,12 +77,12 @@ jobs:
         fi
 
   buildtools:
-    name: Build Buildtools
+    name: Build buildtools
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Go
+      - name: Setup go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -109,7 +109,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache Melange
+      - name: Cache melange
         uses: actions/cache@v4
         with:
           path: |
@@ -117,10 +117,10 @@ jobs:
             operator/cache/.melange-cache
           key: melange-cache
 
-      - name: Setup Melange
+      - name: Setup melange
         uses: chainguard-dev/actions/setup-melange@main
 
-      - name: Setup Go
+      - name: Setup go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -152,7 +152,7 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
-      - name: Export K0s Version
+      - name: Export K0s version
         id: export
         run: |
           K0S_VERSION="$(make print-K0S_VERSION)"
@@ -160,7 +160,7 @@ jobs:
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
   build-previous-k0s:
-    name: Build Previous K0s
+    name: Build previous K0s
     runs-on: ubuntu-latest
     needs:
       - git-sha
@@ -172,7 +172,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache Melange
+      - name: Cache melange
         uses: actions/cache@v4
         with:
           path: |
@@ -180,10 +180,10 @@ jobs:
             operator/cache/.melange-cache
           key: melange-cache
 
-      - name: Setup Melange
+      - name: Setup melange
         uses: chainguard-dev/actions/setup-melange@main
 
-      - name: Setup Go
+      - name: Setup go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -214,7 +214,7 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
-      - name: Export K0s Version
+      - name: Export K0s version
         id: export
         run: |
           K0S_VERSION="$(make print-PREVIOUS_K0S_VERSION)"
@@ -222,7 +222,7 @@ jobs:
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
   build-upgrade:
-    name: Build Upgrade
+    name: Build upgrade
     runs-on: ubuntu-latest
     needs:
       - git-sha
@@ -234,7 +234,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache Melange
+      - name: Cache melange
         uses: actions/cache@v4
         with:
           path: |
@@ -242,10 +242,10 @@ jobs:
             operator/cache/.melange-cache
           key: melange-cache
 
-      - name: Setup Melange
+      - name: Setup melange
         uses: chainguard-dev/actions/setup-melange@main
 
-      - name: Setup Go
+      - name: Setup go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -276,7 +276,7 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
-      - name: Export K0s Version
+      - name: Export K0s version
         id: export
         run: |
           K0S_VERSION="$(make print-K0S_VERSION)"
@@ -284,7 +284,7 @@ jobs:
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
   check-images:
-    name: Check Images
+    name: Check images
     runs-on: ubuntu-latest
     needs:
       - buildtools
@@ -321,7 +321,7 @@ jobs:
           fi
 
   release-app:
-    name: Create App Releases
+    name: Create app releases
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -335,7 +335,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install Replicated CLI
+      - name: Install replicated CLI
         run: |
           curl --retry 5 --retry-all-errors -fs https://api.github.com/repos/replicatedhq/replicated/releases/latest \
           | grep "browser_download_url.*linux_amd64.tar.gz" \
@@ -344,7 +344,7 @@ jobs:
           | wget -O replicated.tar.gz -qi -
           tar xf replicated.tar.gz replicated && rm replicated.tar.gz
           mv replicated /usr/local/bin/replicated
-      - name: Create CI Releases
+      - name: Create CI releases
         env:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
@@ -377,7 +377,7 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
-      - name: Create Airgap Release
+      - name: Create airgap releases
         env:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
@@ -422,7 +422,7 @@ jobs:
           echo "Happy debugging!" >> download-link.txt
           cat download-link.txt
 
-      - name: comment download link
+      - name: Comment download link
         if: github.event_name == 'pull_request'
         uses: mshick/add-pr-comment@v2
         with:
@@ -430,6 +430,7 @@ jobs:
 
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
+    name: E2E docker
     runs-on: ubuntu-latest
     needs:
       - build-current
@@ -446,7 +447,7 @@ jobs:
         with:
           name: current-release
           path: output/bin
-      - name: Setup Go
+      - name: Setup go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -461,6 +462,7 @@ jobs:
           make e2e-test TEST_NAME=${{ matrix.test }}
 
   e2e:
+    name: E2E
     runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     needs:
       - build-current
@@ -547,6 +549,7 @@ jobs:
   # this job will validate that all the tests passed
   # it is used for the github branch protection rule
   validate-success:
+    name: Validate success
     runs-on: ubuntu-20.04
     needs:
       - e2e
