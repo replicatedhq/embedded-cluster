@@ -307,9 +307,9 @@ jobs:
       - name: Check for missing images
         run: |
           chmod +x ./output/bin/buildtools
-          chmod +x ./output/bin/embedded-cluster
-          ./output/bin/embedded-cluster version metadata > version-metadata.json
-          ./output/bin/embedded-cluster version list-images > expected.txt
+          chmod +x ./output/bin/embedded-cluster-original
+          ./output/bin/embedded-cluster-original version metadata > version-metadata.json
+          ./output/bin/embedded-cluster-original version list-images > expected.txt
           printf "Expected images:\n$(cat expected.txt)\n"
           ./output/bin/buildtools metadata extract-helm-chart-images --metadata-path version-metadata.json > images.txt
           printf "Found images:\n$(cat images.txt)\n"
