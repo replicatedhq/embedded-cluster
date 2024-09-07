@@ -30,7 +30,7 @@ function update_operator_metadata() {
     echo "$operator_image" > build/image
 
     chmod +x ./output/bin/buildtools
-    ./output/bin/buildtools update addon embeddedclusteroperator --skip-build-and-publish
+    ./output/bin/buildtools update addon embeddedclusteroperator
 }
 
 function main() {

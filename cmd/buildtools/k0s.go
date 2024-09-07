@@ -85,7 +85,7 @@ var updateK0sImagesCommand = &cli.Command{
 			if !ok {
 				return fmt.Errorf("no component found for image %s", image)
 			}
-			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image, false)
+			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image)
 			if err != nil {
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}

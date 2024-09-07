@@ -28,12 +28,6 @@ var updateOperatorAddonCommand = &cli.Command{
 	Name:      "embeddedclusteroperator",
 	Usage:     "Updates the Embedded Cluster Operator addon",
 	UsageText: environmentUsageText,
-	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "skip-build-and-publish",
-			Usage: "Skip building and publishing the operator image",
-		},
-	},
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating embedded cluster operator addon")
 
@@ -76,7 +70,7 @@ var updateOperatorAddonCommand = &cli.Command{
 			}
 		}
 
-		err := updateOperatorAddonImages(c.Context, chartURL, nextChartVersion, c.Bool("skip-build-and-publish"))
+		err := updateOperatorAddonImages(c.Context, chartURL, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
 		}
@@ -91,18 +85,12 @@ var updateOperatorImagesCommand = &cli.Command{
 	Name:      "embeddedclusteroperator",
 	Usage:     "Updates the embedded cluster operator images",
 	UsageText: environmentUsageText,
-	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "skip-build-and-publish",
-			Usage: "Skip building and publishing the operator image",
-		},
-	},
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating embedded cluster operator images")
 
 		current := embeddedclusteroperator.Metadata
 
-		err := updateOperatorAddonImages(c.Context, current.Location, current.Version, c.Bool("skip-build-and-publish"))
+		err := updateOperatorAddonImages(c.Context, current.Location, current.Version)
 		if err != nil {
 			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
 		}
@@ -113,7 +101,7 @@ var updateOperatorImagesCommand = &cli.Command{
 	},
 }
 
-func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersion string, skipBuildAndPublish bool) error {
+func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersion string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -135,10 +123,8 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	// chart.
 	images = append(images, "docker.io/library/busybox:latest")
 
-	if !skipBuildAndPublish {
-		if err := ApkoLogin(); err != nil {
-			return fmt.Errorf("failed to apko login: %w", err)
-		}
+	if err := ApkoLogin(); err != nil {
+		return fmt.Errorf("failed to apko login: %w", err)
 	}
 
 	for _, image := range images {
@@ -146,7 +132,7 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-		repo, tag, err := component.resolveImageRepoAndTag(ctx, image, skipBuildAndPublish)
+		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
 		if err != nil {
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}

@@ -26,14 +26,14 @@ type addonComponentOptions struct {
 	latestK8sVersion *semver.Version
 }
 
-func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image string, skipBuildAndPublish bool) (string, string, error) {
+func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image string) (string, string, error) {
 	if c.useUpstreamImage {
 		return c.resolveUpstreamImageRepoAndTag(ctx, image)
 	}
 	if c.getCustomImageName != nil {
 		return c.resolveCustomImageRepoAndTag(ctx, c.getUpstreamVersion(image))
 	}
-	return c.resolveApkoImageRepoAndTag(ctx, c.getUpstreamVersion(image), skipBuildAndPublish)
+	return c.resolveApkoImageRepoAndTag(ctx, c.getUpstreamVersion(image))
 }
 
 func (c *addonComponent) getUpstreamVersion(image string) string {
@@ -83,18 +83,16 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, upstr
 	return repo, tag, nil
 }
 
-func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, upstreamVersion string, skipBuildAndPublish bool) (string, string, error) {
+func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, upstreamVersion string) (string, string, error) {
 	packageName, packageVersion, err := c.getPackageNameAndVersion(ctx, upstreamVersion)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get package name and version constraint for %s: %w", c.name, err)
 	}
 
-	if !skipBuildAndPublish {
-		logrus.Infof("building and publishing %s", c.name)
+	logrus.Infof("building and publishing %s", c.name)
 
-		if err := ApkoBuildAndPublish(c.name, packageName, packageVersion); err != nil {
-			return "", "", fmt.Errorf("failed to apko build and publish for %s: %w", c.name, err)
-		}
+	if err := ApkoBuildAndPublish(c.name, packageName, packageVersion); err != nil {
+		return "", "", fmt.Errorf("failed to apko build and publish for %s: %w", c.name, err)
 	}
 
 	builtImage, err := GetImageNameFromBuildFile("build/image")
