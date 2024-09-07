@@ -13,6 +13,7 @@ REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.co
 
 ARCH=${ARCH:-amd64}
 USE_CHAINGUARD=${USE_CHAINGUARD:-0}
+DO_RELEASE=${DO_RELEASE:-1}
 
 require REPLICATED_APP "${REPLICATED_APP:-}"
 require REPLICATED_API_TOKEN "${REPLICATED_API_TOKEN:-}"
@@ -37,7 +38,9 @@ function build() {
     ./scripts/ci-build.sh
     ./scripts/ci-embed-release.sh
     ./scripts/cache-files.sh
-    ./scripts/ci-release-app.sh
+    if [ "$DO_RELEASE" == "1" ]; then
+        ./scripts/ci-release-app.sh
+    fi
 }
 
 function clean() {
