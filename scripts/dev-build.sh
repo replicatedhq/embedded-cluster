@@ -41,7 +41,7 @@ function build() {
     ./scripts/ci-build-deps.sh
     ./scripts/ci-build.sh
     ./scripts/ci-embed-release.sh
-    ./scripts/cache-files.sh
+    ./scripts/ci-cache-files.sh
     if [ "$DO_RELEASE" == "1" ]; then
         ./scripts/ci-release-app.sh
     fi

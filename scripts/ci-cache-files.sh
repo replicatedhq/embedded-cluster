@@ -9,6 +9,7 @@ EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+MANGLE_METADATA=${MANGLE_METADATA:-0}
 
 require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
 require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
@@ -113,6 +114,11 @@ function metadata() {
     if [ -z "${EC_VERSION}" ]; then
         echo "EC_VERSION unset, not uploading metadata.json"
         return 0
+    fi
+
+    if [ "$MANGLE_METADATA" == "1" ]; then
+        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' build/metadata.json > build/metadata.tmp.json
+        mv build/metadata.tmp.json build/metadata.json
     fi
 
     # check if a file 'build/metadata.json' exists in the directory

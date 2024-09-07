@@ -59,7 +59,7 @@ jobs:
           make unit-tests
 
   check-operator-crds:
-    name: Check Operator CRDs
+    name: Check operator CRDs
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -97,7 +97,7 @@ jobs:
           path: output/bin/buildtools
 
   build-current:
-    name: Build
+    name: Build current
     runs-on: ubuntu-latest
     needs:
       - git-sha
@@ -152,7 +152,7 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
-      - name: Export K0s version
+      - name: Export k0s version
         id: export
         run: |
           K0S_VERSION="$(make print-K0S_VERSION)"
@@ -160,7 +160,7 @@ jobs:
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
   build-previous-k0s:
-    name: Build previous K0s
+    name: Build previous k0s
     runs-on: ubuntu-latest
     needs:
       - git-sha
@@ -198,6 +198,7 @@ jobs:
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
           DO_RELEASE: "0"
+          MANGLE_METADATA: "1"
         run: |
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
           export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s
@@ -214,7 +215,7 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
-      - name: Export K0s version
+      - name: Export k0s version
         id: export
         run: |
           K0S_VERSION="$(make print-PREVIOUS_K0S_VERSION)"
@@ -260,6 +261,7 @@ jobs:
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
           DO_RELEASE: "0"
+          MANGLE_METADATA: "1"
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
           export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-upgrade
@@ -276,7 +278,7 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
-      - name: Export K0s version
+      - name: Export k0s version
         id: export
         run: |
           K0S_VERSION="$(make print-K0S_VERSION)"
