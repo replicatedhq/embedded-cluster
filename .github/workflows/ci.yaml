@@ -167,6 +167,9 @@ jobs:
           cp output/bin/embedded-cluster output/bin/embedded-cluster-original
 
       - name: Build CI binary
+        env:
+          CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+          CHANNEL_SLUG: ci
         run: |
           ./scripts/ci-embed-release.sh EC_BINARY=output/bin/embedded-cluster-original
           # this is done after the metadata.json is generated so as to not include additional charts
