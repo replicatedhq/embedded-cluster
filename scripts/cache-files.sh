@@ -72,10 +72,10 @@ function operatorbin() {
     docker rm -f operator
 
     # compress the operator binary
-    tar -czvf "${operator_version}.tar.gz" -C operator/bin operator
+    tar -czvf "build/${operator_version}.tar.gz" -C operator/bin operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
 }
 
 function kotsbin() {
