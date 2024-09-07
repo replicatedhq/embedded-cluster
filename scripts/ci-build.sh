@@ -77,7 +77,7 @@ function update_operator_metadata() {
     mkdir -p build
     cp "operator/build/image-$EC_VERSION" build/image
 
-    ./output/bin/buildtools update addon embeddedclusteroperator --skip-build-and-publish
+    ./output/bin/buildtools update addon embeddedclusteroperator
 }
 
 function archive() {

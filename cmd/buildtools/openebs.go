@@ -137,7 +137,7 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-		repo, tag, err := component.resolveImageRepoAndTag(ctx, image, false)
+		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
 		if err != nil {
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
