@@ -26,7 +26,7 @@ require (
 	github.com/k0sproject/k0s v1.29.7-0.20240618090010-edbb703218fd
 	github.com/k0sproject/version v0.6.0
 	github.com/ohler55/ojg v1.23.0
-	github.com/onsi/ginkgo/v2 v2.20.1
+	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.2
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
