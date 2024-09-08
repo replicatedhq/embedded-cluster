@@ -134,6 +134,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
+          SKIP_S3_UPLOAD: "0"
           DO_RELEASE: "0"
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
@@ -197,6 +198,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
+          SKIP_S3_UPLOAD: "0"
           DO_RELEASE: "0"
           MANGLE_METADATA: "1"
         run: |
@@ -260,6 +262,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
+          SKIP_S3_UPLOAD: "0"
           DO_RELEASE: "0"
           MANGLE_METADATA: "1"
         run: |

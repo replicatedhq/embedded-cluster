@@ -11,6 +11,8 @@ APP_CHANNEL=${APP_CHANNEL:-Unstable}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 
+SKIP_S3_UPLOAD=${SKIP_S3_UPLOAD:-1}
+
 ARCH=${ARCH:-amd64}
 USE_CHAINGUARD=${USE_CHAINGUARD:-0}
 
@@ -41,7 +43,9 @@ function build() {
     ./scripts/ci-build-deps.sh
     ./scripts/ci-build.sh
     ./scripts/ci-embed-release.sh
-    ./scripts/ci-cache-files.sh
+    if [ "$SKIP_S3_UPLOAD" != "1" ]; then
+        ./scripts/ci-cache-files.sh
+    fi
     if [ "$DO_RELEASE" == "1" ]; then
         ./scripts/ci-release-app.sh
     fi
