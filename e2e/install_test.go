@@ -3,11 +3,20 @@ package e2e
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/k0sproject/dig"
+	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
+	k8syaml "sigs.k8s.io/yaml"
+
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -2123,6 +2132,83 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallWithPrivateCAs(t *testing.T) {
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	input := &cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "ubuntu/jammy",
+		LicensePath:         "license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	}
+	tc := cluster.NewTestCluster(input)
+	defer cleanupCluster(t, tc)
+
+	certBuilder, err := certs.NewBuilder()
+	require.NoError(t, err, "unable to create new cert builder")
+	crtContent, _, err := certBuilder.Generate()
+	require.NoError(t, err, "unable to build test certificate")
+
+	tmpfile, err := os.CreateTemp("", "test-temp-cert-*.crt")
+	require.NoError(t, err, "unable to create temp file")
+	defer os.Remove(tmpfile.Name())
+
+	_, err = tmpfile.WriteString(crtContent)
+	require.NoError(t, err, "unable to write to temp file")
+	tmpfile.Close()
+
+	cluster.CopyFileToNode(input, tc.Nodes[0], cluster.File{
+		SourcePath: tmpfile.Name(),
+		DestPath:   "/tmp/ca.crt",
+		Mode:       0666,
+	})
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{
+		"embedded-cluster", "install", "--no-prompt",
+		"--license", "/assets/license.yaml",
+		"--private-ca", "/tmp/ca.crt",
+	}
+	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
+	require.NoError(t, err, "unale to install embedded-cluster: %s %s", stdout, stderr)
+
+	tmpcfg, err := os.CreateTemp("", "test-k0s-config-*.yaml")
+	require.NoError(t, err, "unable to create temp file")
+	defer os.Remove(tmpcfg.Name())
+	tmpcfg.Close()
+	err = cluster.CopyFileFromNode(tc.Nodes[0], "/etc/k0s/k0s.yaml", tmpcfg.Name())
+	require.NoError(t, err, "unable to copy k0s config")
+
+	data, err := os.ReadFile(tmpcfg.Name())
+	require.NoError(t, err, "unable to read temp file")
+
+	var kcfg v1beta1.ClusterConfig
+	err = k8syaml.Unmarshal(data, &kcfg)
+	require.NoError(t, err, "unable to unmarshal k0s config")
+	require.NotNil(t, kcfg.Spec, "found nil configuration spec")
+	require.NotNil(t, kcfg.Spec.Extensions, "found nil extensions")
+	require.NotNil(t, kcfg.Spec.Extensions.Helm, "found nil helm extensions")
+
+	index := slices.IndexFunc(
+		kcfg.Spec.Extensions.Helm.Charts, func(c v1beta1.Chart) bool {
+			return c.Name == adminconsole.ReleaseName
+		},
+	)
+	require.True(t, index >= 0, "unable to found admin console configuration")
+	chart := kcfg.Spec.Extensions.Helm.Charts[index]
+
+	values := dig.Mapping{}
+	err = yaml.Unmarshal([]byte(chart.Values), &values)
+	require.NoError(t, err, "unable to parse admin console chart values")
+
+	content := values.Dig("privateCAs", "ca_0.crt")
+	require.NotNil(t, content, "unable to find crt content in the k0s config")
+	require.Equal(t, crtContent, content, "crt content mismatch")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

@@ -202,8 +202,8 @@ build-ttl.sh:
 .PHONY: clean
 clean:
 	rm -rf output
-	rm -rf pkg/goods/bins
-	rm -rf pkg/goods/internal/bins
+	rm -rf pkg/goods/bins/*
+	rm -rf pkg/goods/internal/bins/*
 	rm -rf build
 	rm -rf bin
 

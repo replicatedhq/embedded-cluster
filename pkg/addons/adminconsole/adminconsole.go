@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	releaseName                 = "admin-console"
+	ReleaseName                 = "admin-console"
 	DefaultAdminConsoleNodePort = 30000
 )
 
@@ -86,6 +86,7 @@ type AdminConsole struct {
 	licenseFile  string
 	airgapBundle string
 	proxyEnv     map[string]string
+	privateCAs   map[string]string
 }
 
 // Version returns the embedded admin console version.
@@ -99,7 +100,7 @@ func (a *AdminConsole) Name() string {
 
 // GetProtectedFields returns the helm values that are not overwritten when upgrading
 func (a *AdminConsole) GetProtectedFields() map[string][]string {
-	return map[string][]string{releaseName: protectedFields}
+	return map[string][]string{ReleaseName: protectedFields}
 }
 
 // HostPreflights returns the host preflight objects found inside the adminconsole
@@ -128,6 +129,10 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 			}
 			helmValues["extraEnv"] = extraEnv
 		}
+
+		if len(a.privateCAs) > 0 {
+			helmValues["privateCAs"] = a.privateCAs
+		}
 	}
 	values, err := yaml.Marshal(helmValues)
 	if err != nil {
@@ -140,7 +145,7 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:      releaseName,
+		Name:      ReleaseName,
 		ChartName: chartName,
 		Version:   Metadata.Version,
 		Values:    string(values),
@@ -205,13 +210,14 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 }
 
 // New creates a new AdminConsole object.
-func New(ns, password string, licenseFile string, airgapBundle string, proxyEnv map[string]string) (*AdminConsole, error) {
+func New(ns, password string, licenseFile string, airgapBundle string, proxyEnv map[string]string, privateCAs map[string]string) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:    ns,
 		password:     password,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
 		proxyEnv:     proxyEnv,
+		privateCAs:   privateCAs,
 	}, nil
 }
 

@@ -14,6 +14,13 @@ func WithoutPrompt() Option {
 	}
 }
 
+// WithPrivateCAs sets the private CAs to be used during addons installation.
+func WithPrivateCAs(privateCAs map[string]string) Option {
+	return func(a *Applier) {
+		a.privateCAs = privateCAs
+	}
+}
+
 // Quiet disables logging for addons.
 func Quiet() Option {
 	return func(a *Applier) {
