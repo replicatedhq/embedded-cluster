@@ -242,13 +242,15 @@ buildtools:
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -o ./output/bin/buildtools ./cmd/buildtools
 
-# TODO NOW: refactor this a bit
-bootloose-debian:
-	docker build -t bootloose-debian -f dev/dockerfiles/bootloose-debian.Dockerfile dev/dockerfiles
+.PHONY: ec-distro-%
+ec-distro-%:
+	docker build -t ec-$* -f dev/distros/$*.Dockerfile dev/distros
 
+.PHONY: create-node%
+create-node%: DISTRO = debian
 create-node%:
-	@if ! docker images | grep -q bootloose-debian; then \
-		$(MAKE) bootloose-debian; \
+	@if ! docker images | grep -q ec-$(DISTRO); then \
+		$(MAKE) ec-distro-$(DISTRO); \
 	fi
 
 	@docker run -d \
@@ -260,12 +262,14 @@ create-node%:
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p 30000:30000) \
-		bootloose-debian
+		ec-$(DISTRO)
 
 	@$(MAKE) ssh-node$*
 
+.PHONY: ssh-node%
 ssh-node%:
 	@docker exec -it -w /replicatedhq/embedded-cluster node$* bash
 
+.PHONY: delete-node%
 delete-node%:
 	@docker rm -f node$*
