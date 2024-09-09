@@ -14,7 +14,7 @@ var (
 )
 
 // Holds the default no proxy values.
-var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local"}
+var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local.", ".cluster.local", ".svc"}
 
 const ProxyRegistryAddress = "proxy.replicated.com"
 
