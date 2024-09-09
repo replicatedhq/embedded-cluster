@@ -273,3 +273,11 @@ ssh-node%:
 .PHONY: delete-node%
 delete-node%:
 	@docker rm -f node$*
+
+.PHONY: %-up
+%-up:
+	@dev/scripts/up.sh $*
+
+.PHONY: %-down
+%-down:
+	@dev/scripts/down.sh $*

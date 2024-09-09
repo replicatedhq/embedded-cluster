@@ -1,0 +1,5 @@
+{
+  "operator": {
+    "deployment": "embedded-cluster-operator"
+  }
+}

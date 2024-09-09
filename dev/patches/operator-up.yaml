@@ -1,0 +1,17 @@
+spec:
+  template:
+    spec:
+      volumes:
+      - name: dev
+        hostPath:
+          path: __PROJECT_DIR__/operator
+          type: Directory
+      containers:
+      - name: manager
+        command: ["/bin/bash"]
+        args: ["-c", "while true; do sleep 30; done;"]
+        volumeMounts:
+        - name: dev
+          mountPath: /replicatedhq/embedded-cluster/operator # workdir in the container
+        readinessProbe: ~
+        resources: ~

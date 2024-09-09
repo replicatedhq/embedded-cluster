@@ -1,8 +1,5 @@
 FROM golang:1.23 AS build
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -19,6 +16,11 @@ ENV GOCACHE=/root/.cache/go-build
 RUN --mount=type=cache,target="/root/.cache/go-build" make -C operator build
 
 FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates make \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /replicatedhq/embedded-cluster/operator
 
 COPY --from=build /app/operator/bin/manager /manager
 
