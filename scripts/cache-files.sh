@@ -54,11 +54,11 @@ function k0sbin() {
     # if the override is set, we should download this binary and upload it to the bucket so as not to require end users hit the override url
     if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
         echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
-        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "${k0s_version}" "${k0s_override}"
+        curl --retry 5 --retry-all-errors -fL -o "${k0s_version}" "${k0s_override}"
     else
         # download the k0s binary from official sources
         echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
-        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
+        curl --retry 5 --retry-all-errors -fL -o "${k0s_version}" "https://github.com/k0sproject/k0s/releases/download/${k0s_version}/k0s-${k0s_version}-amd64"
     fi
 
     # upload the binary to the bucket
@@ -98,11 +98,11 @@ function kotsbin() {
 
     if [ -n "${kots_override}" ] && [ "${kots_override}" != '' ]; then
         echo "KOTS_BINARY_URL_OVERRIDE is set to '${kots_override}', using that source"
-        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "${kots_override}"
+        curl --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "${kots_override}"
     else
         # download the kots binary from github
         echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
-        curl --fail-with-body --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
+        curl --retry 5 --retry-all-errors -fL -o "kots_linux_amd64.tar.gz" "https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_amd64.tar.gz"
     fi
 
     # upload the binary to the bucket
