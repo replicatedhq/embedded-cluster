@@ -40,7 +40,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			want: &ecv1beta1.ProxySpec{
 				HTTPProxy:  "http://proxy",
 				HTTPSProxy: "https://proxy",
-				NoProxy:    "localhost,127.0.0.1,.cluster.local.,.cluster.local,.svc,no-proxy-1,no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				NoProxy:    "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,10.244.0.0/16,10.96.0.0/12",
 			},
 		},
 		{
@@ -68,7 +68,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			want: &ecv1beta1.ProxySpec{
 				HTTPProxy:  "http://other-proxy",
 				HTTPSProxy: "https://other-proxy",
-				NoProxy:    "localhost,127.0.0.1,.cluster.local.,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				NoProxy:    "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
 			},
 		},
 		{
@@ -86,7 +86,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			want: &ecv1beta1.ProxySpec{
 				HTTPProxy:  "http://other-proxy",
 				HTTPSProxy: "https://other-proxy",
-				NoProxy:    "localhost,127.0.0.1,.cluster.local.,.cluster.local,.svc,no-proxy-1,no-proxy-2,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				NoProxy:    "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
 			},
 		},
 		{
@@ -102,7 +102,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			want: &ecv1beta1.ProxySpec{
 				HTTPProxy:  "http://other-proxy",
 				HTTPSProxy: "https://other-proxy",
-				NoProxy:    "localhost,127.0.0.1,.cluster.local.,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,1.1.1.1/24,2.2.2.2/24",
+				NoProxy:    "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,1.1.1.1/24,2.2.2.2/24",
 			},
 		},
 	}
