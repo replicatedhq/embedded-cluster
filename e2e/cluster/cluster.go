@@ -557,8 +557,6 @@ func CreateNodes(in *Input) ([]string, []string) {
 		node, ip := CreateNode(in, i)
 		if !in.WithProxy {
 			NodeHasInternet(in, node)
-		} else {
-			NodeHasNoInternet(in, node)
 		}
 		nodes = append(nodes, node)
 		IPs = append(IPs, ip)
