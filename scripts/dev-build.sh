@@ -58,9 +58,9 @@ function clean() {
 }
 
 function main() {
+    clean
     init_vars
     build
-    clean
 }
 
 main "$@"
