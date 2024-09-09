@@ -123,11 +123,11 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line := []string{"single-node-proxy-install.sh"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	line = append(line, "--no-proxy", cluster.NOProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
@@ -153,11 +153,11 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line = append([]string{"restore-installation.exp"}, testArgs...)
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	line = append(line, "--no-proxy", cluster.NOProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
@@ -308,7 +308,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
@@ -359,7 +359,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    "localhost,127.0.0.1,.svc,.local,.default,kubernetes,kotsadm-rqlite,kotsadm-api-node",
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore the installation: %v", err)
@@ -664,7 +664,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
@@ -763,7 +763,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore phase 1 of the installation: %v", err)
@@ -817,7 +817,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	withEnv = WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,
 		"HTTPS_PROXY": cluster.HTTPProxy,
-		"NO_PROXY":    cluster.NOProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
 	})
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
