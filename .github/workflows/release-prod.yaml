@@ -180,7 +180,7 @@ jobs:
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           echo "${{ needs.publish-operator-image.outputs.image }}" > "operator/build/image-$EC_VERSION"
 
-          ./scripts/cache-files.sh
+          ./scripts/ci-cache-files.sh
 
       - name: Cache Prod Files
         env:
@@ -192,7 +192,7 @@ jobs:
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           echo "${{ needs.publish-operator-image.outputs.image }}" > "operator/build/image-$EC_VERSION"
 
-          ./scripts/cache-files.sh
+          ./scripts/ci-cache-files.sh
 
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest

@@ -10,6 +10,7 @@ K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 CACHE_BINS="${CACHE_BINS:-1}"
+MANGLE_METADATA=${MANGLE_METADATA:-0}
 
 # require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
 # require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
@@ -73,10 +74,10 @@ function operatorbin() {
     docker rm -f operator
 
     # compress the operator binary
-    tar -czvf "${operator_version}.tar.gz" -C operator/bin operator
+    tar -czvf "build/${operator_version}.tar.gz" -C operator/bin operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
 }
 
 function kotsbin() {
@@ -114,6 +115,11 @@ function metadata() {
     if [ -z "${EC_VERSION}" ]; then
         echo "EC_VERSION unset, not uploading metadata.json"
         return 0
+    fi
+
+    if [ "$MANGLE_METADATA" == "1" ]; then
+        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' build/metadata.json > build/metadata.tmp.json
+        mv build/metadata.tmp.json build/metadata.json
     fi
 
     # check if a file 'build/metadata.json' exists in the directory

@@ -12,14 +12,21 @@ RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 
+SKIP_S3_UPLOAD=${SKIP_S3_UPLOAD:-1}
+
 ARCH=${ARCH:-arm64}
 USE_CHAINGUARD=${USE_CHAINGUARD:-0}
 
-require REPLICATED_APP "${REPLICATED_APP:-}"
-require REPLICATED_API_TOKEN "${REPLICATED_API_TOKEN:-}"
-require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
-# require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID:-}"
-# require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY:-}"
+require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID:-}"
+require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY:-}"
+
+DO_RELEASE=${DO_RELEASE:-1}
+
+if [ "$DO_RELEASE" == "1" ]; then
+    require REPLICATED_APP "${REPLICATED_APP:-}"
+    require REPLICATED_API_TOKEN "${REPLICATED_API_TOKEN:-}"
+    require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
+fi
 
 export EC_VERSION APP_VERSION APP_CHANNEL RELEASE_YAML_DIR ARCH USE_CHAINGUARD
 export REPLICATED_API_ORIGIN REPLICATED_APP REPLICATED_API_TOKEN AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
@@ -37,8 +44,12 @@ function build() {
     ./scripts/ci-build-deps.sh
     ./scripts/ci-build.sh
     ./scripts/ci-embed-release.sh
-    ./scripts/cache-files.sh
-    ./scripts/ci-release-app.sh
+    if [ "$SKIP_S3_UPLOAD" != "1" ]; then
+        ./scripts/ci-cache-files.sh
+    fi
+    if [ "$DO_RELEASE" == "1" ]; then
+        ./scripts/ci-release-app.sh
+    fi
 }
 
 function clean() {
@@ -48,9 +59,9 @@ function clean() {
 }
 
 function main() {
+    clean
     init_vars
     build
-    clean
 }
 
 main "$@"

@@ -21,18 +21,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
-var (
-	// K0sBinaryURLOverride is used to override the k0s binary url and is overridden using LD_FLAGS
-	// in the Makefile
-	K0sBinaryURLOverride string
-	// KOTSBinaryURLOverride is used to override the KOTS binary url and is overridden using
-	// LD_FLAGS in the Makefile
-	KOTSBinaryURLOverride string
-	// OperatorBinaryURLOverride is used to override the Operator binary url and is overridden
-	// using LD_FLAGS in the Makefile
-	OperatorBinaryURLOverride string
-)
-
 var metadataCommand = &cli.Command{
 	Name:   "metadata",
 	Usage:  "Print metadata about this release",
@@ -87,14 +75,14 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetad
 		"operator":                    fmt.Sprintf("operator-binaries/%s.tar.gz", embeddedclusteroperator.Metadata.Version),
 		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
 	}
-	if K0sBinaryURLOverride != "" {
-		artifacts["k0s"] = K0sBinaryURLOverride
+	if versions.K0sBinaryURLOverride != "" {
+		artifacts["k0s"] = versions.K0sBinaryURLOverride
 	}
-	if KOTSBinaryURLOverride != "" {
-		artifacts["kots"] = KOTSBinaryURLOverride
+	if versions.KOTSBinaryURLOverride != "" {
+		artifacts["kots"] = versions.KOTSBinaryURLOverride
 	}
-	if OperatorBinaryURLOverride != "" {
-		artifacts["operator"] = OperatorBinaryURLOverride
+	if versions.OperatorBinaryURLOverride != "" {
+		artifacts["operator"] = versions.OperatorBinaryURLOverride
 	}
 
 	meta := types.ReleaseMetadata{

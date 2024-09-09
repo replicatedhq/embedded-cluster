@@ -8,6 +8,7 @@ set -euo pipefail
 EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+IMAGES_REGISTRY_SERVER=${IMAGES_REGISTRY_SERVER:-ttl.sh}
 
 require S3_BUCKET "${S3_BUCKET:-}"
 
@@ -46,6 +47,7 @@ function binary() {
         METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
         METADATA_OPERATOR_BINARY_URL_OVERRIDE="$operator_binary_url" \
         LOCAL_ARTIFACT_MIRROR_IMAGE="$local_artifact_mirror_image"
+    cp output/bin/embedded-cluster output/bin/embedded-cluster-original
 }
 
 function update_operator_metadata() {
@@ -69,7 +71,7 @@ function update_operator_metadata() {
     INPUT_OPERATOR_CHART_VERSION=$(echo "$operator_chart" | rev | cut -d':' -f1 | rev)
     INPUT_OPERATOR_IMAGE=$(echo "$operator_image" | cut -d':' -f1)
 
-    export IMAGES_REGISTRY_SERVER=ttl.sh
+    export IMAGES_REGISTRY_SERVER
     export INPUT_OPERATOR_CHART_URL
     export INPUT_OPERATOR_CHART_VERSION
     export INPUT_OPERATOR_IMAGE

@@ -5,6 +5,7 @@ set -euo pipefail
 # shellcheck source=./common.sh
 source ./scripts/common.sh
 
+require IMAGES_REGISTRY_SERVER "${IMAGES_REGISTRY_SERVER:-}"
 require OPERATOR_CHART "${OPERATOR_CHART:-}"
 require OPERATOR_IMAGE "${OPERATOR_IMAGE:-}"
 
