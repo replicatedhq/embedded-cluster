@@ -8,12 +8,12 @@ source ./scripts/common.sh
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
 APP_CHANNEL=${APP_CHANNEL:-Dev}
+CHANNEL_ID=${CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}
+CHANNEL_SLUG=${CHANNEL_SLUG:-dev}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
-
-SKIP_S3_UPLOAD=${SKIP_S3_UPLOAD:-1}
-
+CACHE_BINS=${CACHE_BINS:-1}
 ARCH=${ARCH:-arm64}
 USE_CHAINGUARD=${USE_CHAINGUARD:-0}
 
@@ -28,7 +28,7 @@ if [ "$DO_RELEASE" == "1" ]; then
     require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
 fi
 
-export EC_VERSION APP_VERSION APP_CHANNEL RELEASE_YAML_DIR ARCH USE_CHAINGUARD
+export EC_VERSION APP_VERSION APP_CHANNEL CHANNEL_ID CHANNEL_SLUG RELEASE_YAML_DIR CACHE_BINS ARCH USE_CHAINGUARD
 export REPLICATED_API_ORIGIN REPLICATED_APP REPLICATED_API_TOKEN AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 
 function init_vars() {
@@ -44,9 +44,7 @@ function build() {
     ./scripts/ci-build-deps.sh
     ./scripts/ci-build.sh
     ./scripts/ci-embed-release.sh
-    if [ "$SKIP_S3_UPLOAD" != "1" ]; then
-        ./scripts/ci-cache-files.sh
-    fi
+    ./scripts/ci-cache-files.sh
     if [ "$DO_RELEASE" == "1" ]; then
         ./scripts/ci-release-app.sh
     fi

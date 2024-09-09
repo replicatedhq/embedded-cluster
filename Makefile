@@ -138,15 +138,15 @@ output/bin/embedded-cluster-release-builder:
 
 .PHONY: initial-release
 initial-release:
-	EC_VERSION=$(VERSION) \
-	APP_VERSION=appver-dev-$(shell git rev-parse --short HEAD) \
+	EC_VERSION=$(VERSION)-$(CURRENT_USER) \
+	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6) \
 	CACHE_BINS=0 \
 		./scripts/dev-build.sh
 
 .PHONY: upgrade-release
 upgrade-release:
-	EC_VERSION=$(VERSION)-upgrade \
-	APP_VERSION=appver-dev-$(shell git rev-parse --short HEAD)-upgrade \
+	EC_VERSION=$(VERSION)-$(CURRENT_USER)-upgrade \
+	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade \
 	CACHE_BINS=1 \
 		./scripts/dev-build.sh
 

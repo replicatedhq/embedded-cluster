@@ -128,13 +128,15 @@ jobs:
 
       - name: Build
         env:
+          CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+          CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
           S3_BUCKET: "dev-embedded-cluster-bin"
           AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
-          SKIP_S3_UPLOAD: "0"
+          CACHE_BINS: "1"
           DO_RELEASE: "0"
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
@@ -192,13 +194,15 @@ jobs:
 
       - name: Build
         env:
+          CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+          CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
           S3_BUCKET: "dev-embedded-cluster-bin"
           AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
-          SKIP_S3_UPLOAD: "0"
+          CACHE_BINS: "1"
           DO_RELEASE: "0"
           MANGLE_METADATA: "1"
         run: |
@@ -256,13 +260,15 @@ jobs:
 
       - name: Build
         env:
+          CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+          CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-upgrade
           S3_BUCKET: "dev-embedded-cluster-bin"
           AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
-          SKIP_S3_UPLOAD: "0"
+          CACHE_BINS: "1"
           DO_RELEASE: "0"
           MANGLE_METADATA: "1"
         run: |

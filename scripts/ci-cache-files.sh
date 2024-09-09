@@ -9,13 +9,13 @@ EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
-CACHE_BINS="${CACHE_BINS:-1}"
+CACHE_BINS=${CACHE_BINS:-1}
 MANGLE_METADATA=${MANGLE_METADATA:-0}
 
-# require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
-# require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
-require AWS_REGION "${AWS_REGION}"
-require S3_BUCKET "${S3_BUCKET}"
+require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID:-}"
+require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY:-}"
+require AWS_REGION "${AWS_REGION:-}"
+require S3_BUCKET "${S3_BUCKET:-}"
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -130,7 +130,6 @@ function metadata() {
     else
         echo "build/metadata.json not found, skipping upload"
     fi
-
 }
 
 function embeddedcluster() {
