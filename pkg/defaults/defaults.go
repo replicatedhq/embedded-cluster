@@ -14,7 +14,7 @@ var (
 )
 
 // Holds the default no proxy values.
-var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".default", ".local", ".svc", "kubernetes", "kotsadm-rqlite"}
+var DefaultNoProxy = []string{"localhost", "127.0.0.1"}
 
 const ProxyRegistryAddress = "proxy.replicated.com"
 
