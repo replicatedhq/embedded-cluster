@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { login } from '../shared';
 
-test('get join controller command', async ({ page }) => {
+test('get restore join controller command', async ({ page }) => {
   await login(page);
   await expect(page.getByText('Nodes')).toBeVisible();
   await expect(page.getByText('Select one or more roles to assign to the new node')).toBeVisible();
