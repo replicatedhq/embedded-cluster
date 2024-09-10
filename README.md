@@ -1,5 +1,6 @@
 # Embedded Cluster platform
 
+
 Replicated Embedded Cluster allows you to distribute a Kubernetes cluster and your application together as a single appliance, making it easy for enterprise users to install, update, and manage the application and the cluster in tandem.
 Embedded Cluster is based on the open source Kubernetes distribution k0s.
 For more information, see the [k0s documentation](https://docs.k0sproject.io/stable/).
