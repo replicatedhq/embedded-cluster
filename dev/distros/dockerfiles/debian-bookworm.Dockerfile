@@ -1,5 +1,4 @@
-# adapted from https://github.com/k0sproject/k0s/blob/2b7adcd574b0f20ccd1a2da515cf8c81d57b2241/inttest/bootloose-alpine/Dockerfile
-FROM ubuntu:jammy
+FROM debian:bookworm-slim
 
 # Install necessary packages
 RUN apt-get update && apt-get install -y \

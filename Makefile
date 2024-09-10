@@ -242,15 +242,11 @@ buildtools:
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -o ./output/bin/buildtools ./cmd/buildtools
 
-.PHONY: ec-distro-%
-ec-distro-%:
-	docker build -t ec-$* -f dev/distros/$*.Dockerfile dev/distros
-
 .PHONY: create-node%
-create-node%: DISTRO = debian
+create-node%: DISTRO = debian-bookworm
 create-node%:
 	@if ! docker images | grep -q ec-$(DISTRO); then \
-		$(MAKE) ec-distro-$(DISTRO); \
+		$(MAKE) -C dev/distros build-$(DISTRO); \
 	fi
 
 	@docker run -d \
