@@ -4,14 +4,20 @@ spec:
       volumes:
       - name: dev
         hostPath:
-          path: __PROJECT_DIR__/operator
+          path: __PROJECT_DIR__
           type: Directory
       containers:
       - name: manager
+        image: operator-dev
         command: ["/bin/bash"]
         args: ["-c", "while true; do sleep 30; done;"]
         volumeMounts:
         - name: dev
-          mountPath: /replicatedhq/embedded-cluster/operator # workdir in the container
+          mountPath: /replicatedhq/embedded-cluster # parent of workdir in the container
+        livenessProbe: ~
         readinessProbe: ~
         resources: ~
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false

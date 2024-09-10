@@ -18,6 +18,9 @@ if [ -f "dev/patches/$component-down.yaml.tmp" ]; then
   exit 0
 fi
 
+# Build and load the image into the embedded cluster
+ec_build_and_load "$component"
+
 # Save current deployment state
 ec_exec k0s kubectl get deployment $(deployment $component) -n embedded-cluster -oyaml > dev/patches/$component-down.yaml.tmp
 
