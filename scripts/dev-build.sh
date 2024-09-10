@@ -5,8 +5,8 @@ set -euo pipefail
 # shellcheck source=./common.sh
 source ./scripts/common.sh
 
-EC_VERSION=
-APP_VERSION=
+EC_VERSION=${EC_VERSION:-}
+APP_VERSION=${APP_VERSION:-}
 APP_CHANNEL=${APP_CHANNEL:-Unstable}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
