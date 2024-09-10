@@ -4,7 +4,7 @@ metadata:
   name: "testconfig"
 spec:
   version: "__version_string__"
-  releaseOverrideUrl: "__release_url__"
+  binaryOverrideUrl: "__release_url__"
   metadataOverrideUrl: "__metadata_url__"
   roles:
     controller:
