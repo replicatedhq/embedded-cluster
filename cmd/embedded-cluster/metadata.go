@@ -70,9 +70,19 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetad
 	}
 
 	artifacts := map[string]string{
+		"k0s":                         fmt.Sprintf("k0s-binaries/%s", versions.K0sVersion),
 		"kots":                        fmt.Sprintf("kots-binaries/%s.tar.gz", adminconsole.KotsVersion),
 		"operator":                    fmt.Sprintf("operator-binaries/%s.tar.gz", embeddedclusteroperator.Metadata.Version),
 		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
+	}
+	if versions.K0sBinaryURLOverride != "" {
+		artifacts["k0s"] = versions.K0sBinaryURLOverride
+	}
+	if versions.KOTSBinaryURLOverride != "" {
+		artifacts["kots"] = versions.KOTSBinaryURLOverride
+	}
+	if versions.OperatorBinaryURLOverride != "" {
+		artifacts["operator"] = versions.OperatorBinaryURLOverride
 	}
 
 	meta := types.ReleaseMetadata{

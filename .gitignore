@@ -1,4 +1,3 @@
-output
 bundle
 pkg/goods/bins/*
 !pkg/goods/bins/.placeholder
@@ -9,7 +8,8 @@ pkg/goods/images
 .pre-commit-config.yaml
 vendor
 e2e/kots-release-install/license.yaml
-/build/
 /bin/
+/build/
+/output/
 go.work
 go.work.sum

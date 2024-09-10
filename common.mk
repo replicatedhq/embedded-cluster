@@ -1,5 +1,7 @@
 SHELL := /bin/bash
 
+CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
+
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
@@ -9,12 +11,26 @@ $(LOCALBIN):
 MELANGE ?= $(LOCALBIN)/melange
 APKO ?= $(LOCALBIN)/apko
 
+## Version to use for building
+VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+.PHONY: print-%
+print-%:
+	@echo -n $($*)
+
+.PHONY: check-env-%
+check-env-%:
+	@ if [ "${${*}}" = "" ]; then \
+		echo "Environment variable $* not set"; \
+		exit 1; \
+	fi
 
 melange: $(MELANGE)
 $(MELANGE): $(LOCALBIN)
@@ -34,7 +50,7 @@ MELANGE_CACHE_DIR ?= /go/pkg/mod
 APKO_CMD = docker run -v $(shell pwd):/work -w /work -v $(shell pwd)/build/.docker:/root/.docker cgr.dev/chainguard/apko
 MELANGE_CMD = docker run --privileged --rm -v $(shell pwd):/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
 else
-MELANGE_CACHE_DIR ?= build/.melange-cache
+MELANGE_CACHE_DIR ?= cache/.melange-cache
 APKO_CMD = apko
 MELANGE_CMD = melange
 endif
@@ -105,9 +121,3 @@ melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
 apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
 	envsubst '$${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
-
-check-env-%:
-	@ if [ "${${*}}" = "" ]; then \
-		echo "Environment variable $* not set"; \
-		exit 1; \
-	fi

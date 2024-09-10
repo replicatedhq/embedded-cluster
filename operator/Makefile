@@ -2,6 +2,9 @@ SHELL := /bin/bash
 
 include ../common.mk
 
+OS ?= linux
+ARCH ?= $(shell go env GOARCH)
+
 # VERSION defines the project version for the bundle.
 # Update this value when you upgrade the version of your project.
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
@@ -13,10 +16,6 @@ VERSION ?= 0.0.1
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.0
-
-# Set the current user to the GITHUB_USER env variable if it is set, which is useful when using Github Codespaces.
-# Otherwise, set it to the current user.
-CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -75,7 +74,7 @@ test: manifests fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: ## Build manager binary.
-	go build \
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
 		-ldflags="-s -w -extldflags=-static" \
 		-o bin/manager main.go
@@ -130,10 +129,9 @@ $(ENVTEST): $(LOCALBIN)
 		ln -sf $(GOBIN)/setup-envtest $(LOCALBIN)/setup-envtest || \
 		ln -sf $(GOBIN)/$(shell go env GOOS)_$(shell go env GOARCH)/setup-envtest $(LOCALBIN)/setup-envtest
 
-GOOS ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+USE_CHAINGUARD ?= 1
 
-export PACKAGE_VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
+export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAMESPACE ?= replicated
 export IMAGE_NAME ?= $(IMAGE_NAMESPACE)/embedded-cluster-operator-image
 export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')
@@ -150,10 +148,36 @@ melange-build-operator:
 export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: build-operator-image
-build-operator-image: melange-build-operator apko-build
+build-operator-image:
+	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+		$(MAKE) build-operator-image-chainguard; \
+	else \
+		$(MAKE) build-operator-image-dockerfile; \
+	fi
+
+.PHONY: build-operator-image-chainguard
+build-operator-image-chainguard: melange-build-operator apko-build
+
+.PHONY: build-operator-image-dockerfile
+build-operator-image-dockerfile:
+	docker build --platform="$(OS)/$(ARCH)" -t $(IMAGE) -f deploy/Dockerfile ../
+	mkdir -p build
+	echo "$(IMAGE)" > build/image
 
 .PHONY: build-and-push-operator-image
-build-and-push-operator-image: melange-build-operator apko-build-and-publish
+build-and-push-operator-image:
+	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+		$(MAKE) build-and-push-operator-image-chainguard; \
+	else \
+		$(MAKE) build-and-push-operator-image-dockerfile; \
+	fi
+
+.PHONY: build-and-push-operator-image-chainguard
+build-and-push-operator-image-chainguard: melange-build-operator apko-build-and-publish
+
+.PHONY: build-and-push-operator-image-dockerfile
+build-and-push-operator-image-dockerfile: build-operator-image-dockerfile
+	docker push $(IMAGE)
 
 .PHONY: build-chart
 build-chart:
@@ -164,10 +188,14 @@ build-chart:
 .PHONY: build-ttl.sh
 build-ttl.sh:
 	$(MAKE) build-and-push-operator-image \
-		IMAGE=ttl.sh/$(IMAGE)
+		IMAGE=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image:$(IMAGE_TAG)
 
 .PHONY: build-chart-ttl.sh
 build-chart-ttl.sh:
 	$(MAKE) build-chart \
-		IMAGE_NAME=ttl.sh/$(IMAGE_NAME) \
-		CHART_REMOTE=oci://ttl.sh/$(IMAGE_NAMESPACE)
+		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image \
+		CHART_REMOTE=oci://ttl.sh/$(CURRENT_USER)
+
+.PHONY: clean
+clean:
+	rm -rf bin build
