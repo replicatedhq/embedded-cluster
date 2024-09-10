@@ -242,6 +242,10 @@ buildtools:
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -o ./output/bin/buildtools ./cmd/buildtools
 
+.PHONY: list-distros
+list-distros:
+	@$(MAKE) -C dev/distros list
+
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
 create-node%:
