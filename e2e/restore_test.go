@@ -490,7 +490,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// join a controller
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, "get-restore-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -506,7 +506,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// join another controller in non-HA mode
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, "get-restore-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -708,7 +708,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join a controller
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, "get-restore-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -724,7 +724,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join another controller in non-HA mode
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, "get-restore-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
