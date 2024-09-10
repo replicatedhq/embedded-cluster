@@ -6,6 +6,10 @@ spec:
         hostPath:
           path: __PROJECT_DIR__
           type: Directory
+      - name: gomodcache
+        hostPath:
+          path: __PROJECT_DIR__/dev/.gomodcache
+          type: Directory
       containers:
       - name: manager
         image: operator-dev
@@ -14,6 +18,8 @@ spec:
         volumeMounts:
         - name: dev
           mountPath: /replicatedhq/embedded-cluster # parent of workdir in the container
+        - name: gomodcache
+          mountPath: /go/pkg/mod
         livenessProbe: ~
         readinessProbe: ~
         resources: ~

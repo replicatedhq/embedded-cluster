@@ -18,6 +18,9 @@ if [ -f "dev/patches/$component-down.yaml.tmp" ]; then
   exit 0
 fi
 
+# Ensure dev go mod cache directory exists
+mkdir -p dev/.gomodcache
+
 # Build and load the image into the embedded cluster
 ec_build_and_load "$component"
 
