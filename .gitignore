@@ -12,4 +12,5 @@ e2e/kots-release-install/license.yaml
 /output/
 go.work
 go.work.sum
+.gocache
 .gomodcache
