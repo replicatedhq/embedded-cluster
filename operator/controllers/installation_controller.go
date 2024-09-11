@@ -303,10 +303,13 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 		return nil
 	}
 
-	// for all installations the first thing we need to do is to ensure that the embedded cluster
-	// version metadata is available inside the cluster.
-	if err := metadata.CopyVersionMetadataToCluster(ctx, r.Client, in); err != nil {
-		return fmt.Errorf("failed to copy version metadata to cluster: %w", err)
+	// in airgap installation the first thing we need to do is to ensure that the embedded
+	// cluster version metadata is available inside the cluster. we can't use the internet
+	// to fetch it directly from our remote servers.
+	if in.Spec.AirGap {
+		if err := metadata.CopyVersionMetadataToCluster(ctx, r.Client, in); err != nil {
+			return fmt.Errorf("failed to copy version metadata to cluster: %w", err)
+		}
 	}
 
 	// fetch the metadata for the desired embedded cluster version.

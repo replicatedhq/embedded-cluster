@@ -109,6 +109,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
+
       - name: Cache melange
         uses: actions/cache@v4
         with:
@@ -172,6 +179,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
+
       - name: Cache melange
         uses: actions/cache@v4
         with:
@@ -232,6 +246,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
 
       - name: Cache melange
         uses: actions/cache@v4

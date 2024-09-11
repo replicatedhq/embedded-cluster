@@ -137,6 +137,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
