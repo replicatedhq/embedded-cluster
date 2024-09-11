@@ -114,18 +114,29 @@ endif
 
 .PHONY: pkg/goods/internal/bins/kubectl-kots
 pkg/goods/internal/bins/kubectl-kots:
-	$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH)
 	mkdir -p pkg/goods/internal/bins
-	cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@
+	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
+		$(MAKE) output/bins/kubectl-kots-override ; \
+		cp output/bins/kubectl-kots-override $@ ; \
+	else \
+		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) ; \
+		cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@ ; \
+	fi
+	touch $@
 
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
-	else \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz" ; \
-	fi
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz"
+	tar -xzf output/tmp/kots.tar.gz -C output/tmp
+	mv output/tmp/kots $@
+	touch $@
+
+.PHONY: output/bins/kubectl-kots-override
+output/bins/kubectl-kots-override:
+	mkdir -p output/bins
+	mkdir -p output/tmp
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)"
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
