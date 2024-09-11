@@ -5,7 +5,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 COPY kinds/go.mod kinds/go.sum ./kinds/
 COPY utils/go.mod utils/go.sum ./utils/
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY common.mk common.mk
 COPY operator/ operator/
