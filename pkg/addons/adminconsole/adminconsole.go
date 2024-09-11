@@ -47,7 +47,7 @@ var (
 	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.AddonMetadata
 	// protectedFields are helm values that are not overwritten when upgrading the addon.
-	protectedFields = []string{"automation", "embeddedClusterID", "isAirgap", "privateCAs"}
+	protectedFields = []string{"automation", "embeddedClusterID", "isAirgap"}
 	// Overwritten by -ldflags in Makefile
 	AdminConsoleChartRepoOverride       = ""
 	AdminConsoleImageOverride           = ""
@@ -129,10 +129,6 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 			}
 			helmValues["extraEnv"] = extraEnv
 		}
-
-		if len(a.privateCAs) > 0 {
-			helmValues["privateCAs"] = a.privateCAs
-		}
 	}
 	values, err := yaml.Marshal(helmValues)
 	if err != nil {
@@ -175,6 +171,10 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 
 	if err := createKotsPasswordSecret(ctx, cli, a.namespace, a.password); err != nil {
 		return fmt.Errorf("unable to create kots password secret: %w", err)
+	}
+
+	if err := createKotsCAConfigmap(ctx, cli, a.namespace, a.privateCAs); err != nil {
+		return fmt.Errorf("unable to create kots CA configmap: %w", err)
 	}
 
 	if a.airgapBundle != "" {
@@ -338,6 +338,32 @@ func createKotsPasswordSecret(ctx context.Context, cli client.Client, namespace 
 	err = cli.Create(ctx, &kotsPasswordSecret)
 	if err != nil {
 		return fmt.Errorf("unable to create kotsadm-password secret: %w", err)
+	}
+
+	return nil
+}
+
+func createKotsCAConfigmap(ctx context.Context, cli client.Client, namespace string, cas map[string]string) error {
+	kotsCAConfigmap := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kotsadm-private-cas",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"kots.io/kotsadm":                        "true",
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "admin-console",
+			},
+		},
+		Data: cas,
+	}
+
+	err := cli.Create(ctx, &kotsCAConfigmap)
+	if err != nil {
+		return fmt.Errorf("unable to create kotsadm-private-cas configmap: %w", err)
 	}
 
 	return nil
