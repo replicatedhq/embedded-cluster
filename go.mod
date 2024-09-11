@@ -23,7 +23,7 @@ require (
 	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0s v1.28.12-0.20240618130209-434229eed353
+	github.com/k0sproject/k0s v1.29.9-0.20240821114611-d76eb6bb05a7
 	github.com/k0sproject/version v0.6.0
 	github.com/ohler55/ojg v1.24.0
 	github.com/onsi/ginkgo/v2 v2.20.2

@@ -349,8 +349,8 @@ github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4d
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/k0sproject/dig v0.2.0 h1:cNxEIl96g9kqSMfPSZLhpnZ0P8bWXKv08nxvsMHop5w=
 github.com/k0sproject/dig v0.2.0/go.mod h1:rBcqaQlJpcKdt2x/OE/lPvhGU50u/e95CSm5g/r4s78=
-github.com/k0sproject/k0s v1.28.12-0.20240618130209-434229eed353 h1:2/MTAeZUJA6FdRMQcfn7kYC6DIKgOROGNQ7JkvlGh6s=
-github.com/k0sproject/k0s v1.28.12-0.20240618130209-434229eed353/go.mod h1:U7hioxgS5En2Xym1p5Ugc3/Z36qMxL+XfZrxjFLEoxc=
+github.com/k0sproject/k0s v1.29.9-0.20240821114611-d76eb6bb05a7 h1:pxtk/512ibsry6nNx8EfBhFOeeJ/gad1Igjr+7Th6A0=
+github.com/k0sproject/k0s v1.29.9-0.20240821114611-d76eb6bb05a7/go.mod h1:eAO/EjCQxfHGnfxOUs061GdLYISLLYbXdexOPMn048g=
 github.com/k0sproject/version v0.6.0 h1:Wi8wu9j+H36+okIQA47o/YHbzNpKeIYj8IjGdJOdqsI=
 github.com/k0sproject/version v0.6.0/go.mod h1:5/7Js62gDCLBP6mEs0mUcYEEkYneM5qXDKN/hyFlQTM=
 github.com/karrick/godirwalk v1.17.0 h1:b4kY7nqDdioR/6qnbHQyDvmA17u5G1cZ6J+CZXwSWoI=
