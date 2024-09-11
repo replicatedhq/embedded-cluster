@@ -132,6 +132,10 @@ func remoteMetadataFor(ctx context.Context, in *v1beta1.Installation) (*ectypes.
 
 	version := strings.TrimPrefix(in.Spec.Config.Version, "v")
 
+	if _, ok := cache[version]; ok {
+		return metaFromCache(version)
+	}
+
 	var metadataURL string
 	if in.Spec.Config.MetadataOverrideURL != "" {
 		metadataURL = in.Spec.Config.MetadataOverrideURL
