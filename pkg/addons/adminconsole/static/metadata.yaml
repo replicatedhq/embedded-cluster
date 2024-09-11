@@ -5,18 +5,18 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 1.115.1
+version: 1.116.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console
 images:
     kotsadm:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
-        tag: v1.115.1@sha256:9772a075a24586d2fd8550285f95a0bc466b280e960fd00ccb585ac9999592bb
+        tag: v1.116.0@sha256:a30c3f825beb5e47d20a1b6717603eee65cf74ece86a7073209b3321c3b807a3
     kotsadm-migrations:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
-        tag: v1.115.1@sha256:22673b6d3729fe48607516314f59095b6da8ded4b61aa381c6ada5583f130c5e
+        tag: v1.116.0@sha256:77fe399c43db11877663e68fd680d764fab7a6d06fc27c82eb0e9a2e4ed9888f
     kurl-proxy:
         repo: proxy.replicated.com/anonymous/kotsadm/kurl-proxy
-        tag: v1.115.1@sha256:771901bff6459dde393d0df93c1a1ff50c4013dc8264903f89b71d3d10f0b459
+        tag: v1.116.0@sha256:763c05284f8f824329202d2a71fab1e4bedd19e82ae17c4a694e07e1c166c32f
     rqlite:
         repo: proxy.replicated.com/anonymous/kotsadm/rqlite
-        tag: 8.28.1-r0@sha256:f7f9dd7d67999d95d90b8bf26f3508f4f3fcfb89783c7d5abcf94b5aed406ba0
+        tag: 8.30.0-r0@sha256:794fd99e8c72053c0cb0ad1fdbf1c4af24a8949bd418546952ed9affa6c4e5b6
