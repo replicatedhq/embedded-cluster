@@ -34,6 +34,8 @@ function deps() {
 }
 
 function create_release_archive() {
+    local release_url metadata_url
+
     rm -rf output/tmp/release
     mkdir -p output/tmp
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
@@ -46,11 +48,12 @@ function create_release_archive() {
         echo "versionLabel: \"${APP_VERSION}\""
     } > output/tmp/release/release.yaml
 
-    # ensure that the cluster config embedded in the CI binaries is correct
+    release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
+    metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
+
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
-    # remove the release and metadata override urls
-    sed -i.bak "s|__release_url__||g" output/tmp/release/cluster-config.yaml
-    sed -i.bak "s|__metadata_url__||g" output/tmp/release/cluster-config.yaml
+    sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
+    sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 
