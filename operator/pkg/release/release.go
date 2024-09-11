@@ -12,8 +12,8 @@ import (
 	"sync"
 
 	"github.com/gosimple/slug"
-	"github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	ectypes "github.com/replicatedhq/embedded-cluster-kinds/types"
+	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

@@ -6,8 +6,8 @@ import (
 	"sort"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	eckinds "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster-kinds/types"
+	eckinds "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"

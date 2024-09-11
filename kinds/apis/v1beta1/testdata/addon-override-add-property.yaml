@@ -1,0 +1,13 @@
+spec:
+  unsupportedOverrides:
+    builtInExtensions:
+    - name: openebs
+      values: |-
+        newProperty: newValue
+config:
+  name: openebs
+  values: |-
+    property: value
+expected: |-
+  property: value
+  newProperty: newValue

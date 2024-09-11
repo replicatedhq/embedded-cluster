@@ -39,4 +39,4 @@ The `Installation` object is used by the Embedded Cluster Operator to both initi
 
 The `Installation` object can contain errors surfaced from the `Plan` and `Chart` resources.
 
-Possible Installation statuses can be found here: https://github.com/replicatedhq/embedded-cluster-kinds/blob/f54d45f99095ac6beaac61a3c8b735b9f7473329/apis/v1beta1/installation_types.go#L29-L42
+Possible Installation statuses can be found here: https://github.com/replicatedhq/embedded-cluster/kinds/blob/f54d45f99095ac6beaac61a3c8b735b9f7473329/apis/v1beta1/installation_types.go#L29-L42

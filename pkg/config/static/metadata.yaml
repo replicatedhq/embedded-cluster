@@ -14,7 +14,7 @@ images:
         version: 3.28.1-r0@sha256:2c38dff2446170033eedcba11370621feaa6048efc220f9c64d3253d1d3cc790
     calico-node:
         image: proxy.replicated.com/anonymous/replicated/ec-calico-node
-        version: 3.28.1-r0@sha256:9420c9271eae9a8329478fdad79817a4c381096e553bfecfea7e8a470a103145
+        version: 3.28.1-r0@sha256:50e5fb4e657229cebf3779ab81d73db474ba5f9b98c92042063d8f883e00c650
     coredns:
         image: proxy.replicated.com/anonymous/replicated/ec-coredns
         version: 1.11.3-r6@sha256:d6964b8206f1bd14e41ddd4db5f3f5e8d8fd68616216aec2f8b80a4f9771a0fe

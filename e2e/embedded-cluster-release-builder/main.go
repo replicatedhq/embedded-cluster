@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster-utils/pkg/embed"
+	"github.com/replicatedhq/embedded-cluster/utils/pkg/embed"
 )
 
 func main() {

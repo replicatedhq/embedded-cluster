@@ -35,6 +35,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
+        cache-dependency-path: "**/*.sum"
 
     - name: Compile buildtools
       run: |
@@ -84,7 +85,7 @@ jobs:
         ./output/bin/buildtools update images ${{ matrix.addon }}
 
     - name: Create Pull Request # creates a PR if there are differences
-      uses: peter-evans/create-pull-request@v6
+      uses: peter-evans/create-pull-request@v7
       id: cpr
       with:
         token: ${{ secrets.GH_PAT }}

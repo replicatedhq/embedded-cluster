@@ -17,7 +17,7 @@ credentials:
 deployNodeAgent: true
 image:
   repository: 'proxy.replicated.com/anonymous/replicated/ec-velero'
-  tag: '1.14.1-r0@sha256:13235e66a97035fc62599641ef82fa7f07222a857766bb793d19f639b08a6c19'
+  tag: '1.14.1-r0@sha256:4ebaed0b985f5b3d6560a4fe8f9108efa7e7c09a69f73ce4db7118c91495f822'
 initContainers:
 - image: 'proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws:1.10.1-r0@sha256:c8555cc7874caaef9b4da3bb5c88f247612aee9d55ab131057419c62e5be8209'
   imagePullPolicy: IfNotPresent
@@ -28,14 +28,14 @@ initContainers:
 kubectl:
   image:
     repository: 'proxy.replicated.com/anonymous/replicated/ec-kubectl'
-    tag: '1.31.0-r1@sha256:70b2e76f316eb753b70d1349861d9b5bd58fff2cfa551072917dd68b50bdb2af'
+    tag: '1.31.0-r2@sha256:df5a0eac8915bf61edbc05e3e9cd31772a565eee72163965c547acf8665ff3b3'
 configMaps:
   fs-restore-action-config:
     labels:
       velero.io/plugin-config: ""
       velero.io/pod-volume-restore: RestoreItemAction
     data:
-      image: 'proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper:1.14.1-r0@sha256:cf1795245954f83bc3c1b8a833df64b76d75674cf5e713946ede2a58384209a8'
+      image: 'proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper:1.14.1-r0@sha256:012de383146efe94acf73271827bfc69183c500d1ff0ab6312425b7aff7d4031'
 nodeAgent:
   podVolumePath: /var/lib/k0s/kubelet/pods
 snapshotsEnabled: false

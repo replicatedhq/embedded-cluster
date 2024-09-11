@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster-kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 )

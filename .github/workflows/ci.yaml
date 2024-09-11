@@ -1,14 +1,18 @@
 name: CI
+
 on:
   pull_request: {}
   push:
     branches:
       - main
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+
 permissions:
   contents: write
+
 jobs:
   git-sha:
     name: Git SHA
@@ -30,15 +34,16 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
       - name: Go vet
         run: |
           make vet
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.54
+          version: v1.60.3
 
-  tests:
+  test:
     name: Unit tests
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +53,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
       - name: Unit tests
         run: |
           make unit-tests
@@ -148,6 +154,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
       - name: Compile buildtools
         run: |
           make buildtools
@@ -174,6 +181,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
 
       - name: Download buildtools artifact
         uses: actions/download-artifact@v4
@@ -431,6 +439,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
       - name: Write license file
         run: |
           echo "${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}" | base64 --decode > e2e/license.yaml
@@ -532,7 +541,7 @@ jobs:
       - e2e
       - e2e-docker
       - sanitize
-      - tests
+      - test
       - check-images
       - check-operator-crds
     if: always()
@@ -545,7 +554,7 @@ jobs:
         if: needs.sanitize.result != 'success'
         run: exit 1
       - name: fail if tests job was not successful
-        if: needs.tests.result != 'success'
+        if: needs.test.result != 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"
