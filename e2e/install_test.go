@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -12,6 +13,7 @@ import (
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
@@ -2174,9 +2176,10 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 		"--license", "/assets/license.yaml",
 		"--private-ca", "/tmp/ca.crt",
 	}
-	stdout, stderr, err := RunCommandOnNode(t, tc, 0, line)
-	require.NoError(t, err, "unale to install embedded-cluster: %s %s", stdout, stderr)
+	_, _, err = RunCommandOnNode(t, tc, 0, line)
+	require.NoError(t, err, "unable to install embedded-cluster")
 
+	t.Logf("copying k0s config from the node")
 	tmpcfg, err := os.CreateTemp("", "test-k0s-config-*.yaml")
 	require.NoError(t, err, "unable to create temp file")
 	defer os.Remove(tmpcfg.Name())
@@ -2187,6 +2190,7 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	data, err := os.ReadFile(tmpcfg.Name())
 	require.NoError(t, err, "unable to read temp file")
 
+	t.Logf("checking if k0s config has the ca values")
 	var kcfg v1beta1.ClusterConfig
 	err = k8syaml.Unmarshal(data, &kcfg)
 	require.NoError(t, err, "unable to unmarshal k0s config")
@@ -2209,6 +2213,17 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	content := values.Dig("privateCAs", "ca_0.crt")
 	require.NotNil(t, content, "unable to find crt content in the k0s config")
 	require.Equal(t, crtContent, content, "crt content mismatch")
+
+	t.Logf("checking if the configmap was created with the right values")
+	line = []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
+	stdout, _, err := RunCommandOnNode(t, tc, 0, line, WithECShelEnv())
+	require.NoError(t, err, "unable get kotsadm-private-cas configmap")
+
+	var cm corev1.ConfigMap
+	err = json.Unmarshal([]byte(stdout), &cm)
+	require.NoErrorf(t, err, "unable to unmarshal output to configmap: %q", stdout)
+	require.Contains(t, cm.Data, "ca_0.crt", "index ca_0.crt not found in ca secret")
+	require.Equal(t, crtContent, cm.Data["ca_0.crt"], "content mismatch")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
