@@ -151,7 +151,9 @@ jobs:
 
       - name: Update embedded-cluster-operator metadata.yaml
         env:
-          IMAGES_REGISTRY_SERVER: ttl.sh
+          IMAGES_REGISTRY_SERVER: index.docker.io
+          IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
           OPERATOR_CHART: ${{ needs.publish-operator-chart.outputs.chart }}
           OPERATOR_IMAGE: ${{ needs.publish-operator-image.outputs.image }}
         run: |
