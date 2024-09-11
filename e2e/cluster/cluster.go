@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,7 +15,12 @@ import (
 
 	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/cloudflare/cfssl/log"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var networkaddr chan string
@@ -89,6 +95,7 @@ type Output struct {
 	id      string
 	T       *testing.T
 	Proxy   string
+	kubecfg string
 }
 
 // Destroy destroys a cluster pointed by the id property inside the output.
@@ -129,6 +136,60 @@ func (o *Output) Destroy() {
 		o.T.Logf("Failed to delete profile: %v", err)
 	}
 	networkaddr <- o.network
+
+	if o.kubecfg != "" {
+		os.Remove(o.kubecfg)
+	}
+}
+
+func (o *Output) KubeClient(node string) (client.Client, error) {
+	pattern := fmt.Sprintf("kubeconfig-%s-*", o.id)
+	tmpfile, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	tmpfile.Close()
+	o.kubecfg = tmpfile.Name()
+
+	if err := CopyFileFromNode(node, "/var/lib/k0s/pki/admin.conf", tmpfile.Name()); err != nil {
+		return nil, fmt.Errorf("failed to copy kubeconfig from node: %w", err)
+	}
+
+	lclient, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to lxd: %w", err)
+	}
+	instance, _, err := lclient.GetInstance(node)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get instance: %w", err)
+	}
+
+	ipsstr, ok := instance.Config["volatile.eth0.last_state.ip_addresses"]
+	if !ok {
+		return nil, fmt.Errorf("Failed to get ip address from instance")
+	}
+
+	ips := strings.SplitN(ipsstr, ",", 2)
+	raw, err := os.ReadFile(tmpfile.Name())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read kubeconfig: %w", err)
+	}
+
+	content := strings.ReplaceAll(string(raw), "localhost", ips[0])
+	if err := os.WriteFile(tmpfile.Name(), []byte(content), 0600); err != nil {
+		return nil, fmt.Errorf("failed to write kubeconfig: %w", err)
+	}
+
+	config, err := clientcmd.BuildConfigFromFlags("", tmpfile.Name())
+	if err != nil {
+		return nil, err
+	}
+
+	k8slogger := zap.New(func(o *zap.Options) {
+		o.DestWriter = io.Discard
+	})
+	log.SetLogger(k8slogger)
+	return client.New(config, client.Options{})
 }
 
 // Command is a command to be run in a node.
@@ -209,7 +270,7 @@ func NewTestCluster(in *Input) *Output {
 		network: in.network,
 		id:      in.id,
 	}
-	out.T.Cleanup(out.Destroy)
+	// out.T.Cleanup(out.Destroy)
 
 	PullImage(in, in.Image)
 	if ProxyImage != in.Image {
@@ -217,6 +278,7 @@ func NewTestCluster(in *Input) *Output {
 	}
 	CreateProfile(in)
 	CreateNetworks(in)
+	CreateRouteForInternalNetwork(in)
 	out.Nodes, out.IPs = CreateNodes(in)
 	for _, node := range out.Nodes {
 		CopyFilesToNode(in, node)
@@ -248,6 +310,29 @@ func NewTestCluster(in *Input) *Output {
 		RunCommandOnNode(in, []string{"install-deps.sh"}, node, opts...)
 	}
 	return out
+}
+
+// CreateRouteForInternalNetwork creates a route on the host pointing traffic
+// towards the internal network to the ip of the gateway of the network.
+func CreateRouteForInternalNetwork(in *Input) string {
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	require.NoError(in.T, err, "failed to create lxd connection")
+
+	net, _, err := client.GetNetwork(fmt.Sprintf("internal-%s", in.id))
+	require.NoError(in.T, err, "failed to get network")
+
+	gw, ok := net.Config["volatile.network.ipv4.address"]
+	require.True(in.T, ok, "failed to get gateway address")
+
+	args := []string{"route", "del", "10.0.0.0/24"}
+	err = exec.Command("ip", args...).Run()
+	require.NoError(in.T, err, "failed to delete route")
+
+	args = []string{"route", "add", "10.0.0.0/24", "via", gw}
+	err = exec.Command("ip", args...).Run()
+	require.NoError(in.T, err, "failed to add route")
+
+	return gw
 }
 
 const ProxyImage = "debian/12"

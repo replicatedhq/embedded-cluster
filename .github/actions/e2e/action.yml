@@ -116,7 +116,7 @@ runs:
       export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
       export EXPECT_K0S_VERSION=${{ inputs.k0s-version }}
       export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
-      make e2e-test TEST_NAME=${{ inputs.test-name }}
+      sudo -E make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Upload Host Support Bundle
     uses: actions/upload-artifact@v4
     if: ${{ ! cancelled() }}
@@ -152,9 +152,9 @@ runs:
       echo -e "\e[1;33m                                                                                                        \e[0m"
       echo -e "\e[1;33m└──────────────────────────────────────────────────────────────────────────────────────────────────────┘\e[0m"
     shell: bash
-  # - name: Setup upterm session (ssh)
-  #   uses: lhotari/action-upterm@v1
-  #   if: failure()
-  #   with:
-  #     ## If no one connects after 5 minutes, shut down server.
-  #     wait-timeout-minutes: 5
+  - name: Setup upterm session (ssh)
+    uses: lhotari/action-upterm@v1
+    if: failure()
+    with:
+      ## If no one connects after 5 minutes, shut down server.
+      wait-timeout-minutes: 5

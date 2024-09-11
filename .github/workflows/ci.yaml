@@ -496,6 +496,7 @@ jobs:
           - TestCustomCIDR
           - TestProxiedCustomCIDR
           - TestSingleNodeInstallationNoopUpgrade
+          - TestDirectAccessToCluster
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster

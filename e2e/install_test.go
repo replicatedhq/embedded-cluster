@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -8,6 +9,8 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -2125,4 +2128,29 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestDirectAccessToCluster(t *testing.T) {
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	input := &cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "ubuntu/jammy",
+		LicensePath:         "license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	}
+	tc := cluster.NewTestCluster(input)
+	// defer cleanupCluster(t, tc)
+
+	cli, err := tc.KubeClient(tc.Nodes[0])
+	require.NoError(t, err, "failed to create kube client")
+
+	var cms corev1.ConfigMapList
+	err = cli.List(context.Background(), &cms)
+	require.NoError(t, err, "failed to list configmaps")
+
+	for _, cm := range cms.Items {
+		t.Logf("%s/%s", cm.Namespace, cm.Name)
+	}
 }
