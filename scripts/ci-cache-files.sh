@@ -34,7 +34,7 @@ function k0sbin() {
 
     # check if the binary already exists in the bucket
     local k0s_binary_exists=
-    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}" || true)
+    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}-amd64" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${k0s_binary_exists}" ]; then
@@ -53,7 +53,7 @@ function k0sbin() {
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}"
+    retry 3 aws s3 cp --no-progress "${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}-amd64"
 }
 
 function operatorbin() {
@@ -76,7 +76,7 @@ function operatorbin() {
     tar -czvf "build/${operator_version}.tar.gz" -C operator/bin operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}-amd64.tar.gz"
 }
 
 function kotsbin() {
@@ -89,7 +89,7 @@ function kotsbin() {
 
     # check if the binary already exists in the bucket
     local kots_binary_exists=
-    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}.tar.gz" || true)
+    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}-amd64.tar.gz" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${kots_binary_exists}" ]; then
@@ -107,7 +107,7 @@ function kotsbin() {
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "kots_linux_amd64.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "kots_linux_amd64.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}-amd64.tar.gz"
 }
 
 function metadata() {

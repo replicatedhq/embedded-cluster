@@ -143,7 +143,7 @@ func TestVersion(t *testing.T) {
 		}
 	}
 
-	expectedArtifacts := []string{"kots", "operator", "local-artifact-mirror-image"}
+	expectedArtifacts := []string{"k0s", "kots", "operator", "local-artifact-mirror-image"}
 	if len(parsed.Artifacts) != len(expectedArtifacts) {
 		t.Log(output)
 		t.Fatalf("found %d artifacts in metadata, expected %d", len(parsed.Artifacts), len(expectedArtifacts))

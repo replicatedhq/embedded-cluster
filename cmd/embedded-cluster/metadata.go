@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"sort"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -70,9 +71,9 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetad
 	}
 
 	artifacts := map[string]string{
-		"k0s":                         fmt.Sprintf("k0s-binaries/%s", versions.K0sVersion),
-		"kots":                        fmt.Sprintf("kots-binaries/%s.tar.gz", adminconsole.KotsVersion),
-		"operator":                    fmt.Sprintf("operator-binaries/%s.tar.gz", embeddedclusteroperator.Metadata.Version),
+		"k0s":                         fmt.Sprintf("k0s-binaries/%s-%s", versions.K0sVersion, runtime.GOARCH),
+		"kots":                        fmt.Sprintf("kots-binaries/%s-%s.tar.gz", adminconsole.KotsVersion, runtime.GOARCH),
+		"operator":                    fmt.Sprintf("operator-binaries/%s-%s.tar.gz", embeddedclusteroperator.Metadata.Version, runtime.GOARCH),
 		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
 	}
 	if versions.K0sBinaryURLOverride != "" {
