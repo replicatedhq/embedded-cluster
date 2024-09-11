@@ -4,20 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/k0sproject/dig"
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
-	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 )
 
@@ -2179,40 +2173,15 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	_, _, err = RunCommandOnNode(t, tc, 0, line)
 	require.NoError(t, err, "unable to install embedded-cluster")
 
-	t.Logf("copying k0s config from the node")
-	tmpcfg, err := os.CreateTemp("", "test-k0s-config-*.yaml")
-	require.NoError(t, err, "unable to create temp file")
-	defer os.Remove(tmpcfg.Name())
-	tmpcfg.Close()
-	err = cluster.CopyFileFromNode(tc.Nodes[0], "/etc/k0s/k0s.yaml", tmpcfg.Name())
-	require.NoError(t, err, "unable to copy k0s config")
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
 
-	data, err := os.ReadFile(tmpcfg.Name())
-	require.NoError(t, err, "unable to read temp file")
-
-	t.Logf("checking if k0s config has the ca values")
-	var kcfg v1beta1.ClusterConfig
-	err = k8syaml.Unmarshal(data, &kcfg)
-	require.NoError(t, err, "unable to unmarshal k0s config")
-	require.NotNil(t, kcfg.Spec, "found nil configuration spec")
-	require.NotNil(t, kcfg.Spec.Extensions, "found nil extensions")
-	require.NotNil(t, kcfg.Spec.Extensions.Helm, "found nil helm extensions")
-
-	index := slices.IndexFunc(
-		kcfg.Spec.Extensions.Helm.Charts, func(c v1beta1.Chart) bool {
-			return c.Name == adminconsole.ReleaseName
-		},
-	)
-	require.True(t, index >= 0, "unable to found admin console configuration")
-	chart := kcfg.Spec.Extensions.Helm.Charts[index]
-
-	values := dig.Mapping{}
-	err = yaml.Unmarshal([]byte(chart.Values), &values)
-	require.NoError(t, err, "unable to parse admin console chart values")
-
-	content := values.Dig("privateCAs", "ca_0.crt")
-	require.NotNil(t, content, "unable to find crt content in the k0s config")
-	require.Equal(t, crtContent, content, "crt content mismatch")
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
 
 	t.Logf("checking if the configmap was created with the right values")
 	line = []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
