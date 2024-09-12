@@ -46,7 +46,7 @@ function ensure_app_channel() {
 }
 
 function create_release() {
-    local release_url metadata_url
+    local release_url="" metadata_url=""
 
     if ! command -v replicated &> /dev/null; then
         fail "replicated command not found"

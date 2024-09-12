@@ -40,7 +40,7 @@ function deps() {
 }
 
 function create_release_archive() {
-    local release_url metadata_url
+    local release_url="" metadata_url=""
 
     rm -rf output/tmp/release
     mkdir -p output/tmp
