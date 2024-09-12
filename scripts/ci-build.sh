@@ -32,7 +32,7 @@ function deps() {
 }
 
 function binary() {
-    local local_artifact_mirror_image k0s_binary_url kots_binary_url operator_binary_url
+    local local_artifact_mirror_image k0s_binary_url="" kots_binary_url="" operator_binary_url=""
 
     if [ ! -f "local-artifact-mirror/build/image-$EC_VERSION" ]; then
         fail "file local-artifact-mirror/build/image-$EC_VERSION not found"
