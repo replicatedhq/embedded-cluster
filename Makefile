@@ -13,7 +13,7 @@ PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.100.0
-KOTS_VERSION = v1.115.1-ethan-test
+KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-cache-files.sh may find the version in the cache and not upload the overridden binary.
 KOTS_BINARY_URL_OVERRIDE = https://repldev-ethan-test.s3.amazonaws.com/kots.tar.gz
