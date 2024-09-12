@@ -8,9 +8,12 @@ set -euo pipefail
 EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
 IMAGES_REGISTRY_SERVER=${IMAGES_REGISTRY_SERVER:-ttl.sh}
 
-require S3_BUCKET "${S3_BUCKET:-}"
+if [ "$USES_DEV_BUCKET" == "1" ]; then
+    require S3_BUCKET "${S3_BUCKET:-}"
+fi
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -29,15 +32,17 @@ function deps() {
 }
 
 function binary() {
-    local local_artifact_mirror_image k0s_binary_url kots_binary_url operator_binary_url
+    local local_artifact_mirror_image k0s_binary_url="" kots_binary_url="" operator_binary_url=""
 
     if [ ! -f "local-artifact-mirror/build/image-$EC_VERSION" ]; then
         fail "file local-artifact-mirror/build/image-$EC_VERSION not found"
     fi
 
-    k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$(url_encode_semver "$K0S_VERSION")"
-    kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")"
-    operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")"
+    if [ "$USES_DEV_BUCKET" == "1" ]; then
+        k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$(url_encode_semver "$K0S_VERSION")-amd64"
+        kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")-amd64.tar.gz"
+        operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")-amd64.tar.gz"
+    fi
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
 
     make embedded-cluster-linux-$ARCH \

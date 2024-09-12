@@ -49,6 +49,7 @@ type Applier struct {
 	endUserConfig   *ecv1beta1.Config
 	airgapBundle    string
 	proxyEnv        map[string]string
+	privateCAs      map[string]string
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -295,7 +296,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, vel)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.adminConsolePwd, a.licenseFile, a.airgapBundle, a.proxyEnv)
+	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.adminConsolePwd, a.licenseFile, a.airgapBundle, a.proxyEnv, a.privateCAs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}

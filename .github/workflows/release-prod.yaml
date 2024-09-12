@@ -137,6 +137,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -151,7 +158,9 @@ jobs:
 
       - name: Update embedded-cluster-operator metadata.yaml
         env:
-          IMAGES_REGISTRY_SERVER: ttl.sh
+          IMAGES_REGISTRY_SERVER: index.docker.io
+          IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
           OPERATOR_CHART: ${{ needs.publish-operator-chart.outputs.chart }}
           OPERATOR_IMAGE: ${{ needs.publish-operator-image.outputs.image }}
         run: |

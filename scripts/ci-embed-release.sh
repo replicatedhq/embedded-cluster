@@ -12,6 +12,14 @@ APP_CHANNEL_ID=${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}
 APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-dev}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
+S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
+
+require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
+require EC_BINARY "${EC_BINARY:-}"
+if [ "$USES_DEV_BUCKET" == "1" ]; then
+    require S3_BUCKET "${S3_BUCKET:-}"
+fi
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -28,8 +36,6 @@ function init_vars() {
 
     require EC_VERSION "${EC_VERSION:-}"
     require APP_VERSION "${APP_VERSION:-}"
-    require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
-    require EC_BINARY "${EC_BINARY:-}"
 }
 
 function deps() {
@@ -37,6 +43,8 @@ function deps() {
 }
 
 function create_release_archive() {
+    local release_url="" metadata_url=""
+
     rm -rf output/tmp/release
     mkdir -p output/tmp
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
@@ -49,11 +57,14 @@ function create_release_archive() {
         echo "versionLabel: \"${APP_VERSION}\""
     } > output/tmp/release/release.yaml
 
-    # ensure that the cluster config embedded in the CI binaries is correct
+    if [ "$USES_DEV_BUCKET" == "1" ]; then
+        release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
+        metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
+    fi
+
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
-    # remove the release and metadata override urls
-    sed -i.bak "s|__release_url__||g" output/tmp/release/cluster-config.yaml
-    sed -i.bak "s|__metadata_url__||g" output/tmp/release/cluster-config.yaml
+    sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
+    sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 

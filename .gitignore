@@ -1,6 +1,8 @@
 bundle
-pkg/goods/bins
-pkg/goods/internal/bins
+pkg/goods/bins/*
+!pkg/goods/bins/.placeholder
+pkg/goods/internal/bins/*
+!pkg/goods/internal/bins/.placeholder
 pkg/goods/images
 *tgz
 *tar.gz

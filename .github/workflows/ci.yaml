@@ -109,6 +109,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
+
       - name: Cache melange
         uses: actions/cache@v4
         with:
@@ -131,13 +138,14 @@ jobs:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
-          S3_BUCKET: "dev-embedded-cluster-bin"
-          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          USES_DEV_BUCKET: "0"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
           CACHE_BINS: "1"
-          DO_RELEASE: "0"
+          SKIP_RELEASE: "1"
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
           export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
@@ -175,6 +183,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
+
       - name: Cache melange
         uses: actions/cache@v4
         with:
@@ -197,13 +212,14 @@ jobs:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
-          S3_BUCKET: "dev-embedded-cluster-bin"
-          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          USES_DEV_BUCKET: "0"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
           CACHE_BINS: "1"
-          DO_RELEASE: "0"
+          SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
         run: |
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
@@ -217,9 +233,7 @@ jobs:
         with:
           name: previous-k0s-release
           path: |
-            output/bin/embedded-cluster
-            output/bin/embedded-cluster-original
-            output/bin/embedded-cluster-release-builder
+            output/bin/embedded-cluster-previous-k0s
 
       - name: Export k0s version
         id: export
@@ -240,6 +254,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
 
       - name: Cache melange
         uses: actions/cache@v4
@@ -263,13 +284,14 @@ jobs:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-upgrade
-          S3_BUCKET: "dev-embedded-cluster-bin"
-          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          USES_DEV_BUCKET: "0"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
           CACHE_BINS: "1"
-          DO_RELEASE: "0"
+          SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
@@ -283,9 +305,7 @@ jobs:
         with:
           name: upgrade-release
           path: |
-            output/bin/embedded-cluster
-            output/bin/embedded-cluster-original
-            output/bin/embedded-cluster-release-builder
+            output/bin/embedded-cluster-upgrade
 
       - name: Export k0s version
         id: export
@@ -360,31 +380,36 @@ jobs:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+          APP_CHANNEL: CI
+          USES_DEV_BUCKET: "0"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export APP_VERSION="appver-${SHORT_SHA}"
-          export APP_CHANNEL=CI
 
           # re-promote a release containing an old version of embedded-cluster to test upgrades
-          replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}-pre-minio-removal"
+          export APP_VERSION="appver-${SHORT_SHA}-pre-minio-removal"
+          replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
 
           # install the previous k0s version to ensure an upgrade occurs
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
+          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # then install the current k0s version
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')"
+          export APP_VERSION="appver-${SHORT_SHA}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # then a noop upgrade
-          export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-noop"
+          export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')"
+          export APP_VERSION="appver-${SHORT_SHA}-noop"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # and finally an app upgrade
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
+          export APP_VERSION="appver-${SHORT_SHA}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
@@ -393,23 +418,26 @@ jobs:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+          APP_CHANNEL: CI-airgap
+          USES_DEV_BUCKET: "0"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export APP_VERSION="appver-${SHORT_SHA}"
-          export APP_CHANNEL=CI-airgap
 
           # install the previous k0s version to ensure an upgrade occurs
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
+          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # then install the current k0s version
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')"
+          export APP_VERSION="appver-${SHORT_SHA}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # and finally an app upgrade
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
+          export APP_VERSION="appver-${SHORT_SHA}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
@@ -520,6 +548,7 @@ jobs:
           - TestCustomCIDR
           - TestProxiedCustomCIDR
           - TestSingleNodeInstallationNoopUpgrade
+          - TestInstallWithPrivateCAs
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster

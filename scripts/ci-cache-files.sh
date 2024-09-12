@@ -12,10 +12,10 @@ S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 CACHE_BINS=${CACHE_BINS:-1}
 MANGLE_METADATA=${MANGLE_METADATA:-0}
 
-require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID:-}"
-require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY:-}"
-require AWS_REGION "${AWS_REGION:-}"
-require S3_BUCKET "${S3_BUCKET:-}"
+require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
+require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
+require AWS_REGION "${AWS_REGION}"
+require S3_BUCKET "${S3_BUCKET}"
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -35,7 +35,7 @@ function k0sbin() {
 
     # check if the binary already exists in the bucket
     local k0s_binary_exists=
-    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}" || true)
+    k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}-${ARCH}" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${k0s_binary_exists}" ]; then
@@ -54,7 +54,7 @@ function k0sbin() {
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}"
+    retry 3 aws s3 cp --no-progress "${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}-${ARCH}"
 }
 
 function operatorbin() {
@@ -77,7 +77,7 @@ function operatorbin() {
     tar -czvf "build/${operator_version}.tar.gz" -C operator/bin operator
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}-${ARCH}.tar.gz"
 }
 
 function kotsbin() {
@@ -90,7 +90,7 @@ function kotsbin() {
 
     # check if the binary already exists in the bucket
     local kots_binary_exists=
-    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}.tar.gz" || true)
+    kots_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "kots-binaries/${kots_version}-${ARCH}.tar.gz" || true)
 
     # if the binary already exists, we don't need to upload it again
     if [ -n "${kots_binary_exists}" ]; then
@@ -108,7 +108,7 @@ function kotsbin() {
     fi
 
     # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "kots_linux_${ARCH}.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}.tar.gz"
+    retry 3 aws s3 cp --no-progress "kots_linux_${ARCH}.tar.gz" "s3://${S3_BUCKET}/kots-binaries/${kots_version}-${ARCH}.tar.gz"
 }
 
 function metadata() {

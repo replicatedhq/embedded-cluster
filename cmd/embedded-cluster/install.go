@@ -569,6 +569,10 @@ var installCommand = &cli.Command{
 				Usage: "Skip host preflight checks. This is not recommended.",
 				Value: false,
 			},
+			&cli.StringSliceFlag{
+				Name:  "private-ca",
+				Usage: "Path to a trusted private CA certificate file",
+			},
 		},
 	)),
 	Action: func(c *cli.Context) error {
@@ -664,6 +668,18 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, 
 			return nil, fmt.Errorf("unable to process overrides file: %w", err)
 		}
 		opts = append(opts, addons.WithEndUserConfig(eucfg))
+	}
+	if len(c.StringSlice("private-ca")) > 0 {
+		privateCAs := map[string]string{}
+		for i, path := range c.StringSlice("private-ca") {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("unable to read private CA file %s: %w", path, err)
+			}
+			name := fmt.Sprintf("ca_%d.crt", i)
+			privateCAs[name] = string(data)
+		}
+		opts = append(opts, addons.WithPrivateCAs(privateCAs))
 	}
 	if adminConsolePwd != "" {
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))

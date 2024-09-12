@@ -7,14 +7,15 @@ ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.29.7+k0s.0
-K0S_GO_VERSION = v1.29.7+k0s.0
+K0S_VERSION = v1.29.8+k0s.0
+K0S_GO_VERSION = v1.29.8+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.100.0
-# TODO NOW: revert this
-KOTS_VERSION = v1.115.1
+KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+# When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
+# scripts/ci-cache-files.sh may find the version in the cache and not upload the overridden binary.
 KOTS_BINARY_URL_OVERRIDE =
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
@@ -115,18 +116,29 @@ endif
 
 .PHONY: pkg/goods/internal/bins/kubectl-kots
 pkg/goods/internal/bins/kubectl-kots:
-	$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH)
 	mkdir -p pkg/goods/internal/bins
-	cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@
+	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
+		$(MAKE) output/bins/kubectl-kots-override ; \
+		cp output/bins/kubectl-kots-override $@ ; \
+	else \
+		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) ; \
+		cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@ ; \
+	fi
+	touch $@
 
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
-	else \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz" ; \
-	fi
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz"
+	tar -xzf output/tmp/kots.tar.gz -C output/tmp
+	mv output/tmp/kots $@
+	touch $@
+
+.PHONY: output/bins/kubectl-kots-override
+output/bins/kubectl-kots-override:
+	mkdir -p output/bins
+	mkdir -p output/tmp
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)"
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
@@ -214,8 +226,8 @@ build-ttl.sh:
 .PHONY: clean
 clean:
 	rm -rf output
-	rm -rf pkg/goods/bins
-	rm -rf pkg/goods/internal/bins
+	rm -rf pkg/goods/bins/*
+	rm -rf pkg/goods/internal/bins/*
 	rm -rf build
 	rm -rf bin
 

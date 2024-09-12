@@ -39,6 +39,8 @@ spec:
           spec:
             description: ConfigSpec defines the desired state of Config
             properties:
+              binaryOverrideUrl:
+                type: string
               extensions:
                 properties:
                   helm:
@@ -93,8 +95,6 @@ spec:
                     type: object
                 type: object
               metadataOverrideUrl:
-                type: string
-              releaseOverrideUrl:
                 type: string
               roles:
                 description: Roles is the various roles in the cluster.

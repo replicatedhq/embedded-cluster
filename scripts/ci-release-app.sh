@@ -12,8 +12,11 @@ RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
 
-require S3_BUCKET "${S3_BUCKET:-}"
+if [ "$USES_DEV_BUCKET" == "1" ]; then
+    require S3_BUCKET "${S3_BUCKET:-}"
+fi
 require REPLICATED_APP "${REPLICATED_APP:-}"
 require REPLICATED_API_TOKEN "${REPLICATED_API_TOKEN:-}"
 require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
@@ -44,7 +47,7 @@ function ensure_app_channel() {
 }
 
 function create_release() {
-    local release_url metadata_url
+    local release_url="" metadata_url=""
 
     if ! command -v replicated &> /dev/null; then
         fail "replicated command not found"
@@ -54,8 +57,10 @@ function create_release() {
     mkdir -p output/tmp
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
 
-    release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
-    metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
+    if [ "$USES_DEV_BUCKET" == "1" ]; then
+        release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
+        metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
+    fi
 
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
