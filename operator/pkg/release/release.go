@@ -22,8 +22,9 @@ import (
 )
 
 var (
-	cache = map[string]*ectypes.ReleaseMetadata{}
-	mutex = sync.Mutex{}
+	metaURL = "%s/embedded-cluster-public-files/metadata/v%s.json"
+	cache   = map[string]*ectypes.ReleaseMetadata{}
+	mutex   = sync.Mutex{}
 )
 
 // LocalVersionMetadataConfigmap returns the namespaced name for a config map name that contains
