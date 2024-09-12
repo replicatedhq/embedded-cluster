@@ -561,6 +561,9 @@ jobs:
         with:
           name: current-release
           path: output/bin
+      - name: PRINT IPS
+        run: |
+          ip -4 a
 
       - uses: ./.github/actions/e2e
         with:
