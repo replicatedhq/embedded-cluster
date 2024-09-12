@@ -371,9 +371,10 @@ jobs:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+          APP_CHANNEL: CI
+          USES_DEV_BUCKET: "0"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export APP_CHANNEL=CI
 
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           export APP_VERSION="appver-${SHORT_SHA}-pre-minio-removal"
@@ -408,9 +409,10 @@ jobs:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+          APP_CHANNEL: CI-airgap
+          USES_DEV_BUCKET: "0"
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export APP_CHANNEL=CI-airgap
 
           # install the previous k0s version to ensure an upgrade occurs
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
