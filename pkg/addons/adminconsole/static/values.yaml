@@ -13,10 +13,10 @@
 #
 
 images:
-    kotsadm: 'proxy.replicated.com/anonymous/kotsadm/kotsadm:v1.116.0@sha256:a30c3f825beb5e47d20a1b6717603eee65cf74ece86a7073209b3321c3b807a3'
-    kurlProxy: 'proxy.replicated.com/anonymous/kotsadm/kurl-proxy:v1.116.0@sha256:763c05284f8f824329202d2a71fab1e4bedd19e82ae17c4a694e07e1c166c32f'
-    migrations: 'proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations:v1.116.0@sha256:77fe399c43db11877663e68fd680d764fab7a6d06fc27c82eb0e9a2e4ed9888f'
-    rqlite: 'proxy.replicated.com/anonymous/kotsadm/rqlite:8.30.0-r0@sha256:794fd99e8c72053c0cb0ad1fdbf1c4af24a8949bd418546952ed9affa6c4e5b6'
+    kotsadm: 'proxy.replicated.com/anonymous/kotsadm/kotsadm:v1.116.1@sha256:4e1067b24518056eab409018d7e4ff32ff91ba02e6ba133efb6257f5c0865f34'
+    kurlProxy: 'proxy.replicated.com/anonymous/kotsadm/kurl-proxy:v1.116.1@sha256:bb5352a828dbb5b8d3692e08a0201181b400e0a09a52490c868764642cd145d9'
+    migrations: 'proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations:v1.116.1@sha256:b2a5c437d9871540f5c21f05b836e3f31b36edba3ecccc24dc991e9812a9a102'
+    rqlite: 'proxy.replicated.com/anonymous/kotsadm/rqlite:8.30.2-r0@sha256:fe5dbe72a2da1b4d6fb5d2e68a6bfb4c49bae72ba6332dbca5b6e36f298fdbf2'
 isHA: false
 isHelmManaged: false
 kurlProxy:
@@ -31,6 +31,3 @@ passwordSecretRef:
     name: kotsadm-password
 service:
     enabled: false
-privateCAs:
-    enabled: true
-    configmapName: "kotsadm-private-cas"
