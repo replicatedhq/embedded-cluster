@@ -136,9 +136,10 @@ jobs:
       - name: Build
         env:
           RELEASE_YAML_DIR: e2e/kots-release-install
-          S3_BUCKET: "dev-embedded-cluster-bin"
-          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          USES_DEV_BUCKET: "0"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
           SKIP_RELEASE: "1"
@@ -206,9 +207,10 @@ jobs:
       - name: Build
         env:
           RELEASE_YAML_DIR: e2e/kots-release-install
-          S3_BUCKET: "dev-embedded-cluster-bin"
-          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          USES_DEV_BUCKET: "0"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
           SKIP_RELEASE: "1"
@@ -274,9 +276,10 @@ jobs:
       - name: Build
         env:
           RELEASE_YAML_DIR: e2e/kots-release-upgrade
-          S3_BUCKET: "dev-embedded-cluster-bin"
-          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          USES_DEV_BUCKET: "0"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
           SKIP_RELEASE: "1"

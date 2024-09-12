@@ -9,6 +9,14 @@ EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
+S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
+
+require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
+require EC_BINARY "${EC_BINARY:-}"
+if [ "$USES_DEV_BUCKET" == "1" ]; then
+    require S3_BUCKET "${S3_BUCKET:-}"
+fi
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -25,8 +33,6 @@ function init_vars() {
 
     require EC_VERSION "${EC_VERSION:-}"
     require APP_VERSION "${APP_VERSION:-}"
-    require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
-    require EC_BINARY "${EC_BINARY:-}"
 }
 
 function deps() {
@@ -48,8 +54,10 @@ function create_release_archive() {
         echo "versionLabel: \"${APP_VERSION}\""
     } > output/tmp/release/release.yaml
 
-    release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
-    metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
+    if [ "$USES_DEV_BUCKET" == "1" ]; then
+        release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
+        metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
+    fi
 
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
