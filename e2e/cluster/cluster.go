@@ -593,7 +593,7 @@ func CreateNodes(in *Input) ([]string, []string) {
 // pinging google.com.
 func NodeHasInternet(in *Input, node string) {
 	in.T.Logf("Testing if node %s can reach the internet", node)
-	fp, err := os.CreateTemp("/tmp", "internet-XXXXX.sh")
+	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
 		in.T.Fatalf("Failed to create temporary file: %v", err)
 	}
@@ -643,7 +643,7 @@ func NodeHasInternet(in *Input, node string) {
 // pinging google.com.
 func NodeHasNoInternet(in *Input, node string) {
 	in.T.Logf("Ensuring node %s cannot reach the internet", node)
-	fp, err := os.CreateTemp("/tmp", "internet-XXXXX.sh")
+	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
 		in.T.Fatalf("Failed to create temporary file: %v", err)
 	}

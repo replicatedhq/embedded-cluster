@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	releaseName                 = "admin-console"
+	ReleaseName                 = "admin-console"
 	DefaultAdminConsoleNodePort = 30000
 )
 
@@ -86,6 +86,7 @@ type AdminConsole struct {
 	licenseFile  string
 	airgapBundle string
 	proxyEnv     map[string]string
+	privateCAs   map[string]string
 }
 
 // Version returns the embedded admin console version.
@@ -99,7 +100,7 @@ func (a *AdminConsole) Name() string {
 
 // GetProtectedFields returns the helm values that are not overwritten when upgrading
 func (a *AdminConsole) GetProtectedFields() map[string][]string {
-	return map[string][]string{releaseName: protectedFields}
+	return map[string][]string{ReleaseName: protectedFields}
 }
 
 // HostPreflights returns the host preflight objects found inside the adminconsole
@@ -140,7 +141,7 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:      releaseName,
+		Name:      ReleaseName,
 		ChartName: chartName,
 		Version:   Metadata.Version,
 		Values:    string(values),
@@ -170,6 +171,10 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 
 	if err := createKotsPasswordSecret(ctx, cli, a.namespace, a.password); err != nil {
 		return fmt.Errorf("unable to create kots password secret: %w", err)
+	}
+
+	if err := createKotsCAConfigmap(ctx, cli, a.namespace, a.privateCAs); err != nil {
+		return fmt.Errorf("unable to create kots CA configmap: %w", err)
 	}
 
 	if a.airgapBundle != "" {
@@ -205,13 +210,14 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 }
 
 // New creates a new AdminConsole object.
-func New(ns, password string, licenseFile string, airgapBundle string, proxyEnv map[string]string) (*AdminConsole, error) {
+func New(ns, password string, licenseFile string, airgapBundle string, proxyEnv map[string]string, privateCAs map[string]string) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:    ns,
 		password:     password,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
 		proxyEnv:     proxyEnv,
+		privateCAs:   privateCAs,
 	}, nil
 }
 
@@ -332,6 +338,32 @@ func createKotsPasswordSecret(ctx context.Context, cli client.Client, namespace 
 	err = cli.Create(ctx, &kotsPasswordSecret)
 	if err != nil {
 		return fmt.Errorf("unable to create kotsadm-password secret: %w", err)
+	}
+
+	return nil
+}
+
+func createKotsCAConfigmap(ctx context.Context, cli client.Client, namespace string, cas map[string]string) error {
+	kotsCAConfigmap := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kotsadm-private-cas",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"kots.io/kotsadm":                        "true",
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "admin-console",
+			},
+		},
+		Data: cas,
+	}
+
+	err := cli.Create(ctx, &kotsCAConfigmap)
+	if err != nil {
+		return fmt.Errorf("unable to create kotsadm-private-cas configmap: %w", err)
 	}
 
 	return nil

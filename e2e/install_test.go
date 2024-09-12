@@ -1,13 +1,18 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -2123,6 +2128,68 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallWithPrivateCAs(t *testing.T) {
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	input := &cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		Image:               "ubuntu/jammy",
+		LicensePath:         "license.yaml",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	}
+	tc := cluster.NewTestCluster(input)
+	defer cleanupCluster(t, tc)
+
+	certBuilder, err := certs.NewBuilder()
+	require.NoError(t, err, "unable to create new cert builder")
+	crtContent, _, err := certBuilder.Generate()
+	require.NoError(t, err, "unable to build test certificate")
+
+	tmpfile, err := os.CreateTemp("", "test-temp-cert-*.crt")
+	require.NoError(t, err, "unable to create temp file")
+	defer os.Remove(tmpfile.Name())
+
+	_, err = tmpfile.WriteString(crtContent)
+	require.NoError(t, err, "unable to write to temp file")
+	tmpfile.Close()
+
+	cluster.CopyFileToNode(input, tc.Nodes[0], cluster.File{
+		SourcePath: tmpfile.Name(),
+		DestPath:   "/tmp/ca.crt",
+		Mode:       0666,
+	})
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-install.sh", "ui", "--private-ca", "/tmp/ca.crt"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("checking if the configmap was created with the right values")
+	line = []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
+	stdout, _, err := RunCommandOnNode(t, tc, 0, line, WithECShelEnv())
+	require.NoError(t, err, "unable get kotsadm-private-cas configmap")
+
+	var cm corev1.ConfigMap
+	err = json.Unmarshal([]byte(stdout), &cm)
+	require.NoErrorf(t, err, "unable to unmarshal output to configmap: %q", stdout)
+	require.Contains(t, cm.Data, "ca_0.crt", "index ca_0.crt not found in ca secret")
+	require.Equal(t, crtContent, cm.Data["ca_0.crt"], "content mismatch")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

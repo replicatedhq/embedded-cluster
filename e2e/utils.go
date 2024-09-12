@@ -32,6 +32,16 @@ func RequireEnvVars(t *testing.T, envVars []string) {
 
 type RunCommandOption func(cmd *cluster.Command)
 
+func WithECShelEnv() RunCommandOption {
+	return func(cmd *cluster.Command) {
+		cmd.Env = map[string]string{
+			"EMBEDDED_CLUSTER_METRICS_BASEURL": "https://staging.replicated.app",
+			"KUBECONFIG":                       "/var/lib/k0s/pki/admin.conf",
+			"PATH":                             "/var/lib/embedded-cluster/bin",
+		}
+	}
+}
+
 func WithEnv(env map[string]string) RunCommandOption {
 	return func(cmd *cluster.Command) {
 		cmd.Env = env
