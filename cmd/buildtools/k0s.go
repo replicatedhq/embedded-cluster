@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/Masterminds/semver/v3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -89,14 +90,10 @@ var updateK0sImagesCommand = &cli.Command{
 			if err != nil {
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
-			newmeta.Images[component.name] = release.K0sImage{
-				Image: repo,
-				Version: map[string]string{
-					"amd64": tag,
-					// TODO (@salah): automate updating the arm64 tag
-					"arm64": config.Metadata.Images[component.name].Version["arm64"],
-				},
-			}
+			newimage := config.Metadata.Images[component.name]
+			newimage.Image = repo
+			newimage.Version[runtime.GOARCH] = tag
+			newmeta.Images[component.name] = newimage
 		}
 
 		logrus.Infof("saving k0s metadata")
