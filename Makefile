@@ -220,7 +220,7 @@ e2e-test:
 build-ttl.sh:
 	$(MAKE) -C local-artifact-mirror build-ttl.sh \
 		IMAGE_NAME=$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
-	make embedded-cluster-linux-$(GOARCH) \
+	make embedded-cluster-linux-$(ARCH) \
 		LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/$(shell cat local-artifact-mirror/build/image)
 
 .PHONY: clean
