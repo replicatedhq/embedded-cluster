@@ -738,6 +738,22 @@ func CreateNode(in *Input, i int) (string, string) {
 			in.T.Fatalf("Failed to get node state %s: %v", name, err)
 		}
 	}
+	ip := getInetIP(state)
+	for j := 0; ip == ""; j++ {
+		if j > 6 {
+			in.T.Fatalf("Failed to get node ip %s: %v", name, err)
+		}
+		time.Sleep(5 * time.Second)
+		if state, _, err = client.GetInstanceState(name); err != nil {
+			in.T.Fatalf("Failed to get node state %s: %v", name, err)
+		}
+		ip = getInetIP(state)
+	}
+
+	return name, ip
+}
+
+func getInetIP(state *api.InstanceState) string {
 	ip := ""
 	for _, addr := range state.Network["eth0"].Addresses {
 		fmt.Printf("Family: %s IP: %s\n", addr.Family, addr.Address)
@@ -747,7 +763,7 @@ func CreateNode(in *Input, i int) (string, string) {
 		}
 	}
 
-	return name, ip
+	return ip
 }
 
 // CreateNetworks create two networks, one of type bridge and inside of it another one of
