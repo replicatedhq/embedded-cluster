@@ -748,17 +748,24 @@ func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *
 		return fmt.Errorf("failed to determine upgrade targets: %w", err)
 	}
 
-	k0surl := fmt.Sprintf(
-		"%s/embedded-cluster-public-files/k0s-binaries/%s",
-		in.Spec.MetricsBaseURL,
-		meta.Versions["Kubernetes"],
-	)
-
+	var k0surl string
 	if in.Spec.AirGap {
 		// if we are running in an airgap environment all assets are already present in the
 		// node and are served by the local-artifact-mirror binary listening on localhost
 		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
 		k0surl = "http://127.0.0.1:50000/bin/k0s-upgrade"
+	} else {
+		artifact := meta.Artifacts["k0s"]
+		if strings.HasPrefix(artifact, "https://") || strings.HasPrefix(artifact, "http://") {
+			// for dev and e2e tests we allow the url to be overridden
+			k0surl = artifact
+		} else {
+			k0surl = fmt.Sprintf(
+				"%s/embedded-cluster-public-files/%s",
+				in.Spec.MetricsBaseURL,
+				artifact,
+			)
+		}
 	}
 
 	plan := apv1b2.Plan{

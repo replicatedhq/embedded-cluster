@@ -16,9 +16,11 @@ permissions:
 
 jobs:
 
-  build-images:
+  build-deps:
     outputs:
-      local-artifact-mirror: ${{ steps.local-artifact-mirror.outputs.image }}
+      local-artifact-mirror-image: ${{ steps.local-artifact-mirror.outputs.image }}
+      operator-image: ${{ steps.operator.outputs.image }}
+      operator-chart: ${{ steps.operator.outputs.chart }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,7 +32,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            build/.melange-cache
+            local-artifact-mirror/cache/.melange-cache
+            operator/cache/.melange-cache
           key: melange-cache
 
       - name: Setup Melange
@@ -42,9 +45,16 @@ jobs:
           make -C local-artifact-mirror apko build-ttl.sh
           echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
 
+      - name: Build and push operator image
+        id: operator
+        run: |
+          make -C operator apko build-ttl.sh build-chart-ttl.sh
+          echo "image=$(cat operator/build/image)" >> $GITHUB_OUTPUT
+          echo "chart=$(cat operator/build/chart)" >> $GITHUB_OUTPUT
+
   output-matrix:
     runs-on: ubuntu-latest
-    needs: [build-images]
+    needs: [build-deps]
     outputs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
     steps:
@@ -57,9 +67,17 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
+      - name: Update embedded-cluster-operator metadata.yaml
+        env:
+          IMAGES_REGISTRY_SERVER: ttl.sh
+          OPERATOR_CHART: ${{ needs.build-deps.outputs.operator-chart }}
+          OPERATOR_IMAGE: ${{ needs.build-deps.outputs.operator-image }}
+        run: |
+          ./scripts/ci-update-operator-metadata.sh
+
       - name: Build
         run: |
-          export LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-images.outputs.local-artifact-mirror }}
+          export LOCAL_ARTIFACT_MIRROR_IMAGE=${{ needs.build-deps.outputs.local-artifact-mirror-image }}
           make embedded-cluster-linux-amd64
 
       - name: List images

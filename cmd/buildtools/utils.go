@@ -61,11 +61,15 @@ func ApkoBuildAndPublish(componentName, packageName, packageVersion string) erro
 }
 
 func ComponentImageName(componentName, packageName, packageVersion string) (string, error) {
+	registryServer := os.Getenv("IMAGES_REGISTRY_SERVER")
+	if registryServer == "" {
+		return "", fmt.Errorf("IMAGES_REGISTRY_SERVER not set")
+	}
 	tag, err := ComponentImageTag(componentName, packageName, packageVersion)
 	if err != nil {
 		return "", fmt.Errorf("component image tag: %w", err)
 	}
-	return fmt.Sprintf("%s/replicated/ec-%s:%s", os.Getenv("IMAGES_REGISTRY_SERVER"), componentName, tag), nil
+	return fmt.Sprintf("%s/replicated/ec-%s:%s", registryServer, componentName, tag), nil
 }
 
 func ComponentImageTag(componentName, packageName, packageVersion string) (string, error) {
@@ -96,8 +100,8 @@ func ResolveApkoPackageVersion(componentName, packageName, packageVersion string
 	return strings.TrimSpace(string(out)), nil
 }
 
-func GetImageNameFromBuildFile() (string, error) {
-	contents, err := os.ReadFile("build/image")
+func GetImageNameFromBuildFile(imageBuildFile string) (string, error) {
+	contents, err := os.ReadFile(imageBuildFile)
 	if err != nil {
 		return "", fmt.Errorf("read build file: %w", err)
 	}

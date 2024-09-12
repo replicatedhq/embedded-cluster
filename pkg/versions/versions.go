@@ -13,4 +13,14 @@ var (
 	// LocalArtifactMirrorImage holds a reference to where the lam image for
 	// this version of embedded-cluster is stored. Set at compile time.
 	LocalArtifactMirrorImage = ""
+
+	// K0sBinaryURLOverride is used to override the k0s binary url and is set at compile time using
+	// LD_FLAGS in the Makefile
+	K0sBinaryURLOverride string
+	// KOTSBinaryURLOverride is used to override the KOTS binary url and is set at compile time
+	// using LD_FLAGS in the Makefile
+	KOTSBinaryURLOverride string
+	// OperatorBinaryURLOverride is used to override the Operator binary url and is set at compile
+	// time using LD_FLAGS in the Makefile
+	OperatorBinaryURLOverride string
 )

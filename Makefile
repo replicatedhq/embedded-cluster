@@ -2,8 +2,6 @@ SHELL := /bin/bash
 
 include common.mk
 
-VERSION ?= $(shell git describe --tags --dirty --match='[0-9]*.[0-9]*.[0-9]*')
-CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
@@ -16,14 +14,23 @@ K0S_BINARY_SOURCE_OVERRIDE =
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.100.0
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+# When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
+# scripts/ci-cache-files.sh may find the version in the cache and not upload the overridden binary.
 KOTS_BINARY_URL_OVERRIDE =
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
+# These are used to override the binary urls in dev and e2e tests
+METADATA_K0S_BINARY_URL_OVERRIDE =
+METADATA_KOTS_BINARY_URL_OVERRIDE =
+METADATA_OPERATOR_BINARY_URL_OVERRIDE =
 LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.TroubleshootVersion=$(TROUBLESHOOT_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.LocalArtifactMirrorImage=$(LOCAL_ARTIFACT_MIRROR_IMAGE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sBinaryURLOverride=$(METADATA_K0S_BINARY_URL_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.KOTSBinaryURLOverride=$(METADATA_KOTS_BINARY_URL_OVERRIDE) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.OperatorBinaryURLOverride=$(METADATA_OPERATOR_BINARY_URL_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.ChartRepoOverride=$(ADMIN_CONSOLE_CHART_REPO_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KurlProxyImageOverride=$(ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION) \
@@ -92,7 +99,7 @@ output/bins/kubectl-preflight-%:
 .PHONY: pkg/goods/bins/local-artifact-mirror
 pkg/goods/bins/local-artifact-mirror:
 	mkdir -p pkg/goods/bins
-	$(MAKE) -C local-artifact-mirror build GOOS=$(OS) GOARCH=$(ARCH)
+	$(MAKE) -C local-artifact-mirror build OS=$(OS) ARCH=$(ARCH)
 	cp local-artifact-mirror/bin/local-artifact-mirror-$(OS)-$(ARCH) $@
 	touch $@
 
@@ -109,33 +116,37 @@ endif
 
 .PHONY: pkg/goods/internal/bins/kubectl-kots
 pkg/goods/internal/bins/kubectl-kots:
-	$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH)
 	mkdir -p pkg/goods/internal/bins
-	cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@
+	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
+		$(MAKE) output/bins/kubectl-kots-override ; \
+		cp output/bins/kubectl-kots-override $@ ; \
+	else \
+		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) ; \
+		cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@ ; \
+	fi
+	touch $@
 
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
-	else \
-	    curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz" ; \
-	fi
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz"
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
 
-output/tmp/release.tar.gz: e2e/kots-release-install/*
+.PHONY: output/bins/kubectl-kots-override
+output/bins/kubectl-kots-override:
+	mkdir -p output/bins
 	mkdir -p output/tmp
-	tar -czf output/tmp/release.tar.gz -C e2e/kots-release-install .
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)"
+	tar -xzf output/tmp/kots.tar.gz -C output/tmp
+	mv output/tmp/kots $@
+	touch $@
 
+.PHONY: output/bin/embedded-cluster-release-builder
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
-
-.PHONY: embedded-release
-embedded-release: embedded-cluster-linux-amd64 output/tmp/release.tar.gz output/bin/embedded-cluster-release-builder
-	./output/bin/embedded-cluster-release-builder output/bin/embedded-cluster output/tmp/release.tar.gz output/bin/embedded-cluster
 
 .PHONY: go.mod
 go.mod: Makefile
@@ -229,10 +240,3 @@ buildtools:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -o ./output/bin/buildtools ./cmd/buildtools
-
-.PHONY: cache-files
-cache-files:
-	./scripts/cache-files.sh
-
-print-%:
-	@echo -n $($*)
