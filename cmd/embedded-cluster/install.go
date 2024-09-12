@@ -219,31 +219,31 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 		return nil, fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
 	}
 
-	// // Check if the license matches the application version data
-	// if rel.AppSlug != license.Spec.AppSlug {
-	// 	// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-	// 	return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
-	// }
-	// if rel.ChannelID != license.Spec.ChannelID {
-	// 	// if the channel is different, we will not be able to install the pinned vendor application version within kots
-	// 	// this may result in an immediate k8s upgrade after installation, which is undesired
-	// 	return nil, fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
-	// }
+	// Check if the license matches the application version data
+	if rel.AppSlug != license.Spec.AppSlug {
+		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
+		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+	}
+	if rel.ChannelID != license.Spec.ChannelID {
+		// if the channel is different, we will not be able to install the pinned vendor application version within kots
+		// this may result in an immediate k8s upgrade after installation, which is undesired
+		return nil, fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+	}
 
-	// if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
-	// 	// read the expiration date, and check it against the current date
-	// 	expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("unable to parse expiration date: %w", err)
-	// 	}
-	// 	if time.Now().After(expiration) {
-	// 		return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
-	// 	}
-	// }
+	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
+		// read the expiration date, and check it against the current date
+		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse expiration date: %w", err)
+		}
+		if time.Now().After(expiration) {
+			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+		}
+	}
 
-	// if !license.Spec.IsEmbeddedClusterDownloadEnabled {
-	// 	return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
-	// }
+	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
+		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+	}
 
 	return license, nil
 }
