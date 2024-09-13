@@ -549,6 +549,7 @@ jobs:
           - TestProxiedCustomCIDR
           - TestSingleNodeInstallationNoopUpgrade
           - TestInstallWithPrivateCAs
+          - TestInstallWithMITMProxy
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster

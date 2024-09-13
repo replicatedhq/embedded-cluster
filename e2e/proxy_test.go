@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/stretchr/testify/require"
 )
 
 // TestProxiedEnvironment tests the installation behind a proxy server
@@ -209,6 +210,34 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Log(stdout)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallWithMITMProxy(t *testing.T) {
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               1,
+		WithProxy:           true,
+		Image:               "debian/12",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		LicensePath:         "license.yaml",
+	})
+	defer cleanupCluster(t, tc)
+
+	// install "curl" dependency on node 0 for app version checks.
+	installTestDependenciesDebian(t, tc, 0, true)
+
+	// bootstrap the first node and makes sure it is healthy. also executes the kots
+	// ssl certificate configuration (kurl-proxy).
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-install.sh", "ui"}
+	line = append(line, "--http-proxy", cluster.HTTPMITMProxy)
+	line = append(line, "--https-proxy", cluster.HTTPMITMProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
+	line = append(line, "--private-ca", "/usr/local/share/ca-certificates/proxy/ca.crt")
+	_, _, err := RunCommandOnNode(t, tc, 0, line, withMITMProxyEnv(tc.IPs))
+	require.NoError(t, err, "failed to install embedded-cluster on node 0")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
