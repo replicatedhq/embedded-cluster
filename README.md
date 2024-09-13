@@ -187,8 +187,9 @@ make delete-node1
 
 ### Developing KOTS components
 
-1. Clone the KOTS repo to the same directory as Embedded Cluster:
+1. Clone the KOTS repo to the same parent directory as Embedded Cluster:
     ```bash
+    cd ..
     git clone https://github.com/replicatedhq/kots.git
     cd kots
     ```
