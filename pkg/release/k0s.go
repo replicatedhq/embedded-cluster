@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"gopkg.in/yaml.v3"
 )
@@ -28,7 +29,7 @@ type K0sImage struct {
 }
 
 func (i K0sImage) URI() string {
-	return fmt.Sprintf("%s:%s", i.Image, i.Version)
+	return fmt.Sprintf("%s:%s", i.Image, i.Version[runtime.GOARCH])
 }
 
 func (a *K0sMetadata) Save() error {
