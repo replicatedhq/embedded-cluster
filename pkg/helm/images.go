@@ -110,7 +110,7 @@ func extractImagesFromK8sManifest(resource []byte) ([]string, error) {
 		// Normalize the image name to include docker.io and tag
 		ref, err := reference.ParseNormalizedNamed(image)
 		if err != nil {
-			return nil, fmt.Errorf("parse image %d: %w", i, err)
+			return nil, fmt.Errorf("parse image %s: %w", image, err)
 		}
 		images[i] = ref.String()
 	}

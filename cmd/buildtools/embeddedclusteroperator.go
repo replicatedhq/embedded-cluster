@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -34,28 +35,30 @@ var updateOperatorAddonCommand = &cli.Command{
 		if nextChartVersion != "" {
 			logrus.Infof("using input override from INPUT_OPERATOR_CHART_VERSION: %s", nextChartVersion)
 		} else {
-			logrus.Infof("fetching the latest embedded cluster operator release")
+			logrus.Infof("fetching the latest embedded cluster release")
 			latest, err := GetGitHubRelease(
-				c.Context, "replicatedhq", "embedded-cluster-operator",
+				c.Context, "replicatedhq", "embedded-cluster",
 				func(tag string) bool {
 					return !strings.Contains(tag, "build")
 				},
 			)
 			if err != nil {
-				return fmt.Errorf("failed to get embedded cluster operator release: %w", err)
+				return fmt.Errorf("failed to get embedded cluster release: %w", err)
 			}
 			nextChartVersion = strings.TrimPrefix(latest, "v")
-			logrus.Printf("latest embedded cluster operator release: %s", latest)
+			logrus.Printf("latest embedded cluster release: %s", latest)
 		}
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		chartURL := os.Getenv("INPUT_OPERATOR_CHART_URL")
 		if chartURL != "" {
 			logrus.Infof("using input override from INPUT_OPERATOR_CHART_URL: %s", chartURL)
+			chartURL = strings.TrimPrefix(chartURL, "oci://")
+			chartURL = strings.TrimPrefix(chartURL, "proxy.replicated.com/anonymous/")
 		} else {
 			chartURL = "registry.replicated.com/library/embedded-cluster-operator"
-			chartURL = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartURL)
 		}
+		chartURL = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartURL)
 
 		imageOverride := os.Getenv("INPUT_OPERATOR_IMAGE")
 		if imageOverride != "" {
@@ -133,14 +136,13 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 		if err != nil {
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
-		newmeta.Images[component.name] = release.AddonImage{
-			Repo: repo,
-			Tag:  tag,
-		}
+		newimage := embeddedclusteroperator.Metadata.Images[component.name]
+		newimage.Repo = repo
+		newimage.Tag[runtime.GOARCH] = tag
+		newmeta.Images[component.name] = newimage
 	}
 
 	logrus.Infof("saving addon manifest")
-	newmeta.ReplaceImages = true
 	if err := newmeta.Save("embeddedclusteroperator"); err != nil {
 		return fmt.Errorf("failed to save metadata: %w", err)
 	}

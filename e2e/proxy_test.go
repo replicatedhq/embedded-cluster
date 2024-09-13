@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/stretchr/testify/require"
 )
 
 // TestProxiedEnvironment tests the installation behind a proxy server
@@ -209,6 +210,90 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Log(stdout)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
 	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallWithMITMProxy(t *testing.T) {
+	tc := cluster.NewTestCluster(&cluster.Input{
+		T:                   t,
+		Nodes:               4,
+		WithProxy:           true,
+		Image:               "debian/12",
+		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		LicensePath:         "license.yaml",
+	})
+	defer cleanupCluster(t, tc)
+
+	// install "curl" dependency on node 0 for app version checks.
+	installTestDependenciesDebian(t, tc, 0, true)
+
+	// bootstrap the first node and makes sure it is healthy. also executes the kots
+	// ssl certificate configuration (kurl-proxy).
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-install.sh", "ui"}
+	line = append(line, "--http-proxy", cluster.HTTPMITMProxy)
+	line = append(line, "--https-proxy", cluster.HTTPMITMProxy)
+	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
+	line = append(line, "--private-ca", "/usr/local/share/ca-certificates/proxy/ca.crt")
+	_, _, err := RunCommandOnNode(t, tc, 0, line, withMITMProxyEnv(tc.IPs))
+	require.NoError(t, err, "failed to install embedded-cluster on node 0")
+
+	_, _, err = setupPlaywrightAndRunTest(t, tc, "deploy-app")
+	require.NoError(t, err, "failed to deploy app")
+
+	// generate all node join commands (2 for controllers and 1 for worker).
+	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
+	controllerCommands := []string{}
+	for i := 0; i < 2; i++ {
+		stdout, _, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		require.NoError(t, err, "failed to generate controller join token")
+
+		command, err := findJoinCommandInOutput(stdout)
+		require.NoError(t, err, "failed to find the join command in the output")
+
+		controllerCommands = append(controllerCommands, command)
+		t.Log("controller join token command:", command)
+	}
+
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
+	stdout, _, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	require.NoError(t, err, "failed to generate worker join token")
+
+	command, err := findJoinCommandInOutput(stdout)
+	require.NoError(t, err, "failed to find the join command in the output")
+	t.Log("worker join token command:", command)
+
+	// join the nodes.
+	for i, cmd := range controllerCommands {
+		node := i + 1
+		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
+		_, _, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " "))
+		require.NoError(t, err, "failed to join node as a controller")
+
+		// XXX If we are too aggressive joining nodes we can see the following error being
+		// thrown by kotsadm on its log (and we get a 500 back):
+		// "
+		// failed to get controller role name: failed to get cluster config: failed to get
+		// current installation: failed to list installations: etcdserver: leader changed
+		// "
+		t.Logf("node %d joined, sleeping...", node)
+		time.Sleep(30 * time.Second)
+	}
+
+	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
+	_, _, err = RunCommandOnNode(t, tc, 3, strings.Split(command, " "))
+	require.NoError(t, err, "failed to join node 3 to the cluster as a worker")
+
+	// wait for the nodes to report as ready.
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	_, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	require.NoError(t, err, "failed to wait for nodes to be ready")
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	_, _, err = RunCommandOnNode(t, tc, 0, line)
+	require.NoError(t, err, "failed to check installation state")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

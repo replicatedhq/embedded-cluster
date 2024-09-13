@@ -32,6 +32,16 @@ func RequireEnvVars(t *testing.T, envVars []string) {
 
 type RunCommandOption func(cmd *cluster.Command)
 
+func WithECShelEnv() RunCommandOption {
+	return func(cmd *cluster.Command) {
+		cmd.Env = map[string]string{
+			"EMBEDDED_CLUSTER_METRICS_BASEURL": "https://staging.replicated.app",
+			"KUBECONFIG":                       "/var/lib/k0s/pki/admin.conf",
+			"PATH":                             "/var/lib/embedded-cluster/bin",
+		}
+	}
+}
+
 func WithEnv(env map[string]string) RunCommandOption {
 	return func(cmd *cluster.Command) {
 		cmd.Env = env
@@ -209,6 +219,14 @@ func installTestDependenciesDebian(t *testing.T, tc *cluster.Output, node int, w
 	if err := RunCommandsOnNode(t, tc, node, commands, opts...); err != nil {
 		t.Fatalf("fail to install test dependencies on node %s: %v", tc.Nodes[node], err)
 	}
+}
+
+func withMITMProxyEnv(nodeIPs []string) RunCommandOption {
+	return WithEnv(map[string]string{
+		"HTTP_PROXY":  cluster.HTTPMITMProxy,
+		"HTTPS_PROXY": cluster.HTTPMITMProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
+	})
 }
 
 func withProxyEnv(nodeIPs []string) RunCommandOption {

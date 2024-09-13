@@ -250,8 +250,12 @@ func NewTestCluster(in *Input) *Output {
 	return out
 }
 
-const ProxyImage = "debian/12"
-const HTTPProxy = "http://10.0.0.254:3128"
+const (
+	ProxyImage    = "debian/12"
+	HTTPProxy     = "http://10.0.0.254:3128"
+	HTTPSProxy    = "https://10.0.0.254:3130"
+	HTTPMITMProxy = "http://10.0.0.254:3129"
+)
 
 // CreateProxy creates a node that attaches to both networks (external and internal),
 // once this is done we install squid and configure it to be a proxy. We also make
@@ -337,38 +341,40 @@ func ConfigureProxyNode(in *Input) {
 }
 
 // ConfigureProxy configures squid to accept requests coming from 10.0.0.0/24 network.
-// Proxy will be listening on http://10.0.0.254:3128. It also sets the default route
-// on all other nodes to point to the proxy to ensure no internet will work on them
-// other than dns and http requests using the proxy.
+// Proxy will be listening on http://10.0.0.254 using the following ports:
+// 3128 (http), 3129 (http, ssl-bump), and 3130 (https).
 func ConfigureProxy(in *Input) {
 	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
-	// create a simple squid configuration that allows for localnet access. upload it
-	// to the proxy in the right location. restart squid to apply the configuration.
-	tmpfile, err := os.CreateTemp("", "squid-config-*.conf")
-	if err != nil {
-		in.T.Fatalf("Failed to create temp file: %v", err)
+	RunCommandOnNode(in, []string{"/usr/local/bin/install-and-configure-squid.sh"}, proxyName)
+	if err := CopyFileFromNode(proxyName, "/tmp/ca.crt", "/tmp/ca.crt"); err != nil {
+		in.T.Errorf("failed to copy proxy ca: %v", err)
+		return
 	}
-	defer os.Remove(tmpfile.Name())
-	if _, err = tmpfile.WriteString("http_access allow localnet\n"); err != nil {
-		in.T.Fatalf("Failed to write to temp file: %v", err)
-	}
-	file := File{SourcePath: tmpfile.Name(), DestPath: "/etc/squid/conf.d/ec.conf", Mode: 0644}
-	tmpfile.Close()
-	CopyFileToNode(in, proxyName, file)
-	RunCommandOnNode(in, []string{"systemctl", "restart", "squid"}, proxyName)
+	defer os.Remove("/tmp/ca.crt")
 
 	// set the default route on all other nodes to point to the proxy we just created.
 	// this makes it easier to ensure no internet will work on them other than dns and
-	// http requests using the proxy.
+	// http requests using the proxy. we also copy the squid ca to the nodes and make
+	// them trust it.
 	for i := 0; i < in.Nodes; i++ {
 		name := fmt.Sprintf("node-%s-%02d", in.id, i)
 		for _, cmd := range [][]string{
 			{"ip", "route", "del", "default"},
 			{"ip", "route", "add", "default", "via", "10.0.0.254"},
+			{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"},
 		} {
 			RunCommandOnNode(in, cmd, name)
 		}
+
+		CopyFileToNode(in, name, File{
+			SourcePath: "/tmp/ca.crt",
+			DestPath:   "/usr/local/share/ca-certificates/proxy/ca.crt",
+			Mode:       0644,
+		})
+
+		cmd := []string{"update-ca-certificates"}
+		RunCommandOnNode(in, cmd, name)
 	}
 }
 
@@ -593,7 +599,7 @@ func CreateNodes(in *Input) ([]string, []string) {
 // pinging google.com.
 func NodeHasInternet(in *Input, node string) {
 	in.T.Logf("Testing if node %s can reach the internet", node)
-	fp, err := os.CreateTemp("/tmp", "internet-XXXXX.sh")
+	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
 		in.T.Fatalf("Failed to create temporary file: %v", err)
 	}
@@ -643,7 +649,7 @@ func NodeHasInternet(in *Input, node string) {
 // pinging google.com.
 func NodeHasNoInternet(in *Input, node string) {
 	in.T.Logf("Ensuring node %s cannot reach the internet", node)
-	fp, err := os.CreateTemp("/tmp", "internet-XXXXX.sh")
+	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
 		in.T.Fatalf("Failed to create temporary file: %v", err)
 	}
@@ -738,6 +744,22 @@ func CreateNode(in *Input, i int) (string, string) {
 			in.T.Fatalf("Failed to get node state %s: %v", name, err)
 		}
 	}
+	ip := getInetIP(state)
+	for j := 0; ip == ""; j++ {
+		if j > 6 {
+			in.T.Fatalf("Failed to get node ip %s: %v", name, err)
+		}
+		time.Sleep(5 * time.Second)
+		if state, _, err = client.GetInstanceState(name); err != nil {
+			in.T.Fatalf("Failed to get node state %s: %v", name, err)
+		}
+		ip = getInetIP(state)
+	}
+
+	return name, ip
+}
+
+func getInetIP(state *api.InstanceState) string {
 	ip := ""
 	for _, addr := range state.Network["eth0"].Addresses {
 		fmt.Printf("Family: %s IP: %s\n", addr.Family, addr.Address)
@@ -747,7 +769,7 @@ func CreateNode(in *Input, i int) (string, string) {
 		}
 	}
 
-	return name, ip
+	return ip
 }
 
 // CreateNetworks create two networks, one of type bridge and inside of it another one of

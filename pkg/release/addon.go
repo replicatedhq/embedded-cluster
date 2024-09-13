@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"text/template"
 
@@ -39,20 +40,21 @@ type AddonMetadata struct {
 	Location      string                `yaml:"location"`
 	Images        map[string]AddonImage `yaml:"images"`
 	ReplaceImages bool                  `yaml:"-"`
+	GOARCH        string                `yaml:"-"`
 }
 
 type AddonImage struct {
-	Repo string `yaml:"repo"`
-	Tag  string `yaml:"tag"`
+	Repo string            `yaml:"repo"`
+	Tag  map[string]string `yaml:"tag"`
 }
 
 func (i AddonImage) String() string {
-	if strings.HasPrefix(i.Tag, "latest@") {
+	if strings.HasPrefix(i.Tag[runtime.GOARCH], "latest@") {
 		// The image appears in containerd images without the "latest" tag and causes an
 		// ImagePullBackOff error
-		return fmt.Sprintf("%s@%s", i.Repo, strings.TrimPrefix(i.Tag, "latest@"))
+		return fmt.Sprintf("%s@%s", i.Repo, strings.TrimPrefix(i.Tag[runtime.GOARCH], "latest@"))
 	}
-	return fmt.Sprintf("%s:%s", i.Repo, i.Tag)
+	return fmt.Sprintf("%s:%s", i.Repo, i.Tag[runtime.GOARCH])
 }
 
 var funcMap = template.FuncMap{
@@ -62,6 +64,25 @@ var funcMap = template.FuncMap{
 	"ImageString": func(i AddonImage) string {
 		return i.String()
 	},
+}
+
+func RenderHelmValues(rawvalues []byte, meta AddonMetadata) (map[string]interface{}, error) {
+	meta.ReplaceImages = true
+	meta.GOARCH = runtime.GOARCH
+	tmpl, err := template.New("helmvalues").Funcs(funcMap).Parse(string(rawvalues))
+	if err != nil {
+		return nil, fmt.Errorf("parse template: %w", err)
+	}
+	buf := bytes.NewBuffer(nil)
+	err = tmpl.Execute(buf, meta)
+	if err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+	helmValues := make(map[string]interface{})
+	if err := yaml.Unmarshal(buf.Bytes(), &helmValues); err != nil {
+		return nil, fmt.Errorf("unmarshal: %w", err)
+	}
+	return helmValues, nil
 }
 
 func GetValuesWithOriginalImages(addon string) (map[string]interface{}, error) {
@@ -90,36 +111,9 @@ func (a *AddonMetadata) Save(addon string) error {
 	if err := yaml.NewEncoder(buf).Encode(a); err != nil {
 		return fmt.Errorf("failed to encode addon metadata: %w", err)
 	}
-
 	fpath := filepath.Join("pkg", "addons", addon, "static", "metadata.yaml")
 	if err := os.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write addon metadata: %w", err)
 	}
-
-	return a.RenderValues(addon, "values.tpl.yaml", "values.yaml")
-}
-
-func (a *AddonMetadata) RenderValues(addon, tplfile, dest string) error {
-	tplpath := filepath.Join("pkg", "addons", addon, "static", tplfile)
-	tpl, err := os.ReadFile(tplpath)
-	if err != nil {
-		return fmt.Errorf("failed to read values template: %w", err)
-	}
-
-	tmpl, err := template.New(addon).Funcs(funcMap).Parse(string(tpl))
-	if err != nil {
-		return fmt.Errorf("failed to parse values template: %w", err)
-	}
-
-	buf := bytes.NewBufferString(valuesPreface)
-	if err := tmpl.Execute(buf, a); err != nil {
-		return fmt.Errorf("failed to execute values template: %w", err)
-	}
-
-	valuespath := filepath.Join("pkg", "addons", addon, "static", dest)
-	if err := os.WriteFile(valuespath, buf.Bytes(), 0600); err != nil {
-		return fmt.Errorf("failed to write values.yaml: %w", err)
-	}
-
 	return nil
 }

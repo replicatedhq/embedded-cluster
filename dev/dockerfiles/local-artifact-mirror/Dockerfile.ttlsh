@@ -1,0 +1,27 @@
+FROM golang:1.23 AS build
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+COPY kinds/go.mod kinds/go.sum ./kinds/
+COPY utils/go.mod utils/go.sum ./utils/
+RUN --mount=type=cache,target="/go/pkg/mod" go mod download
+
+COPY common.mk common.mk
+COPY local-artifact-mirror/ local-artifact-mirror/
+COPY pkg/ pkg/
+COPY cmd/ cmd/
+COPY kinds/ kinds/
+COPY utils/ utils/
+
+ENV GOCACHE=/root/.cache/go-build
+RUN --mount=type=cache,target="/root/.cache/go-build" make -C local-artifact-mirror build
+RUN cp local-artifact-mirror/bin/local-artifact-mirror-$(go env GOOS)-$(go env GOARCH) local-artifact-mirror/bin/local-artifact-mirror
+
+FROM debian:bookworm-slim
+
+COPY --from=build /app/local-artifact-mirror/bin/local-artifact-mirror /usr/bin/local-artifact-mirror
+RUN ln -s /usr/bin/local-artifact-mirror /usr/local/bin/local-artifact-mirror
+
+RUN groupadd -r lam && useradd -r -u 1000 -g lam lam
+USER 1000

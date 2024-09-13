@@ -14,7 +14,7 @@ fullnameOverride: registry
 {{- if .ReplaceImages }}
 image:
   repository: '{{ (index .Images "registry").Repo }}'
-  tag: '{{ (index .Images "registry").Tag }}'
+  tag: '{{ index (index .Images "registry").Tag .GOARCH }}'
 {{- end }}
 persistence:
   accessMode: ReadWriteOnce

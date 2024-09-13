@@ -5,7 +5,7 @@ deployNodeAgent: true
 {{- if .ReplaceImages }}
 image:
   repository: '{{ (index .Images "velero").Repo }}'
-  tag: '{{ (index .Images "velero").Tag }}'
+  tag: '{{ index (index .Images "velero").Tag .GOARCH }}'
 initContainers:
 - image: '{{ ImageString (index .Images "velero-plugin-for-aws") }}'
   imagePullPolicy: IfNotPresent
@@ -16,7 +16,7 @@ initContainers:
 kubectl:
   image:
     repository: '{{ (index .Images "kubectl").Repo }}'
-    tag: '{{ (index .Images "kubectl").Tag }}'
+    tag: '{{ index (index .Images "kubectl").Tag .GOARCH }}'
 configMaps:
   fs-restore-action-config:
     labels:
