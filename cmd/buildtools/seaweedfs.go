@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
@@ -126,14 +127,13 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 		if err != nil {
 			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 		}
-		newmeta.Images[component.name] = release.AddonImage{
-			Repo: repo,
-			Tag:  tag,
-		}
+		newimage := seaweedfs.Metadata.Images[component.name]
+		newimage.Repo = repo
+		newimage.Tag[runtime.GOARCH] = tag
+		newmeta.Images[component.name] = newimage
 	}
 
 	logrus.Infof("saving addon manifest")
-	newmeta.ReplaceImages = true
 	if err := newmeta.Save("seaweedfs"); err != nil {
 		return fmt.Errorf("failed to save metadata: %w", err)
 	}

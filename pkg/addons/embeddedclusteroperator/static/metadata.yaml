@@ -10,7 +10,11 @@ location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/e
 images:
     embedded-cluster-operator:
         repo: proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image
-        tag: 0.42.1@sha256:bc293473dd59a03f82e1328bed58c6ba24b8fbdaacc4559b8c338c933239a042
+        tag:
+            amd64: v1.11.1-k8s-1.29@sha256:7c52b5c4a19004b31988c4b24123b7dfe227d1744d505379f6b232b01f284af1
+            arm64: v1.11.1-k8s-1.29@sha256:2520e1593a323d5f7218d9501c6f6f08ef34d8eee4dbc4a7306878e3572aa4cb
     utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-utils
-        tag: latest@sha256:ce82b0dd0b8816d87d26d4ebec0f95cdca964a5e092739903150943a9621aa47
+        tag:
+            amd64: latest@sha256:12a38ef9783948e310e09675cdbfcf5a1bc661d4f9312ee7327dd80af0640e68
+            arm64: latest@sha256:0d15c71704bc63e69008912f0dc4a4bb10efa4bb8f3a3f0c95b9e9a330255e8b

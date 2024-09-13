@@ -5,6 +5,6 @@ global:
 {{- if .ReplaceImages }}
 image:
   repository: '{{ (index .Images "embedded-cluster-operator").Repo }}'
-  tag: '{{ (index .Images "embedded-cluster-operator").Tag }}'
+  tag: '{{ index (index .Images "embedded-cluster-operator").Tag .GOARCH }}'
 utilsImage: '{{ ImageString (index .Images "utils") }}'
 {{- end }}

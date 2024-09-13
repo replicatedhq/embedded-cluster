@@ -148,6 +148,20 @@ output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
+.PHONY: initial-release
+initial-release:
+	EC_VERSION=$(VERSION)-$(CURRENT_USER) \
+	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6) \
+	CACHE_BINS=0 \
+		./scripts/dev-build.sh
+
+.PHONY: upgrade-release
+upgrade-release:
+	EC_VERSION=$(VERSION)-$(CURRENT_USER)-upgrade \
+	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade \
+	CACHE_BINS=1 \
+		./scripts/dev-build.sh
+
 .PHONY: go.mod
 go.mod: Makefile
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
@@ -168,11 +182,10 @@ embedded-cluster-linux-amd64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
-# for testing
-.PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: OS = darwin
-embedded-cluster-darwin-arm64: ARCH = arm64
-embedded-cluster-darwin-arm64: go.mod embedded-cluster
+.PHONY: embedded-cluster-linux-arm64
+embedded-cluster-linux-arm64: OS = linux
+embedded-cluster-linux-arm64: ARCH = arm64
+embedded-cluster-linux-arm64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
@@ -207,7 +220,7 @@ e2e-test:
 build-ttl.sh:
 	$(MAKE) -C local-artifact-mirror build-ttl.sh \
 		IMAGE_NAME=$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
-	make embedded-cluster-linux-amd64 \
+	make embedded-cluster-linux-$(ARCH) \
 		LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/$(shell cat local-artifact-mirror/build/image)
 
 .PHONY: clean
@@ -240,3 +253,43 @@ buildtools:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
 	go build -o ./output/bin/buildtools ./cmd/buildtools
+
+.PHONY: list-distros
+list-distros:
+	@$(MAKE) -C dev/distros list
+
+.PHONY: create-node%
+create-node%: DISTRO = debian-bookworm
+create-node%:
+	@if ! docker images | grep -q ec-$(DISTRO); then \
+		$(MAKE) -C dev/distros build-$(DISTRO); \
+	fi
+
+	@docker run -d \
+		--name node$* \
+		--hostname node$* \
+		--privileged \
+		--cgroupns=host \
+		-v /var/lib/k0s \
+		-v $(shell pwd):/replicatedhq/embedded-cluster \
+		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
+		$(if $(filter node0,node$*),-p 30000:30000) \
+		ec-$(DISTRO)
+
+	@$(MAKE) ssh-node$*
+
+.PHONY: ssh-node%
+ssh-node%:
+	@docker exec -it -w /replicatedhq/embedded-cluster node$* bash
+
+.PHONY: delete-node%
+delete-node%:
+	@docker rm -f node$*
+
+.PHONY: %-up
+%-up:
+	@dev/scripts/up.sh $*
+
+.PHONY: %-down
+%-down:
+	@dev/scripts/down.sh $*

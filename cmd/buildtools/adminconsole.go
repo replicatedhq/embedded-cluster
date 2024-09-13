@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -78,14 +79,13 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 			if err != nil {
 				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
 			}
-			newmeta.Images[component.name] = release.AddonImage{
-				Repo: repo,
-				Tag:  tag,
-			}
+			newimage := adminconsole.Metadata.Images[component.name]
+			newimage.Repo = repo
+			newimage.Tag[runtime.GOARCH] = tag
+			newmeta.Images[component.name] = newimage
 		}
 
 		logrus.Infof("saving addon manifest")
-		newmeta.ReplaceImages = true
 		if err := newmeta.Save("adminconsole"); err != nil {
 			return fmt.Errorf("failed to save admin console metadata: %w", err)
 		}

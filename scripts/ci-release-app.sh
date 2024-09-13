@@ -7,8 +7,9 @@ set -euo pipefail
 
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
-APP_CHANNEL=${APP_CHANNEL:-Unstable}
+APP_CHANNEL=${APP_CHANNEL:-Dev}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
+REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
