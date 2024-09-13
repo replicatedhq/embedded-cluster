@@ -10,6 +10,7 @@ K0S_VERSION=${K0S_VERSION:-}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
 IMAGES_REGISTRY_SERVER=${IMAGES_REGISTRY_SERVER:-ttl.sh}
+ARCH=${ARCH:-$(go env GOARCH)}
 
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"
