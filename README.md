@@ -7,7 +7,7 @@ For more information, see the [k0s documentation](https://docs.k0sproject.io/sta
 In Embedded Cluster, all components and functionalities are consolidated into a single binary, this binary facilitates a streamlined cluster installation process, removing the need for external dependencies (rpms, debs, etc).
 
 Embedded Cluster includes by default the Kots Admin Console, the OpenEBS Storage provisioner, and Velero for backups and disaster recovery.
-Additionally, it includes a Registry when deployed in air gap mode.
+Additionally, it includes a Registry when deployed in air gap mode, and SeaweedFS for distributed object storage in high availability air gap mode.
 
 ## Building and running
 
