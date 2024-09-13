@@ -280,7 +280,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, reg)
 
-	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.proxyEnv)
+	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.proxyEnv, a.privateCAs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
