@@ -287,7 +287,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	_, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
 	require.NoError(t, err, "failed to wait for nodes to be ready")
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
