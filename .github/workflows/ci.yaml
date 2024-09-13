@@ -589,7 +589,7 @@ jobs:
   # this job will validate that all the tests passed
   # it is used for the github branch protection rule
   validate-success:
-    name: Validate success
+    name: validate-success
     runs-on: ubuntu-20.04
     needs:
       - e2e
