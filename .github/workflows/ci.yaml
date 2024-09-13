@@ -144,7 +144,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
-          CACHE_BINS: "1"
+          UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
@@ -152,7 +152,7 @@ jobs:
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}
 
-          ./scripts/dev-build.sh
+          ./scripts/build-and-release.sh
 
       - name: Upload release
         uses: actions/upload-artifact@v4
@@ -218,7 +218,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
-          CACHE_BINS: "1"
+          UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
         run: |
@@ -226,7 +226,7 @@ jobs:
           export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-previous-k0s
 
-          ./scripts/dev-build.sh
+          ./scripts/build-and-release.sh
 
       - name: Upload release
         uses: actions/upload-artifact@v4
@@ -290,7 +290,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
           USE_CHAINGUARD: "1"
-          CACHE_BINS: "1"
+          UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
         run: |
@@ -298,7 +298,7 @@ jobs:
           export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-upgrade
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-upgrade
 
-          ./scripts/dev-build.sh
+          ./scripts/build-and-release.sh
 
       - name: Upload release
         uses: actions/upload-artifact@v4

@@ -130,6 +130,7 @@ func remoteMetadataFor(ctx context.Context, in *v1beta1.Installation) (*ectypes.
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	// trim the leading 'v' from the version as this allows both v1.0.0 and 1.0.0 to work
 	version := strings.TrimPrefix(in.Spec.Config.Version, "v")
 
 	if _, ok := cache[version]; ok {
@@ -143,7 +144,6 @@ func remoteMetadataFor(ctx context.Context, in *v1beta1.Installation) (*ectypes.
 		metadataURL = fmt.Sprintf(
 			metaURL,
 			in.Spec.MetricsBaseURL,
-			// trim the leading 'v' from the version as this allows both v1.0.0 and 1.0.0 to work
 			version,
 		)
 	}
