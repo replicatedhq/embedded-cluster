@@ -9,7 +9,7 @@ EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
-CACHE_BINS=${CACHE_BINS:-1}
+UPLOAD_BINARIES=${UPLOAD_BINARIES:-1}
 MANGLE_METADATA=${MANGLE_METADATA:-0}
 
 require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
@@ -153,7 +153,7 @@ function embeddedcluster() {
 function main() {
     init_vars
     metadata
-    if [ "${CACHE_BINS}" == "1" ]; then
+    if [ "${UPLOAD_BINARIES}" == "1" ]; then
         k0sbin
         operatorbin
         kotsbin

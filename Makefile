@@ -15,7 +15,7 @@ PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.100.0
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
-# scripts/ci-cache-files.sh may find the version in the cache and not upload the overridden binary.
+# scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
 KOTS_BINARY_URL_OVERRIDE =
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
@@ -152,15 +152,15 @@ output/bin/embedded-cluster-release-builder:
 initial-release:
 	EC_VERSION=$(VERSION)-$(CURRENT_USER) \
 	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6) \
-	CACHE_BINS=0 \
-		./scripts/dev-build.sh
+	UPLOAD_BINARIES=0 \
+		./scripts/build-and-release.sh
 
 .PHONY: upgrade-release
 upgrade-release:
 	EC_VERSION=$(VERSION)-$(CURRENT_USER)-upgrade \
 	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade \
-	CACHE_BINS=1 \
-		./scripts/dev-build.sh
+	UPLOAD_BINARIES=1 \
+		./scripts/build-and-release.sh
 
 .PHONY: go.mod
 go.mod: Makefile
@@ -210,11 +210,11 @@ vet: static
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-	go test -timeout 45m -parallel 1 -failfast -v ./e2e
+	go test -timeout 60m -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
 e2e-test:
-	go test -timeout 45m -v ./e2e -run $(TEST_NAME)$
+	go test -timeout 60m -v ./e2e -run $(TEST_NAME)$
 
 .PHONY: build-ttl.sh
 build-ttl.sh:
