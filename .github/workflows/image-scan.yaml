@@ -10,7 +10,6 @@ on:
     #   - '**/metadata.yaml'
     branches:
       - main
-      - emosbaugh/20240913/fix-image-scan
 
 permissions:
   security-events: write
