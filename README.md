@@ -199,23 +199,7 @@ make delete-node1
     export EC_NODE=node1
     ```
 
-#### Developing kotsadm web
-
-1. To apply your current changes, run the following commands:
-    ```bash
-    make kotsadm-up-ec
-    make run
-    ```
-
-    Subsequent changes to the kotsadm web component are reflected in real-time, no manual steps required.
-
-1. When finished developing, run the following commands to revert back to the original state:
-    ```bash
-    exit
-    make kotsadm-down-ec
-    ```
-
-#### Developing kotsadm API
+#### Developing kotsadm web / API
 
 1. To apply your current changes, run the following commands:
     ```bash
@@ -223,7 +207,9 @@ make delete-node1
     make build run
     ```
 
-1. To apply additional changes, stop the current process with Ctrl+C, then run the following command:
+    Subsequent changes to the kotsadm web component are reflected in real-time, no manual steps required.
+
+1. To apply additional API changes, stop the current process with Ctrl+C, then run the following command:
     ```bash
     make build run
     ```
