@@ -12,11 +12,9 @@ RUN apt-get update \
 RUN mkdir -p /fio
 WORKDIR /fio
 
-RUN wget -O- https://api.github.com/repos/axboe/fio/releases/latest \
-    | grep "tarball_url" \
-    | cut -d : -f 2,3 \
-    | tr -d '", ' \
-    | xargs -n1 wget -O fio.tar.gz -q
+ARG FIO_VERSION
+RUN [ -z "$FIO_VERSION" ] && echo "FIO_VERSION is required" && exit 1 || true
+RUN wget -O fio.tar.gz -q https://api.github.com/repos/axboe/fio/tarball/fio-$FIO_VERSION
 RUN tar -xzf fio.tar.gz --strip-components=1
 
 RUN ./configure --build-static
