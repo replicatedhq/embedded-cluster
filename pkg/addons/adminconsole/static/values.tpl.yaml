@@ -19,3 +19,6 @@ passwordSecretRef:
     name: kotsadm-password
 service:
     enabled: false
+privateCAs:
+    enabled: true
+    configmapName: "kotsadm-private-cas"

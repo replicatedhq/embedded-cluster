@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            build/.melange-cache
+            operator/cache/.melange-cache
           key: melange-cache
 
       - name: Setup Melange
@@ -113,7 +113,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            build/.melange-cache
+            local-artifact-mirror/cache/.melange-cache
           key: melange-cache
 
       - name: Setup Melange
@@ -136,6 +136,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -161,14 +168,16 @@ jobs:
 
       - name: Build linux-amd64
         run: |
+          mkdir -p build
           make embedded-cluster-linux-amd64 \
             VERSION=${{ needs.get-tag.outputs.tag-name }} \
             LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-images.outputs.local-artifact-mirror }}
-          tar -C output/bin -czvf embedded-cluster-linux-amd64.tgz embedded-cluster
+          tar -C output/bin -czvf build/embedded-cluster-linux-amd64.tgz embedded-cluster
 
       - name: Output Metadata
         run: |
-          ./output/bin/embedded-cluster version metadata > metadata.json
+          mkdir -p build
+          ./output/bin/embedded-cluster version metadata > build/metadata.json
 
       - name: Cache Staging Files
         env:
@@ -178,10 +187,10 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
-          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
-          export OPERATOR_VERSION=$(echo "${{ needs.get-tag.outputs.tag-name }}" | sed 's/^v//')
+          mkdir -p operator/build
+          echo "${{ needs.publish-operator-image.outputs.image }}" > "operator/build/image-$EC_VERSION"
 
-          ./scripts/cache-files.sh
+          ./scripts/ci-upload-binaries.sh
 
       - name: Cache Prod Files
         env:
@@ -191,10 +200,10 @@ jobs:
           AWS_REGION: "us-east-1"
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
-          export OPERATOR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-operator-image.outputs.image }}
-          export OPERATOR_VERSION=$(echo "${{ needs.get-tag.outputs.tag-name }}" | sed 's/^v//')
+          mkdir -p operator/build
+          echo "${{ needs.publish-operator-image.outputs.image }}" > "operator/build/image-$EC_VERSION"
 
-          ./scripts/cache-files.sh
+          ./scripts/ci-upload-binaries.sh
 
       - name: Publish release
         uses: marvinpinto/action-automatic-releases@latest
@@ -202,5 +211,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: true
           files: |
-            *.tgz
-            metadata.json
+            build/*.tgz
+            build/metadata.json

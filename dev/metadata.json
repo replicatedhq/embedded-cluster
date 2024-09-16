@@ -1,0 +1,8 @@
+{
+  "operator": {
+    "image": "operator-dev",
+    "dockerfile": "dev/dockerfiles/operator/Dockerfile.local",
+    "dockercontext": ".",
+    "deployment": "embedded-cluster-operator"
+  }
+}

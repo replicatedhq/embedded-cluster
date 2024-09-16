@@ -3,8 +3,11 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
@@ -38,11 +41,37 @@ func CopyVersionMetadataToCluster(ctx context.Context, cli client.Client, in *v1
 		return fmt.Errorf("get configmap: %w", err)
 	}
 
+	cm.Name = nsn.Name
+	cm.Namespace = nsn.Namespace
+
+	if in.Spec.AirGap {
+		data, err := getRemoteMetadataAirgap(ctx, cli, in)
+		if err != nil {
+			return fmt.Errorf("get remote metadata airgap: %w", err)
+		}
+		cm.Data = map[string]string{"metadata.json": string(data)}
+	} else {
+		data, err := getRemoteMetadataOnline(ctx, cli, in)
+		if err != nil {
+			return fmt.Errorf("get remote metadata online: %w", err)
+		}
+		cm.Data = map[string]string{"metadata.json": string(data)}
+	}
+
+	if err := cli.Create(ctx, &cm); err != nil {
+		return fmt.Errorf("create configmap: %w", err)
+	}
+	return nil
+}
+
+func getRemoteMetadataAirgap(ctx context.Context, cli client.Client, in *v1beta1.Installation) ([]byte, error) {
+	log := ctrl.LoggerFrom(ctx)
+
 	// pull the artifact from the artifact location pointed by EmbeddedClusterMetadata. This property
 	// points to a repository inside the registry running on the cluster.
 	location, err := artifacts.Pull(ctx, log, cli, in.Spec.Artifacts.EmbeddedClusterMetadata)
 	if err != nil {
-		return fmt.Errorf("pull artifact: %w", err)
+		return nil, fmt.Errorf("pull artifact: %w", err)
 	}
 	defer os.RemoveAll(location)
 
@@ -50,14 +79,39 @@ func CopyVersionMetadataToCluster(ctx context.Context, cli client.Client, in *v1
 	fpath := filepath.Join(location, "version-metadata.json")
 	data, err := os.ReadFile(fpath)
 	if err != nil {
-		return fmt.Errorf("read file: %w", err)
+		return nil, fmt.Errorf("read file: %w", err)
 	}
 
-	cm.Name = nsn.Name
-	cm.Namespace = nsn.Namespace
-	cm.Data = map[string]string{"metadata.json": string(data)}
-	if err := cli.Create(ctx, &cm); err != nil {
-		return fmt.Errorf("create configmap: %w", err)
+	return data, nil
+}
+
+func getRemoteMetadataOnline(ctx context.Context, cli client.Client, in *v1beta1.Installation) ([]byte, error) {
+	var metadataURL string
+	if in.Spec.Config.MetadataOverrideURL != "" {
+		metadataURL = in.Spec.Config.MetadataOverrideURL
+	} else {
+		metadataURL = fmt.Sprintf(
+			"%s/embedded-cluster-public-files/metadata/v%s.json",
+			in.Spec.MetricsBaseURL,
+			// trim the leading 'v' from the version as this allows both v1.0.0 and 1.0.0 to work
+			strings.TrimPrefix(in.Spec.Config.Version, "v"),
+		)
 	}
-	return nil
+
+	resp, err := http.Get(metadataURL)
+	if err != nil {
+		return nil, fmt.Errorf("http get %s: %w", metadataURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http get %s unexpected status code: %d", metadataURL, resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	return data, nil
 }

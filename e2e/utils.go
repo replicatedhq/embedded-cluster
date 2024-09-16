@@ -221,6 +221,14 @@ func installTestDependenciesDebian(t *testing.T, tc *cluster.Output, node int, w
 	}
 }
 
+func withMITMProxyEnv(nodeIPs []string) RunCommandOption {
+	return WithEnv(map[string]string{
+		"HTTP_PROXY":  cluster.HTTPMITMProxy,
+		"HTTPS_PROXY": cluster.HTTPMITMProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
+	})
+}
+
 func withProxyEnv(nodeIPs []string) RunCommandOption {
 	return WithEnv(map[string]string{
 		"HTTP_PROXY":  cluster.HTTPProxy,

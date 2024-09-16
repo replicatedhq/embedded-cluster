@@ -64,6 +64,10 @@ spec:
           value: {{ .Values.utilsImage }}
         - name: EMBEDDEDCLUSTER_IMAGE
           value: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+{{- if .Values.privateCAs.enabled }}
+        - name: SSL_CERT_DIR
+          value: /certs
+{{- end }}
         name: manager
 {{- if .Values.livenessProbe }}
         livenessProbe:
@@ -72,6 +76,11 @@ spec:
 {{- if .Values.readinessProbe }}
         readinessProbe:
 {{ toYaml .Values.readinessProbe | indent 10 }}
+{{- end }}
+{{- if .Values.privateCAs.enabled }}
+        volumeMounts:
+        - mountPath: /certs
+          name: private-cas
 {{- end }}
 {{- if .Values.resources }}
         resources:
@@ -86,3 +95,10 @@ spec:
         runAsNonRoot: true
       serviceAccountName: {{ include "embedded-cluster-operator.serviceAccountName" $ | trunc 63 | trimAll "-"}}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+{{- if .Values.privateCAs.enabled }}
+      volumes:
+      - configMap:
+          name: "{{ .Values.privateCAs.configmapName }}"
+          optional: true
+        name: private-cas
+{{- end }}

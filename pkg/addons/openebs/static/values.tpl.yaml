@@ -15,7 +15,7 @@ localpv-provisioner:
     image:
       registry: proxy.replicated.com/anonymous/
       repository: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "openebs-linux-utils").Repo }}'
-      tag: '{{ (index .Images "openebs-linux-utils").Tag }}'
+      tag: '{{ index (index .Images "openebs-linux-utils").Tag .GOARCH }}'
 {{- end }}
   hostpathClass:
     enabled: true
@@ -25,7 +25,7 @@ localpv-provisioner:
     image:
       registry: proxy.replicated.com/anonymous/
       repository: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "openebs-provisioner-localpv").Repo }}'
-      tag: '{{ (index .Images "openebs-provisioner-localpv").Tag }}'
+      tag: '{{ index (index .Images "openebs-provisioner-localpv").Tag .GOARCH }}'
 {{- end }}
 lvm-localpv:
   enabled: false
@@ -36,7 +36,7 @@ preUpgradeHook:
   image:
     registry: proxy.replicated.com/anonymous
     repo: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "kubectl").Repo }}'
-    tag: '{{ (index .Images "kubectl").Tag }}'
+    tag: '{{ index (index .Images "kubectl").Tag .GOARCH }}'
 {{- end }}
 zfs-localpv:
   enabled: false

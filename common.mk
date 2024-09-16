@@ -1,5 +1,8 @@
 SHELL := /bin/bash
 
+ARCH ?= $(shell go env GOARCH)
+CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
+
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
@@ -9,12 +12,26 @@ $(LOCALBIN):
 MELANGE ?= $(LOCALBIN)/melange
 APKO ?= $(LOCALBIN)/apko
 
+## Version to use for building
+VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+.PHONY: print-%
+print-%:
+	@echo -n $($*)
+
+.PHONY: check-env-%
+check-env-%:
+	@ if [ "${${*}}" = "" ]; then \
+		echo "Environment variable $* not set"; \
+		exit 1; \
+	fi
 
 melange: $(MELANGE)
 $(MELANGE): $(LOCALBIN)
@@ -34,7 +51,7 @@ MELANGE_CACHE_DIR ?= /go/pkg/mod
 APKO_CMD = docker run -v $(shell pwd):/work -w /work -v $(shell pwd)/build/.docker:/root/.docker cgr.dev/chainguard/apko
 MELANGE_CMD = docker run --privileged --rm -v $(shell pwd):/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
 else
-MELANGE_CACHE_DIR ?= build/.melange-cache
+MELANGE_CACHE_DIR ?= cache/.melange-cache
 APKO_CMD = apko
 MELANGE_CMD = melange
 endif
@@ -43,14 +60,14 @@ $(MELANGE_CACHE_DIR):
 	mkdir -p $(MELANGE_CACHE_DIR)
 
 .PHONY: apko-build
-apko-build: ARCHS ?= amd64
+apko-build: ARCHS ?= $(ARCH)
 apko-build: check-env-IMAGE apko-template
 	cd build && ${APKO_CMD} \
 		build apko.yaml ${IMAGE} apko.tar \
 		--arch ${ARCHS}
 
 .PHONY: apko-build-and-publish
-apko-build-and-publish: ARCHS ?= amd64
+apko-build-and-publish: ARCHS ?= $(ARCH)
 apko-build-and-publish: check-env-IMAGE apko-template
 	@bash -c 'set -o pipefail && cd build && ${APKO_CMD} publish apko.yaml ${IMAGE} --arch ${ARCHS} | tee digest'
 	$(MAKE) apko-output-image
@@ -64,7 +81,7 @@ apko-login:
 		--password "${PASSWORD}" "${REGISTRY}"
 
 .PHONY: apko-print-pkg-version
-apko-print-pkg-version: ARCHS ?= amd64
+apko-print-pkg-version: ARCHS ?= $(ARCH)
 apko-print-pkg-version: apko-template check-env-PACKAGE_NAME
 		cd build && \
 		${APKO_CMD} show-packages apko.yaml --arch=${ARCHS} | \
@@ -83,7 +100,7 @@ apko-output-image:
 	echo "$(IMAGE)@$$digest" > build/image
 
 .PHONY: melange-build
-melange-build: ARCHS ?= amd64
+melange-build: ARCHS ?= $(ARCH)
 melange-build: MELANGE_SOURCE_DIR ?= .
 melange-build: $(MELANGE_CACHE_DIR) melange-template
 	${MELANGE_CMD} \
@@ -105,9 +122,3 @@ melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
 apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
 	envsubst '$${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
-
-check-env-%:
-	@ if [ "${${*}}" = "" ]; then \
-		echo "Environment variable $* not set"; \
-		exit 1; \
-	fi

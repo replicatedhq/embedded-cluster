@@ -22,5 +22,6 @@ go.work
 
 /bin/
 /build/
+/cache/
 
 *.tgz

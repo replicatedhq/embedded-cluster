@@ -33,7 +33,7 @@ import (
 const releaseName = "embedded-cluster-operator"
 
 var (
-	//go:embed static/values.yaml
+	//go:embed static/values.tpl.yaml
 	rawvalues []byte
 	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
@@ -48,10 +48,11 @@ func init() {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
 
-	helmValues = make(map[string]interface{})
-	if err := yaml.Unmarshal(rawvalues, &helmValues); err != nil {
+	hv, err := release.RenderHelmValues(rawvalues, Metadata)
+	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
 	}
+	helmValues = hv
 
 	helmValues["kotsVersion"] = adminconsole.Metadata.Version
 	helmValues["embeddedClusterVersion"] = versions.Version
@@ -67,6 +68,7 @@ type EmbeddedClusterOperator struct {
 	licenseFile   string
 	airgap        bool
 	proxyEnv      map[string]string
+	privateCAs    map[string]string
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -171,12 +173,43 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 	return nil
 }
 
+func createCAConfigmap(ctx context.Context, cli client.Client, namespace string, cas map[string]string) error {
+	kotsCAConfigmap := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "private-cas",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "embedded-cluster-operator",
+			},
+		},
+		Data: cas,
+	}
+	if err := cli.Create(ctx, &kotsCAConfigmap); err != nil {
+		return fmt.Errorf("unable to create private-cas configmap: %w", err)
+	}
+	return nil
+}
+
 // Outro is executed after the cluster deployment. Waits for the embedded cluster operator
 // to finish its deployment, creates the version metadata configmap (if in airgap) and
 // the installation object.
 func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
+
+	if err := kubeutils.WaitForNamespace(ctx, cli, e.namespace); err != nil {
+		return err
+	}
+
+	if err := createCAConfigmap(ctx, cli, e.namespace, e.privateCAs); err != nil {
+		return fmt.Errorf("unable to create CA configmap: %w", err)
+	}
+
 	if err := kubeutils.WaitForDeployment(ctx, cli, e.namespace, e.deployName); err != nil {
 		loading.Close()
 		return err
@@ -246,7 +279,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *ecv1beta1.Config, licenseFile string, airgapEnabled bool, proxyEnv map[string]string) (*EmbeddedClusterOperator, error) {
+func New(endUserConfig *ecv1beta1.Config, licenseFile string, airgapEnabled bool, proxyEnv map[string]string, privateCAs map[string]string) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
 		namespace:     "embedded-cluster",
 		deployName:    "embedded-cluster-operator",
@@ -254,6 +287,7 @@ func New(endUserConfig *ecv1beta1.Config, licenseFile string, airgapEnabled bool
 		licenseFile:   licenseFile,
 		airgap:        airgapEnabled,
 		proxyEnv:      proxyEnv,
+		privateCAs:    privateCAs,
 	}, nil
 }
 
