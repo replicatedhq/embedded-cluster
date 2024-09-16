@@ -40,9 +40,9 @@ function binary() {
     fi
 
     if [ "$USES_DEV_BUCKET" == "1" ]; then
-        k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$(url_encode_semver "$K0S_VERSION")-amd64"
-        kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")-amd64.tar.gz"
-        operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")-amd64.tar.gz"
+        k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$(url_encode_semver "$K0S_VERSION")-$ARCH"
+        kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")-$ARCH.tar.gz"
+        operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")-$ARCH.tar.gz"
     fi
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
 
