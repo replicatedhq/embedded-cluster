@@ -549,19 +549,20 @@ jobs:
            - TestProxiedCustomCIDR
            - TestSingleNodeInstallationNoopUpgrade
            - TestInstallWithPrivateCAs
+           - TestInstallWithMITMProxy
         include:
-           - test: TestMultiNodeAirgapUpgrade
-             runner: embedded-cluster
-           - test: TestMultiNodeAirgapUpgradeSameK0s
-             runner: embedded-cluster
-           - test: TestSingleNodeAirgapDisasterRecovery
-             runner: embedded-cluster
-           - test: TestMultiNodeAirgapHAInstallation
-             runner: embedded-cluster
-           - test: TestMultiNodeAirgapHADisasterRecovery
-             runner: embedded-cluster
-           - test: TestFiveNodesAirgapUpgrade
-             runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgradeSameK0s
+            runner: embedded-cluster
+          - test: TestSingleNodeAirgapDisasterRecovery
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHADisasterRecovery
+            runner: embedded-cluster
+          - test: TestFiveNodesAirgapUpgrade
+            runner: embedded-cluster
     steps:
       - name: Checkout
         uses: actions/checkout@v4
