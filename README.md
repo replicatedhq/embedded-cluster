@@ -17,6 +17,8 @@ Additionally, it includes a Registry when deployed in air gap mode.
 - Docker Desktop with sufficient resources allocated:
     - Open Docker Desktop -> Settings -> Resources
     - Increase allocated resources as needed. Higher allocations will significantly enhance the development environment speed and responsiveness.
+- Replicated CLI
+- Helm CLI
 - jq
 
 ### Running the Development Environment
