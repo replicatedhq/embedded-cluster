@@ -19,6 +19,7 @@ Additionally, it includes a Registry when deployed in air gap mode.
     - Increase allocated resources as needed. Higher allocations will significantly enhance the development environment speed and responsiveness.
 - Replicated CLI
 - Helm CLI
+- AWS CLI
 - jq
 
 ### Running the Development Environment
