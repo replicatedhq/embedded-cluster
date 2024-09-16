@@ -34,7 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -144,14 +144,11 @@ jobs:
             output/bins
           key: bins-cache
 
-      - name: Setup go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-
-      - name: Setup docker # for caching fio build
-        uses: docker/setup-buildx-action@v3
 
       - name: Download buildtools artifact
         uses: actions/download-artifact@v4
