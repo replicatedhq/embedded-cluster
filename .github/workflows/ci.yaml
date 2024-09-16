@@ -116,6 +116,12 @@ jobs:
             output/bins
           key: bins-cache
 
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
       - name: Cache melange
         uses: actions/cache@v4
         with:
@@ -125,13 +131,9 @@ jobs:
           key: melange-cache
 
       - name: Setup melange
-        uses: chainguard-dev/actions/setup-melange@main
-
-      - name: Setup go
-        uses: actions/setup-go@v5
+        uses: ./.github/actions/setup-melange
         with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
+          setup-go: false
 
       - name: Build
         env:
@@ -190,6 +192,12 @@ jobs:
             output/bins
           key: bins-cache
 
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
       - name: Cache melange
         uses: actions/cache@v4
         with:
@@ -199,13 +207,9 @@ jobs:
           key: melange-cache
 
       - name: Setup melange
-        uses: chainguard-dev/actions/setup-melange@main
-
-      - name: Setup go
-        uses: actions/setup-go@v5
+        uses: ./.github/actions/setup-melange
         with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
+          setup-go: false
 
       - name: Build
         env:
@@ -262,6 +266,12 @@ jobs:
             output/bins
           key: bins-cache
 
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
       - name: Cache melange
         uses: actions/cache@v4
         with:
@@ -271,13 +281,9 @@ jobs:
           key: melange-cache
 
       - name: Setup melange
-        uses: chainguard-dev/actions/setup-melange@main
-
-      - name: Setup go
-        uses: actions/setup-go@v5
+        uses: ./.github/actions/setup-melange
         with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
+          setup-go: false
 
       - name: Build
         env:
