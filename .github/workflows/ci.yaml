@@ -135,6 +135,9 @@ jobs:
         with:
           setup-go: false
 
+      - name: Setup docker # for caching fio build
+        uses: docker/setup-buildx-action@v3
+
       - name: Build
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
@@ -211,6 +214,9 @@ jobs:
         with:
           setup-go: false
 
+      - name: Setup docker # for caching fio build
+        uses: docker/setup-buildx-action@v3
+
       - name: Build
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
@@ -284,6 +290,9 @@ jobs:
         uses: ./.github/actions/setup-melange
         with:
           setup-go: false
+
+      - name: Setup docker # for caching fio build
+        uses: docker/setup-buildx-action@v3
 
       - name: Build
         env:

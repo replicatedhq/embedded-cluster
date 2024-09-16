@@ -91,7 +91,7 @@ runs:
       sudo apt-get update -y
       sudo apt install apparmor-utils -y
       sudo aa-complain /etc/apparmor.d/*
-  - name: Setup Go
+  - name: Setup go
     uses: actions/setup-go@v5
     with:
       go-version-file: go.mod
