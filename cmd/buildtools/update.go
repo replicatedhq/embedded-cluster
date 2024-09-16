@@ -23,12 +23,12 @@ var updateAddonCommand = &cli.Command{
 		},
 	},
 	Subcommands: []*cli.Command{
+		updateAdminConsoleAddonCommand,
 		updateOpenEBSAddonCommand,
-		updateSeaweedFSAddonCommand,
+		updateOperatorAddonCommand,
 		updateRegistryAddonCommand,
 		updateVeleroAddonCommand,
-		updateOperatorAddonCommand,
-		updateAdminConsoleAddonCommand,
+		updateSeaweedFSAddonCommand,
 	},
 }
 
@@ -38,8 +38,8 @@ var updateImagesCommand = &cli.Command{
 	Subcommands: []*cli.Command{
 		updateK0sImagesCommand,
 		updateOpenEBSImagesCommand,
-		updateVeleroImagesCommand,
 		updateOperatorImagesCommand,
 		updateSeaweedFSImagesCommand,
+		updateVeleroImagesCommand,
 	},
 }

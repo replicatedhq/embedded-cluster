@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -212,34 +211,11 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 	images = append(images, fmt.Sprintf("docker.io/velero/velero-restore-helper:%s", restoreHelperVersion))
 	images = append(images, fmt.Sprintf("docker.io/velero/velero-plugin-for-aws:%s", awsPluginVersion))
 
-	if err := ApkoLogin(); err != nil {
-		return fmt.Errorf("failed to apko login: %w", err)
+	metaImages, err := UpdateImages(ctx, veleroImageComponents, velero.Metadata.Images, images)
+	if err != nil {
+		return fmt.Errorf("failed to update images: %w", err)
 	}
-
-	for _, image := range images {
-		component, ok := veleroImageComponents[RemoveTagFromImage(image)]
-		if !ok {
-			return fmt.Errorf("no component found for image %s", image)
-		}
-
-		newimage := velero.Metadata.Images[component.name]
-		if newimage.Tag == nil {
-			newimage.Tag = make(map[string]string)
-		}
-		for _, arch := range GetSupportedArchs() {
-			repo, tag, err := component.resolveImageRepoAndTag(ctx, image, arch)
-			var tmp *DockerManifestNotFoundError
-			if errors.As(err, &tmp) {
-				logrus.Warnf("skipping image %s (%s) as no manifest found: %v", image, arch, err)
-				continue
-			} else if err != nil {
-				return fmt.Errorf("failed to resolve image and tag for %s (%s): %w", image, arch, err)
-			}
-			newimage.Repo = repo
-			newimage.Tag[arch] = tag
-		}
-		newmeta.Images[component.name] = newimage
-	}
+	newmeta.Images = metaImages
 
 	logrus.Infof("saving addon manifest")
 	if err := newmeta.Save("velero"); err != nil {

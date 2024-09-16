@@ -16,5 +16,5 @@ images:
     utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-utils
         tag:
-            amd64: latest@sha256:12a38ef9783948e310e09675cdbfcf5a1bc661d4f9312ee7327dd80af0640e68
-            arm64: latest@sha256:00724b35f557ae2be196ba48a41c28673300e109644570b698b435b76ecd64bf
+            amd64: latest-amd64@sha256:92dec6e167ff57b35953da389ceffca0227056368d369a5b20a36fb2fe7e3e11
+            arm64: latest-arm64@sha256:a9ab9db181f9898283a8778070ef7945299ffc933d7da081b5326f3296da6d0a

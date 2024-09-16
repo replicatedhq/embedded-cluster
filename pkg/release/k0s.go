@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"gopkg.in/yaml.v3"
 )
@@ -20,16 +19,7 @@ const k0sMetadataPreface = `#
 `
 
 type K0sMetadata struct {
-	Images map[string]K0sImage `yaml:"images"`
-}
-
-type K0sImage struct {
-	Image   string            `yaml:"image"`
-	Version map[string]string `yaml:"version"`
-}
-
-func (i K0sImage) URI() string {
-	return fmt.Sprintf("%s:%s", i.Image, i.Version[runtime.GOARCH])
+	Images map[string]AddonImage `yaml:"images"`
 }
 
 func (a *K0sMetadata) Save() error {

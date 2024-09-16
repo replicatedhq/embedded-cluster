@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -27,14 +26,37 @@ type addonComponentOptions struct {
 	latestK8sVersion *semver.Version
 }
 
-func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
+func (c *addonComponent) buildImage(ctx context.Context, image string, archs string) (string, error) {
+	if c.useUpstreamImage || c.getCustomImageName != nil {
+		return "", nil
+	}
+	builtImage, err := c.buildApkoImage(ctx, image, archs)
+	if err != nil {
+		return "", fmt.Errorf("build apko image: %w", err)
+	}
+	return builtImage, nil
+}
+
+func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image string, arch string) (repo string, tag string, err error) {
 	if c.useUpstreamImage {
-		return c.resolveUpstreamImageRepoAndTag(ctx, image, arch)
+		repo, tag, err = c.resolveUpstreamImageRepoAndTag(ctx, image, arch)
+		if err != nil {
+			err = fmt.Errorf("resolve upstream image repo and tag: %w", err)
+		}
+		return
 	}
 	if c.getCustomImageName != nil {
-		return c.resolveCustomImageRepoAndTag(ctx, image, arch)
+		repo, tag, err = c.resolveCustomImageRepoAndTag(ctx, image, arch)
+		if err != nil {
+			err = fmt.Errorf("resolve custom image repo and tag: %w", err)
+		}
+		return
 	}
-	return c.resolveApkoImageRepoAndTag(ctx, image, arch)
+	repo, tag, err = c.resolveApkoImageRepoAndTag(ctx, image, arch)
+	if err != nil {
+		err = fmt.Errorf("resolve apko image repo and tag: %w", err)
+	}
+	return
 }
 
 func (c *addonComponent) getUpstreamVersion(image string) string {
@@ -87,36 +109,43 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 }
 
 func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
-	// TODO: support other architectures
-	if arch != runtime.GOARCH {
-		err := fmt.Errorf("cross-arch builds are not supported for chainguard images")
-		return "", "", &DockerManifestNotFoundError{image: image, arch: arch, err: err}
-	}
-
-	upstreamVersion := c.getUpstreamVersion(image)
-
-	packageName, packageVersion, err := c.getPackageNameAndVersion(ctx, upstreamVersion)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get package name and version constraint for %s: %w", c.name, err)
-	}
-
-	logrus.Infof("building and publishing %s", c.name)
-
-	if err := ApkoBuildAndPublish(c.name, packageName, packageVersion, arch); err != nil {
-		return "", "", fmt.Errorf("failed to apko build and publish for %s: %w", c.name, err)
-	}
-
 	builtImage, err := GetImageNameFromBuildFile("build/image")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get digest from build file: %w", err)
 	}
 
-	parts := strings.SplitN(builtImage, ":", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid image name: %s", builtImage)
+	digest, err := GetImageDigest(ctx, builtImage, arch)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get image %s digest: %w", builtImage, err)
+	}
+	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(builtImage), arch, digest)
+	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(builtImage)))
+	return repo, tag, nil
+}
+
+func (c *addonComponent) buildApkoImage(ctx context.Context, image string, archs string) (string, error) {
+	upstreamVersion := c.getUpstreamVersion(image)
+
+	packageName, packageVersion, err := c.getPackageNameAndVersion(ctx, upstreamVersion)
+	if err != nil {
+		return "", fmt.Errorf("get package name and version constraint for %s: %w", c.name, err)
 	}
 
-	return fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(parts[0])), parts[1], nil
+	logrus.Infof("building and publishing %s", c.name)
+
+	if err := ApkoLogin(); err != nil {
+		return "", fmt.Errorf("apko login: %w", err)
+	}
+
+	if err := ApkoBuildAndPublish(c.name, packageName, packageVersion, archs); err != nil {
+		return "", fmt.Errorf("apko build and publish for %s: %w", c.name, err)
+	}
+
+	builtImage, err := GetImageNameFromBuildFile("build/image")
+	if err != nil {
+		return "", fmt.Errorf("get image name from build file: %w", err)
+	}
+	return builtImage, nil
 }
 
 func (c *addonComponent) getPackageNameAndVersion(ctx context.Context, upstreamVersion string) (string, string, error) {

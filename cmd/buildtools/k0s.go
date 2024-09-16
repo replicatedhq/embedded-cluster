@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -78,39 +77,16 @@ var updateK0sImagesCommand = &cli.Command{
 		logrus.Infof("updating k0s images")
 
 		newmeta := release.K0sMetadata{
-			Images: make(map[string]release.K0sImage),
+			Images: make(map[string]release.AddonImage),
 		}
 
 		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
 
-		if err := ApkoLogin(); err != nil {
-			return fmt.Errorf("failed to apko login: %w", err)
+		metaImages, err := UpdateImages(c.Context, k0sImageComponents, config.Metadata.Images, k0sImages)
+		if err != nil {
+			return fmt.Errorf("failed to update images: %w", err)
 		}
-
-		for _, image := range k0sImages {
-			component, ok := k0sImageComponents[RemoveTagFromImage(image)]
-			if !ok {
-				return fmt.Errorf("no component found for image %s", image)
-			}
-
-			newimage := config.Metadata.Images[component.name]
-			if newimage.Version == nil {
-				newimage.Version = make(map[string]string)
-			}
-			for _, arch := range GetSupportedArchs() {
-				repo, tag, err := component.resolveImageRepoAndTag(c.Context, image, arch)
-				var tmp *DockerManifestNotFoundError
-				if errors.As(err, &tmp) {
-					logrus.Warnf("skipping image %s (%s) as no manifest found: %v", image, arch, err)
-					continue
-				} else if err != nil {
-					return fmt.Errorf("failed to resolve image and tag for %s (%s): %w", image, arch, err)
-				}
-				newimage.Image = repo
-				newimage.Version[arch] = tag
-			}
-			newmeta.Images[component.name] = newimage
-		}
+		newmeta.Images = metaImages
 
 		logrus.Infof("saving k0s metadata")
 		if err := newmeta.Save(); err != nil {

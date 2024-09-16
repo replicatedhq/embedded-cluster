@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/containers/image/v5/docker"
@@ -18,32 +20,42 @@ import (
 	"github.com/distribution/reference"
 	"github.com/google/go-github/v62/github"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/repo"
 )
 
+var (
+	apkoLoginOnce sync.Once
+)
+
 func ApkoLogin() error {
-	cmd := exec.Command("make", "apko")
-	if err := RunCommand(cmd); err != nil {
-		return fmt.Errorf("make apko: %w", err)
-	}
-	if os.Getenv("IMAGES_REGISTRY_USER") != "" && os.Getenv("IMAGES_REGISTRY_PASS") != "" {
-		cmd := exec.Command(
-			"make",
-			"apko-login",
-			fmt.Sprintf("REGISTRY=%s", os.Getenv("IMAGES_REGISTRY_SERVER")),
-			fmt.Sprintf("USERNAME=%s", os.Getenv("IMAGES_REGISTRY_USER")),
-			fmt.Sprintf("PASSWORD=%s", os.Getenv("IMAGES_REGISTRY_PASS")),
-		)
+	var retErr error
+	apkoLoginOnce.Do(func() {
+		cmd := exec.Command("make", "apko")
 		if err := RunCommand(cmd); err != nil {
-			return err
+			retErr = fmt.Errorf("make apko: %w", err)
+			return
 		}
-	}
-	return nil
+		if os.Getenv("IMAGES_REGISTRY_USER") != "" && os.Getenv("IMAGES_REGISTRY_PASS") != "" {
+			cmd := exec.Command(
+				"make",
+				"apko-login",
+				fmt.Sprintf("REGISTRY=%s", os.Getenv("IMAGES_REGISTRY_SERVER")),
+				fmt.Sprintf("USERNAME=%s", os.Getenv("IMAGES_REGISTRY_USER")),
+				fmt.Sprintf("PASSWORD=%s", os.Getenv("IMAGES_REGISTRY_PASS")),
+			)
+			if err := RunCommand(cmd); err != nil {
+				retErr = fmt.Errorf("run make apko-login: %w", err)
+				return
+			}
+		}
+	})
+	return retErr
 }
 
-func ApkoBuildAndPublish(componentName, packageName, packageVersion string, arch string) error {
-	image, err := ComponentImageName(componentName, packageName, packageVersion, arch)
+func ApkoBuildAndPublish(componentName, packageName, packageVersion string, archs string) error {
+	image, err := ComponentImageName(componentName, packageName, packageVersion)
 	if err != nil {
 		return fmt.Errorf("component image name: %w", err)
 	}
@@ -52,28 +64,67 @@ func ApkoBuildAndPublish(componentName, packageName, packageVersion string, arch
 		fmt.Sprintf("IMAGE=%s", image),
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
-		fmt.Sprintf("ARCHS=%s", arch),
+		fmt.Sprintf("ARCHS=%s", archs),
 	}
 	cmd := exec.Command("make", args...)
 	if err := RunCommand(cmd); err != nil {
-		return err
+		return fmt.Errorf("run make apko-build-and-publish: %w", err)
 	}
 	return nil
 }
 
-func ComponentImageName(componentName, packageName, packageVersion, arch string) (string, error) {
+func UpdateImages(ctx context.Context, imageComponents map[string]addonComponent, metaImages map[string]release.AddonImage, images []string) (map[string]release.AddonImage, error) {
+	nextImages := map[string]release.AddonImage{}
+
+	for _, image := range images {
+		component, ok := imageComponents[RemoveTagFromImage(image)]
+		if !ok {
+			return nil, fmt.Errorf("no component found for image %s", image)
+		}
+
+		newimage := metaImages[component.name]
+		if newimage.Tag == nil {
+			newimage.Tag = make(map[string]string)
+		}
+
+		archs := GetSupportedArchs()
+
+		_, err := component.buildImage(ctx, image, strings.Join(archs, ","))
+		if err != nil {
+			return nil, fmt.Errorf("build image: %w", err)
+		}
+
+		for _, arch := range archs {
+			repo, tag, err := component.resolveImageRepoAndTag(ctx, image, arch)
+			var tmp *DockerManifestNotFoundError
+			if errors.As(err, &tmp) {
+				logrus.Warnf("skipping image %s (%s) as no manifest found: %v", image, arch, err)
+				continue
+			} else if err != nil {
+				return nil, fmt.Errorf("resolve image and tag for %s (%s): %w", image, arch, err)
+			}
+			newimage.Repo = repo
+			newimage.Tag[arch] = tag
+		}
+		nextImages[component.name] = newimage
+	}
+
+	return nextImages, nil
+}
+
+func ComponentImageName(componentName, packageName, packageVersion string) (string, error) {
 	registryServer := os.Getenv("IMAGES_REGISTRY_SERVER")
 	if registryServer == "" {
 		return "", fmt.Errorf("IMAGES_REGISTRY_SERVER not set")
 	}
-	tag, err := ComponentImageTag(componentName, packageName, packageVersion, arch)
+	tag, err := ComponentImageTag(componentName, packageName, packageVersion)
 	if err != nil {
 		return "", fmt.Errorf("component image tag: %w", err)
 	}
 	return fmt.Sprintf("%s/replicated/ec-%s:%s", registryServer, componentName, tag), nil
 }
 
-func ComponentImageTag(componentName, packageName, packageVersion, arch string) (string, error) {
+func ComponentImageTag(componentName, packageName, packageVersion string) (string, error) {
 	if packageName == "" {
 		return packageVersion, nil
 	}
@@ -81,8 +132,7 @@ func ComponentImageTag(componentName, packageName, packageVersion, arch string) 
 	if err != nil {
 		return "", fmt.Errorf("apko output tag: %w", err)
 	}
-	tag := fmt.Sprintf("%s-%s", packageVersion, arch)
-	return tag, nil
+	return packageVersion, nil
 }
 
 // ResolveApkoPackageVersion resolves the fuzzy version matching in the apko config file to a specific version.
@@ -290,9 +340,13 @@ func (e *DockerManifestNotFoundError) Error() string {
 }
 
 func GetImageDigest(ctx context.Context, img string, arch string) (string, error) {
+	img, err := NormalizeDigestAndTag(img)
+	if err != nil {
+		return "", fmt.Errorf("normalize digest and tag: %w", err)
+	}
 	ref, err := docker.ParseReference("//" + img)
 	if err != nil {
-		return "", fmt.Errorf("parse image reference: %w", err)
+		return "", fmt.Errorf("parse reference: %w", err)
 	}
 	sysctx := &types.SystemContext{
 		OSChoice:           "linux",
@@ -339,9 +393,23 @@ func GetImageDigest(ctx context.Context, img string, arch string) (string, error
 	return "", &DockerManifestNotFoundError{image: img, arch: arch, err: err}
 }
 
+// NormalizeDigestAndTag returns the image name with the digest only if it has both a digest and a tag.
+func NormalizeDigestAndTag(img string) (string, error) {
+	ref, err := reference.ParseNormalizedNamed(img)
+	if err != nil {
+		return "", fmt.Errorf("parse normalized named: %w", err)
+	}
+	digested, ok := ref.(reference.Digested)
+	if !ok {
+		return img, nil
+	}
+	return fmt.Sprintf("%s@%s", ref.Name(), digested.Digest()), nil
+}
+
 // XXX we need to revisit this as a registry may have a port number.
 func TagFromImage(image string) string {
 	_, tag, _ := strings.Cut(image, ":")
+	tag, _, _ = strings.Cut(tag, "@")
 	return tag
 }
 

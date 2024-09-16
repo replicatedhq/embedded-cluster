@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -70,30 +69,11 @@ var updateRegistryAddonCommand = &cli.Command{
 			return fmt.Errorf("failed to get images from chart: %w", err)
 		}
 
-		for _, image := range images {
-			component, ok := registryImageComponents[RemoveTagFromImage(image)]
-			if !ok {
-				return fmt.Errorf("no component found for image %s", image)
-			}
-
-			newimage := registry.Metadata.Images[component.name]
-			if newimage.Tag == nil {
-				newimage.Tag = make(map[string]string)
-			}
-			for _, arch := range GetSupportedArchs() {
-				repo, tag, err := component.resolveImageRepoAndTag(c.Context, image, arch)
-				var tmp *DockerManifestNotFoundError
-				if errors.As(err, &tmp) {
-					logrus.Warnf("skipping image %s (%s) as no manifest found: %v", image, arch, err)
-					continue
-				} else if err != nil {
-					return fmt.Errorf("failed to resolve image and tag for %s (%s): %w", image, arch, err)
-				}
-				newimage.Repo = repo
-				newimage.Tag[arch] = tag
-			}
-			newmeta.Images[component.name] = newimage
+		metaImages, err := UpdateImages(c.Context, registryImageComponents, registry.Metadata.Images, images)
+		if err != nil {
+			return fmt.Errorf("failed to update images: %w", err)
 		}
+		newmeta.Images = metaImages
 
 		logrus.Infof("saving addon manifest")
 		if err := newmeta.Save("registry"); err != nil {
