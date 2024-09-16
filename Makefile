@@ -49,6 +49,7 @@ ARCH ?= $(shell go env GOARCH)
 default: build-ttl.sh
 
 split-hyphen = $(word $2,$(subst -, ,$1))
+last-split-hyphen = $(lastword $(subst -, ,$1))
 
 .PHONY: pkg/goods/bins/k0s
 pkg/goods/bins/k0s:
@@ -129,7 +130,7 @@ pkg/goods/internal/bins/kubectl-kots:
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call split-hyphen,$*,2).tar.gz"
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "https://github.com/replicatedhq/kots/releases/download/$(call split-hyphen,$*,1)/kots_$(OS)_$(call last-split-hyphen,$*).tar.gz"
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
 	touch $@
