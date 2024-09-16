@@ -103,15 +103,24 @@ pkg/goods/bins/local-artifact-mirror:
 	cp local-artifact-mirror/bin/local-artifact-mirror-$(OS)-$(ARCH) $@
 	touch $@
 
-pkg/goods/bins/fio: PLATFORM = linux/$(ARCH)
-pkg/goods/bins/fio: Makefile fio/Dockerfile
-ifneq ($(DISABLE_FIO_BUILD),1)
-	mkdir -p pkg/goods/bins
-	docker build -t fio --build-arg PLATFORM=$(PLATFORM) fio
+ifndef FIO_VERSION
+FIO_VERSION = $(shell curl -fsSL https://api.github.com/repos/axboe/fio/releases/latest | jq -r '.tag_name' | cut -d- -f2)
+endif
+
+output/bins/fio-%:
+	mkdir -p output/bins
+	docker build -t fio --build-arg FIO_VERSION=$(call split-hyphen,$*,1) --build-arg PLATFORM=$(OS)/$(call split-hyphen,$*,2) fio
 	docker rm -f fio && docker run --name fio fio
 	docker cp fio:/output/fio $@
 	docker rm -f fio
 	touch $@
+
+.PHONY: pkg/goods/bins/fio
+pkg/goods/bins/fio:
+ifneq ($(DISABLE_FIO_BUILD),1)
+	$(MAKE) output/bins/fio-$(FIO_VERSION)-$(ARCH)
+	mkdir -p pkg/goods/bins
+	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
 endif
 
 .PHONY: pkg/goods/internal/bins/kubectl-kots
