@@ -71,8 +71,7 @@ Additionally, it includes a Registry when deployed in air gap mode.
     make create-node0
     ```
 
-    This command sets up the initial node for your cluster.
-    The node is simply a docker container.
+    This command sets up the initial node for your cluster and SSHs into it.
 
     By default, a Debian-based node will be created. If you want to use a different distribution, you can set the `DISTRO` environment variable:
 
@@ -84,11 +83,6 @@ Additionally, it includes a Registry when deployed in air gap mode.
 
     ```bash
     make list-distros
-    ```
-
-1. SSH into the node:
-    ```bash
-    make ssh-node0
     ```
 
 1. In the Vendor Portal, create and download a license that is assigned to the channel.
@@ -169,6 +163,18 @@ make delete-node<node-number>
 For example:
 ```bash
 make delete-node1
+```
+
+### Establishing SSH sessions
+
+To SSH into an existing node, run the following command:
+```bash
+make ssh-node<node-number>
+```
+
+For example:
+```bash
+make ssh-node0
 ```
 
 ### Developing Embedded Cluster Operator
