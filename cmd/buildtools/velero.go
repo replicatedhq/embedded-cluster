@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -130,14 +130,16 @@ var updateVeleroImagesCommand = &cli.Command{
 		if !ok {
 			return fmt.Errorf("failed to find velero restore helper image")
 		}
-		restoreHelperVersion, _, _ := strings.Cut(image.Tag[runtime.GOARCH], "@")
+		restoreHelperVersion, _, _ := strings.Cut(image.Tag["amd64"], "@")
+		restoreHelperVersion = strings.TrimSuffix(restoreHelperVersion, "-amd64")
 		restoreHelperVersion = strings.TrimPrefix(restoreHelperVersion, "v")
 
 		image, ok = velero.Metadata.Images["velero-plugin-for-aws"]
 		if !ok {
 			return fmt.Errorf("failed to find velero plugin for aws image")
 		}
-		awsPluginVersion, _, _ := strings.Cut(image.Tag[runtime.GOARCH], "@")
+		awsPluginVersion, _, _ := strings.Cut(image.Tag["amd64"], "@")
+		awsPluginVersion = strings.TrimSuffix(awsPluginVersion, "-amd64")
 		awsPluginVersion = strings.TrimPrefix(awsPluginVersion, "v")
 
 		err := updateVeleroAddonImages(c.Context, current.Location, current.Version, restoreHelperVersion, awsPluginVersion)
@@ -219,13 +221,23 @@ func updateVeleroAddonImages(ctx context.Context, chartURL string, chartVersion 
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
-		if err != nil {
-			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
-		}
+
 		newimage := velero.Metadata.Images[component.name]
-		newimage.Repo = repo
-		newimage.Tag[runtime.GOARCH] = tag
+		if newimage.Tag == nil {
+			newimage.Tag = make(map[string]string)
+		}
+		for _, arch := range GetSupportedArchs() {
+			repo, tag, err := component.resolveImageRepoAndTag(ctx, image, arch)
+			var tmp *DockerManifestNotFoundError
+			if errors.As(err, &tmp) {
+				logrus.Warnf("skipping image %s (%s) as no manifest found: %v", image, arch, err)
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to resolve image and tag for %s (%s): %w", image, arch, err)
+			}
+			newimage.Repo = repo
+			newimage.Tag[arch] = tag
+		}
 		newmeta.Images[component.name] = newimage
 	}
 

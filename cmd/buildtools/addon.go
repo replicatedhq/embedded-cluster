@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -26,14 +27,14 @@ type addonComponentOptions struct {
 	latestK8sVersion *semver.Version
 }
 
-func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image string) (string, string, error) {
+func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
 	if c.useUpstreamImage {
-		return c.resolveUpstreamImageRepoAndTag(ctx, image)
+		return c.resolveUpstreamImageRepoAndTag(ctx, image, arch)
 	}
 	if c.getCustomImageName != nil {
-		return c.resolveCustomImageRepoAndTag(ctx, c.getUpstreamVersion(image))
+		return c.resolveCustomImageRepoAndTag(ctx, image, arch)
 	}
-	return c.resolveApkoImageRepoAndTag(ctx, c.getUpstreamVersion(image))
+	return c.resolveApkoImageRepoAndTag(ctx, image, arch)
 }
 
 func (c *addonComponent) getUpstreamVersion(image string) string {
@@ -46,17 +47,19 @@ func (c *addonComponent) getUpstreamVersion(image string) string {
 	return TagFromImage(image)
 }
 
-func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, image string) (string, string, error) {
-	digest, err := GetImageDigest(ctx, image)
+func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
+	digest, err := GetImageDigest(ctx, image, arch)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", image, err)
 	}
-	tag := fmt.Sprintf("%s@%s", TagFromImage(image), digest)
+	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(image), arch, digest)
 	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(image)))
 	return repo, tag, nil
 }
 
-func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, upstreamVersion string) (string, string, error) {
+func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
+	upstreamVersion := c.getUpstreamVersion(image)
+
 	k0sVersion, err := getK0sVersion()
 	if err != nil {
 		return "", "", fmt.Errorf("get k0s version: %w", err)
@@ -74,16 +77,24 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, upstr
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image name for %s: %w", c.name, err)
 	}
-	digest, err := GetImageDigest(ctx, customImage)
+	digest, err := GetImageDigest(ctx, customImage, arch)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", customImage, err)
 	}
-	tag := fmt.Sprintf("%s@%s", TagFromImage(customImage), digest)
+	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(customImage), arch, digest)
 	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(customImage)))
 	return repo, tag, nil
 }
 
-func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, upstreamVersion string) (string, string, error) {
+func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
+	// TODO: support other architectures
+	if arch != runtime.GOARCH {
+		err := fmt.Errorf("cross-arch builds are not supported for chainguard images")
+		return "", "", &DockerManifestNotFoundError{image: image, arch: arch, err: err}
+	}
+
+	upstreamVersion := c.getUpstreamVersion(image)
+
 	packageName, packageVersion, err := c.getPackageNameAndVersion(ctx, upstreamVersion)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get package name and version constraint for %s: %w", c.name, err)
@@ -91,7 +102,7 @@ func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, upstrea
 
 	logrus.Infof("building and publishing %s", c.name)
 
-	if err := ApkoBuildAndPublish(c.name, packageName, packageVersion); err != nil {
+	if err := ApkoBuildAndPublish(c.name, packageName, packageVersion, arch); err != nil {
 		return "", "", fmt.Errorf("failed to apko build and publish for %s: %w", c.name, err)
 	}
 

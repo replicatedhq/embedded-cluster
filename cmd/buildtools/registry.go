@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -75,13 +75,23 @@ var updateRegistryAddonCommand = &cli.Command{
 			if !ok {
 				return fmt.Errorf("no component found for image %s", image)
 			}
-			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image)
-			if err != nil {
-				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
-			}
+
 			newimage := registry.Metadata.Images[component.name]
-			newimage.Repo = repo
-			newimage.Tag[runtime.GOARCH] = tag
+			if newimage.Tag == nil {
+				newimage.Tag = make(map[string]string)
+			}
+			for _, arch := range GetSupportedArchs() {
+				repo, tag, err := component.resolveImageRepoAndTag(c.Context, image, arch)
+				var tmp *DockerManifestNotFoundError
+				if errors.As(err, &tmp) {
+					logrus.Warnf("skipping image %s (%s) as no manifest found: %v", image, arch, err)
+					continue
+				} else if err != nil {
+					return fmt.Errorf("failed to resolve image and tag for %s (%s): %w", image, arch, err)
+				}
+				newimage.Repo = repo
+				newimage.Tag[arch] = tag
+			}
 			newmeta.Images[component.name] = newimage
 		}
 

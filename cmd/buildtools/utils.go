@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -43,8 +42,8 @@ func ApkoLogin() error {
 	return nil
 }
 
-func ApkoBuildAndPublish(componentName, packageName, packageVersion string) error {
-	image, err := ComponentImageName(componentName, packageName, packageVersion)
+func ApkoBuildAndPublish(componentName, packageName, packageVersion string, arch string) error {
+	image, err := ComponentImageName(componentName, packageName, packageVersion, arch)
 	if err != nil {
 		return fmt.Errorf("component image name: %w", err)
 	}
@@ -53,6 +52,7 @@ func ApkoBuildAndPublish(componentName, packageName, packageVersion string) erro
 		fmt.Sprintf("IMAGE=%s", image),
 		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
 		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
+		fmt.Sprintf("ARCHS=%s", arch),
 	}
 	cmd := exec.Command("make", args...)
 	if err := RunCommand(cmd); err != nil {
@@ -61,26 +61,27 @@ func ApkoBuildAndPublish(componentName, packageName, packageVersion string) erro
 	return nil
 }
 
-func ComponentImageName(componentName, packageName, packageVersion string) (string, error) {
+func ComponentImageName(componentName, packageName, packageVersion, arch string) (string, error) {
 	registryServer := os.Getenv("IMAGES_REGISTRY_SERVER")
 	if registryServer == "" {
 		return "", fmt.Errorf("IMAGES_REGISTRY_SERVER not set")
 	}
-	tag, err := ComponentImageTag(componentName, packageName, packageVersion)
+	tag, err := ComponentImageTag(componentName, packageName, packageVersion, arch)
 	if err != nil {
 		return "", fmt.Errorf("component image tag: %w", err)
 	}
 	return fmt.Sprintf("%s/replicated/ec-%s:%s", registryServer, componentName, tag), nil
 }
 
-func ComponentImageTag(componentName, packageName, packageVersion string) (string, error) {
+func ComponentImageTag(componentName, packageName, packageVersion, arch string) (string, error) {
 	if packageName == "" {
 		return packageVersion, nil
 	}
-	tag, err := ResolveApkoPackageVersion(componentName, packageName, packageVersion)
+	packageVersion, err := ResolveApkoPackageVersion(componentName, packageName, packageVersion)
 	if err != nil {
 		return "", fmt.Errorf("apko output tag: %w", err)
 	}
+	tag := fmt.Sprintf("%s-%s", packageVersion, arch)
 	return tag, nil
 }
 
@@ -279,12 +280,24 @@ func LatestChartVersion(repo *repo.Entry, name string) (string, error) {
 	return hcli.Latest(repo.Name, name)
 }
 
-func GetImageDigest(ctx context.Context, image string) (string, error) {
-	ref, err := docker.ParseReference("//" + image)
+type DockerManifestNotFoundError struct {
+	image, arch string
+	err         error
+}
+
+func (e *DockerManifestNotFoundError) Error() string {
+	return fmt.Sprintf("docker manifest not found for image %s and arch %s: %v", e.image, e.arch, e.err)
+}
+
+func GetImageDigest(ctx context.Context, img string, arch string) (string, error) {
+	ref, err := docker.ParseReference("//" + img)
 	if err != nil {
 		return "", fmt.Errorf("parse image reference: %w", err)
 	}
-	sysctx := &types.SystemContext{}
+	sysctx := &types.SystemContext{
+		OSChoice:           "linux",
+		ArchitectureChoice: arch,
+	}
 	src, err := ref.NewImageSource(ctx, sysctx)
 	if err != nil {
 		return "", fmt.Errorf("create image source: %w", err)
@@ -297,8 +310,11 @@ func GetImageDigest(ctx context.Context, image string) (string, error) {
 	}
 
 	if !manifest.MIMETypeIsMultiImage(maniftype) {
-		digest, err := docker.GetDigest(ctx, nil, ref)
-		return string(digest), err
+		digest, err := manifest.Digest(manifraw)
+		if err != nil {
+			return "", fmt.Errorf("get manifest digest: %w", err)
+		}
+		return digest.String(), nil
 	}
 
 	manifestList, err := manifest.ListFromBlob(manifraw, maniftype)
@@ -312,7 +328,7 @@ func GetImageDigest(ctx context.Context, image string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("get manifest instance: %w", err)
 		}
-		if manifest.ReadOnly.Platform.Architecture != runtime.GOARCH {
+		if manifest.ReadOnly.Platform.Architecture != arch {
 			continue
 		}
 		if manifest.ReadOnly.Platform.OS != "linux" {
@@ -320,7 +336,7 @@ func GetImageDigest(ctx context.Context, image string) (string, error) {
 		}
 		return string(descriptor), nil
 	}
-	return "", fmt.Errorf("failed to locate linux/amd64 manifest")
+	return "", &DockerManifestNotFoundError{image: img, arch: arch, err: err}
 }
 
 // XXX we need to revisit this as a registry may have a port number.
@@ -427,4 +443,8 @@ func GetLatestKubernetesVersion() (*semver.Version, error) {
 		return nil, fmt.Errorf("no content in stable.txt")
 	}
 	return semver.NewVersion(scanner.Text())
+}
+
+func GetSupportedArchs() []string {
+	return []string{"amd64", "arm64"}
 }

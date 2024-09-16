@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/Masterminds/semver/v3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -39,6 +39,12 @@ var k0sImageComponents = map[string]addonComponent{
 		},
 	},
 	"registry.k8s.io/metrics-server/metrics-server": {
+		name: "metrics-server",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "metrics-server"
+		},
+	},
+	"quay.io/k0sproject/metrics-server": {
 		name: "metrics-server",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return "metrics-server"
@@ -86,13 +92,23 @@ var updateK0sImagesCommand = &cli.Command{
 			if !ok {
 				return fmt.Errorf("no component found for image %s", image)
 			}
-			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image)
-			if err != nil {
-				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
-			}
+
 			newimage := config.Metadata.Images[component.name]
-			newimage.Image = repo
-			newimage.Version[runtime.GOARCH] = tag
+			if newimage.Version == nil {
+				newimage.Version = make(map[string]string)
+			}
+			for _, arch := range GetSupportedArchs() {
+				repo, tag, err := component.resolveImageRepoAndTag(c.Context, image, arch)
+				var tmp *DockerManifestNotFoundError
+				if errors.As(err, &tmp) {
+					logrus.Warnf("skipping image %s (%s) as no manifest found: %v", image, arch, err)
+					continue
+				} else if err != nil {
+					return fmt.Errorf("failed to resolve image and tag for %s (%s): %w", image, arch, err)
+				}
+				newimage.Image = repo
+				newimage.Version[arch] = tag
+			}
 			newmeta.Images[component.name] = newimage
 		}
 

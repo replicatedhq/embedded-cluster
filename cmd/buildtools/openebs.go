@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -138,13 +138,23 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 		if !ok {
 			return fmt.Errorf("no component found for image %s", image)
 		}
-		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
-		if err != nil {
-			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
-		}
+
 		newimage := openebs.Metadata.Images[component.name]
-		newimage.Repo = repo
-		newimage.Tag[runtime.GOARCH] = tag
+		if newimage.Tag == nil {
+			newimage.Tag = make(map[string]string)
+		}
+		for _, arch := range GetSupportedArchs() {
+			repo, tag, err := component.resolveImageRepoAndTag(ctx, image, arch)
+			var tmp *DockerManifestNotFoundError
+			if errors.As(err, &tmp) {
+				logrus.Warnf("skipping image %s (%s) as no manifest found: %v", image, arch, err)
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to resolve image and tag for %s (%s): %w", image, arch, err)
+			}
+			newimage.Repo = repo
+			newimage.Tag[arch] = tag
+		}
 		newmeta.Images[component.name] = newimage
 	}
 
