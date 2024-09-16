@@ -156,6 +156,8 @@ These additional nodes can either be joined to your existing Embedded Cluster in
 If the node is part of a multi-node Embedded Cluster installation, it's recommended to remove it from the cluster first by running the following commands:
 ```bash
 make ssh-node<node-number>
+```
+```bash
 output/bin/embedded-cluster reset
 ```
 
@@ -174,6 +176,8 @@ make delete-node1
 1. To apply your current changes, run the following commands:
     ```bash
     make operator-up
+    ```
+    ```bash
     make build run
     ```
 
@@ -185,6 +189,8 @@ make delete-node1
 1. When finished developing, run the following commands to revert back to the original state:
     ```bash
     exit
+    ```
+    ```bash
     make operator-down
     ```
 
@@ -207,6 +213,8 @@ make delete-node1
 1. To apply your current changes, run the following commands:
     ```bash
     make kotsadm-up-ec
+    ```
+    ```bash
     make build run
     ```
 
@@ -220,6 +228,8 @@ make delete-node1
 1. When finished developing, run the following commands to revert back to the original state:
     ```bash
     exit
+    ```
+    ```bash
     make kotsadm-down-ec
     ```
 
@@ -228,6 +238,8 @@ make delete-node1
 1. To apply your current changes, run the following commands:
     ```bash
     make kurl-proxy-up-ec
+    ```
+    ```bash
     make build run
     ```
 
@@ -239,5 +251,7 @@ make delete-node1
 1. When finished developing, run the following commands to revert back to the original state:
     ```bash
     exit
+    ```
+    ```bash
     make kurl-proxy-down-ec
     ```
