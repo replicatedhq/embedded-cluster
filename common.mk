@@ -103,6 +103,7 @@ apko-output-image:
 melange-build: ARCHS ?= $(ARCH)
 melange-build: MELANGE_SOURCE_DIR ?= .
 melange-build: $(MELANGE_CACHE_DIR) melange-template
+	mkdir -p build
 	${MELANGE_CMD} \
 		keygen build/melange.rsa
 	${MELANGE_CMD} \
