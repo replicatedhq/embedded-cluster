@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
 
@@ -79,4 +83,34 @@ func setProxyEnv(proxy *ecv1beta1.ProxySpec) {
 	if proxy.NoProxy != "" {
 		os.Setenv("NO_PROXY", proxy.NoProxy)
 	}
+}
+
+func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1beta1.ProxySpec, error) {
+	if proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
+		// if there is a proxy set, then there needs to be a no proxy set
+		// if it is not set, prompt with a default (the local IP or subnet)
+		// if it is set, we need to check that it covers the local IP
+		defaultIPNet, err := netutils.GetDefaultIPNet()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get default IPNet: %w", err)
+		}
+		if proxy.NoProxy == "" {
+			if c.Bool("no-prompt") {
+				logrus.Infof("No proxy not set, using default no proxy %s", defaultIPNet.String())
+				proxy.NoProxy = defaultIPNet.String()
+				return proxy, nil
+			} else {
+				logrus.Infof("A noproxy is required when a proxy is set. We suggest either the node subnet (%s) or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", defaultIPNet.String(), defaultIPNet.IP.String())
+				newProxy := prompts.New().Input("No proxy:", "", true)
+				// TODO validate the new no proxy
+				proxy.NoProxy = newProxy
+				return proxy, nil
+			}
+		} else {
+			logrus.Infof("A noproxy is already set (%q), checking if it covers the local IP", proxy.NoProxy)
+			// TODO validate the existing no proxy
+			return proxy, nil
+		}
+	}
+	return proxy, nil
 }

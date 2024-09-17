@@ -8,8 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// GetDefaultIPAndMask returns the default interface for the node, and the subnet mask for that node, using the same logic as k0s
-func GetDefaultIPAndMask() (*net.IPNet, error) {
+// GetDefaultIPNet returns the default interface for the node, and the subnet mask for that node, using the same logic as k0s
+func GetDefaultIPNet() (*net.IPNet, error) {
 	ifs, err := net.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list network interfaces: %w", err)

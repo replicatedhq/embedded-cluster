@@ -8,7 +8,7 @@ import (
 
 func TestGetDefaultIPAndMask(t *testing.T) {
 	req := require.New(t)
-	got, err := GetDefaultIPAndMask()
+	got, err := GetDefaultIPNet()
 	req.NoError(err)
 	fmt.Printf("got network: %s, got ip: %s\n", got.String(), got.IP.String())
 	req.NotNil(got)

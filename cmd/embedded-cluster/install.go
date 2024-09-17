@@ -613,6 +613,11 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+		proxy, err = maybePromptForNoProxy(c, proxy)
+		if err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
 		logrus.Debugf("materializing binaries")
 		if err := materializeFiles(c); err != nil {
 			metrics.ReportApplyFinished(c, err)
