@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1959,6 +1960,28 @@ func runPlaywrightTest(t *testing.T, tc *cluster.Output, testName string, args .
 }
 
 func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
+	wg := sync.WaitGroup{}
+	wg.Add(len(tc.Nodes))
+
+	for i := range tc.Nodes {
+		go func(i int, wg *sync.WaitGroup) {
+			defer wg.Done()
+			t.Logf("%s: generating host support bundle from node %s", time.Now().Format(time.RFC3339), tc.Nodes[i])
+			line := []string{"collect-support-bundle-host.sh"}
+			if stdout, stderr, err := RunCommandOnNode(t, tc, i, line); err != nil {
+				t.Logf("stdout: %s", stdout)
+				t.Logf("stderr: %s", stderr)
+				t.Logf("fail to generate support from node %s bundle: %v", tc.Nodes[i], err)
+				return
+			}
+
+			t.Logf("%s: copying host support bundle from node %s to local machine", time.Now().Format(time.RFC3339), tc.Nodes[i])
+			if err := cluster.CopyFileFromNode(tc.Nodes[i], "/root/host.tar.gz", fmt.Sprintf("support-bundle-host-%s.tar.gz", tc.Nodes[i])); err != nil {
+				t.Logf("fail to copy host support bundle from node %s to local machine: %v", tc.Nodes[i], err)
+			}
+		}(i, &wg)
+	}
+
 	node := tc.Nodes[0]
 	t.Logf("%s: generating cluster support bundle from node %s", time.Now().Format(time.RFC3339), node)
 	line := []string{"collect-support-bundle-cluster.sh"}
@@ -1973,21 +1996,7 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 		}
 	}
 
-	for i, node := range tc.Nodes {
-		t.Logf("%s: generating host support bundle from node %s", time.Now().Format(time.RFC3339), node)
-		line := []string{"collect-support-bundle-host.sh"}
-		if stdout, stderr, err := RunCommandOnNode(t, tc, i, line); err != nil {
-			t.Logf("stdout: %s", stdout)
-			t.Logf("stderr: %s", stderr)
-			t.Logf("fail to generate support from node %s bundle: %v", node, err)
-			continue
-		}
-
-		t.Logf("%s: copying host support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
-		if err := cluster.CopyFileFromNode(node, "/root/host.tar.gz", fmt.Sprintf("support-bundle-host-%s.tar.gz", node)); err != nil {
-			t.Logf("fail to copy host support bundle from node %s to local machine: %v", node, err)
-		}
-	}
+	wg.Wait()
 }
 
 func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
