@@ -143,7 +143,10 @@ export MELANGE_CONFIG := deploy/melange.tmpl.yaml
 
 .PHONY: melange-build-operator
 melange-build-operator:
-	dagger call build-operator-package --ec-version $(PACKAGE_VERSION) export --path build/operator-package
+	dagger call build-operator-package \
+		--ec-version $(PACKAGE_VERSION) \
+		--arch $(ARCH) \
+		export --path build/operator-package
 
 export APKO_CONFIG := deploy/apko.tmpl.yaml
 
