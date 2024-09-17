@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -123,24 +122,11 @@ func updateOperatorAddonImages(ctx context.Context, chartURL string, chartVersio
 	// chart.
 	images = append(images, "docker.io/library/busybox:latest")
 
-	if err := ApkoLogin(); err != nil {
-		return fmt.Errorf("failed to apko login: %w", err)
+	metaImages, err := UpdateImages(ctx, operatorImageComponents, embeddedclusteroperator.Metadata.Images, images)
+	if err != nil {
+		return fmt.Errorf("failed to update images: %w", err)
 	}
-
-	for _, image := range images {
-		component, ok := operatorImageComponents[RemoveTagFromImage(image)]
-		if !ok {
-			return fmt.Errorf("no component found for image %s", image)
-		}
-		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
-		if err != nil {
-			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
-		}
-		newimage := embeddedclusteroperator.Metadata.Images[component.name]
-		newimage.Repo = repo
-		newimage.Tag[runtime.GOARCH] = tag
-		newmeta.Images[component.name] = newimage
-	}
+	newmeta.Images = metaImages
 
 	logrus.Infof("saving addon manifest")
 	if err := newmeta.Save("embeddedclusteroperator"); err != nil {

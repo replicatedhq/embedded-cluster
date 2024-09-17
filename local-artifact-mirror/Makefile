@@ -1,5 +1,7 @@
 SHELL := /bin/bash
 
+export PATH := $(shell pwd)/bin:$(PATH)
+
 include ../common.mk
 
 OS ?= linux
