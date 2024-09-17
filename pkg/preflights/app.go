@@ -14,7 +14,7 @@ func ValidateApp() error {
 	if err != nil {
 		return fmt.Errorf("unable to get embedded cluster config: %w", err)
 	}
-	if cfg == nil {
+	if cfg == nil || cfg.Spec.Extensions.Helm == nil {
 		return nil
 	}
 
