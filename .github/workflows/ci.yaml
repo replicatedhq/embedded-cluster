@@ -135,6 +135,11 @@ jobs:
         with:
           setup-go: false
 
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
       - name: Build
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
@@ -211,6 +216,11 @@ jobs:
         with:
           setup-go: false
 
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
       - name: Build
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
@@ -284,6 +294,11 @@ jobs:
         uses: ./.github/actions/setup-melange
         with:
           setup-go: false
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build
         env:

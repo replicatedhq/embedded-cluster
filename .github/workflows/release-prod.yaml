@@ -69,6 +69,11 @@ jobs:
       - name: Setup melange
         uses: ./.github/actions/setup-melange
 
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
       - name: Build and push operator image
         id: operator-image
         env:
@@ -118,6 +123,11 @@ jobs:
 
       - name: Setup melange
         uses: ./.github/actions/setup-melange
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build and push local-artifact-mirror image
         id: local-artifact-mirror
