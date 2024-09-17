@@ -6,7 +6,7 @@ import (
 	"dagger/embedded-cluster/internal/dagger"
 )
 
-// dagger call build-operator-package --ec-version test export --path build
+// dagger call build-operator-package --ec-version test export --path build/operator-package
 
 type EmbeddedCluster struct {
 	common
