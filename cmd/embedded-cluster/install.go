@@ -633,6 +633,10 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+		if err := preflights.ValidateApp(); err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
 		cfg, err := installAndWaitForK0s(c, applier)
 		if err != nil {
 			return err
