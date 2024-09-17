@@ -67,6 +67,9 @@ func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 }
 
 func regenerateNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) {
+	if proxy.ProvidedNoProxy == "" {
+		return
+	}
 	noProxy := strings.Split(proxy.ProvidedNoProxy, ",")
 	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
 		noProxy = append(defaults.DefaultNoProxy, noProxy...)

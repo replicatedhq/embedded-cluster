@@ -38,9 +38,10 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				flagSet.Set("proxy", "true")
 			},
 			want: &ecv1beta1.ProxySpec{
-				HTTPProxy:  "http://proxy",
-				HTTPSProxy: "https://proxy",
-				NoProxy:    "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				HTTPProxy:       "http://proxy",
+				HTTPSProxy:      "https://proxy",
+				ProvidedNoProxy: "no-proxy-1,no-proxy-2",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,10.244.0.0/16,10.96.0.0/12",
 			},
 		},
 		{
@@ -66,13 +67,14 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				flagSet.Set("no-proxy", "other-no-proxy-1,other-no-proxy-2")
 			},
 			want: &ecv1beta1.ProxySpec{
-				HTTPProxy:  "http://other-proxy",
-				HTTPSProxy: "https://other-proxy",
-				NoProxy:    "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				HTTPProxy:       "http://other-proxy",
+				HTTPSProxy:      "https://other-proxy",
+				ProvidedNoProxy: "other-no-proxy-1,other-no-proxy-2",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
 			},
 		},
 		{
-			name: "proxy flags should override proxy from env",
+			name: "proxy flags should override proxy from env, but merge no-proxy",
 			init: func(t *testing.T, flagSet *flag.FlagSet) {
 				t.Setenv("HTTP_PROXY", "http://proxy")
 				t.Setenv("HTTPS_PROXY", "https://proxy")
@@ -84,9 +86,10 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				flagSet.Set("no-proxy", "other-no-proxy-1,other-no-proxy-2")
 			},
 			want: &ecv1beta1.ProxySpec{
-				HTTPProxy:  "http://other-proxy",
-				HTTPSProxy: "https://other-proxy",
-				NoProxy:    "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				HTTPProxy:       "http://other-proxy",
+				HTTPSProxy:      "https://other-proxy",
+				ProvidedNoProxy: "no-proxy-1,no-proxy-2,other-no-proxy-1,other-no-proxy-2",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
 			},
 		},
 		{
@@ -100,9 +103,10 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				flagSet.Set("service-cidr", "2.2.2.2/24")
 			},
 			want: &ecv1beta1.ProxySpec{
-				HTTPProxy:  "http://other-proxy",
-				HTTPSProxy: "https://other-proxy",
-				NoProxy:    "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,1.1.1.1/24,2.2.2.2/24",
+				HTTPProxy:       "http://other-proxy",
+				HTTPSProxy:      "https://other-proxy",
+				ProvidedNoProxy: "other-no-proxy-1,other-no-proxy-2",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,1.1.1.1/24,2.2.2.2/24",
 			},
 		},
 	}
