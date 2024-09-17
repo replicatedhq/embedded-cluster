@@ -14,5 +14,5 @@ go.work
 go.work.sum
 .gocache
 .gomodcache
-/licenses/
+/local-dev/
 
