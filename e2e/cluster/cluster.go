@@ -768,7 +768,6 @@ func getInetIP(state *api.InstanceState) string {
 			break
 		}
 	}
-
 	return ip
 }
 

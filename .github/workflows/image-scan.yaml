@@ -36,8 +36,8 @@ jobs:
             operator/cache/.melange-cache
           key: melange-cache
 
-      - name: Setup Melange
-        uses: chainguard-dev/actions/setup-melange@main
+      - name: Setup melange
+        uses: ./.github/actions/setup-melange
 
       - name: Build and push local-artifact-mirror image
         id: local-artifact-mirror
