@@ -526,6 +526,8 @@ spec:
                     type: string
                   noProxy:
                     type: string
+                  providedNoProxy:
+                    type: string
                 type: object
             type: object
           status:
