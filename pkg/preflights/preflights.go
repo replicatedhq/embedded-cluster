@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
 )
@@ -59,6 +61,28 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	}
 	out, err := OutputFromReader(stdout)
 	return out, stderr.String(), err
+}
+
+func CopyBundleToECLogsDir() error {
+	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
+	if err != nil {
+		return fmt.Errorf("unable to find preflight bundle: %w", err)
+	}
+	if len(matches) == 0 {
+		return nil
+	}
+	// get the newest bundle
+	src := matches[0]
+	for _, match := range matches {
+		if filepath.Base(match) > filepath.Base(src) {
+			src = match
+		}
+	}
+	dst := filepath.Join(defaults.EmbeddedClusterLogsSubDir(), "preflight-bundle.tar.gz")
+	if err := helpers.MoveFile(src, dst); err != nil {
+		return fmt.Errorf("unable to move preflight bundle to embedded-cluster logs dir: %w", err)
+	}
+	return nil
 }
 
 // saveHostPreflightFile saves the provided spec to a temporary file and returns

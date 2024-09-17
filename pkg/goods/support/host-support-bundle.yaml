@@ -110,7 +110,7 @@ spec:
       args: [ "sysinfo" ]
   - copy:
       collectorName: installer-logs
-      path: /var/lib/embedded-cluster/logs/*.log
+      path: /var/lib/embedded-cluster/logs/*
   - run:
       collectorName: network-manager-logs
       command: journalctl
