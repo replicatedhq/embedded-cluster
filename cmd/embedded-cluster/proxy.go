@@ -111,7 +111,8 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 		if proxy.ProvidedNoProxy == "" {
 			if c.Bool("no-prompt") {
 				logrus.Infof("no-proxy was not set, using default no proxy %s", cleanDefaultIPNet)
-				proxy.NoProxy = cleanDefaultIPNet
+				proxy.ProvidedNoProxy = cleanDefaultIPNet
+				regenerateNoProxy(c, proxy)
 				return proxy, nil
 			} else {
 				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String())
@@ -144,7 +145,7 @@ func cleanCIDR(defaultIPNet *net.IPNet) (string, error) {
 }
 
 func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, subnet, IP string) (*ecv1beta1.ProxySpec, error) {
-	logrus.Infof("A noproxy is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", subnet, IP)
+	logrus.Infof("A no-proxy address is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", subnet, IP)
 	newProxy := prompts.New().Input("No proxy:", "", true)
 	isValid, err := validateNoProxy(newProxy, IP)
 	if err != nil {
