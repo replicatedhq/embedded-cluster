@@ -101,13 +101,17 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 		if err != nil {
 			return nil, fmt.Errorf("failed to get default IPNet: %w", err)
 		}
+		cleanDefaultIPNet, err := cleanCIDR(defaultIPNet)
+		if err != nil {
+			return nil, fmt.Errorf("failed to clean subnet: %w", err)
+		}
 		if proxy.ProvidedNoProxy == "" {
 			if c.Bool("no-prompt") {
-				logrus.Infof("no-proxy was not set, using default no proxy %s", defaultIPNet.String())
-				proxy.NoProxy = defaultIPNet.String()
+				logrus.Infof("no-proxy was not set, using default no proxy %s", cleanDefaultIPNet)
+				proxy.NoProxy = cleanDefaultIPNet
 				return proxy, nil
 			} else {
-				return promptForNoProxy(c, proxy, defaultIPNet)
+				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String())
 			}
 		} else {
 			shouldPrompt := false
@@ -120,22 +124,31 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 				shouldPrompt = true
 			}
 			if shouldPrompt {
-				return promptForNoProxy(c, proxy, defaultIPNet)
+				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String())
 			}
 		}
 	}
 	return proxy, nil
 }
 
-func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, defaultIPNet *net.IPNet) (*ecv1beta1.ProxySpec, error) {
-	logrus.Infof("A noproxy is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", defaultIPNet.String(), defaultIPNet.IP.String())
+// cleanCIDR returns a `.0/x` subnet instead of a `.2/x` etc subnet
+func cleanCIDR(defaultIPNet *net.IPNet) (string, error) {
+	_, newNet, err := net.ParseCIDR(defaultIPNet.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to parse local inet CIDR %q: %w", defaultIPNet.String(), err)
+	}
+	return newNet.String(), nil
+}
+
+func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, subnet, IP string) (*ecv1beta1.ProxySpec, error) {
+	logrus.Infof("A noproxy is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", subnet, IP)
 	newProxy := prompts.New().Input("No proxy:", "", true)
-	isValid, err := validateNoProxy(newProxy, defaultIPNet.IP.String())
+	isValid, err := validateNoProxy(newProxy, IP)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
 	}
 	if !isValid {
-		return nil, fmt.Errorf("provided no-proxy %q does not cover the local IP %q", newProxy, defaultIPNet.IP.String())
+		return nil, fmt.Errorf("provided no-proxy %q does not cover the local IP %q", newProxy, IP)
 	}
 	proxy.ProvidedNoProxy = newProxy
 	regenerateNoProxy(c, proxy)
