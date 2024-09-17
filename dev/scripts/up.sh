@@ -19,7 +19,7 @@ mkdir -p dev/.gocache dev/.gomodcache
 ec_build_and_load "$component"
 
 # Save original state
-if [ -f "dev/patches/$component-down.yaml.tmp" ]; then
+if [ ! -f "dev/patches/$component-down.yaml.tmp" ]; then
   ec_exec k0s kubectl get deployment $(deployment $component) -n embedded-cluster -oyaml > dev/patches/$component-down.yaml.tmp
 fi
 
