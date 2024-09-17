@@ -86,6 +86,7 @@ Additionally, it includes a Registry when deployed in air gap mode.
     ```
 
 1. In the Vendor Portal, create and download a license that is assigned to the channel.
+We recommend storing this license in the `local-dev/` directory, as it is gitignored and not otherwise used by the CI.
 
 1. Install Embedded Cluster:
     ```bash
