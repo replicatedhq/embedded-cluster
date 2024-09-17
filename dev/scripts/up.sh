@@ -12,20 +12,16 @@ if [ -z "$component" ]; then
 	exit 1
 fi
 
-# Check if already up
-if [ -f "dev/patches/$component-down.yaml.tmp" ]; then
-  ec_up $component
-  exit 0
-fi
-
 # Ensure dev go cache / go mod cache directories exists
 mkdir -p dev/.gocache dev/.gomodcache
 
 # Build and load the image into the embedded cluster
 ec_build_and_load "$component"
 
-# Save current deployment state
-ec_exec k0s kubectl get deployment $(deployment $component) -n embedded-cluster -oyaml > dev/patches/$component-down.yaml.tmp
+# Save original state
+if [ -f "dev/patches/$component-down.yaml.tmp" ]; then
+  ec_exec k0s kubectl get deployment $(deployment $component) -n embedded-cluster -oyaml > dev/patches/$component-down.yaml.tmp
+fi
 
 # Patch the deployment
 ec_patch $component
