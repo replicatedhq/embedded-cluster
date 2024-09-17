@@ -98,7 +98,7 @@ jobs:
 
   build-current:
     name: Build current
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster
     needs:
       - git-sha
     outputs:
@@ -179,7 +179,7 @@ jobs:
 
   build-previous-k0s:
     name: Build previous k0s
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster
     needs:
       - git-sha
     outputs:
@@ -258,7 +258,7 @@ jobs:
 
   build-upgrade:
     name: Build upgrade
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster
     needs:
       - git-sha
     outputs:
