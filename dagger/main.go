@@ -6,22 +6,26 @@ import (
 	"dagger/embedded-cluster/internal/dagger"
 )
 
-// dagger call build-operator-package --ec-version test export --path build/operator-package
+const (
+	MelangeImageVersion = "latest"
+)
 
 type EmbeddedCluster struct {
 	common
 	melange
 }
 
+// Builds the operator package with Melange.
 func (m *EmbeddedCluster) BuildOperatorPackage(
 	ctx context.Context,
+	// Source directory to use for the build.
 	// +defaultPath="/"
 	src *dagger.Directory,
+	// Version to use for the package.
 	ecVersion string,
+	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
-	// +default="latest"
-	imageTag string,
 ) *dagger.Directory {
 
 	melangeFile := m.renderTemplate(
@@ -40,7 +44,7 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 		directoryWithCommonGoFiles(dir, src),
 		melangeFile,
 		arch,
-		imageTag,
+		MelangeImageVersion,
 	)
 
 	return build.Directory("build")
