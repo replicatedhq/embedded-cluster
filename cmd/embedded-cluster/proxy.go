@@ -5,6 +5,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/sirupsen/logrus"
+	"net"
 	"os"
 	"strings"
 
@@ -86,7 +87,7 @@ func setProxyEnv(proxy *ecv1beta1.ProxySpec) {
 }
 
 func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1beta1.ProxySpec, error) {
-	if proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
+	if proxy != nil && (proxy.HTTPProxy != "" || proxy.HTTPSProxy != "") {
 		// if there is a proxy set, then there needs to be a no proxy set
 		// if it is not set, prompt with a default (the local IP or subnet)
 		// if it is set, we need to check that it covers the local IP
@@ -96,21 +97,59 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 		}
 		if proxy.NoProxy == "" {
 			if c.Bool("no-prompt") {
-				logrus.Infof("No proxy not set, using default no proxy %s", defaultIPNet.String())
+				logrus.Infof("no-proxy was not set, using default no proxy %s", defaultIPNet.String())
 				proxy.NoProxy = defaultIPNet.String()
 				return proxy, nil
 			} else {
-				logrus.Infof("A noproxy is required when a proxy is set. We suggest either the node subnet (%s) or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", defaultIPNet.String(), defaultIPNet.IP.String())
-				newProxy := prompts.New().Input("No proxy:", "", true)
-				// TODO validate the new no proxy
-				proxy.NoProxy = newProxy
-				return proxy, nil
+				return promptForNoProxy(proxy, defaultIPNet)
 			}
 		} else {
-			logrus.Infof("A noproxy is already set (%q), checking if it covers the local IP", proxy.NoProxy)
-			// TODO validate the existing no proxy
-			return proxy, nil
+			shouldPrompt := false
+			isValid, err := validateNoProxy(proxy.NoProxy, defaultIPNet.IP.String())
+			if err != nil {
+				logrus.Infof("The provided no-proxy %q failed to parse with error %q, falling back to prompt", proxy.NoProxy, err)
+				shouldPrompt = true
+			} else if !isValid {
+				logrus.Infof("The provided no-proxy %q does not cover the local IP %q, falling back to prompt", proxy.NoProxy, defaultIPNet.IP.String())
+				shouldPrompt = true
+			}
+			if shouldPrompt {
+				return promptForNoProxy(proxy, defaultIPNet)
+			}
 		}
 	}
 	return proxy, nil
+}
+
+func promptForNoProxy(proxy *ecv1beta1.ProxySpec, defaultIPNet *net.IPNet) (*ecv1beta1.ProxySpec, error) {
+	logrus.Infof("A noproxy is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", defaultIPNet.String(), defaultIPNet.IP.String())
+	newProxy := prompts.New().Input("No proxy:", "", true)
+	isValid, err := validateNoProxy(newProxy, defaultIPNet.IP.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
+	}
+	if !isValid {
+		return nil, fmt.Errorf("provided no-proxy %q does not cover the local IP %q", newProxy, defaultIPNet.IP.String())
+	}
+	proxy.NoProxy = newProxy
+	return proxy, nil
+}
+
+func validateNoProxy(newNoProxy string, localIP string) (bool, error) {
+	foundLocal := false
+	for _, oneEntry := range strings.Split(newNoProxy, ",") {
+		if oneEntry == localIP {
+			foundLocal = true
+		} else if strings.Contains(oneEntry, "/") {
+			_, ipnet, err := net.ParseCIDR(oneEntry)
+			if err != nil {
+				return false, fmt.Errorf("failed to parse CIDR within no-proxy: %w", err)
+			}
+			if ipnet.Contains(net.ParseIP(localIP)) {
+				foundLocal = true
+			}
+		}
+	}
+
+	return foundLocal, nil
 }
