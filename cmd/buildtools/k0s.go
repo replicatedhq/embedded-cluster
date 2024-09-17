@@ -44,6 +44,12 @@ var k0sImageComponents = map[string]addonComponent{
 			return "metrics-server"
 		},
 	},
+	"quay.io/k0sproject/metrics-server": {
+		name: "metrics-server",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "metrics-server"
+		},
+	},
 	"quay.io/k0sproject/kube-proxy": {
 		name: "kube-proxy",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
