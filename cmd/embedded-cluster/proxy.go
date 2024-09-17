@@ -41,12 +41,12 @@ func withProxyFlags(flags []cli.Flag) []cli.Flag {
 
 func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 	proxy := &ecv1beta1.ProxySpec{}
-	var noProxy []string
+	var providatedNoProxy []string
 	if c.Bool("proxy") {
 		proxy.HTTPProxy = os.Getenv("HTTP_PROXY")
 		proxy.HTTPSProxy = os.Getenv("HTTPS_PROXY")
 		if os.Getenv("NO_PROXY") != "" {
-			noProxy = append(noProxy, os.Getenv("NO_PROXY"))
+			providatedNoProxy = append(providatedNoProxy, os.Getenv("NO_PROXY"))
 		}
 	}
 	if c.IsSet("http-proxy") {
@@ -56,10 +56,11 @@ func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 		proxy.HTTPSProxy = c.String("https-proxy")
 	}
 	if c.String("no-proxy") != "" {
-		noProxy = append(noProxy, c.String("no-proxy"))
+		providatedNoProxy = append(providatedNoProxy, c.String("no-proxy"))
 	}
-	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
-		noProxy = append(defaults.DefaultNoProxy, noProxy...)
+	proxy.ProvidedNoProxy = strings.Join(providatedNoProxy, ",")
+	if len(providatedNoProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
+		noProxy := append(defaults.DefaultNoProxy, providatedNoProxy...)
 		noProxy = append(noProxy, c.String("pod-cidr"), c.String("service-cidr"))
 		proxy.NoProxy = strings.Join(noProxy, ",")
 	}
@@ -67,6 +68,15 @@ func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 		return nil
 	}
 	return proxy
+}
+
+func regenerateNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) {
+	noProxy := strings.Split(proxy.ProvidedNoProxy, ",")
+	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
+		noProxy = append(defaults.DefaultNoProxy, noProxy...)
+		noProxy = append(noProxy, c.String("pod-cidr"), c.String("service-cidr"))
+		proxy.NoProxy = strings.Join(noProxy, ",")
+	}
 }
 
 // setProxyEnv sets the HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment variables based on the provided ProxySpec.
@@ -95,13 +105,13 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 		if err != nil {
 			return nil, fmt.Errorf("failed to get default IPNet: %w", err)
 		}
-		if proxy.NoProxy == "" {
+		if proxy.ProvidedNoProxy == "" {
 			if c.Bool("no-prompt") {
 				logrus.Infof("no-proxy was not set, using default no proxy %s", defaultIPNet.String())
 				proxy.NoProxy = defaultIPNet.String()
 				return proxy, nil
 			} else {
-				return promptForNoProxy(proxy, defaultIPNet)
+				return promptForNoProxy(c, proxy, defaultIPNet)
 			}
 		} else {
 			shouldPrompt := false
@@ -114,14 +124,14 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 				shouldPrompt = true
 			}
 			if shouldPrompt {
-				return promptForNoProxy(proxy, defaultIPNet)
+				return promptForNoProxy(c, proxy, defaultIPNet)
 			}
 		}
 	}
 	return proxy, nil
 }
 
-func promptForNoProxy(proxy *ecv1beta1.ProxySpec, defaultIPNet *net.IPNet) (*ecv1beta1.ProxySpec, error) {
+func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, defaultIPNet *net.IPNet) (*ecv1beta1.ProxySpec, error) {
 	logrus.Infof("A noproxy is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", defaultIPNet.String(), defaultIPNet.IP.String())
 	newProxy := prompts.New().Input("No proxy:", "", true)
 	isValid, err := validateNoProxy(newProxy, defaultIPNet.IP.String())
@@ -131,7 +141,8 @@ func promptForNoProxy(proxy *ecv1beta1.ProxySpec, defaultIPNet *net.IPNet) (*ecv
 	if !isValid {
 		return nil, fmt.Errorf("provided no-proxy %q does not cover the local IP %q", newProxy, defaultIPNet.IP.String())
 	}
-	proxy.NoProxy = newProxy
+	proxy.ProvidedNoProxy = newProxy
+	regenerateNoProxy(c, proxy)
 	return proxy, nil
 }
 
