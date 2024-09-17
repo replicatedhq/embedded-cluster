@@ -11,7 +11,7 @@ type melange struct{}
 
 func (m *melange) melangeBuildGo(
 	ctx context.Context,
-	setupFilesystem func(c *dagger.Container) *dagger.Container,
+	src *dagger.Directory,
 	melangeFile *dagger.File,
 	// +default="amd64,arm64"
 	arch string,
@@ -22,11 +22,9 @@ func (m *melange) melangeBuildGo(
 	keygen := m.melangeKeygen(ctx, imageTag)
 
 	c := dag.Container().
-		From(fmt.Sprintf("cgr.dev/chainguard/melange:%s", imageTag))
-
-	c = setupFilesystem(c)
-
-	c = c.WithFile("/workspace/melange.yaml", melangeFile).
+		From(fmt.Sprintf("cgr.dev/chainguard/melange:%s", imageTag)).
+		WithDirectory("/workspace", src).
+		WithFile("/workspace/melange.yaml", melangeFile).
 		WithFile("/workspace/melange.rsa", keygen.File("/workspace/melange.rsa")).
 		WithFile("/workspace/build/melange.rsa.pub", keygen.File("/workspace/melange.rsa.pub")).
 		WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod")).

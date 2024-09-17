@@ -33,20 +33,27 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 		"melange.yaml",
 	)
 
+	dir := dag.Directory().
+		WithDirectory("operator", src.Directory("operator"))
+
 	build := m.melangeBuildGo(ctx,
-		func(c *dagger.Container) *dagger.Container {
-			return c.WithFile("/workspace/common.mk", src.File("common.mk")).
-				WithFile("/workspace/go.mod", src.File("go.mod")).
-				WithFile("/workspace/go.sum", src.File("go.sum")).
-				WithDirectory("/workspace/pkg", src.Directory("pkg")).
-				WithDirectory("/workspace/kinds", src.Directory("kinds")).
-				WithDirectory("/workspace/utils", src.Directory("utils")).
-				WithDirectory("/workspace/operator", src.Directory("operator"))
-		},
+		directoryWithCommonGoFiles(dir, src),
 		melangeFile,
 		arch,
 		imageTag,
 	)
 
 	return build.Directory("build")
+}
+
+// directoryWithCommonGoFiles sets up the filesystem with only what we need to build for improved
+// caching.
+func directoryWithCommonGoFiles(dir *dagger.Directory, src *dagger.Directory) *dagger.Directory {
+	return dir.
+		WithFile("common.mk", src.File("common.mk")).
+		WithFile("go.mod", src.File("go.mod")).
+		WithFile("go.sum", src.File("go.sum")).
+		WithDirectory("pkg", src.Directory("pkg")).
+		WithDirectory("kinds", src.Directory("kinds")).
+		WithDirectory("utils", src.Directory("utils"))
 }
