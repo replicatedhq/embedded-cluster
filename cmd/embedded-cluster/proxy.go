@@ -41,12 +41,12 @@ func withProxyFlags(flags []cli.Flag) []cli.Flag {
 
 func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 	proxy := &ecv1beta1.ProxySpec{}
-	var providatedNoProxy []string
+	var providedNoProxy []string
 	if c.Bool("proxy") {
 		proxy.HTTPProxy = os.Getenv("HTTP_PROXY")
 		proxy.HTTPSProxy = os.Getenv("HTTPS_PROXY")
 		if os.Getenv("NO_PROXY") != "" {
-			providatedNoProxy = append(providatedNoProxy, os.Getenv("NO_PROXY"))
+			providedNoProxy = append(providedNoProxy, os.Getenv("NO_PROXY"))
 		}
 	}
 	if c.IsSet("http-proxy") {
@@ -56,9 +56,9 @@ func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 		proxy.HTTPSProxy = c.String("https-proxy")
 	}
 	if c.String("no-proxy") != "" {
-		providatedNoProxy = append(providatedNoProxy, c.String("no-proxy"))
+		providedNoProxy = append(providedNoProxy, c.String("no-proxy"))
 	}
-	proxy.ProvidedNoProxy = strings.Join(providatedNoProxy, ",")
+	proxy.ProvidedNoProxy = strings.Join(providedNoProxy, ",")
 	regenerateNoProxy(c, proxy)
 	if proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" && proxy.NoProxy == "" {
 		return nil
