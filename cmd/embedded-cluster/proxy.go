@@ -59,14 +59,14 @@ func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 		providedNoProxy = append(providedNoProxy, c.String("no-proxy"))
 	}
 	proxy.ProvidedNoProxy = strings.Join(providedNoProxy, ",")
-	regenerateNoProxy(c, proxy)
+	combineNoProxySuppliedValuesAndDefaults(c, proxy)
 	if proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" && proxy.NoProxy == "" {
 		return nil
 	}
 	return proxy
 }
 
-func regenerateNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) {
+func combineNoProxySuppliedValuesAndDefaults(c *cli.Context, proxy *ecv1beta1.ProxySpec) {
 	if proxy.ProvidedNoProxy == "" {
 		return
 	}
@@ -112,8 +112,7 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 			if c.Bool("no-prompt") {
 				logrus.Infof("no-proxy was not set, using default no proxy %s", cleanDefaultIPNet)
 				proxy.ProvidedNoProxy = cleanDefaultIPNet
-				regenerateNoProxy(c, proxy)
-				logrus.Infof("final (default) no-proxy is %q", proxy.NoProxy)
+				combineNoProxySuppliedValuesAndDefaults(c, proxy)
 				return proxy, nil
 			} else {
 				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String())
@@ -156,8 +155,7 @@ func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, subnet, IP str
 		return nil, fmt.Errorf("provided no-proxy %q does not cover the local IP %q", newProxy, IP)
 	}
 	proxy.ProvidedNoProxy = newProxy
-	regenerateNoProxy(c, proxy)
-	fmt.Printf("final (provided) no-proxy is %q\n", proxy.NoProxy)
+	combineNoProxySuppliedValuesAndDefaults(c, proxy)
 	return proxy, nil
 }
 
