@@ -21,6 +21,7 @@ Additionally, it includes a Registry when deployed in air gap mode.
 - Helm CLI
 - AWS CLI
 - jq
+- Dagger
 
 ### Running the Development Environment
 
