@@ -154,3 +154,20 @@ func validateNoProxy(newNoProxy string, localIP string) (bool, error) {
 
 	return foundLocal, nil
 }
+
+func checkProxyConfigForLocalIP(proxy *ecv1beta1.ProxySpec) (bool, string, error) {
+	if proxy == nil {
+		return true, "", nil // no proxy is fine
+	}
+	if proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" {
+		return true, "", nil // no proxy is fine
+	}
+
+	defaultIPNet, err := netutils.GetDefaultIPNet()
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get default IPNet: %w", err)
+	}
+
+	ok, err := validateNoProxy(proxy.NoProxy, defaultIPNet.IP.String())
+	return ok, defaultIPNet.IP.String(), err
+}
