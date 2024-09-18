@@ -9,7 +9,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -109,26 +108,19 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 			return nil, fmt.Errorf("failed to clean subnet: %w", err)
 		}
 		if proxy.ProvidedNoProxy == "" {
-			if c.Bool("no-prompt") {
-				logrus.Infof("no-proxy was not set, using default no proxy %s", cleanDefaultIPNet)
+			logrus.Infof("no-proxy was not set, adding the default interface's subnet %q to the no-proxy", cleanDefaultIPNet)
+			proxy.ProvidedNoProxy = cleanDefaultIPNet
+			combineNoProxySuppliedValuesAndDefaults(c, proxy)
+			return proxy, nil
+		} else {
+			isValid, err := validateNoProxy(proxy.NoProxy, defaultIPNet.IP.String())
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
+			} else if !isValid {
+				logrus.Infof("The provided no-proxy %q does not cover the local IP %q, adding the default interface's subnet %q to the no-proxy we will use", proxy.NoProxy, defaultIPNet.IP.String(), cleanDefaultIPNet)
 				proxy.ProvidedNoProxy = cleanDefaultIPNet
 				combineNoProxySuppliedValuesAndDefaults(c, proxy)
 				return proxy, nil
-			} else {
-				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String(), 0)
-			}
-		} else {
-			shouldPrompt := false
-			isValid, err := validateNoProxy(proxy.NoProxy, defaultIPNet.IP.String())
-			if err != nil {
-				logrus.Infof("The provided no-proxy %q failed to parse with error %q, falling back to prompt", proxy.NoProxy, err)
-				shouldPrompt = true
-			} else if !isValid {
-				logrus.Infof("The provided no-proxy %q does not cover the local IP %q, falling back to prompt", proxy.NoProxy, defaultIPNet.IP.String())
-				shouldPrompt = true
-			}
-			if shouldPrompt {
-				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String(), 0)
 			}
 		}
 	}
@@ -142,27 +134,6 @@ func cleanCIDR(defaultIPNet *net.IPNet) (string, error) {
 		return "", fmt.Errorf("failed to parse local inet CIDR %q: %w", defaultIPNet.String(), err)
 	}
 	return newNet.String(), nil
-}
-
-func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, subnet, IP string, count int) (*ecv1beta1.ProxySpec, error) {
-	if count == 0 {
-		logrus.Infof("A no-proxy address is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", subnet, IP)
-	} else if count >= 3 {
-		return nil, fmt.Errorf("failed to prompt for no-proxy after 3 attempts")
-	}
-	newProxy := prompts.New().Input("No proxy:", "", true)
-	isValid, err := validateNoProxy(newProxy, IP)
-	if err != nil {
-		logrus.Errorf("failed to validate no-proxy: %v", err)
-		return promptForNoProxy(c, proxy, subnet, IP, count+1)
-	}
-	if !isValid {
-		logrus.Errorf("provided no-proxy %q does not cover the local IP %q", newProxy, IP)
-		return promptForNoProxy(c, proxy, subnet, IP, count+1)
-	}
-	proxy.ProvidedNoProxy = newProxy
-	combineNoProxySuppliedValuesAndDefaults(c, proxy)
-	return proxy, nil
 }
 
 func validateNoProxy(newNoProxy string, localIP string) (bool, error) {
