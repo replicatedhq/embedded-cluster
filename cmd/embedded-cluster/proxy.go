@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
-	"github.com/sirupsen/logrus"
 	"net"
 	"os"
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
