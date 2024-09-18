@@ -41,7 +41,12 @@ var installRunPreflightsCommand = &cli.Command{
 		return nil
 	},
 	Action: func(c *cli.Context) error {
+		var err error
 		proxy := getProxySpecFromFlags(c)
+		proxy, err = includeLocalIPInNoProxy(c, proxy)
+		if err != nil {
+			return err
+		}
 		setProxyEnv(proxy)
 
 		license, err := getLicenseFromFilepath(c.String("license"))

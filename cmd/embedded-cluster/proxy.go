@@ -94,7 +94,7 @@ func setProxyEnv(proxy *ecv1beta1.ProxySpec) {
 	}
 }
 
-func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1beta1.ProxySpec, error) {
+func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1beta1.ProxySpec, error) {
 	if proxy != nil && (proxy.HTTPProxy != "" || proxy.HTTPSProxy != "") {
 		// if there is a proxy set, then there needs to be a no proxy set
 		// if it is not set, prompt with a default (the local IP or subnet)

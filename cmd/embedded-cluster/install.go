@@ -575,7 +575,13 @@ var installCommand = &cli.Command{
 		},
 	)),
 	Action: func(c *cli.Context) error {
+		var err error
 		proxy := getProxySpecFromFlags(c)
+		proxy, err = includeLocalIPInNoProxy(c, proxy)
+		if err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
 		setProxyEnv(proxy)
 
 		logrus.Debugf("checking if %s is already installed", binName)
@@ -612,12 +618,6 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		proxy, err = maybePromptForNoProxy(c, proxy)
-		if err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		setProxyEnv(proxy)
 
 		logrus.Debugf("materializing binaries")
 		if err := materializeFiles(c); err != nil {
