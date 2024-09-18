@@ -117,7 +117,7 @@ func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1b
 			if err != nil {
 				return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
 			} else if !isValid {
-				logrus.Infof("The provided no-proxy %q does not cover the local IP %q, adding the default interface's subnet %q to the no-proxy we will use", proxy.NoProxy, defaultIPNet.IP.String(), cleanDefaultIPNet)
+				logrus.Infof("The provided no-proxy %q does not cover the local IP %q, adding the default interface's subnet %q to the no-proxy we will use", proxy.ProvidedNoProxy, defaultIPNet.IP.String(), cleanDefaultIPNet)
 				proxy.ProvidedNoProxy = cleanDefaultIPNet
 				combineNoProxySuppliedValuesAndDefaults(c, proxy)
 				return proxy, nil
