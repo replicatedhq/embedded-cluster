@@ -48,10 +48,8 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	if cfg.Spec.API.ExtraArgs == nil {
 		cfg.Spec.API.ExtraArgs = map[string]string{}
 	}
-	cfg.Spec.Network.NodeLocalLoadBalancing = &k0sconfig.NodeLocalLoadBalancing{
-		Enabled: true,
-		Type:    "EnvoyProxy",
-	}
+	cfg.Spec.Network.NodeLocalLoadBalancing.Enabled = true
+	cfg.Spec.Network.NodeLocalLoadBalancing.Type = "EnvoyProxy"
 	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
 	overrideK0sImages(cfg)
 	return cfg
