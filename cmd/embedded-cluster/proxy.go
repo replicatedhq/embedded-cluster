@@ -115,7 +115,7 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 				combineNoProxySuppliedValuesAndDefaults(c, proxy)
 				return proxy, nil
 			} else {
-				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String())
+				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String(), 0)
 			}
 		} else {
 			shouldPrompt := false
@@ -128,7 +128,7 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 				shouldPrompt = true
 			}
 			if shouldPrompt {
-				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String())
+				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String(), 0)
 			}
 		}
 	}
@@ -144,15 +144,21 @@ func cleanCIDR(defaultIPNet *net.IPNet) (string, error) {
 	return newNet.String(), nil
 }
 
-func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, subnet, IP string) (*ecv1beta1.ProxySpec, error) {
-	logrus.Infof("A no-proxy address is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", subnet, IP)
+func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, subnet, IP string, count int) (*ecv1beta1.ProxySpec, error) {
+	if count == 0 {
+		logrus.Infof("A no-proxy address is required when a proxy is set. We suggest either the node subnet %q or the addresses of every node that will be a member of the cluster. The current node's IP address is %q.", subnet, IP)
+	} else if count >= 3 {
+		return nil, fmt.Errorf("failed to prompt for no-proxy after 3 attempts")
+	}
 	newProxy := prompts.New().Input("No proxy:", "", true)
 	isValid, err := validateNoProxy(newProxy, IP)
 	if err != nil {
-		return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
+		logrus.Errorf("failed to validate no-proxy: %v", err)
+		return promptForNoProxy(c, proxy, subnet, IP, count+1)
 	}
 	if !isValid {
-		return nil, fmt.Errorf("provided no-proxy %q does not cover the local IP %q", newProxy, IP)
+		logrus.Errorf("provided no-proxy %q does not cover the local IP %q", newProxy, IP)
+		return promptForNoProxy(c, proxy, subnet, IP, count+1)
 	}
 	proxy.ProvidedNoProxy = newProxy
 	combineNoProxySuppliedValuesAndDefaults(c, proxy)
