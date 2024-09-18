@@ -377,7 +377,10 @@ func GetImageDigest(ctx context.Context, img string, arch string) (string, error
 		if info.Architecture != arch {
 			return "", &DockerManifestNotFoundError{image: img, arch: arch, err: err}
 		}
-		digest := i.ConfigInfo().Digest
+		digest, err := manifest.Digest(manifraw)
+		if err != nil {
+			return "", fmt.Errorf("get manifest digest: %w", err)
+		}
 		return digest.String(), nil
 	}
 
