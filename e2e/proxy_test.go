@@ -35,7 +35,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	line = append(line, "--no-proxy", "10.0.0.0/25") // test with half the default subnet, because the proxy is within the subnet otherwise
+	line = append(line, "--no-proxy", "10.0.0.0/24") // test with the default subnet, to see if the issue is with the autoset code or the noproxy itself
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
