@@ -437,7 +437,7 @@ func waitForK0s() error {
 }
 
 // installAndWaitForK0s installs the k0s binary and waits for it to be ready
-func installAndWaitForK0s(c *cli.Context, applier *addons.Applier) (*k0sconfig.ClusterConfig, error) {
+func installAndWaitForK0s(c *cli.Context, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) (*k0sconfig.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", defaults.BinaryName())
@@ -448,7 +448,6 @@ func installAndWaitForK0s(c *cli.Context, applier *addons.Applier) (*k0sconfig.C
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
-	proxy := getProxySpecFromFlags(c)
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
@@ -618,12 +617,14 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+		setProxyEnv(proxy)
+
 		logrus.Debugf("materializing binaries")
 		if err := materializeFiles(c); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		applier, err := getAddonsApplier(c, adminConsolePwd)
+		applier, err := getAddonsApplier(c, adminConsolePwd, proxy)
 		if err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
@@ -638,7 +639,7 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		cfg, err := installAndWaitForK0s(c, applier)
+		cfg, err := installAndWaitForK0s(c, applier, proxy)
 		if err != nil {
 			return err
 		}
@@ -652,7 +653,7 @@ var installCommand = &cli.Command{
 	},
 }
 
-func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, error) {
+func getAddonsApplier(c *cli.Context, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -663,7 +664,6 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, 
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
-	proxy := getProxySpecFromFlags(c)
 	if proxy != nil {
 		opts = append(opts, addons.WithProxy(proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy))
 	}

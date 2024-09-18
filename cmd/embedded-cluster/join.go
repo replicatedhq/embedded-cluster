@@ -207,7 +207,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, "")
+		applier, err := getAddonsApplier(c, "", jcmd.Proxy)
 		if err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err

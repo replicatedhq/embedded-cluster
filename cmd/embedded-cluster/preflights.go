@@ -56,7 +56,7 @@ var installRunPreflightsCommand = &cli.Command{
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, "")
+		applier, err := getAddonsApplier(c, "", proxy)
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ var joinRunPreflightsCommand = &cli.Command{
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, "")
+		applier, err := getAddonsApplier(c, "", jcmd.Proxy)
 		if err != nil {
 			return err
 		}

@@ -942,7 +942,7 @@ var restoreCommand = &cli.Command{
 			}
 		}
 
-		applier, err := getAddonsApplier(c, "")
+		applier, err := getAddonsApplier(c, "", proxy)
 		if err != nil {
 			return err
 		}
