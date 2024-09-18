@@ -8,7 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// GetDefaultIPNet returns the default interface for the node, and the subnet mask for that node, using the same logic as k0s
+// GetDefaultIPNet returns the default interface for the node, and the subnet mask for that node, using the same logic
+// as k0s in https://github.com/k0sproject/k0s/blob/v1.30.4%2Bk0s.0/internal/pkg/iface/iface.go#L61
 func GetDefaultIPNet() (*net.IPNet, error) {
 	ifs, err := net.Interfaces()
 	if err != nil {
