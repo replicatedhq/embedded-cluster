@@ -113,7 +113,7 @@ func maybePromptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1bet
 				logrus.Infof("no-proxy was not set, using default no proxy %s", cleanDefaultIPNet)
 				proxy.ProvidedNoProxy = cleanDefaultIPNet
 				regenerateNoProxy(c, proxy)
-				logrus.Infof("final no-proxy is %q", proxy.NoProxy)
+				logrus.Infof("final (default) no-proxy is %q", proxy.NoProxy)
 				return proxy, nil
 			} else {
 				return promptForNoProxy(c, proxy, cleanDefaultIPNet, defaultIPNet.IP.String())
@@ -157,6 +157,7 @@ func promptForNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, subnet, IP str
 	}
 	proxy.ProvidedNoProxy = newProxy
 	regenerateNoProxy(c, proxy)
+	fmt.Printf("final (provided) no-proxy is %q\n", proxy.NoProxy)
 	return proxy, nil
 }
 
