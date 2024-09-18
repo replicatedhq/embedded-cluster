@@ -262,7 +262,6 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPMITMProxy)
 	line = append(line, "--https-proxy", cluster.HTTPMITMProxy)
-	line = append(line, "--no-proxy", strings.Join(tc.IPs[0:1], ",")) // testing, some nodes will not be in the noproxy list
 	line = append(line, "--private-ca", "/usr/local/share/ca-certificates/proxy/ca.crt")
 	_, _, err := RunCommandOnNode(t, tc, 0, line, withMITMProxyEnv(tc.IPs))
 	require.NoError(t, err, "failed to install embedded-cluster on node 0")
