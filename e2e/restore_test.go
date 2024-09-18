@@ -96,6 +96,9 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 
 func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	t.Parallel()
+	if SkipProxyTest() {
+		t.Skip("skipping test for k0s versions < 1.29.0")
+	}
 
 	requiredEnvVars := []string{
 		"DR_AWS_S3_ENDPOINT",

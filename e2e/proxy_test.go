@@ -7,13 +7,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/stretchr/testify/require"
 )
+
+// SkipProxyTest returns true if the k0s version in use does not support
+// proxied environments.
+func SkipProxyTest() bool {
+	supportedVersion := semver.MustParse("1.29.0")
+	currentVersion := semver.MustParse(versions.K0sVersion)
+	return currentVersion.LessThan(supportedVersion)
+}
 
 // TestProxiedEnvironment tests the installation behind a proxy server
 func TestProxiedEnvironment(t *testing.T) {
 	t.Parallel()
+	if SkipProxyTest() {
+		t.Skip("skipping test for k0s versions < 1.29.0")
+	}
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
@@ -125,6 +138,9 @@ func TestProxiedEnvironment(t *testing.T) {
 // TestProxiedCustomCIDR tests the installation behind a proxy server while using a custom pod and service CIDR
 func TestProxiedCustomCIDR(t *testing.T) {
 	t.Parallel()
+	if SkipProxyTest() {
+		t.Skip("skipping test for k0s versions < 1.29.0")
+	}
 
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
@@ -244,6 +260,10 @@ func TestProxiedCustomCIDR(t *testing.T) {
 }
 
 func TestInstallWithMITMProxy(t *testing.T) {
+	if SkipProxyTest() {
+		t.Skip("skipping test for k0s versions < 1.29.0")
+	}
+
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                   t,
 		Nodes:               4,
