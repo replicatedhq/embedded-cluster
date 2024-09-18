@@ -39,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	k8snet "k8s.io/utils/net"
 	"k8s.io/utils/ptr"
 	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	k8syaml "sigs.k8s.io/yaml"
@@ -810,10 +811,19 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("unable to get latest installation: %w", err)
+	}
+	adminConsolePort := defaults.AdminConsolePort
+	if in.Spec.AdminConsole != nil && in.Spec.AdminConsole.Port > 0 {
+		adminConsolePort = in.Spec.AdminConsole.Port
+	}
+
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 	joinNodesMsg := fmt.Sprintf("\nVisit the Admin Console if you need to add nodes to the cluster: %s%s%s\n",
-		successColor, adminconsole.GetURL(networkInterface), colorReset,
+		successColor, adminconsole.GetURL(networkInterface, adminConsolePort), colorReset,
 	)
 	logrus.Info(joinNodesMsg)
 
@@ -859,7 +869,7 @@ func installAndWaitForRestoredK0sNode(c *cli.Context, applier *addons.Applier) (
 	}
 	proxy := getProxySpecFromFlags(c)
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(false, proxy); err != nil {
+	if err := createSystemdUnitFiles(false, proxy, applier.GetLocalArtifactMirrorPort()); err != nil {
 		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 	logrus.Debugf("installing k0s")
@@ -905,6 +915,12 @@ var restoreCommand = &cli.Command{
 				Usage:  "Skip validation of the backup store. This is not recommended.",
 				Value:  false,
 				Hidden: true,
+			},
+			&cli.StringFlag{
+				Name:  "local-artifact-mirror-port",
+				Usage: "Port on which the Local Artifact Mirror will be served. If left empty, the port will be retrieved from the snapshot.",
+				// DefaultText: strconv.Itoa(defaults.LocalArtifactMirrorPort),
+				Hidden: false,
 			},
 		},
 	)),
@@ -1062,7 +1078,10 @@ var restoreCommand = &cli.Command{
 			}
 			logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
 			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
-				return err
+				return fmt.Errorf("unable to restore from backup: %w", err)
+			}
+			if err := restoreReconcileLocalArtifactMirrorPort(c, backupToRestore); err != nil {
+				return fmt.Errorf("unable to update local artifact mirror port: %w", err)
 			}
 			fallthrough
 
@@ -1163,4 +1182,65 @@ var restoreCommand = &cli.Command{
 
 		return nil
 	},
+}
+
+// restoreReconcileLocalArtifactMirrorPort will set the local artifact mirror port in the
+// installation if it was explicitly set using a flag, otherwise it will update the service to use
+// the port from the installation.
+func restoreReconcileLocalArtifactMirrorPort(c *cli.Context, backup *velerov1.Backup) error {
+	if c.IsSet("local-artifact-mirror-port") {
+		err := restoreReconcileLocalArtifactMirrorPortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to update local artifact mirror port from flag: %w", err)
+		}
+		return nil
+	}
+
+	err := restoreReconcileLocalArtifactMirrorPortFromBackup(backup)
+	if err != nil {
+		return fmt.Errorf("unable to update local artifact mirror port from backup: %w", err)
+	}
+	return nil
+}
+
+// restoreReconcileLocalArtifactMirrorPortFromFlag will set the local artifact mirror port in the
+// installation from the flag.
+func restoreReconcileLocalArtifactMirrorPortFromFlag(c *cli.Context) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("create kube client: %w", err)
+	}
+	in, err := kubeutils.GetLatestInstallation(c.Context, kcli)
+	if err != nil {
+		return fmt.Errorf("get latest installation: %w", err)
+	}
+	if in.Spec.LocalArtifactMirror == nil {
+		in.Spec.LocalArtifactMirror = &ecv1beta1.LocalArtifactMirrorSpec{}
+	}
+	port, err := getLocalArtifactMirrorPortFromFlag(c)
+	if err != nil {
+		return fmt.Errorf("get local artifact mirror port: %w", err)
+	}
+	in.Spec.LocalArtifactMirror.Port = port
+	if err := kcli.Update(c.Context, in); err != nil {
+		return fmt.Errorf("update installation: %w", err)
+	}
+	return nil
+}
+
+// restoreReconcileLocalArtifactMirrorPortFromBackup will update the service to use the port from
+// the installation.
+func restoreReconcileLocalArtifactMirrorPortFromBackup(backup *velerov1.Backup) error {
+	port := defaults.LocalArtifactMirrorPort
+	if portStr := backup.Annotations["local-artifact-mirror-port"]; portStr != "" {
+		var err error
+		port, err = k8snet.ParsePort(portStr, false)
+		if err != nil {
+			return fmt.Errorf("unable to parse local artifact mirror port from backup: %w", err)
+		}
+	}
+	if err := updateLocalArtifactMirrorService(port); err != nil {
+		return fmt.Errorf("unable to update local artifact mirror service: %w", err)
+	}
+	return nil
 }

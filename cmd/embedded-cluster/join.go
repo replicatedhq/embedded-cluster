@@ -40,10 +40,11 @@ type JoinCommandResponse struct {
 	K0sUnsupportedOverrides   string    `json:"k0sUnsupportedOverrides"`
 	EndUserK0sConfigOverrides string    `json:"endUserK0sConfigOverrides"`
 	// MetricsBaseURL is the https://replicated.app endpoint url
-	MetricsBaseURL        string                 `json:"metricsBaseURL"`
-	AirgapRegistryAddress string                 `json:"airgapRegistryAddress"`
-	Proxy                 *ecv1beta1.ProxySpec   `json:"proxy"`
-	Network               *ecv1beta1.NetworkSpec `json:"network"`
+	MetricsBaseURL          string                 `json:"metricsBaseURL"`
+	AirgapRegistryAddress   string                 `json:"airgapRegistryAddress"`
+	Proxy                   *ecv1beta1.ProxySpec   `json:"proxy"`
+	Network                 *ecv1beta1.NetworkSpec `json:"network"`
+	LocalArtifactMirrorPort int                    `json:"localArtifactMirrorPort,omitempty"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -257,8 +258,12 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
+		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
+		if jcmd.LocalArtifactMirrorPort > 0 {
+			localArtifactMirrorPort = jcmd.LocalArtifactMirrorPort
+		}
 		// both controller and worker nodes will have 'worker' in the join command
-		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.Proxy); err != nil {
+		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.Proxy, localArtifactMirrorPort); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err

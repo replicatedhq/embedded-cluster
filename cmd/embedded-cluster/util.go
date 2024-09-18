@@ -12,7 +12,7 @@ import (
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec) error {
+func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec, localArtifactMirrorPort int) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -36,7 +36,10 @@ func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	return installAndEnableLocalArtifactMirror()
+	if err := installAndEnableLocalArtifactMirror(localArtifactMirrorPort); err != nil {
+		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
+	}
+	return nil
 }
 
 // ensureProxyConfig creates a new http-proxy.conf configuration file. The file is saved in the
