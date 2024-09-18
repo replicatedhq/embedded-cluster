@@ -608,6 +608,10 @@ var installCommand = &cli.Command{
 				return err // we want the user to see the error message without a prefix
 			}
 		}
+		if err := preflights.ValidateApp(); err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
 		adminConsolePwd, err := maybeAskAdminConsolePassword(c)
 		if err != nil {
 			metrics.ReportApplyFinished(c, err)
