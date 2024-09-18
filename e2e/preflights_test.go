@@ -95,7 +95,6 @@ func TestPreflights(t *testing.T) {
 					// TODO: work to remove these
 					"System Clock":                true,
 					"'devices' Cgroup Controller": true,
-					"Default Route":               true,
 					"API Access":                  true,
 					"Proxy Registry Access":       true,
 					// as long as fio ran successfully, we're good
@@ -113,7 +112,9 @@ func TestPreflights(t *testing.T) {
 		{
 			name: "Should not contain unexpected warnings",
 			assert: func(t *testing.T, results *preflights.Output) {
-				expected := map[string]bool{}
+				expected := map[string]bool{
+					"Default Route": true,
+				}
 				for _, res := range results.Warn {
 					if !expected[res.Title] {
 						t.Errorf("unexpected warning: %q, %q", res.Title, res.Message)
