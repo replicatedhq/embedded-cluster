@@ -63,10 +63,10 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	return out, stderr.String(), err
 }
 
-func CopyBundleToECLogsDir() error {
+func CopyBundleToECSupportDir() error {
 	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
 	if err != nil {
-		return fmt.Errorf("unable to find preflight bundle: %w", err)
+		return fmt.Errorf("find preflight bundle: %w", err)
 	}
 	if len(matches) == 0 {
 		return nil
@@ -78,9 +78,9 @@ func CopyBundleToECLogsDir() error {
 			src = match
 		}
 	}
-	dst := filepath.Join(defaults.EmbeddedClusterLogsSubDir(), "preflight-bundle.tar.gz")
+	dst := defaults.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")
 	if err := helpers.MoveFile(src, dst); err != nil {
-		return fmt.Errorf("unable to move preflight bundle to embedded-cluster logs dir: %w", err)
+		return fmt.Errorf("move preflight bundle to %s: %w", dst, err)
 	}
 	return nil
 }

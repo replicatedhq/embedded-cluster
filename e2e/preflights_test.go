@@ -51,6 +51,14 @@ func TestPreflights(t *testing.T) {
 		t.Fatalf("failed to get preflight results: err=%v, stderr=%s", err, stderr)
 	}
 
+	_, stderr, err = container.Exec(cli,
+		"ls /var/lib/embedded-cluster/support/preflight-bundle.tar.gz",
+	)
+	if err != nil {
+		t.Logf("run-preflights: err=%v, stdout=%s, stderr=%s", runErr, runStdout, runStderr)
+		t.Fatalf("failed to list preflight bundle: err=%v, stderr=%s", err, stderr)
+	}
+
 	results, err := preflights.OutputFromReader(strings.NewReader(stdout))
 	if err != nil {
 		t.Fatalf("failed to parse preflight results: %v", err)

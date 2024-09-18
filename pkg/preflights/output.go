@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -72,7 +71,7 @@ func (o Output) SaveToDisk() error {
 
 	// If we ever want to store multiple preflight results
 	// we can add a timestamp to the filename.
-	path := filepath.Join(defaults.EmbeddedClusterLogsSubDir(), "host-preflight-results.json")
+	path := defaults.PathToEmbeddedClusterSupportFile("host-preflight-results.json")
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		return fmt.Errorf("unable to write preflight results to %s: %w", path, err)
 	}

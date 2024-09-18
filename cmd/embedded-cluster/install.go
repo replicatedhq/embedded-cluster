@@ -133,9 +133,9 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 		logrus.Warnf("unable to save preflights output: %v", err)
 	}
 
-	err = preflights.CopyBundleToECLogsDir()
+	err = preflights.CopyBundleToECSupportDir()
 	if err != nil {
-		logrus.Warnf("unable to copy preflight bundle to embedded-cluster logs dir: %v", err)
+		logrus.Warnf("unable to copy preflight bundle to embedded-cluster support dir: %v", err)
 	}
 
 	// Failures found
