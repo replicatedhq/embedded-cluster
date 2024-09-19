@@ -495,13 +495,7 @@ func runOutro(c *cli.Context, applier *addons.Applier, cfg *k0sconfig.ClusterCon
 		return fmt.Errorf("unable to process overrides file: %w", err)
 	}
 
-	return applier.Outro(addons.OutroOptions{
-		Ctx:              c.Context,
-		K0sCfg:           cfg,
-		EndUserCfg:       eucfg,
-		ReleaseMetadata:  metadata,
-		NetworkInterface: c.String("network-interface"),
-	})
+	return applier.Outro(c.Context, cfg, eucfg, metadata, c.String("network-interface"))
 }
 
 func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {

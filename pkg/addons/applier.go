@@ -52,16 +52,8 @@ type Applier struct {
 	privateCAs      map[string]string
 }
 
-type OutroOptions struct {
-	Ctx              context.Context
-	K0sCfg           *k0sv1beta1.ClusterConfig
-	EndUserCfg       *ecv1beta1.Config
-	ReleaseMetadata  *types.ReleaseMetadata
-	NetworkInterface string
-}
-
 // Outro runs the outro in all enabled add-ons.
-func (a *Applier) Outro(opts OutroOptions) error {
+func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, endUserCfg *ecv1beta1.Config, releaseMetadata *types.ReleaseMetadata, networkInterface string) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
@@ -71,7 +63,7 @@ func (a *Applier) Outro(opts OutroOptions) error {
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
 
-	errCh := kubeutils.WaitForKubernetes(opts.Ctx, kcli)
+	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer func() {
 		for len(errCh) > 0 {
 			err := <-errCh
@@ -80,14 +72,14 @@ func (a *Applier) Outro(opts OutroOptions) error {
 	}()
 
 	for _, addon := range addons {
-		if err := addon.Outro(opts.Ctx, kcli, opts.K0sCfg, opts.ReleaseMetadata); err != nil {
+		if err := addon.Outro(ctx, kcli, k0sCfg, releaseMetadata); err != nil {
 			return err
 		}
 	}
-	if err := spinForInstallation(opts.Ctx, kcli); err != nil {
+	if err := spinForInstallation(ctx, kcli); err != nil {
 		return err
 	}
-	if err := printKotsadmLinkMessage(a.licenseFile, opts.NetworkInterface); err != nil {
+	if err := printKotsadmLinkMessage(a.licenseFile, networkInterface); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
 	return nil
