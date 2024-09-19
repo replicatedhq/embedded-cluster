@@ -190,6 +190,13 @@ var joinCommand = &cli.Command{
 		}
 
 		setProxyEnv(jcmd.Proxy)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy)
+		if err != nil {
+			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
+		}
+		if !proxyOK {
+			return fmt.Errorf("no-proxy config %q does not allow access to local IP %q", jcmd.Proxy.NoProxy, localIP)
+		}
 
 		isAirgap := c.String("airgap-bundle") != ""
 
@@ -207,7 +214,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, "")
+		applier, err := getAddonsApplier(c, "", jcmd.Proxy)
 		if err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err

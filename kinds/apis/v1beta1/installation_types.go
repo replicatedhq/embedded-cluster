@@ -68,9 +68,10 @@ type ArtifactsLocation struct {
 
 // ProxySpec holds the proxy configuration.
 type ProxySpec struct {
-	HTTPProxy  string `json:"httpProxy,omitempty"`
-	HTTPSProxy string `json:"httpsProxy,omitempty"`
-	NoProxy    string `json:"noProxy,omitempty"`
+	HTTPProxy       string `json:"httpProxy,omitempty"`
+	HTTPSProxy      string `json:"httpsProxy,omitempty"`
+	ProvidedNoProxy string `json:"providedNoProxy,omitempty"`
+	NoProxy         string `json:"noProxy,omitempty"`
 }
 
 // NetworkSpec holds the network configuration.
