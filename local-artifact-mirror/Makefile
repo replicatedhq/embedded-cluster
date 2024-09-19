@@ -11,8 +11,6 @@ USE_CHAINGUARD ?= 1
 
 export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAME ?= replicated/embedded-cluster-local-artifact-mirror
-export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')
-export IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
 
 .PHONY: build
 build:
@@ -22,50 +20,62 @@ build:
 		-ldflags="-s -w -extldflags=-static" \
 		-o bin/local-artifact-mirror-$(OS)-$(ARCH) ../cmd/local-artifact-mirror
 
-export MELANGE_CONFIG := deploy/melange.tmpl.yaml
+export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: melange-build-local-artifact-mirror
 melange-build-local-artifact-mirror:
-	$(MAKE) melange-build MELANGE_SOURCE_DIR=../
-
-export APKO_CONFIG := deploy/apko.tmpl.yaml
+	dagger call build-local-artifact-mirror-package \
+		--ec-version $(PACKAGE_VERSION) \
+		--arch $(ARCH) \
+		export --path build
 
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image:
-	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+	@if [ "$(USE_CHAINGUARD)" == "1" ]; then \
 		$(MAKE) build-local-artifact-mirror-image-chainguard; \
 	else \
 		$(MAKE) build-local-artifact-mirror-image-dockerfile; \
 	fi
 
 .PHONY: build-local-artifact-mirror-image-chainguard
-build-local-artifact-mirror-image-chainguard: melange-build-local-artifact-mirror apko-build
+build-local-artifact-mirror-image-chainguard:
+	dagger call build-local-artifact-mirror-image \
+		--ec-version $(PACKAGE_VERSION) \
+		--repo $(IMAGE_NAME) \
+		--arch $(ARCH) \
+		export --path build
 
 .PHONY: build-local-artifact-mirror-image-dockerfile
 build-local-artifact-mirror-image-dockerfile:
-	docker build --platform="$(OS)/$(ARCH)" -t $(IMAGE) -f ../dev/dockerfiles/local-artifact-mirror/Dockerfile.ttlsh ../
+	docker build --platform="$(OS)/$(ARCH)" -t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" -f ../dev/dockerfiles/local-artifact-mirror/Dockerfile.ttlsh ../
 	mkdir -p build
-	echo "$(IMAGE)" > build/image
+	echo "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" > build/image
 
 .PHONY: build-and-push-local-artifact-mirror-image
 build-and-push-local-artifact-mirror-image:
-	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+	@if [ "$(USE_CHAINGUARD)" == "1" ]; then \
 		$(MAKE) build-and-push-local-artifact-mirror-image-chainguard; \
 	else \
 		$(MAKE) build-and-push-local-artifact-mirror-image-dockerfile; \
 	fi
 
 .PHONY: build-and-push-local-artifact-mirror-image-chainguard
-build-and-push-local-artifact-mirror-image-chainguard: melange-build-local-artifact-mirror apko-build-and-publish
+build-and-push-local-artifact-mirror-image-chainguard:
+	dagger call publish-local-artifact-mirror-image \
+		--ec-version $(PACKAGE_VERSION) \
+		--repo $(IMAGE_NAME) \
+		--arch $(ARCH) \
+		> build/digest
+	@$(MAKE) apko-output-image IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-and-push-local-artifact-mirror-image-dockerfile
 build-and-push-local-artifact-mirror-image-dockerfile: build-local-artifact-mirror-image-dockerfile
-	docker push $(IMAGE)
+	docker push "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-ttl.sh
 build-ttl.sh:
-	$(MAKE) build-and-push-local-artifact-mirror-image \
-		IMAGE=ttl.sh/$(CURRENT_USER)/embedded-cluster-local-artifact-mirror:$(IMAGE_TAG)
+	@$(MAKE) build-and-push-local-artifact-mirror-image \
+		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
 
 .PHONY: clean
 clean:
