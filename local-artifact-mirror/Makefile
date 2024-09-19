@@ -61,6 +61,7 @@ build-and-push-local-artifact-mirror-image:
 
 .PHONY: build-and-push-local-artifact-mirror-image-chainguard
 build-and-push-local-artifact-mirror-image-chainguard:
+	mkdir -p build
 	dagger call publish-local-artifact-mirror-image \
 		--ec-version $(PACKAGE_VERSION) \
 		--repo $(IMAGE_NAME) \

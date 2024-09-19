@@ -177,6 +177,7 @@ build-and-push-operator-image:
 
 .PHONY: build-and-push-operator-image-chainguard
 build-and-push-operator-image-chainguard:
+	mkdir -p build
 	dagger call publish-operator-image \
 		--ec-version $(PACKAGE_VERSION) \
 		--repo $(IMAGE_NAME) \
