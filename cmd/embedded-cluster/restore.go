@@ -262,7 +262,7 @@ func newS3BackupStore() *s3BackupStore {
 	}
 	store.region = prompts.New().Input("Region:", "", true)
 	store.bucket = prompts.New().Input("Bucket:", "", true)
-	store.prefix = prompts.New().Input("Prefix (press Enter to skip):", "", false)
+	store.prefix = strings.TrimPrefix(prompts.New().Input("Prefix (press Enter to skip):", "", false), "/")
 	store.accessKeyID = prompts.New().Input("Access key ID:", "", true)
 	store.secretAccessKey = prompts.New().Password("Secret access key:")
 	logrus.Info("")
@@ -1080,6 +1080,7 @@ var restoreCommand = &cli.Command{
 			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
 				return fmt.Errorf("unable to restore from backup: %w", err)
 			}
+			logrus.Debugf("updating local artifact mirror port %q", backupToRestore.Name)
 			if err := restoreReconcileLocalArtifactMirrorPort(c, backupToRestore); err != nil {
 				return fmt.Errorf("unable to update local artifact mirror port: %w", err)
 			}
@@ -1189,6 +1190,7 @@ var restoreCommand = &cli.Command{
 // the port from the installation.
 func restoreReconcileLocalArtifactMirrorPort(c *cli.Context, backup *velerov1.Backup) error {
 	if c.IsSet("local-artifact-mirror-port") {
+		logrus.Debugf("updating local artifact mirror port from flag %q", backup.Name)
 		err := restoreReconcileLocalArtifactMirrorPortFromFlag(c)
 		if err != nil {
 			return fmt.Errorf("unable to update local artifact mirror port from flag: %w", err)
@@ -1196,6 +1198,7 @@ func restoreReconcileLocalArtifactMirrorPort(c *cli.Context, backup *velerov1.Ba
 		return nil
 	}
 
+	logrus.Debugf("updating local artifact mirror port from backup %q", backup.Name)
 	err := restoreReconcileLocalArtifactMirrorPortFromBackup(backup)
 	if err != nil {
 		return fmt.Errorf("unable to update local artifact mirror port from backup: %w", err)
@@ -1221,6 +1224,10 @@ func restoreReconcileLocalArtifactMirrorPortFromFlag(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("get local artifact mirror port: %w", err)
 	}
+	if in.Spec.LocalArtifactMirror.Port == port {
+		return nil
+	}
+	logrus.Debugf("updating local artifact mirror port from flag to %d on installation %q", port, in.Name)
 	in.Spec.LocalArtifactMirror.Port = port
 	if err := kcli.Update(c.Context, in); err != nil {
 		return fmt.Errorf("update installation: %w", err)
@@ -1231,14 +1238,15 @@ func restoreReconcileLocalArtifactMirrorPortFromFlag(c *cli.Context) error {
 // restoreReconcileLocalArtifactMirrorPortFromBackup will update the service to use the port from
 // the installation.
 func restoreReconcileLocalArtifactMirrorPortFromBackup(backup *velerov1.Backup) error {
-	port := defaults.LocalArtifactMirrorPort
-	if portStr := backup.Annotations["local-artifact-mirror-port"]; portStr != "" {
-		var err error
-		port, err = k8snet.ParsePort(portStr, false)
-		if err != nil {
-			return fmt.Errorf("unable to parse local artifact mirror port from backup: %w", err)
-		}
+	portStr := backup.Annotations["kots.io/embedded-cluster-local-artifact-mirror-port"]
+	if portStr == "" {
+		return nil
 	}
+	port, err := k8snet.ParsePort(portStr, false)
+	if err != nil {
+		return fmt.Errorf("unable to parse local artifact mirror port from backup: %w", err)
+	}
+	logrus.Debugf("updating local artifact mirror port from backup to %d", port)
 	if err := updateLocalArtifactMirrorService(port); err != nil {
 		return fmt.Errorf("unable to update local artifact mirror service: %w", err)
 	}
