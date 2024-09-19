@@ -323,7 +323,8 @@ spec:
           - fail:
               when: error
               message: >
-                Error connecting to {{ .ReplicatedAPIURL }}.
+                Error connecting to {{ .ReplicatedAPIURL }}. The static IP addresses for
+                {{ .ReplicatedAPIURL }} are 162.159.133.41 and 162.159.134.41.
                 Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
                 and --no-proxy flags if there is a proxy server.
           - pass:
@@ -331,7 +332,8 @@ spec:
               message: 'Connected to {{ .ReplicatedAPIURL }}'
           - fail:
               message: >
-                Unexpected response from {{ .ReplicatedAPIURL }}.
+                Error connecting to {{ .ReplicatedAPIURL }}. The static IP addresses for
+                {{ .ReplicatedAPIURL }} are 162.159.133.41 and 162.159.134.41.
                 Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
                 and --no-proxy flags if there is a proxy server.
     - http:
@@ -342,7 +344,8 @@ spec:
           - fail:
               when: error
               message: >
-                Error connecting to {{ .ProxyRegistryURL }}.
+                Error connecting to {{ .ProxyRegistryURL }}. The static IP addresses for
+                {{ .ProxyRegistryURL }} are 162.159.137.43 and 162.159.138.43.
                 Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
                 and --no-proxy flags if there is a proxy server.
           - pass:
@@ -350,7 +353,8 @@ spec:
               message: 'Connected to {{ .ProxyRegistryURL }}'
           - fail:
               message: >
-                Unexpected response from {{ .ProxyRegistryURL }}.
+                Unexpected response from {{ .ProxyRegistryURL }}. The static IP addresses for
+                {{ .ProxyRegistryURL }} are 162.159.137.43 and 162.159.138.43.
                 Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
                 and --no-proxy flags if there is a proxy server.
     - textAnalyze:
