@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -331,12 +332,16 @@ func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.Cluste
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
+	address, err := netutils.FirstValidAddress(c.String("network-interface"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to find first valid address: %w", err)
+	}
+	cfg.Spec.API.Address = address
 	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
-	var err error
 	cfg, err = applyUnsupportedOverrides(c, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
@@ -490,7 +495,13 @@ func runOutro(c *cli.Context, applier *addons.Applier, cfg *k0sconfig.ClusterCon
 		return fmt.Errorf("unable to process overrides file: %w", err)
 	}
 
-	return applier.Outro(c.Context, cfg, eucfg, metadata)
+	return applier.Outro(addons.OutroOptions{
+		Ctx:              c.Context,
+		K0sCfg:           cfg,
+		EndUserCfg:       eucfg,
+		ReleaseMetadata:  metadata,
+		NetworkInterface: c.String("network-interface"),
+	})
 }
 
 func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
@@ -556,6 +567,11 @@ var installCommand = &cli.Command{
 				Aliases: []string{"l"},
 				Usage:   "Path to the license file",
 				Hidden:  false,
+			},
+			&cli.StringFlag{
+				Name:  "network-interface",
+				Usage: "The network interface to use for the cluster",
+				Value: "",
 			},
 			&cli.BoolFlag{
 				Name:  "no-prompt",

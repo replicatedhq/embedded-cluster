@@ -26,6 +26,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -323,12 +324,16 @@ func ensureK0sConfigForRestore(c *cli.Context, applier *addons.Applier) (*k0sv1b
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
+	address, err := netutils.FirstValidAddress(c.String("network-interface"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to find first valid address: %w", err)
+	}
+	cfg.Spec.API.Address = address
 	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
-	var err error
 	cfg, err = applyUnsupportedOverrides(c, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
@@ -799,7 +804,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 }
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
-func waitForAdditionalNodes(ctx context.Context, highAvailability bool) error {
+func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkInterface string) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
@@ -808,7 +813,7 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool) error {
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 	joinNodesMsg := fmt.Sprintf("\nVisit the Admin Console if you need to add nodes to the cluster: %s%s%s\n",
-		successColor, adminconsole.GetURL(), colorReset,
+		successColor, adminconsole.GetURL(networkInterface), colorReset,
 	)
 	logrus.Info(joinNodesMsg)
 
@@ -879,6 +884,11 @@ var restoreCommand = &cli.Command{
 				Name:   "airgap-bundle",
 				Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
 				Hidden: true,
+			},
+			&cli.StringFlag{
+				Name:  "network-interface",
+				Usage: "The network interface to use for the cluster",
+				Value: "",
 			},
 			&cli.BoolFlag{
 				Name:  "no-prompt",
@@ -1078,7 +1088,7 @@ var restoreCommand = &cli.Command{
 				return err
 			}
 			logrus.Debugf("waiting for additional nodes to be added")
-			if err := waitForAdditionalNodes(c.Context, highAvailability); err != nil {
+			if err := waitForAdditionalNodes(c.Context, highAvailability, c.String("network-interface")); err != nil {
 				return err
 			}
 			fallthrough

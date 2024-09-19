@@ -1,7 +1,6 @@
 package defaults
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -114,19 +113,6 @@ func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 
 func (d *Provider) PathToKubeConfig() string {
 	return "/var/lib/k0s/pki/admin.conf"
-}
-
-// PreferredNodeIPAddress returns the ip address the node uses when reaching
-// the internet. This is useful when the node has multiple interfaces and we
-// want to bind to one of the interfaces.
-func (d *Provider) PreferredNodeIPAddress() (string, error) {
-	conn, err := net.Dial("udp", "8.8.8.8:53")
-	if err != nil {
-		return "", fmt.Errorf("unable to get local IP: %w", err)
-	}
-	defer conn.Close()
-	addr := conn.LocalAddr().(*net.UDPAddr)
-	return addr.IP.String(), nil
 }
 
 // TryDiscoverPublicIP tries to discover the public IP of the node by querying

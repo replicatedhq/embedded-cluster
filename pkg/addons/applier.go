@@ -52,8 +52,16 @@ type Applier struct {
 	privateCAs      map[string]string
 }
 
+type OutroOptions struct {
+	Ctx              context.Context
+	K0sCfg           *k0sv1beta1.ClusterConfig
+	EndUserCfg       *ecv1beta1.Config
+	ReleaseMetadata  *types.ReleaseMetadata
+	NetworkInterface string
+}
+
 // Outro runs the outro in all enabled add-ons.
-func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, endUserCfg *ecv1beta1.Config, releaseMetadata *types.ReleaseMetadata) error {
+func (a *Applier) Outro(opts OutroOptions) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
@@ -63,7 +71,7 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
 
-	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
+	errCh := kubeutils.WaitForKubernetes(opts.Ctx, kcli)
 	defer func() {
 		for len(errCh) > 0 {
 			err := <-errCh
@@ -72,14 +80,14 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 	}()
 
 	for _, addon := range addons {
-		if err := addon.Outro(ctx, kcli, k0sCfg, releaseMetadata); err != nil {
+		if err := addon.Outro(opts.Ctx, kcli, opts.K0sCfg, opts.ReleaseMetadata); err != nil {
 			return err
 		}
 	}
-	if err := spinForInstallation(ctx, kcli); err != nil {
+	if err := spinForInstallation(opts.Ctx, kcli); err != nil {
 		return err
 	}
-	if err := printKotsadmLinkMessage(a.licenseFile); err != nil {
+	if err := printKotsadmLinkMessage(a.licenseFile, opts.NetworkInterface); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
 	return nil
@@ -391,7 +399,7 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 }
 
 // printKotsadmLinkMessage prints the success message when the admin console is online.
-func printKotsadmLinkMessage(licenseFile string) error {
+func printKotsadmLinkMessage(licenseFile string, networkInterface string) error {
 	var err error
 	license := &kotsv1beta1.License{}
 	if licenseFile != "" {
@@ -406,11 +414,11 @@ func printKotsadmLinkMessage(licenseFile string) error {
 	var successMessage string
 	if license != nil {
 		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install %s: %s%s%s",
-			license.Spec.AppSlug, successColor, adminconsole.GetURL(), colorReset,
+			license.Spec.AppSlug, successColor, adminconsole.GetURL(networkInterface), colorReset,
 		)
 	} else {
 		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install your application: %s%s%s",
-			successColor, adminconsole.GetURL(), colorReset,
+			successColor, adminconsole.GetURL(networkInterface), colorReset,
 		)
 	}
 	logrus.Info(successMessage)

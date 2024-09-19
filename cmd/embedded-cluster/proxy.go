@@ -99,26 +99,26 @@ func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1b
 		// if there is a proxy set, then there needs to be a no proxy set
 		// if it is not set, prompt with a default (the local IP or subnet)
 		// if it is set, we need to check that it covers the local IP
-		defaultIPNet, err := netutils.GetDefaultIPNet()
+		ipnet, err := netutils.FirstValidIPNet(c.String("network-interface"))
 		if err != nil {
-			return nil, fmt.Errorf("failed to get default IPNet: %w", err)
+			return nil, fmt.Errorf("failed to get first valid ip net: %w", err)
 		}
-		cleanDefaultIPNet, err := cleanCIDR(defaultIPNet)
+		cleanIPNet, err := cleanCIDR(ipnet)
 		if err != nil {
 			return nil, fmt.Errorf("failed to clean subnet: %w", err)
 		}
 		if proxy.ProvidedNoProxy == "" {
-			logrus.Infof("--no-proxy was not set. Adding the default interface's subnet (%q) to the no-proxy list.", cleanDefaultIPNet)
-			proxy.ProvidedNoProxy = cleanDefaultIPNet
+			logrus.Infof("--no-proxy was not set. Adding the default interface's subnet (%q) to the no-proxy list.", cleanIPNet)
+			proxy.ProvidedNoProxy = cleanIPNet
 			combineNoProxySuppliedValuesAndDefaults(c, proxy)
 			return proxy, nil
 		} else {
-			isValid, err := validateNoProxy(proxy.NoProxy, defaultIPNet.IP.String())
+			isValid, err := validateNoProxy(proxy.NoProxy, ipnet.IP.String())
 			if err != nil {
 				return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
 			} else if !isValid {
-				logrus.Infof("The node IP (%q) is not included in the provided no-proxy list (%q). Adding the default interface's subnet (%q) to the no-proxy list.", defaultIPNet.IP.String(), proxy.ProvidedNoProxy, cleanDefaultIPNet)
-				proxy.ProvidedNoProxy = cleanDefaultIPNet
+				logrus.Infof("The node IP (%q) is not included in the provided no-proxy list (%q). Adding the default interface's subnet (%q) to the no-proxy list.", ipnet.IP.String(), proxy.ProvidedNoProxy, cleanIPNet)
+				proxy.ProvidedNoProxy = cleanIPNet
 				combineNoProxySuppliedValuesAndDefaults(c, proxy)
 				return proxy, nil
 			}
@@ -128,10 +128,10 @@ func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1b
 }
 
 // cleanCIDR returns a `.0/x` subnet instead of a `.2/x` etc subnet
-func cleanCIDR(defaultIPNet *net.IPNet) (string, error) {
-	_, newNet, err := net.ParseCIDR(defaultIPNet.String())
+func cleanCIDR(ipnet *net.IPNet) (string, error) {
+	_, newNet, err := net.ParseCIDR(ipnet.String())
 	if err != nil {
-		return "", fmt.Errorf("failed to parse local inet CIDR %q: %w", defaultIPNet.String(), err)
+		return "", fmt.Errorf("failed to parse local inet CIDR %q: %w", ipnet.String(), err)
 	}
 	return newNet.String(), nil
 }
@@ -155,7 +155,7 @@ func validateNoProxy(newNoProxy string, localIP string) (bool, error) {
 	return foundLocal, nil
 }
 
-func checkProxyConfigForLocalIP(proxy *ecv1beta1.ProxySpec) (bool, string, error) {
+func checkProxyConfigForLocalIP(proxy *ecv1beta1.ProxySpec, networkInterface string) (bool, string, error) {
 	if proxy == nil {
 		return true, "", nil // no proxy is fine
 	}
@@ -163,11 +163,11 @@ func checkProxyConfigForLocalIP(proxy *ecv1beta1.ProxySpec) (bool, string, error
 		return true, "", nil // no proxy is fine
 	}
 
-	defaultIPNet, err := netutils.GetDefaultIPNet()
+	ipnet, err := netutils.FirstValidIPNet(networkInterface)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to get default IPNet: %w", err)
 	}
 
-	ok, err := validateNoProxy(proxy.NoProxy, defaultIPNet.IP.String())
-	return ok, defaultIPNet.IP.String(), err
+	ok, err := validateNoProxy(proxy.NoProxy, ipnet.IP.String())
+	return ok, ipnet.IP.String(), err
 }

@@ -190,7 +190,7 @@ var joinCommand = &cli.Command{
 		}
 
 		setProxyEnv(jcmd.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy, "") // TODO (@salah): pass network interface
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
@@ -326,7 +326,7 @@ var joinCommand = &cli.Command{
 	},
 }
 
-func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
+func applyNetworkConfiguration(c *cli.Context, jcmd *JoinCommandResponse) error {
 	if jcmd.Network != nil {
 		clusterSpec := config.RenderK0sConfig()
 		// NOTE: we should be copying everything from the in cluster config spec and overriding

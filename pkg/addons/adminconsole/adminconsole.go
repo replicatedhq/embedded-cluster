@@ -27,6 +27,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -258,11 +259,11 @@ func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spi
 }
 
 // GetURL returns the URL to the admin console.
-func GetURL() string {
+func GetURL(networkInterface string) string {
 	ipaddr := defaults.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		var err error
-		ipaddr, err = defaults.PreferredNodeIPAddress()
+		ipaddr, err = netutils.FirstValidAddress(networkInterface)
 		if err != nil {
 			logrus.Errorf("unable to determine node IP address: %v", err)
 			ipaddr = "NODE-IP-ADDRESS"

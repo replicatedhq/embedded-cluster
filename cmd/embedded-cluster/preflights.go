@@ -118,7 +118,7 @@ var joinRunPreflightsCommand = &cli.Command{
 		}
 
 		setProxyEnv(jcmd.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy, "") // TODO (@salah): pass network interface
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
