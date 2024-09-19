@@ -68,11 +68,6 @@ func PathToKubeConfig() string {
 	return DefaultProvider.PathToKubeConfig()
 }
 
-// PreferredNodeIPAddress calls PreferredNodeIPAddress on the default provider.
-func PreferredNodeIPAddress() (string, error) {
-	return DefaultProvider.PreferredNodeIPAddress()
-}
-
 // TryDiscoverPublicIP calls TryDiscoverPublicIP on the default provider.
 func TryDiscoverPublicIP() string {
 	return DefaultProvider.TryDiscoverPublicIP()

@@ -190,7 +190,7 @@ var joinCommand = &cli.Command{
 		}
 
 		setProxyEnv(jcmd.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy, "") // TODO (@salah): detect network interface from join command
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
@@ -265,7 +265,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("overriding network configuration")
-		if err := applyNetworkConfiguration(jcmd); err != nil {
+		if err := applyNetworkConfiguration(c, jcmd); err != nil {
 			err := fmt.Errorf("unable to apply network configuration: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 		}
@@ -326,7 +326,7 @@ var joinCommand = &cli.Command{
 	},
 }
 
-func applyNetworkConfiguration(jcmd *JoinCommandResponse) error {
+func applyNetworkConfiguration(c *cli.Context, jcmd *JoinCommandResponse) error {
 	if jcmd.Network != nil {
 		clusterSpec := config.RenderK0sConfig()
 		// NOTE: we should be copying everything from the in cluster config spec and overriding
