@@ -191,7 +191,7 @@ build-and-push-operator-image-dockerfile: build-operator-image-dockerfile
 
 .PHONY: build-chart
 build-chart:
-	cd charts/embedded-cluster-operator && ../../scripts/publish-helm-chart.sh
+	cd charts/embedded-cluster-operator && IMAGE_TAG=$(call image-tag,$(PACKAGE_VERSION)) ../../scripts/publish-helm-chart.sh
 	mkdir -p build
 	echo "$(CHART_REMOTE)/embedded-cluster-operator:$(CHART_VERSION)" > build/chart
 
