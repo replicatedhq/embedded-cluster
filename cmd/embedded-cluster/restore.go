@@ -329,6 +329,7 @@ func ensureK0sConfigForRestore(c *cli.Context, applier *addons.Applier) (*k0sv1b
 		return nil, fmt.Errorf("unable to find first valid address: %w", err)
 	}
 	cfg.Spec.API.Address = address
+	cfg.Spec.Storage.Etcd.PeerAddress = address
 	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
@@ -863,7 +864,7 @@ func installAndWaitForRestoredK0sNode(c *cli.Context, applier *addons.Applier) (
 		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 	logrus.Debugf("installing k0s")
-	if err := installK0s(); err != nil {
+	if err := installK0s(c); err != nil {
 		return nil, fmt.Errorf("unable update cluster: %w", err)
 	}
 	loading.Infof("Waiting for %s node to be ready", binName)
