@@ -17,6 +17,9 @@
       "description": "ConfigSpec defines the desired state of Config",
       "type": "object",
       "properties": {
+        "binaryOverrideUrl": {
+          "type": "string"
+        },
         "extensions": {
           "type": "object",
           "properties": {
@@ -94,6 +97,9 @@
               }
             }
           }
+        },
+        "metadataOverrideUrl": {
+          "type": "string"
         },
         "roles": {
           "description": "Roles is the various roles in the cluster.",

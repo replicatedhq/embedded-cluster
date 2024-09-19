@@ -275,6 +275,13 @@ spec:
           spec:
             description: InstallationSpec defines the desired state of Installation.
             properties:
+              adminConsole:
+                description: AdminConsole holds the admin console configuration.
+                properties:
+                  port:
+                    description: Port holds the port on which the admin console will be served.
+                    type: integer
+                type: object
               airGap:
                 description: AirGap indicates if the installation is airgapped.
                 type: boolean
@@ -503,6 +510,13 @@ spec:
                 properties:
                   isDisasterRecoverySupported:
                     type: boolean
+                type: object
+              localArtifactMirror:
+                description: LocalArtifactMirrorPort holds the local artifact mirror configuration.
+                properties:
+                  port:
+                    description: Port holds the port on which the local artifact mirror will be served.
+                    type: integer
                 type: object
               metricsBaseURL:
                 description: MetricsBaseURL holds the base URL for the metrics server.
