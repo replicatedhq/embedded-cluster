@@ -265,7 +265,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("overriding network configuration")
-		if err := applyNetworkConfiguration(jcmd); err != nil {
+		if err := applyNetworkConfiguration(c, jcmd); err != nil {
 			err := fmt.Errorf("unable to apply network configuration: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 		}
