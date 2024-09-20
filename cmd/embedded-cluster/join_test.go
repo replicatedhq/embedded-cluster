@@ -10,6 +10,7 @@ import (
 
 	"github.com/k0sproject/dig"
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,8 +102,14 @@ func TestJoinCommandResponseOverrides(t *testing.T) {
 		t.Run(tname, func(t *testing.T) {
 			req := require.New(t)
 			join := JoinCommandResponse{
-				K0sUnsupportedOverrides:   tt.EmbeddedOverrides,
-				EndUserK0sConfigOverrides: tt.EndUserOverrides,
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{
+							K0s: tt.EmbeddedOverrides,
+						},
+					},
+					EndUserK0sConfigOverrides: tt.EndUserOverrides,
+				},
 			}
 
 			embedded, err := join.EmbeddedOverrides()
