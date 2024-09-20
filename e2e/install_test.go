@@ -31,7 +31,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", "--admin-console-port", "30002"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -806,7 +806,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1257,7 +1257,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}

@@ -14,12 +14,18 @@ check_openebs_storage_class() {
 }
 
 main() {
-    if embedded-cluster install --no-prompt --skip-host-preflights --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
+    local additional_args=
+    if [ -n "${1:-}" ]; then
+        additional_args="$*"
+        echo "Running install with additional args: $additional_args"
+    fi
+
+    if embedded-cluster install --no-prompt --skip-host-preflights --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail with a license provided"
         exit 1
     fi
 
-    if ! embedded-cluster install --no-prompt --skip-host-preflights 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt --skip-host-preflights $additional_args 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "Failed to install embedded-cluster"
         exit 1
@@ -49,4 +55,4 @@ main() {
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export KUBECONFIG=/var/lib/k0s/pki/admin.conf
 export PATH=$PATH:/var/lib/embedded-cluster/bin
-main
+main "$@"
