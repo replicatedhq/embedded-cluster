@@ -5,6 +5,7 @@ RUN dnf install -y \
   sudo \
   systemd \
   openssh-server \
+  ca-certificates \
   bash \
   coreutils \
   curl \
