@@ -54,24 +54,24 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig) {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
 
-	cfg.Spec.Images.CoreDNS.Image = Metadata.Images["coredns"].Image
-	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Version[runtime.GOARCH]
+	cfg.Spec.Images.CoreDNS.Image = Metadata.Images["coredns"].Repo
+	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Tag[runtime.GOARCH]
 
-	cfg.Spec.Images.Calico.Node.Image = Metadata.Images["calico-node"].Image
-	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"].Version[runtime.GOARCH]
+	cfg.Spec.Images.Calico.Node.Image = Metadata.Images["calico-node"].Repo
+	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"].Tag[runtime.GOARCH]
 
-	cfg.Spec.Images.Calico.CNI.Image = Metadata.Images["calico-cni"].Image
-	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"].Version[runtime.GOARCH]
+	cfg.Spec.Images.Calico.CNI.Image = Metadata.Images["calico-cni"].Repo
+	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"].Tag[runtime.GOARCH]
 
-	cfg.Spec.Images.Calico.KubeControllers.Image = Metadata.Images["calico-kube-controllers"].Image
-	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"].Version[runtime.GOARCH]
+	cfg.Spec.Images.Calico.KubeControllers.Image = Metadata.Images["calico-kube-controllers"].Repo
+	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"].Tag[runtime.GOARCH]
 
-	cfg.Spec.Images.MetricsServer.Image = Metadata.Images["metrics-server"].Image
-	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"].Version[runtime.GOARCH]
+	cfg.Spec.Images.MetricsServer.Image = Metadata.Images["metrics-server"].Repo
+	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"].Tag[runtime.GOARCH]
 
-	cfg.Spec.Images.KubeProxy.Image = Metadata.Images["kube-proxy"].Image
-	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"].Version[runtime.GOARCH]
+	cfg.Spec.Images.KubeProxy.Image = Metadata.Images["kube-proxy"].Repo
+	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"].Tag[runtime.GOARCH]
 
-	cfg.Spec.Images.Pause.Image = Metadata.Images["pause"].Image
-	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Version[runtime.GOARCH]
+	cfg.Spec.Images.Pause.Image = Metadata.Images["pause"].Repo
+	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Tag[runtime.GOARCH]
 }

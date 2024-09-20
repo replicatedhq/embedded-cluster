@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -70,20 +69,11 @@ var updateRegistryAddonCommand = &cli.Command{
 			return fmt.Errorf("failed to get images from chart: %w", err)
 		}
 
-		for _, image := range images {
-			component, ok := registryImageComponents[RemoveTagFromImage(image)]
-			if !ok {
-				return fmt.Errorf("no component found for image %s", image)
-			}
-			repo, tag, err := component.resolveImageRepoAndTag(c.Context, image)
-			if err != nil {
-				return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
-			}
-			newimage := registry.Metadata.Images[component.name]
-			newimage.Repo = repo
-			newimage.Tag[runtime.GOARCH] = tag
-			newmeta.Images[component.name] = newimage
+		metaImages, err := UpdateImages(c.Context, registryImageComponents, registry.Metadata.Images, images)
+		if err != nil {
+			return fmt.Errorf("failed to update images: %w", err)
 		}
+		newmeta.Images = metaImages
 
 		logrus.Infof("saving addon manifest")
 		if err := newmeta.Save("registry"); err != nil {

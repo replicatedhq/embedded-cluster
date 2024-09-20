@@ -98,7 +98,7 @@ jobs:
 
   build-current:
     name: Build current
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster
     needs:
       - git-sha
     outputs:
@@ -134,6 +134,11 @@ jobs:
         uses: ./.github/actions/setup-melange
         with:
           setup-go: false
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build
         env:
@@ -174,7 +179,7 @@ jobs:
 
   build-previous-k0s:
     name: Build previous k0s
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster
     needs:
       - git-sha
     outputs:
@@ -210,6 +215,11 @@ jobs:
         uses: ./.github/actions/setup-melange
         with:
           setup-go: false
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build
         env:
@@ -248,7 +258,7 @@ jobs:
 
   build-upgrade:
     name: Build upgrade
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster
     needs:
       - git-sha
     outputs:
@@ -284,6 +294,11 @@ jobs:
         uses: ./.github/actions/setup-melange
         with:
           setup-go: false
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build
         env:

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -129,24 +128,11 @@ func updateOpenEBSAddonImages(ctx context.Context, chartURL string, chartVersion
 	// make sure we include the linux-utils image.
 	images = append(images, fmt.Sprintf("docker.io/openebs/linux-utils:%s", linuxUtilsVersion))
 
-	if err := ApkoLogin(); err != nil {
-		return fmt.Errorf("failed to apko login: %w", err)
+	metaImages, err := UpdateImages(ctx, openebsImageComponents, openebs.Metadata.Images, images)
+	if err != nil {
+		return fmt.Errorf("failed to update images: %w", err)
 	}
-
-	for _, image := range images {
-		component, ok := openebsImageComponents[RemoveTagFromImage(image)]
-		if !ok {
-			return fmt.Errorf("no component found for image %s", image)
-		}
-		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
-		if err != nil {
-			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
-		}
-		newimage := openebs.Metadata.Images[component.name]
-		newimage.Repo = repo
-		newimage.Tag[runtime.GOARCH] = tag
-		newmeta.Images[component.name] = newimage
-	}
+	newmeta.Images = metaImages
 
 	logrus.Infof("saving addon manifest")
 	if err := newmeta.Save("openebs"); err != nil {

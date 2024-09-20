@@ -15,4 +15,4 @@ go.work.sum
 .gocache
 .gomodcache
 /local-dev/
-
+*.tmp

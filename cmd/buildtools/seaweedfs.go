@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
@@ -114,24 +113,11 @@ func updateSeaweedFSAddonImages(ctx context.Context, chartURL string, chartVersi
 		return fmt.Errorf("failed to get images from seaweedfs chart: %w", err)
 	}
 
-	if err := ApkoLogin(); err != nil {
-		return fmt.Errorf("failed to apko login: %w", err)
+	metaImages, err := UpdateImages(ctx, seaweedfsImageComponents, seaweedfs.Metadata.Images, images)
+	if err != nil {
+		return fmt.Errorf("failed to update images: %w", err)
 	}
-
-	for _, image := range images {
-		component, ok := seaweedfsImageComponents[RemoveTagFromImage(image)]
-		if !ok {
-			return fmt.Errorf("no component found for image %s", image)
-		}
-		repo, tag, err := component.resolveImageRepoAndTag(ctx, image)
-		if err != nil {
-			return fmt.Errorf("failed to resolve image and tag for %s: %w", image, err)
-		}
-		newimage := seaweedfs.Metadata.Images[component.name]
-		newimage.Repo = repo
-		newimage.Tag[runtime.GOARCH] = tag
-		newmeta.Images[component.name] = newimage
-	}
+	newmeta.Images = metaImages
 
 	logrus.Infof("saving addon manifest")
 	if err := newmeta.Save("seaweedfs"); err != nil {

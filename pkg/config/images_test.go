@@ -49,13 +49,13 @@ func TestListK0sImages(t *testing.T) {
 	for _, i := range Metadata.Images {
 		found := false
 		for _, f := range filtered {
-			if f == i.URI() {
+			if f == i.String() {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("ListK0sImages() = %v, want to contain %s", filtered, i.URI())
+			t.Errorf("ListK0sImages() = %v, want to contain %s", filtered, i.String())
 		}
 	}
 

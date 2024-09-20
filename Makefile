@@ -219,11 +219,11 @@ vet: static
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-	go test -timeout 60m -parallel 1 -failfast -v ./e2e
+	go test -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
 e2e-test:
-	go test -timeout 60m -v ./e2e -run $(TEST_NAME)$
+	go test -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run $(TEST_NAME)$
 
 .PHONY: build-ttl.sh
 build-ttl.sh:
