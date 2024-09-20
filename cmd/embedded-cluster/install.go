@@ -37,9 +37,12 @@ var ErrNothingElseToAdd = fmt.Errorf("")
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
-func installAndEnableLocalArtifactMirror() error {
+func installAndEnableLocalArtifactMirror(port int) error {
 	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
+	}
+	if err := writeLocalArtifactMirrorEnvironmentFile(port); err != nil {
+		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
@@ -48,7 +51,41 @@ func installAndEnableLocalArtifactMirror() error {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
-		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
+		return fmt.Errorf("unable to start the local artifact mirror service: %w", err)
+	}
+	return nil
+}
+
+// updateLocalArtifactMirrorService updates the port on which the local artifact mirror is served.
+func updateLocalArtifactMirrorService(port int) error {
+	if err := writeLocalArtifactMirrorEnvironmentFile(port); err != nil {
+		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "restart", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to restart the local artifact mirror service: %w", err)
+	}
+	return nil
+}
+
+const (
+	localArtifactMirrorSystemdConfFile         = "/etc/systemd/system/local-artifact-mirror.service.d/embedded-cluster.conf"
+	localArtifactMirrorEnvironmentFileContents = `[Service]
+Environment="LOCAL_ARTIFACT_MIRROR_PORT=%d"`
+)
+
+func writeLocalArtifactMirrorEnvironmentFile(port int) error {
+	dir := filepath.Dir(localArtifactMirrorSystemdConfFile)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+	contents := fmt.Sprintf(localArtifactMirrorEnvironmentFileContents, port)
+	err = os.WriteFile(localArtifactMirrorSystemdConfFile, []byte(contents), 0644)
+	if err != nil {
+		return fmt.Errorf("write file: %w", err)
 	}
 	return nil
 }
@@ -463,7 +500,7 @@ func installAndWaitForK0s(c *cli.Context, applier *addons.Applier, proxy *ecv1be
 		return nil, err
 	}
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(false, proxy); err != nil {
+	if err := createSystemdUnitFiles(false, proxy, applier.GetLocalArtifactMirrorPort()); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
@@ -591,6 +628,8 @@ var installCommand = &cli.Command{
 				Name:  "private-ca",
 				Usage: "Path to a trusted private CA certificate file",
 			},
+			getAdminColsolePortFlag(),
+			getLocalArtifactMirrorPortFlag(),
 		},
 	)),
 	Action: func(c *cli.Context) error {
@@ -709,6 +748,19 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string, proxy *ecv1beta1.P
 		}
 		opts = append(opts, addons.WithPrivateCAs(privateCAs))
 	}
+
+	adminConsolePort, err := getAdminConsolePortFromFlag(c)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, addons.WithAdminConsolePort(adminConsolePort))
+
+	localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, addons.WithLocalArtifactMirrorPort(localArtifactMirrorPort))
+
 	if adminConsolePwd != "" {
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}

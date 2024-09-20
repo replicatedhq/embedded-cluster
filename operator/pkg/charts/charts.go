@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/k0sproject/dig"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/ohler55/ojg/jp"
-	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -17,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 )
 
 const (
@@ -129,57 +127,85 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *cl
 func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig, charts []v1beta1.Chart) ([]v1beta1.Chart, error) {
 	for i, chart := range charts {
 		if chart.Name == "admin-console" {
+			newVals, err := helm.UnmarshalValues(chart.Values)
+			if err != nil {
+				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
+			}
+
 			// admin-console has "embeddedClusterID" and "isAirgap" as dynamic values
-			newVals, err := setHelmValue(chart.Values, "embeddedClusterID", in.Spec.ClusterID)
+			newVals, err = helm.SetValue(newVals, "embeddedClusterID", in.Spec.ClusterID)
 			if err != nil {
 				return nil, fmt.Errorf("set helm values admin-console.embeddedClusterID: %w", err)
 			}
 
-			newVals, err = setHelmValue(newVals, "isAirgap", fmt.Sprintf("%t", in.Spec.AirGap))
+			newVals, err = helm.SetValue(newVals, "isAirgap", fmt.Sprintf("%t", in.Spec.AirGap))
 			if err != nil {
 				return nil, fmt.Errorf("set helm values admin-console.isAirgap: %w", err)
 			}
 
-			newVals, err = setHelmValue(newVals, "isHA", in.Spec.HighAvailability)
+			newVals, err = helm.SetValue(newVals, "isHA", in.Spec.HighAvailability)
 			if err != nil {
 				return nil, fmt.Errorf("set helm values admin-console.isHA: %w", err)
 			}
 
 			if in.Spec.Proxy != nil {
 				extraEnv := getExtraEnvFromProxy(in.Spec.Proxy.HTTPProxy, in.Spec.Proxy.HTTPSProxy, in.Spec.Proxy.NoProxy)
-				newVals, err = setHelmValue(newVals, "extraEnv", extraEnv)
+				newVals, err = helm.SetValue(newVals, "extraEnv", extraEnv)
 				if err != nil {
 					return nil, fmt.Errorf("set helm values admin-console.extraEnv: %w", err)
 				}
 			}
 
-			charts[i].Values = newVals
+			if in.Spec.AdminConsole != nil && in.Spec.AdminConsole.Port > 0 {
+				newVals, err = helm.SetValue(newVals, "kurlProxy.nodePort", in.Spec.AdminConsole.Port)
+				if err != nil {
+					return nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
+				}
+			}
+
+			charts[i].Values, err = helm.MarshalValues(newVals)
+			if err != nil {
+				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
+			}
 		}
 		if chart.Name == "embedded-cluster-operator" {
+			newVals, err := helm.UnmarshalValues(chart.Values)
+			if err != nil {
+				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
+			}
+
 			// embedded-cluster-operator has "embeddedBinaryName" and "embeddedClusterID" as dynamic values
-			newVals, err := setHelmValue(chart.Values, "embeddedBinaryName", in.Spec.BinaryName)
+			newVals, err = helm.SetValue(newVals, "embeddedBinaryName", in.Spec.BinaryName)
 			if err != nil {
 				return nil, fmt.Errorf("set helm values embedded-cluster-operator.embeddedBinaryName: %w", err)
 			}
 
-			newVals, err = setHelmValue(newVals, "embeddedClusterID", in.Spec.ClusterID)
+			newVals, err = helm.SetValue(newVals, "embeddedClusterID", in.Spec.ClusterID)
 			if err != nil {
 				return nil, fmt.Errorf("set helm values embedded-cluster-operator.embeddedClusterID: %w", err)
 			}
 
 			if in.Spec.Proxy != nil {
 				extraEnv := getExtraEnvFromProxy(in.Spec.Proxy.HTTPProxy, in.Spec.Proxy.HTTPSProxy, in.Spec.Proxy.NoProxy)
-				newVals, err = setHelmValue(newVals, "extraEnv", extraEnv)
+				newVals, err = helm.SetValue(newVals, "extraEnv", extraEnv)
 				if err != nil {
 					return nil, fmt.Errorf("set helm values embedded-cluster-operator.extraEnv: %w", err)
 				}
 			}
 
-			charts[i].Values = newVals
+			charts[i].Values, err = helm.MarshalValues(newVals)
+			if err != nil {
+				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
+			}
 		}
 		if chart.Name == "docker-registry" {
 			if !in.Spec.AirGap {
 				continue
+			}
+
+			newVals, err := helm.UnmarshalValues(chart.Values)
+			if err != nil {
+				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
 			}
 
 			// handle the registry IP, which will always be present in airgap
@@ -189,31 +215,36 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 				return nil, fmt.Errorf("get registry service IP: %w", err)
 			}
 
-			newVals, err := setHelmValue(chart.Values, "service.clusterIP", registryEndpoint)
+			newVals, err = helm.SetValue(newVals, "service.clusterIP", registryEndpoint)
 			if err != nil {
 				return nil, fmt.Errorf("set helm values docker-registry.service.clusterIP: %w", err)
 			}
-			charts[i].Values = newVals
 
-			if !in.Spec.HighAvailability {
-				continue
+			if in.Spec.HighAvailability {
+				// handle the seaweedFS endpoint, which will only be present in HA airgap
+				seaweedfsS3Endpoint, err := registry.GetSeaweedfsS3Endpoint(serviceCIDR)
+				if err != nil {
+					return nil, fmt.Errorf("get seaweedfs s3 endpoint: %w", err)
+				}
+
+				newVals, err = helm.SetValue(newVals, "s3.regionEndpoint", seaweedfsS3Endpoint)
+				if err != nil {
+					return nil, fmt.Errorf("set helm values docker-registry.s3.regionEndpoint: %w", err)
+				}
 			}
 
-			// handle the seaweedFS endpoint, which will only be present in HA airgap
-			seaweedfsS3Endpoint, err := registry.GetSeaweedfsS3Endpoint(serviceCIDR)
+			charts[i].Values, err = helm.MarshalValues(newVals)
 			if err != nil {
-				return nil, fmt.Errorf("get seaweedfs s3 endpoint: %w", err)
+				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
 			}
-
-			newVals, err = setHelmValue(newVals, "s3.regionEndpoint", seaweedfsS3Endpoint)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values docker-registry.s3.regionEndpoint: %w", err)
-			}
-
-			charts[i].Values = newVals
 		}
 		if chart.Name == "velero" {
 			if in.Spec.Proxy != nil {
+				newVals, err := helm.UnmarshalValues(chart.Values)
+				if err != nil {
+					return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
+				}
+
 				extraEnvVars := map[string]interface{}{
 					"extraEnvVars": map[string]string{
 						"HTTP_PROXY":  in.Spec.Proxy.HTTPProxy,
@@ -222,11 +253,15 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 					},
 				}
 
-				newVals, err := setHelmValue(chart.Values, "configuration", extraEnvVars)
+				newVals, err = helm.SetValue(newVals, "configuration", extraEnvVars)
 				if err != nil {
 					return nil, fmt.Errorf("set helm values velero.configuration: %w", err)
 				}
-				charts[i].Values = newVals
+
+				charts[i].Values, err = helm.MarshalValues(newVals)
+				if err != nil {
+					return nil, fmt.Errorf("marshal admin-console.values: %w", err)
+				}
 			}
 		}
 	}
@@ -263,29 +298,6 @@ func patchExtensionsForAirGap(config *v1beta1.Helm) *v1beta1.Helm {
 		config.Charts[idx].ChartName = chartPath
 	}
 	return config
-}
-
-func setHelmValue(valuesYaml string, path string, newValue interface{}) (string, error) {
-	newValuesMap := dig.Mapping{}
-	if err := yaml.Unmarshal([]byte(valuesYaml), &newValuesMap); err != nil {
-		return "", fmt.Errorf("unmarshal initial values: %w", err)
-	}
-
-	x, err := jp.ParseString(path)
-	if err != nil {
-		return "", fmt.Errorf("parse json path %q: %w", path, err)
-	}
-
-	err = x.Set(newValuesMap, newValue)
-	if err != nil {
-		return "", fmt.Errorf("set json path %q to %q: %w", path, newValue, err)
-	}
-
-	newValuesYaml, err := yaml.Marshal(newValuesMap)
-	if err != nil {
-		return "", fmt.Errorf("marshal updated values: %w", err)
-	}
-	return string(newValuesYaml), nil
 }
 
 func getExtraEnvFromProxy(httpProxy string, httpsProxy string, noProxy string) []map[string]interface{} {

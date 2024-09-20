@@ -23,6 +23,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -34,8 +35,7 @@ import (
 )
 
 const (
-	ReleaseName                 = "admin-console"
-	DefaultAdminConsoleNodePort = 30000
+	ReleaseName = "admin-console"
 )
 
 var (
@@ -89,6 +89,7 @@ type AdminConsole struct {
 	airgapBundle string
 	proxyEnv     map[string]string
 	privateCAs   map[string]string
+	port         int
 }
 
 // Version returns the embedded admin console version.
@@ -132,7 +133,14 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 			helmValues["extraEnv"] = extraEnv
 		}
 	}
-	values, err := yaml.Marshal(helmValues)
+
+	var err error
+	helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", a.port)
+	if err != nil {
+		return nil, nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
+	}
+
+	values, err := helm.MarshalValues(helmValues)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal helm values: %w", err)
 	}
@@ -212,14 +220,23 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 }
 
 // New creates a new AdminConsole object.
-func New(ns, password string, licenseFile string, airgapBundle string, proxyEnv map[string]string, privateCAs map[string]string) (*AdminConsole, error) {
+func New(
+	namespace string,
+	password string,
+	licenseFile string,
+	airgapBundle string,
+	proxyEnv map[string]string,
+	privateCAs map[string]string,
+	port int,
+) (*AdminConsole, error) {
 	return &AdminConsole{
-		namespace:    ns,
+		namespace:    namespace,
 		password:     password,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
 		proxyEnv:     proxyEnv,
 		privateCAs:   privateCAs,
+		port:         GetPort(port),
 	}, nil
 }
 
@@ -259,7 +276,7 @@ func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spi
 }
 
 // GetURL returns the URL to the admin console.
-func GetURL(networkInterface string) string {
+func GetURL(networkInterface string, port int) string {
 	ipaddr := defaults.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		var err error
@@ -269,7 +286,15 @@ func GetURL(networkInterface string) string {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	return fmt.Sprintf("http://%s:%v", ipaddr, DefaultAdminConsoleNodePort)
+	return fmt.Sprintf("http://%s:%v", ipaddr, GetPort(port))
+}
+
+// GetURL returns the URL to the admin console.
+func GetPort(port int) int {
+	if port <= 0 {
+		return defaults.AdminConsolePort
+	}
+	return port
 }
 
 func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {

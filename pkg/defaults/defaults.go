@@ -8,11 +8,6 @@ var (
 	DefaultProvider = NewProvider("")
 )
 
-var (
-	// provider holds a global reference to the default provider.
-	provider *Provider
-)
-
 // Holds the default no proxy values.
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
 
@@ -22,6 +17,9 @@ const KotsadmNamespace = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
 const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
+
+const AdminConsolePort = 30000
+const LocalArtifactMirrorPort = 50000
 
 // BinaryName calls BinaryName on the default provider.
 func BinaryName() string {

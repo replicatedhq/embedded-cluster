@@ -269,6 +269,7 @@ list-distros:
 
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
+create-node%: NODE_PORT = 30000
 create-node%:
 	@if ! docker images | grep -q ec-$(DISTRO); then \
 		$(MAKE) -C dev/distros build-$(DISTRO); \
@@ -282,7 +283,7 @@ create-node%:
 		-v /var/lib/k0s \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
-		$(if $(filter node0,node$*),-p 30000:30000) \
+		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
 		ec-$(DISTRO)
 
 	@$(MAKE) ssh-node$*

@@ -9,6 +9,7 @@ RUN --mount=type=cache,target="/go/pkg/mod" go mod download
 
 COPY common.mk common.mk
 COPY operator/ operator/
+COPY pkg/ pkg/
 COPY kinds/ kinds/
 COPY utils/ utils/
 

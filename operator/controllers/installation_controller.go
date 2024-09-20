@@ -31,6 +31,7 @@ import (
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	"github.com/k0sproject/version"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -753,7 +754,11 @@ func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *
 		// if we are running in an airgap environment all assets are already present in the
 		// node and are served by the local-artifact-mirror binary listening on localhost
 		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
-		k0surl = "http://127.0.0.1:50000/bin/k0s-upgrade"
+		port := defaults.LocalArtifactMirrorPort
+		if in.Spec.LocalArtifactMirror != nil && in.Spec.LocalArtifactMirror.Port > 0 {
+			port = in.Spec.LocalArtifactMirror.Port
+		}
+		k0surl = fmt.Sprintf("http://127.0.0.1:%d/bin/k0s-upgrade", port)
 	} else {
 		artifact := meta.Artifacts["k0s"]
 		if strings.HasPrefix(artifact, "https://") || strings.HasPrefix(artifact, "http://") {

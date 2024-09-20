@@ -21,6 +21,20 @@ func WithPrivateCAs(privateCAs map[string]string) Option {
 	}
 }
 
+// WithAdminConsolePort sets the port on which the admin console will be served.
+func WithAdminConsolePort(port int) Option {
+	return func(a *Applier) {
+		a.adminConsolePort = port
+	}
+}
+
+// WithLocalArtifactMirrorPort sets the port on which the local artifact mirror will be served.
+func WithLocalArtifactMirrorPort(port int) Option {
+	return func(a *Applier) {
+		a.localArtifactMirrorPort = port
+	}
+}
+
 // Quiet disables logging for addons.
 func Quiet() Option {
 	return func(a *Applier) {

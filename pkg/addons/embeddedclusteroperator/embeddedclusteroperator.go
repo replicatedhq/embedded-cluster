@@ -62,13 +62,15 @@ func init() {
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
 // helm chart.
 type EmbeddedClusterOperator struct {
-	namespace     string
-	deployName    string
-	endUserConfig *ecv1beta1.Config
-	licenseFile   string
-	airgap        bool
-	proxyEnv      map[string]string
-	privateCAs    map[string]string
+	namespace               string
+	deployName              string
+	endUserConfig           *ecv1beta1.Config
+	licenseFile             string
+	airgap                  bool
+	proxyEnv                map[string]string
+	privateCAs              map[string]string
+	adminConsolePort        int
+	localArtifactMirrorPort int
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -259,11 +261,17 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 			},
 		},
 		Spec: ecv1beta1.InstallationSpec{
-			ClusterID:                 metrics.ClusterID().String(),
-			MetricsBaseURL:            metrics.BaseURL(license),
-			AirGap:                    e.airgap,
-			Proxy:                     proxySpec,
-			Network:                   k0sConfigToNetworkSpec(k0sCfg),
+			ClusterID:      metrics.ClusterID().String(),
+			MetricsBaseURL: metrics.BaseURL(license),
+			AirGap:         e.airgap,
+			Proxy:          proxySpec,
+			Network:        k0sConfigToNetworkSpec(k0sCfg),
+			AdminConsole: &ecv1beta1.AdminConsoleSpec{
+				Port: e.adminConsolePort,
+			},
+			LocalArtifactMirror: &ecv1beta1.LocalArtifactMirrorSpec{
+				Port: e.localArtifactMirrorPort,
+			},
 			Config:                    cfgspec,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
@@ -279,15 +287,25 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 }
 
 // New creates a new EmbeddedClusterOperator addon.
-func New(endUserConfig *ecv1beta1.Config, licenseFile string, airgapEnabled bool, proxyEnv map[string]string, privateCAs map[string]string) (*EmbeddedClusterOperator, error) {
+func New(
+	endUserConfig *ecv1beta1.Config,
+	licenseFile string,
+	airgapEnabled bool,
+	proxyEnv map[string]string,
+	privateCAs map[string]string,
+	adminConsolePort int,
+	localArtifactMirrorPort int,
+) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
-		namespace:     "embedded-cluster",
-		deployName:    "embedded-cluster-operator",
-		endUserConfig: endUserConfig,
-		licenseFile:   licenseFile,
-		airgap:        airgapEnabled,
-		proxyEnv:      proxyEnv,
-		privateCAs:    privateCAs,
+		namespace:               "embedded-cluster",
+		deployName:              "embedded-cluster-operator",
+		endUserConfig:           endUserConfig,
+		licenseFile:             licenseFile,
+		airgap:                  airgapEnabled,
+		proxyEnv:                proxyEnv,
+		privateCAs:              privateCAs,
+		adminConsolePort:        adminConsolePort,
+		localArtifactMirrorPort: localArtifactMirrorPort,
 	}, nil
 }
 
