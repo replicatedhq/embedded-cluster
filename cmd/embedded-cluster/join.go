@@ -269,7 +269,7 @@ var joinCommand = &cli.Command{
 		logrus.Debugf("creating systemd unit files")
 		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
 		if jcmd.Spec.LocalArtifactMirror != nil && jcmd.Spec.LocalArtifactMirror.Port > 0 {
-			localArtifactMirrorPort = jcmd.Spec.LocalArtifactMirror.LocalArtifactMirrorPort
+			localArtifactMirrorPort = jcmd.Spec.LocalArtifactMirror.Port
 		}
 		// both controller and worker nodes will have 'worker' in the join command
 		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.Spec.Proxy, localArtifactMirrorPort); err != nil {
