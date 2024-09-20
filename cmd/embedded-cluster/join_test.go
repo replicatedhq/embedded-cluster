@@ -102,7 +102,7 @@ func TestJoinCommandResponseOverrides(t *testing.T) {
 		t.Run(tname, func(t *testing.T) {
 			req := require.New(t)
 			join := JoinCommandResponse{
-				Spec: ecv1beta1.InstallationSpec{
+				InstallationSpec: ecv1beta1.InstallationSpec{
 					Config: &ecv1beta1.ConfigSpec{
 						UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{
 							K0s: tt.EmbeddedOverrides,

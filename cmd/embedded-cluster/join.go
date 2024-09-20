@@ -41,7 +41,7 @@ type JoinCommandResponse struct {
 	ClusterID              uuid.UUID                  `json:"clusterID"`
 	EmbeddedClusterVersion string                     `json:"embeddedClusterVersion"`
 	AirgapRegistryAddress  string                     `json:"airgapRegistryAddress"`
-	Spec                   ecv1beta1.InstallationSpec `json:"installationSpec,omitempty"`
+	InstallationSpec       ecv1beta1.InstallationSpec `json:"installationSpec,omitempty"`
 }
 
 // extractK0sConfigOverridePatch parses the provided override and returns a dig.Mapping that
@@ -65,13 +65,13 @@ func (j JoinCommandResponse) extractK0sConfigOverridePatch(data []byte) (dig.Map
 // EndUserOverrides returns a dig.Mapping that can be applied on top of a k0s configuration.
 // This patch is assembled based on the EndUserK0sConfigOverrides field.
 func (j JoinCommandResponse) EndUserOverrides() (dig.Mapping, error) {
-	return j.extractK0sConfigOverridePatch([]byte(j.Spec.EndUserK0sConfigOverrides))
+	return j.extractK0sConfigOverridePatch([]byte(j.InstallationSpec.EndUserK0sConfigOverrides))
 }
 
 // EmbeddedOverrides returns a dig.Mapping that can be applied on top of a k0s configuration.
 // This patch is assembled based on the K0sUnsupportedOverrides field.
 func (j JoinCommandResponse) EmbeddedOverrides() (dig.Mapping, error) {
-	return j.extractK0sConfigOverridePatch([]byte(j.Spec.Config.UnsupportedOverrides.K0s))
+	return j.extractK0sConfigOverridePatch([]byte(j.InstallationSpec.Config.UnsupportedOverrides.K0s))
 }
 
 // getJoinToken issues a request to the kots api to get the actual join command
@@ -110,7 +110,7 @@ func startAndWaitForK0s(c *cli.Context, jcmd *JoinCommandResponse) error {
 	logrus.Debugf("starting %s service", binName)
 	if err := startK0sService(); err != nil {
 		err := fmt.Errorf("unable to start service: %w", err)
-		metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+		metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 		return err
 	}
 
@@ -118,7 +118,7 @@ func startAndWaitForK0s(c *cli.Context, jcmd *JoinCommandResponse) error {
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		err := fmt.Errorf("unable to wait for node: %w", err)
-		metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+		metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 		return err
 	}
 
@@ -199,13 +199,13 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 		}
 
-		setProxyEnv(jcmd.Spec.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Spec.Proxy, networkInterface)
+		setProxyEnv(jcmd.InstallationSpec.Proxy)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterface)
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
 		if !proxyOK {
-			return fmt.Errorf("no-proxy config %q does not allow access to local IP %q", jcmd.Spec.Proxy.NoProxy, localIP)
+			return fmt.Errorf("no-proxy config %q does not allow access to local IP %q", jcmd.InstallationSpec.Proxy.NoProxy, localIP)
 		}
 
 		isAirgap := c.String("airgap-bundle") != ""
@@ -217,25 +217,25 @@ var joinCommand = &cli.Command{
 			}
 		}
 
-		metrics.ReportJoinStarted(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID)
+		metrics.ReportJoinStarted(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Debugf("materializing %s binaries", binName)
 		if err := materializeFiles(c); err != nil {
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, "", jcmd.Spec.Proxy)
+		applier, err := getAddonsApplier(c, "", jcmd.InstallationSpec.Proxy)
 		if err != nil {
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		// jcmd.Spec.MetricsBaseURL is the replicated.app endpoint url
-		replicatedAPIURL := jcmd.Spec.MetricsBaseURL
+		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
+		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.Spec.Proxy); err != nil {
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
@@ -247,54 +247,54 @@ var joinCommand = &cli.Command{
 		logrus.Debugf("saving token to disk")
 		if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 			err := fmt.Errorf("unable to save token to disk: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Debugf("installing %s binaries", binName)
 		if err := installK0sBinary(); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		if jcmd.AirgapRegistryAddress != "" {
 			if err := airgap.AddInsecureRegistry(jcmd.AirgapRegistryAddress); err != nil {
 				err := fmt.Errorf("unable to add insecure registry: %w", err)
-				metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+				metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
 		}
 
 		logrus.Debugf("creating systemd unit files")
 		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
-		if jcmd.Spec.LocalArtifactMirror != nil && jcmd.Spec.LocalArtifactMirror.Port > 0 {
-			localArtifactMirrorPort = jcmd.Spec.LocalArtifactMirror.Port
+		if jcmd.InstallationSpec.LocalArtifactMirror != nil && jcmd.InstallationSpec.LocalArtifactMirror.Port > 0 {
+			localArtifactMirrorPort = jcmd.InstallationSpec.LocalArtifactMirror.Port
 		}
 		// both controller and worker nodes will have 'worker' in the join command
-		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.Spec.Proxy, localArtifactMirrorPort); err != nil {
+		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.InstallationSpec.Proxy, localArtifactMirrorPort); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Debugf("overriding network configuration")
 		if err := applyNetworkConfiguration(jcmd, networkInterface); err != nil {
 			err := fmt.Errorf("unable to apply network configuration: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 		}
 
 		logrus.Debugf("applying configuration overrides")
 		if err := applyJoinConfigurationOverrides(jcmd); err != nil {
 			err := fmt.Errorf("unable to apply configuration overrides: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		logrus.Debugf("joining node to cluster")
 		if err := runK0sInstallCommand(jcmd.K0sJoinCommand, networkInterface); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
@@ -303,7 +303,7 @@ var joinCommand = &cli.Command{
 		}
 
 		if !strings.Contains(jcmd.K0sJoinCommand, "controller") {
-			metrics.ReportJoinSucceeded(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID)
+			metrics.ReportJoinSucceeded(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 			logrus.Debugf("worker node join finished")
 			return nil
 		}
@@ -311,37 +311,37 @@ var joinCommand = &cli.Command{
 		kcli, err := kubeutils.KubeClient()
 		if err != nil {
 			err := fmt.Errorf("unable to get kube client: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 		hostname, err := os.Hostname()
 		if err != nil {
 			err := fmt.Errorf("unable to get hostname: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 		if err := waitForNode(c.Context, kcli, hostname); err != nil {
 			err := fmt.Errorf("unable to wait for node: %w", err)
-			metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
 		if c.Bool("enable-ha") {
 			if err := maybeEnableHA(c.Context, kcli); err != nil {
 				err := fmt.Errorf("unable to enable high availability: %w", err)
-				metrics.ReportJoinFailed(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID, err)
+				metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
 		}
 
-		metrics.ReportJoinSucceeded(c.Context, jcmd.Spec.MetricsBaseURL, jcmd.ClusterID)
+		metrics.ReportJoinSucceeded(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Debugf("controller node join finished")
 		return nil
 	},
 }
 
 func applyNetworkConfiguration(jcmd *JoinCommandResponse, networkInterface string) error {
-	if jcmd.Spec.Network != nil {
+	if jcmd.InstallationSpec.Network != nil {
 		clusterSpec := config.RenderK0sConfig()
 		address, err := netutils.FirstValidAddress(networkInterface)
 		if err != nil {
@@ -351,13 +351,13 @@ func applyNetworkConfiguration(jcmd *JoinCommandResponse, networkInterface strin
 		clusterSpec.Spec.Storage.Etcd.PeerAddress = address
 		// NOTE: we should be copying everything from the in cluster config spec and overriding
 		// the node specific config from clusterSpec.GetClusterWideConfig()
-		clusterSpec.Spec.Network.PodCIDR = jcmd.Spec.Network.PodCIDR
-		clusterSpec.Spec.Network.ServiceCIDR = jcmd.Spec.Network.ServiceCIDR
-		if jcmd.Spec.Network.NodePortRange != "" {
+		clusterSpec.Spec.Network.PodCIDR = jcmd.InstallationSpec.Network.PodCIDR
+		clusterSpec.Spec.Network.ServiceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
+		if jcmd.InstallationSpec.Network.NodePortRange != "" {
 			if clusterSpec.Spec.API.ExtraArgs == nil {
 				clusterSpec.Spec.API.ExtraArgs = map[string]string{}
 			}
-			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.Spec.Network.NodePortRange
+			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.InstallationSpec.Network.NodePortRange
 		}
 		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
 
