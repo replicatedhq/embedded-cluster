@@ -132,70 +132,77 @@ $(ENVTEST): $(LOCALBIN)
 USE_CHAINGUARD ?= 1
 
 export PACKAGE_VERSION ?= $(VERSION)
-export IMAGE_NAMESPACE ?= replicated
-export IMAGE_NAME ?= $(IMAGE_NAMESPACE)/embedded-cluster-operator-image
-export IMAGE_TAG ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/+/-/')
-export IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
+export IMAGE_NAME ?= replicated/embedded-cluster-operator-image
 export CHART_REMOTE ?= oci://registry.replicated.com/library
 export CHART_VERSION ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/^v//')
 
-export MELANGE_CONFIG := deploy/melange.tmpl.yaml
+export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: melange-build-operator
 melange-build-operator:
 	dagger call build-operator-package \
 		--ec-version $(PACKAGE_VERSION) \
 		--arch $(ARCH) \
-		export --path build/operator-package
-
-export APKO_CONFIG := deploy/apko.tmpl.yaml
+		export --path build
 
 .PHONY: build-operator-image
 build-operator-image:
-	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+	@if [ "$(USE_CHAINGUARD)" == "1" ]; then \
 		$(MAKE) build-operator-image-chainguard; \
 	else \
 		$(MAKE) build-operator-image-dockerfile; \
 	fi
 
 .PHONY: build-operator-image-chainguard
-build-operator-image-chainguard: melange-build-operator apko-build
+build-operator-image-chainguard:
+	dagger call build-operator-image \
+		--ec-version $(PACKAGE_VERSION) \
+		--repo $(IMAGE_NAME) \
+		--arch $(ARCH) \
+		export --path build/operator-package
 
 .PHONY: build-operator-image-dockerfile
 build-operator-image-dockerfile:
-	docker build --platform="$(OS)/$(ARCH)" -t $(IMAGE) -f ../dev/dockerfiles/operator/Dockerfile.ttlsh ../
+	docker build --platform="$(OS)/$(ARCH)" -t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" -f ../dev/dockerfiles/operator/Dockerfile.ttlsh ../
 	mkdir -p build
-	echo "$(IMAGE)" > build/image
+	echo "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" > build/image
 
 .PHONY: build-and-push-operator-image
 build-and-push-operator-image:
-	if [ "$(USE_CHAINGUARD)" == "1" ]; then \
+	@if [ "$(USE_CHAINGUARD)" == "1" ]; then \
 		$(MAKE) build-and-push-operator-image-chainguard; \
 	else \
 		$(MAKE) build-and-push-operator-image-dockerfile; \
 	fi
 
 .PHONY: build-and-push-operator-image-chainguard
-build-and-push-operator-image-chainguard: melange-build-operator apko-build-and-publish
+build-and-push-operator-image-chainguard:
+	mkdir -p build
+	dagger call publish-operator-image \
+		--ec-version $(PACKAGE_VERSION) \
+		--repo $(IMAGE_NAME) \
+		--arch $(ARCH) \
+		> build/digest
+	@$(MAKE) apko-output-image IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-and-push-operator-image-dockerfile
 build-and-push-operator-image-dockerfile: build-operator-image-dockerfile
-	docker push $(IMAGE)
+	docker push "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-chart
 build-chart:
-	cd charts/embedded-cluster-operator && ../../scripts/publish-helm-chart.sh
+	cd charts/embedded-cluster-operator && IMAGE_TAG=$(call image-tag,$(PACKAGE_VERSION)) ../../scripts/publish-helm-chart.sh
 	mkdir -p build
 	echo "$(CHART_REMOTE)/embedded-cluster-operator:$(CHART_VERSION)" > build/chart
 
 .PHONY: build-ttl.sh
 build-ttl.sh:
-	$(MAKE) build-and-push-operator-image \
-		IMAGE=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image:$(IMAGE_TAG)
+	@$(MAKE) build-and-push-operator-image \
+		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image
 
 .PHONY: build-chart-ttl.sh
 build-chart-ttl.sh:
-	$(MAKE) build-chart \
+	@$(MAKE) build-chart \
 		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image \
 		CHART_REMOTE=oci://ttl.sh/$(CURRENT_USER)
 

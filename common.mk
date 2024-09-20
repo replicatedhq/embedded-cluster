@@ -22,6 +22,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+image-tag = $(shell echo "$1" | sed 's/+/-/')
+
 .PHONY: print-%
 print-%:
 	@echo -n $($*)
@@ -90,13 +92,12 @@ apko-print-pkg-version: apko-template check-env-PACKAGE_NAME
 		head -n1
 
 .PHONY: apko-output-image
-apko-output-image:
+apko-output-image: check-env-IMAGE
 	@digest=$$(cut -s -d'@' -f2 build/digest); \
 	if [ -z "$$digest" ]; then \
 		echo "error: no image digest found" >&2; \
 		exit 1; \
 	fi ; \
-	mkdir -p build; \
 	echo "$(IMAGE)@$$digest" > build/image
 
 .PHONY: melange-build
