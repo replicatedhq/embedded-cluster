@@ -170,7 +170,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags() []string {
+func InstallFlags(nodeIP string) []string {
 	return []string{
 		"install",
 		"controller",
@@ -179,6 +179,7 @@ func InstallFlags() []string {
 		"--enable-worker",
 		"--no-taints",
 		"--enable-dynamic-config",
+		"--kubelet-extra-args", fmt.Sprintf(`"--node-ip=%s"`, nodeIP),
 		"-c", defaults.PathToK0sConfig(),
 	}
 }

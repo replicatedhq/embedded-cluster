@@ -28,6 +28,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
@@ -183,6 +184,13 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("usage: %s join <url> <token>", binName)
 		}
 
+		logrus.Debugf("getting network interface from join command")
+		jcmdAddress := strings.Split(c.Args().Get(0), ":")[0]
+		networkInterface, err := netutils.InterfaceNameForAddress(jcmdAddress)
+		if err != nil {
+			return fmt.Errorf("unable to get network interface for address %s: %w", jcmdAddress, err)
+		}
+
 		logrus.Debugf("fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
@@ -190,7 +198,7 @@ var joinCommand = &cli.Command{
 		}
 
 		setProxyEnv(jcmd.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy, "") // TODO (@salah): detect network interface from join command
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.Proxy, networkInterface)
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
@@ -265,7 +273,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("overriding network configuration")
-		if err := applyNetworkConfiguration(c, jcmd); err != nil {
+		if err := applyNetworkConfiguration(jcmd, networkInterface); err != nil {
 			err := fmt.Errorf("unable to apply network configuration: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 		}
@@ -278,7 +286,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("joining node to cluster")
-		if err := runK0sInstallCommand(jcmd.K0sJoinCommand); err != nil {
+		if err := runK0sInstallCommand(jcmd.K0sJoinCommand, networkInterface); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -326,9 +334,15 @@ var joinCommand = &cli.Command{
 	},
 }
 
-func applyNetworkConfiguration(c *cli.Context, jcmd *JoinCommandResponse) error {
+func applyNetworkConfiguration(jcmd *JoinCommandResponse, networkInterface string) error {
 	if jcmd.Network != nil {
 		clusterSpec := config.RenderK0sConfig()
+		address, err := netutils.FirstValidAddress(networkInterface)
+		if err != nil {
+			return fmt.Errorf("unable to find first valid address: %w", err)
+		}
+		clusterSpec.Spec.API.Address = address
+		clusterSpec.Spec.Storage.Etcd.PeerAddress = address
 		// NOTE: we should be copying everything from the in cluster config spec and overriding
 		// the node specific config from clusterSpec.GetClusterWideConfig()
 		clusterSpec.Spec.Network.PodCIDR = jcmd.Network.PodCIDR
@@ -468,12 +482,18 @@ func systemdUnitFileName() string {
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
-func runK0sInstallCommand(fullcmd string) error {
+func runK0sInstallCommand(fullcmd string, networkInterface string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
 	}
+
+	nodeIP, err := netutils.FirstValidAddress(networkInterface)
+	if err != nil {
+		return fmt.Errorf("unable to find first valid address: %w", err)
+	}
+	args = append(args, "--kubelet-extra-args", fmt.Sprintf(`"--node-ip=%s"`, nodeIP))
 
 	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
 		return err

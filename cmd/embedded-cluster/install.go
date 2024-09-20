@@ -337,6 +337,7 @@ func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.Cluste
 		return nil, fmt.Errorf("unable to find first valid address: %w", err)
 	}
 	cfg.Spec.API.Address = address
+	cfg.Spec.Storage.Etcd.PeerAddress = address
 	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
@@ -408,13 +409,17 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 
 // installK0s runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
-func installK0s() error {
+func installK0s(c *cli.Context) error {
 	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
 	hstbin := defaults.K0sBinaryPath()
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
-	if _, err := helpers.RunCommand(hstbin, config.InstallFlags()...); err != nil {
+	nodeIP, err := netutils.FirstValidAddress(c.String("network-interface"))
+	if err != nil {
+		return fmt.Errorf("unable to find first valid address: %w", err)
+	}
+	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(nodeIP)...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
 	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
@@ -465,7 +470,7 @@ func installAndWaitForK0s(c *cli.Context, applier *addons.Applier, proxy *ecv1be
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := installK0s(); err != nil {
+	if err := installK0s(c); err != nil {
 		err := fmt.Errorf("unable update cluster: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
