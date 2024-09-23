@@ -266,10 +266,10 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
 		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
 	}
-	if rel.ChannelID != license.Spec.ChannelID {
+	if !channelIDExists(license, rel.ChannelID) {
 		// if the channel is different, we will not be able to install the pinned vendor application version within kots
 		// this may result in an immediate k8s upgrade after installation, which is undesired
-		return nil, fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+		return nil, fmt.Errorf("license channel %s is not allowed by license, please provide the correct license", rel.ChannelID)
 	}
 
 	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
@@ -765,4 +765,17 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string, proxy *ecv1beta1.P
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}
 	return addons.NewApplier(opts...), nil
+}
+
+func channelIDExists(license *kotsv1beta1.License, targetID string) bool {
+	if len(license.Spec.Channels) == 0 {
+		return license.Spec.ChannelID == targetID
+	}
+
+	for _, channel := range license.Spec.Channels {
+		if channel.ChannelID == targetID {
+			return true
+		}
+	}
+	return false
 }
