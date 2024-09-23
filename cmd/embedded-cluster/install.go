@@ -269,7 +269,7 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 	if !channelIDExists(license, rel.ChannelID) {
 		// if the channel is different, we will not be able to install the pinned vendor application version within kots
 		// this may result in an immediate k8s upgrade after installation, which is undesired
-		return nil, fmt.Errorf("license channel %s is not allowed by license, please provide the correct license", rel.ChannelID)
+		return nil, fmt.Errorf("license channel does not match binary channel %s, please provide the correct license", rel.ChannelID)
 	}
 
 	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
