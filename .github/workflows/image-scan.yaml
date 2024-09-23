@@ -36,13 +36,13 @@ jobs:
       - name: Build and push local-artifact-mirror image
         id: local-artifact-mirror
         run: |
-          make -C local-artifact-mirror apko build-ttl.sh
+          make -C local-artifact-mirror build-ttl.sh
           echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
 
       - name: Build and push operator image
         id: operator
         run: |
-          make -C operator apko build-ttl.sh build-chart-ttl.sh
+          make -C operator build-ttl.sh build-chart-ttl.sh
           echo "image=$(cat operator/build/image)" >> $GITHUB_OUTPUT
           echo "chart=$(cat operator/build/chart)" >> $GITHUB_OUTPUT
 
