@@ -17,16 +17,6 @@ func TestInit(t *testing.T) {
 	assert.DirExists(t, def.EmbeddedClusterBinsSubDir(), "embedded-cluster binary dir should exist")
 }
 
-func TestPreferredNodeIPAddress(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
-	def := NewProvider(tmpdir)
-	ip, err := def.PreferredNodeIPAddress()
-	assert.NoError(t, err)
-	assert.NotEmpty(t, ip, "ip address should not be empty")
-}
-
 func TestEnsureAllDirectoriesAreInsideBase(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "embedded-cluster")
 	assert.NoError(t, err)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/containers/image/v5/docker"
+	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	"github.com/distribution/reference"
@@ -364,6 +365,18 @@ func GetImageDigest(ctx context.Context, img string, arch string) (string, error
 	}
 
 	if !manifest.MIMETypeIsMultiImage(maniftype) {
+		i, err := image.FromSource(ctx, sysctx, src)
+		if err != nil {
+			return "", fmt.Errorf("image from source: %w", err)
+		}
+		defer i.Close()
+		info, err := i.Inspect(ctx)
+		if err != nil {
+			return "", fmt.Errorf("inspect image: %w", err)
+		}
+		if info.Architecture != arch {
+			return "", &DockerManifestNotFoundError{image: img, arch: arch, err: err}
+		}
 		digest, err := manifest.Digest(manifraw)
 		if err != nil {
 			return "", fmt.Errorf("get manifest digest: %w", err)

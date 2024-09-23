@@ -23,7 +23,7 @@ func TestLocalArtifactMirror(t *testing.T) {
 	defer cleanupCluster(t, tc)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"default-install.sh"}
+	line := []string{"default-install.sh", "--local-artifact-mirror-port", "50001"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -34,7 +34,7 @@ func TestLocalArtifactMirror(t *testing.T) {
 		{"systemctl", "stop", "local-artifact-mirror"},
 		{"systemctl", "start", "local-artifact-mirror"},
 		{"systemctl", "status", "local-artifact-mirror"},
-		{"curl", "-o", "/tmp/kubectl-test", "127.0.0.1:50000/bin/kubectl"},
+		{"curl", "-o", "/tmp/kubectl-test", "127.0.0.1:50001/bin/kubectl"},
 		{"chmod", "755", "/tmp/kubectl-test"},
 		{"/tmp/kubectl-test", "version", "--client"},
 	}
@@ -47,13 +47,13 @@ func TestLocalArtifactMirror(t *testing.T) {
 		t.Fatalf("fail to copy file: %v", err)
 	}
 
-	command = []string{"curl", "-O", "--fail", "127.0.0.1:50000/logs/passwd"}
+	command = []string{"curl", "-O", "--fail", "127.0.0.1:50001/logs/passwd"}
 	t.Logf("running %v", command)
 	if _, _, err := RunCommandOnNode(t, tc, 0, command); err == nil {
 		t.Fatalf("we should not be able to fetch logs from local artifact mirror")
 	}
 
-	command = []string{"curl", "-O", "--fail", "127.0.0.1:50000/../../../etc/passwd"}
+	command = []string{"curl", "-O", "--fail", "127.0.0.1:50001/../../../etc/passwd"}
 	t.Logf("running %v", command)
 	if _, _, err := RunCommandOnNode(t, tc, 0, command); err == nil {
 		t.Fatalf("we should not be able to fetch paths with ../")

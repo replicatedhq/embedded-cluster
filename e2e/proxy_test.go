@@ -48,7 +48,6 @@ func TestProxiedEnvironment(t *testing.T) {
 	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
 	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -283,7 +282,6 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	line := []string{"single-node-install.sh", "ui"}
 	line = append(line, "--http-proxy", cluster.HTTPMITMProxy)
 	line = append(line, "--https-proxy", cluster.HTTPMITMProxy)
-	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
 	line = append(line, "--private-ca", "/usr/local/share/ca-certificates/proxy/ca.crt")
 	_, _, err := RunCommandOnNode(t, tc, 0, line, withMITMProxyEnv(tc.IPs))
 	require.NoError(t, err, "failed to install embedded-cluster on node 0")

@@ -326,14 +326,18 @@ spec:
                 Error connecting to {{ .ReplicatedAPIURL }}.
                 Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
                 and --no-proxy flags if there is a proxy server.
+                The static IP addresses for {{ .ReplicatedAPIURL }} are
+                162.159.133.41 and 162.159.134.41.
           - pass:
               when: 'statusCode == 200'
               message: 'Connected to {{ .ReplicatedAPIURL }}'
           - fail:
               message: >
-                Unexpected response from {{ .ReplicatedAPIURL }}.
+                Error connecting to {{ .ReplicatedAPIURL }}.
                 Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
                 and --no-proxy flags if there is a proxy server.
+                The static IP addresses for {{ .ReplicatedAPIURL }} are
+                162.159.133.41 and 162.159.134.41.
     - http:
         checkName: Proxy Registry Access
         collectorName: http-proxy-replicated-com
@@ -345,6 +349,8 @@ spec:
                 Error connecting to {{ .ProxyRegistryURL }}.
                 Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
                 and --no-proxy flags if there is a proxy server.
+                The static IP addresses for {{ .ProxyRegistryURL }} are
+                162.159.137.43 and 162.159.138.43.
           - pass:
               when: 'statusCode == 401'
               message: 'Connected to {{ .ProxyRegistryURL }}'
@@ -353,6 +359,8 @@ spec:
                 Unexpected response from {{ .ProxyRegistryURL }}.
                 Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
                 and --no-proxy flags if there is a proxy server.
+                The static IP addresses for {{ .ProxyRegistryURL }} are
+                162.159.137.43 and 162.159.138.43.
     - textAnalyze:
         checkName: Resolver Configuration
         fileName: host-collectors/run-host/resolv.conf.txt

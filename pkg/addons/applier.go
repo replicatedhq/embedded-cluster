@@ -41,19 +41,21 @@ type AddOn interface {
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
 type Applier struct {
-	prompt          bool
-	verbose         bool
-	adminConsolePwd string // admin console password
-	licenseFile     string
-	onlyDefaults    bool
-	endUserConfig   *ecv1beta1.Config
-	airgapBundle    string
-	proxyEnv        map[string]string
-	privateCAs      map[string]string
+	prompt                  bool
+	verbose                 bool
+	adminConsolePwd         string // admin console password
+	licenseFile             string
+	onlyDefaults            bool
+	endUserConfig           *ecv1beta1.Config
+	airgapBundle            string
+	proxyEnv                map[string]string
+	privateCAs              map[string]string
+	adminConsolePort        int
+	localArtifactMirrorPort int
 }
 
 // Outro runs the outro in all enabled add-ons.
-func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, endUserCfg *ecv1beta1.Config, releaseMetadata *types.ReleaseMetadata) error {
+func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, endUserCfg *ecv1beta1.Config, releaseMetadata *types.ReleaseMetadata, networkInterface string) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
@@ -79,7 +81,7 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 	if err := spinForInstallation(ctx, kcli); err != nil {
 		return err
 	}
-	if err := printKotsadmLinkMessage(a.licenseFile); err != nil {
+	if err := printKotsadmLinkMessage(a.licenseFile, networkInterface, a.GetAdminConsolePort()); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
 	return nil
@@ -250,6 +252,20 @@ func (a *Applier) HostPreflightsForRestore() (*v1beta2.HostPreflightSpec, error)
 	return a.hostPreflights(addons)
 }
 
+func (a *Applier) GetAdminConsolePort() int {
+	if a.adminConsolePort <= 0 {
+		return defaults.AdminConsolePort
+	}
+	return a.adminConsolePort
+}
+
+func (a *Applier) GetLocalArtifactMirrorPort() int {
+	if a.localArtifactMirrorPort <= 0 {
+		return defaults.LocalArtifactMirrorPort
+	}
+	return a.localArtifactMirrorPort
+}
+
 func (a *Applier) hostPreflights(addons []AddOn) (*v1beta2.HostPreflightSpec, error) {
 	allpf := &v1beta2.HostPreflightSpec{}
 	for _, addon := range addons {
@@ -280,7 +296,15 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, reg)
 
-	embedoperator, err := embeddedclusteroperator.New(a.endUserConfig, a.licenseFile, a.airgapBundle != "", a.proxyEnv, a.privateCAs)
+	embedoperator, err := embeddedclusteroperator.New(
+		a.endUserConfig,
+		a.licenseFile,
+		a.airgapBundle != "",
+		a.proxyEnv,
+		a.privateCAs,
+		a.GetAdminConsolePort(),
+		a.GetLocalArtifactMirrorPort(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
 	}
@@ -296,7 +320,15 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, vel)
 
-	aconsole, err := adminconsole.New(defaults.KotsadmNamespace, a.adminConsolePwd, a.licenseFile, a.airgapBundle, a.proxyEnv, a.privateCAs)
+	aconsole, err := adminconsole.New(
+		defaults.KotsadmNamespace,
+		a.adminConsolePwd,
+		a.licenseFile,
+		a.airgapBundle,
+		a.proxyEnv,
+		a.privateCAs,
+		a.GetAdminConsolePort(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
 	}
@@ -391,7 +423,7 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 }
 
 // printKotsadmLinkMessage prints the success message when the admin console is online.
-func printKotsadmLinkMessage(licenseFile string) error {
+func printKotsadmLinkMessage(licenseFile string, networkInterface string, adminConsolePort int) error {
 	var err error
 	license := &kotsv1beta1.License{}
 	if licenseFile != "" {
@@ -401,16 +433,18 @@ func printKotsadmLinkMessage(licenseFile string) error {
 		}
 	}
 
+	adminConsoleURL := adminconsole.GetURL(networkInterface, adminConsolePort)
+
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 	var successMessage string
 	if license != nil {
 		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install %s: %s%s%s",
-			license.Spec.AppSlug, successColor, adminconsole.GetURL(), colorReset,
+			license.Spec.AppSlug, successColor, adminConsoleURL, colorReset,
 		)
 	} else {
 		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install your application: %s%s%s",
-			successColor, adminconsole.GetURL(), colorReset,
+			successColor, adminConsoleURL, colorReset,
 		)
 	}
 	logrus.Info(successMessage)

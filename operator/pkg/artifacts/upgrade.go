@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -252,7 +253,11 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in
 		allNodes = append(allNodes, node.Name)
 	}
 
-	imageURL := fmt.Sprintf("http://127.0.0.1:50000/images/images-amd64-%s.tar", in.Name)
+	port := defaults.LocalArtifactMirrorPort
+	if in.Spec.LocalArtifactMirror != nil && in.Spec.LocalArtifactMirror.Port > 0 {
+		port = in.Spec.LocalArtifactMirror.Port
+	}
+	imageURL := fmt.Sprintf("http://127.0.0.1:%d/images/images-amd64-%s.tar", port, in.Name)
 
 	return &autopilotv1beta2.PlanCommand{
 		AirgapUpdate: &autopilotv1beta2.PlanCommandAirgapUpdate{

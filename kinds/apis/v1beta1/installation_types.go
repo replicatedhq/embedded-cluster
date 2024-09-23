@@ -68,9 +68,10 @@ type ArtifactsLocation struct {
 
 // ProxySpec holds the proxy configuration.
 type ProxySpec struct {
-	HTTPProxy  string `json:"httpProxy,omitempty"`
-	HTTPSProxy string `json:"httpsProxy,omitempty"`
-	NoProxy    string `json:"noProxy,omitempty"`
+	HTTPProxy       string `json:"httpProxy,omitempty"`
+	HTTPSProxy      string `json:"httpsProxy,omitempty"`
+	ProvidedNoProxy string `json:"providedNoProxy,omitempty"`
+	NoProxy         string `json:"noProxy,omitempty"`
 }
 
 // NetworkSpec holds the network configuration.
@@ -78,6 +79,18 @@ type NetworkSpec struct {
 	PodCIDR       string `json:"podCIDR,omitempty"`
 	ServiceCIDR   string `json:"serviceCIDR,omitempty"`
 	NodePortRange string `json:"nodePortRange,omitempty"`
+}
+
+// AdminConsoleSpec holds the admin console configuration.
+type AdminConsoleSpec struct {
+	// Port holds the port on which the admin console will be served.
+	Port int `json:"port,omitempty"`
+}
+
+// LocalArtifactMirrorSpec holds the local artifact mirror configuration.
+type LocalArtifactMirrorSpec struct {
+	// Port holds the port on which the local artifact mirror will be served.
+	Port int `json:"port,omitempty"`
 }
 
 // LicenseInfo holds information about the license used to install the cluster.
@@ -109,6 +122,10 @@ type InstallationSpec struct {
 	Proxy *ProxySpec `json:"proxy,omitempty"`
 	// Network holds the network configuration.
 	Network *NetworkSpec `json:"network,omitempty"`
+	// AdminConsole holds the admin console configuration.
+	AdminConsole *AdminConsoleSpec `json:"adminConsole,omitempty"`
+	// LocalArtifactMirrorPort holds the local artifact mirror configuration.
+	LocalArtifactMirror *LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
 	// Config holds the configuration used at installation time.
 	Config *ConfigSpec `json:"config,omitempty"`
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides

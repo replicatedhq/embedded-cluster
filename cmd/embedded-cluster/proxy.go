@@ -1,11 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
@@ -36,12 +40,12 @@ func withProxyFlags(flags []cli.Flag) []cli.Flag {
 
 func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 	proxy := &ecv1beta1.ProxySpec{}
-	var noProxy []string
+	var providedNoProxy []string
 	if c.Bool("proxy") {
 		proxy.HTTPProxy = os.Getenv("HTTP_PROXY")
 		proxy.HTTPSProxy = os.Getenv("HTTPS_PROXY")
 		if os.Getenv("NO_PROXY") != "" {
-			noProxy = append(noProxy, os.Getenv("NO_PROXY"))
+			providedNoProxy = append(providedNoProxy, os.Getenv("NO_PROXY"))
 		}
 	}
 	if c.IsSet("http-proxy") {
@@ -51,17 +55,26 @@ func getProxySpecFromFlags(c *cli.Context) *ecv1beta1.ProxySpec {
 		proxy.HTTPSProxy = c.String("https-proxy")
 	}
 	if c.String("no-proxy") != "" {
-		noProxy = append(noProxy, c.String("no-proxy"))
+		providedNoProxy = append(providedNoProxy, c.String("no-proxy"))
 	}
+	proxy.ProvidedNoProxy = strings.Join(providedNoProxy, ",")
+	combineNoProxySuppliedValuesAndDefaults(c, proxy)
+	if proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" && proxy.NoProxy == "" {
+		return nil
+	}
+	return proxy
+}
+
+func combineNoProxySuppliedValuesAndDefaults(c *cli.Context, proxy *ecv1beta1.ProxySpec) {
+	if proxy.ProvidedNoProxy == "" {
+		return
+	}
+	noProxy := strings.Split(proxy.ProvidedNoProxy, ",")
 	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
 		noProxy = append(defaults.DefaultNoProxy, noProxy...)
 		noProxy = append(noProxy, c.String("pod-cidr"), c.String("service-cidr"))
 		proxy.NoProxy = strings.Join(noProxy, ",")
 	}
-	if proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" && proxy.NoProxy == "" {
-		return nil
-	}
-	return proxy
 }
 
 // setProxyEnv sets the HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment variables based on the provided ProxySpec.
@@ -79,4 +92,82 @@ func setProxyEnv(proxy *ecv1beta1.ProxySpec) {
 	if proxy.NoProxy != "" {
 		os.Setenv("NO_PROXY", proxy.NoProxy)
 	}
+}
+
+func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1beta1.ProxySpec, error) {
+	if proxy != nil && (proxy.HTTPProxy != "" || proxy.HTTPSProxy != "") {
+		// if there is a proxy set, then there needs to be a no proxy set
+		// if it is not set, prompt with a default (the local IP or subnet)
+		// if it is set, we need to check that it covers the local IP
+		ipnet, err := netutils.FirstValidIPNet(c.String("network-interface"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get first valid ip net: %w", err)
+		}
+		cleanIPNet, err := cleanCIDR(ipnet)
+		if err != nil {
+			return nil, fmt.Errorf("failed to clean subnet: %w", err)
+		}
+		if proxy.ProvidedNoProxy == "" {
+			logrus.Infof("--no-proxy was not set. Adding the default interface's subnet (%q) to the no-proxy list.", cleanIPNet)
+			proxy.ProvidedNoProxy = cleanIPNet
+			combineNoProxySuppliedValuesAndDefaults(c, proxy)
+			return proxy, nil
+		} else {
+			isValid, err := validateNoProxy(proxy.NoProxy, ipnet.IP.String())
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
+			} else if !isValid {
+				logrus.Infof("The node IP (%q) is not included in the provided no-proxy list (%q). Adding the default interface's subnet (%q) to the no-proxy list.", ipnet.IP.String(), proxy.ProvidedNoProxy, cleanIPNet)
+				proxy.ProvidedNoProxy = cleanIPNet
+				combineNoProxySuppliedValuesAndDefaults(c, proxy)
+				return proxy, nil
+			}
+		}
+	}
+	return proxy, nil
+}
+
+// cleanCIDR returns a `.0/x` subnet instead of a `.2/x` etc subnet
+func cleanCIDR(ipnet *net.IPNet) (string, error) {
+	_, newNet, err := net.ParseCIDR(ipnet.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to parse local inet CIDR %q: %w", ipnet.String(), err)
+	}
+	return newNet.String(), nil
+}
+
+func validateNoProxy(newNoProxy string, localIP string) (bool, error) {
+	foundLocal := false
+	for _, oneEntry := range strings.Split(newNoProxy, ",") {
+		if oneEntry == localIP {
+			foundLocal = true
+		} else if strings.Contains(oneEntry, "/") {
+			_, ipnet, err := net.ParseCIDR(oneEntry)
+			if err != nil {
+				return false, fmt.Errorf("failed to parse CIDR within no-proxy: %w", err)
+			}
+			if ipnet.Contains(net.ParseIP(localIP)) {
+				foundLocal = true
+			}
+		}
+	}
+
+	return foundLocal, nil
+}
+
+func checkProxyConfigForLocalIP(proxy *ecv1beta1.ProxySpec, networkInterface string) (bool, string, error) {
+	if proxy == nil {
+		return true, "", nil // no proxy is fine
+	}
+	if proxy.HTTPProxy == "" && proxy.HTTPSProxy == "" {
+		return true, "", nil // no proxy is fine
+	}
+
+	ipnet, err := netutils.FirstValidIPNet(networkInterface)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get default IPNet: %w", err)
+	}
+
+	ok, err := validateNoProxy(proxy.NoProxy, ipnet.IP.String())
+	return ok, ipnet.IP.String(), err
 }

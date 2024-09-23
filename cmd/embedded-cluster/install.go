@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -36,9 +37,12 @@ var ErrNothingElseToAdd = fmt.Errorf("")
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
-func installAndEnableLocalArtifactMirror() error {
+func installAndEnableLocalArtifactMirror(port int) error {
 	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
+	}
+	if err := writeLocalArtifactMirrorEnvironmentFile(port); err != nil {
+		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
@@ -47,7 +51,41 @@ func installAndEnableLocalArtifactMirror() error {
 		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "enable", "local-artifact-mirror"); err != nil {
-		return fmt.Errorf("unable to start the local artifact mirror: %w", err)
+		return fmt.Errorf("unable to start the local artifact mirror service: %w", err)
+	}
+	return nil
+}
+
+// updateLocalArtifactMirrorService updates the port on which the local artifact mirror is served.
+func updateLocalArtifactMirrorService(port int) error {
+	if err := writeLocalArtifactMirrorEnvironmentFile(port); err != nil {
+		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "restart", "local-artifact-mirror"); err != nil {
+		return fmt.Errorf("unable to restart the local artifact mirror service: %w", err)
+	}
+	return nil
+}
+
+const (
+	localArtifactMirrorSystemdConfFile         = "/etc/systemd/system/local-artifact-mirror.service.d/embedded-cluster.conf"
+	localArtifactMirrorEnvironmentFileContents = `[Service]
+Environment="LOCAL_ARTIFACT_MIRROR_PORT=%d"`
+)
+
+func writeLocalArtifactMirrorEnvironmentFile(port int) error {
+	dir := filepath.Dir(localArtifactMirrorSystemdConfFile)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+	contents := fmt.Sprintf(localArtifactMirrorEnvironmentFileContents, port)
+	err = os.WriteFile(localArtifactMirrorSystemdConfFile, []byte(contents), 0644)
+	if err != nil {
+		return fmt.Errorf("write file: %w", err)
 	}
 	return nil
 }
@@ -130,8 +168,12 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 
 	err = output.SaveToDisk()
 	if err != nil {
-		pb.CloseWithError()
-		return fmt.Errorf("failed to save preflights output: %w", err)
+		logrus.Warnf("unable to save preflights output: %v", err)
+	}
+
+	err = preflights.CopyBundleToECSupportDir()
+	if err != nil {
+		logrus.Warnf("unable to copy preflight bundle to embedded-cluster support dir: %v", err)
 	}
 
 	// Failures found
@@ -327,12 +369,17 @@ func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.Cluste
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 	cfg := config.RenderK0sConfig()
+	address, err := netutils.FirstValidAddress(c.String("network-interface"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to find first valid address: %w", err)
+	}
+	cfg.Spec.API.Address = address
+	cfg.Spec.Storage.Etcd.PeerAddress = address
 	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
 	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
-	var err error
 	cfg, err = applyUnsupportedOverrides(c, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
@@ -399,13 +446,17 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 
 // installK0s runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
-func installK0s() error {
+func installK0s(c *cli.Context) error {
 	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
 	hstbin := defaults.K0sBinaryPath()
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
-	if _, err := helpers.RunCommand(hstbin, config.InstallFlags()...); err != nil {
+	nodeIP, err := netutils.FirstValidAddress(c.String("network-interface"))
+	if err != nil {
+		return fmt.Errorf("unable to find first valid address: %w", err)
+	}
+	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(nodeIP)...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
 	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
@@ -437,7 +488,7 @@ func waitForK0s() error {
 }
 
 // installAndWaitForK0s installs the k0s binary and waits for it to be ready
-func installAndWaitForK0s(c *cli.Context, applier *addons.Applier) (*k0sconfig.ClusterConfig, error) {
+func installAndWaitForK0s(c *cli.Context, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) (*k0sconfig.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", defaults.BinaryName())
@@ -448,16 +499,15 @@ func installAndWaitForK0s(c *cli.Context, applier *addons.Applier) (*k0sconfig.C
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
-	proxy := getProxySpecFromFlags(c)
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(false, proxy); err != nil {
+	if err := createSystemdUnitFiles(false, proxy, applier.GetLocalArtifactMirrorPort()); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := installK0s(); err != nil {
+	if err := installK0s(c); err != nil {
 		err := fmt.Errorf("unable update cluster: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
@@ -487,7 +537,7 @@ func runOutro(c *cli.Context, applier *addons.Applier, cfg *k0sconfig.ClusterCon
 		return fmt.Errorf("unable to process overrides file: %w", err)
 	}
 
-	return applier.Outro(c.Context, cfg, eucfg, metadata)
+	return applier.Outro(c.Context, cfg, eucfg, metadata, c.String("network-interface"))
 }
 
 func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
@@ -554,6 +604,11 @@ var installCommand = &cli.Command{
 				Usage:   "Path to the license file",
 				Hidden:  false,
 			},
+			&cli.StringFlag{
+				Name:  "network-interface",
+				Usage: "The network interface to use for the cluster",
+				Value: "",
+			},
 			&cli.BoolFlag{
 				Name:  "no-prompt",
 				Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
@@ -573,10 +628,18 @@ var installCommand = &cli.Command{
 				Name:  "private-ca",
 				Usage: "Path to a trusted private CA certificate file",
 			},
+			getAdminColsolePortFlag(),
+			getLocalArtifactMirrorPortFlag(),
 		},
 	)),
 	Action: func(c *cli.Context) error {
+		var err error
 		proxy := getProxySpecFromFlags(c)
+		proxy, err = includeLocalIPInNoProxy(c, proxy)
+		if err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
 		setProxyEnv(proxy)
 
 		logrus.Debugf("checking if %s is already installed", binName)
@@ -608,17 +671,22 @@ var installCommand = &cli.Command{
 				return err // we want the user to see the error message without a prefix
 			}
 		}
+		if err := preflights.ValidateApp(); err != nil {
+			metrics.ReportApplyFinished(c, err)
+			return err
+		}
 		adminConsolePwd, err := maybeAskAdminConsolePassword(c)
 		if err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
+
 		logrus.Debugf("materializing binaries")
 		if err := materializeFiles(c); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		applier, err := getAddonsApplier(c, adminConsolePwd)
+		applier, err := getAddonsApplier(c, adminConsolePwd, proxy)
 		if err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
@@ -633,7 +701,7 @@ var installCommand = &cli.Command{
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}
-		cfg, err := installAndWaitForK0s(c, applier)
+		cfg, err := installAndWaitForK0s(c, applier, proxy)
 		if err != nil {
 			return err
 		}
@@ -647,7 +715,7 @@ var installCommand = &cli.Command{
 	},
 }
 
-func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, error) {
+func getAddonsApplier(c *cli.Context, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
 	opts := []addons.Option{}
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -658,7 +726,6 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, 
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
-	proxy := getProxySpecFromFlags(c)
 	if proxy != nil {
 		opts = append(opts, addons.WithProxy(proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy))
 	}
@@ -681,6 +748,19 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string) (*addons.Applier, 
 		}
 		opts = append(opts, addons.WithPrivateCAs(privateCAs))
 	}
+
+	adminConsolePort, err := getAdminConsolePortFromFlag(c)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, addons.WithAdminConsolePort(adminConsolePort))
+
+	localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, addons.WithLocalArtifactMirrorPort(localArtifactMirrorPort))
+
 	if adminConsolePwd != "" {
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}

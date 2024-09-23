@@ -12,7 +12,7 @@ K0S_GO_VERSION = v1.28.11+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.100.0
+TROUBLESHOOT_VERSION = v0.102.0
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
@@ -269,6 +269,7 @@ list-distros:
 
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
+create-node%: NODE_PORT = 30000
 create-node%:
 	@if ! docker images | grep -q ec-$(DISTRO); then \
 		$(MAKE) -C dev/distros build-$(DISTRO); \
@@ -282,7 +283,7 @@ create-node%:
 		-v /var/lib/k0s \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
-		$(if $(filter node0,node$*),-p 30000:30000) \
+		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
 		ec-$(DISTRO)
 
 	@$(MAKE) ssh-node$*

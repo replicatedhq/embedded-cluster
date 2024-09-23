@@ -3,15 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/urfave/cli/v2"
+	k8snet "k8s.io/utils/net"
 )
 
 // serveCommand starts a http server that serves files from the /var/lib/embedded-cluster
@@ -20,6 +23,14 @@ import (
 var serveCommand = &cli.Command{
 	Name:  "serve",
 	Usage: "Serve /var/lib/embedded-cluster files over HTTP",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "port",
+			Usage:   "Port to listen on",
+			Value:   strconv.Itoa(defaults.LocalArtifactMirrorPort),
+			EnvVars: []string{"LOCAL_ARTIFACT_MIRROR_PORT"},
+		},
+	},
 	Before: func(c *cli.Context) error {
 		if os.Getuid() != 0 {
 			return fmt.Errorf("serve command must be run as root")
@@ -40,9 +51,20 @@ var serveCommand = &cli.Command{
 			panic(err)
 		}
 
-		server := &http.Server{Addr: "127.0.0.1:50000"}
+		port := defaults.LocalArtifactMirrorPort
+		portStr := c.String("port")
+		if portStr != "" {
+			var err error
+			port, err = k8snet.ParsePort(portStr, false)
+			if err != nil {
+				panic(fmt.Errorf("unable to parse port: %w", err))
+			}
+		}
+
+		addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+		server := &http.Server{Addr: addr}
 		go func() {
-			fmt.Println("Starting server on 127.0.0.1:50000")
+			fmt.Printf("Starting server on %s\n", addr)
 			if err := server.ListenAndServe(); err != nil {
 				if err != http.ErrServerClosed {
 					panic(err)

@@ -111,6 +111,9 @@ spec:
   - copy:
       collectorName: installer-logs
       path: /var/lib/embedded-cluster/logs/*.log
+  - copy:
+      collectorName: installer-support-files
+      path: /var/lib/embedded-cluster/support/*
   - run:
       collectorName: network-manager-logs
       command: journalctl
