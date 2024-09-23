@@ -28,17 +28,6 @@ jobs:
         with:
           fetch-depth: 0 # fetch all history so that we can get the previous tag
 
-      - name: Cache Melange
-        uses: actions/cache@v4
-        with:
-          path: |
-            local-artifact-mirror/cache/.melange-cache
-            operator/cache/.melange-cache
-          key: melange-cache
-
-      - name: Setup melange
-        uses: ./.github/actions/setup-melange
-
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh

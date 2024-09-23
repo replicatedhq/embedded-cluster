@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,6 +57,10 @@ func (s *Sender) Send(ctx context.Context, ev Event) {
 
 // payload returns the payload to be sent to the metrics endpoint.
 func (s *Sender) payload(ev Event) ([]byte, error) {
-	payload := map[string]Event{"event": ev}
+	vmap := map[string]string{
+		"EmbeddedCluster": versions.Version,
+		"Kubernetes":      versions.K0sVersion,
+	}
+	payload := map[string]interface{}{"event": ev, "versions": vmap}
 	return json.Marshal(payload)
 }

@@ -59,16 +59,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Melange
-        uses: actions/cache@v4
-        with:
-          path: |
-            operator/cache/.melange-cache
-          key: melange-cache
-
-      - name: Setup melange
-        uses: ./.github/actions/setup-melange
-
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -77,11 +67,11 @@ jobs:
       - name: Build and push operator image
         id: operator-image
         env:
-          REGISTRY: docker.io
-          USERNAME: ${{ secrets.DOCKERHUB_USER }}
-          PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          REGISTRY_SERVER: docker.io
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          make -C operator apko apko-login build-and-push-operator-image \
+          make -C operator build-and-push-operator-image \
             PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
           echo "image=$(cat operator/build/image)" >> $GITHUB_OUTPUT
 
@@ -114,16 +104,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Melange
-        uses: actions/cache@v4
-        with:
-          path: |
-            local-artifact-mirror/cache/.melange-cache
-          key: melange-cache
-
-      - name: Setup melange
-        uses: ./.github/actions/setup-melange
-
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -132,11 +112,11 @@ jobs:
       - name: Build and push local-artifact-mirror image
         id: local-artifact-mirror
         env:
-          REGISTRY: docker.io
-          USERNAME: ${{ secrets.DOCKERHUB_USER }}
-          PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          REGISTRY_SERVER: docker.io
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          make -C local-artifact-mirror apko apko-login build-and-push-local-artifact-mirror-image \
+          make -C local-artifact-mirror build-and-push-local-artifact-mirror-image \
             PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
           echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
 

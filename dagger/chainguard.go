@@ -98,6 +98,7 @@ func (m *chainguard) apkoPublish(
 		From(fmt.Sprintf("cgr.dev/chainguard/apko:%s", imageTag)).
 		WithDirectory("/workspace", src).
 		WithFile("/workspace/apko.yaml", apkoFile).
+		WithEnvVariable("DOCKER_CONFIG", "/workspace/.docker").
 		WithWorkdir("/workspace").
 		WithExec(
 			[]string{
@@ -106,6 +107,30 @@ func (m *chainguard) apkoPublish(
 				"--arch", arch,
 			},
 		)
+
+	return c
+}
+
+func (m *chainguard) apkoLogin(
+	src *dagger.Directory,
+	registryServer string,
+	registryUsername string,
+	registryPassword string,
+	// +default="latest"
+	imageTag string,
+) *dagger.Container {
+	c := dag.Container().
+		From(fmt.Sprintf("cgr.dev/chainguard/apko:%s", imageTag)).
+		WithDirectory("/workspace", src).
+		WithEnvVariable("DOCKER_CONFIG", "/workspace/.docker").
+		WithWorkdir("/workspace").
+		WithExec([]string{
+			"apko", "login", registryServer,
+			"--username", registryUsername,
+			"--password-stdin",
+		}, dagger.ContainerWithExecOpts{
+			Stdin: registryPassword,
+		})
 
 	return c
 }
