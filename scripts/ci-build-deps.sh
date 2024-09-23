@@ -16,12 +16,6 @@ function init_vars() {
     require EC_VERSION "${EC_VERSION:-}"
 }
 
-function deps() {
-    if [ "$USE_CHAINGUARD" == "1" ]; then
-        make melange apko
-    fi
-}
-
 function local_artifact_mirror() {
     make -C local-artifact-mirror build-ttl.sh
     cp local-artifact-mirror/build/image "local-artifact-mirror/build/image-$EC_VERSION"
@@ -36,7 +30,6 @@ function operator() {
 
 function main() {
     init_vars
-    deps
     local_artifact_mirror
     operator
 }

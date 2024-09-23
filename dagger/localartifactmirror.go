@@ -72,6 +72,10 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
 		WithDirectory("packages", pkgBuild.Directory("packages"))
 
+	if m.RegistryAuth != nil {
+		dir = dir.WithDirectory("/workspace/.docker", m.RegistryAuth)
+	}
+
 	publish := m.apkoPublish(
 		dir,
 		apkoFile,

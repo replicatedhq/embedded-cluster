@@ -72,7 +72,11 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
 		WithDirectory("packages", pkgBuild.Directory("packages"))
 
-	build := m.apkoPublish(
+	if m.RegistryAuth != nil {
+		dir = dir.WithDirectory("/workspace/.docker", m.RegistryAuth)
+	}
+
+	publish := m.apkoPublish(
 		dir,
 		apkoFile,
 		image,
@@ -80,7 +84,7 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 		APKOImageVersion,
 	)
 
-	return build.Stdout(ctx)
+	return publish.Stdout(ctx)
 }
 
 // Builds the operator package with Melange.

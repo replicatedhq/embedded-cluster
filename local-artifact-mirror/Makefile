@@ -62,11 +62,25 @@ build-and-push-local-artifact-mirror-image:
 .PHONY: build-and-push-local-artifact-mirror-image-chainguard
 build-and-push-local-artifact-mirror-image-chainguard:
 	mkdir -p build
-	dagger call publish-local-artifact-mirror-image \
-		--ec-version $(PACKAGE_VERSION) \
-		--repo $(IMAGE_NAME) \
-		--arch $(ARCH) \
-		> build/digest
+ifdef REGISTRY_SERVER
+	dagger call \
+		with-registry-login \
+			--server $(REGISTRY_SERVER) \
+			--username $(REGISTRY_USERNAME) \
+			--password env:REGISTRY_PASSWORD \
+		publish-local-artifact-mirror-image \
+			--ec-version $(PACKAGE_VERSION) \
+			--repo $(IMAGE_NAME) \
+			--arch $(ARCH) \
+	> build/digest
+else
+	dagger call \
+		publish-local-artifact-mirror-image \
+			--ec-version $(PACKAGE_VERSION) \
+			--repo $(IMAGE_NAME) \
+			--arch $(ARCH) \
+	> build/digest
+endif
 	@$(MAKE) apko-output-image IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-and-push-local-artifact-mirror-image-dockerfile
