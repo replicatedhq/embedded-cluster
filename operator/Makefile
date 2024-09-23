@@ -177,6 +177,7 @@ build-and-push-operator-image:
 
 .PHONY: build-and-push-operator-image-chainguard
 build-and-push-operator-image-chainguard:
+	mkdir -p build
 ifdef REGISTRY_SERVER
 	dagger call \
 		with-registry-login \
