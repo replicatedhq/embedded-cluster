@@ -67,7 +67,7 @@ func TestSend(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			payload := map[string]Event{"event": tt.event}
+			payload := map[string]interface{}{"event": tt.event, "versions": map[string]string{"EmbeddedCluster": "v0.0.0", "Kubernetes": "0.0.0"}}
 			expected, err := json.Marshal(payload)
 			assert.NoError(t, err)
 			server := httptest.NewServer(
