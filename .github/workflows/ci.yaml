@@ -130,11 +130,6 @@ jobs:
             operator/cache/.melange-cache
           key: melange-cache
 
-      - name: Setup melange
-        uses: ./.github/actions/setup-melange
-        with:
-          setup-go: false
-
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -211,11 +206,6 @@ jobs:
             operator/cache/.melange-cache
           key: melange-cache
 
-      - name: Setup melange
-        uses: ./.github/actions/setup-melange
-        with:
-          setup-go: false
-
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -289,11 +279,6 @@ jobs:
             local-artifact-mirror/cache/.melange-cache
             operator/cache/.melange-cache
           key: melange-cache
-
-      - name: Setup melange
-        uses: ./.github/actions/setup-melange
-        with:
-          setup-go: false
 
       - name: Install dagger
         run: |
