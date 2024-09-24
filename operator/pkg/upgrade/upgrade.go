@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cloudflare/cfssl/log"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
@@ -153,12 +156,15 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is created.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
-	// TODO run the k0s upgrade process
+	err := k0sUpgrade(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("k0s upgrade: %w", err)
+	}
 
 	// TODO apply the updated charts
 
 	// wait for the operator chart to be ready
-	err := waitForOperatorChart(ctx, cli, in.Spec.Config.Version)
+	err = waitForOperatorChart(ctx, cli, in.Spec.Config.Version)
 	if err != nil {
 		return fmt.Errorf("wait for operator chart: %w", err)
 	}
@@ -168,6 +174,47 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		return fmt.Errorf("apply installation: %w", err)
 	}
 
+	return nil
+}
+
+func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+	meta, err := release.MetadataFor(ctx, in, cli)
+	if err != nil {
+		return fmt.Errorf("failed to get release metadata: %w", err)
+	}
+
+	// TODO: check if the k0s version is the same as the current version
+	// if it is, we can skip the upgrade
+	desiredVersion := meta.Versions["Kubernetes"]
+
+	// create an autopilot upgrade plan if one does not yet exist
+	var plan apv1b2.Plan
+	okey := client.ObjectKey{Name: "autopilot"}
+	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get upgrade plan: %w", err)
+	} else if errors.IsNotFound(err) {
+		// if the kubernetes version has changed we create an upgrade command
+		log.Info("Starting k0s autopilot upgrade plan", "version", desiredVersion)
+
+		// there is no autopilot plan in the cluster so we are free to
+		// start our own plan. here we link the plan to the installation
+		// by its name.
+		if err := StartAutopilotUpgrade(ctx, cli, in, meta); err != nil {
+			return fmt.Errorf("failed to start upgrade: %w", err)
+		}
+	}
+
+	// restart this function/pod until the plan is complete
+	// TODO: we should probably wait internally for this too
+	if !autopilot.HasThePlanEnded(plan) {
+		return fmt.Errorf("an autopilot upgrade is in progress (%s)", plan.Spec.ID)
+	}
+
+	// the plan has been completed, so we can move on - kubernetes is now upgraded
+	fmt.Printf("Upgrade to %s completed successfully\n", desiredVersion)
+	if err := cli.Delete(ctx, &plan); err != nil {
+		return fmt.Errorf("failed to delete successful upgrade plan: %w", err)
+	}
 	return nil
 }
 
