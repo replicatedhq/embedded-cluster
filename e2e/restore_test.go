@@ -65,6 +65,10 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
+	// reset will reboot the node, this waits until the node reports back
+	// as running.
+	tc.WaitForNodeRunning(0)
+
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation.exp"}, testArgs...)
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -156,6 +160,10 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
+	// reset will reboot the node, this waits until the node reports back
+	// as running.
+	tc.WaitForNodeRunning(0)
+
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation.exp"}, testArgs...)
 	line = append(line, "--http-proxy", cluster.HTTPProxy)
@@ -228,6 +236,10 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
+
+	// reset will reboot the node, this waits until the node reports back
+	// as running.
+	tc.WaitForNodeRunning(0)
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"resume-restore.exp"}, testArgs...)
@@ -463,7 +475,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	line = []string{"reset-installation.sh", "--force", "--reboot"}
+	line = []string{"reset-installation.sh", "--force"}
 	t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
@@ -681,7 +693,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	line = []string{"reset-installation.sh", "--force", "--reboot"}
+	line = []string{"reset-installation.sh", "--force"}
 	t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)

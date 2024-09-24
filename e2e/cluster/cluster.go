@@ -147,9 +147,28 @@ func (o *Output) WaitForNodeRunning(node int) {
 		require.NoError(o.T, err, "failed to get node state %d", node)
 		o.T.Logf("node %d is in state %q", node, state.Status)
 
-		require.True(o.T, counter < 10, "node %d failed to start", node)
+		require.True(o.T, counter < 5, "node %d failed to start", node)
 		counter++
 	}
+
+	// wait for dbus to come up otherwise the ec installation fails.
+	for i := 0; i < 5; i++ {
+		cmd := Command{
+			Node:   o.Nodes[node],
+			Line:   []string{"ls", "/var/run/dbus/system_bus_socket"},
+			Stdout: os.Stdout,
+			Stderr: os.Stderr,
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := Run(ctx, o.T, cmd); err == nil {
+			return
+		}
+		time.Sleep(5 * time.Second)
+		o.T.Logf("waiting for dbus to start on node %d", node)
+	}
+	o.T.Fatalf("unable to find /var/run/dbus/system_bus_socket on node %d", node)
 }
 
 // Command is a command to be run in a node.
