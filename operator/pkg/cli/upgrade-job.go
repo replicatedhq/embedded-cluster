@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/spf13/cobra"
@@ -38,9 +40,21 @@ func UpgradeJobCmd() *cobra.Command {
 
 			fmt.Printf("Upgrading to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
 
-			err = upgrade.Upgrade(cmd.Context(), cli, in, localArtifactMirrorImage)
-			if err != nil {
-				return fmt.Errorf("failed to upgrade: %w", err)
+			i := 0
+			for {
+				err = upgrade.Upgrade(cmd.Context(), cli, in, localArtifactMirrorImage)
+				if err != nil {
+					fmt.Printf("Upgrade failed, retrying: %s", err.Error())
+					sleepDuration := time.Duration(i) * time.Second
+					if i >= 50 {
+						return fmt.Errorf("failed to upgrade after %s", (sleepDuration * time.Duration(i)).String())
+					}
+
+					time.Sleep(sleepDuration)
+					i++
+					continue
+				}
+				break
 			}
 
 			fmt.Println("Upgrade completed successfully")
