@@ -211,9 +211,13 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	}
 
 	// restart this function/pod until the plan is complete
-	// TODO: we should probably wait internally for this too
 	if !autopilot.HasThePlanEnded(plan) {
 		return fmt.Errorf("an autopilot upgrade is in progress (%s)", plan.Spec.ID)
+	}
+
+	if autopilot.HasPlanFailed(plan) {
+		reason := autopilot.ReasonForState(plan)
+		return fmt.Errorf("autopilot plan failed: %s", reason)
 	}
 
 	// the plan has been completed, so we can move on - kubernetes is now upgraded
