@@ -15,6 +15,7 @@ import (
 	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 var networkaddr chan string
@@ -129,6 +130,26 @@ func (o *Output) Destroy() {
 		o.T.Logf("Failed to delete profile: %v", err)
 	}
 	networkaddr <- o.network
+}
+
+// WaitForNodeRunning waits until the node is in "running" state.
+func (o *Output) WaitForNodeRunning(node int) {
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	require.NoError(o.T, err, "failed to connect to lxd")
+
+	var counter int
+	state := &api.InstanceState{}
+	for state.Status != "Running" {
+		time.Sleep(5 * time.Second)
+		o.T.Logf("waiting for node %d to start (running)", node)
+
+		state, _, err = client.GetInstanceState(o.Nodes[node])
+		require.NoError(o.T, err, "failed to get node state %d", node)
+		o.T.Logf("node %d is in state %q", node, state.Status)
+
+		require.True(o.T, counter < 10, "node %d failed to start", node)
+		counter++
+	}
 }
 
 // Command is a command to be run in a node.
