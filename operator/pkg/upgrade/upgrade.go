@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudflare/cfssl/log"
 	"github.com/google/uuid"
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
@@ -201,7 +200,7 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 		return fmt.Errorf("failed to get upgrade plan: %w", err)
 	} else if errors.IsNotFound(err) {
 		// if the kubernetes version has changed we create an upgrade command
-		log.Info("Starting k0s autopilot upgrade plan", "version", desiredVersion)
+		fmt.Printf("Starting k0s autopilot upgrade plan to version %s\n", desiredVersion)
 
 		// there is no autopilot plan in the cluster so we are free to
 		// start our own plan. here we link the plan to the installation
