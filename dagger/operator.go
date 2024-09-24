@@ -73,7 +73,7 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 		WithDirectory("packages", pkgBuild.Directory("packages"))
 
 	if m.RegistryAuth != nil {
-		dir = dir.WithDirectory("/workspace/.docker", m.RegistryAuth)
+		dir = dir.WithDirectory(".docker", m.RegistryAuth)
 	}
 
 	publish := m.apkoPublish(
