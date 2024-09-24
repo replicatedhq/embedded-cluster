@@ -65,9 +65,8 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
-	// reset will reboot the node, this waits until the node reports back
-	// as running.
-	tc.WaitForNodeRunning(0)
+	// reset will reboot the node, we ned to wait until it gets back up.
+	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation.exp"}, testArgs...)
@@ -160,9 +159,8 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
-	// reset will reboot the node, this waits until the node reports back
-	// as running.
-	tc.WaitForNodeRunning(0)
+	// reset will reboot the node, we ned to wait until it gets back up.
+	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-installation.exp"}, testArgs...)
@@ -237,9 +235,8 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
-	// reset will reboot the node, this waits until the node reports back
-	// as running.
-	tc.WaitForNodeRunning(0)
+	// reset will reboot the node, we ned to wait until it gets back up.
+	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	line = append([]string{"resume-restore.exp"}, testArgs...)
