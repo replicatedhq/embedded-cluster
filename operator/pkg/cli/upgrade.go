@@ -15,13 +15,13 @@ import (
 )
 
 // UpgradeCmd returns a cobra command for upgrading the embedded cluster operator.
-// It is called by KOTS admin console to upgrade the embedded cluster operator and installation.
+// It is called by KOTS admin console and will preposition images before creating a job to truly upgrade the cluster.
 func UpgradeCmd() *cobra.Command {
 	var installationFile, localArtifactMirrorImage string
 
 	cmd := &cobra.Command{
 		Use:          "upgrade",
-		Short:        "Upgrade the embedded cluster operator",
+		Short:        "create a job to upgrade the embedded cluster operator",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("Upgrade command started")
@@ -41,14 +41,16 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
 
-			fmt.Printf("Upgrading to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
+			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
 
-			err = upgrade.Upgrade(cmd.Context(), cli, in, localArtifactMirrorImage)
+			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, in, localArtifactMirrorImage)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
 
-			fmt.Println("Upgrade command completed successfully")
+			fmt.Println("Upgrade job created successfully")
+
+			// TODO: wait for the job to complete?
 			return nil
 		},
 	}

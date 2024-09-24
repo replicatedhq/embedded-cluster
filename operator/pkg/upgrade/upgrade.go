@@ -4,17 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
-	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/google/uuid"
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
@@ -32,14 +29,22 @@ const (
 	operatorChartName      = "embedded-cluster-operator"
 	clusterConfigName      = "k0s"
 	clusterConfigNamespace = "kube-system"
+	upgradeJobName         = "embedded-cluster-upgrade-%s"
+	upgradeJobConfigMap    = "upgrade-job-configmap-%s"
 )
 
-// Upgrade upgrades the embedded cluster to the version specified in the installation. If the
-// installation is airgapped, the artifacts are copied to the nodes and the autopilot plan is
-// created to copy the images to the cluster. The operator chart is updated to the  version
-// specified in the installation. This will update the CRDs and operator. The installation is then
-// created and the operator will resume the upgrade process.
-func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
+// CreateUpgradeJob creates a job that upgrades the embedded cluster to the version specified in the installation.
+// if the installation is airgapped, the artifacts are copied to the nodes and the autopilot plan is
+// created to copy the images to the cluster. A comfigmap is then created containing the target installation
+// spec and the upgrade job is created. The upgrade job will update the cluster version, and then update the operator chart.
+func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
+	// check if the job already exists - if it does, we've already rolled out images and can return now
+	job := &batchv1.Job{}
+	err := cli.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
+	if err == nil {
+		return nil
+	}
+
 	if in.Spec.AirGap {
 		// in airgap installations we need to copy the artifacts to the nodes and then autopilot
 		// will copy the images to the cluster so we can start the new operator.
@@ -59,19 +64,109 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		}
 	}
 
-	// update the operator chart prior to creating the installation to update the crd
-
-	err := applyOperatorChart(ctx, cli, in)
+	// create the upgrade job configmap with the target installation spec
+	installationData, err := json.Marshal(in)
 	if err != nil {
-		return fmt.Errorf("apply operator chart: %w", err)
+		return fmt.Errorf("failed to marshal installation spec: %w", err)
+	}
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "embedded-cluster",
+			Name:      fmt.Sprintf(upgradeJobConfigMap, in.Name),
+		},
+		Data: map[string]string{
+			"installation.yaml": string(installationData),
+		},
+	}
+	if err := cli.Create(ctx, cm); err != nil {
+		return fmt.Errorf("failed to create upgrade job configmap: %w", err)
+	}
+
+	// determine the image to use for the upgrade job
+	meta, err := release.MetadataFor(ctx, in, cli)
+	if err != nil {
+		return fmt.Errorf("failed to get release metadata: %w", err)
+	}
+	operatorImage := ""
+	for _, image := range meta.Images {
+		if strings.Contains(image, "embedded-cluster-operator-image") {
+			operatorImage = image
+			break
+		}
+	}
+
+	// create the upgrade job
+	job = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "embedded-cluster",
+			Name:      fmt.Sprintf(upgradeJobName, in.Name),
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					RestartPolicy:      corev1.RestartPolicyOnFailure,
+					ServiceAccountName: "embedded-cluster-operator",
+					Volumes: []corev1.Volume{
+						{
+							Name: "config",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: fmt.Sprintf(upgradeJobConfigMap, in.Name),
+									},
+								},
+							},
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  "embedded-cluster-updater",
+							Image: operatorImage,
+							Command: []string{
+								"/manager",
+								"upgrade-job",
+								"--installation",
+								"/config/installation.yaml",
+								"--local-artifact-mirror-image",
+								localArtifactMirrorImage,
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "config",
+									MountPath: "/config",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	if err := cli.Create(ctx, job); err != nil {
+		return fmt.Errorf("failed to create upgrade job: %w", err)
+	}
+
+	return nil
+}
+
+// Upgrade upgrades the embedded cluster to the version specified in the installation.
+// First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is created.
+func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
+	// TODO run the k0s upgrade process
+
+	// TODO apply the updated charts
+
+	// wait for the operator chart to be ready
+	err := waitForOperatorChart(ctx, cli, in.Spec.Config.Version)
+	if err != nil {
+		return fmt.Errorf("wait for operator chart: %w", err)
 	}
 
 	err = createInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("apply installation: %w", err)
 	}
-
-	// once the new operator is running, it will take care of the rest of the upgrade
 
 	return nil
 }
@@ -93,41 +188,6 @@ func createInstallation(ctx context.Context, cli client.Client, in *clusterv1bet
 	return nil
 }
 
-func applyOperatorChart(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	log := ctrl.LoggerFrom(ctx)
-
-	operatorChart, err := getOperatorChart(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("get operator chart: %w", err)
-	}
-
-	clusterConfig, err := getExistingClusterConfig(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("get existing clusterconfig: %w", err)
-	}
-
-	// NOTE: It is not optimal to patch the cluster config prior to upgrading the cluster because
-	// the crd could be out of date. Ideally we would first run the auto-pilot upgrade and then
-	// patch the cluster config, but this command is run from an ephemeral binary in the pod, and
-	// when the cluster is upgraded it may no longer be available.
-
-	err = patchClusterConfigOperatorChart(ctx, cli, clusterConfig, *operatorChart)
-	if err != nil {
-		return fmt.Errorf("patch clusterconfig with operator chart: %w", err)
-	}
-
-	log.Info("Waiting for operator chart to be up-to-date...")
-
-	err = waitForOperatorChart(ctx, cli, operatorChart.Version)
-	if err != nil {
-		return fmt.Errorf("wait for operator chart: %w", err)
-	}
-
-	log.Info("Operator chart is up-to-date")
-
-	return nil
-}
-
 func waitForOperatorChart(ctx context.Context, cli client.Client, version string) error {
 	err := wait.PollUntilContextCancel(ctx, 5*time.Second, true, func(ctx context.Context) (bool, error) {
 		ready, err := k8sutil.GetChartHealthVersion(ctx, cli, operatorChartName, version)
@@ -137,107 +197,6 @@ func waitForOperatorChart(ctx context.Context, cli client.Client, version string
 		return ready, nil
 	})
 	return err
-}
-
-func patchClusterConfigOperatorChart(ctx context.Context, cli client.Client, clusterConfig *k0sv1beta1.ClusterConfig, operatorChart k0sv1beta1.Chart) error {
-	log := ctrl.LoggerFrom(ctx)
-
-	desired := setClusterConfigOperatorChart(clusterConfig, operatorChart)
-
-	original, err := json.MarshalIndent(clusterConfig, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal existing clusterconfig: %w", err)
-	}
-
-	modified, err := json.MarshalIndent(desired, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal desired clusterconfig: %w", err)
-	}
-
-	patchData, err := jsonpatch.CreateMergePatch(original, modified)
-	if err != nil {
-		return fmt.Errorf("create json merge patch: %w", err)
-	}
-
-	if string(patchData) == "{}" {
-		log.Info("K0s cluster config already patched")
-		return nil
-	}
-
-	log.V(2).Info("Patching K0s cluster config with merge patch", "patch", string(patchData))
-
-	patch := client.RawPatch(types.MergePatchType, patchData)
-	err = cli.Patch(ctx, clusterConfig, patch)
-	if err != nil {
-		return fmt.Errorf("patch clusterconfig: %w", err)
-	}
-
-	log.Info("K0s cluster config patched")
-
-	return nil
-}
-
-func setClusterConfigOperatorChart(clusterConfig *k0sv1beta1.ClusterConfig, operatorChart k0sv1beta1.Chart) *k0sv1beta1.ClusterConfig {
-	desired := clusterConfig.DeepCopy()
-	if desired.Spec == nil {
-		desired.Spec = &k0sv1beta1.ClusterSpec{}
-	}
-	if desired.Spec.Extensions == nil {
-		desired.Spec.Extensions = &k0sv1beta1.ClusterExtensions{}
-	}
-	if desired.Spec.Extensions.Helm == nil {
-		desired.Spec.Extensions.Helm = &k0sv1beta1.HelmExtensions{}
-	}
-	for i, chart := range desired.Spec.Extensions.Helm.Charts {
-		if chart.Name == operatorChartName {
-			desired.Spec.Extensions.Helm.Charts[i] = operatorChart
-			return desired
-		}
-	}
-	desired.Spec.Extensions.Helm.Charts = append(desired.Spec.Extensions.Helm.Charts, operatorChart)
-	return desired
-}
-
-func getExistingClusterConfig(ctx context.Context, cli client.Client) (*k0sv1beta1.ClusterConfig, error) {
-	clusterConfig := &k0sv1beta1.ClusterConfig{}
-	err := cli.Get(ctx, client.ObjectKey{Name: clusterConfigName, Namespace: clusterConfigNamespace}, clusterConfig)
-	if err != nil {
-		return nil, fmt.Errorf("get chart: %w", err)
-	}
-	return clusterConfig, nil
-}
-
-func getOperatorChart(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*k0sv1beta1.Chart, error) {
-	metadata, err := release.MetadataFor(ctx, in, cli)
-	if err != nil {
-		return nil, fmt.Errorf("get release metadata: %w", err)
-	}
-
-	// fetch the current clusterConfig
-	var clusterConfig k0sv1beta1.ClusterConfig
-	err = cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterConfig)
-	if err != nil {
-		return nil, fmt.Errorf("get cluster config: %w", err)
-	}
-
-	combinedConfigs, err := charts.K0sHelmExtensionsFromInstallation(ctx, in, metadata, &clusterConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get helm charts from installation: %w", err)
-	}
-
-	cfgs := &k0sv1beta1.HelmExtensions{}
-	cfgs, err = v1beta1.ConvertTo(*combinedConfigs, cfgs)
-	if err != nil {
-		return nil, fmt.Errorf("convert to k0s helm type: %w", err)
-	}
-
-	for _, chart := range cfgs.Charts {
-		if chart.Name == operatorChartName {
-			return &chart, nil
-		}
-	}
-
-	return nil, fmt.Errorf("operator chart not found")
 }
 
 const (
