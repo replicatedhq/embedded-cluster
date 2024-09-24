@@ -65,7 +65,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
-	// reset will reboot the node, we ned to wait until it gets back up.
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
@@ -159,7 +159,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
-	// reset will reboot the node, we ned to wait until it gets back up.
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
@@ -235,7 +235,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
-	// reset will reboot the node, we ned to wait until it gets back up.
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
