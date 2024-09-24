@@ -140,8 +140,12 @@ spec:
       channelName: Stable
       channelSlug: stable
       isDefault: true
+    - channelID: 4l9fCbxTNIhuAOaC6MoKMVeV3K
+      channelName: Alternate
+      channelSlug: alternate
+      isDefault: false
   `,
-			wantErr: "license channel does not match binary channel 2cHXb1RCttzpR0xvnNWyaZCgDBP, please provide the correct license",
+			wantErr: "binary channel 2cHXb1RCttzpR0xvnNWyaZCgDBP (CI) not present in license, channels allowed by license are: stable (2i9fCbxTNIhuAOaC6MoKMVeGzuK), alternate (4l9fCbxTNIhuAOaC6MoKMVeV3K)",
 		},
 		{
 			name:       "incorrect license (pre-multichan license)",
@@ -150,9 +154,10 @@ spec:
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2i9fCbxTNIhuAOaC6MoKMVeGzuK"
+  channelName: "Stable"
   isEmbeddedClusterDownloadEnabled: false
   `,
-			wantErr: "license channel does not match binary channel 2cHXb1RCttzpR0xvnNWyaZCgDBP, please provide the correct license",
+			wantErr: "binary channel 2cHXb1RCttzpR0xvnNWyaZCgDBP (CI) not present in license, channels allowed by license are: Stable (2i9fCbxTNIhuAOaC6MoKMVeGzuK)",
 		},
 	}
 	for _, tt := range tests {
