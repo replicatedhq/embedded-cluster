@@ -41,29 +41,6 @@ func FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
 	return nil, fmt.Errorf("interface %s not found or is not valid. The following interfaces were detected: %s", networkInterface, strings.Join(ifNames, ", "))
 }
 
-func InterfaceNameForAddress(address string) (string, error) {
-	ifs, err := listValidInterfaces()
-	if err != nil {
-		return "", fmt.Errorf("list valid network interfaces: %w", err)
-	}
-	for _, i := range ifs {
-		addrs, err := i.Addrs()
-		if err != nil {
-			return "", fmt.Errorf("get addresses: %w", err)
-		}
-		for _, a := range addrs {
-			ipnet, ok := a.(*net.IPNet)
-			if !ok {
-				continue
-			}
-			if ipnet.Contains(net.ParseIP(address)) {
-				return i.Name, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("could not find interface for address %s", address)
-}
-
 // listValidInterfaces returns a list of valid network interfaces for the node.
 func listValidInterfaces() ([]net.Interface, error) {
 	ifs, err := net.Interfaces()
