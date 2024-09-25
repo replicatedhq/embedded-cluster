@@ -29,10 +29,22 @@ func TestPreflights(t *testing.T) {
 	})
 
 	_, stderr, err := container.Exec(cli,
-		"apt-get update && apt-get install -y apt-utils kmod",
+		"apt-get update && apt-get install -y apt-utils kmod netcat-traditional",
 	)
 	if err != nil {
 		t.Fatalf("failed to install deps: err=%v, stderr=%s", err, stderr)
+	}
+
+	if _, stderr, err = container.Exec(cli, "nohup netcat -l -p 10250 &"); err != nil {
+		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
+	}
+
+	if _, stderr, err = container.Exec(cli, "nohup netcat -l 127.0.0.1 -p 50000 &"); err != nil {
+		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
+	}
+
+	if _, stderr, err = container.Exec(cli, "nohup netcat -l -u -p 4789 &"); err != nil {
+		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
 	}
 
 	runCmd := fmt.Sprintf("%s install run-preflights --no-prompt", container.GetECBinaryPath())
@@ -93,10 +105,13 @@ func TestPreflights(t *testing.T) {
 			assert: func(t *testing.T, results *preflights.Output) {
 				expected := map[string]bool{
 					// TODO: work to remove these
-					"System Clock":                true,
-					"'devices' Cgroup Controller": true,
-					"API Access":                  true,
-					"Proxy Registry Access":       true,
+					"System Clock":                            true,
+					"'devices' Cgroup Controller":             true,
+					"API Access":                              true,
+					"Proxy Registry Access":                   true,
+					"Kubelet Port Availability":               true,
+					"Calico Communication Port Availability":  true,
+					"Local Artifact Mirror Port Availability": true,
 					// as long as fio ran successfully, we're good
 					"Filesystem Write Latency": true,
 				}
@@ -120,6 +135,26 @@ func TestPreflights(t *testing.T) {
 						t.Errorf("unexpected warning: %q, %q", res.Title, res.Message)
 					} else {
 						t.Logf("found expected warning: %q, %q", res.Title, res.Message)
+					}
+				}
+			},
+		},
+		{
+			name: "Should contain port failures",
+			assert: func(t *testing.T, results *preflights.Output) {
+				expected := map[string]bool{
+					"Kubelet Port Availability":               false,
+					"Calico Communication Port Availability":  false,
+					"Local Artifact Mirror Port Availability": false,
+				}
+				for _, res := range results.Fail {
+					if _, ok := expected[res.Title]; ok {
+						expected[res.Title] = true
+					}
+				}
+				for title, found := range expected {
+					if !found {
+						t.Errorf("expected port failure not found: %q", title)
 					}
 				}
 			},

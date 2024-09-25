@@ -365,11 +365,6 @@ var resetCommand = &cli.Command{
 			Usage: "Disable interactive prompts",
 			Value: false,
 		},
-		&cli.BoolFlag{
-			Name:  "reboot",
-			Usage: "Reboot system after resetting the node",
-			Value: false,
-		},
 	},
 	Usage: fmt.Sprintf("Remove %s from the current node", binName),
 	Action: func(c *cli.Context) error {
@@ -378,7 +373,7 @@ var resetCommand = &cli.Command{
 		}
 
 		logrus.Info("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
-		logrus.Info("Do not reset another node until this is complete.")
+		logrus.Info("This action will cause the node to reboot. Do not reset another node until this is complete.")
 		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
 			return fmt.Errorf("Aborting")
 		}
@@ -449,10 +444,6 @@ var resetCommand = &cli.Command{
 			return err
 		}
 
-		if !c.Bool("reboot") {
-			logrus.Infof("Node has been reset. Please reboot to ensure transient configuration is also reset.")
-		}
-
 		if err := helpers.RemoveAll(defaults.PathToK0sConfig()); err != nil {
 			return fmt.Errorf("failed to remove k0s config: %w", err)
 		}
@@ -501,10 +492,8 @@ var resetCommand = &cli.Command{
 			return fmt.Errorf("failed to remove k0s binary: %w", err)
 		}
 
-		if c.Bool("reboot") {
-			if _, err := exec.Command("reboot").Output(); err != nil {
-				return err
-			}
+		if _, err := exec.Command("reboot").Output(); err != nil {
+			return err
 		}
 
 		return nil
