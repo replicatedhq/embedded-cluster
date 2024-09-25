@@ -229,7 +229,7 @@ make ssh-node0
     Subsequent changes to the kotsadm web component are reflected in real-time; no manual steps are required.
     However, to add, remove, or upgrade a dependency / package:
 
-    * Exec into the kotsadm-web container:
+    * From a new terminal session, exec into the kotsadm-web container:
         ```bash
         make kotsadm-web-up-ec
         ```
