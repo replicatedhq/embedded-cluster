@@ -80,7 +80,7 @@ spec:
         port: 2380
     - tcpPortStatus:
         collectorName: Local Artifact Mirror Port
-        port: 50000
+        port: {{ .LocalArtifactMirrorPort }}
         interface: lo
     - tcpPortStatus:
         collectorName: Calico External TCP Port
@@ -93,7 +93,7 @@ spec:
         port: 7443
     - tcpPortStatus:
         collectorName: Kotsadm Node Port
-        port: 30000
+        port: {{ .AdminConsolePort }}
     - tcpPortStatus:
         collectorName: Kubelet Port
         port: 10250
@@ -483,21 +483,21 @@ spec:
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 50000/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Connection to {{ .LocalArtifactMirrorPort }}/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
           - fail:
               when: "address-in-use"
-              message: Port 50000/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is needed but another process is already listening on it. Relocate that process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 50000/TCP. Ensure that your firewall doesn't block for 50000/TCP.
+              message: Timed out connecting to port {{ .LocalArtifactMirrorPort }}/TCP. Ensure that your firewall doesn't block for {{ .LocalArtifactMirrorPort }}/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 50000/TCP status.
+              message: Unexpected port {{ .LocalArtifactMirrorPort }}/TCP status.
           - pass:
               when: "connected"
-              message: Port 50000/TCP is available.
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is available.
           - error:
-              message: Unexpected port 50000/TCP status.
+              message: Unexpected port {{ .LocalArtifactMirrorPort }}/TCP status.
     - tcpPortStatus:
         checkName: Calico External TCP Port Availability
         collectorName: Calico External TCP Port
@@ -567,21 +567,21 @@ spec:
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 30000/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Connection to {{ .AdminConsolePort }}/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
           - fail:
               when: "address-in-use"
-              message: Port 30000/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port {{ .AdminConsolePort }}/TCP is needed but another process is already listening on it. Relocate that process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 30000/TCP. Ensure that your firewall doesn't block for 30000/TCP.
+              message: Timed out connecting to port {{ .AdminConsolePort }}/TCP. Ensure that your firewall doesn't block for {{ .AdminConsolePort }}/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 30000/TCP status.
+              message: Unexpected port {{ .AdminConsolePort }}/TCP status.
           - pass:
               when: "connected"
-              message: Port 30000/TCP is available.
+              message: Port {{ .AdminConsolePort }}/TCP is available.
           - error:
-              message: Unexpected port 30000/TCP status.
+              message: Unexpected port {{ .AdminConsolePort }}/TCP status.
     - tcpPortStatus:
         checkName: Kubelet Port Availability
         collectorName: Kubelet Port

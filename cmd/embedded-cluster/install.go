@@ -122,16 +122,18 @@ func configureNetworkManager(c *cli.Context) error {
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
+func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, adminConsolePort int, localArtifactMirrorPort int) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
 	data := preflights.TemplateData{
-		ReplicatedAPIURL: replicatedAPIURL,
-		ProxyRegistryURL: proxyRegistryURL,
-		IsAirgap:         isAirgap,
+		ReplicatedAPIURL:        replicatedAPIURL,
+		ProxyRegistryURL:        proxyRegistryURL,
+		IsAirgap:                isAirgap,
+		AdminConsolePort:        adminConsolePort,
+		LocalArtifactMirrorPort: localArtifactMirrorPort,
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
@@ -697,7 +699,18 @@ var installCommand = &cli.Command{
 			replicatedAPIURL = license.Spec.Endpoint
 			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 		}
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+
+		adminConsolePort, err := getAdminConsolePortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse admin console port: %w", err)
+		}
+
+		localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse local artifact mirror port: %w", err)
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
 			metrics.ReportApplyFinished(c, err)
 			return err
 		}

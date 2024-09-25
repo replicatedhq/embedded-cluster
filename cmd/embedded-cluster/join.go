@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -231,7 +232,22 @@ var joinCommand = &cli.Command{
 		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
+
+		urlSlices := strings.Split(c.Args().Get(0), ":")
+		if len(urlSlices) != 2 {
+			return fmt.Errorf("unable to get port from url %s", c.Args().Get(0))
+		}
+		adminConsolePort, err := strconv.Atoi(urlSlices[1])
+		if err != nil {
+			return fmt.Errorf("unable to convert port to int: %w", err)
+		}
+
+		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
+		if jcmd.InstallationSpec.LocalArtifactMirror != nil {
+			localArtifactMirrorPort = jcmd.InstallationSpec.LocalArtifactMirror.Port
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -265,10 +281,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
-		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
-		if jcmd.InstallationSpec.LocalArtifactMirror != nil && jcmd.InstallationSpec.LocalArtifactMirror.Port > 0 {
-			localArtifactMirrorPort = jcmd.InstallationSpec.LocalArtifactMirror.Port
-		}
+
 		// both controller and worker nodes will have 'worker' in the join command
 		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.InstallationSpec.Proxy, localArtifactMirrorPort); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
