@@ -168,6 +168,7 @@ initial-release:
 upgrade-release:
 	EC_VERSION=$(VERSION)-$(CURRENT_USER)-upgrade \
 	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade \
+	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
 	UPLOAD_BINARIES=1 \
 		./scripts/build-and-release.sh
 
