@@ -304,10 +304,10 @@ spec:
         regex: 'proc'
         outcomes:
           - pass:
-              when: 'true'
+              when: "true"
               message: /proc filesystem is mounted
           - fail:
-              when: 'false'
+              when: "false"
               message: /proc filesystem must be mounted, but it currently is not
     - textAnalyze:
         checkName: "'modprobe' Command"
@@ -315,10 +315,10 @@ spec:
         regex: 'modprobe'
         outcomes:
           - pass:
-              when: 'true'
+              when: "true"
               message: "'modprobe' command exists in PATH"
           - fail:
-              when: 'false'
+              when: "false"
               message: "'modprobe' command must exist in PATH"
     - textAnalyze:
         checkName: "'mount' Command"
@@ -326,10 +326,10 @@ spec:
         regex: 'mount'
         outcomes:
           - pass:
-              when: 'true'
+              when: "true"
               message: "'mount' command exists in PATH"
           - fail:
-              when: 'false'
+              when: "false"
               message: "'mount' command must exist in PATH"
     - textAnalyze:
         checkName: "'umount' Command"
@@ -337,16 +337,16 @@ spec:
         regex: 'umount'
         outcomes:
           - pass:
-              when: 'true'
+              when: "true"
               message: "'umount' command exists in PATH"
           - fail:
-              when: 'false'
+              when: "false"
               message: "'umount' command must exist in PATH"
     - hostOS:
         checkName: Kernel Version
         outcomes:
           - pass:
-              when: 'kernelVersion >= 3.10'
+              when: "kernelVersion >= 3.10"
               message: Kernel version is at least 3.10
           - fail:
               message: Kernel version must be at least 3.10
@@ -402,10 +402,10 @@ spec:
         regex: 'nameserver\s*(localhost|127\.0\.0\.1)'
         outcomes:
           - fail:
-              when: 'true'
-              message: "Neither 'nameserver localhost' nor 'nameserver 127.0.0.1' can be present in resolv.conf. Remove them to continue."
+              when: "true"
+              message: "Local DNS resolver detected. Remove the localhost and/or 127.0.0.1 nameserver entries from resolv.conf."
           - pass:
-              when: 'false'
+              when: "false"
               message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf"
     - filesystemPerformance:
         checkName: Filesystem Write Latency
