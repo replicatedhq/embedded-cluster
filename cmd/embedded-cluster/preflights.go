@@ -3,10 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -97,6 +95,11 @@ var joinRunPreflightsCommand = &cli.Command{
 			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:  "network-interface",
+			Usage: "The network interface to use for the cluster",
+			Value: "",
+		},
 		&cli.BoolFlag{
 			Name:  "no-prompt",
 			Usage: "Disable interactive prompts.",
@@ -114,13 +117,6 @@ var joinRunPreflightsCommand = &cli.Command{
 			return fmt.Errorf("usage: %s join preflights <url> <token>", binName)
 		}
 
-		logrus.Debugf("getting network interface from join command")
-		jcmdAddress := strings.Split(c.Args().Get(0), ":")[0]
-		networkInterface, err := netutils.InterfaceNameForAddress(jcmdAddress)
-		if err != nil {
-			return fmt.Errorf("unable to get network interface for address %s: %w", jcmdAddress, err)
-		}
-
 		logrus.Debugf("fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
@@ -133,7 +129,7 @@ var joinRunPreflightsCommand = &cli.Command{
 		}
 
 		setProxyEnv(jcmd.InstallationSpec.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterface)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, c.String("network-interface"))
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
