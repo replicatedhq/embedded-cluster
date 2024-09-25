@@ -57,7 +57,6 @@ jobs:
           - k0s
           - openebs
           - velero
-          - embeddedclusteroperator
           - seaweedfs
     steps:
     - name: Checkout

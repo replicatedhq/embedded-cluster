@@ -46,7 +46,6 @@ jobs:
           - registry
           - seaweedfs
           - velero
-          - embeddedclusteroperator
           - adminconsole
     steps:
       - name: Check out repo
