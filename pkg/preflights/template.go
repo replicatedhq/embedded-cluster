@@ -8,9 +8,11 @@ import (
 )
 
 type TemplateData struct {
-	IsAirgap         bool
-	ReplicatedAPIURL string
-	ProxyRegistryURL string
+	IsAirgap                bool
+	ReplicatedAPIURL        string
+	ProxyRegistryURL        string
+	AdminConsolePort        int
+	LocalArtifactMirrorPort int
 }
 
 func renderTemplate(spec string, data TemplateData) (string, error) {

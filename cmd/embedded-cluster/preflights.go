@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -35,6 +36,8 @@ var installRunPreflightsCommand = &cli.Command{
 				Usage: "Disable interactive prompts.",
 				Value: false,
 			},
+			getAdminColsolePortFlag(),
+			getLocalArtifactMirrorPortFlag(),
 		},
 	)),
 	Before: func(c *cli.Context) error {
@@ -75,7 +78,18 @@ var installRunPreflightsCommand = &cli.Command{
 			replicatedAPIURL = license.Spec.Endpoint
 			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 		}
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+
+		adminConsolePort, err := getAdminConsolePortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse admin console port: %w", err)
+		}
+
+		localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse local artifact mirror port: %w", err)
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
 			return err
 		}
 
@@ -156,7 +170,22 @@ var joinRunPreflightsCommand = &cli.Command{
 		logrus.Debugf("running host preflights")
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
+
+		urlSlices := strings.Split(c.Args().Get(0), ":")
+		if len(urlSlices) != 2 {
+			return fmt.Errorf("unable to get port from url %s", c.Args().Get(0))
+		}
+		adminConsolePort, err := strconv.Atoi(urlSlices[1])
+		if err != nil {
+			return fmt.Errorf("unable to convert port to int: %w", err)
+		}
+
+		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
+		if jcmd.InstallationSpec.LocalArtifactMirror != nil {
+			localArtifactMirrorPort = jcmd.InstallationSpec.LocalArtifactMirror.Port
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
 			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			return err
 		}
