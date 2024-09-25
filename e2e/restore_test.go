@@ -338,6 +338,10 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
+
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
+	time.Sleep(30 * time.Second)
+
 	installTestDependenciesDebian(t, tc, 0, true)
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
 	testArgs = append(testArgs, "--pod-cidr", "10.128.0.0/20", "--service-cidr", "10.129.0.0/20")
