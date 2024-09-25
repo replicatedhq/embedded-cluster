@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"runtime"
 
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -263,7 +264,7 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in
 		AirgapUpdate: &autopilotv1beta2.PlanCommandAirgapUpdate{
 			Version: meta.Versions["Kubernetes"],
 			Platforms: map[string]autopilotv1beta2.PlanResourceURL{
-				"linux-amd64": {
+				fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH): {
 					URL: imageURL,
 				},
 			},

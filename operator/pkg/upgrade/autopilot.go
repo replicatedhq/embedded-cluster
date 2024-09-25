@@ -3,6 +3,9 @@ package upgrade
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"strings"
+
 	"github.com/google/uuid"
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -11,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 // InstallationNameAnnotation is the annotation we keep in the autopilot plan so we can
@@ -94,7 +96,7 @@ func StartAutopilotUpgrade(ctx context.Context, cli client.Client, in *v1beta1.I
 						Version: meta.Versions["Kubernetes"],
 						Targets: targets,
 						Platforms: apv1b2.PlanPlatformResourceURLMap{
-							"linux-amd64": {URL: k0surl, Sha256: meta.K0sSHA},
+							fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH): {URL: k0surl, Sha256: meta.K0sSHA},
 						},
 					},
 				},
