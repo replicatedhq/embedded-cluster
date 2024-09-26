@@ -158,16 +158,23 @@ output/bin/embedded-cluster-release-builder:
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
 .PHONY: initial-release
-initial-release:
-	EC_VERSION=$(VERSION)-$(CURRENT_USER) \
-	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6) \
+initial-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
+initial-release: APP_VERSION = appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
+initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 		./scripts/build-and-release.sh
 
+.PHONY: rebuild-release
+rebuild-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
+rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
+	UPLOAD_BINARIES=0 \
+	SKIP_RELEASE=1 \
+		./scripts/build-and-release.sh
+
 .PHONY: upgrade-release
-upgrade-release:
-	EC_VERSION=$(VERSION)-$(CURRENT_USER)-upgrade \
-	APP_VERSION=appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade \
+upgrade-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade
+upgrade-release: APP_VERSION = appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade
+upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
 		./scripts/build-and-release.sh
 
@@ -195,6 +202,13 @@ embedded-cluster-linux-amd64: static go.mod embedded-cluster
 embedded-cluster-linux-arm64: OS = linux
 embedded-cluster-linux-arm64: ARCH = arm64
 embedded-cluster-linux-arm64: static go.mod embedded-cluster
+	mkdir -p ./output/bin
+	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
+
+.PHONY: embedded-cluster-darwin-arm64
+embedded-cluster-darwin-arm64: OS = darwin
+embedded-cluster-darwin-arm64: ARCH = arm64
+embedded-cluster-darwin-arm64: go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
@@ -270,6 +284,7 @@ list-distros:
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
+create-node%: K0S_DATA_DIR = /var/lib/k0s
 create-node%:
 	@if ! docker images | grep -q ec-$(DISTRO); then \
 		$(MAKE) -C dev/distros build-$(DISTRO); \
@@ -280,7 +295,7 @@ create-node%:
 		--hostname node$* \
 		--privileged \
 		--cgroupns=host \
-		-v /var/lib/k0s \
+		-v $(K0S_DATA_DIR) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
