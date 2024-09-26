@@ -24,6 +24,9 @@ func MarshalValues(values map[string]interface{}) (string, error) {
 	return string(newValuesYaml), nil
 }
 
+// SetValue sets the value at the given path in the values map.
+// NOTE: this function does not support creating new maps. It only supports setting values in
+// existing ones.
 func SetValue(values map[string]interface{}, path string, newValue interface{}) (map[string]interface{}, error) {
 	newValuesMap := dig.Mapping(values)
 

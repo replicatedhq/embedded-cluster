@@ -15,6 +15,8 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -74,7 +76,7 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
-func (o *OpenEBS) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (o *OpenEBS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	chartConfig := ecv1beta1.Chart{
 		Name:         releaseName,
 		ChartName:    Metadata.Location,
@@ -82,6 +84,14 @@ func (o *OpenEBS) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefau
 		TargetNS:     namespace,
 		ForceUpgrade: ptr.To(false),
 		Order:        1,
+	}
+
+	if !onlyDefaults {
+		var err error
+		helmValues, err = helm.SetValue(helmValues, `["localpv-provisioner"].localpv.basePath`, provider.EmbeddedClusterOpenEBSLocalSubDir())
+		if err != nil {
+			return nil, nil, fmt.Errorf("set helm values localpv-provisioner.localpv.basePath: %w", err)
+		}
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
@@ -110,7 +120,7 @@ func (o *OpenEBS) GetAdditionalImages() []string {
 }
 
 // Outro is executed after the cluster deployment.
-func (o *OpenEBS) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (o *OpenEBS) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Storage to be ready")
 	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "openebs-localpv-provisioner"); err != nil {

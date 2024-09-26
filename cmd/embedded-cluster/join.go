@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -168,7 +167,6 @@ var joinCommand = &cli.Command{
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}
-		os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
 		return nil
 	},
 	Action: func(c *cli.Context) error {
@@ -192,6 +190,10 @@ var joinCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("unable to get join token: %w", err)
 		}
+
+		provider := defaults.NewProviderFromRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
+		os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 		// check to make sure the version returned by the join token is the same as the one we are running
 		if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
@@ -218,12 +220,12 @@ var joinCommand = &cli.Command{
 
 		metrics.ReportJoinStarted(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Debugf("materializing %s binaries", binName)
-		if err := materializeFiles(c); err != nil {
+		if err := materializeFiles(c, provider); err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, "", jcmd.InstallationSpec.Proxy)
+		applier, err := getAddonsApplier(c, jcmd.InstallationSpec.RuntimeConfig, "", jcmd.InstallationSpec.Proxy)
 		if err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -232,22 +234,7 @@ var joinCommand = &cli.Command{
 		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-
-		urlSlices := strings.Split(c.Args().Get(0), ":")
-		if len(urlSlices) != 2 {
-			return fmt.Errorf("unable to get port from url %s", c.Args().Get(0))
-		}
-		adminConsolePort, err := strconv.Atoi(urlSlices[1])
-		if err != nil {
-			return fmt.Errorf("unable to convert port to int: %w", err)
-		}
-
-		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
-		if jcmd.InstallationSpec.LocalArtifactMirror != nil {
-			localArtifactMirrorPort = jcmd.InstallationSpec.LocalArtifactMirror.Port
-		}
-
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
+		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			if err == ErrPreflightsHaveFail {
 				return ErrNothingElseToAdd
@@ -256,7 +243,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("configuring network manager")
-		if err := configureNetworkManager(c); err != nil {
+		if err := configureNetworkManager(c, provider); err != nil {
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 
@@ -268,7 +255,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("installing %s binaries", binName)
-		if err := installK0sBinary(); err != nil {
+		if err := installK0sBinary(provider); err != nil {
 			err := fmt.Errorf("unable to install k0s binary: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -283,9 +270,8 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
-
 		// both controller and worker nodes will have 'worker' in the join command
-		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.InstallationSpec.Proxy, localArtifactMirrorPort); err != nil {
+		if err := createSystemdUnitFiles(provider, !strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.InstallationSpec.Proxy); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -305,7 +291,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("joining node to cluster")
-		if err := runK0sInstallCommand(c, jcmd.K0sJoinCommand); err != nil {
+		if err := runK0sInstallCommand(c, provider, jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -346,6 +332,8 @@ var joinCommand = &cli.Command{
 				return err
 			}
 		}
+
+		tryRemoveTmpDirContents(provider)
 
 		metrics.ReportJoinSucceeded(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Debugf("controller node join finished")
@@ -478,8 +466,8 @@ func saveTokenToDisk(token string) error {
 }
 
 // installK0sBinary moves the embedded k0s binary to its destination.
-func installK0sBinary() error {
-	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
+func installK0sBinary(provider *defaults.Provider) error {
+	ourbin := provider.PathToEmbeddedClusterBinary("k0s")
 	hstbin := defaults.K0sBinaryPath()
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
@@ -501,18 +489,20 @@ func systemdUnitFileName() string {
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
-func runK0sInstallCommand(c *cli.Context, fullcmd string) error {
+func runK0sInstallCommand(c *cli.Context, provider *defaults.Provider, fullcmd string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
-	if strings.Contains(fullcmd, "controller") {
-		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
-	}
 
 	nodeIP, err := netutils.FirstValidAddress(c.String("network-interface"))
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	args = append(args, "--kubelet-extra-args", fmt.Sprintf(`"--node-ip=%s"`, nodeIP))
+
+	args = append(args, config.AdditionalInstallFlags(provider, nodeIP)...)
+
+	if strings.Contains(fullcmd, "controller") {
+		args = append(args, config.AdditionalInstallFlagsController()...)
+	}
 
 	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
 		return err

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
+DIR=/usr/local/bin
+. $DIR/common.sh
+
 main() {
     if ! kubectl support-bundle --output cluster.tar.gz --interactive=false --load-cluster-specs ; then
         # NOTE: this will fail in airgap but we've already failed above
@@ -13,6 +16,4 @@ main() {
     fi
 }
 
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main "$@"

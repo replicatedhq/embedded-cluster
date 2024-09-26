@@ -48,6 +48,8 @@ func DetermineUpgradeTargets(ctx context.Context, cli client.Client) (apv1b2.Pla
 
 // StartAutopilotUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
 func StartAutopilotUpgrade(ctx context.Context, cli client.Client, in *v1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
+
 	targets, err := DetermineUpgradeTargets(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("failed to determine upgrade targets: %w", err)
@@ -58,11 +60,7 @@ func StartAutopilotUpgrade(ctx context.Context, cli client.Client, in *v1beta1.I
 		// if we are running in an airgap environment all assets are already present in the
 		// node and are served by the local-artifact-mirror binary listening on localhost
 		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
-		port := defaults.LocalArtifactMirrorPort
-		if in.Spec.LocalArtifactMirror != nil && in.Spec.LocalArtifactMirror.Port > 0 {
-			port = in.Spec.LocalArtifactMirror.Port
-		}
-		k0surl = fmt.Sprintf("http://127.0.0.1:%d/bin/k0s-upgrade", port)
+		k0surl = fmt.Sprintf("http://127.0.0.1:%d/bin/k0s-upgrade", provider.LocalArtifactMirrorPort())
 	} else {
 		artifact := meta.Artifacts["k0s"]
 		if strings.HasPrefix(artifact, "https://") || strings.HasPrefix(artifact, "http://") {

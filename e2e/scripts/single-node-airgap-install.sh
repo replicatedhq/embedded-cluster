@@ -48,7 +48,7 @@ main() {
         exit 1
     fi
     if ! ensure_binary_copy; then
-        echo "Failed to ensure the embedded binary has been copied to /var/lib/embedded-cluster/bin"
+        echo "Failed to ensure the embedded binary has been copied to ${EMBEDDED_CLUSTER_BASE_DIR}/bin"
         exit 1
     fi
     if ! wait_for_healthy_node; then
@@ -105,7 +105,4 @@ main() {
     kubectl get pods -A
 }
 
-export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main "$@"

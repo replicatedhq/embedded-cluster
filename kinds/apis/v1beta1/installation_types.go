@@ -144,8 +144,8 @@ type InstallationSpec struct {
 	// used at installation time.
 	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
 
-	AdminConsole        *AdminConsoleSpec        `json:"adminConsole,omitempty"`
-	LocalArtifactMirror *LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
+	Deprecated_AdminConsole        *AdminConsoleSpec        `json:"adminConsole,omitempty"`
+	Deprecated_LocalArtifactMirror *LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
 }
 
 func (i *InstallationSpec) UnmarshalJSON(data []byte) error {
@@ -156,20 +156,20 @@ func (i *InstallationSpec) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if i.AdminConsole != nil && i.AdminConsole.Port > 0 {
+	if i.Deprecated_AdminConsole != nil && i.Deprecated_AdminConsole.Port > 0 {
 		if i.RuntimeConfig == nil {
 			i.RuntimeConfig = &RuntimeConfigSpec{}
 		}
 		if i.RuntimeConfig.AdminConsole.Port == 0 {
-			i.RuntimeConfig.AdminConsole.Port = i.AdminConsole.Port
+			i.RuntimeConfig.AdminConsole.Port = i.Deprecated_AdminConsole.Port
 		}
 	}
-	if i.LocalArtifactMirror != nil && i.LocalArtifactMirror.Port > 0 {
+	if i.Deprecated_LocalArtifactMirror != nil && i.Deprecated_LocalArtifactMirror.Port > 0 {
 		if i.RuntimeConfig == nil {
 			i.RuntimeConfig = &RuntimeConfigSpec{}
 		}
 		if i.RuntimeConfig.LocalArtifactMirror.Port == 0 {
-			i.RuntimeConfig.LocalArtifactMirror.Port = i.LocalArtifactMirror.Port
+			i.RuntimeConfig.LocalArtifactMirror.Port = i.Deprecated_LocalArtifactMirror.Port
 		}
 	}
 	return nil

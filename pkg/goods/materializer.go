@@ -22,8 +22,8 @@ type Materializer struct {
 
 // NewMaterializer returns a new entity capable of materialize (write to disk) embedded
 // assets. Other operations on embedded assets are also available.
-func NewMaterializer(basedir string) *Materializer {
-	return &Materializer{def: defaults.NewProvider(basedir)}
+func NewMaterializer(provider *defaults.Provider) *Materializer {
+	return &Materializer{def: provider}
 }
 
 // InternalBinary materializes an internal binary from inside internal/bins directory
@@ -171,7 +171,7 @@ func (m *Materializer) Kubectl() error {
 	// https://github.com/k0sproject/k0s/blob/5d48d20767851fe8e299aacd3d5aae6fcfbeab37/main.go#L40
 	dstpath := m.def.PathToEmbeddedClusterBinary("kubectl")
 	_ = os.RemoveAll(dstpath)
-	k0spath := m.def.K0sBinaryPath()
+	k0spath := defaults.K0sBinaryPath()
 	content := fmt.Sprintf(kubectlScript, k0spath)
 	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
 		return fmt.Errorf("write kubectl completion: %w", err)
@@ -213,7 +213,7 @@ func (m *Materializer) Ourselves() error {
 		return fmt.Errorf("unable to get our own executable path: %w", err)
 	}
 
-	dstpath := m.def.PathToEmbeddedClusterBinary(m.def.BinaryName())
+	dstpath := m.def.PathToEmbeddedClusterBinary(defaults.BinaryName())
 	if srcpath == dstpath {
 		return nil
 	}

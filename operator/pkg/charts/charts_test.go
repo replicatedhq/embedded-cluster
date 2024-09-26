@@ -431,6 +431,9 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					{
 						Name: "seaweedfsrepo",
 					},
+					{
+						Name: "registryrepo",
+					},
 				},
 				Charts: []v1beta1.Chart{
 					{
@@ -439,6 +442,10 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					},
 					{
 						Name:  "seaweedfschart",
+						Order: 100,
+					},
+					{
+						Name:  "registrychart",
 						Order: 100,
 					},
 				},

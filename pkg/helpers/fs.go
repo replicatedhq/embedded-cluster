@@ -7,6 +7,25 @@ import (
 	"path/filepath"
 )
 
+type MultiError struct {
+	Errors []error
+}
+
+func (e *MultiError) Add(err error) {
+	e.Errors = append(e.Errors, err)
+}
+
+func (e *MultiError) ErrorOrNil() error {
+	switch len(e.Errors) {
+	case 0:
+		return nil
+	case 1:
+		return e.Errors[0]
+	default:
+		return fmt.Errorf("errors: %q", e.Errors)
+	}
+}
+
 // MoveFile moves a file from one location to another, overwriting the destination if it
 // exists. File mode is preserved.
 func MoveFile(src, dst string) error {
@@ -69,10 +88,11 @@ func RemoveAll(path string) error {
 	if err != nil {
 		return fmt.Errorf("read directory: %w", err)
 	}
+	var me MultiError
 	for _, name := range names {
 		if err := os.RemoveAll(filepath.Join(path, name)); err != nil {
-			return fmt.Errorf("remove %s: %w", name, err)
+			me.Add(fmt.Errorf("remove %s: %w", name, err))
 		}
 	}
-	return nil
+	return me.ErrorOrNil()
 }

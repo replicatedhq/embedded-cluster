@@ -173,29 +173,42 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 	return nil
 }
 
+func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedclusterv1beta1.Installation, error) {
+	var list embeddedclusterv1beta1.InstallationList
+	if err := cli.List(ctx, &list); err != nil {
+		return nil, err
+	}
+	installs := list.Items
+	sort.SliceStable(installs, func(i, j int) bool {
+		return installs[j].Name < installs[i].Name
+	})
+	return installs, nil
+}
+
+func GetInstallation(ctx context.Context, cli client.Client, name string) (*embeddedclusterv1beta1.Installation, error) {
+	nsn := types.NamespacedName{Name: name}
+	var install embeddedclusterv1beta1.Installation
+	if err := cli.Get(ctx, nsn, &install); err != nil {
+		return nil, fmt.Errorf("unable to get installation: %w", err)
+	}
+	return &install, nil
+}
+
 func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
-	var installList embeddedclusterv1beta1.InstallationList
-	if err := cli.List(ctx, &installList); meta.IsNoMatchError(err) {
+	installs, err := ListInstallations(ctx, cli)
+	if meta.IsNoMatchError(err) {
 		// this will happen if the CRD is not yet installed
 		return nil, ErrNoInstallations{}
 	} else if err != nil {
 		return nil, fmt.Errorf("unable to list installations: %v", err)
 	}
 
-	installs := installList.Items
 	if len(installs) == 0 {
 		return nil, ErrNoInstallations{}
 	}
 
-	// sort the installations
-	sort.SliceStable(installs, func(i, j int) bool {
-		return installs[j].Name < installs[i].Name
-	})
-
 	// get the latest installation
-	lastInstall := installs[0]
-
-	return &lastInstall, nil
+	return &installs[0], nil
 }
 
 func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {

@@ -2,6 +2,9 @@
 # This script waits for X nodes to be ready. X is the first argument.
 set -euox pipefail
 
+DIR=/usr/local/bin
+. $DIR/common.sh
+
 main() {
     expected_nodes="$1"
     is_restore="${2:-}"
@@ -49,7 +52,4 @@ main() {
     exit 0
 }
 
-export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main "$@"

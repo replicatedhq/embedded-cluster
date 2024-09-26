@@ -108,7 +108,7 @@ jobs:
 
       - name: List images
         run: |
-          ./output/bin/embedded-cluster version list-images > images.txt
+          sudo ./output/bin/embedded-cluster version list-images > images.txt
 
       - name: Upload images artifact
         uses: actions/upload-artifact@v4

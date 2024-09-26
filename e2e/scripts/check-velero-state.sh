@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
+DIR=/usr/local/bin
+. $DIR/common.sh
+
 wait_for_velero_pods() {
     ready=$(kubectl get pods -n velero -o jsonpath='{.items[*].metadata.name} {.items[*].status.phase}' | grep "velero" | grep -c Running || true)
     counter=0
@@ -33,7 +36,4 @@ main() {
     fi
 }
 
-export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main "$@"

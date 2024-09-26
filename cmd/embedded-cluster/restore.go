@@ -202,7 +202,7 @@ func resetECRestoreState(ctx context.Context) error {
 // It returns an error if a backup is defined in the restore state but:
 //   - is not found by Velero anymore.
 //   - is not restorable by the current binary.
-func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Backup, error) {
+func getBackupFromRestoreState(ctx context.Context, provider *defaults.Provider, isAirgap bool) (*velerov1.Backup, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
@@ -244,7 +244,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
-	if restorable, reason := isBackupRestorable(backup, rel, isAirgap, k0sCfg); !restorable {
+	if restorable, reason := isBackupRestorable(backup, provider, rel, isAirgap, k0sCfg); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
 	}
 	return backup, nil
@@ -305,18 +305,18 @@ func validateS3BackupStore(s *s3BackupStore) error {
 // RunHostPreflightsForRestore runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts for restore operations.
-func RunHostPreflightsForRestore(c *cli.Context, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) error {
+func RunHostPreflightsForRestore(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) error {
 	hpf, err := applier.HostPreflightsForRestore()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
-	return runHostPreflights(c, hpf, proxy)
+	return runHostPreflights(c, provider, hpf, proxy)
 }
 
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.
 // The file is saved in the global location (as returned by defaults.PathToK0sConfig()).
 // If a file already sits there, this function returns an error.
-func ensureK0sConfigForRestore(c *cli.Context, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
+func ensureK0sConfigForRestore(c *cli.Context, provider *defaults.Provider, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
@@ -342,7 +342,7 @@ func ensureK0sConfigForRestore(c *cli.Context, applier *addons.Applier) (*k0sv1b
 	}
 	if c.String("airgap-bundle") != "" {
 		// update the k0s config to install with airgap
-		airgap.RemapHelm(cfg)
+		airgap.RemapHelm(provider, cfg)
 		airgap.SetAirgapConfig(cfg)
 	}
 	data, err := k8syaml.Marshal(cfg)
@@ -365,7 +365,7 @@ func runOutroForRestore(c *cli.Context, applier *addons.Applier, cfg *k0sv1beta1
 	return applier.OutroForRestore(c.Context, cfg)
 }
 
-func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
+func isBackupRestorable(backup *velerov1.Backup, provider *defaults.Provider, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
@@ -421,6 +421,11 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 			}
 		}
 	}
+
+	if v := backup.Annotations["kots.io/embedded-cluster-data-dir"]; v != "" && v != provider.EmbeddedClusterHomeDirectory() {
+		return false, fmt.Sprintf("has a different data directory than the current cluster. Please rerun with '--data-dir %s'.", v)
+	}
+
 	return true, ""
 }
 
@@ -434,7 +439,7 @@ func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
 
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
-func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, error) {
+func waitForBackups(ctx context.Context, provider *defaults.Provider, isAirgap bool) ([]velerov1.Backup, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
@@ -479,7 +484,7 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		invalidReasons := []string{}
 
 		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup, rel, isAirgap, k0sCfg)
+			restorable, reason := isBackupRestorable(&backup, provider, rel, isAirgap, k0sCfg)
 			if restorable {
 				validBackups = append(validBackups, backup)
 			} else {
@@ -806,25 +811,16 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 }
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
-func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkInterface string) error {
+func waitForAdditionalNodes(ctx context.Context, provider *defaults.Provider, highAvailability bool, networkInterface string) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
-	if err != nil {
-		return fmt.Errorf("unable to get latest installation: %w", err)
-	}
-	adminConsolePort := defaults.AdminConsolePort
-	if in.Spec.AdminConsole != nil && in.Spec.AdminConsole.Port > 0 {
-		adminConsolePort = in.Spec.AdminConsole.Port
-	}
-
 	successColor := "\033[32m"
 	colorReset := "\033[0m"
 	joinNodesMsg := fmt.Sprintf("\nVisit the Admin Console if you need to add nodes to the cluster: %s%s%s\n",
-		successColor, adminconsole.GetURL(networkInterface, adminConsolePort), colorReset,
+		successColor, adminconsole.GetURL(networkInterface, provider.AdminConsolePort()), colorReset,
 	)
 	logrus.Info(joinNodesMsg)
 
@@ -858,23 +854,23 @@ func waitForAdditionalNodes(ctx context.Context, highAvailability bool, networkI
 	return nil
 }
 
-func installAndWaitForRestoredK0sNode(c *cli.Context, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
+func installAndWaitForRestoredK0sNode(c *cli.Context, provider *defaults.Provider, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", binName)
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := ensureK0sConfigForRestore(c, applier)
+	cfg, err := ensureK0sConfigForRestore(c, provider, applier)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
 	proxy := getProxySpecFromFlags(c)
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(false, proxy, applier.GetLocalArtifactMirrorPort()); err != nil {
+	if err := createSystemdUnitFiles(provider, false, proxy); err != nil {
 		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 	logrus.Debugf("installing k0s")
-	if err := installK0s(c); err != nil {
+	if err := installK0s(c, provider); err != nil {
 		return nil, fmt.Errorf("unable update cluster: %w", err)
 	}
 	loading.Infof("Waiting for %s node to be ready", binName)
@@ -886,370 +882,399 @@ func installAndWaitForRestoredK0sNode(c *cli.Context, applier *addons.Applier) (
 	return cfg, nil
 }
 
-var restoreCommand = &cli.Command{
-	Name:  "restore",
-	Usage: fmt.Sprintf("Restore a %s cluster", binName),
-	Flags: withProxyFlags(withSubnetCIDRFlags(
-		[]cli.Flag{
-			&cli.StringFlag{
-				Name:   "airgap-bundle",
-				Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
-				Hidden: true,
+func restoreCommand() *cli.Command {
+	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
+
+	return &cli.Command{
+		Name:  "restore",
+		Usage: fmt.Sprintf("Restore a %s cluster", binName),
+		Flags: withProxyFlags(withSubnetCIDRFlags(
+			[]cli.Flag{
+				&cli.StringFlag{
+					Name:   "airgap-bundle",
+					Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
+					Hidden: true,
+				},
+				&cli.StringFlag{
+					Name:  "network-interface",
+					Usage: "The network interface to use for the cluster",
+					Value: "",
+				},
+				&cli.BoolFlag{
+					Name:  "no-prompt",
+					Usage: "Disable interactive prompts.",
+					Value: false,
+				},
+				&cli.BoolFlag{
+					Name:  "skip-host-preflights",
+					Usage: "Skip host preflight checks. This is not recommended.",
+					Value: false,
+				},
+				&cli.BoolFlag{
+					Name:   "skip-store-validation",
+					Usage:  "Skip validation of the backup store. This is not recommended.",
+					Value:  false,
+					Hidden: true,
+				},
+				&cli.StringFlag{
+					Name:  "local-artifact-mirror-port",
+					Usage: "Port on which the Local Artifact Mirror will be served. If left empty, the port will be retrieved from the snapshot.",
+					// DefaultText: strconv.Itoa(ecv1beta1.DefaultLocalArtifactMirrorPort),
+					Hidden: false,
+				},
+				getDataDirFlag(runtimeConfig),
 			},
-			&cli.StringFlag{
-				Name:  "network-interface",
-				Usage: "The network interface to use for the cluster",
-				Value: "",
-			},
-			&cli.BoolFlag{
-				Name:  "no-prompt",
-				Usage: "Disable interactive prompts.",
-				Value: false,
-			},
-			&cli.BoolFlag{
-				Name:  "skip-host-preflights",
-				Usage: "Skip host preflight checks. This is not recommended.",
-				Value: false,
-			},
-			&cli.BoolFlag{
-				Name:   "skip-store-validation",
-				Usage:  "Skip validation of the backup store. This is not recommended.",
-				Value:  false,
-				Hidden: true,
-			},
-			&cli.StringFlag{
-				Name:  "local-artifact-mirror-port",
-				Usage: "Port on which the Local Artifact Mirror will be served. If left empty, the port will be retrieved from the snapshot.",
-				// DefaultText: strconv.Itoa(defaults.LocalArtifactMirrorPort),
-				Hidden: false,
-			},
+		)),
+		Before: func(c *cli.Context) error {
+			if os.Getuid() != 0 {
+				return fmt.Errorf("restore command must be run as root")
+			}
+			return nil
 		},
-	)),
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("restore command must be run as root")
-		}
-		os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
-		return nil
-	},
-	Action: func(c *cli.Context) error {
-		proxy := getProxySpecFromFlags(c)
-		setProxyEnv(proxy)
+		Action: func(c *cli.Context) error {
+			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
+			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
-		logrus.Debugf("getting restore state")
-		state := getECRestoreState(c.Context)
-		logrus.Debugf("restore state is: %q", state)
+			proxy := getProxySpecFromFlags(c)
+			setProxyEnv(proxy)
 
-		if state != ecRestoreStateNew {
-			shouldResume := prompts.New().Confirm("A previous restore operation was detected. Would you like to resume?", true)
-			logrus.Info("")
-			if !shouldResume {
-				state = ecRestoreStateNew
-			}
-		}
-		if c.String("airgap-bundle") != "" {
-			logrus.Debugf("checking airgap bundle matches binary")
-			if err := checkAirgapMatches(c); err != nil {
-				return err // we want the user to see the error message without a prefix
-			}
-		}
+			logrus.Debugf("getting restore state")
+			state := getECRestoreState(c.Context)
+			logrus.Debugf("restore state is: %q", state)
 
-		// if the user wants to resume, check if a backup has already been picked.
-		var backupToRestore *velerov1.Backup
-		if state != ecRestoreStateNew {
-			logrus.Debugf("getting backup from restore state")
-			var err error
-			backupToRestore, err = getBackupFromRestoreState(c.Context, c.String("airgap-bundle") != "")
-			if err != nil {
-				return fmt.Errorf("unable to resume: %w", err)
-			}
-			if backupToRestore != nil {
-				completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
-				logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.Name, completionTimestamp)
-			}
-		}
-
-		applier, err := getAddonsApplier(c, "", proxy)
-		if err != nil {
-			return err
-		}
-
-		switch state {
-		case ecRestoreStateNew:
-			logrus.Debugf("checking if %s is already installed", binName)
-			if installed, err := isAlreadyInstalled(); err != nil {
-				return err
-			} else if installed {
-				logrus.Errorf("An installation has been detected on this machine.")
-				logrus.Infof("If you want to restore you need to remove the existing installation")
-				logrus.Infof("first. You can do this by running the following command:")
-				logrus.Infof("\n  sudo ./%s reset\n", binName)
-				return ErrNothingElseToAdd
-			}
-
-			logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", binName)
-			logrus.Info("Enter information to configure access to your backup storage location.\n")
-			s3Store := newS3BackupStore()
-
-			if !c.Bool("skip-store-validation") {
-				logrus.Debugf("validating backup store configuration")
-				if err := validateS3BackupStore(s3Store); err != nil {
-					return fmt.Errorf("unable to validate backup store: %w", err)
+			if state != ecRestoreStateNew {
+				shouldResume := prompts.New().Confirm("A previous restore operation was detected. Would you like to resume?", true)
+				logrus.Info("")
+				if !shouldResume {
+					state = ecRestoreStateNew
 				}
 			}
-
-			logrus.Debugf("configuring network manager")
-			if err := configureNetworkManager(c); err != nil {
-				return fmt.Errorf("unable to configure network manager: %w", err)
-			}
-			logrus.Debugf("materializing binaries")
-			if err := materializeFiles(c); err != nil {
-				return fmt.Errorf("unable to materialize binaries: %w", err)
-			}
-			logrus.Debugf("running host preflights")
-			if err := RunHostPreflightsForRestore(c, applier, proxy); err != nil {
-				return fmt.Errorf("unable to finish preflight checks: %w", err)
-			}
-
-			cfg, err := installAndWaitForRestoredK0sNode(c, applier)
-			if err != nil {
-				return err
-			}
-
-			kcli, err := kubeutils.KubeClient()
-			if err != nil {
-				return fmt.Errorf("unable to create kube client: %w", err)
-			}
-			errCh := kubeutils.WaitForKubernetes(c.Context, kcli)
-			defer func() {
-				for len(errCh) > 0 {
-					err := <-errCh
-					logrus.Error(fmt.Errorf("infrastructure failed to become ready: %w", err))
-				}
-			}()
-
-			logrus.Debugf("running outro")
-			if err := runOutroForRestore(c, applier, cfg); err != nil {
-				return fmt.Errorf("unable to run outro: %w", err)
-			}
-
-			logrus.Debugf("configuring velero backup storage location")
-			if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
-				Endpoint:        s3Store.endpoint,
-				Region:          s3Store.region,
-				Bucket:          s3Store.bucket,
-				Path:            s3Store.prefix,
-				AccessKeyID:     s3Store.accessKeyID,
-				SecretAccessKey: s3Store.secretAccessKey,
-				Namespace:       defaults.KotsadmNamespace,
-			}); err != nil {
-				return err
-			}
-			fallthrough
-
-		case ecRestoreStateConfirmBackup:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateConfirmBackup)
-			if err := setECRestoreState(c.Context, ecRestoreStateConfirmBackup, ""); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-
-			logrus.Debugf("waiting for backups to become available")
-			backups, err := waitForBackups(c.Context, c.String("airgap-bundle") != "")
-			if err != nil {
-				return err
-			}
-
-			logrus.Debugf("picking backup to restore")
-			backupToRestore = pickBackupToRestore(backups)
-
-			logrus.Info("")
-			completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
-			shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.Name, completionTimestamp), true)
-			logrus.Info("")
-			if !shouldRestore {
-				logrus.Infof("Aborting restore...")
-				return nil
-			}
-			fallthrough
-
-		case ecRestoreStateRestoreECInstall:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECInstall)
-			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-			logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
-				return fmt.Errorf("unable to restore from backup: %w", err)
-			}
-			logrus.Debugf("updating local artifact mirror port %q", backupToRestore.Name)
-			if err := restoreReconcileLocalArtifactMirrorPort(c, backupToRestore); err != nil {
-				return fmt.Errorf("unable to update local artifact mirror port: %w", err)
-			}
-			fallthrough
-
-		case ecRestoreStateRestoreAdminConsole:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreAdminConsole)
-			if err := setECRestoreState(c.Context, ecRestoreStateRestoreAdminConsole, backupToRestore.Name); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-			logrus.Debugf("restoring admin console from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
-				return err
-			}
-			fallthrough
-
-		case ecRestoreStateWaitForNodes:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateWaitForNodes)
-			if err := setECRestoreState(c.Context, ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-			logrus.Debugf("checking if backup is high availability")
-			highAvailability, err := isHighAvailabilityBackup(backupToRestore)
-			if err != nil {
-				return err
-			}
-			logrus.Debugf("waiting for additional nodes to be added")
-			if err := waitForAdditionalNodes(c.Context, highAvailability, c.String("network-interface")); err != nil {
-				return err
-			}
-			fallthrough
-
-		case ecRestoreStateRestoreSeaweedFS:
-			// only restore seaweedfs in case of high availability and airgap
-			highAvailability, err := isHighAvailabilityBackup(backupToRestore)
-			if err != nil {
-				return err
-			}
-			if highAvailability && c.String("airgap-bundle") != "" {
-				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
-				if err := setECRestoreState(c.Context, ecRestoreStateRestoreSeaweedFS, backupToRestore.Name); err != nil {
-					return fmt.Errorf("unable to set restore state: %w", err)
-				}
-				logrus.Debugf("restoring seaweedfs from backup %q", backupToRestore.Name)
-				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentSeaweedFS); err != nil {
-					return err
-				}
-			}
-			fallthrough
-
-		case ecRestoreStateRestoreRegistry:
-			// only restore registry in case of airgap
 			if c.String("airgap-bundle") != "" {
-				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
-				if err := setECRestoreState(c.Context, ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
-					return fmt.Errorf("unable to set restore state: %w", err)
+				logrus.Debugf("checking airgap bundle matches binary")
+				if err := checkAirgapMatches(c); err != nil {
+					return err // we want the user to see the error message without a prefix
 				}
-				logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
-				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentRegistry); err != nil {
+			}
+
+			// if the user wants to resume, check if a backup has already been picked.
+			var backupToRestore *velerov1.Backup
+			if state != ecRestoreStateNew {
+				logrus.Debugf("getting backup from restore state")
+				var err error
+				backupToRestore, err = getBackupFromRestoreState(c.Context, provider, c.String("airgap-bundle") != "")
+				if err != nil {
+					return fmt.Errorf("unable to resume: %w", err)
+				}
+				if backupToRestore != nil {
+					completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
+					logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.Name, completionTimestamp)
+
+					runtimeConfig, err = overrideRuntimeConfigFromBackup(c, runtimeConfig, backupToRestore)
+					if err != nil {
+						return fmt.Errorf("unable to override runtime config from backup: %w", err)
+					}
+				}
+			}
+
+			// If the installation is available, we can further augment the runtime config from the
+			// installation.
+			if state != ecRestoreStateNew &&
+				state != ecRestoreStateConfirmBackup &&
+				state != ecRestoreStateRestoreECInstall {
+
+				var err error
+				runtimeConfig, err = getRuntimeConfigFromInstallation(c)
+				if err != nil {
+					return fmt.Errorf("unable to get runtime config from installation: %w", err)
+				}
+			}
+
+			provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
+			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+
+			applier, err := getAddonsApplier(c, runtimeConfig, "", proxy)
+			if err != nil {
+				return err
+			}
+
+			switch state {
+			case ecRestoreStateNew:
+				logrus.Debugf("checking if %s is already installed", binName)
+				if installed, err := isAlreadyInstalled(); err != nil {
+					return err
+				} else if installed {
+					logrus.Errorf("An installation has been detected on this machine.")
+					logrus.Infof("If you want to restore you need to remove the existing installation")
+					logrus.Infof("first. You can do this by running the following command:")
+					logrus.Infof("\n  sudo ./%s reset\n", binName)
+					return ErrNothingElseToAdd
+				}
+
+				logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", binName)
+				logrus.Info("Enter information to configure access to your backup storage location.\n")
+				s3Store := newS3BackupStore()
+
+				if !c.Bool("skip-store-validation") {
+					logrus.Debugf("validating backup store configuration")
+					if err := validateS3BackupStore(s3Store); err != nil {
+						return fmt.Errorf("unable to validate backup store: %w", err)
+					}
+				}
+
+				logrus.Debugf("configuring network manager")
+				if err := configureNetworkManager(c, provider); err != nil {
+					return fmt.Errorf("unable to configure network manager: %w", err)
+				}
+				logrus.Debugf("materializing binaries")
+				if err := materializeFiles(c, provider); err != nil {
+					return fmt.Errorf("unable to materialize binaries: %w", err)
+				}
+				logrus.Debugf("running host preflights")
+				if err := RunHostPreflightsForRestore(c, provider, applier, proxy); err != nil {
+					return fmt.Errorf("unable to finish preflight checks: %w", err)
+				}
+
+				cfg, err := installAndWaitForRestoredK0sNode(c, provider, applier)
+				if err != nil {
 					return err
 				}
-				registryAddress, ok := backupToRestore.Annotations["kots.io/embedded-registry"]
-				if !ok {
-					return fmt.Errorf("unable to read registry address from backup")
+
+				kcli, err := kubeutils.KubeClient()
+				if err != nil {
+					return fmt.Errorf("unable to create kube client: %w", err)
 				}
-				if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
-					return fmt.Errorf("failed to add insecure registry: %w", err)
+				errCh := kubeutils.WaitForKubernetes(c.Context, kcli)
+				defer func() {
+					for len(errCh) > 0 {
+						err := <-errCh
+						logrus.Error(fmt.Errorf("infrastructure failed to become ready: %w", err))
+					}
+				}()
+
+				logrus.Debugf("running outro")
+				if err := runOutroForRestore(c, applier, cfg); err != nil {
+					return fmt.Errorf("unable to run outro: %w", err)
 				}
-			}
-			fallthrough
 
-		case ecRestoreStateRestoreECO:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECO)
-			if err := setECRestoreState(c.Context, ecRestoreStateRestoreECO, backupToRestore.Name); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-			logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECO); err != nil {
-				return err
-			}
-			fallthrough
+				logrus.Debugf("configuring velero backup storage location")
+				if err := kotscli.VeleroConfigureOtherS3(provider, kotscli.VeleroConfigureOtherS3Options{
+					Endpoint:        s3Store.endpoint,
+					Region:          s3Store.region,
+					Bucket:          s3Store.bucket,
+					Path:            s3Store.prefix,
+					AccessKeyID:     s3Store.accessKeyID,
+					SecretAccessKey: s3Store.secretAccessKey,
+					Namespace:       defaults.KotsadmNamespace,
+				}); err != nil {
+					return err
+				}
+				fallthrough
 
-		case ecRestoreStateRestoreApp:
-			logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreApp)
-			if err := setECRestoreState(c.Context, ecRestoreStateRestoreApp, backupToRestore.Name); err != nil {
-				return fmt.Errorf("unable to set restore state: %w", err)
-			}
-			logrus.Debugf("restoring app from backup %q", backupToRestore.Name)
-			if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentApp); err != nil {
-				return err
-			}
-			logrus.Debugf("resetting restore state")
-			if err := resetECRestoreState(c.Context); err != nil {
-				return fmt.Errorf("unable to reset restore state: %w", err)
+			case ecRestoreStateConfirmBackup:
+				logrus.Debugf("setting restore state to %q", ecRestoreStateConfirmBackup)
+				if err := setECRestoreState(c.Context, ecRestoreStateConfirmBackup, ""); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+
+				logrus.Debugf("waiting for backups to become available")
+				backups, err := waitForBackups(c.Context, provider, c.String("airgap-bundle") != "")
+				if err != nil {
+					return err
+				}
+
+				logrus.Debugf("picking backup to restore")
+				backupToRestore = pickBackupToRestore(backups)
+
+				logrus.Info("")
+				completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
+				shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.Name, completionTimestamp), true)
+				logrus.Info("")
+				if !shouldRestore {
+					logrus.Infof("Aborting restore...")
+					return nil
+				}
+				fallthrough
+
+			case ecRestoreStateRestoreECInstall:
+				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECInstall)
+				if err := setECRestoreState(c.Context, ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+				logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
+				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECInstall); err != nil {
+					return fmt.Errorf("unable to restore from backup: %w", err)
+				}
+				logrus.Debugf("updating installation from backup %q", backupToRestore.Name)
+				if err := restoreReconcileInstallationFromRuntimeConfig(c.Context, runtimeConfig); err != nil {
+					return fmt.Errorf("unable to update installation from backup: %w", err)
+				}
+				logrus.Debugf("updating local artifact mirror service from backup %q", backupToRestore.Name)
+				if err := updateLocalArtifactMirrorService(provider); err != nil {
+					return fmt.Errorf("unable to update local artifact mirror service from backup: %w", err)
+				}
+				fallthrough
+
+			case ecRestoreStateRestoreAdminConsole:
+				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreAdminConsole)
+				if err := setECRestoreState(c.Context, ecRestoreStateRestoreAdminConsole, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+				logrus.Debugf("restoring admin console from backup %q", backupToRestore.Name)
+				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
+					return err
+				}
+				fallthrough
+
+			case ecRestoreStateWaitForNodes:
+				logrus.Debugf("setting restore state to %q", ecRestoreStateWaitForNodes)
+				if err := setECRestoreState(c.Context, ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+				logrus.Debugf("checking if backup is high availability")
+				highAvailability, err := isHighAvailabilityBackup(backupToRestore)
+				if err != nil {
+					return err
+				}
+				logrus.Debugf("waiting for additional nodes to be added")
+				if err := waitForAdditionalNodes(c.Context, provider, highAvailability, c.String("network-interface")); err != nil {
+					return err
+				}
+				fallthrough
+
+			case ecRestoreStateRestoreSeaweedFS:
+				// only restore seaweedfs in case of high availability and airgap
+				highAvailability, err := isHighAvailabilityBackup(backupToRestore)
+				if err != nil {
+					return err
+				}
+				if highAvailability && c.String("airgap-bundle") != "" {
+					logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
+					if err := setECRestoreState(c.Context, ecRestoreStateRestoreSeaweedFS, backupToRestore.Name); err != nil {
+						return fmt.Errorf("unable to set restore state: %w", err)
+					}
+					logrus.Debugf("restoring seaweedfs from backup %q", backupToRestore.Name)
+					if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentSeaweedFS); err != nil {
+						return err
+					}
+				}
+				fallthrough
+
+			case ecRestoreStateRestoreRegistry:
+				// only restore registry in case of airgap
+				if c.String("airgap-bundle") != "" {
+					logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
+					if err := setECRestoreState(c.Context, ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
+						return fmt.Errorf("unable to set restore state: %w", err)
+					}
+					logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
+					if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentRegistry); err != nil {
+						return err
+					}
+					registryAddress, ok := backupToRestore.Annotations["kots.io/embedded-registry"]
+					if !ok {
+						return fmt.Errorf("unable to read registry address from backup")
+					}
+					if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
+						return fmt.Errorf("failed to add insecure registry: %w", err)
+					}
+				}
+				fallthrough
+
+			case ecRestoreStateRestoreECO:
+				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECO)
+				if err := setECRestoreState(c.Context, ecRestoreStateRestoreECO, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+				logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.Name)
+				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentECO); err != nil {
+					return err
+				}
+				fallthrough
+
+			case ecRestoreStateRestoreApp:
+				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreApp)
+				if err := setECRestoreState(c.Context, ecRestoreStateRestoreApp, backupToRestore.Name); err != nil {
+					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+				logrus.Debugf("restoring app from backup %q", backupToRestore.Name)
+				if err := restoreFromBackup(c.Context, backupToRestore, disasterRecoveryComponentApp); err != nil {
+					return err
+				}
+				logrus.Debugf("resetting restore state")
+				if err := resetECRestoreState(c.Context); err != nil {
+					return fmt.Errorf("unable to reset restore state: %w", err)
+				}
+
+			default:
+				return fmt.Errorf("unknown restore state: %q", state)
 			}
 
-		default:
-			return fmt.Errorf("unknown restore state: %q", state)
-		}
+			tryRemoveTmpDirContents(provider)
 
-		return nil
-	},
+			return nil
+		},
+	}
 }
 
-// restoreReconcileLocalArtifactMirrorPort will set the local artifact mirror port in the
-// installation if it was explicitly set using a flag, otherwise it will update the service to use
-// the port from the installation.
-func restoreReconcileLocalArtifactMirrorPort(c *cli.Context, backup *velerov1.Backup) error {
-	if c.IsSet("local-artifact-mirror-port") {
-		logrus.Debugf("updating local artifact mirror port from flag %q", backup.Name)
-		err := restoreReconcileLocalArtifactMirrorPortFromFlag(c)
-		if err != nil {
-			return fmt.Errorf("unable to update local artifact mirror port from flag: %w", err)
-		}
-		return nil
-	}
-
-	logrus.Debugf("updating local artifact mirror port from backup %q", backup.Name)
-	err := restoreReconcileLocalArtifactMirrorPortFromBackup(backup)
-	if err != nil {
-		return fmt.Errorf("unable to update local artifact mirror port from backup: %w", err)
-	}
-	return nil
-}
-
-// restoreReconcileLocalArtifactMirrorPortFromFlag will set the local artifact mirror port in the
-// installation from the flag.
-func restoreReconcileLocalArtifactMirrorPortFromFlag(c *cli.Context) error {
+// restoreReconcileInstallationFromRuntimeConfig will update the installation to match the runtime
+// config from the original installation.
+func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("create kube client: %w", err)
 	}
-	in, err := kubeutils.GetLatestInstallation(c.Context, kcli)
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("get latest installation: %w", err)
 	}
-	if in.Spec.LocalArtifactMirror == nil {
-		in.Spec.LocalArtifactMirror = &ecv1beta1.LocalArtifactMirrorSpec{}
+
+	if in.Spec.RuntimeConfig == nil {
+		in.Spec.RuntimeConfig = &ecv1beta1.RuntimeConfigSpec{}
 	}
-	port, err := getLocalArtifactMirrorPortFromFlag(c)
-	if err != nil {
-		return fmt.Errorf("get local artifact mirror port: %w", err)
-	}
-	if in.Spec.LocalArtifactMirror.Port == port {
-		return nil
-	}
-	logrus.Debugf("updating local artifact mirror port from flag to %d on installation %q", port, in.Name)
-	in.Spec.LocalArtifactMirror.Port = port
-	if err := kcli.Update(c.Context, in); err != nil {
+
+	// We do not support changing these values so we must choose the values from the installation
+	// prior to the restore.
+	in.Spec.RuntimeConfig.DataDir = runtimeConfig.DataDir
+	in.Spec.RuntimeConfig.K0sDataDirOverride = runtimeConfig.K0sDataDirOverride
+
+	// We allow the user to override the port with a flag to the restore command.
+	in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeConfig.LocalArtifactMirror.Port
+
+	if err := kcli.Update(ctx, in); err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
 	return nil
 }
 
-// restoreReconcileLocalArtifactMirrorPortFromBackup will update the service to use the port from
-// the installation.
-func restoreReconcileLocalArtifactMirrorPortFromBackup(backup *velerov1.Backup) error {
-	portStr := backup.Annotations["kots.io/embedded-cluster-local-artifact-mirror-port"]
-	if portStr == "" {
-		return nil
+// overrideRuntimeConfigFromBackup will update the runtime config from the backup. These values may
+// be used during the install and set in the Installation object via the
+// restoreReconcileInstallationFromRuntimeConfig function.
+func overrideRuntimeConfigFromBackup(c *cli.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec, backup *velerov1.Backup) (*ecv1beta1.RuntimeConfigSpec, error) {
+	if !c.IsSet("local-artifact-mirror-port") {
+		if val := backup.Annotations["kots.io/embedded-cluster-local-artifact-mirror-port"]; val != "" {
+			port, err := k8snet.ParsePort(val, false)
+			if err != nil {
+				return nil, fmt.Errorf("parse local artifact mirror port: %w", err)
+			}
+			logrus.Debugf("updating local artifact mirror port to %d from backup %q", port, backup.Name)
+			runtimeConfig.LocalArtifactMirror.Port = port
+		}
 	}
-	port, err := k8snet.ParsePort(portStr, false)
+
+	return runtimeConfig, nil
+}
+
+// getRuntimeConfigFromInstallation returns the runtime config from the latest installation.
+func getRuntimeConfigFromInstallation(c *cli.Context) (*ecv1beta1.RuntimeConfigSpec, error) {
+	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		return fmt.Errorf("unable to parse local artifact mirror port from backup: %w", err)
+		return nil, fmt.Errorf("unable to create kube client: %w", err)
 	}
-	logrus.Debugf("updating local artifact mirror port from backup to %d", port)
-	if err := updateLocalArtifactMirrorService(port); err != nil {
-		return fmt.Errorf("unable to update local artifact mirror service: %w", err)
+	in, err := kubeutils.GetLatestInstallation(c.Context, kcli)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get latest installation: %w", err)
 	}
-	return nil
+	return in.Spec.RuntimeConfig, nil
 }

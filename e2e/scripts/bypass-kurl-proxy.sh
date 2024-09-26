@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
+DIR=/usr/local/bin
+. $DIR/common.sh
+
 main() {
   # create a nodeport service directly to kotsadm
   cat <<EOF | kubectl apply -f -
@@ -23,6 +26,4 @@ main() {
 EOF
 }
 
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main "$@"

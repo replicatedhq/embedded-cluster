@@ -25,3 +25,7 @@ podAnnotations:
   backup.velero.io/backup-volumes: data
 replicaCount: 1
 storage: filesystem
+service:
+  name: registry
+  type: ClusterIP
+  port: 5000

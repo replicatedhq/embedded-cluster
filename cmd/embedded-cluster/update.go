@@ -12,48 +12,58 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
-var updateCommand = &cli.Command{
-	Name:   "update",
-	Usage:  fmt.Sprintf("Update %s", binName),
-	Hidden: true,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:     "airgap-bundle",
-			Usage:    "Path to the airgap bundle",
-			Required: true,
+func updateCommand() *cli.Command {
+	return &cli.Command{
+		Name:   "update",
+		Usage:  fmt.Sprintf("Update %s", binName),
+		Hidden: true,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "airgap-bundle",
+				Usage:    "Path to the airgap bundle",
+				Required: true,
+			},
 		},
-	},
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("update command must be run as root")
-		}
-		os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
-		return nil
-	},
-	Action: func(c *cli.Context) error {
-		if c.String("airgap-bundle") != "" {
-			logrus.Debugf("checking airgap bundle matches binary")
-			if err := checkAirgapMatches(c); err != nil {
-				return err // we want the user to see the error message without a prefix
+		Before: func(c *cli.Context) error {
+			if os.Getuid() != 0 {
+				return fmt.Errorf("update command must be run as root")
 			}
-		}
+			return nil
+		},
+		Action: func(c *cli.Context) error {
+			provider, err := getProviderFromCluster(c.Context)
+			if err != nil {
+				return err
+			}
+			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
-		rel, err := release.GetChannelRelease()
-		if err != nil {
-			return fmt.Errorf("unable to get channel release: %w", err)
-		}
-		if rel == nil {
-			return fmt.Errorf("no channel release found")
-		}
+			if c.String("airgap-bundle") != "" {
+				logrus.Debugf("checking airgap bundle matches binary")
+				if err := checkAirgapMatches(c); err != nil {
+					return err // we want the user to see the error message without a prefix
+				}
+			}
 
-		if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
-			AppSlug:      rel.AppSlug,
-			Namespace:    defaults.KotsadmNamespace,
-			AirgapBundle: c.String("airgap-bundle"),
-		}); err != nil {
-			return err
-		}
+			rel, err := release.GetChannelRelease()
+			if err != nil {
+				return fmt.Errorf("unable to get channel release: %w", err)
+			}
+			if rel == nil {
+				return fmt.Errorf("no channel release found")
+			}
 
-		return nil
-	},
+			if err := kotscli.AirgapUpdate(provider, kotscli.AirgapUpdateOptions{
+				AppSlug:      rel.AppSlug,
+				Namespace:    defaults.KotsadmNamespace,
+				AirgapBundle: c.String("airgap-bundle"),
+			}); err != nil {
+				return err
+			}
+
+			tryRemoveTmpDirContents(provider)
+
+			return nil
+		},
+	}
 }

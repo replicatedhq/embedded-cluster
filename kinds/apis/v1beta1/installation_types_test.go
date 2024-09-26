@@ -72,7 +72,7 @@ spec:
 						Port: 31111,
 					},
 				},
-				AdminConsole: &AdminConsoleSpec{
+				Deprecated_AdminConsole: &AdminConsoleSpec{
 					Port: 31111,
 				},
 			},
@@ -101,7 +101,7 @@ spec:
 						Port: 51111,
 					},
 				},
-				LocalArtifactMirror: &LocalArtifactMirrorSpec{
+				Deprecated_LocalArtifactMirror: &LocalArtifactMirrorSpec{
 					Port: 51111,
 				},
 			},
