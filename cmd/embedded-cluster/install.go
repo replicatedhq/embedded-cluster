@@ -34,6 +34,11 @@ import (
 // necessary data to the screen).
 var ErrNothingElseToAdd = fmt.Errorf("")
 
+// ErrPreflightsHaveFail is an error returned when we managed to execute the
+// host preflights but they contain failures. We use this to differentiate the
+// way we provide user feedback.
+var ErrPreflightsHaveFail = fmt.Errorf("host preflight failures detected")
+
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
@@ -122,16 +127,18 @@ func configureNetworkManager(c *cli.Context) error {
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
+func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, adminConsolePort int, localArtifactMirrorPort int) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
 	data := preflights.TemplateData{
-		ReplicatedAPIURL: replicatedAPIURL,
-		ProxyRegistryURL: proxyRegistryURL,
-		IsAirgap:         isAirgap,
+		ReplicatedAPIURL:        replicatedAPIURL,
+		ProxyRegistryURL:        proxyRegistryURL,
+		IsAirgap:                isAirgap,
+		AdminConsolePort:        adminConsolePort,
+		LocalArtifactMirrorPort: localArtifactMirrorPort,
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
@@ -190,7 +197,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return fmt.Errorf("host preflight failures detected")
+		return ErrPreflightsHaveFail
 	}
 
 	// Warnings found
@@ -697,10 +704,25 @@ var installCommand = &cli.Command{
 			replicatedAPIURL = license.Spec.Endpoint
 			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 		}
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+
+		adminConsolePort, err := getAdminConsolePortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse admin console port: %w", err)
+		}
+
+		localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse local artifact mirror port: %w", err)
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
 			metrics.ReportApplyFinished(c, err)
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
+
 		cfg, err := installAndWaitForK0s(c, applier, proxy)
 		if err != nil {
 			return err

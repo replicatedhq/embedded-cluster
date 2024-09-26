@@ -80,7 +80,7 @@ spec:
         port: 2380
     - tcpPortStatus:
         collectorName: Local Artifact Mirror Port
-        port: 50000
+        port: {{ .LocalArtifactMirrorPort }}
         interface: lo
     - tcpPortStatus:
         collectorName: Calico External TCP Port
@@ -93,7 +93,7 @@ spec:
         port: 7443
     - tcpPortStatus:
         collectorName: Kotsadm Node Port
-        port: 30000
+        port: {{ .AdminConsolePort }}
     - tcpPortStatus:
         collectorName: Kubelet Port
         port: 10250
@@ -441,333 +441,333 @@ spec:
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 2379/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 2379/TCP is required, but the connection to it was refused. Ensure port 2379/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 2379/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 2379/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 2379/TCP. Ensure that your firewall doesn't block for 2379/TCP.
+              message: Port 2379/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 2379/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 2379/TCP status.
+              message: Port 2379/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2379/TCP is available.
           - pass:
               when: "connected"
               message: Port 2379/TCP is available.
           - error:
-              message: Unexpected port 2379/TCP status.
+              message: Port 2379/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2379/TCP is available.
     - tcpPortStatus:
         checkName: ETCD External Port Availability
         collectorName: ETCD External Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 2380/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 2380/TCP is required, but the connection to it was refused. Ensure port 2380/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 2380/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 2380/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 2380/TCP. Ensure that your firewall doesn't block for 2380/TCP.
+              message: Port 2380/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 2380/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 2380/TCP status.
+              message: Port 2380/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2380/TCP is available.
           - pass:
               when: "connected"
               message: Port 2380/TCP is available.
           - error:
-              message: Unexpected port 2380/TCP status.
+              message: Port 2380/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2380/TCP is available.
     - tcpPortStatus:
         checkName: Local Artifact Mirror Port Availability
         collectorName: Local Artifact Mirror Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 50000/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection to it was refused. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 50000/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already listening on it. Relocate the conflicting process or use --local-artifact-mirror-port to select a different port.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 50000/TCP. Ensure that your firewall doesn't block for 50000/TCP.
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .LocalArtifactMirrorPort }}/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 50000/TCP status.
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
           - pass:
               when: "connected"
-              message: Port 50000/TCP is available.
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is available.
           - error:
-              message: Unexpected port 50000/TCP status.
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
     - tcpPortStatus:
         checkName: Calico External TCP Port Availability
         collectorName: Calico External TCP Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 9091/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 9091/TCP is required, but the connection to it was refused. Ensure port 9091/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 9091/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 9091/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 9091/TCP. Ensure that your firewall doesn't block for 9091/TCP.
+              message: Port 9091/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9091/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 9091/TCP status.
+              message: Port 9091/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9091/TCP is available.
           - pass:
               when: "connected"
               message: Port 9091/TCP is available.
           - error:
-              message: Unexpected port 9091/TCP status.
+              message: Port 9091/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9091/TCP is available.
     - tcpPortStatus:
         checkName: Kube API Server Port Availability
         collectorName: Kube API Server Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 6443/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 6443/TCP is required, but the connection to it was refused. Ensure port 6443/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 6443/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 6443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 6443/TCP. Ensure that your firewall doesn't block for 6443/TCP.
+              message: Port 6443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 6443/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 6443/TCP status.
+              message: Port 6443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 6443/TCP is available.
           - pass:
               when: "connected"
               message: Port 6443/TCP is available.
           - error:
-              message: Unexpected port 6443/TCP status.
+              message: Port 6443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 6443/TCP is available.
     - tcpPortStatus:
         checkName: Envoy Port Availability
         collectorName: Envoy Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 7443/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 7443/TCP is required, but the connection to it was refused. Ensure port 7443/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 7443/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 7443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 7443/TCP. Ensure that your firewall doesn't block for 7443/TCP.
+              message: Port 7443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 7443/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 7443/TCP status.
+              message: Port 7443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 7443/TCP is available.
           - pass:
               when: "connected"
               message: Port 7443/TCP is available.
           - error:
-              message: Unexpected port 7443/TCP status.
+              message: Port 7443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 7443/TCP is available.
     - tcpPortStatus:
         checkName: Kotsadm Node Port Availability
         collectorName: Kotsadm Node Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 30000/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port {{ .AdminConsolePort }}/TCP is required, but the connection to it was refused. Ensure port {{ .AdminConsolePort }}/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 30000/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port {{ .AdminConsolePort }}/TCP is required, but another process is already using it. Relocate the conflicting process or use --admin-console-port to select a different port.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 30000/TCP. Ensure that your firewall doesn't block for 30000/TCP.
+              message: Port {{ .AdminConsolePort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .AdminConsolePort }}/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 30000/TCP status.
+              message: Port {{ .AdminConsolePort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .AdminConsolePort }}/TCP is available.
           - pass:
               when: "connected"
-              message: Port 30000/TCP is available.
+              message: Port {{ .AdminConsolePort }}/TCP is available.
           - error:
-              message: Unexpected port 30000/TCP status.
+              message: Port {{ .AdminConsolePort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .AdminConsolePort }}/TCP is available.
     - tcpPortStatus:
         checkName: Kubelet Port Availability
         collectorName: Kubelet Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 10250/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 10250/TCP is required, but the connection to it was refused. Ensure port 10250/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 10250/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 10250/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 10250/TCP. Ensure that your firewall doesn't block for 10250/TCP.
+              message: Port 10250/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10250/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 10250/TCP status.
+              message: Port 10250/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10250/TCP is available.
           - pass:
               when: "connected"
               message: Port 10250/TCP is available.
           - error:
-              message: Unexpected port 10250/TCP status.
+              message: Port 10250/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10250/TCP is available.
     - tcpPortStatus:
         checkName: K0s API Port Availability
         collectorName: K0s API Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 9443/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 9443/TCP is required, but the connection to it was refused. Ensure port 9443/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 9443/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 9443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 9443/TCP. Ensure that your firewall doesn't block for 9443/TCP.
+              message: Port 9443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9443/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 9443/TCP status.
+              message: Port 9443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9443/TCP is available.
           - pass:
               when: "connected"
               message: Port 9443/TCP is available.
           - error:
-              message: Unexpected port 9443/TCP status.
+              message: Port 9443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9443/TCP is available.
     - tcpPortStatus:
         checkName: Calico Node Internal Port Availability
         collectorName: Calico Node Internal Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 9099/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 9099/TCP is required, but the connection to it was refused. Ensure port 9099/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 9099/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 9099/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 9099/TCP. Ensure that your firewall doesn't block for 9099/TCP.
+              message: Port 9099/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9099/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 9099/TCP status.
+              message: Port 9099/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9099/TCP is available.
           - pass:
               when: "connected"
               message: Port 9099/TCP is available.
           - error:
-              message: Unexpected port 9099/TCP status.
+              message: Port 9099/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9099/TCP is available.
     - tcpPortStatus:
         checkName: Kube Proxy Health Port Availability
         collectorName: Kube Proxy Health Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 10256/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 10256/TCP is required, but the connection to it was refused. Ensure port 10256/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 10256/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 10256/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 10256/TCP. Ensure that your firewall doesn't block for 10256/TCP.
+              message: Port 10256/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10256/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 10256/TCP status.
+              message: Port 10256/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10256/TCP is available.
           - pass:
               when: "connected"
               message: Port 10256/TCP is available.
           - error:
-              message: Unexpected port 10256/TCP status.
+              message: Port 10256/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10256/TCP is available.
     - tcpPortStatus:
         checkName: Kube Proxy Metrics Port Availability
         collectorName: Kube Proxy Metrics Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 10249/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 10249/TCP is required, but the connection to it was refused. Ensure port 10249/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 10249/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 10249/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 10249/TCP. Ensure that your firewall doesn't block for 10249/TCP.
+              message: Port 10249/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10249/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 10249/TCP status.
+              message: Port 10249/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10249/TCP is available.
           - pass:
               when: "connected"
               message: Port 10249/TCP is available.
           - error:
-              message: Unexpected port 10249/TCP status.
+              message: Port 10249/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10249/TCP is available.
     - tcpPortStatus:
         checkName: Kube Scheduler Secure Port Availability
         collectorName: Kube Scheduler Secure Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 10259/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 10259/TCP is required, but the connection to it was refused. Ensure port 10259/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 10259/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 10259/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 10259/TCP. Ensure that your firewall doesn't block for 10259/TCP.
+              message: Port 10259/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10259/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 10259/TCP status.
+              message: Port 10259/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10259/TCP is available.
           - pass:
               when: "connected"
               message: Port 10259/TCP is available.
           - error:
-              message: Unexpected port 10259/TCP status.
+              message: Port 10259/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10259/TCP is available.
     - tcpPortStatus:
         checkName: Kube Controller Secure Port Availability
         collectorName: Kube Controller Secure Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 10257/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 10257/TCP is required, but the connection to it was refused. Ensure port 10257/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 10257/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 10257/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 10257/TCP. Ensure that your firewall doesn't block for 10257/TCP.
+              message: Port 10257/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10257/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 10257/TCP status.
+              message: Port 10257/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10257/TCP is available.
           - pass:
               when: "connected"
               message: Port 10257/TCP is available.
           - error:
-              message: Unexpected port 10257/TCP status.
+              message: Port 10257/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10257/TCP is available.
     - tcpPortStatus:
         checkName: Kubelet Health Port Availability
         collectorName: Kubelet Health Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 10248/TCP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 10248/TCP is required, but the connection to it was refused. Ensure port 10248/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 10248/TCP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 10248/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 10248/TCP. Ensure that your firewall doesn't block for 10248/TCP.
+              message: Port 10248/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10248/TCP.
           - fail:
               when: "error"
-              message: Unexpected port 10248/TCP status.
+              message: Port 10248/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10248/TCP is available.
           - pass:
               when: "connected"
               message: Port 10248/TCP is available.
           - error:
-              message: Unexpected port 10248/TCP status.
+              message: Port 10248/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10248/TCP is available.
     - udpPortStatus:
         checkName: Calico Communication Port Availability
         collectorName: Calico Communication Port
         outcomes:
           - fail:
               when: "connection-refused"
-              message: Connection to 4789/UDP was refused. This may indicate that the connection is being redirected to somewhere else on your network (perhaps a proxy configuration).
+              message: Port 4789/UDP is required, but the connection to it was refused. Ensure port 4789/UDPTCP is available.
           - fail:
               when: "address-in-use"
-              message: Port 4789/UDP is needed but another process is already listening on it. Relocate that process to continue.
+              message: Port 4789/UDP is required, but another process is already using it. Relocate the conflicting process to continue.
           - fail:
               when: "connection-timeout"
-              message: Timed out connecting to port 4789/UDP. Ensure that your firewall doesn't block for 4789/UDP.
+              message: Port 4789/UDP is required, but the connection timed out. Ensure that your firewall doesn't block port 4789/UDP.
           - fail:
               when: "error"
-              message: Unexpected port 4789/UDP status.
+              message: Port 4789/UDP is required, but an unexpected error occurred when trying to connect to it. Ensure port 4789/UDP is available.
           - pass:
               when: "connected"
               message: Port 4789/UDP is available.
           - error:
-              message: Unexpected port 4789/UDP status.
+              message: Port 4789/UDP is required, but an unexpected error occurred when trying to connect to it. Ensure port 4789/UDP is available.

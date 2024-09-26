@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
-	"github.com/jedib0t/go-pretty/table"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/term"
 )
 
 // Output is the output of a troubleshoot preflight check as returned by
@@ -45,21 +47,64 @@ func (o Output) PrintTableWithoutInfo() {
 	withoutInfo.printTable()
 }
 
+// wrapText wraps the text and adds a line break after width characters.
+func (o Output) wrapText(text string, width int) string {
+	if len(text) <= width {
+		return text
+	}
+
+	var line string
+	var wrappedText string
+	for _, word := range strings.Fields(text) {
+		if len(line)+len(word)+1 > width {
+			wrappedText += fmt.Sprintf("%s\n", line)
+			line = word
+			continue
+		}
+		if line != "" {
+			line += " "
+		}
+		line += word
+	}
+
+	wrappedText += line
+	return wrappedText
+}
+
+// maxWidth determines the maximum width of the terminal, if larger than 150
+// characters then it returns 150.
+func (o Output) maxWidth() int {
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		return 150
+	} else if width > 150 {
+		return 150
+	}
+	return width
+}
+
 func (o Output) printTable() {
 	tb := table.NewWriter()
-	add := tb.AppendRow
-	tb.AppendHeader(table.Row{"Status", "Title", "Message"})
-	for _, rec := range o.Pass {
-		add(table.Row{"PASS", rec.Title, rec.Message})
+	tb.SetStyle(
+		table.Style{
+			Box:     table.BoxStyle{PaddingLeft: " ", PaddingRight: " "},
+			Options: table.Options{DrawBorder: false, SeparateRows: false, SeparateColumns: false},
+		},
+	)
+
+	maxwidth := o.maxWidth()
+	tb.SetAllowedRowLength(maxwidth)
+	for _, rec := range append(o.Fail, o.Warn...) {
+		tb.AppendRow(table.Row{"•", o.wrapText(rec.Message, maxwidth-5)})
 	}
-	for _, rec := range o.Warn {
-		add(table.Row{"WARN", rec.Title, rec.Message})
+	logrus.Infof("\n%s\n", tb.Render())
+
+	if len(o.Fail) > 1 {
+		logrus.Info("Please address these issues and try again.")
+		return
 	}
-	for _, rec := range o.Fail {
-		add(table.Row{"FAIL", rec.Title, rec.Message})
-	}
-	tb.SortBy([]table.SortBy{{Name: "Status", Mode: table.Asc}})
-	logrus.Infof("%s\n", tb.Render())
+
+	logrus.Info("Please address this issue and try again.")
 }
 
 func (o Output) SaveToDisk() error {
