@@ -170,17 +170,31 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(nodeIP string) []string {
-	return []string{
+func InstallFlags(provider *defaults.Provider, nodeIP string) []string {
+	flags := []string{
 		"install",
 		"controller",
-		"--disable-components", "konnectivity-server",
 		"--labels", strings.Join(nodeLabels(), ","),
 		"--enable-worker",
 		"--no-taints",
-		"--enable-dynamic-config",
-		"--kubelet-extra-args", fmt.Sprintf(`"--node-ip=%s"`, nodeIP),
 		"-c", defaults.PathToK0sConfig(),
+	}
+	flags = append(flags, AdditionalInstallFlags(provider, nodeIP)...)
+	flags = append(flags, AdditionalInstallFlagsController()...)
+	return flags
+}
+
+func AdditionalInstallFlags(provider *defaults.Provider, nodeIP string) []string {
+	return []string{
+		"--kubelet-extra-args", fmt.Sprintf(`"--node-ip=%s"`, nodeIP),
+		"--data-dir", provider.EmbeddedClusterK0sSubDir(),
+	}
+}
+
+func AdditionalInstallFlagsController() []string {
+	return []string{
+		"--disable-components", "konnectivity-server",
+		"--enable-dynamic-config",
 	}
 }
 

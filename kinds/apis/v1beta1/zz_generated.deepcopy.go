@@ -348,13 +348,13 @@ func (in *InstallationSpec) DeepCopyInto(out *InstallationSpec) {
 		*out = new(NetworkSpec)
 		**out = **in
 	}
-	if in.AdminConsole != nil {
-		in, out := &in.AdminConsole, &out.AdminConsole
+	if in.Deprecated_AdminConsole != nil {
+		in, out := &in.Deprecated_AdminConsole, &out.Deprecated_AdminConsole
 		*out = new(AdminConsoleSpec)
 		**out = **in
 	}
-	if in.LocalArtifactMirror != nil {
-		in, out := &in.LocalArtifactMirror, &out.LocalArtifactMirror
+	if in.Deprecated_LocalArtifactMirror != nil {
+		in, out := &in.Deprecated_LocalArtifactMirror, &out.Deprecated_LocalArtifactMirror
 		*out = new(LocalArtifactMirrorSpec)
 		**out = **in
 	}

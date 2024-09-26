@@ -8,6 +8,7 @@ import (
 	"github.com/k0sproject/version"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -52,7 +53,7 @@ func (r *InstallationReconciler) shouldUpgradeK0s(ctx context.Context, in *clust
 
 // discoverPreviousK0sVersion gets the k0s version from the previous installation object.
 func (r *InstallationReconciler) discoverPreviousK0sVersion(ctx context.Context, in *clusterv1beta1.Installation) (string, error) {
-	ins, err := r.listInstallations(ctx)
+	ins, err := kubeutils.ListInstallations(ctx, r.Client)
 	if err != nil {
 		return "", fmt.Errorf("list installations: %w", err)
 	}

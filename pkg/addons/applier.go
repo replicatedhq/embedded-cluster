@@ -32,8 +32,8 @@ type AddOn interface {
 	Version() (map[string]string, error)
 	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error)
-	Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error
+	GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error)
+	Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error
 	GetProtectedFields() map[string][]string
 	GetImages() []string
 	GetAdditionalImages() []string
@@ -41,17 +41,17 @@ type AddOn interface {
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
 type Applier struct {
-	prompt                  bool
-	verbose                 bool
-	adminConsolePwd         string // admin console password
-	licenseFile             string
-	onlyDefaults            bool
-	endUserConfig           *ecv1beta1.Config
-	airgapBundle            string
-	proxyEnv                map[string]string
-	privateCAs              map[string]string
-	adminConsolePort        int
-	localArtifactMirrorPort int
+	prompt          bool
+	verbose         bool
+	adminConsolePwd string // admin console password
+	licenseFile     string
+	onlyDefaults    bool
+	endUserConfig   *ecv1beta1.Config
+	airgapBundle    string
+	proxyEnv        map[string]string
+	privateCAs      map[string]string
+	provider        *defaults.Provider
+	runtimeConfig   *ecv1beta1.RuntimeConfigSpec
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -74,14 +74,14 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 	}()
 
 	for _, addon := range addons {
-		if err := addon.Outro(ctx, kcli, k0sCfg, releaseMetadata); err != nil {
+		if err := addon.Outro(ctx, a.provider, kcli, k0sCfg, releaseMetadata); err != nil {
 			return err
 		}
 	}
 	if err := spinForInstallation(ctx, kcli); err != nil {
 		return err
 	}
-	if err := printKotsadmLinkMessage(a.licenseFile, networkInterface, a.GetAdminConsolePort()); err != nil {
+	if err := printKotsadmLinkMessage(a.licenseFile, networkInterface, a.provider.AdminConsolePort()); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
 	return nil
@@ -98,7 +98,7 @@ func (a *Applier) OutroForRestore(ctx context.Context, k0sCfg *k0sv1beta1.Cluste
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
-		if err := addon.Outro(ctx, kcli, k0sCfg, nil); err != nil {
+		if err := addon.Outro(ctx, a.provider, kcli, k0sCfg, nil); err != nil {
 			return err
 		}
 	}
@@ -116,7 +116,7 @@ func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, addition
 
 	// charts required by embedded-cluster
 	for _, addon := range addons {
-		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(k0sCfg, a.onlyDefaults)
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.provider, k0sCfg, a.onlyDefaults)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
@@ -142,7 +142,7 @@ func (a *Applier) GenerateHelmConfigsForRestore(k0sCfg *k0sv1beta1.ClusterConfig
 
 	// charts required for restore
 	for _, addon := range addons {
-		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(k0sCfg, a.onlyDefaults)
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.provider, k0sCfg, a.onlyDefaults)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
@@ -164,7 +164,7 @@ func (a *Applier) GetBuiltinCharts(k0sCfg *k0sv1beta1.ClusterConfig) (map[string
 	}
 
 	for name, addon := range addons {
-		chart, repo, err := addon.GenerateHelmConfig(k0sCfg, true)
+		chart, repo, err := addon.GenerateHelmConfig(a.provider, k0sCfg, true)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate helm config for %s: %w", name, err)
 		}
@@ -252,20 +252,6 @@ func (a *Applier) HostPreflightsForRestore() (*v1beta2.HostPreflightSpec, error)
 	return a.hostPreflights(addons)
 }
 
-func (a *Applier) GetAdminConsolePort() int {
-	if a.adminConsolePort <= 0 {
-		return defaults.AdminConsolePort
-	}
-	return a.adminConsolePort
-}
-
-func (a *Applier) GetLocalArtifactMirrorPort() int {
-	if a.localArtifactMirrorPort <= 0 {
-		return defaults.LocalArtifactMirrorPort
-	}
-	return a.localArtifactMirrorPort
-}
-
 func (a *Applier) hostPreflights(addons []AddOn) (*v1beta2.HostPreflightSpec, error) {
 	allpf := &v1beta2.HostPreflightSpec{}
 	for _, addon := range addons {
@@ -302,8 +288,7 @@ func (a *Applier) load() ([]AddOn, error) {
 		a.airgapBundle != "",
 		a.proxyEnv,
 		a.privateCAs,
-		a.GetAdminConsolePort(),
-		a.GetLocalArtifactMirrorPort(),
+		a.runtimeConfig,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)
@@ -321,13 +306,13 @@ func (a *Applier) load() ([]AddOn, error) {
 	addons = append(addons, vel)
 
 	aconsole, err := adminconsole.New(
+		a.provider,
 		defaults.KotsadmNamespace,
 		a.adminConsolePwd,
 		a.licenseFile,
 		a.airgapBundle,
 		a.proxyEnv,
 		a.privateCAs,
-		a.GetAdminConsolePort(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)

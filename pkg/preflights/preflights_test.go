@@ -2,7 +2,6 @@
 package preflights
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -128,18 +127,8 @@ func Test_proxyEnv(t *testing.T) {
 }
 
 func Test_pathEnv(t *testing.T) {
-	dir, err := os.MkdirTemp("", "embedded-cluster")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	oDefaultProvider := defaults.DefaultProvider
-	defaults.DefaultProvider = defaults.NewProvider(dir)
-	t.Cleanup(func() {
-		defaults.DefaultProvider = oDefaultProvider
-	})
-
-	binDir := defaults.DefaultProvider.EmbeddedClusterBinsSubDir()
+	provider := defaults.NewProvider(t.TempDir())
+	binDir := provider.EmbeddedClusterBinsSubDir()
 
 	type args struct {
 		env []string
@@ -177,7 +166,7 @@ func Test_pathEnv(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := pathEnv(tt.args.env)
+			got := pathEnv(tt.args.env, provider)
 			gotMap := make(map[string]string)
 			for _, e := range got {
 				parts := strings.SplitN(e, "=", 2)

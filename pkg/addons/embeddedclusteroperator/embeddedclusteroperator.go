@@ -31,6 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	// AnnotationHasDataDirectories is an annotation on the installation object that indicates that
+	// it was created by an operator that stored information about the location of the data
+	// directories. If this is not set, the operator will update the installation object.
+	AnnotationHasDataDirectories = "embedded-cluster.replicated.com/has-data-directories"
+)
+
 const releaseName = "embedded-cluster-operator"
 
 var (
@@ -63,15 +70,14 @@ func init() {
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
 // helm chart.
 type EmbeddedClusterOperator struct {
-	namespace               string
-	deployName              string
-	endUserConfig           *ecv1beta1.Config
-	licenseFile             string
-	airgap                  bool
-	proxyEnv                map[string]string
-	privateCAs              map[string]string
-	adminConsolePort        int
-	localArtifactMirrorPort int
+	namespace     string
+	deployName    string
+	endUserConfig *ecv1beta1.Config
+	runtimeConfig *ecv1beta1.RuntimeConfigSpec
+	licenseFile   string
+	airgap        bool
+	proxyEnv      map[string]string
+	privateCAs    map[string]string
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -99,7 +105,7 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	chartConfig := ecv1beta1.Chart{
 		Name:         releaseName,
 		ChartName:    Metadata.Location,
@@ -202,7 +208,7 @@ func createCAConfigmap(ctx context.Context, cli client.Client, namespace string,
 // Outro is executed after the cluster deployment. Waits for the embedded cluster operator
 // to finish its deployment, creates the version metadata configmap (if in airgap) and
 // the installation object.
-func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
 
@@ -261,20 +267,18 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 			Labels: map[string]string{
 				"replicated.com/disaster-recovery": "ec-install",
 			},
+			Annotations: map[string]string{
+				AnnotationHasDataDirectories: "true",
+			},
 		},
 		Spec: ecv1beta1.InstallationSpec{
-			ClusterID:      metrics.ClusterID().String(),
-			MetricsBaseURL: metrics.BaseURL(license),
-			AirGap:         e.airgap,
-			Proxy:          proxySpec,
-			Network:        k0sConfigToNetworkSpec(k0sCfg),
-			AdminConsole: &ecv1beta1.AdminConsoleSpec{
-				Port: e.adminConsolePort,
-			},
-			LocalArtifactMirror: &ecv1beta1.LocalArtifactMirrorSpec{
-				Port: e.localArtifactMirrorPort,
-			},
+			ClusterID:                 metrics.ClusterID().String(),
+			MetricsBaseURL:            metrics.BaseURL(license),
+			AirGap:                    e.airgap,
+			Proxy:                     proxySpec,
+			Network:                   k0sConfigToNetworkSpec(k0sCfg),
 			Config:                    cfgspec,
+			RuntimeConfig:             e.runtimeConfig,
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
@@ -295,19 +299,17 @@ func New(
 	airgapEnabled bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
-	adminConsolePort int,
-	localArtifactMirrorPort int,
+	runtimeConfig *ecv1beta1.RuntimeConfigSpec,
 ) (*EmbeddedClusterOperator, error) {
 	return &EmbeddedClusterOperator{
-		namespace:               "embedded-cluster",
-		deployName:              "embedded-cluster-operator",
-		endUserConfig:           endUserConfig,
-		licenseFile:             licenseFile,
-		airgap:                  airgapEnabled,
-		proxyEnv:                proxyEnv,
-		privateCAs:              privateCAs,
-		adminConsolePort:        adminConsolePort,
-		localArtifactMirrorPort: localArtifactMirrorPort,
+		namespace:     "embedded-cluster",
+		deployName:    "embedded-cluster-operator",
+		endUserConfig: endUserConfig,
+		licenseFile:   licenseFile,
+		airgap:        airgapEnabled,
+		proxyEnv:      proxyEnv,
+		privateCAs:    privateCAs,
+		runtimeConfig: runtimeConfig,
 	}, nil
 }
 

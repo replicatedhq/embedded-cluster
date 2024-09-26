@@ -84,13 +84,13 @@ func init() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
+	provider     *defaults.Provider
 	namespace    string
 	password     string
 	licenseFile  string
 	airgapBundle string
 	proxyEnv     map[string]string
 	privateCAs   map[string]string
-	port         int
 }
 
 // Version returns the embedded admin console version.
@@ -115,7 +115,7 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !onlyDefaults {
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if a.airgapBundle != "" {
@@ -133,12 +133,12 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 			}
 			helmValues["extraEnv"] = extraEnv
 		}
-	}
 
-	var err error
-	helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", a.port)
-	if err != nil {
-		return nil, nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
+		var err error
+		helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", a.provider.AdminConsolePort())
+		if err != nil {
+			return nil, nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
+		}
 	}
 
 	values, err := helm.MarshalValues(helmValues)
@@ -176,7 +176,7 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 }
 
 // Outro waits for the adminconsole to be ready.
-func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (a *AdminConsole) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for the Admin Console to deploy")
 	defer loading.Close()
@@ -211,7 +211,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 			Namespace:    a.namespace,
 			AirgapBundle: a.airgapBundle,
 		}
-		if err := kotscli.Install(installOpts, loading); err != nil {
+		if err := kotscli.Install(provider, installOpts, loading); err != nil {
 			return err
 		}
 	}
@@ -223,22 +223,22 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 
 // New creates a new AdminConsole object.
 func New(
+	provider *defaults.Provider,
 	namespace string,
 	password string,
 	licenseFile string,
 	airgapBundle string,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
-	port int,
 ) (*AdminConsole, error) {
 	return &AdminConsole{
+		provider:     provider,
 		namespace:    namespace,
 		password:     password,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
 		proxyEnv:     proxyEnv,
 		privateCAs:   privateCAs,
-		port:         GetPort(port),
 	}, nil
 }
 
@@ -288,15 +288,7 @@ func GetURL(networkInterface string, port int) string {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	return fmt.Sprintf("http://%s:%v", ipaddr, GetPort(port))
-}
-
-// GetURL returns the URL to the admin console.
-func GetPort(port int) int {
-	if port <= 0 {
-		return defaults.AdminConsolePort
-	}
-	return port
+	return fmt.Sprintf("http://%s:%v", ipaddr, port)
 }
 
 func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {

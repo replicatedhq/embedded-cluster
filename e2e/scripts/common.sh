@@ -1,3 +1,13 @@
+#!/bin/bash
+
+export EMBEDDED_CLUSTER_BASE_DIR="${EMBEDDED_CLUSTER_BASE_DIR:-/var/lib/embedded-cluster}"
+export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
+export PATH="$PATH:${EMBEDDED_CLUSTER_BASE_DIR}/bin"
+export K0SCONFIG=/etc/k0s/k0s.yaml
+
+KUBECONFIG="${KUBECONFIG:-${EMBEDDED_CLUSTER_BASE_DIR}/k0s/pki/admin.conf}"
+export KUBECONFIG
+
 function retry() {
     local retries=$1
     shift
@@ -5,9 +15,9 @@ function retry() {
     local count=0
     until "$@"; do
         exit=$?
-        wait=$((2 ** $count))
-        count=$(($count + 1))
-        if [ $count -lt $retries ]; then
+        wait=$((2 ** count))
+        count=$((count + 1))
+        if [ $count -lt "$retries" ]; then
             echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
             sleep $wait
         else
@@ -259,12 +269,12 @@ ensure_version_metadata_present() {
 # ensure_binary_copy verifies that the installer is copying itself to the default location of
 # banaries in the node.
 ensure_binary_copy() {
-    if ! ls /var/lib/embedded-cluster/bin/embedded-cluster ; then
+    if ! ls "${EMBEDDED_CLUSTER_BASE_DIR}/bin/embedded-cluster" ; then
         echo "embedded-cluster binary not found on default location"
-        ls -la /var/lib/embedded-cluster/bin
+        ls -la "${EMBEDDED_CLUSTER_BASE_DIR}/bin"
         return 1
     fi
-    if ! /var/lib/embedded-cluster/bin/embedded-cluster version ; then
+    if ! "${EMBEDDED_CLUSTER_BASE_DIR}/bin/embedded-cluster" version ; then
         echo "embedded-cluster binary is not executable"
         return 1
     fi
@@ -310,7 +320,7 @@ check_pod_install_order() {
 }
 
 has_stored_host_preflight_results() {
-    if [ ! -f /var/lib/embedded-cluster/support/host-preflight-results.json ]; then
+    if [ ! -f "${EMBEDDED_CLUSTER_BASE_DIR}/support/host-preflight-results.json" ]; then
         return 1
     fi
 }

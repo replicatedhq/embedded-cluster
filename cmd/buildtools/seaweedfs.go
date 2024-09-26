@@ -52,11 +52,12 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		current := seaweedfs.Metadata
 		if current.Version == nextChartVersion && !c.Bool("force") {
 			logrus.Infof("seaweedfs chart version is already up-to-date")
-		} else {
-			logrus.Infof("mirroring seaweedfs chart version %s", nextChartVersion)
-			if err := MirrorChart(seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
-				return fmt.Errorf("failed to mirror seaweedfs chart: %v", err)
-			}
+			return nil
+		}
+
+		logrus.Infof("mirroring seaweedfs chart version %s", nextChartVersion)
+		if err := MirrorChart(seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
+			return fmt.Errorf("failed to mirror seaweedfs chart: %v", err)
 		}
 
 		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("CHARTS_DESTINATION"))

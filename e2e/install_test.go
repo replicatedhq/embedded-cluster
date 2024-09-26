@@ -542,12 +542,14 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
+	withEnv := WithEnv(map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"})
+
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:     t,
 		Nodes: 1,
 		Image: "debian/12",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, withEnv)
 
 	t.Logf("%s: downloading embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", "1.8.0+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
@@ -557,17 +559,21 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-install.sh", "ui"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-ec18-app-version"); err != nil {
+	if err := setupPlaywright(t, tc, withEnv); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-ec18-app-version"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", "1.8.0+k8s-1.28", "v1.28.11"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
@@ -581,7 +587,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
@@ -728,12 +734,14 @@ func TestOldVersionUpgrade(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
+	withEnv := WithEnv(map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"})
+
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:     t,
 		Nodes: 1,
 		Image: "debian/12",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, withEnv)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
@@ -743,25 +751,25 @@ func TestOldVersionUpgrade(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"pre-minio-removal-install.sh", "cli"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-pre-minio-removal-installation-state.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA"))}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to run kots upstream upgrade: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
@@ -967,6 +975,8 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
 
+	withEnv := WithEnv(map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"})
+
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
@@ -986,7 +996,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, withEnv)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -1007,7 +1017,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	// remove the airgap bundle after installation
@@ -1016,7 +1026,11 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-ec18-app-version"); err != nil {
+	if err := setupPlaywright(t, tc, withEnv); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-ec18-app-version"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
 	}
 
@@ -1027,13 +1041,13 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 		// the '+' character is problematic in the regex used to validate the version, so we use '.' instead
 		"1.8.0.k8s-1.28",
 		"v1.28.11"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle after upgrade
@@ -1052,7 +1066,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
@@ -1924,10 +1938,10 @@ func setupPlaywrightAndRunTest(t *testing.T, tc *cluster.Output, testName string
 	return runPlaywrightTest(t, tc, testName, args...)
 }
 
-func setupPlaywright(t *testing.T, tc *cluster.Output) error {
+func setupPlaywright(t *testing.T, tc *cluster.Output, commandOpts ...RunCommandOption) error {
 	t.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"bypass-kurl-proxy.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, commandOpts...); err != nil {
 		return fmt.Errorf("fail to bypass kurl-proxy on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -1965,7 +1979,7 @@ func runPlaywrightTest(t *testing.T, tc *cluster.Output, testName string, args .
 	return stdout, stderr, nil
 }
 
-func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
+func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output, commandOpts ...RunCommandOption) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(tc.Nodes))
 
@@ -1974,7 +1988,7 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 			defer wg.Done()
 			t.Logf("%s: generating host support bundle from node %s", time.Now().Format(time.RFC3339), tc.Nodes[i])
 			line := []string{"collect-support-bundle-host.sh"}
-			if stdout, stderr, err := RunCommandOnNode(t, tc, i, line); err != nil {
+			if stdout, stderr, err := RunCommandOnNode(t, tc, i, line, commandOpts...); err != nil {
 				t.Logf("stdout: %s", stdout)
 				t.Logf("stderr: %s", stderr)
 				t.Logf("fail to generate support from node %s bundle: %v", tc.Nodes[i], err)
@@ -1991,7 +2005,7 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 	node := tc.Nodes[0]
 	t.Logf("%s: generating cluster support bundle from node %s", time.Now().Format(time.RFC3339), node)
 	line := []string{"collect-support-bundle-cluster.sh"}
-	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if stdout, stderr, err := RunCommandOnNode(t, tc, 0, line, commandOpts...); err != nil {
 		t.Logf("stdout: %s", stdout)
 		t.Logf("stderr: %s", stderr)
 		t.Logf("fail to generate cluster support from node %s bundle: %v", node, err)
@@ -2030,8 +2044,8 @@ func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
 	}
 }
 
-func cleanupCluster(t *testing.T, tc *cluster.Output) {
-	generateAndCopySupportBundle(t, tc)
+func cleanupCluster(t *testing.T, tc *cluster.Output, commandOpts ...RunCommandOption) {
+	generateAndCopySupportBundle(t, tc, commandOpts...)
 	copyPlaywrightReport(t, tc)
 }
 
@@ -2197,7 +2211,7 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 
 	t.Logf("checking if the configmap was created with the right values")
 	line = []string{"kubectl", "get", "cm", "kotsadm-private-cas", "-n", "kotsadm", "-o", "json"}
-	stdout, _, err := RunCommandOnNode(t, tc, 0, line, WithECShelEnv())
+	stdout, _, err := RunCommandOnNode(t, tc, 0, line, WithECShellEnv("/var/lib/embedded-cluster"))
 	require.NoError(t, err, "unable get kotsadm-private-cas configmap")
 
 	var cm corev1.ConfigMap

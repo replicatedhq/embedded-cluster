@@ -26,5 +26,5 @@ configMaps:
       image: '{{ ImageString (index .Images "velero-restore-helper") }}'
 {{- end }}
 nodeAgent:
-  podVolumePath: /var/lib/k0s/kubelet/pods
+  podVolumePath: /var/lib/embedded-cluster/k0s/kubelet/pods
 snapshotsEnabled: false

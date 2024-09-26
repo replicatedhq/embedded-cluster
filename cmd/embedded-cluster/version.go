@@ -20,13 +20,16 @@ var versionCommand = &cli.Command{
 	Name:  "version",
 	Usage: fmt.Sprintf("Show the %s component versions", defaults.BinaryName()),
 	Subcommands: []*cli.Command{
-		metadataCommand,
+		metadataCommand(),
 		embeddedDataCommand,
-		listImagesCommand,
+		listImagesCommand(),
 	},
 	Action: func(c *cli.Context) error {
-		opts := []addons.Option{addons.Quiet(), addons.WithoutPrompt()}
-		applierVersions, err := addons.NewApplier(opts...).Versions(config.AdditionalCharts())
+		applierVersions, err := addons.NewApplier(
+			addons.WithoutPrompt(),
+			addons.OnlyDefaults(),
+			addons.Quiet(),
+		).Versions(config.AdditionalCharts())
 		if err != nil {
 			return fmt.Errorf("unable to get versions: %w", err)
 		}
