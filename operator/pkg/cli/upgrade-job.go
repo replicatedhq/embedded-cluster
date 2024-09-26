@@ -38,13 +38,13 @@ func UpgradeJobCmd() *cobra.Command {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
 
-			fmt.Printf("Upgrading to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
+			fmt.Printf("Upgrading to installation %s (version %s)\n", in.Name, in.Spec.Config.Version)
 
 			i := 0
 			for {
 				err = upgrade.Upgrade(cmd.Context(), cli, in, localArtifactMirrorImage)
 				if err != nil {
-					fmt.Printf("Upgrade failed, retrying: %s", err.Error())
+					fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
 					sleepDuration := time.Duration(i) * time.Second
 					if i >= 50 {
 						return fmt.Errorf("failed to upgrade after %s", (sleepDuration * time.Duration(i)).String())

@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/mod/semver"
+	"k8s.io/utils/ptr"
+	"sort"
 	"strings"
 	"time"
 
@@ -59,7 +62,7 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 			return fmt.Errorf("local artifact mirror image is required for airgap installations")
 		}
 
-		err := metadata.CopyVersionMetadataToCluster(ctx, cli, in)
+		err = metadata.CopyVersionMetadataToCluster(ctx, cli, in)
 		if err != nil {
 			return fmt.Errorf("copy version metadata to cluster: %w", err)
 		}
@@ -85,21 +88,13 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 			"installation.yaml": string(installationData),
 		},
 	}
-	if err := cli.Create(ctx, cm); err != nil {
+	if err = cli.Create(ctx, cm); err != nil {
 		return fmt.Errorf("failed to create upgrade job configmap: %w", err)
 	}
 
-	// determine the image to use for the upgrade job
-	meta, err := release.MetadataFor(ctx, in, cli)
+	operatorImage, err := operatorImageName(ctx, cli, in)
 	if err != nil {
-		return fmt.Errorf("failed to get release metadata: %w", err)
-	}
-	operatorImage := ""
-	for _, image := range meta.Images {
-		if strings.Contains(image, "embedded-cluster-operator-image") {
-			operatorImage = image
-			break
-		}
+		return err
 	}
 
 	// create the upgrade job
@@ -149,17 +144,43 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 			},
 		},
 	}
-	if err := cli.Create(ctx, job); err != nil {
+	if err = cli.Create(ctx, job); err != nil {
 		return fmt.Errorf("failed to create upgrade job: %w", err)
 	}
 
 	return nil
 }
 
+func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (string, error) {
+	// determine the image to use for the upgrade job
+	meta, err := release.MetadataFor(ctx, in, cli)
+	if err != nil {
+		return "", fmt.Errorf("failed to get release metadata: %w", err)
+	}
+	operatorImage := ""
+	for _, image := range meta.Images {
+		if strings.Contains(image, "embedded-cluster-operator-image") {
+			operatorImage = image
+			break
+		}
+	}
+	return operatorImage, nil
+}
+
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is created.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
-	err := k0sUpgrade(ctx, cli, in)
+	currentInstall, err := getLatestInstallation(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("get current installation: %w", err)
+	}
+	// set the current installation state to obsolete so that the operator will not reconcile based on it
+	currentInstall.Status.State = v1beta1.InstallationStateObsolete
+	if err := cli.Status().Update(ctx, currentInstall); err != nil {
+		return fmt.Errorf("update current installation status: %w", err)
+	}
+
+	err = k0sUpgrade(ctx, cli, in, currentInstall)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
@@ -183,15 +204,34 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 	return nil
 }
 
-func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, currentInstall *clusterv1beta1.Installation) error {
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return fmt.Errorf("failed to get release metadata: %w", err)
 	}
 
-	// TODO: check if the k0s version is the same as the current version
+	currentMeta, err := release.MetadataFor(ctx, currentInstall, cli)
+	if err != nil {
+		return fmt.Errorf("failed to get current release metadata: %w", err)
+	}
+
+	// check if the k0s version is the same as the current version
 	// if it is, we can skip the upgrade
 	desiredVersion := meta.Versions["Kubernetes"]
+	currentVersion := currentMeta.Versions["Kubernetes"]
+	if desiredVersion == currentVersion {
+		return nil
+	}
+	semver.Compare(desiredVersion, currentVersion)
+
+	// if the current version is < 1.30 and the desired version is >= 1.30, we need to remove 'timeout: 0' from the /etc/k0s/k0s.yaml
+	// file on each controller node. This is because the format changed in 1.30 and expects this value to be a string instead of an integer.
+	if semver.Compare(currentVersion, "v1.30.0") < 0 && semver.Compare(desiredVersion, "v1.30.0") >= 0 {
+		err = removeTimeoutFromK0sConfig(ctx, cli, currentInstall)
+		if err != nil {
+			return fmt.Errorf("failed to remove timeout from k0s config: %w", err)
+		}
+	}
 
 	// create an autopilot upgrade plan if one does not yet exist
 	var plan apv1b2.Plan
@@ -226,6 +266,146 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 		return fmt.Errorf("failed to delete successful upgrade plan: %w", err)
 	}
 	return nil
+}
+
+// run a pod on each controller node to remove the timeout from the k0s config file
+func removeTimeoutFromK0sConfig(ctx context.Context, cli client.Client, install *clusterv1beta1.Installation) error {
+	// get the list of controller nodes
+	var nodes corev1.NodeList
+	if err := cli.List(ctx, &nodes); err != nil {
+		return fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	controllerNodes := []string{}
+	for _, node := range nodes.Items {
+		// run a pod on each controller node to remove the timeout from the k0s config file
+		if node.Labels["node-role.kubernetes.io/control-plane"] == "true" {
+			controllerNodes = append(controllerNodes, node.Name)
+		}
+	}
+
+	operatorImage, err := operatorImageName(ctx, cli, install)
+	if err != nil {
+		return fmt.Errorf("failed to get operator image name: %w", err)
+	}
+
+	fmt.Printf("Removing timeout from k0s config on controller nodes: %v\n", controllerNodes)
+
+	// run a job on each controller node to remove the timeout from the k0s config file
+	for _, node := range controllerNodes {
+		// create a job to remove the timeout from the k0s config file
+		j := batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("remove-timeout-%s", node),
+				Namespace: "embedded-cluster",
+			},
+			Spec: batchv1.JobSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						RestartPolicy: corev1.RestartPolicyNever,
+						NodeName:      node,
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: ptr.To[int64](0),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "remove-timeout",
+								Image: operatorImage,
+								Command: []string{
+									"/bin/sh",
+									"-c",
+									"sed 's/timeout: 0//g' /sed > /tmp/k0s.yaml && cat /tmp/k0s.yaml > /sed",
+								},
+								VolumeMounts: []corev1.VolumeMount{
+									{
+										Name:      "config",
+										MountPath: "/sed",
+									},
+								},
+							},
+						},
+						Volumes: []corev1.Volume{
+							{
+								Name: "config",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{
+										Path: "/etc/k0s/k0s.yaml",
+										Type: ptr.To[corev1.HostPathType]("File"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err = cli.Create(ctx, &j)
+		if err != nil {
+			return fmt.Errorf("failed to create pod: %w", err)
+		}
+	}
+
+	fmt.Printf("Waiting for jobs to complete on controller nodes: %v\n", controllerNodes)
+
+	i := 0
+	for {
+		time.Sleep(5 * time.Second)
+		jobNames := []string{}
+		for _, node := range controllerNodes {
+			jobNames = append(jobNames, fmt.Sprintf("remove-timeout-%s", node))
+		}
+
+		if jobsAllCompleted(ctx, cli, jobNames, "embedded-cluster") {
+			break
+		}
+		if i == 4 {
+			return fmt.Errorf("timed out waiting for jobs to complete")
+		}
+		i++
+	}
+
+	// remove the jobs from the cluster
+	for _, node := range controllerNodes {
+		j := batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("remove-timeout-%s", node),
+				Namespace: "embedded-cluster",
+			},
+		}
+		err = cli.Delete(ctx, &j)
+		if err != nil {
+			return fmt.Errorf("failed to delete job: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func jobsAllCompleted(ctx context.Context, cli client.Client, jobs []string, ns string) bool {
+	// get all the jobs in the list, and check if they are completed
+	var jobList batchv1.JobList
+	if err := cli.List(ctx, &jobList, client.InNamespace(ns)); err != nil {
+		return false
+	}
+
+	for _, j := range jobs {
+		found := false
+		for _, job := range jobList.Items {
+			if job.Name == j {
+				if job.Status.Succeeded == 0 {
+					fmt.Printf("Job %s is not completed\n", job.Name)
+					return false
+				}
+				found = true
+			}
+		}
+		if !found {
+			fmt.Printf("Job %s not found\n", j)
+			return false
+		}
+	}
+	return true
 }
 
 // copied from ReconcileHelmCharts in https://github.com/replicatedhq/embedded-cluster/blob/c6a57a4/operator/controllers/installation_controller.go#L568
@@ -325,6 +505,24 @@ func createInstallation(ctx context.Context, cli client.Client, in *clusterv1bet
 	log.Info("Installation created")
 
 	return nil
+}
+
+func getLatestInstallation(ctx context.Context, cli client.Client) (*v1beta1.Installation, error) {
+	var installList v1beta1.InstallationList
+	if err := cli.List(ctx, &installList); err != nil {
+		return nil, fmt.Errorf("list installations: %w", err)
+	}
+
+	// sort the installations by installation name
+	sort.SliceStable(installList.Items, func(i, j int) bool {
+		return installList.Items[i].Name < installList.Items[j].Name
+	})
+
+	if len(installList.Items) == 0 {
+		return nil, fmt.Errorf("no installations found")
+	}
+
+	return &installList.Items[0], nil
 }
 
 func waitForOperatorChart(ctx context.Context, cli client.Client, version string) error {
