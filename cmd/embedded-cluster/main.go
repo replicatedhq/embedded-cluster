@@ -28,15 +28,15 @@ func main() {
 		Usage:   fmt.Sprintf("Install and manage %s", name),
 		Suggest: true,
 		Commands: []*cli.Command{
-			installCommand,
-			shellCommand,
+			installCommand(),
+			shellCommand(),
 			nodeCommands,
 			versionCommand,
 			joinCommand,
-			resetCommand,
-			materializeCommand,
-			updateCommand,
-			restoreCommand,
+			resetCommand(),
+			materializeCommand(),
+			updateCommand(),
+			restoreCommand(),
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {

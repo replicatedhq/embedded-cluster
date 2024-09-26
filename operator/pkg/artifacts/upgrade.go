@@ -34,10 +34,10 @@ const (
 	ArtifactsConfigHashAnnotation = "embedded-cluster.replicated.com/artifacts-config-hash"
 )
 
-// copyArtifactsJob is a job we create everytime we need to sync files into all nodes.
-// This job mounts /var/lib/embedded-cluster from the node and uses binaries that are
-// present there. This is not yet a complete version of the job as it misses some env
-// variables and a node selector, those are populated during the reconcile cycle.
+// copyArtifactsJob is a job we create everytime we need to sync files into all nodes. This job
+// mounts the Embedded Cluster data directory from the node and uses binaries that are present
+// there. This is not yet a complete version of the job as it misses some env variables and a node
+// selector, those are populated during the reconcile cycle.
 var copyArtifactsJob = &batchv1.Job{
 	TypeMeta: metav1.TypeMeta{
 		APIVersion: "batch/v1",
@@ -56,7 +56,7 @@ var copyArtifactsJob = &batchv1.Job{
 						Name: "host",
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
-								Path: "/var/lib/embedded-cluster",
+								Path: clusterv1beta1.DefaultDataDir,
 								Type: ptr.To[corev1.HostPathType]("Directory"),
 							},
 						},
@@ -69,7 +69,7 @@ var copyArtifactsJob = &batchv1.Job{
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
-								MountPath: "/var/lib/embedded-cluster",
+								MountPath: "/embedded-cluster",
 								ReadOnly:  false,
 							},
 						},
@@ -77,12 +77,12 @@ var copyArtifactsJob = &batchv1.Job{
 							"/bin/sh",
 							"-ex",
 							"-c",
-							"/usr/local/bin/local-artifact-mirror pull binaries $INSTALLATION_DATA\n" +
-								"/usr/local/bin/local-artifact-mirror pull images $INSTALLATION_DATA\n" +
-								"/usr/local/bin/local-artifact-mirror pull helmcharts $INSTALLATION_DATA\n" +
-								"mv /var/lib/embedded-cluster/bin/k0s /var/lib/embedded-cluster/bin/k0s-upgrade\n" +
-								"rm /var/lib/embedded-cluster/images/images-amd64-* || true\n" +
-								"cd /var/lib/embedded-cluster/images/\n" +
+							"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
+								"/usr/local/bin/local-artifact-mirror pull images --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
+								"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
+								"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade\n" +
+								"rm /embedded-cluster/images/images-amd64-* || true\n" +
+								"cd /embedded-cluster/images/\n" +
 								"mv images-amd64.tar images-amd64-${INSTALLATION}.tar\n" +
 								"echo 'done'",
 						},
@@ -203,6 +203,8 @@ func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clust
 }
 
 func getArtifactJobForNode(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage string) (*batchv1.Job, error) {
+	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
+
 	hash, err := HashForAirgapConfig(in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash airgap config: %w", err)
@@ -219,6 +221,7 @@ func getArtifactJobForNode(ctx context.Context, cli client.Client, in *clusterv1
 	job.ObjectMeta.Labels = applyECOperatorLabels(job.ObjectMeta.Labels, "upgrader")
 	job.ObjectMeta.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
 	job.Spec.Template.Spec.NodeName = node.Name
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = provider.EmbeddedClusterHomeDirectory()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "INSTALLATION", Value: in.Name},
@@ -241,6 +244,8 @@ func getArtifactJobForNode(ctx context.Context, cli client.Client, in *clusterv1
 // CreateAutopilotAirgapPlanCommand creates the plan to execute an aigrap upgrade in all nodes. The
 // return of this function is meant to be used as part of an autopilot plan.
 func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*autopilotv1beta2.PlanCommand, error) {
+	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
+
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release metadata: %w", err)
@@ -256,11 +261,10 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in
 		allNodes = append(allNodes, node.Name)
 	}
 
-	port := defaults.LocalArtifactMirrorPort
-	if in.Spec.LocalArtifactMirror != nil && in.Spec.LocalArtifactMirror.Port > 0 {
-		port = in.Spec.LocalArtifactMirror.Port
-	}
-	imageURL := fmt.Sprintf("http://127.0.0.1:%d/images/images-amd64-%s.tar", port, in.Name)
+	imageURL := fmt.Sprintf(
+		"http://127.0.0.1:%d/images/images-amd64-%s.tar",
+		provider.LocalArtifactMirrorPort(), in.Name,
+	)
 
 	return &autopilotv1beta2.PlanCommand{
 		AirgapUpdate: &autopilotv1beta2.PlanCommandAirgapUpdate{

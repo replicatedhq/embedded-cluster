@@ -616,19 +616,28 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Logf("failed to remove airgap install bundle: %v", err)
 	}
 
+	// Use an alternate data directory
+	withEnv := WithEnv(map[string]string{
+		"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec",
+	})
+
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", "--proxy"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
+	line = []string{"single-node-airgap-install.sh", "--proxy", "--data-dir", "/var/lib/ec"}
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if err := setupPlaywright(t, tc, withEnv); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
+	if _, _, err := runPlaywrightTest(t, tc, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -645,11 +654,12 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Log("controller join token command:", command)
 	t.Logf("%s: preparing embedded cluster airgap files on node 1", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-prepare.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 1, line, withEnv); err != nil {
 		t.Fatalf("fail to prepare airgap files on node 1: %v", err)
 	}
 	t.Logf("%s: joining node 1 to the cluster (controller)", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 1, strings.Split(command, " ")); err != nil {
+	line = strings.Split(command, " ")
+	if _, _, err := RunCommandOnNode(t, tc, 1, line, withEnv); err != nil {
 		t.Fatalf("fail to join node 1 as a controller: %v", err)
 	}
 
@@ -666,18 +676,19 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Log("controller join token command:", command)
 	t.Logf("%s: preparing embedded cluster airgap files on node 2", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-prepare.sh"}
-	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 2, line, withEnv); err != nil {
 		t.Fatalf("fail to prepare airgap files on node 2: %v", err)
 	}
 	t.Logf("%s: joining node 2 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
 	line = append([]string{"join-ha.exp"}, []string{command}...)
-	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 2, line, withEnv); err != nil {
 		t.Fatalf("fail to join node 2 as a controller in ha mode: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "3"})
+	line = []string{"wait-for-ready-nodes.sh", "3"}
+	stdout, _, err = RunCommandOnNode(t, tc, 0, line, withEnv)
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to wait for ready nodes: %v", err)
@@ -685,7 +696,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
 
@@ -696,15 +707,15 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// reset the cluster
 	line = []string{"reset-installation.sh", "--force"}
 	t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 2, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 2, line, withEnv); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 	t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 1, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 1, line, withEnv); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 	t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
@@ -715,7 +726,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// begin restoring the cluster
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
 	line = append([]string{"restore-multi-node-airgap-phase1.exp"}, testArgs...)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to restore phase 1 of the installation: %v", err)
 	}
 
@@ -764,13 +775,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	line = []string{"restore-multi-node-airgap-phase2.exp"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to restore phase 2 of the installation: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after restoring the high availability backup", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion(), "true"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := RunCommandOnNode(t, tc, 0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
 

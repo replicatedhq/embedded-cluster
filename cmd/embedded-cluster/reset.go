@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"time"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/etcd"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -19,6 +19,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -41,21 +42,8 @@ type hostInfo struct {
 	RoleName         string
 }
 
-type k0sStatus struct {
-	Role          string                `json:"Role"`
-	Vars          k0sVars               `json:"K0sVars"`
-	ClusterConfig v1beta1.ClusterConfig `json:"ClusterConfig"`
-}
-
-type k0sVars struct {
-	KubeletAuthConfigPath string `json:"KubeletAuthConfigPath"`
-	CertRootDir           string `json:"CertRootDir"`
-	EtcdCertDir           string `json:"EtcdCertDir"`
-}
-
 var (
 	binName = defaults.BinaryName()
-	k0s     = "/usr/local/bin/k0s"
 )
 
 var haWarningMessage = "WARNING: High-availability clusters must maintain at least three controller nodes, but resetting this node will leave only two. This can lead to a loss of functionality and non-recoverable failures. You should re-add a third node as soon as possible."
@@ -143,7 +131,7 @@ func (h *hostInfo) configureKubernetesClient() {
 func (h *hostInfo) getHostName() error {
 	hostname, err := os.Hostname()
 	if err != nil {
-		return nil
+		return fmt.Errorf("unable to get hostname: %w", err)
 	}
 	h.Hostname = hostname
 	return nil
@@ -243,12 +231,12 @@ func (h *hostInfo) leaveEtcdcluster() error {
 }
 
 // stopK0s attempts to stop the k0s service
-func stopAndResetK0s() error {
+func stopAndResetK0s(dataDir string) error {
 	out, err := exec.Command(k0s, "stop").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not stop k0s service: %w, %s", err, string(out))
 	}
-	out, err = exec.Command(k0s, "reset").CombinedOutput()
+	out, err = exec.Command(k0s, "reset", "--data-dir", dataDir).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
 	}
@@ -256,34 +244,32 @@ func stopAndResetK0s() error {
 }
 
 // newHostInfo returns a populated hostInfo struct
-func newHostInfo(c *cli.Context) (hostInfo, error) {
+func newHostInfo(ctx context.Context) (hostInfo, error) {
 	currentHost := hostInfo{}
 	// populate hostname
 	err := currentHost.getHostName()
 	if err != nil {
-		currentHost.KclientError = fmt.Errorf("client not initialized")
+		err = fmt.Errorf("unable to get hostname: %w", err)
+		currentHost.KclientError = err
 		return currentHost, err
 	}
 	// get k0s status json
-	out, err := exec.Command(k0s, "status", "-o", "json").Output()
+	status, err := getK0sStatus(ctx)
 	if err != nil {
-		currentHost.KclientError = fmt.Errorf("client not initialized")
+		err := fmt.Errorf("client not initialized")
+		currentHost.KclientError = err
 		return currentHost, err
 	}
-	err = json.Unmarshal(out, &currentHost.Status)
-	if err != nil {
-		currentHost.KclientError = fmt.Errorf("client not initialized")
-		return currentHost, err
-	}
+	currentHost.Status = *status
 	currentHost.RoleName = currentHost.Status.Role
 	// set up kube client
 	currentHost.configureKubernetesClient()
 	// fetch node object
-	currentHost.getNodeObject(c.Context)
+	currentHost.getNodeObject(ctx)
 	// control plane only stuff
 	if currentHost.Status.Role == "controller" {
 		// fetch controlNode
-		currentHost.getControlNodeObject(c.Context)
+		currentHost.getControlNodeObject(ctx)
 	}
 	// try and get custom role name from the node labels
 	labels := currentHost.Node.GetLabels()
@@ -311,8 +297,8 @@ func checkErrPrompt(c *cli.Context, err error) bool {
 
 // maybePrintHAWarning prints a warning message when the user is running a reset a node
 // in a high availability cluster and there are only 3 control nodes.
-func maybePrintHAWarning(c *cli.Context) error {
-	kubeconfig := defaults.PathToKubeConfig()
+func maybePrintHAWarning(ctx context.Context, provider *defaults.Provider) error {
+	kubeconfig := provider.PathToKubeConfig()
 	if _, err := os.Stat(kubeconfig); err != nil {
 		return nil
 	}
@@ -323,7 +309,7 @@ func maybePrintHAWarning(c *cli.Context) error {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	if in, err := kubeutils.GetLatestInstallation(c.Context, kubecli); err != nil {
+	if in, err := kubeutils.GetLatestInstallation(ctx, kubecli); err != nil {
 		if errors.Is(err, kubeutils.ErrNoInstallations{}) {
 			return nil // no installations found, not an HA cluster - just an incomplete install
 		}
@@ -333,7 +319,7 @@ func maybePrintHAWarning(c *cli.Context) error {
 		return nil
 	}
 
-	ncps, err := kubeutils.NumOfControlPlaneNodes(c.Context, kubecli)
+	ncps, err := kubeutils.NumOfControlPlaneNodes(ctx, kubecli)
 	if err != nil {
 		return fmt.Errorf("unable to check control plane nodes: %w", err)
 	}
@@ -344,158 +330,189 @@ func maybePrintHAWarning(c *cli.Context) error {
 	return nil
 }
 
-var resetCommand = &cli.Command{
-	Name: "reset",
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("reset command must be run as root")
-		}
-		return nil
-	},
-	Args: false,
-	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:    "force",
-			Aliases: []string{"f"},
-			Usage:   "Ignore errors encountered when resetting the node (implies --no-prompt)",
-			Value:   false,
+func resetCommand() *cli.Command {
+	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
+
+	return &cli.Command{
+		Name: "reset",
+		Before: func(c *cli.Context) error {
+			if os.Getuid() != 0 {
+				return fmt.Errorf("reset command must be run as root")
+			}
+			return nil
 		},
-		&cli.BoolFlag{
-			Name:  "no-prompt",
-			Usage: "Disable interactive prompts",
-			Value: false,
+		Args: false,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "force",
+				Aliases: []string{"f"},
+				Usage:   "Ignore errors encountered when resetting the node (implies --no-prompt)",
+				Value:   false,
+			},
+			&cli.BoolFlag{
+				Name:  "no-prompt",
+				Usage: "Disable interactive prompts",
+				Value: false,
+			},
+			getDataDirFlag(runtimeConfig),
 		},
-	},
-	Usage: fmt.Sprintf("Remove %s from the current node", binName),
-	Action: func(c *cli.Context) error {
-		if err := maybePrintHAWarning(c); err != nil && !c.Bool("force") {
-			return err
-		}
+		Usage: fmt.Sprintf("Remove %s from the current node", binName),
+		Action: func(c *cli.Context) error {
+			provider := discoverBestProvider(c.Context, runtimeConfig)
+			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
-		logrus.Info("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
-		logrus.Info("This node will also reboot. Do not reset another node until this is complete.")
-		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
-			return fmt.Errorf("Aborting")
-		}
-
-		// populate options struct with host information
-		currentHost, err := newHostInfo(c)
-		if !checkErrPrompt(c, err) {
-			return err
-		}
-
-		// basic check to see if it's safe to remove this node from the cluster
-		if currentHost.Status.Role == "controller" {
-			safeToRemove, reason, err := currentHost.checkResetSafety(c)
-			if !checkErrPrompt(c, err) {
+			if err := maybePrintHAWarning(c.Context, provider); err != nil && !c.Bool("force") {
 				return err
 			}
-			if !safeToRemove {
-				return fmt.Errorf("%s\nRun reset command with --force to ignore this.", reason)
-			}
-		}
 
-		var numControllerNodes int
-		if currentHost.KclientError == nil {
-			numControllerNodes, _ = kubeutils.NumOfControlPlaneNodes(c.Context, currentHost.Kclient)
-		}
-		// do not drain node if this is the only controller node in the cluster
-		// if there is an error (numControllerNodes == 0), drain anyway to be safe
-		if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
-			logrus.Info("Draining node...")
-			err = currentHost.drainNode()
+			logrus.Info("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
+			logrus.Info("This node will also reboot. Do not reset another node until this is complete.")
+			if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
+				return fmt.Errorf("Aborting")
+			}
+
+			// populate options struct with host information
+			currentHost, err := newHostInfo(c.Context)
 			if !checkErrPrompt(c, err) {
 				return err
 			}
 
-			// remove node from cluster
-			logrus.Info("Removing node from cluster...")
-			removeCtx, removeCancel := context.WithTimeout(c.Context, time.Minute)
-			defer removeCancel()
-			err = currentHost.deleteNode(removeCtx)
-			if !checkErrPrompt(c, err) {
-				return err
-			}
-
-			// controller pre-reset
+			// basic check to see if it's safe to remove this node from the cluster
 			if currentHost.Status.Role == "controller" {
-
-				// delete controlNode object from cluster
-				deleteControlCtx, deleteCancel := context.WithTimeout(c.Context, time.Minute)
-				defer deleteCancel()
-				err := currentHost.deleteControlNode(deleteControlCtx)
+				safeToRemove, reason, err := currentHost.checkResetSafety(c)
 				if !checkErrPrompt(c, err) {
 					return err
 				}
-
-				// try and leave etcd cluster
-				err = currentHost.leaveEtcdcluster()
-				if !checkErrPrompt(c, err) {
-					return err
+				if !safeToRemove {
+					return fmt.Errorf("%s\nRun reset command with --force to ignore this.", reason)
 				}
-
 			}
-		}
 
-		// reset
-		logrus.Infof("Resetting node...")
-		err = stopAndResetK0s()
-		if !checkErrPrompt(c, err) {
-			return err
-		}
+			var numControllerNodes int
+			if currentHost.KclientError == nil {
+				numControllerNodes, _ = kubeutils.NumOfControlPlaneNodes(c.Context, currentHost.Kclient)
+			}
+			// do not drain node if this is the only controller node in the cluster
+			// if there is an error (numControllerNodes == 0), drain anyway to be safe
+			if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
+				logrus.Info("Draining node...")
+				err = currentHost.drainNode()
+				if !checkErrPrompt(c, err) {
+					return err
+				}
 
-		if err := helpers.RemoveAll(defaults.PathToK0sConfig()); err != nil {
-			return fmt.Errorf("failed to remove k0s config: %w", err)
-		}
+				// remove node from cluster
+				logrus.Info("Removing node from cluster...")
+				removeCtx, removeCancel := context.WithTimeout(c.Context, time.Minute)
+				defer removeCancel()
+				err = currentHost.deleteNode(removeCtx)
+				if !checkErrPrompt(c, err) {
+					return err
+				}
 
-		lamPath := "/etc/systemd/system/local-artifact-mirror.service"
-		if _, err := os.Stat(lamPath); err == nil {
-			if _, err := helpers.RunCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
+				// controller pre-reset
+				if currentHost.Status.Role == "controller" {
+
+					// delete controlNode object from cluster
+					deleteControlCtx, deleteCancel := context.WithTimeout(c.Context, time.Minute)
+					defer deleteCancel()
+					err := currentHost.deleteControlNode(deleteControlCtx)
+					if !checkErrPrompt(c, err) {
+						return err
+					}
+
+					// try and leave etcd cluster
+					err = currentHost.leaveEtcdcluster()
+					if !checkErrPrompt(c, err) {
+						return err
+					}
+
+				}
+			}
+
+			// reset
+			logrus.Infof("Resetting node...")
+			err = stopAndResetK0s(provider.EmbeddedClusterK0sSubDir())
+			if !checkErrPrompt(c, err) {
 				return err
 			}
-		}
-		if err := helpers.RemoveAll(lamPath); err != nil {
-			return fmt.Errorf("failed to remove local-artifact-mirror path: %w", err)
-		}
 
-		proxyControllerPath := "/etc/systemd/system/k0scontroller.service.d"
-		if err := helpers.RemoveAll(proxyControllerPath); err != nil {
-			return fmt.Errorf("failed to remove proxy controller path: %w", err)
-		}
+			if err := helpers.RemoveAll(defaults.PathToK0sConfig()); err != nil {
+				return fmt.Errorf("failed to remove k0s config: %w", err)
+			}
 
-		proxyWorkerPath := "/etc/systemd/system/k0sworker.service.d"
-		if err := helpers.RemoveAll(proxyWorkerPath); err != nil {
-			return fmt.Errorf("failed to remove proxy worker path: %w", err)
-		}
+			lamPath := "/etc/systemd/system/local-artifact-mirror.service"
+			if _, err := os.Stat(lamPath); err == nil {
+				if _, err := helpers.RunCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
+					return err
+				}
+			}
+			if err := helpers.RemoveAll(lamPath); err != nil {
+				return fmt.Errorf("failed to remove local-artifact-mirror service file: %w", err)
+			}
 
-		if err := helpers.RemoveAll(defaults.EmbeddedClusterHomeDirectory()); err != nil {
-			return fmt.Errorf("failed to remove embedded cluster directory: %w", err)
-		}
+			lamPathD := "/etc/systemd/system/local-artifact-mirror.service.d"
+			if err := helpers.RemoveAll(lamPathD); err != nil {
+				return fmt.Errorf("failed to remove local-artifact-mirror config directory: %w", err)
+			}
 
-		if err := helpers.RemoveAll(defaults.PathToK0sContainerdConfig()); err != nil {
-			return fmt.Errorf("failed to remove containerd config: %w", err)
-		}
+			proxyControllerPath := "/etc/systemd/system/k0scontroller.service.d"
+			if err := helpers.RemoveAll(proxyControllerPath); err != nil {
+				return fmt.Errorf("failed to remove proxy controller config directory: %w", err)
+			}
 
-		if err := helpers.RemoveAll(systemdUnitFileName()); err != nil {
-			return fmt.Errorf("failed to remove systemd unit file: %w", err)
-		}
+			proxyWorkerPath := "/etc/systemd/system/k0sworker.service.d"
+			if err := helpers.RemoveAll(proxyWorkerPath); err != nil {
+				return fmt.Errorf("failed to remove proxy worker config directory: %w", err)
+			}
 
-		if err := helpers.RemoveAll("/var/openebs"); err != nil {
-			return fmt.Errorf("failed to remove openebs storage: %w", err)
-		}
+			// Now that k0s is nested under the embedded cluster data directory, we see the following error:
+			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
+			entries, err := os.ReadDir(provider.EmbeddedClusterHomeDirectory())
+			if err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("failed to read embedded cluster directory: %w", err)
+			}
+			for _, entry := range entries {
+				path := filepath.Join(provider.EmbeddedClusterHomeDirectory(), entry.Name())
+				err = os.RemoveAll(path)
+				if err != nil {
+					logrus.Debugf("Failed to remove embedded cluster sub entry %s: %v", path, err)
+				}
+			}
+			if err := helpers.RemoveAll(provider.EmbeddedClusterHomeDirectory()); err != nil {
+				logrus.Debugf("Failed to remove embedded cluster directory: %v", err)
+			}
 
-		if err := helpers.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
-			return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
-		}
+			if err := helpers.RemoveAll(defaults.EmbeddedClusterLogsSubDir()); err != nil {
+				return fmt.Errorf("failed to remove logs directory: %w", err)
+			}
 
-		if err := helpers.RemoveAll("/usr/local/bin/k0s"); err != nil {
-			return fmt.Errorf("failed to remove k0s binary: %w", err)
-		}
+			if err := helpers.RemoveAll(defaults.PathToK0sContainerdConfig()); err != nil {
+				return fmt.Errorf("failed to remove containerd config: %w", err)
+			}
 
-		if _, err := exec.Command("reboot").Output(); err != nil {
-			return err
-		}
+			if err := helpers.RemoveAll(systemdUnitFileName()); err != nil {
+				return fmt.Errorf("failed to remove systemd unit file: %w", err)
+			}
 
-		return nil
-	},
+			if err := helpers.RemoveAll(provider.EmbeddedClusterOpenEBSLocalSubDir()); err != nil {
+				return fmt.Errorf("failed to remove openebs storage: %w", err)
+			}
+
+			if err := helpers.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
+				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
+			}
+
+			if err := helpers.RemoveAll("/usr/local/bin/k0s"); err != nil {
+				return fmt.Errorf("failed to remove k0s binary: %w", err)
+			}
+
+			if _, err := exec.Command("reboot").Output(); err != nil {
+				return err
+			}
+
+			return nil
+		},
+	}
 }

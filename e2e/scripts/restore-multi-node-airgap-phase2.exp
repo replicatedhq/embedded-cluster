@@ -1,9 +1,6 @@
 #!/usr/bin/env expect
 
-set env(EMBEDDED_CLUSTER_PLAIN_PROMPTS) "true"
-set env(EMBEDDED_CLUSTER_METRICS_BASEURL) "https://staging.replicated.app"
-set env(KUBECONFIG) "/var/lib/k0s/pki/admin.conf"
-set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
+source /usr/local/bin/env.exp
 
 spawn embedded-cluster restore --airgap-bundle /assets/release.airgap --proxy
 

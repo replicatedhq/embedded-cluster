@@ -44,7 +44,7 @@ func TestVersion(t *testing.T) {
 
 	t.Logf("%s: validating 'embedded-cluster version metadata' in node 0", time.Now().Format(time.RFC3339))
 	line2 := []string{"embedded-cluster", "version", "metadata"}
-	stdout, stderr, err = RunRegularUserCommandOnNode(t, tc, 0, line2)
+	stdout, stderr, err = RunCommandOnNode(t, tc, 0, line2)
 	if err != nil {
 		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
 	}

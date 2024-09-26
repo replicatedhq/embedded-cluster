@@ -42,12 +42,12 @@ func TestLocalArtifactMirror(t *testing.T) {
 		t.Fatalf("fail testing local artifact mirror: %v", err)
 	}
 
-	command := []string{"cp", "/etc/passwd", "/var/lib/embedded-cluster/logs/passwd"}
+	command := []string{"cp", "/etc/passwd", "/var/log/embedded-cluster/passwd"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, command); err != nil {
 		t.Fatalf("fail to copy file: %v", err)
 	}
 
-	command = []string{"curl", "-O", "--fail", "127.0.0.1:50001/logs/passwd"}
+	command = []string{"curl", "-O", "--fail", "127.0.0.1:50001/passwd"}
 	t.Logf("running %v", command)
 	if _, _, err := RunCommandOnNode(t, tc, 0, command); err == nil {
 		t.Fatalf("we should not be able to fetch logs from local artifact mirror")
@@ -57,6 +57,12 @@ func TestLocalArtifactMirror(t *testing.T) {
 	t.Logf("running %v", command)
 	if _, _, err := RunCommandOnNode(t, tc, 0, command); err == nil {
 		t.Fatalf("we should not be able to fetch paths with ../")
+	}
+
+	command = []string{"curl", "-I", "--fail", "127.0.0.1:50001/bin/kubectl"}
+	t.Logf("running %v", command)
+	if _, _, err := RunCommandOnNode(t, tc, 0, command); err != nil {
+		t.Fatalf("we should be able to fetch the kubectl binary in the bin directory: %v", err)
 	}
 
 	t.Logf("testing local artifact mirror restart after materialize")

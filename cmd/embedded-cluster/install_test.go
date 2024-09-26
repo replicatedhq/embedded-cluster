@@ -295,7 +295,7 @@ func Test_maybeAskAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			flags := installCommand.Flags
+			flags := installCommand().Flags
 			flagSet := flag.NewFlagSet("test", 0)
 			for _, flag := range flags {
 				flag.Apply(flagSet)

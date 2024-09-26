@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -18,7 +18,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -64,7 +63,13 @@ var imagesCommand = &cli.Command{
 		}
 		return nil
 	},
+	Flags: []cli.Flag{
+		getPullDataDirFlag(),
+	},
 	Action: func(c *cli.Context) error {
+		provider := defaults.NewProvider(c.String("data-dir"))
+		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+
 		in, err := fetchAndValidateInstallation(c.Context, c.Args().First())
 		if err != nil {
 			return err
@@ -81,7 +86,7 @@ var imagesCommand = &cli.Command{
 			os.RemoveAll(location)
 		}()
 
-		dst := filepath.Join(defaults.EmbeddedClusterImagesSubDir(), ImagesArtifactName)
+		dst := filepath.Join(provider.EmbeddedClusterImagesSubDir(), ImagesArtifactName)
 		src := filepath.Join(location, ImagesArtifactName)
 		logrus.Infof("%s > %s", src, dst)
 		if err := helpers.MoveFile(src, dst); err != nil {
@@ -110,7 +115,13 @@ var helmChartsCommand = &cli.Command{
 		}
 		return nil
 	},
+	Flags: []cli.Flag{
+		getPullDataDirFlag(),
+	},
 	Action: func(c *cli.Context) error {
+		provider := defaults.NewProvider(c.String("data-dir"))
+		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+
 		in, err := fetchAndValidateInstallation(c.Context, c.Args().First())
 		if err != nil {
 			return err
@@ -127,7 +138,7 @@ var helmChartsCommand = &cli.Command{
 			os.RemoveAll(location)
 		}()
 
-		dst := defaults.EmbeddedClusterChartsSubDir()
+		dst := provider.EmbeddedClusterChartsSubDir()
 		src := filepath.Join(location, HelmChartsArtifactName)
 		logrus.Infof("uncompressing %s", src)
 		if err := tgzutils.Decompress(src, dst); err != nil {
@@ -156,7 +167,13 @@ var binariesCommand = &cli.Command{
 		}
 		return nil
 	},
+	Flags: []cli.Flag{
+		getPullDataDirFlag(),
+	},
 	Action: func(c *cli.Context) error {
+		provider := defaults.NewProvider(c.String("data-dir"))
+		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+
 		in, err := fetchAndValidateInstallation(c.Context, c.Args().First())
 		if err != nil {
 			return err
@@ -183,7 +200,7 @@ var binariesCommand = &cli.Command{
 		}
 
 		out := bytes.NewBuffer(nil)
-		cmd := exec.Command(namedBin, "materialize")
+		cmd := exec.Command(namedBin, "materialize", "--data-dir", provider.EmbeddedClusterHomeDirectory())
 		cmd.Stdout = out
 		cmd.Stderr = out
 
@@ -201,10 +218,10 @@ var binariesCommand = &cli.Command{
 
 // fetchAndValidateInstallation fetches an Installation object from its name or directly decodes it
 // and checks if it is valid for an airgap cluster deployment.
-func fetchAndValidateInstallation(ctx context.Context, iname string) (*v1beta1.Installation, error) {
+func fetchAndValidateInstallation(ctx context.Context, iname string) (*ecv1beta1.Installation, error) {
 	in, err := decodeInstallation(ctx, iname)
 	if err != nil {
-		in, err = fetchInstallationFromCluster(ctx, iname)
+		in, err = kubeutils.GetInstallation(ctx, kubecli, iname)
 		if err != nil {
 			return nil, err
 		}
@@ -219,21 +236,8 @@ func fetchAndValidateInstallation(ctx context.Context, iname string) (*v1beta1.I
 	return in, nil
 }
 
-// fetchInstallationFromCluster fetches an Installation object from the cluster.
-func fetchInstallationFromCluster(ctx context.Context, iname string) (*v1beta1.Installation, error) {
-	logrus.Infof("reading installation from cluster %q", iname)
-
-	nsn := types.NamespacedName{Name: iname}
-	var in v1beta1.Installation
-	if err := kubecli.Get(ctx, nsn, &in); err != nil {
-		return nil, fmt.Errorf("unable to get installation: %w", err)
-	}
-
-	return &in, nil
-}
-
 // decodeInstallation decodes an Installation object from a string.
-func decodeInstallation(ctx context.Context, data string) (*v1beta1.Installation, error) {
+func decodeInstallation(ctx context.Context, data string) (*ecv1beta1.Installation, error) {
 	logrus.Info("decoding installation")
 
 	decoded, err := base64.StdEncoding.DecodeString(data)
@@ -242,7 +246,7 @@ func decodeInstallation(ctx context.Context, data string) (*v1beta1.Installation
 	}
 
 	scheme := runtime.NewScheme()
-	err = v1beta1.AddToScheme(scheme)
+	err = ecv1beta1.AddToScheme(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("add to scheme: %w", err)
 	}
@@ -253,10 +257,20 @@ func decodeInstallation(ctx context.Context, data string) (*v1beta1.Installation
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 
-	in, ok := obj.(*v1beta1.Installation)
+	in, ok := obj.(*ecv1beta1.Installation)
 	if !ok {
 		return nil, fmt.Errorf("unexpected object type: %T", obj)
 	}
 
 	return in, nil
+}
+
+func getPullDataDirFlag() cli.Flag {
+	return &cli.StringFlag{
+		Name:     "data-dir",
+		Usage:    "Path to the Embedded Cluster data directory",
+		Value:    ecv1beta1.DefaultDataDir,
+		EnvVars:  []string{"LOCAL_ARTIFACT_MIRROR_DATA_DIR"},
+		Required: true,
+	}
 }

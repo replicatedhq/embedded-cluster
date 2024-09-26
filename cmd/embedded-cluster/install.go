@@ -27,6 +27,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
@@ -47,11 +48,12 @@ var ErrPreflightsHaveFail = fmt.Errorf("host preflight failures detected")
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
-func installAndEnableLocalArtifactMirror(port int) error {
-	if err := goods.MaterializeLocalArtifactMirrorUnitFile(); err != nil {
+func installAndEnableLocalArtifactMirror(provider *defaults.Provider) error {
+	materializer := goods.NewMaterializer(provider)
+	if err := materializer.LocalArtifactMirrorUnitFile(); err != nil {
 		return fmt.Errorf("failed to materialize artifact mirror unit: %w", err)
 	}
-	if err := writeLocalArtifactMirrorEnvironmentFile(port); err != nil {
+	if err := writeLocalArtifactMirrorDropInFile(provider); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
@@ -67,8 +69,8 @@ func installAndEnableLocalArtifactMirror(port int) error {
 }
 
 // updateLocalArtifactMirrorService updates the port on which the local artifact mirror is served.
-func updateLocalArtifactMirrorService(port int) error {
-	if err := writeLocalArtifactMirrorEnvironmentFile(port); err != nil {
+func updateLocalArtifactMirrorService(provider *defaults.Provider) error {
+	if err := writeLocalArtifactMirrorDropInFile(provider); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
@@ -81,18 +83,27 @@ func updateLocalArtifactMirrorService(port int) error {
 }
 
 const (
-	localArtifactMirrorSystemdConfFile         = "/etc/systemd/system/local-artifact-mirror.service.d/embedded-cluster.conf"
-	localArtifactMirrorEnvironmentFileContents = `[Service]
-Environment="LOCAL_ARTIFACT_MIRROR_PORT=%d"`
+	localArtifactMirrorSystemdConfFile    = "/etc/systemd/system/local-artifact-mirror.service.d/embedded-cluster.conf"
+	localArtifactMirrorDropInFileContents = `[Service]
+Environment="LOCAL_ARTIFACT_MIRROR_PORT=%d"
+Environment="LOCAL_ARTIFACT_MIRROR_DATA_DIR=%s"
+ExecStart=
+ExecStart=%s serve
+`
 )
 
-func writeLocalArtifactMirrorEnvironmentFile(port int) error {
+func writeLocalArtifactMirrorDropInFile(provider *defaults.Provider) error {
 	dir := filepath.Dir(localArtifactMirrorSystemdConfFile)
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
-	contents := fmt.Sprintf(localArtifactMirrorEnvironmentFileContents, port)
+	contents := fmt.Sprintf(
+		localArtifactMirrorDropInFileContents,
+		provider.LocalArtifactMirrorPort(),
+		provider.EmbeddedClusterHomeDirectory(),
+		provider.PathToEmbeddedClusterBinary("local-artifact-mirror"),
+	)
 	err = os.WriteFile(localArtifactMirrorSystemdConfFile, []byte(contents), 0644)
 	if err != nil {
 		return fmt.Errorf("write file: %w", err)
@@ -103,7 +114,7 @@ func writeLocalArtifactMirrorEnvironmentFile(port int) error {
 // configureNetworkManager configures the network manager (if the host is using it) to ignore
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
-func configureNetworkManager(c *cli.Context) error {
+func configureNetworkManager(c *cli.Context, provider *defaults.Provider) error {
 	if active, err := helpers.IsSystemdServiceActive(c.Context, "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
 	} else if !active {
@@ -118,7 +129,8 @@ func configureNetworkManager(c *cli.Context) error {
 	}
 
 	logrus.Debugf("creating NetworkManager config file")
-	if err := goods.MaterializeCalicoNetworkManagerConfig(); err != nil {
+	materializer := goods.NewMaterializer(provider)
+	if err := materializer.CalicoNetworkManagerConfig(); err != nil {
 		return fmt.Errorf("unable to materialize configuration: %w", err)
 	}
 
@@ -132,7 +144,7 @@ func configureNetworkManager(c *cli.Context) error {
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, adminConsolePort int, localArtifactMirrorPort int) error {
+func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
@@ -142,8 +154,11 @@ func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL
 		ReplicatedAPIURL:        replicatedAPIURL,
 		ProxyRegistryURL:        proxyRegistryURL,
 		IsAirgap:                isAirgap,
-		AdminConsolePort:        adminConsolePort,
-		LocalArtifactMirrorPort: localArtifactMirrorPort,
+		AdminConsolePort:        provider.AdminConsolePort(),
+		LocalArtifactMirrorPort: provider.LocalArtifactMirrorPort(),
+		DataDir:                 provider.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              provider.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          provider.EmbeddedClusterOpenEBSLocalSubDir(),
 		SystemArchitecture:      runtime.GOARCH,
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
@@ -156,10 +171,10 @@ func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL
 		hpf.Analyzers = append(hpf.Analyzers, h.Spec.Analyzers...)
 	}
 
-	return runHostPreflights(c, hpf, proxy)
+	return runHostPreflights(c, provider, hpf, proxy)
 }
 
-func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) error {
+func runHostPreflights(c *cli.Context, provider *defaults.Provider, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -170,7 +185,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 		return nil
 	}
 	pb.Infof("Running host preflights")
-	output, stderr, err := preflights.Run(c.Context, hpf, proxy)
+	output, stderr, err := preflights.Run(c.Context, provider, hpf, proxy)
 	if err != nil {
 		pb.CloseWithError()
 		return fmt.Errorf("host preflights failed to run: %w", err)
@@ -179,12 +194,12 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 		logrus.Debugf("preflight stderr: %s", stderr)
 	}
 
-	err = output.SaveToDisk()
+	err = output.SaveToDisk(provider.PathToEmbeddedClusterSupportFile("host-preflight-results.json"))
 	if err != nil {
 		logrus.Warnf("unable to save preflights output: %v", err)
 	}
 
-	err = preflights.CopyBundleToECSupportDir()
+	err = preflights.CopyBundleToECSupportDir(provider)
 	if err != nil {
 		logrus.Warnf("unable to copy preflight bundle to embedded-cluster support dir: %v", err)
 	}
@@ -341,13 +356,17 @@ func checkAirgapMatches(c *cli.Context) error {
 	return nil
 }
 
-func materializeFiles(c *cli.Context) error {
+func materializeFiles(c *cli.Context, provider *defaults.Provider) error {
 	mat := spinner.Start()
 	defer mat.Close()
 	mat.Infof("Materializing files")
 
-	if err := goods.Materialize(); err != nil {
+	materializer := goods.NewMaterializer(provider)
+	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("unable to materialize binaries: %w", err)
+	}
+	if err := support.MaterializeSupportBundleSpec(provider); err != nil {
+		return fmt.Errorf("unable to materialize support bundle spec: %w", err)
 	}
 	if c.String("airgap-bundle") != "" {
 		mat.Infof("Materializing airgap installation files")
@@ -359,7 +378,7 @@ func materializeFiles(c *cli.Context) error {
 		}
 		defer rawfile.Close()
 
-		if err := airgap.MaterializeAirgap(rawfile); err != nil {
+		if err := airgap.MaterializeAirgap(provider, rawfile); err != nil {
 			err = fmt.Errorf("unable to materialize airgap files: %w", err)
 			return err
 		}
@@ -373,7 +392,7 @@ func materializeFiles(c *cli.Context) error {
 // createK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by defaults.PathToK0sConfig()). If a file already sits
 // there, this function returns an error.
-func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.ClusterConfig, error) {
+func ensureK0sConfig(c *cli.Context, provider *defaults.Provider, applier *addons.Applier) (*k0sconfig.ClusterConfig, error) {
 	cfgpath := defaults.PathToK0sConfig()
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
@@ -399,7 +418,7 @@ func ensureK0sConfig(c *cli.Context, applier *addons.Applier) (*k0sconfig.Cluste
 	}
 	if c.String("airgap-bundle") != "" {
 		// update the k0s config to install with airgap
-		airgap.RemapHelm(cfg)
+		airgap.RemapHelm(provider, cfg)
 		airgap.SetAirgapConfig(cfg)
 	}
 	data, err := k8syaml.Marshal(cfg)
@@ -459,8 +478,8 @@ func applyUnsupportedOverrides(c *cli.Context, cfg *k0sconfig.ClusterConfig) (*k
 
 // installK0s runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
-func installK0s(c *cli.Context) error {
-	ourbin := defaults.PathToEmbeddedClusterBinary("k0s")
+func installK0s(c *cli.Context, provider *defaults.Provider) error {
+	ourbin := provider.PathToEmbeddedClusterBinary("k0s")
 	hstbin := defaults.K0sBinaryPath()
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
@@ -469,7 +488,7 @@ func installK0s(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(nodeIP)...); err != nil {
+	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(provider, nodeIP)...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
 	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
@@ -501,26 +520,26 @@ func waitForK0s() error {
 }
 
 // installAndWaitForK0s installs the k0s binary and waits for it to be ready
-func installAndWaitForK0s(c *cli.Context, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) (*k0sconfig.ClusterConfig, error) {
+func installAndWaitForK0s(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) (*k0sconfig.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", defaults.BinaryName())
 	logrus.Debugf("creating k0s configuration file")
-	cfg, err := ensureK0sConfig(c, applier)
+	cfg, err := ensureK0sConfig(c, provider, applier)
 	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
 	logrus.Debugf("creating systemd unit files")
-	if err := createSystemdUnitFiles(false, proxy, applier.GetLocalArtifactMirrorPort()); err != nil {
+	if err := createSystemdUnitFiles(provider, false, proxy); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := installK0s(c); err != nil {
+	if err := installK0s(c, provider); err != nil {
 		err := fmt.Errorf("unable update cluster: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
@@ -537,10 +556,10 @@ func installAndWaitForK0s(c *cli.Context, applier *addons.Applier, proxy *ecv1be
 }
 
 // runOutro calls Outro() in all enabled addons by means of Applier.
-func runOutro(c *cli.Context, applier *addons.Applier, cfg *k0sconfig.ClusterConfig) error {
-	os.Setenv("KUBECONFIG", defaults.PathToKubeConfig())
+func runOutro(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, cfg *k0sconfig.ClusterConfig) error {
+	os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 
-	metadata, err := gatherVersionMetadata(cfg)
+	metadata, err := gatherVersionMetadata(provider, cfg)
 	if err != nil {
 		return fmt.Errorf("unable to gather release metadata: %w", err)
 	}
@@ -596,167 +615,167 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
 // and then run `k0s install` to apply the cluster. Once this is finished then a "kubeconfig"
 // file is created. Resulting kubeconfig is stored in the configuration dir.
-var installCommand = &cli.Command{
-	Name:  "install",
-	Usage: fmt.Sprintf("Install %s", binName),
-	Subcommands: []*cli.Command{
-		installRunPreflightsCommand,
-	},
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("install command must be run as root")
-		}
-		if c.String("airgap-bundle") != "" {
-			metrics.DisableMetrics()
-		}
-		return nil
-	},
-	Flags: withProxyFlags(withSubnetCIDRFlags(
-		[]cli.Flag{
-			&cli.StringFlag{
-				Name:   "admin-console-password",
-				Usage:  fmt.Sprintf("Password for the Admin Console (minimum %d characters)", minAdminPasswordLength),
-				Hidden: false,
-			},
-			&cli.StringFlag{
-				Name:   "airgap-bundle",
-				Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
-				Hidden: true,
-			},
-			&cli.StringFlag{
-				Name:    "license",
-				Aliases: []string{"l"},
-				Usage:   "Path to the license file",
-				Hidden:  false,
-			},
-			&cli.StringFlag{
-				Name:  "network-interface",
-				Usage: "The network interface to use for the cluster",
-				Value: "",
-			},
-			&cli.BoolFlag{
-				Name:  "no-prompt",
-				Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
-				Value: false,
-			},
-			&cli.StringFlag{
-				Name:   "overrides",
-				Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
-				Hidden: true,
-			},
-			&cli.BoolFlag{
-				Name:  "skip-host-preflights",
-				Usage: "Skip host preflight checks. This is not recommended.",
-				Value: false,
-			},
-			&cli.StringSliceFlag{
-				Name:  "private-ca",
-				Usage: "Path to a trusted private CA certificate file",
-			},
-			getAdminColsolePortFlag(),
-			getLocalArtifactMirrorPortFlag(),
+func installCommand() *cli.Command {
+	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
+
+	return &cli.Command{
+		Name:  "install",
+		Usage: fmt.Sprintf("Install %s", binName),
+		Subcommands: []*cli.Command{
+			installRunPreflightsCommand(),
 		},
-	)),
-	Action: func(c *cli.Context) error {
-		var err error
-		proxy := getProxySpecFromFlags(c)
-		proxy, err = includeLocalIPInNoProxy(c, proxy)
-		if err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		setProxyEnv(proxy)
-
-		logrus.Debugf("checking if %s is already installed", binName)
-		if installed, err := isAlreadyInstalled(); err != nil {
-			return err
-		} else if installed {
-			logrus.Errorf("An installation has been detected on this machine.")
-			logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
-			logrus.Infof("You can do this by running the following command:")
-			logrus.Infof("\n  sudo ./%s reset\n", binName)
-			return ErrNothingElseToAdd
-		}
-		metrics.ReportApplyStarted(c)
-		logrus.Debugf("configuring network manager")
-		if err := configureNetworkManager(c); err != nil {
-			return fmt.Errorf("unable to configure network manager: %w", err)
-		}
-		logrus.Debugf("checking license matches")
-		license, err := getLicenseFromFilepath(c.String("license"))
-		if err != nil {
-			metricErr := fmt.Errorf("unable to get license: %w", err)
-			metrics.ReportApplyFinished(c, metricErr)
-			return err // do not return the metricErr, as we want the user to see the error message without a prefix
-		}
-		isAirgap := c.String("airgap-bundle") != ""
-		if isAirgap {
-			logrus.Debugf("checking airgap bundle matches binary")
-			if err := checkAirgapMatches(c); err != nil {
-				return err // we want the user to see the error message without a prefix
+		Before: func(c *cli.Context) error {
+			if os.Getuid() != 0 {
+				return fmt.Errorf("install command must be run as root")
 			}
-		}
-		if err := preflights.ValidateApp(); err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		adminConsolePwd, err := maybeAskAdminConsolePassword(c)
-		if err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
+			if c.String("airgap-bundle") != "" {
+				metrics.DisableMetrics()
+			}
+			return nil
+		},
+		Flags: withProxyFlags(withSubnetCIDRFlags(
+			[]cli.Flag{
+				&cli.StringFlag{
+					Name:   "admin-console-password",
+					Usage:  fmt.Sprintf("Password for the Admin Console (minimum %d characters)", minAdminPasswordLength),
+					Hidden: false,
+				},
+				&cli.StringFlag{
+					Name:   "airgap-bundle",
+					Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
+					Hidden: true,
+				},
+				&cli.StringFlag{
+					Name:    "license",
+					Aliases: []string{"l"},
+					Usage:   "Path to the license file",
+					Hidden:  false,
+				},
+				&cli.StringFlag{
+					Name:  "network-interface",
+					Usage: "The network interface to use for the cluster",
+					Value: "",
+				},
+				&cli.BoolFlag{
+					Name:  "no-prompt",
+					Usage: "Disable interactive prompts. The Admin Console password will be set to password.",
+					Value: false,
+				},
+				&cli.StringFlag{
+					Name:   "overrides",
+					Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
+					Hidden: true,
+				},
+				&cli.BoolFlag{
+					Name:  "skip-host-preflights",
+					Usage: "Skip host preflight checks. This is not recommended.",
+					Value: false,
+				},
+				&cli.StringSliceFlag{
+					Name:  "private-ca",
+					Usage: "Path to a trusted private CA certificate file",
+				},
+				getDataDirFlag(runtimeConfig),
+				getAdminConsolePortFlag(runtimeConfig),
+				getLocalArtifactMirrorPortFlag(runtimeConfig),
+			},
+		)),
+		Action: func(c *cli.Context) error {
+			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
-		logrus.Debugf("materializing binaries")
-		if err := materializeFiles(c); err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		applier, err := getAddonsApplier(c, adminConsolePwd, proxy)
-		if err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		logrus.Debugf("running host preflights")
-		var replicatedAPIURL, proxyRegistryURL string
-		if license != nil {
-			replicatedAPIURL = license.Spec.Endpoint
-			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		}
+			var err error
+			proxy := getProxySpecFromFlags(c)
+			proxy, err = includeLocalIPInNoProxy(c, proxy)
+			if err != nil {
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
+			setProxyEnv(proxy)
 
-		adminConsolePort, err := getAdminConsolePortFromFlag(c)
-		if err != nil {
-			return fmt.Errorf("unable to parse admin console port: %w", err)
-		}
-
-		localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
-		if err != nil {
-			return fmt.Errorf("unable to parse local artifact mirror port: %w", err)
-		}
-
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
-			metrics.ReportApplyFinished(c, err)
-			if err == ErrPreflightsHaveFail {
+			logrus.Debugf("checking if %s is already installed", binName)
+			if installed, err := isAlreadyInstalled(); err != nil {
+				return err
+			} else if installed {
+				logrus.Errorf("An installation has been detected on this machine.")
+				logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
+				logrus.Infof("You can do this by running the following command:")
+				logrus.Infof("\n  sudo ./%s reset\n", binName)
 				return ErrNothingElseToAdd
 			}
-			return err
-		}
+			metrics.ReportApplyStarted(c)
+			logrus.Debugf("configuring network manager")
+			if err := configureNetworkManager(c, provider); err != nil {
+				return fmt.Errorf("unable to configure network manager: %w", err)
+			}
+			logrus.Debugf("checking license matches")
+			license, err := getLicenseFromFilepath(c.String("license"))
+			if err != nil {
+				metricErr := fmt.Errorf("unable to get license: %w", err)
+				metrics.ReportApplyFinished(c, metricErr)
+				return err // do not return the metricErr, as we want the user to see the error message without a prefix
+			}
+			isAirgap := c.String("airgap-bundle") != ""
+			if isAirgap {
+				logrus.Debugf("checking airgap bundle matches binary")
+				if err := checkAirgapMatches(c); err != nil {
+					return err // we want the user to see the error message without a prefix
+				}
+			}
+			if err := preflights.ValidateApp(); err != nil {
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
+			adminConsolePwd, err := maybeAskAdminConsolePassword(c)
+			if err != nil {
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
 
-		cfg, err := installAndWaitForK0s(c, applier, proxy)
-		if err != nil {
-			return err
-		}
-		logrus.Debugf("running outro")
-		if err := runOutro(c, applier, cfg); err != nil {
-			metrics.ReportApplyFinished(c, err)
-			return err
-		}
-		metrics.ReportApplyFinished(c, nil)
-		return nil
-	},
+			logrus.Debugf("materializing binaries")
+			if err := materializeFiles(c, provider); err != nil {
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
+			applier, err := getAddonsApplier(c, runtimeConfig, adminConsolePwd, proxy)
+			if err != nil {
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
+			logrus.Debugf("running host preflights")
+			var replicatedAPIURL, proxyRegistryURL string
+			if license != nil {
+				replicatedAPIURL = license.Spec.Endpoint
+				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
+			}
+
+			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+				metrics.ReportApplyFinished(c, err)
+				if err == ErrPreflightsHaveFail {
+					return ErrNothingElseToAdd
+				}
+				return err
+			}
+
+			cfg, err := installAndWaitForK0s(c, provider, applier, proxy)
+			if err != nil {
+				return err
+			}
+			logrus.Debugf("running outro")
+			if err := runOutro(c, provider, applier, cfg); err != nil {
+				metrics.ReportApplyFinished(c, err)
+				return err
+			}
+			metrics.ReportApplyFinished(c, nil)
+			return nil
+		},
+	}
 }
 
-func getAddonsApplier(c *cli.Context, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
+func getAddonsApplier(c *cli.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
 	opts := []addons.Option{}
+	opts = append(opts, addons.WithRuntimeConfig(runtimeConfig))
+
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
 	}
@@ -788,18 +807,6 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string, proxy *ecv1beta1.P
 		}
 		opts = append(opts, addons.WithPrivateCAs(privateCAs))
 	}
-
-	adminConsolePort, err := getAdminConsolePortFromFlag(c)
-	if err != nil {
-		return nil, err
-	}
-	opts = append(opts, addons.WithAdminConsolePort(adminConsolePort))
-
-	localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
-	if err != nil {
-		return nil, err
-	}
-	opts = append(opts, addons.WithLocalArtifactMirrorPort(localArtifactMirrorPort))
 
 	if adminConsolePwd != "" {
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))

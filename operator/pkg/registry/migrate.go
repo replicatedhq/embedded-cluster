@@ -180,7 +180,7 @@ func newMigrationJob(in *clusterv1beta1.Installation, cli client.Client) (batchv
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "registry-data",
-									MountPath: "/var/lib/embedded-cluster/registry",
+									MountPath: "/registry",
 								},
 							},
 							EnvFrom: []corev1.EnvFromSource{

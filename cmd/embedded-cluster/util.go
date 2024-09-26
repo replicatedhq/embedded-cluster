@@ -6,13 +6,14 @@ import (
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 )
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec, localArtifactMirrorPort int) error {
+func createSystemdUnitFiles(provider *defaults.Provider, isWorker bool, proxy *ecv1beta1.ProxySpec) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
@@ -36,7 +37,7 @@ func createSystemdUnitFiles(isWorker bool, proxy *ecv1beta1.ProxySpec, localArti
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
-	if err := installAndEnableLocalArtifactMirror(localArtifactMirrorPort); err != nil {
+	if err := installAndEnableLocalArtifactMirror(provider); err != nil {
 		return fmt.Errorf("unable to install and enable local artifact mirror: %w", err)
 	}
 	return nil
