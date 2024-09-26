@@ -248,8 +248,10 @@ var joinCommand = &cli.Command{
 		}
 
 		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
-			err := fmt.Errorf("unable to run host preflights locally: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
 

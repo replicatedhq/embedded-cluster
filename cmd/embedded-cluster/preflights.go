@@ -89,6 +89,9 @@ var installRunPreflightsCommand = &cli.Command{
 		}
 
 		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
 
@@ -183,7 +186,9 @@ var joinRunPreflightsCommand = &cli.Command{
 		}
 
 		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
-			err := fmt.Errorf("unable to run host preflights locally: %w", err)
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
 
