@@ -11,11 +11,43 @@ ssl_bump bump all
 http_access allow localnet
 "
 
+COUNTRY=US
+STATE=State
+LOCALITY=City
+ORGANIZATION=Replicated
+ORGANIZATIONAL_UNIT=IT
+COMMON_NAME=10.0.0.254
+IP_SAN=10.0.0.254
+
+create_config() {
+        cat > /etc/squid/ssl_cert/san.cnf <<EOL
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = req_ext
+prompt = no
+[req_distinguished_name]
+C = $COUNTRY
+ST = $STATE
+L = $LOCALITY
+O = $ORGANIZATION
+OU = $ORGANIZATIONAL_UNIT
+CN = $COMMON_NAME
+[req_ext]
+subjectAltName = @alt_names
+[v3_ca]
+subjectAltName = @alt_names
+basicConstraints = CA:true
+[alt_names]
+IP.1 = $IP_SAN
+EOL
+}
+
 create_ca() {
         openssl req -new -newkey rsa:2048 -sha256 \
                 -days 7 -nodes -x509 -extensions v3_ca \
                 -keyout /etc/squid/ssl_cert/ca.pem \
                 -out /etc/squid/ssl_cert/ca.pem \
+                -config /etc/squid/ssl_cert/san.cnf \
                 -subj "/C=US/ST=State/L=City/O=Replicated/OU=IT"
         openssl x509 -inform PEM -in /etc/squid/ssl_cert/ca.pem \
                 -out /tmp/ca.crt
@@ -23,13 +55,24 @@ create_ca() {
 
 create_squid_ssl() {
         openssl genrsa -out /etc/squid/ssl_cert/proxy.key 2048
-        openssl req -new -key /etc/squid/ssl_cert/proxy.key \
+        openssl req \
+                -new \
+                -key /etc/squid/ssl_cert/proxy.key \
                 -out /etc/squid/ssl_cert/proxy.csr \
-                -subj "/C=US/ST=State/L=City/O=Replicated/OU=IT/CN=10.0.0.254"
-        openssl x509 -req -in /etc/squid/ssl_cert/proxy.csr \
+                -config /etc/squid/ssl_cert/san.cnf \
+                -extensions req_ext \
+                -subj "/C=US/ST=State/L=City/O=Replicated/OU=IT/CN=10.128.0.4"
+        openssl x509 \
+                -req \
+                -in /etc/squid/ssl_cert/proxy.csr \
                 -CA /etc/squid/ssl_cert/ca.pem \
-                -CAkey /etc/squid/ssl_cert/ca.pem -CAcreateserial \
-                -out /etc/squid/ssl_cert/proxy.crt -days 7 -sha256
+                -CAkey /etc/squid/ssl_cert/ca.pem \
+                -CAcreateserial \
+                -extfile /etc/squid/ssl_cert/san.cnf \
+                -extensions req_ext \
+                -out /etc/squid/ssl_cert/proxy.crt \
+                -days 7 \
+                -sha256
 }
 
 
@@ -37,6 +80,7 @@ main() {
         apt install -y squid-openssl
         /usr/lib/squid/security_file_certgen -c -s /opt/ssl.db -M 4MB
         mkdir -p /etc/squid/ssl_cert
+        create_config
         create_ca
         create_squid_ssl
         echo "$squid_config" > /etc/squid/conf.d/ec.conf
