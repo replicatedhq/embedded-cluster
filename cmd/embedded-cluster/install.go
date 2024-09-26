@@ -34,6 +34,11 @@ import (
 // necessary data to the screen).
 var ErrNothingElseToAdd = fmt.Errorf("")
 
+// ErrPreflightsHaveFail is an error returned when we managed to execute the
+// host preflights but they contain failures. We use this to differentiate the
+// way we provide user feedback.
+var ErrPreflightsHaveFail = fmt.Errorf("host preflight failures detected")
+
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
 // during a cluster upgrade.
@@ -192,7 +197,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return fmt.Errorf("host preflight failures detected")
+		return ErrPreflightsHaveFail
 	}
 
 	// Warnings found
@@ -712,8 +717,12 @@ var installCommand = &cli.Command{
 
 		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
 			metrics.ReportApplyFinished(c, err)
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
+
 		cfg, err := installAndWaitForK0s(c, applier, proxy)
 		if err != nil {
 			return err
