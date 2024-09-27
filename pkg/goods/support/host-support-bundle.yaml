@@ -2,6 +2,7 @@ apiVersion: troubleshoot.sh/v1beta2
 kind: SupportBundle
 metadata:
   name: embedded-cluster-host-support-bundle
+  runHostCollectorsInPod: true
 spec:
   uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/pkg/goods/support/host-support-bundle.yaml
   hostCollectors:
