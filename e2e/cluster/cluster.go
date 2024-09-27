@@ -359,13 +359,7 @@ func ConfigureProxy(in *Input) {
 	// them trust it.
 	for i := 0; i < in.Nodes; i++ {
 		name := fmt.Sprintf("node-%s-%02d", in.id, i)
-		for _, cmd := range [][]string{
-			{"ip", "route", "del", "default"},
-			{"ip", "route", "add", "default", "via", "10.0.0.254"},
-			{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"},
-		} {
-			RunCommandOnNode(in, cmd, name)
-		}
+		RunCommandOnNode(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
 
 		CopyFileToNode(in, name, File{
 			SourcePath: "/tmp/ca.crt",
@@ -373,8 +367,12 @@ func ConfigureProxy(in *Input) {
 			Mode:       0644,
 		})
 
-		cmd := []string{"update-ca-certificates"}
-		RunCommandOnNode(in, cmd, name)
+		for _, cmd := range [][]string{
+			{"update-ca-certificates"},
+			{"/usr/local/bin/default-route-through-proxy.sh"},
+		} {
+			RunCommandOnNode(in, cmd, name)
+		}
 	}
 }
 

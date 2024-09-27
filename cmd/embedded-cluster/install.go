@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -33,6 +34,11 @@ import (
 // don't want to print anything else (possibly because we have already printed the
 // necessary data to the screen).
 var ErrNothingElseToAdd = fmt.Errorf("")
+
+// ErrPreflightsHaveFail is an error returned when we managed to execute the
+// host preflights but they contain failures. We use this to differentiate the
+// way we provide user feedback.
+var ErrPreflightsHaveFail = fmt.Errorf("host preflight failures detected")
 
 // installAndEnableLocalArtifactMirror installs and enables the local artifact mirror. This
 // service is responsible for serving on localhost, through http, all files that are used
@@ -122,16 +128,18 @@ func configureNetworkManager(c *cli.Context) error {
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
+func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, adminConsolePort int, localArtifactMirrorPort int) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
 	data := preflights.TemplateData{
-		ReplicatedAPIURL: replicatedAPIURL,
-		ProxyRegistryURL: proxyRegistryURL,
-		IsAirgap:         isAirgap,
+		ReplicatedAPIURL:        replicatedAPIURL,
+		ProxyRegistryURL:        proxyRegistryURL,
+		IsAirgap:                isAirgap,
+		AdminConsolePort:        adminConsolePort,
+		LocalArtifactMirrorPort: localArtifactMirrorPort,
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
@@ -190,7 +198,7 @@ func runHostPreflights(c *cli.Context, hpf *v1beta2.HostPreflightSpec, proxy *ec
 
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		return fmt.Errorf("host preflight failures detected")
+		return ErrPreflightsHaveFail
 	}
 
 	// Warnings found
@@ -266,10 +274,10 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
 		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
 	}
-	if rel.ChannelID != license.Spec.ChannelID {
-		// if the channel is different, we will not be able to install the pinned vendor application version within kots
-		// this may result in an immediate k8s upgrade after installation, which is undesired
-		return nil, fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+
+	// Ensure the binary channel actually is present in the supplied license
+	if err := checkChannelExistence(license, rel); err != nil {
+		return nil, err
 	}
 
 	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
@@ -697,10 +705,25 @@ var installCommand = &cli.Command{
 			replicatedAPIURL = license.Spec.Endpoint
 			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 		}
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+
+		adminConsolePort, err := getAdminConsolePortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse admin console port: %w", err)
+		}
+
+		localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse local artifact mirror port: %w", err)
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
 			metrics.ReportApplyFinished(c, err)
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
+
 		cfg, err := installAndWaitForK0s(c, applier, proxy)
 		if err != nil {
 			return err
@@ -765,4 +788,30 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string, proxy *ecv1beta1.P
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}
 	return addons.NewApplier(opts...), nil
+}
+
+// checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly
+// error message actually listing available channels, if it does not.
+func checkChannelExistence(license *kotsv1beta1.License, rel *release.ChannelRelease) error {
+	var allowedChannels []string
+	channelExists := false
+
+	if len(license.Spec.Channels) == 0 { // support pre-multichannel licenses
+		allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", license.Spec.ChannelName, license.Spec.ChannelID))
+		channelExists = license.Spec.ChannelID == rel.ChannelID
+	} else {
+		for _, channel := range license.Spec.Channels {
+			allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", channel.ChannelSlug, channel.ChannelID))
+			if channel.ChannelID == rel.ChannelID {
+				channelExists = true
+			}
+		}
+	}
+
+	if !channelExists {
+		return fmt.Errorf("binary channel %s (%s) not present in license, channels allowed by license are: %s",
+			rel.ChannelID, rel.ChannelSlug, strings.Join(allowedChannels, ", "))
+	}
+
+	return nil
 }

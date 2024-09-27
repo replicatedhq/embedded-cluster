@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -35,6 +35,8 @@ var installRunPreflightsCommand = &cli.Command{
 				Usage: "Disable interactive prompts.",
 				Value: false,
 			},
+			getAdminColsolePortFlag(),
+			getLocalArtifactMirrorPortFlag(),
 		},
 	)),
 	Before: func(c *cli.Context) error {
@@ -75,7 +77,21 @@ var installRunPreflightsCommand = &cli.Command{
 			replicatedAPIURL = license.Spec.Endpoint
 			proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 		}
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+
+		adminConsolePort, err := getAdminConsolePortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse admin console port: %w", err)
+		}
+
+		localArtifactMirrorPort, err := getLocalArtifactMirrorPortFromFlag(c)
+		if err != nil {
+			return fmt.Errorf("unable to parse local artifact mirror port: %w", err)
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
 
@@ -97,6 +113,11 @@ var joinRunPreflightsCommand = &cli.Command{
 			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:  "network-interface",
+			Usage: "The network interface to use for the cluster",
+			Value: "",
+		},
 		&cli.BoolFlag{
 			Name:  "no-prompt",
 			Usage: "Disable interactive prompts.",
@@ -114,13 +135,6 @@ var joinRunPreflightsCommand = &cli.Command{
 			return fmt.Errorf("usage: %s join preflights <url> <token>", binName)
 		}
 
-		logrus.Debugf("getting network interface from join command")
-		jcmdAddress := strings.Split(c.Args().Get(0), ":")[0]
-		networkInterface, err := netutils.InterfaceNameForAddress(jcmdAddress)
-		if err != nil {
-			return fmt.Errorf("unable to get network interface for address %s: %w", jcmdAddress, err)
-		}
-
 		logrus.Debugf("fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
@@ -133,7 +147,7 @@ var joinRunPreflightsCommand = &cli.Command{
 		}
 
 		setProxyEnv(jcmd.InstallationSpec.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterface)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, c.String("network-interface"))
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
@@ -156,8 +170,25 @@ var joinRunPreflightsCommand = &cli.Command{
 		logrus.Debugf("running host preflights")
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
-			err := fmt.Errorf("unable to run host preflights locally: %w", err)
+
+		urlSlices := strings.Split(c.Args().Get(0), ":")
+		if len(urlSlices) != 2 {
+			return fmt.Errorf("unable to get port from url %s", c.Args().Get(0))
+		}
+		adminConsolePort, err := strconv.Atoi(urlSlices[1])
+		if err != nil {
+			return fmt.Errorf("unable to convert port to int: %w", err)
+		}
+
+		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
+		if jcmd.InstallationSpec.LocalArtifactMirror != nil {
+			localArtifactMirrorPort = jcmd.InstallationSpec.LocalArtifactMirror.Port
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
 

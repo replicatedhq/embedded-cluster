@@ -43,6 +43,7 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 		return nil, "", fmt.Errorf("unable to save preflight locally: %w", err)
 	}
 	defer os.Remove(fpath)
+
 	binpath := defaults.PathToEmbeddedClusterBinary("kubectl-preflight")
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
@@ -55,6 +56,7 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 		out, err := OutputFromReader(stdout)
 		return out, stderr.String(), err
 	}
+
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) || exit.ExitCode() < 2 {
 		return nil, stderr.String(), fmt.Errorf("error running host preflight: %w, stderr=%q", err, stderr.String())

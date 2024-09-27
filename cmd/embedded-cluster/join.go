@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -144,6 +145,11 @@ var joinCommand = &cli.Command{
 			Usage:  "Enable high availability.",
 			Hidden: true,
 		},
+		&cli.StringFlag{
+			Name:  "network-interface",
+			Usage: "The network interface to use for the cluster",
+			Value: "",
+		},
 		&cli.BoolFlag{
 			Name:  "no-prompt",
 			Usage: "Disable interactive prompts.",
@@ -181,13 +187,6 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("usage: %s join <url> <token>", binName)
 		}
 
-		logrus.Debugf("getting network interface from join command")
-		jcmdAddress := strings.Split(c.Args().Get(0), ":")[0]
-		networkInterface, err := netutils.InterfaceNameForAddress(jcmdAddress)
-		if err != nil {
-			return fmt.Errorf("unable to get network interface for address %s: %w", jcmdAddress, err)
-		}
-
 		logrus.Debugf("fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
@@ -200,7 +199,7 @@ var joinCommand = &cli.Command{
 		}
 
 		setProxyEnv(jcmd.InstallationSpec.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterface)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, c.String("network-interface"))
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
@@ -233,9 +232,26 @@ var joinCommand = &cli.Command{
 		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
-			err := fmt.Errorf("unable to run host preflights locally: %w", err)
+
+		urlSlices := strings.Split(c.Args().Get(0), ":")
+		if len(urlSlices) != 2 {
+			return fmt.Errorf("unable to get port from url %s", c.Args().Get(0))
+		}
+		adminConsolePort, err := strconv.Atoi(urlSlices[1])
+		if err != nil {
+			return fmt.Errorf("unable to convert port to int: %w", err)
+		}
+
+		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
+		if jcmd.InstallationSpec.LocalArtifactMirror != nil {
+			localArtifactMirrorPort = jcmd.InstallationSpec.LocalArtifactMirror.Port
+		}
+
+		if err := RunHostPreflights(c, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, adminConsolePort, localArtifactMirrorPort); err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
+			if err == ErrPreflightsHaveFail {
+				return ErrNothingElseToAdd
+			}
 			return err
 		}
 
@@ -267,10 +283,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("creating systemd unit files")
-		localArtifactMirrorPort := defaults.LocalArtifactMirrorPort
-		if jcmd.InstallationSpec.LocalArtifactMirror != nil && jcmd.InstallationSpec.LocalArtifactMirror.Port > 0 {
-			localArtifactMirrorPort = jcmd.InstallationSpec.LocalArtifactMirror.Port
-		}
+
 		// both controller and worker nodes will have 'worker' in the join command
 		if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.InstallationSpec.Proxy, localArtifactMirrorPort); err != nil {
 			err := fmt.Errorf("unable to create systemd unit files: %w", err)
@@ -279,7 +292,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("overriding network configuration")
-		if err := applyNetworkConfiguration(jcmd, networkInterface); err != nil {
+		if err := applyNetworkConfiguration(c, jcmd); err != nil {
 			err := fmt.Errorf("unable to apply network configuration: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 		}
@@ -292,7 +305,7 @@ var joinCommand = &cli.Command{
 		}
 
 		logrus.Debugf("joining node to cluster")
-		if err := runK0sInstallCommand(jcmd.K0sJoinCommand, networkInterface); err != nil {
+		if err := runK0sInstallCommand(c, jcmd.K0sJoinCommand); err != nil {
 			err := fmt.Errorf("unable to join node to cluster: %w", err)
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
@@ -340,10 +353,10 @@ var joinCommand = &cli.Command{
 	},
 }
 
-func applyNetworkConfiguration(jcmd *JoinCommandResponse, networkInterface string) error {
+func applyNetworkConfiguration(c *cli.Context, jcmd *JoinCommandResponse) error {
 	if jcmd.InstallationSpec.Network != nil {
 		clusterSpec := config.RenderK0sConfig()
-		address, err := netutils.FirstValidAddress(networkInterface)
+		address, err := netutils.FirstValidAddress(c.String("network-interface"))
 		if err != nil {
 			return fmt.Errorf("unable to find first valid address: %w", err)
 		}
@@ -488,14 +501,14 @@ func systemdUnitFileName() string {
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
-func runK0sInstallCommand(fullcmd string, networkInterface string) error {
+func runK0sInstallCommand(c *cli.Context, fullcmd string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, "--disable-components", "konnectivity-server", "--enable-dynamic-config")
 	}
 
-	nodeIP, err := netutils.FirstValidAddress(networkInterface)
+	nodeIP, err := netutils.FirstValidAddress(c.String("network-interface"))
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}

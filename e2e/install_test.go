@@ -624,6 +624,9 @@ func TestResetAndReinstall(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
 
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
+	time.Sleep(30 * time.Second)
+
 	t.Logf("%s: installing embedded-cluster on node 0 after reset", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-install.sh", "ui"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
@@ -697,6 +700,9 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
 	}
+
+	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
+	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}

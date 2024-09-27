@@ -226,7 +226,23 @@ make ssh-node0
     make build run
     ```
 
-    Subsequent changes to the kotsadm web component are reflected in real-time, no manual steps required.
+    Subsequent changes to the kotsadm web component are reflected in real-time; no manual steps are required.
+    However, to add, remove, or upgrade a dependency / package:
+
+    * From a new terminal session, exec into the kotsadm-web container:
+        ```bash
+        make kotsadm-web-up-ec
+        ```
+
+    * Run the desired `yarn` commands. For example:
+        ```bash
+        yarn add <package>
+        ```
+
+    * When finished, exit the container:
+        ```bash
+        exit
+        ```
 
 1. To apply additional API changes, stop the current process with Ctrl+C, then run the following command:
     ```bash
