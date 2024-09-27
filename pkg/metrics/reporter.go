@@ -13,6 +13,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -59,13 +60,22 @@ func ClusterID() uuid.UUID {
 
 // ReportInstallationStarted reports that the installation has started.
 func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License) {
+	rel, _ := release.GetChannelRelease()
+	appChannel, appVersion := "", ""
+	if rel != nil {
+		appChannel = rel.ChannelID
+		appVersion = rel.VersionLabel
+	}
+
 	Send(ctx, BaseURL(license), InstallationStarted{
-		ClusterID:  ClusterID(),
-		Version:    versions.Version,
-		Flags:      strings.Join(os.Args[1:], " "),
-		BinaryName: defaults.BinaryName(),
-		Type:       "centralized",
-		LicenseID:  LicenseID(license),
+		ClusterID:    ClusterID(),
+		Version:      versions.Version,
+		Flags:        strings.Join(os.Args[1:], " "),
+		BinaryName:   defaults.BinaryName(),
+		Type:         "centralized",
+		LicenseID:    LicenseID(license),
+		AppChannelID: appChannel,
+		AppVersion:   appVersion,
 	})
 }
 

@@ -12,12 +12,14 @@ type Event interface {
 
 // InstallationStarted event is send back home when the installation starts.
 type InstallationStarted struct {
-	ClusterID  uuid.UUID `json:"clusterID"`
-	Version    string    `json:"version"`
-	Flags      string    `json:"flags"`
-	BinaryName string    `json:"binaryName"`
-	Type       string    `json:"type"`
-	LicenseID  string    `json:"licenseID"`
+	ClusterID    uuid.UUID `json:"clusterID"`
+	Version      string    `json:"version"`
+	Flags        string    `json:"flags"`
+	BinaryName   string    `json:"binaryName"`
+	Type         string    `json:"type"`
+	LicenseID    string    `json:"licenseID"`
+	AppChannelID string    `json:"appChannelID"`
+	AppVersion   string    `json:"appVersion"`
 }
 
 // Title returns the name of the event.
