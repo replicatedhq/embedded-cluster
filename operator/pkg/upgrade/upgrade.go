@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/mod/semver"
 	"k8s.io/utils/ptr"
 	"sort"
 	"strings"
@@ -210,6 +209,8 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 		return fmt.Errorf("failed to get release metadata: %w", err)
 	}
 
+	// TODO: THIS IS NOT THE RIGHT WAY TO GET THE K0S VERSION
+	// it fails if we're currently upgrading, after all
 	currentMeta, err := release.MetadataFor(ctx, currentInstall, cli)
 	if err != nil {
 		return fmt.Errorf("failed to get current release metadata: %w", err)
@@ -222,16 +223,15 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	if desiredVersion == currentVersion {
 		return nil
 	}
-	semver.Compare(desiredVersion, currentVersion)
 
-	// if the current version is < 1.30 and the desired version is >= 1.30, we need to remove 'timeout: 0' from the /etc/k0s/k0s.yaml
-	// file on each controller node. This is because the format changed in 1.30 and expects this value to be a string instead of an integer.
-	if semver.Compare(currentVersion, "v1.30.0") < 0 && semver.Compare(desiredVersion, "v1.30.0") >= 0 {
-		err = removeTimeoutFromK0sConfig(ctx, cli, currentInstall)
-		if err != nil {
-			return fmt.Errorf("failed to remove timeout from k0s config: %w", err)
-		}
-	}
+	//// if the current version is < 1.30 and the desired version is >= 1.30, we need to remove 'timeout: 0' from the /etc/k0s/k0s.yaml
+	//// file on each controller node. This is because the format changed in 1.30 and expects this value to be a string instead of an integer.
+	//if semver.Compare(currentVersion, "v1.30.0") < 0 && semver.Compare(desiredVersion, "v1.30.0") >= 0 {
+	//	err = removeTimeoutFromK0sConfig(ctx, cli, currentInstall)
+	//	if err != nil {
+	//		return fmt.Errorf("failed to remove timeout from k0s config: %w", err)
+	//	}
+	//}
 
 	// create an autopilot upgrade plan if one does not yet exist
 	var plan apv1b2.Plan
