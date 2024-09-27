@@ -23,6 +23,7 @@ func NodeEventFromNode(clusterID string, installVersion string, node corev1.Node
 		Allocatable: node.Status.Allocatable,
 		Role:        node.Labels["node.k0sproject.io/role"],
 		Version:     installVersion,
+		NodeID:      string(node.UID),
 	}
 }
 
@@ -37,6 +38,7 @@ type NodeEvent struct {
 	Allocatable corev1.ResourceList   `json:"allocatable"`
 	Role        string                `json:"role"`
 	Version     string                `json:"version"`
+	NodeID      string                `json:"nodeID"`
 }
 
 // UpgradeStartedEvent is send back home when the upgrade starts.
