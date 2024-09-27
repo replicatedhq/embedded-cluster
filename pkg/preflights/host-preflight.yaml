@@ -125,6 +125,10 @@ spec:
     - udpPortStatus:
         collectorName: Calico Communication Port
         port: 4789
+    - dns:
+        collectorName: 'wildcard-check'
+        hostnames:
+          - '*'
   analyzers:
     - cpu:
         checkName: CPU
@@ -781,3 +785,16 @@ spec:
               message: Port 4789/UDP is available.
           - error:
               message: Port 4789/UDP is required, but an unexpected error occurred when trying to connect to it. Ensure port 4789/UDP is available.
+    - jsonCompare:
+        checkName: Wildcard DNS
+        fileName: host-collectors/dns/wildcard-check/result.json
+        path: 'resolvedFromSearch'
+        value: |
+          ""
+        outcomes:
+          - fail:
+              when: 'false'
+              message: 'Wildcard DNS entry {{ "{{" }}  .resolvedFromSearch {{ "}}" }} detected. Remove the wildcard DNS entry or the {{ "{{" }}  .resolvedFromSearch {{ "}}" }} search domain from resolv.conf.'
+          - pass:
+              when: 'true'
+              message: No wildcard DNS entry detected.
