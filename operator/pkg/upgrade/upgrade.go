@@ -53,6 +53,11 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		return nil
 	}
 
+	err = createInstallation(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("apply installation: %w", err)
+	}
+
 	if in.Spec.AirGap {
 		// in airgap installations we need to copy the artifacts to the nodes and then autopilot
 		// will copy the images to the cluster so we can start the new operator.
@@ -195,9 +200,9 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		return fmt.Errorf("wait for operator chart: %w", err)
 	}
 
-	err = createInstallation(ctx, cli, in)
+	err = unLockInstallation(ctx, cli, in)
 	if err != nil {
-		return fmt.Errorf("apply installation: %w", err)
+		return fmt.Errorf("unlock installation: %w", err)
 	}
 
 	return nil
@@ -502,8 +507,28 @@ func createInstallation(ctx context.Context, cli client.Client, in *clusterv1bet
 		return fmt.Errorf("create installation: %w", err)
 	}
 
+	// set the state to 'waiting' so that the operator will not reconcile based on it
+	// we will set the state to installed after the installation is complete
+	in.Status.State = v1beta1.InstallationStateWaiting
+	err = cli.Status().Update(ctx, in)
+	if err != nil {
+		return fmt.Errorf("update installation status: %w", err)
+	}
+
 	log.Info("Installation created")
 
+	return nil
+}
+
+func unLockInstallation(ctx context.Context, cli client.Client, in *v1beta1.Installation) error {
+	// if the installation is locked, we need to unlock it
+	if in.Status.State == v1beta1.InstallationStateWaiting {
+		in.Status.State = v1beta1.InstallationStateKubernetesInstalled
+		err := cli.Status().Update(ctx, in)
+		if err != nil {
+			return fmt.Errorf("update installation status: %w", err)
+		}
+	}
 	return nil
 }
 
