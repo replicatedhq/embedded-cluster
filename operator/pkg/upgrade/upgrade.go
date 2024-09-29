@@ -53,11 +53,6 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		return nil
 	}
 
-	err = createInstallation(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("apply installation: %w", err)
-	}
-
 	if in.Spec.AirGap {
 		// in airgap installations we need to copy the artifacts to the nodes and then autopilot
 		// will copy the images to the cluster so we can start the new operator.
@@ -178,10 +173,10 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 	if err != nil {
 		return fmt.Errorf("get current installation: %w", err)
 	}
-	// set the current installation state to obsolete so that the operator will not reconcile based on it
-	currentInstall.Status.State = v1beta1.InstallationStateObsolete
-	if err := cli.Status().Update(ctx, currentInstall); err != nil {
-		return fmt.Errorf("update current installation status: %w", err)
+
+	err = createInstallation(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("apply installation: %w", err)
 	}
 
 	err = k0sUpgrade(ctx, cli, in, currentInstall)
