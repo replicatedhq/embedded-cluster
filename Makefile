@@ -197,8 +197,6 @@ static: pkg/goods/bins/k0s \
 embedded-cluster-linux-amd64: OS = linux
 embedded-cluster-linux-amd64: ARCH = amd64
 embedded-cluster-linux-amd64: static go.mod embedded-cluster
-	echo "generated go.mod for $(K0S_GO_VERSION)"
-	cat go.mod
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
