@@ -181,6 +181,7 @@ upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: go.mod
 go.mod: Makefile
+	echo "go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)"
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
 
@@ -196,6 +197,8 @@ static: pkg/goods/bins/k0s \
 embedded-cluster-linux-amd64: OS = linux
 embedded-cluster-linux-amd64: ARCH = amd64
 embedded-cluster-linux-amd64: static go.mod embedded-cluster
+	echo "generated go.mod for $(K0S_GO_VERSION)"
+	cat go.mod
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
