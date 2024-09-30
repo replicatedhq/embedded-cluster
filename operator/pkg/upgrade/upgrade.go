@@ -22,6 +22,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -148,6 +149,10 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 	}
 
 	return nil
+}
+
+func WaitForUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+	return kubeutils.WaitForJob(ctx, cli, "embedded-cluster", fmt.Sprintf(upgradeJobName, in.Name), 180, 1) // 180 steps at 5 second intervals is 15 minutes
 }
 
 func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (string, error) {
