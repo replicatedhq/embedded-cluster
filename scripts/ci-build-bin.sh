@@ -48,6 +48,7 @@ function binary() {
 
     make embedded-cluster-linux-$ARCH \
         K0S_VERSION="$K0S_VERSION" \
+        K0S_GO_VERSION="$K0S_VERSION" \
         VERSION="$EC_VERSION" \
         METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
         METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
