@@ -36,7 +36,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 	t.Log("Proxied infrastructure created")
 
 	// install "curl" dependency on node 0 for app version checks.
@@ -52,7 +52,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -72,7 +72,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -121,7 +121,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -149,7 +149,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 	t.Log("Proxied infrastructure created")
 
 	// install "curl" dependency on node 0 for app version checks.
@@ -168,7 +168,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -176,7 +176,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -188,7 +188,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -245,7 +245,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -271,7 +271,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 		LicensePath:         "license.yaml",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// install "curl" dependency on node 0 for app version checks.
 	installTestDependenciesDebian(t, tc, 0, true)
@@ -286,14 +286,14 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	_, _, err := RunCommandOnNode(t, tc, 0, line, withMITMProxyEnv(tc.IPs))
 	require.NoError(t, err, "failed to install embedded-cluster on node 0")
 
-	_, _, err = setupPlaywrightAndRunTest(t, tc, "deploy-app")
+	_, _, err = setupPlaywrightAndRunTest(t, tc, nil, "deploy-app")
 	require.NoError(t, err, "failed to deploy app")
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, _, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		stdout, _, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 		require.NoError(t, err, "failed to generate controller join token")
 
 		command, err := findJoinCommandInOutput(stdout)
@@ -304,7 +304,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, _, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, _, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	require.NoError(t, err, "failed to generate worker join token")
 
 	command, err := findJoinCommandInOutput(stdout)

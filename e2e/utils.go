@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -127,6 +129,47 @@ func RunCommandOnProxyNode(t *testing.T, cl *cluster.Output, line []string, opts
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	if err := cluster.Run(ctx, t, *cmd); err != nil {
+		t.Logf("stdout:\n%s", stdout.String())
+		t.Logf("stderr:\n%s", stderr.String())
+		return stdout.String(), stderr.String(), err
+	}
+	return stdout.String(), stderr.String(), nil
+}
+
+type DockerNode struct {
+	Number   int
+	Distro   string
+	NodePort int
+}
+
+func (d *DockerNode) Create(t *testing.T) {
+	t.Logf("%s: creating node %d", time.Now().Format(time.RFC3339), d.Number)
+	cmd := exec.Command("make",
+		fmt.Sprintf("create-node%d", d.Number),
+		fmt.Sprintf("DISTRO=%s", d.Distro),
+		fmt.Sprintf("NODE_PORT=%d", d.NodePort),
+		"MOUNT_KOTS=0",
+		"AUTO_SSH=0",
+	)
+	cmd.Dir = filepath.Dir(os.Getenv("PWD"))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("fail to create node %d: %v", d.Number, err)
+	}
+}
+
+func (d *DockerNode) Exec(t *testing.T, args ...string) (string, string, error) {
+	t.Logf("%s: running `%s` on node %d", time.Now().Format(time.RFC3339), strings.Join(args, " "), d.Number)
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	execArgs := []string{"exec", "-i", "-w", "/replicatedhq/embedded-cluster", fmt.Sprintf("node%d", d.Number)}
+	execArgs = append(execArgs, args...)
+	execCmd := exec.Command("docker", execArgs...)
+	execCmd.Dir = filepath.Dir(os.Getenv("PWD"))
+	execCmd.Stdout = stdout
+	execCmd.Stderr = stderr
+	if err := execCmd.Run(); err != nil {
 		t.Logf("stdout:\n%s", stdout.String())
 		t.Logf("stderr:\n%s", stderr.String())
 		return stdout.String(), stderr.String(), err

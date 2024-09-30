@@ -17,7 +17,7 @@ func TestCommandsRequireSudo(t *testing.T) {
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 	t.Logf(`%s: running "embedded-cluster version" as regular user`, time.Now().Format(time.RFC3339))
 	command := []string{"embedded-cluster", "version"}
 	if _, _, err := RunRegularUserCommandOnNode(t, tc, 0, command); err != nil {

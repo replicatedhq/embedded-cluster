@@ -10,25 +10,18 @@ import (
 	"testing"
 )
 
-type Docker struct {
-	client string
-	t      *testing.T
-}
-
-func NewCLI(t *testing.T) *Docker {
-	client, err := exec.LookPath("docker")
+func DockerBinPath(t *testing.T) string {
+	path, err := exec.LookPath("docker")
 	if err != nil {
 		t.Fatalf("failed to find docker in path: %v", err)
 	}
-	return &Docker{
-		client: client,
-		t:      t,
-	}
+	return path
 }
 
 type Container struct {
 	Image   string
 	Volumes []string
+	Ports   []string
 
 	id string
 	t  *testing.T
@@ -39,6 +32,10 @@ func NewContainer(t *testing.T) *Container {
 		id: generateID(),
 		t:  t,
 	}
+}
+
+func (c *Container) GetID() string {
+	return c.id
 }
 
 func (c *Container) WithImage(image string) *Container {
@@ -63,7 +60,7 @@ func (c *Container) WithECBinary() *Container {
 }
 
 func (c *Container) GetECBinaryPath() string {
-	return "/ec/bin/embedded-cluster"
+	return "/usr/local/bin/embedded-cluster"
 }
 
 func (c *Container) WithLicense(path string) *Container {
@@ -79,7 +76,26 @@ func (c *Container) WithLicense(path string) *Container {
 }
 
 func (c *Container) GetLicensePath() string {
-	return "/ec/license.yaml"
+	return "/assets/license.yaml"
+}
+
+func (c *Container) WithScripts() *Container {
+	dir, err := filepath.Abs("scripts")
+	if err != nil {
+		c.t.Fatalf("failed to get absolute path to scripts dir: %v", err)
+	}
+	scripts, err := os.ReadDir(dir)
+	if err != nil {
+		c.t.Fatalf("fail to read scripts dir: %v", err)
+	}
+	for _, script := range scripts {
+		c = c.WithVolume(fmt.Sprintf("%s:%s", filepath.Join(dir, script.Name()), c.GetScriptPath(script.Name())))
+	}
+	return c
+}
+
+func (c *Container) GetScriptPath(script string) string {
+	return fmt.Sprintf("/usr/local/bin/%s", script)
 }
 
 func (c *Container) WithVolume(volume string) *Container {
@@ -87,16 +103,30 @@ func (c *Container) WithVolume(volume string) *Container {
 	return c
 }
 
-func (c *Container) Start(cli *Docker) {
+func (c *Container) WithPort(port string) *Container {
+	c.Ports = append(c.Ports, port)
+	return c
+}
+
+func (c *Container) Start() {
 	execCmd := exec.Command(
-		cli.client, "run", "--rm", "-d", "-w", "/ec", "--platform=linux/amd64", "--privileged",
-		"--name", c.id,
+		DockerBinPath(c.t),
+		"run",
+		"--rm",
+		"-d",
+		"-w=/ec",
+		"--privileged",
+		"--cgroupns=host",
+		"--name",
+		c.id,
 	)
 	for _, volume := range c.Volumes {
 		execCmd.Args = append(execCmd.Args, "-v", volume)
 	}
+	for _, port := range c.Ports {
+		execCmd.Args = append(execCmd.Args, "-p", port)
+	}
 	execCmd.Args = append(execCmd.Args, c.Image)
-	execCmd.Args = append(execCmd.Args, "sh", "-c", "while true; do sleep 1; done")
 	c.t.Logf("starting container: docker %s", strings.Join(execCmd.Args, " "))
 	err := execCmd.Run()
 	if err != nil {
@@ -104,21 +134,47 @@ func (c *Container) Start(cli *Docker) {
 	}
 }
 
-func (c *Container) Destroy(cli *Docker) {
-	execCmd := exec.Command(cli.client, "rm", "-f", c.id)
+func (c *Container) Destroy() {
+	execCmd := exec.Command(DockerBinPath(c.t), "rm", "-f", c.id)
 	err := execCmd.Run()
 	if err != nil {
 		c.t.Fatalf("failed to destroy container: %v", err)
 	}
 }
 
-func (c *Container) Exec(cli *Docker, cmd string) (string, string, error) {
+func (c *Container) Exec(cmd string) (string, string, error) {
 	args := []string{"exec", c.id, "sh", "-c", cmd}
-	execCmd := exec.Command(cli.client, args...)
+	execCmd := exec.Command(DockerBinPath(c.t), args...)
 	c.t.Logf("executing command: docker %s", strings.Join(execCmd.Args, " "))
 	var stdout, stderr bytes.Buffer
 	execCmd.Stdout = &stdout
 	execCmd.Stderr = &stderr
 	err := execCmd.Run()
 	return stdout.String(), stderr.String(), err
+}
+
+func (c *Container) CopyFile(src, dst string) (string, string, error) {
+	args := []string{"cp", src, dst}
+	execCmd := exec.Command(DockerBinPath(c.t), args...)
+	c.t.Logf("executing command: docker %s", strings.Join(execCmd.Args, " "))
+	var stdout, stderr bytes.Buffer
+	execCmd.Stdout = &stdout
+	execCmd.Stderr = &stderr
+	err := execCmd.Run()
+	return stdout.String(), stderr.String(), err
+}
+
+func NewNode(t *testing.T, distro string) *Container {
+	c := NewContainer(t).
+		WithImage(fmt.Sprintf("replicated/ec-distro:%s", distro)).
+		WithVolume("/var/lib/k0s").
+		WithPort("30003:30003").
+		WithScripts().
+		WithECBinary()
+	if licensePath := os.Getenv("LICENSE_PATH"); licensePath != "" {
+		t.Logf("using license %s", licensePath)
+		c = c.WithLicense(licensePath)
+	}
+	c.Start()
+	return c
 }

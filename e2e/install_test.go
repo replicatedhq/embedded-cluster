@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"testing"
@@ -13,51 +14,46 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/docker"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 )
 
-func TestSingleNodeInstallation(t *testing.T) {
+func TestSingleNodeInstallationnnnnn(t *testing.T) {
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "ubuntu/jammy",
-		LicensePath:         "license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	})
-	defer cleanupCluster(t, tc)
+	node0 := docker.NewNode(t, "ubuntu-jammy")
+	defer cleanupCluster(t, nil, []*docker.Container{node0})
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", "--admin-console-port", "30002"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	stdout, stderr, err := node0.Exec("single-node-install.sh ui --admin-console-port 30002")
+	if err != nil {
+		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, nil, node0, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
+	stdout, stderr, err = node0.Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	if err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if _, _, err := runPlaywrightTest(t, nil, node0, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
+	stdout, stderr, err = node0.Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	if err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -75,7 +71,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
@@ -89,7 +85,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -103,7 +99,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -128,7 +124,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	installTestDependenciesDebian(t, tc, 0, false)
 
@@ -138,7 +134,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -152,7 +148,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -177,7 +173,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	installTestDependenciesDebian(t, tc, 0, false)
 
@@ -187,7 +183,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -201,7 +197,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -226,7 +222,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
 	line := []string{"yum-install-tar.sh"}
@@ -240,7 +236,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -254,7 +250,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -280,7 +276,7 @@ func TestHostPreflightCustomSpec(t *testing.T) {
 		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
 		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
 	commands := [][]string{
@@ -313,7 +309,7 @@ func TestHostPreflightInBuiltSpec(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: install single node with in-built host preflights", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-host-preflight-install.sh"}
@@ -335,7 +331,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
@@ -344,7 +340,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -352,7 +348,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -364,7 +360,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -424,7 +420,7 @@ func TestInstallWithoutEmbed(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"default-install.sh"}
@@ -445,7 +441,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "debian/12",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
@@ -459,7 +455,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -473,7 +469,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -496,7 +492,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "debian/12",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
@@ -510,7 +506,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -524,7 +520,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -547,7 +543,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "debian/12",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: downloading embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", "1.8.0+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
@@ -561,7 +557,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-ec18-app-version"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-ec18-app-version"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
 	}
 
@@ -575,7 +571,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -600,7 +596,7 @@ func TestResetAndReinstall(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -608,7 +604,7 @@ func TestResetAndReinstall(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -633,7 +629,7 @@ func TestResetAndReinstall(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -667,7 +663,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// install "curl" dependency on node 0 for app version checks.
 	installTestDependenciesDebian(t, tc, 0, true)
@@ -685,7 +681,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -710,7 +706,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -733,7 +729,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 		Nodes: 1,
 		Image: "debian/12",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
@@ -792,7 +788,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -822,7 +818,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -847,7 +843,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -884,7 +880,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -916,7 +912,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -941,7 +937,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -986,7 +982,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -1016,7 +1012,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-ec18-app-version"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-ec18-app-version"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
 	}
 
@@ -1046,7 +1042,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1083,7 +1079,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -1127,13 +1123,13 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	// generate worker node join command.
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1200,7 +1196,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1237,7 +1233,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// install "curl" dependency on node 0 for app version checks.
 	installTestDependenciesDebian(t, tc, 0, true)
@@ -1277,13 +1273,13 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	// generate worker node join command.
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1346,7 +1342,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1370,7 +1366,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// install "expect" dependency on node 3 as that's where the HA join command will run.
 	installTestDependenciesDebian(t, tc, 3, false)
@@ -1382,13 +1378,13 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	// join a worker
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1403,7 +1399,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	}
 
 	// join a controller
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1418,7 +1414,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	}
 
 	// join another controller in HA mode
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1451,7 +1447,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1514,7 +1510,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -1548,7 +1544,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1559,7 +1555,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	// join a worker
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1588,7 +1584,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	// join a controller
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1614,7 +1610,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	// don't remove the embedded-cluster binary as it is used for reset
 
 	// join another controller in HA mode
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1672,7 +1668,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1719,7 +1715,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 		Nodes: 1,
 		Image: "debian/12",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("SNAPSHOT_LICENSE_ID"), "false"}
@@ -1733,7 +1729,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1753,7 +1749,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1779,7 +1775,7 @@ func TestCustomCIDR(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 	t.Log("non-proxied infrastructure created")
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
@@ -1793,7 +1789,7 @@ func TestCustomCIDR(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1801,7 +1797,7 @@ func TestCustomCIDR(t *testing.T) {
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -1813,7 +1809,7 @@ func TestCustomCIDR(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1881,7 +1877,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
@@ -1889,7 +1885,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1904,7 +1900,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	testArgs := []string{appUpgradeVersion, skipClusterUpgradeCheck}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -1917,55 +1913,116 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func setupPlaywrightAndRunTest(t *testing.T, tc *cluster.Output, testName string, args ...string) (stdout, stderr string, err error) {
-	if err := setupPlaywright(t, tc); err != nil {
+func setupPlaywrightAndRunTest(t *testing.T, tc *cluster.Output, node *docker.Container, testName string, args ...string) (stdout, stderr string, err error) {
+	if err := setupPlaywright(t, tc, node); err != nil {
 		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
 	}
-	return runPlaywrightTest(t, tc, testName, args...)
+	return runPlaywrightTest(t, tc, node, testName, args...)
 }
 
-func setupPlaywright(t *testing.T, tc *cluster.Output) error {
+func setupPlaywright(t *testing.T, tc *cluster.Output, node *docker.Container) error {
+	// check if we're using docker containers
+	if node != nil {
+		t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
+		stdout, stderr, err := node.Exec("bypass-kurl-proxy.sh")
+		if err != nil {
+			t.Fatalf("fail to bypass kurl-proxy: %v: %s: %s", err, string(stdout), string(stderr))
+		}
+		t.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
+		cmd := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("fail to install playwright: %v: %s", err, string(out))
+		}
+		return nil
+	}
 	t.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"bypass-kurl-proxy.sh"}
 	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
 		return fmt.Errorf("fail to bypass kurl-proxy on node %s: %v", tc.Nodes[0], err)
 	}
-
 	line = []string{"install-playwright.sh"}
-	if tc.Proxy != "" {
-		t.Logf("%s: installing playwright on proxy node", time.Now().Format(time.RFC3339))
-		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
-			return fmt.Errorf("fail to install playwright on node %s: %v", tc.Proxy, err)
-		}
-	} else {
-		t.Logf("%s: installing playwright on node 0", time.Now().Format(time.RFC3339))
-		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			return fmt.Errorf("fail to install playwright on node %s: %v", tc.Nodes[0], err)
-		}
+	t.Logf("%s: installing playwright on proxy node", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+		return fmt.Errorf("fail to install playwright on node %s: %v", tc.Proxy, err)
 	}
 	return nil
 }
 
-func runPlaywrightTest(t *testing.T, tc *cluster.Output, testName string, args ...string) (stdout, stderr string, err error) {
+func runPlaywrightTest(t *testing.T, tc *cluster.Output, d *docker.Container, testName string, args ...string) (stdout, stderr string, err error) {
+	if d != nil {
+		t.Logf("%s: running playwright test %s", time.Now().Format(time.RFC3339), testName)
+		cmdArgs := []string{testName}
+		cmdArgs = append(cmdArgs, args...)
+		cmd := exec.Command("scripts/playwright.sh", cmdArgs...)
+		cmd.Env = os.Environ()
+		cmd.Env = append(cmd.Env, "BASE_URL=http://localhost:30003")
+		cmd.Env = append(cmd.Env, "PLAYWRIGHT_DIR=./playwright")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", string(out), fmt.Errorf("fail to run playwright test %s: %v", testName, err)
+		}
+		return string(out), "", nil
+	}
+	t.Logf("%s: running playwright test %s on proxy node", time.Now().Format(time.RFC3339), testName)
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
-	if tc.Proxy != "" {
-		t.Logf("%s: running playwright test %s on proxy node", time.Now().Format(time.RFC3339), testName)
-		stdout, stderr, err = RunCommandOnProxyNode(t, tc, line)
-		if err != nil {
-			return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Proxy, err)
-		}
-	} else {
-		t.Logf("%s: running playwright test %s on node 0", time.Now().Format(time.RFC3339), testName)
-		stdout, stderr, err = RunCommandOnNode(t, tc, 0, line)
-		if err != nil {
-			return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Nodes[0], err)
-		}
+	stdout, stderr, err = RunCommandOnProxyNode(t, tc, line)
+	if err != nil {
+		return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, tc.Proxy, err)
 	}
 	return stdout, stderr, nil
 }
 
-func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
+func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output, nodes []*docker.Container) {
+	// check if we're using docker containers
+	if nodes != nil {
+		wg := sync.WaitGroup{}
+		wg.Add(len(nodes))
+
+		for i := range nodes {
+			go func(i int, wg *sync.WaitGroup) {
+				defer wg.Done()
+				t.Logf("%s: generating host support bundle from node %d", time.Now().Format(time.RFC3339), i)
+				if stdout, stderr, err := nodes[i].Exec("collect-support-bundle-host.sh"); err != nil {
+					t.Logf("stdout: %s", stdout)
+					t.Logf("stderr: %s", stderr)
+					t.Logf("fail to generate support from node %d bundle: %v", i, err)
+					return
+				}
+
+				t.Logf("%s: copying host support bundle from node %d to local machine", time.Now().Format(time.RFC3339), i)
+				src := fmt.Sprintf("%s:/root/host.tar.gz", nodes[i].GetID())
+				dst := fmt.Sprintf("support-bundle-host-%d.tar.gz", i)
+				if stdout, stderr, err := nodes[i].CopyFile(src, dst); err != nil {
+					t.Logf("stdout: %s", stdout)
+					t.Logf("stderr: %s", stderr)
+					t.Logf("fail to generate support bundle from node %d: %v", i, err)
+					return
+				}
+			}(i, &wg)
+		}
+
+		t.Logf("%s: generating cluster support bundle from node 0", time.Now().Format(time.RFC3339))
+		if stdout, stderr, err := nodes[0].Exec("collect-support-bundle-cluster.sh"); err != nil {
+			t.Logf("stdout: %s", stdout)
+			t.Logf("stderr: %s", stderr)
+			t.Logf("fail to generate cluster support from node %d bundle: %v", 0, err)
+		} else {
+			t.Logf("%s: copying cluster support bundle from node 0 to local machine", time.Now().Format(time.RFC3339))
+			src := fmt.Sprintf("%s:/root/cluster.tar.gz", nodes[0].GetID())
+			dst := "support-bundle-cluster.tar.gz"
+			if stdout, stderr, err := nodes[0].CopyFile(src, dst); err != nil {
+				t.Logf("stdout: %s", stdout)
+				t.Logf("stderr: %s", stderr)
+				t.Logf("fail to generate cluster support bundle from node 0: %v", err)
+			}
+		}
+
+		wg.Wait()
+		return
+	}
+
 	wg := sync.WaitGroup{}
 	wg.Add(len(tc.Nodes))
 
@@ -1977,7 +2034,7 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 			if stdout, stderr, err := RunCommandOnNode(t, tc, i, line); err != nil {
 				t.Logf("stdout: %s", stdout)
 				t.Logf("stderr: %s", stderr)
-				t.Logf("fail to generate support from node %s bundle: %v", tc.Nodes[i], err)
+				t.Logf("fail to generate support bundle from node %s: %v", tc.Nodes[i], err)
 				return
 			}
 
@@ -2005,34 +2062,35 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output) {
 	wg.Wait()
 }
 
+// TODO NOW: handle this
 func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
+	if tc == nil {
+		t.Logf("%s: compressing playwright report", time.Now().Format(time.RFC3339))
+		cmd := exec.Command("tar", "-czf", "playwright-report.tar.gz", "-C", "./playwright/playwright-report", ".")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Logf("fail to compress playwright report: %v: %s", err, string(out))
+		}
+		return
+	}
 	line := []string{"tar", "-czf", "playwright-report.tar.gz", "-C", "/automation/playwright/playwright-report", "."}
-	if tc.Proxy != "" {
-		t.Logf("%s: compressing playwright report on proxy node", time.Now().Format(time.RFC3339))
-		if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
-			t.Logf("fail to compress playwright report on node %s: %v", tc.Proxy, err)
-			return
-		}
-		t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
-		if err := cluster.CopyFileFromNode(tc.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
-			t.Logf("fail to copy playwright report to local machine: %v", err)
-		}
-	} else {
-		t.Logf("%s: compressing playwright report on node 0", time.Now().Format(time.RFC3339))
-		if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
-			t.Logf("fail to compress playwright report on node %s: %v", tc.Nodes[0], err)
-			return
-		}
-		t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
-		if err := cluster.CopyFileFromNode(tc.Nodes[0], "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
-			t.Logf("fail to copy playwright report to local machine: %v", err)
-		}
+	t.Logf("%s: compressing playwright report on proxy node", time.Now().Format(time.RFC3339))
+	if _, _, err := RunCommandOnProxyNode(t, tc, line); err != nil {
+		t.Logf("fail to compress playwright report on node %s: %v", tc.Proxy, err)
+		return
+	}
+	t.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
+	if err := cluster.CopyFileFromNode(tc.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
+		t.Logf("fail to copy playwright report to local machine: %v", err)
 	}
 }
 
-func cleanupCluster(t *testing.T, tc *cluster.Output) {
-	generateAndCopySupportBundle(t, tc)
+func cleanupCluster(t *testing.T, tc *cluster.Output, nodes []*docker.Container) {
+	generateAndCopySupportBundle(t, tc, nodes)
 	copyPlaywrightReport(t, tc)
+	for _, node := range nodes {
+		node.Destroy()
+	}
 }
 
 func TestFiveNodesAirgapUpgrade(t *testing.T) {
@@ -2059,7 +2117,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// install "curl" dependency on node 0 for app version checks.
 	installTestDependenciesDebian(t, tc, 0, true)
@@ -2079,13 +2137,13 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		t.Fatalf("failed to install on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	// generate controller node join command.
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -2134,7 +2192,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	testArgs := []string{fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))}
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -2158,7 +2216,7 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	}
 	tc := cluster.NewTestCluster(input)
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	certBuilder, err := certs.NewBuilder()
 	require.NoError(t, err, "unable to create new cert builder")
@@ -2185,7 +2243,7 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 

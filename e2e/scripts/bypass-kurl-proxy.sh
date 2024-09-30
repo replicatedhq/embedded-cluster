@@ -15,9 +15,9 @@ main() {
   spec:
     type: NodePort
     ports:
-    - port: 30001
+    - port: 30003
       targetPort: 3000
-      nodePort: 30001
+      nodePort: 30003
     selector:
       app: kotsadm
 EOF

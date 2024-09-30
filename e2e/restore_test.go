@@ -35,7 +35,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	installTestDependenciesDebian(t, tc, 0, false)
 
@@ -45,7 +45,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -55,7 +55,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
@@ -84,7 +84,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v", err)
 	}
 
@@ -126,7 +126,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	installTestDependenciesDebian(t, tc, 0, true)
 
@@ -139,7 +139,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -149,7 +149,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
@@ -205,7 +205,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	installTestDependenciesDebian(t, tc, 0, false)
 
@@ -215,7 +215,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -225,7 +225,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
@@ -292,7 +292,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// install "curl" dependency on node 0 for app version checks.
 	installTestDependenciesDebian(t, tc, 0, true)
@@ -313,10 +313,10 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
-	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
@@ -370,7 +370,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -408,7 +408,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		LicensePath:         "snapshot-license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
@@ -420,13 +420,13 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	// join a controller
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -442,7 +442,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// join another controller in HA mode
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -471,7 +471,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
 
-	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
@@ -506,7 +506,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// join a controller
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-restore-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-restore-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -522,7 +522,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	// join another controller in non-HA mode
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-restore-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-restore-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -559,7 +559,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -604,7 +604,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, nil)
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
@@ -628,13 +628,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	// join a controller
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -655,7 +655,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join another controller in HA mode
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -689,7 +689,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post ha state: %v", err)
 	}
 
-	if _, _, err := runPlaywrightTest(t, tc, "create-backup", testArgs...); err != nil {
+	if _, _, err := runPlaywrightTest(t, tc, nil, "create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v", err)
 	}
 
@@ -724,7 +724,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join a controller
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-restore-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-restore-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -740,7 +740,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// join another controller in non-HA mode
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = runPlaywrightTest(t, tc, "get-restore-join-controller-command")
+	stdout, stderr, err = runPlaywrightTest(t, tc, nil, "get-restore-join-controller-command")
 	if err != nil {
 		t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
