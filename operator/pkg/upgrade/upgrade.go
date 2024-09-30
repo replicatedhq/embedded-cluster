@@ -72,11 +72,6 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		}
 	}
 
-	err = createInstallation(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("apply installation: %w", err)
-	}
-
 	// create the upgrade job configmap with the target installation spec
 	installationData, err := json.Marshal(in)
 	if err != nil {
@@ -174,12 +169,17 @@ func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is created.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
-	previousInstall, err := getPreviousInstallation(ctx, cli)
+	currentInstall, err := getLatestInstallation(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("get current installation: %w", err)
 	}
 
-	err = k0sUpgrade(ctx, cli, in, previousInstall)
+	err = createInstallation(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("apply installation: %w", err)
+	}
+
+	err = k0sUpgrade(ctx, cli, in, currentInstall)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
@@ -527,7 +527,7 @@ func unLockInstallation(ctx context.Context, cli client.Client, in *v1beta1.Inst
 	return nil
 }
 
-func getPreviousInstallation(ctx context.Context, cli client.Client) (*v1beta1.Installation, error) {
+func getLatestInstallation(ctx context.Context, cli client.Client) (*v1beta1.Installation, error) {
 	var installList v1beta1.InstallationList
 	if err := cli.List(ctx, &installList); err != nil {
 		return nil, fmt.Errorf("list installations: %w", err)
@@ -538,11 +538,11 @@ func getPreviousInstallation(ctx context.Context, cli client.Client) (*v1beta1.I
 		return installList.Items[i].Name < installList.Items[j].Name
 	})
 
-	if len(installList.Items) < 2 {
-		return nil, fmt.Errorf("only %d installations found, expected 2+", len(installList.Items))
+	if len(installList.Items) == 0 {
+		return nil, fmt.Errorf("no installations found")
 	}
 
-	return &installList.Items[1], nil
+	return &installList.Items[0], nil
 }
 
 func waitForOperatorChart(ctx context.Context, cli client.Client, version string) error {
