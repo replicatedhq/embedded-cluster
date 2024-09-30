@@ -454,12 +454,42 @@ jobs:
     name: E2E docker
     runs-on: ubuntu-latest
     needs:
+      - git-sha
       - build-current
+      - build-previous-k0s
+      - build-upgrade
+      - release-app
     strategy:
       fail-fast: false
       matrix:
         test:
           - TestPreflights
+          - TestMaterialize
+          - TestHostPreflightCustomSpec
+          - TestHostPreflightInBuiltSpec
+          - TestSingleNodeInstallation
+          - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos9Stream
+          - TestInstallFromReplicatedApp
+          - TestUpgradeFromReplicatedApp
+          - TestInstallWithoutEmbed
+          - TestUpgradeEC18FromReplicatedApp
+          - TestResetAndReinstall
+          - TestOldVersionUpgrade
+          - TestInstallSnapshotFromReplicatedApp
+          - TestMultiNodeInstallation
+          - TestMultiNodeHAInstallation
+          - TestSingleNodeDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
+          - TestMultiNodeHADisasterRecovery
+          - TestSingleNodeInstallationNoopUpgrade
+          - TestCustomCIDR
+          - TestLocalArtifactMirror
+          - TestMultiNodeReset
+          - TestCollectSupportBundle
+          - TestUnsupportedOverrides
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -473,14 +503,40 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-      - name: Write license file
+      - name: Login to DockerHub to avoid rate limiting
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Free up runner disk space
+        uses: ./.github/actions/free-disk-space
+      - name: Write license files
         run: |
           echo "${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}" | base64 --decode > e2e/license.yaml
+          echo "${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}" | base64 --decode > e2e/snapshot-license.yaml
       - name: Run test
         env:
-          LICENSE_PATH: license.yaml
+          SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
+          LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
+          AIRGAP_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
+          SNAPSHOT_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
+          AIRGAP_SNAPSHOT_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_SNAPSHOT_LICENSE_ID }}
+          DR_AWS_S3_ENDPOINT: https://s3.amazonaws.com
+          DR_AWS_S3_REGION: us-east-1
+          DR_AWS_S3_BUCKET: kots-testim-snapshots
+          DR_AWS_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
+          DR_AWS_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+          DR_AWS_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          DR_AWS_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
+          EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.build-previous-k0s.outputs.k0s_version }}
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
+      - name: Troubleshoot
+        if: ${{ failure() }}
+        uses: ./.github/actions/e2e-troubleshoot
+        with:
+          test-name: '${{ matrix.test }}'
 
   e2e:
     name: E2E
@@ -494,54 +550,19 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian11
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
           - TestVersion
-          - TestHostPreflightCustomSpec
-          - TestHostPreflightInBuiltSpec
-          - TestUnsupportedOverrides
           - TestCommandsRequireSudo
-          - TestInstallWithoutEmbed
-          - TestInstallFromReplicatedApp
-          - TestUpgradeFromReplicatedApp
-          - TestUpgradeEC18FromReplicatedApp
-          - TestResetAndReinstall
           - TestResetAndReinstallAirgap
-          - TestCollectSupportBundle
-          - TestOldVersionUpgrade
-          - TestMaterialize
-          - TestLocalArtifactMirror
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeFromEC18
           - TestSingleNodeAirgapUpgradeCustomCIDR
-          - TestInstallSnapshotFromReplicatedApp
-          - TestSingleNodeDisasterRecovery
           - TestSingleNodeDisasterRecoveryWithProxy
-          - TestSingleNodeResumeDisasterRecovery
-          - TestSingleNodeInstallationNoopUpgrade
+          - TestProxiedEnvironment
+          - TestProxiedCustomCIDR
           - TestInstallWithPrivateCAs
           - TestInstallWithMITMProxy
         include:
-          - test: TestCustomCIDR
-            runner: embedded-cluster
-          - test: TestProxiedEnvironment
-            runner: embedded-cluster
-          - test: TestProxiedCustomCIDR
-            runner: embedded-cluster
-          - test: TestMultiNodeInstallation
-            runner: embedded-cluster
-          - test: TestMultiNodeReset
-            runner: embedded-cluster
-          - test: TestMultiNodeAirgapUpgrade
-            runner: embedded-cluster
-          - test: TestMultiNodeHAInstallation
-            runner: embedded-cluster
-          - test: TestMultiNodeHADisasterRecovery
-            runner: embedded-cluster
-          - test: TestMultiNodeAirgapUpgrade
+          - test: TestMultiNodeAirgapUpgrade # TODO NOW: make sure this runs
             runner: embedded-cluster
           - test: TestMultiNodeAirgapUpgradeSameK0s
             runner: embedded-cluster
@@ -595,11 +616,20 @@ jobs:
       - name: fail if e2e job was not successful
         if: needs.e2e.result != 'success'
         run: exit 1
+      - name: fail if e2e-docker job was not successful
+        if: needs.e2e-docker.result != 'success'
+        run: exit 1
       - name: fail if sanitize job was not successful
         if: needs.sanitize.result != 'success'
         run: exit 1
-      - name: fail if tests job was not successful
+      - name: fail if test job was not successful
         if: needs.test.result != 'success'
+        run: exit 1
+      - name: fail if check-images job was not successful
+        if: needs.check-images.result != 'success'
+        run: exit 1
+      - name: fail if check-operator-crds job was not successful
+        if: needs.check-operator-crds.result != 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"

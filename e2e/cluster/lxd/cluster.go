@@ -1,4 +1,4 @@
-package cluster
+package lxd
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -50,9 +51,9 @@ func (n *NoopCloser) Close() error {
 	return nil
 }
 
-// Input are the options passed in to the cluster creation plus some data
+// ClusterInput are the options passed in to the cluster creation plus some data
 // for internal consumption only.
-type Input struct {
+type ClusterInput struct {
 	Nodes                             int
 	CreateRegularUser                 bool
 	LicensePath                       string
@@ -80,9 +81,9 @@ type Dir struct {
 	DestPath   string
 }
 
-// Output is returned when a cluster is created. Contain a list of all node
+// Cluster is returned when a cluster is created. Contain a list of all node
 // names and the cluster id.
-type Output struct {
+type Cluster struct {
 	Nodes   []string
 	IPs     []string
 	network string
@@ -91,16 +92,16 @@ type Output struct {
 	Proxy   string
 }
 
-// Destroy destroys a cluster pointed by the id property inside the output.
-func (o *Output) Destroy() {
-	o.T.Logf("Destroying cluster %s", o.id)
+// Destroy destroys a cluster pointed by the id property.
+func (c *Cluster) Destroy() {
+	c.T.Logf("Destroying cluster %s", c.id)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
-		o.T.Fatalf("Failed to connect to LXD: %v", err)
+		c.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	nodes := o.Nodes
-	if o.Proxy != "" {
-		nodes = append(nodes, o.Proxy)
+	nodes := c.Nodes
+	if c.Proxy != "" {
+		nodes = append(nodes, c.Proxy)
 	}
 	for _, node := range nodes {
 		reqstate := api.InstanceStatePut{
@@ -109,26 +110,26 @@ func (o *Output) Destroy() {
 		}
 		op, err := client.UpdateInstanceState(node, reqstate, "")
 		if err != nil {
-			o.T.Logf("Failed to stop node %s: %v", node, err)
+			c.T.Logf("Failed to stop node %s: %v", node, err)
 			continue
 		}
 		if err := op.Wait(); err != nil {
-			o.T.Logf("Failed to wait node %s to stop: %v", node, err)
+			c.T.Logf("Failed to wait node %s to stop: %v", node, err)
 		}
 	}
-	netname := fmt.Sprintf("internal-%s", o.id)
+	netname := fmt.Sprintf("internal-%s", c.id)
 	if err := client.DeleteNetwork(netname); err != nil {
-		o.T.Logf("Failed to delete network %s: %v", netname, err)
+		c.T.Logf("Failed to delete network %s: %v", netname, err)
 	}
-	netname = fmt.Sprintf("external-%s", o.id)
+	netname = fmt.Sprintf("external-%s", c.id)
 	if err := client.DeleteNetwork(netname); err != nil {
-		o.T.Logf("Failed to delete external network: %v", err)
+		c.T.Logf("Failed to delete external network: %v", err)
 	}
-	profilename := fmt.Sprintf("profile-%s", o.id)
+	profilename := fmt.Sprintf("profile-%s", c.id)
 	if err := client.DeleteProfile(profilename); err != nil {
-		o.T.Logf("Failed to delete profile: %v", err)
+		c.T.Logf("Failed to delete profile: %v", err)
 	}
-	networkaddr <- o.network
+	networkaddr <- c.network
 }
 
 // Command is a command to be run in a node.
@@ -193,10 +194,10 @@ var imagesMap = map[string]string{
 	"ubuntu/jammy": "j",
 }
 
-// NewTestCluster creates a new cluster and returns an object of type Output
+// NewCluster creates a new cluster and returns an object of type Output
 // that can be used to get the created nodes and destroy the cluster when it
 // is no longer needed.
-func NewTestCluster(in *Input) *Output {
+func NewCluster(in *ClusterInput) *Cluster {
 	if name, ok := imagesMap[in.Image]; ok {
 		in.Image = name
 	}
@@ -204,7 +205,7 @@ func NewTestCluster(in *Input) *Output {
 	in.id = uuid.New().String()[:5]
 	in.network = <-networkaddr
 
-	out := &Output{
+	out := &Cluster{
 		T:       in.T,
 		network: in.network,
 		id:      in.id,
@@ -236,16 +237,14 @@ func NewTestCluster(in *Input) *Output {
 	if in.WithProxy {
 		ConfigureProxy(in)
 	}
-	opts := []RunCommandOption{}
+	env := map[string]string{}
 	if in.WithProxy {
-		opts = append(opts, WithEnv(map[string]string{
-			"http_proxy":  HTTPProxy,
-			"https_proxy": HTTPProxy,
-		}))
+		env["http_proxy"] = HTTPProxy
+		env["https_proxy"] = HTTPProxy
 	}
 	for _, node := range out.Nodes {
 		in.T.Logf("Installing deps on node %s", node)
-		RunCommandOnNode(in, []string{"install-deps.sh"}, node, opts...)
+		RunCommand(in, []string{"install-deps.sh"}, node, env)
 	}
 	return out
 }
@@ -262,7 +261,7 @@ const (
 // sure that all nodes are configured to use the proxy as default gateway. Internet
 // won't work on them by design (exception made for DNS requests and http requests
 // using the proxy). Proxy is accessible from the cluster nodes on 10.0.0.254:3128.
-func CreateProxy(in *Input) string {
+func CreateProxy(in *ClusterInput) string {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -323,7 +322,7 @@ func CreateProxy(in *Input) string {
 // ConfigureProxyNode installs squid and iptables on the target node. Configures the needed
 // ip addresses and sets up iptables to allow nat for requests coming out on eth0 using
 // port 53(UDP).
-func ConfigureProxyNode(in *Input) {
+func ConfigureProxyNode(in *ClusterInput) {
 	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
 	// starts by installing dependencies, setting up the second network interface ip
@@ -336,17 +335,17 @@ func ConfigureProxyNode(in *Input) {
 		{"sysctl", "-w", "net.ipv4.ip_forward=1"},
 		{"iptables", "-t", "nat", "-o", "eth0", "-A", "POSTROUTING", "-p", "udp", "--dport", "53", "-j", "MASQUERADE"},
 	} {
-		RunCommandOnNode(in, cmd, proxyName)
+		RunCommand(in, cmd, proxyName)
 	}
 }
 
 // ConfigureProxy configures squid to accept requests coming from 10.0.0.0/24 network.
 // Proxy will be listening on http://10.0.0.254 using the following ports:
 // 3128 (http), 3129 (http, ssl-bump), and 3130 (https).
-func ConfigureProxy(in *Input) {
+func ConfigureProxy(in *ClusterInput) {
 	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
-	RunCommandOnNode(in, []string{"/usr/local/bin/install-and-configure-squid.sh"}, proxyName)
+	RunCommand(in, []string{"/usr/local/bin/install-and-configure-squid.sh"}, proxyName)
 	if err := CopyFileFromNode(proxyName, "/tmp/ca.crt", "/tmp/ca.crt"); err != nil {
 		in.T.Errorf("failed to copy proxy ca: %v", err)
 		return
@@ -359,7 +358,7 @@ func ConfigureProxy(in *Input) {
 	// them trust it.
 	for i := 0; i < in.Nodes; i++ {
 		name := fmt.Sprintf("node-%s-%02d", in.id, i)
-		RunCommandOnNode(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
+		RunCommand(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
 
 		CopyFileToNode(in, name, File{
 			SourcePath: "/tmp/ca.crt",
@@ -371,22 +370,14 @@ func ConfigureProxy(in *Input) {
 			{"update-ca-certificates"},
 			{"/usr/local/bin/default-route-through-proxy.sh"},
 		} {
-			RunCommandOnNode(in, cmd, name)
+			RunCommand(in, cmd, name)
 		}
-	}
-}
-
-type RunCommandOption func(cmd *Command)
-
-func WithEnv(env map[string]string) RunCommandOption {
-	return func(cmd *Command) {
-		cmd.Env = env
 	}
 }
 
 // RunCommand runs the provided command on the provided node (name). Implements a
 // timeout of 2 minutes for the command to run and if it fails calls T.Failf().
-func RunCommandOnNode(in *Input, cmdline []string, name string, opts ...RunCommandOption) {
+func RunCommand(in *ClusterInput, cmdline []string, name string, envs ...map[string]string) {
 	in.T.Logf("Running `%s` on node %s", strings.Join(cmdline, " "), name)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
@@ -395,9 +386,7 @@ func RunCommandOnNode(in *Input, cmdline []string, name string, opts ...RunComma
 		Line:   cmdline,
 		Stdout: &NoopCloser{stdout},
 		Stderr: &NoopCloser{stderr},
-	}
-	for _, fn := range opts {
-		fn(&cmd)
+		Env:    mergeMaps(envs...),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -411,7 +400,7 @@ func RunCommandOnNode(in *Input, cmdline []string, name string, opts ...RunComma
 
 // CreateRegularUser adds an unprivileged user to the node. The username is
 // "user" and there is no password. Creates the user with UID 9999.
-func CreateRegularUser(in *Input, node string) {
+func CreateRegularUser(in *ClusterInput, node string) {
 	in.T.Logf("Creating regular user `user(9999)` on node %s", node)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -439,7 +428,7 @@ func CreateRegularUser(in *Input, node string) {
 
 // CopyFilesToNode copies the files needed for the cluster to the node. Copies
 // the provided ssh key and the embedded-cluster release files.
-func CopyFilesToNode(in *Input, node string) {
+func CopyFilesToNode(in *ClusterInput, node string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -481,7 +470,7 @@ func CopyFilesToNode(in *Input, node string) {
 }
 
 // CopyDirsToNode copies the directories needed to the node.
-func CopyDirsToNode(in *Input, node string) {
+func CopyDirsToNode(in *ClusterInput, node string) {
 	dirs := []Dir{
 		{
 			SourcePath: "scripts",
@@ -498,7 +487,7 @@ func CopyDirsToNode(in *Input, node string) {
 }
 
 // CopyDirToNode copies a single directory to a node.
-func CopyDirToNode(in *Input, node string, dir Dir) {
+func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
 	if err := filepath.Walk(dir.SourcePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -523,7 +512,7 @@ func CopyDirToNode(in *Input, node string, dir Dir) {
 }
 
 // CopyFileToNode copies a single file to a node.
-func CopyFileToNode(in *Input, node string, file File) {
+func CopyFileToNode(in *ClusterInput, node string, file File) {
 	if file.SourcePath == "" {
 		in.T.Logf("Skipping file %s: source path is empty", file.DestPath)
 		return
@@ -532,7 +521,7 @@ func CopyFileToNode(in *Input, node string, file File) {
 	for _, cmd := range [][]string{
 		{"mkdir", "-p", filepath.Dir(file.DestPath)},
 	} {
-		RunCommandOnNode(in, cmd, node)
+		RunCommand(in, cmd, node)
 	}
 	in.T.Logf("Copying `%s` to `%s` on node %s", file.SourcePath, file.DestPath, node)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
@@ -577,7 +566,7 @@ func CopyFileFromNode(node, source, dest string) error {
 
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
-func CreateNodes(in *Input) ([]string, []string) {
+func CreateNodes(in *ClusterInput) ([]string, []string) {
 	nodes := []string{}
 	IPs := []string{}
 	for i := 0; i < in.Nodes; i++ {
@@ -595,7 +584,7 @@ func CreateNodes(in *Input) ([]string, []string) {
 
 // NodeHasInternet checks if the node has internet access. It does this by
 // pinging google.com.
-func NodeHasInternet(in *Input, node string) {
+func NodeHasInternet(in *ClusterInput, node string) {
 	in.T.Logf("Testing if node %s can reach the internet", node)
 	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
@@ -645,7 +634,7 @@ func NodeHasInternet(in *Input, node string) {
 
 // NodeHasNoInternet checks if the node has internet access and fails if so. It does this by
 // pinging google.com.
-func NodeHasNoInternet(in *Input, node string) {
+func NodeHasNoInternet(in *ClusterInput, node string) {
 	in.T.Logf("Ensuring node %s cannot reach the internet", node)
 	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
@@ -693,7 +682,7 @@ func NodeHasNoInternet(in *Input, node string) {
 // CreateNode creates a single node. The i here is used to create a unique
 // name for the node. Node is named as "node-<cluster id>-<i>". The node
 // name is returned.
-func CreateNode(in *Input, i int) (string, string) {
+func CreateNode(in *ClusterInput, i int) (string, string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -772,7 +761,7 @@ func getInetIP(state *api.InstanceState) string {
 // CreateNetworks create two networks, one of type bridge and inside of it another one of
 // type ovn, the latter is completely isolated from the host network and from the other
 // networks on the same server.
-func CreateNetworks(in *Input) {
+func CreateNetworks(in *ClusterInput) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -817,7 +806,7 @@ func CreateNetworks(in *Input) {
 
 // CreateProfile that restricts the hardware and provides privileged access to the
 // containers.
-func CreateProfile(in *Input) {
+func CreateProfile(in *ClusterInput) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -857,7 +846,7 @@ func CreateProfile(in *Input) {
 }
 
 // PullImage pull the image used for the nodes.
-func PullImage(in *Input, image string) {
+func PullImage(in *ClusterInput, image string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -898,4 +887,235 @@ func PullImage(in *Input, image string) {
 	}
 
 	in.T.Fatalf("Failed to pull image %s (tried in all servers)", image)
+}
+
+type buffer struct {
+	*bytes.Buffer
+}
+
+func (b *buffer) Close() error {
+	return nil
+}
+
+func mergeMaps(maps ...map[string]string) map[string]string {
+	merged := map[string]string{}
+	for _, m := range maps {
+		for k, v := range m {
+			merged[k] = v
+		}
+	}
+	return merged
+}
+
+// RunCommandsOnNode runs a series of commands on a node.
+func (c *Cluster) RunCommandsOnNode(node int, cmds [][]string, envs ...map[string]string) error {
+	for _, cmd := range cmds {
+		cmdstr := strings.Join(cmd, " ")
+		c.T.Logf("running `%s` node %d", cmdstr, node)
+		_, _, err := c.RunCommandOnNode(node, cmd, envs...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RunRegularUserCommandOnNode runs a command on a node as a regular user (not root) with a timeout.
+func (c *Cluster) RunRegularUserCommandOnNode(t *testing.T, node int, line []string, envs ...map[string]string) (string, string, error) {
+	stdout := &buffer{bytes.NewBuffer(nil)}
+	stderr := &buffer{bytes.NewBuffer(nil)}
+	cmd := &Command{
+		Node:        c.Nodes[node],
+		Line:        line,
+		Stdout:      stdout,
+		Stderr:      stderr,
+		RegularUser: true,
+		Env:         mergeMaps(envs...),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	if err := Run(ctx, t, *cmd); err != nil {
+		t.Logf("stdout:\n%s\nstderr:%s\n", stdout.String(), stderr.String())
+		return stdout.String(), stderr.String(), err
+	}
+	return stdout.String(), stderr.String(), nil
+}
+
+// RunCommandOnNode runs a command on a node with a timeout.
+func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]string) (string, string, error) {
+	stdout := &buffer{bytes.NewBuffer(nil)}
+	stderr := &buffer{bytes.NewBuffer(nil)}
+	cmd := &Command{
+		Node:   c.Nodes[node],
+		Line:   line,
+		Stdout: stdout,
+		Stderr: stderr,
+		Env:    mergeMaps(envs...),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	if err := Run(ctx, c.T, *cmd); err != nil {
+		c.T.Logf("stdout:\n%s", stdout.String())
+		c.T.Logf("stderr:\n%s", stderr.String())
+		return stdout.String(), stderr.String(), err
+	}
+	return stdout.String(), stderr.String(), nil
+}
+
+// RunCommandOnProxyNode runs a command on the proxy node with a timeout.
+func (c *Cluster) RunCommandOnProxyNode(t *testing.T, line []string, envs ...map[string]string) (string, string, error) {
+	if c.Proxy == "" {
+		return "", "", fmt.Errorf("no proxy node found")
+	}
+
+	stdout := &buffer{bytes.NewBuffer(nil)}
+	stderr := &buffer{bytes.NewBuffer(nil)}
+	cmd := &Command{
+		Node:   c.Proxy,
+		Line:   line,
+		Stdout: stdout,
+		Stderr: stderr,
+		Env:    mergeMaps(envs...),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	if err := Run(ctx, t, *cmd); err != nil {
+		t.Logf("stdout:\n%s", stdout.String())
+		t.Logf("stderr:\n%s", stderr.String())
+		return stdout.String(), stderr.String(), err
+	}
+	return stdout.String(), stderr.String(), nil
+}
+
+func (c *Cluster) InstallTestDependenciesDebian(t *testing.T, node int, withProxy bool) {
+	t.Helper()
+	t.Logf("%s: installing test dependencies on node %s", time.Now().Format(time.RFC3339), c.Nodes[node])
+	commands := [][]string{
+		{"apt-get", "update", "-y"},
+		{"apt-get", "install", "curl", "expect", "-y"},
+	}
+	env := map[string]string{}
+	if withProxy {
+		env["http_proxy"] = HTTPProxy
+		env["https_proxy"] = HTTPProxy
+	}
+	if err := c.RunCommandsOnNode(node, commands, env); err != nil {
+		t.Fatalf("fail to install test dependencies on node %s: %v", c.Nodes[node], err)
+	}
+}
+
+func WithECShellEnv(dataDir string) map[string]string {
+	return map[string]string{
+		"EMBEDDED_CLUSTER_METRICS_BASEURL": "https://staging.replicated.app",
+		"KUBECONFIG":                       filepath.Join(dataDir, "k0s/pki/admin.conf"),
+		"PATH":                             filepath.Join(dataDir, "bin"),
+	}
+}
+
+func WithMITMProxyEnv(nodeIPs []string) map[string]string {
+	return map[string]string{
+		"HTTP_PROXY":  HTTPMITMProxy,
+		"HTTPS_PROXY": HTTPMITMProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
+	}
+}
+
+func WithProxyEnv(nodeIPs []string) map[string]string {
+	return map[string]string{
+		"HTTP_PROXY":  HTTPProxy,
+		"HTTPS_PROXY": HTTPProxy,
+		"NO_PROXY":    strings.Join(nodeIPs, ","),
+	}
+}
+
+func (c *Cluster) Cleanup(envs ...map[string]string) {
+	if c.T.Failed() {
+		c.generateSupportBundle(envs...)
+		c.copyPlaywrightReport()
+	}
+}
+
+func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (stdout, stderr string, err error) {
+	if err := c.SetupPlaywright(); err != nil {
+		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
+	}
+	return c.RunPlaywrightTest(testName, args...)
+}
+
+func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
+	c.T.Logf("%s: bypassing kurl-proxy on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"bypass-kurl-proxy.sh"}
+	if _, stderr, err := c.RunCommandOnNode(0, line, envs...); err != nil {
+		return fmt.Errorf("fail to bypass kurl-proxy on node %s: %v: %s", c.Nodes[0], err, string(stderr))
+	}
+	line = []string{"install-playwright.sh"}
+	c.T.Logf("%s: installing playwright on proxy node", time.Now().Format(time.RFC3339))
+	if _, stderr, err := c.RunCommandOnProxyNode(c.T, line); err != nil {
+		return fmt.Errorf("fail to install playwright on node %s: %v: %s", c.Proxy, err, string(stderr))
+	}
+	return nil
+}
+
+func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (stdout, stderr string, err error) {
+	c.T.Logf("%s: running playwright test %s on proxy node", time.Now().Format(time.RFC3339), testName)
+	line := []string{"playwright.sh", testName}
+	line = append(line, args...)
+	stdout, stderr, err = c.RunCommandOnProxyNode(c.T, line)
+	if err != nil {
+		return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, c.Proxy, err)
+	}
+	return stdout, stderr, nil
+}
+
+func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
+	wg := sync.WaitGroup{}
+	wg.Add(len(c.Nodes))
+
+	for i := range c.Nodes {
+		go func(i int, wg *sync.WaitGroup) {
+			defer wg.Done()
+			c.T.Logf("%s: generating host support bundle from node %s", time.Now().Format(time.RFC3339), c.Nodes[i])
+			line := []string{"collect-support-bundle-host.sh"}
+			if stdout, stderr, err := c.RunCommandOnNode(i, line, envs...); err != nil {
+				c.T.Logf("stdout: %s", stdout)
+				c.T.Logf("stderr: %s", stderr)
+				c.T.Logf("fail to generate support bundle from node %s: %v", c.Nodes[i], err)
+				return
+			}
+
+			c.T.Logf("%s: copying host support bundle from node %s to local machine", time.Now().Format(time.RFC3339), c.Nodes[i])
+			if err := CopyFileFromNode(c.Nodes[i], "/root/host.tar.gz", fmt.Sprintf("support-bundle-host-%s.tar.gz", c.Nodes[i])); err != nil {
+				c.T.Logf("fail to copy host support bundle from node %s to local machine: %v", c.Nodes[i], err)
+			}
+		}(i, &wg)
+	}
+
+	node := c.Nodes[0]
+	c.T.Logf("%s: generating cluster support bundle from node %s", time.Now().Format(time.RFC3339), node)
+	line := []string{"collect-support-bundle-cluster.sh"}
+	if stdout, stderr, err := c.RunCommandOnNode(0, line, envs...); err != nil {
+		c.T.Logf("stdout: %s", stdout)
+		c.T.Logf("stderr: %s", stderr)
+		c.T.Logf("fail to generate cluster support from node %s bundle: %v", node, err)
+	} else {
+		c.T.Logf("%s: copying cluster support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
+		if err := CopyFileFromNode(node, "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
+			c.T.Logf("fail to copy cluster support bundle from node %s to local machine: %v", node, err)
+		}
+	}
+
+	wg.Wait()
+}
+
+func (c *Cluster) copyPlaywrightReport() {
+	line := []string{"tar", "-czf", "playwright-report.tar.gz", "-C", "/automation/playwright/playwright-report", "."}
+	c.T.Logf("%s: compressing playwright report on proxy node", time.Now().Format(time.RFC3339))
+	if _, _, err := c.RunCommandOnProxyNode(c.T, line); err != nil {
+		c.T.Logf("fail to compress playwright report on node %s: %v", c.Proxy, err)
+		return
+	}
+	c.T.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
+	if err := CopyFileFromNode(c.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
+		c.T.Logf("fail to copy playwright report to local machine: %v", err)
+	}
 }

@@ -4,18 +4,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 )
 
 func TestMaterialize(t *testing.T) {
 	t.Parallel()
-	tc := cluster.NewTestCluster(&cluster.Input{
-		T:                   t,
-		Nodes:               1,
-		Image:               "debian/12",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "debian-bookworm",
+		ECBinaryPath: "../output/bin/embedded-cluster-original",
 	})
-	defer cleanupCluster(t, tc)
+	defer tc.Cleanup()
 
 	commands := [][]string{
 		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl"},
@@ -28,8 +28,10 @@ func TestMaterialize(t *testing.T) {
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl-support_bundle"},
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/fio"},
 	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
-		t.Fatalf("fail testing materialize assets: %v", err)
+	for _, cmd := range commands {
+		if stdout, stderr, err := tc.RunCommandOnNode(0, cmd); err != nil {
+			t.Fatalf("fail to run command %q: %v: %s: %s", cmd, err, stdout, stderr)
+		}
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

@@ -20,8 +20,10 @@ main() {
     export SKIP_CLUSTER_UPGRADE_CHECK="${3:-}"
   fi
 
-  export BASE_URL="http://10.0.0.2:30001"
-  cd /automation/playwright
+  export BASE_URL="${BASE_URL:-http://10.0.0.2:30003}"
+  export PLAYWRIGHT_DIR="${PLAYWRIGHT_DIR:-/automation/playwright}"
+
+  cd "$PLAYWRIGHT_DIR"
   npx playwright test "$test_name"
 }
 
