@@ -486,7 +486,7 @@ spec:
               message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection to it was refused. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
           - fail:
               when: "address-in-use"
-              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already listening on it. Relocate the conflicting process or use --local-artifact-mirror-port to select a different port.
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already using it. Relocate the conflicting process or use --local-artifact-mirror-port to select a different port.
           - fail:
               when: "connection-timeout"
               message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .LocalArtifactMirrorPort }}/TCP.
