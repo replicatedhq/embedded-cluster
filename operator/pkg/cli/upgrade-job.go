@@ -42,7 +42,7 @@ func UpgradeJobCmd() *cobra.Command {
 
 			i := 0
 			for {
-				err = upgrade.Upgrade(cmd.Context(), cli, in, localArtifactMirrorImage)
+				err = upgrade.Upgrade(cmd.Context(), cli, in)
 				if err != nil {
 					fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
 					sleepDuration := time.Duration(i) * time.Second

@@ -20,7 +20,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -69,6 +68,11 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		if err != nil {
 			return fmt.Errorf("airgap distribute artifacts: %w", err)
 		}
+	}
+
+	err = createInstallation(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("apply installation: %w", err)
 	}
 
 	// create the upgrade job configmap with the target installation spec
@@ -149,10 +153,6 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 	return nil
 }
 
-func WaitForUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	return kubeutils.WaitForJob(ctx, cli, "embedded-cluster", fmt.Sprintf(upgradeJobName, in.Name), 180, 1) // 180 steps at 5 second intervals is 15 minutes
-}
-
 func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (string, error) {
 	// determine the image to use for the upgrade job
 	meta, err := release.MetadataFor(ctx, in, cli)
@@ -170,14 +170,9 @@ func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta
 }
 
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
-// First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is created.
-func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
-	err := createInstallation(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("apply installation: %w", err)
-	}
-
-	err = k0sUpgrade(ctx, cli, in)
+// First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
+func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+	err := k0sUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
@@ -393,10 +388,22 @@ func createInstallation(ctx context.Context, cli client.Client, in *clusterv1bet
 }
 
 func unLockInstallation(ctx context.Context, cli client.Client, in *v1beta1.Installation) error {
+	existingInstallation := &v1beta1.Installation{}
+	err := cli.Get(ctx, client.ObjectKey{Name: in.Name}, existingInstallation)
+	if err != nil {
+		return fmt.Errorf("get installation: %w", err)
+	}
+
+	existingInstallation.Spec = *in.Spec.DeepCopy() // copy the spec in, in case there were fields added to the spec
+	err = cli.Update(ctx, existingInstallation)
+	if err != nil {
+		return fmt.Errorf("update installation: %w", err)
+	}
+
 	// if the installation is locked, we need to unlock it
-	if in.Status.State == v1beta1.InstallationStateWaiting {
-		in.Status.State = v1beta1.InstallationStateKubernetesInstalled
-		err := cli.Status().Update(ctx, in)
+	if existingInstallation.Status.State == v1beta1.InstallationStateWaiting {
+		existingInstallation.Status.State = v1beta1.InstallationStateKubernetesInstalled
+		err := cli.Status().Update(ctx, existingInstallation)
 		if err != nil {
 			return fmt.Errorf("update installation status: %w", err)
 		}
