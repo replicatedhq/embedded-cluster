@@ -286,10 +286,6 @@ create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: K0S_DATA_DIR = /var/lib/k0s
 create-node%:
-	@if ! docker images | grep -q ec-$(DISTRO); then \
-		$(MAKE) -C dev/distros build-$(DISTRO); \
-	fi
-
 	@docker run -d \
 		--name node$* \
 		--hostname node$* \
@@ -299,7 +295,7 @@ create-node%:
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
-		ec-$(DISTRO)
+		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*
 
