@@ -498,9 +498,15 @@ func chartUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Ins
 func createInstallation(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	log.Info("Creating installation...")
-
-	// the installation always has a unique name (current timestamp), so we can just create it
+	// check if the installation already exists - this function can be called multiple times
+	// if the installation is already created, we can just return
+	nsn := types.NamespacedName{Name: in.Name}
+	var inst clusterv1beta1.Installation
+	if err := cli.Get(ctx, nsn, &inst); err == nil {
+		log.Info(fmt.Sprintf("Installation %s already exists", in.Name))
+		return nil
+	}
+	log.Info(fmt.Sprintf("Creating installation %s", in.Name))
 
 	err := cli.Create(ctx, in)
 	if err != nil {
