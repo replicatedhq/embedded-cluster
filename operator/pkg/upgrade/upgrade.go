@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -73,6 +74,7 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		pullPolicy = corev1.PullNever
 	}
 
+	// create the installation object so that kotsadm can immediately find it and watch it for the upgrade process
 	err = createInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("apply installation: %w", err)
@@ -102,6 +104,28 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		return err
 	}
 
+	env := []corev1.EnvVar{
+		{
+			Name:  "SSL_CERT_DIR",
+			Value: "/certs",
+		},
+	}
+
+	if in.Spec.Proxy != nil {
+		env = append(env, corev1.EnvVar{
+			Name:  "HTTP_PROXY",
+			Value: in.Spec.Proxy.HTTPProxy,
+		})
+		env = append(env, corev1.EnvVar{
+			Name:  "HTTPS_PROXY",
+			Value: in.Spec.Proxy.HTTPSProxy,
+		})
+		env = append(env, corev1.EnvVar{
+			Name:  "NO_PROXY",
+			Value: in.Spec.Proxy.ProvidedNoProxy,
+		})
+	}
+
 	// create the upgrade job
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -124,12 +148,24 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 								},
 							},
 						},
+						{
+							Name: "private-cas",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "private-cas",
+									},
+									Optional: ptr.To[bool](true),
+								},
+							},
+						},
 					},
 					Containers: []corev1.Container{
 						{
 							Name:            "embedded-cluster-updater",
 							Image:           operatorImage,
 							ImagePullPolicy: pullPolicy,
+							Env:             env,
 							Command: []string{
 								"/manager",
 								"upgrade-job",
@@ -142,6 +178,10 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 								{
 									Name:      "config",
 									MountPath: "/config",
+								},
+								{
+									Name:      "private-cas",
+									MountPath: "/certs",
 								},
 							},
 						},
