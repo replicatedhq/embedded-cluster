@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/utils/ptr"
-	"sort"
 	"strings"
 	"time"
 
@@ -248,6 +246,23 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 		return fmt.Errorf("autopilot plan failed: %s", reason)
 	}
 
+	// check if this was actually a k0s upgrade plan, or just an image download plan
+	isK0sUpgrade := false
+	for _, command := range plan.Spec.Commands {
+		if command.K0sUpdate != nil {
+			isK0sUpgrade = true
+			break
+		}
+	}
+	// if this was not a k0s upgrade plan, we can just delete the plan and restart the function to get a k0s upgrade
+	if !isK0sUpgrade {
+		err = cli.Delete(ctx, &plan)
+		if err != nil {
+			return fmt.Errorf("delete autopilot plan: %w", err)
+		}
+		return k0sUpgrade(ctx, cli, in)
+	}
+
 	match, err = k8sutil.ClusterNodesMatchVersion(ctx, cli, desiredVersion)
 	if err != nil {
 		return fmt.Errorf("check cluster nodes match version after plan completion: %w", err)
@@ -262,146 +277,6 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 		return fmt.Errorf("failed to delete successful upgrade plan: %w", err)
 	}
 	return nil
-}
-
-// run a pod on each controller node to remove the timeout from the k0s config file
-func removeTimeoutFromK0sConfig(ctx context.Context, cli client.Client, install *clusterv1beta1.Installation) error {
-	// get the list of controller nodes
-	var nodes corev1.NodeList
-	if err := cli.List(ctx, &nodes); err != nil {
-		return fmt.Errorf("failed to list nodes: %w", err)
-	}
-
-	controllerNodes := []string{}
-	for _, node := range nodes.Items {
-		// run a pod on each controller node to remove the timeout from the k0s config file
-		if node.Labels["node-role.kubernetes.io/control-plane"] == "true" {
-			controllerNodes = append(controllerNodes, node.Name)
-		}
-	}
-
-	operatorImage, err := operatorImageName(ctx, cli, install)
-	if err != nil {
-		return fmt.Errorf("failed to get operator image name: %w", err)
-	}
-
-	fmt.Printf("Removing timeout from k0s config on controller nodes: %v\n", controllerNodes)
-
-	// run a job on each controller node to remove the timeout from the k0s config file
-	for _, node := range controllerNodes {
-		// create a job to remove the timeout from the k0s config file
-		j := batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("remove-timeout-%s", node),
-				Namespace: "embedded-cluster",
-			},
-			Spec: batchv1.JobSpec{
-				Template: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						RestartPolicy: corev1.RestartPolicyNever,
-						NodeName:      node,
-						SecurityContext: &corev1.PodSecurityContext{
-							RunAsUser: ptr.To[int64](0),
-						},
-						Containers: []corev1.Container{
-							{
-								Name:  "remove-timeout",
-								Image: operatorImage,
-								Command: []string{
-									"/bin/sh",
-									"-c",
-									"sed 's/timeout: 0//g' /sed > /tmp/k0s.yaml && cat /tmp/k0s.yaml > /sed",
-								},
-								VolumeMounts: []corev1.VolumeMount{
-									{
-										Name:      "config",
-										MountPath: "/sed",
-									},
-								},
-							},
-						},
-						Volumes: []corev1.Volume{
-							{
-								Name: "config",
-								VolumeSource: corev1.VolumeSource{
-									HostPath: &corev1.HostPathVolumeSource{
-										Path: "/etc/k0s/k0s.yaml",
-										Type: ptr.To[corev1.HostPathType]("File"),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-
-		err = cli.Create(ctx, &j)
-		if err != nil {
-			return fmt.Errorf("failed to create pod: %w", err)
-		}
-	}
-
-	fmt.Printf("Waiting for jobs to complete on controller nodes: %v\n", controllerNodes)
-
-	i := 0
-	for {
-		time.Sleep(5 * time.Second)
-		jobNames := []string{}
-		for _, node := range controllerNodes {
-			jobNames = append(jobNames, fmt.Sprintf("remove-timeout-%s", node))
-		}
-
-		if jobsAllCompleted(ctx, cli, jobNames, "embedded-cluster") {
-			break
-		}
-		if i == 4 {
-			return fmt.Errorf("timed out waiting for jobs to complete")
-		}
-		i++
-	}
-
-	// remove the jobs from the cluster
-	for _, node := range controllerNodes {
-		j := batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("remove-timeout-%s", node),
-				Namespace: "embedded-cluster",
-			},
-		}
-		err = cli.Delete(ctx, &j)
-		if err != nil {
-			return fmt.Errorf("failed to delete job: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func jobsAllCompleted(ctx context.Context, cli client.Client, jobs []string, ns string) bool {
-	// get all the jobs in the list, and check if they are completed
-	var jobList batchv1.JobList
-	if err := cli.List(ctx, &jobList, client.InNamespace(ns)); err != nil {
-		return false
-	}
-
-	for _, j := range jobs {
-		found := false
-		for _, job := range jobList.Items {
-			if job.Name == j {
-				if job.Status.Succeeded == 0 {
-					fmt.Printf("Job %s is not completed\n", job.Name)
-					return false
-				}
-				found = true
-			}
-		}
-		if !found {
-			fmt.Printf("Job %s not found\n", j)
-			return false
-		}
-	}
-	return true
 }
 
 // copied from ReconcileHelmCharts in https://github.com/replicatedhq/embedded-cluster/blob/c6a57a4/operator/controllers/installation_controller.go#L568
@@ -527,24 +402,6 @@ func unLockInstallation(ctx context.Context, cli client.Client, in *v1beta1.Inst
 		}
 	}
 	return nil
-}
-
-func getLatestInstallation(ctx context.Context, cli client.Client) (*v1beta1.Installation, error) {
-	var installList v1beta1.InstallationList
-	if err := cli.List(ctx, &installList); err != nil {
-		return nil, fmt.Errorf("list installations: %w", err)
-	}
-
-	// sort the installations by installation name
-	sort.SliceStable(installList.Items, func(i, j int) bool {
-		return installList.Items[i].Name < installList.Items[j].Name
-	})
-
-	if len(installList.Items) == 0 {
-		return nil, fmt.Errorf("no installations found")
-	}
-
-	return &installList.Items[0], nil
 }
 
 func waitForOperatorChart(ctx context.Context, cli client.Client, version string) error {
