@@ -1,7 +1,9 @@
 name: distros
 
 on:
-  pull_request: {} # TODO NOW: remove this
+  pull_request:
+    paths:
+      - 'dev/distros/**'
   push:
     paths:
       - 'dev/distros/**'
