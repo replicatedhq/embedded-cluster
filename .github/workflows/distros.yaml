@@ -25,7 +25,7 @@ jobs:
         id: list-distros
         run: |
           cd dev/distros
-          distros=$(make list | jq -Rs 'split("\n") | map(select(length > 0))')
+          distros=$(make list | jq -Rs 'split("\n") | map(select(length > 0)) | toJson')
           echo "distros=$distros" >> $GITHUB_OUTPUT
 
   build-and-push:
