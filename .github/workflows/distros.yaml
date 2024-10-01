@@ -59,3 +59,4 @@ jobs:
             replicated/ec-distro:${{ matrix.distro }}
           platforms: linux/amd64,linux/arm64
           file: dev/distros/dockerfiles/${{ matrix.distro }}.Dockerfile
+          context: dev/distros
