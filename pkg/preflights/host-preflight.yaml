@@ -134,6 +134,14 @@ spec:
               message: At least 2 CPU cores are required, but fewer are present
           - pass:
               message: At least 2 CPU cores are present
+    - cpu:
+        checkName: CPU Features
+        outcomes:
+          - pass:
+              when: 'supports x86-64-v2'
+              message: Host CPU supports x86-64-v2 features
+          - fail:
+              message: Required x86-64-v2 CPU features are missing. If using a hypervisor, ensure it is configured to expose the necessary CPU features.
     - memory:
         checkName: Memory
         outcomes:
