@@ -43,6 +43,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
@@ -398,7 +399,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 	// reconciling we set the installation state according to the plan state.
 	// we check both the plan id and an annotation inside the plan. the usage
 	// of the plan id is deprecated in favour of the annotation.
-	annotation := plan.Annotations[upgrade.InstallationNameAnnotation]
+	annotation := plan.Annotations[artifacts.InstallationNameAnnotation]
 	if annotation == in.Name || plan.Spec.ID == in.Name {
 		// there are two plans needed to be run in sequence for airgap upgrades. the first one is
 		// the one that copies the artifacts to the nodes and the second one is the one that

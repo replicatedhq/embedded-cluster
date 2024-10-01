@@ -28,6 +28,8 @@ const ecNamespace = "embedded-cluster"
 const copyArtifactsJobPrefix = "copy-artifacts-"
 
 const (
+	// InstallationNameAnnotation is the annotation we keep in the autopilot plan so we can
+	// map 1 to 1 one installation and one plan.
 	InstallationNameAnnotation    = "embedded-cluster.replicated.com/installation-name"
 	ArtifactsConfigHashAnnotation = "embedded-cluster.replicated.com/artifacts-config-hash"
 )

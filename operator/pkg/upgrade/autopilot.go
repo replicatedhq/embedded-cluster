@@ -10,15 +10,12 @@ import (
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// InstallationNameAnnotation is the annotation we keep in the autopilot plan so we can
-// map 1 to 1 one installation and one plan.
-const InstallationNameAnnotation = "embedded-cluster.replicated.com/installation-name"
 
 // DetermineUpgradeTargets makes sure that we are listing all the nodes in the autopilot plan.
 func DetermineUpgradeTargets(ctx context.Context, cli client.Client) (apv1b2.PlanCommandTargets, error) {
@@ -84,7 +81,7 @@ func StartAutopilotUpgrade(ctx context.Context, cli client.Client, in *v1beta1.I
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "autopilot", // this is a fixed name and should not be changed
 			Annotations: map[string]string{
-				InstallationNameAnnotation: in.Name,
+				artifacts.InstallationNameAnnotation: in.Name,
 			},
 		},
 		Spec: apv1b2.PlanSpec{

@@ -27,10 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const (
-	installationNameAnnotation = "embedded-cluster.replicated.com/installation-name"
-)
-
 // CreateUpgradeJob creates a job that upgrades the embedded cluster to the version specified in the installation.
 // if the installation is airgapped, the artifacts are copied to the nodes and the autopilot plan is
 // created to copy the images to the cluster. A configmap is then created containing the target installation
@@ -330,7 +326,7 @@ func ensureAirgapArtifactsInCluster(ctx context.Context, cli client.Client, in *
 		if err != nil {
 			return false, fmt.Errorf("get autopilot plan: %w", err)
 		}
-		if plan.Annotations[installationNameAnnotation] != in.Name {
+		if plan.Annotations[artifacts.InstallationNameAnnotation] != in.Name {
 			return false, fmt.Errorf("autopilot plan for different installation")
 		}
 
@@ -360,7 +356,7 @@ func autopilotEnsureAirgapArtifactsPlan(ctx context.Context, cli client.Client, 
 
 	err = k8sutil.EnsureObject(ctx, cli, plan, func(opts *k8sutil.EnsureObjectOptions) {
 		opts.ShouldDelete = func(obj client.Object) bool {
-			return obj.GetAnnotations()[installationNameAnnotation] != in.Name
+			return obj.GetAnnotations()[artifacts.InstallationNameAnnotation] != in.Name
 		}
 	})
 	if err != nil {
@@ -390,7 +386,7 @@ func getAutopilotAirgapArtifactsPlan(ctx context.Context, cli client.Client, in 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "autopilot", // this is a fixed name and should not be changed
 			Annotations: map[string]string{
-				installationNameAnnotation: in.Name,
+				artifacts.InstallationNameAnnotation: in.Name,
 			},
 		},
 		Spec: v1beta2.PlanSpec{
