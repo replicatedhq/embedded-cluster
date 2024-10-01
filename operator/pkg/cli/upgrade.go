@@ -50,10 +50,10 @@ func UpgradeCmd() *cobra.Command {
 
 			fmt.Println("Upgrade job created successfully")
 
-			err = upgrade.WaitForUpgradeJob(cmd.Context(), cli, in)
-			if err != nil {
-				return fmt.Errorf("failed to wait for upgrade job: %w", err)
-			}
+			//err = upgrade.WaitForUpgradeJob(cmd.Context(), cli, in)
+			//if err != nil {
+			//	return fmt.Errorf("failed to wait for upgrade job: %w", err)
+			//}
 
 			return nil
 		},
