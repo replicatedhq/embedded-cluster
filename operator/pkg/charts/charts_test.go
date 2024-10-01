@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 func Test_mergeHelmConfigs(t *testing.T) {
@@ -739,12 +740,14 @@ func Test_updateInfraChartsFromInstall(t *testing.T) {
 					Values: "abc: xyz",
 				},
 				{
-					Name:   "admin-console",
-					Values: "abc: xyz\nembeddedClusterID: testid\nisAirgap: \"true\"\nisHA: true\n",
+					Name:         "admin-console",
+					Values:       "abc: xyz\nembeddedClusterID: testid\nisAirgap: \"true\"\nisHA: true\n",
+					ForceUpgrade: ptr.To(false),
 				},
 				{
-					Name:   "embedded-cluster-operator",
-					Values: "embeddedBinaryName: testbin\nembeddedClusterID: testid\nthis: that\n",
+					Name:         "embedded-cluster-operator",
+					Values:       "embeddedBinaryName: testbin\nembeddedClusterID: testid\nthis: that\n",
+					ForceUpgrade: ptr.To(false),
 				},
 			},
 		},
@@ -785,12 +788,14 @@ func Test_updateInfraChartsFromInstall(t *testing.T) {
 					Values: "abc: xyz",
 				},
 				{
-					Name:   "admin-console",
-					Values: "abc: xyz\nembeddedClusterID: testid\nextraEnv:\n- name: HTTP_PROXY\n  value: http://proxy\n- name: HTTPS_PROXY\n  value: https://proxy\n- name: NO_PROXY\n  value: noproxy\nisAirgap: \"false\"\nisHA: false\n",
+					Name:         "admin-console",
+					Values:       "abc: xyz\nembeddedClusterID: testid\nextraEnv:\n- name: HTTP_PROXY\n  value: http://proxy\n- name: HTTPS_PROXY\n  value: https://proxy\n- name: NO_PROXY\n  value: noproxy\nisAirgap: \"false\"\nisHA: false\n",
+					ForceUpgrade: ptr.To(false),
 				},
 				{
-					Name:   "embedded-cluster-operator",
-					Values: "embeddedBinaryName: testbin\nembeddedClusterID: testid\nextraEnv:\n- name: HTTP_PROXY\n  value: http://proxy\n- name: HTTPS_PROXY\n  value: https://proxy\n- name: NO_PROXY\n  value: noproxy\nthis: that\n",
+					Name:         "embedded-cluster-operator",
+					Values:       "embeddedBinaryName: testbin\nembeddedClusterID: testid\nextraEnv:\n- name: HTTP_PROXY\n  value: http://proxy\n- name: HTTPS_PROXY\n  value: https://proxy\n- name: NO_PROXY\n  value: noproxy\nthis: that\n",
+					ForceUpgrade: ptr.To(false),
 				},
 			},
 		},
@@ -819,8 +824,9 @@ func Test_updateInfraChartsFromInstall(t *testing.T) {
 			},
 			want: []v1beta1.Chart{
 				{
-					Name:   "velero",
-					Values: "abc: xyz\nconfiguration:\n  extraEnvVars:\n    HTTP_PROXY: http://proxy\n    HTTPS_PROXY: https://proxy\n    NO_PROXY: noproxy\n",
+					Name:         "velero",
+					Values:       "abc: xyz\nconfiguration:\n  extraEnvVars:\n    HTTP_PROXY: http://proxy\n    HTTPS_PROXY: https://proxy\n    NO_PROXY: noproxy\n",
+					ForceUpgrade: ptr.To(false),
 				},
 			},
 		}, {
@@ -844,8 +850,9 @@ func Test_updateInfraChartsFromInstall(t *testing.T) {
 			},
 			want: []v1beta1.Chart{
 				{
-					Name:   "docker-registry",
-					Values: "and: another\nservice:\n  clusterIP: 1.2.0.11\nthis: that\n",
+					Name:         "docker-registry",
+					Values:       "and: another\nservice:\n  clusterIP: 1.2.0.11\nthis: that\n",
+					ForceUpgrade: ptr.To(false),
 				},
 			},
 		},
@@ -897,6 +904,7 @@ secrets:
   s3:
     secretRef: seaweedfs-s3-rw
 `,
+					ForceUpgrade: ptr.To(false),
 				},
 			},
 		},

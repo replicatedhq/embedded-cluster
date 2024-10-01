@@ -2,16 +2,18 @@ SHELL := /bin/bash
 
 include common.mk
 
+OS ?= linux
+ARCH ?= $(shell go env GOARCH)
+
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.29.8+k0s.0
-K0S_GO_VERSION = v1.29.8+k0s.0
-PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
+K0S_VERSION = v1.29.9+k0s.0
+K0S_GO_VERSION = v1.29.9+k0s.0
+PREVIOUS_K0S_VERSION ?= v1.28.14+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.105.0
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
@@ -23,6 +25,13 @@ LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedde
 METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
+
+ifeq ($(ARCH),amd64)
+ifeq ($(K0S_VERSION),v1.29.9+k0s.0)
+K0S_BINARY_SOURCE_OVERRIDE = https://repldev-ethan-test.s3.amazonaws.com/k0s-v1.29.9%2Bk0s.0-amd64
+endif
+endif
+
 LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION) \
@@ -41,9 +50,6 @@ LD_FLAGS = \
 DISABLE_FIO_BUILD ?= 0
 
 export PATH := $(shell pwd)/bin:$(PATH)
-
-OS ?= linux
-ARCH ?= $(shell go env GOARCH)
 
 .DEFAULT_GOAL := default
 default: build-ttl.sh

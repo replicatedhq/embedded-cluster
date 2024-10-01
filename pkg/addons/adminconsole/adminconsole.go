@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
@@ -151,12 +152,13 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:      ReleaseName,
-		ChartName: chartName,
-		Version:   Metadata.Version,
-		Values:    string(values),
-		TargetNS:  a.namespace,
-		Order:     5,
+		Name:         ReleaseName,
+		ChartName:    chartName,
+		Version:      Metadata.Version,
+		Values:       string(values),
+		TargetNS:     a.namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        5,
 	}
 	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }

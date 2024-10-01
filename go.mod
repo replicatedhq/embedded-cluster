@@ -23,7 +23,7 @@ require (
 	github.com/gosimple/slug v1.14.0
 	github.com/jedib0t/go-pretty/v6 v6.5.9
 	github.com/k0sproject/dig v0.2.0
-	github.com/k0sproject/k0s v1.29.9-0.20240821114611-d76eb6bb05a7
+	github.com/k0sproject/k0s v1.29.10-0.20240930110610-443e28b75d21
 	github.com/k0sproject/version v0.6.0
 	github.com/ohler55/ojg v1.24.1
 	github.com/onsi/ginkgo/v2 v2.20.2
@@ -85,7 +85,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/containerd/containerd v1.7.20 // indirect
+	github.com/containerd/containerd v1.7.22 // indirect
 	github.com/containerd/errdefs v0.1.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
@@ -171,9 +171,9 @@ require (
 	github.com/zitadel/logging v0.6.0 // indirect
 	github.com/zitadel/oidc/v3 v3.30.0 // indirect
 	github.com/zitadel/schema v1.3.0 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.15 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.5.15 // indirect
-	go.etcd.io/etcd/client/v3 v3.5.15 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.16 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.16 // indirect
+	go.etcd.io/etcd/client/v3 v3.5.16 // indirect
 	go.opentelemetry.io/contrib/exporters/autoexport v0.52.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
 	go.opentelemetry.io/otel v1.30.0 // indirect
