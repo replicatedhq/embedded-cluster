@@ -567,13 +567,23 @@ func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 		promptA := prompts.New().Password("Set the Admin Console password:")
 		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
-		if promptA == promptB {
-			// TODO: Should we add extra password validation here? e.g length, complexity etc
+		if validatePassword(promptA, promptB) {
 			return promptA, nil
 		}
-		logrus.Info("Passwords don't match. Please try again.")
 	}
 	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
+}
+
+func validatePassword(password, passwordCheck string) bool {
+	if len(password) < 6 {
+		logrus.Info("Passwords must have more than 6 characters. Please try again.")
+		return false
+	}
+	if password != passwordCheck {
+		logrus.Info("Passwords don't match. Please try again.")
+		return false
+	}
+	return true
 }
 
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
