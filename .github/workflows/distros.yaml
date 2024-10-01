@@ -25,7 +25,8 @@ jobs:
         id: list-distros
         run: |
           cd dev/distros
-          echo "distros=$(make list | jq -Rs 'split("\n") | map(select(length > 0))')" >> $GITHUB_OUTPUT
+          distros=$(make list | jq -Rs 'split("\n") | map(select(length > 0))')
+          echo "distros=$distros" >> $GITHUB_OUTPUT
 
   build-and-push:
     runs-on: ubuntu-latest
