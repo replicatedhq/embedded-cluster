@@ -113,7 +113,7 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		})
 		env = append(env, corev1.EnvVar{
 			Name:  "NO_PROXY",
-			Value: in.Spec.Proxy.ProvidedNoProxy,
+			Value: in.Spec.Proxy.NoProxy,
 		})
 	}
 
