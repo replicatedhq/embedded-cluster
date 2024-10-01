@@ -51,6 +51,7 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		return nil
 	}
 
+	pullPolicy := corev1.PullIfNotPresent
 	if in.Spec.AirGap {
 		// in airgap installations we need to copy the artifacts to the nodes and then autopilot
 		// will copy the images to the cluster so we can start the new operator.
@@ -68,6 +69,8 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		if err != nil {
 			return fmt.Errorf("airgap distribute artifacts: %w", err)
 		}
+
+		pullPolicy = corev1.PullNever
 	}
 
 	err = createInstallation(ctx, cli, in)
@@ -124,8 +127,9 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 					},
 					Containers: []corev1.Container{
 						{
-							Name:  "embedded-cluster-updater",
-							Image: operatorImage,
+							Name:            "embedded-cluster-updater",
+							Image:           operatorImage,
+							ImagePullPolicy: pullPolicy,
 							Command: []string{
 								"/manager",
 								"upgrade-job",
