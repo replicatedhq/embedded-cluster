@@ -3,7 +3,7 @@ name: distros
 on:
   pull_request:
     paths:
-      - 'dev/distros/**'
+      - 'dev/dockerfiles/**'
   push:
     paths:
       - 'dev/distros/**'
