@@ -70,7 +70,7 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		}
 	}
 
-	err = createInstallation(ctx, cli, in)
+	err = createInstallation(ctx, cli, in.DeepCopy())
 	if err != nil {
 		return fmt.Errorf("apply installation: %w", err)
 	}
