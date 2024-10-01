@@ -70,7 +70,7 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		}
 	}
 
-	err = createInstallation(ctx, cli, in.DeepCopy())
+	err = createInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("apply installation: %w", err)
 	}
@@ -356,14 +356,15 @@ func chartUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Ins
 
 }
 
-func createInstallation(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+func createInstallation(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) error {
 	log := ctrl.LoggerFrom(ctx)
+	in := original.DeepCopy()
 
 	// check if the installation already exists - this function can be called multiple times
 	// if the installation is already created, we can just return
 	nsn := types.NamespacedName{Name: in.Name}
-	var inst clusterv1beta1.Installation
-	if err := cli.Get(ctx, nsn, &inst); err == nil {
+	var existingInstallation clusterv1beta1.Installation
+	if err := cli.Get(ctx, nsn, &existingInstallation); err == nil {
 		log.Info(fmt.Sprintf("Installation %s already exists", in.Name))
 		return nil
 	}
