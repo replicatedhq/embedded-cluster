@@ -174,17 +174,12 @@ func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is created.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
-	currentInstall, err := getLatestInstallation(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("get current installation: %w", err)
-	}
-
-	err = createInstallation(ctx, cli, in)
+	err := createInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("apply installation: %w", err)
 	}
 
-	err = k0sUpgrade(ctx, cli, in, currentInstall)
+	err = k0sUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
@@ -208,35 +203,23 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 	return nil
 }
 
-func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, currentInstall *clusterv1beta1.Installation) error {
+func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return fmt.Errorf("failed to get release metadata: %w", err)
 	}
 
-	// TODO: THIS IS NOT THE RIGHT WAY TO GET THE K0S VERSION
-	// it fails if we're currently upgrading, after all
-	currentMeta, err := release.MetadataFor(ctx, currentInstall, cli)
-	if err != nil {
-		return fmt.Errorf("failed to get current release metadata: %w", err)
-	}
-
 	// check if the k0s version is the same as the current version
 	// if it is, we can skip the upgrade
-	desiredVersion := meta.Versions["Kubernetes"]
-	currentVersion := currentMeta.Versions["Kubernetes"]
-	if desiredVersion == currentVersion {
+	desiredVersion := k8sutil.K0sVersionFromMetadata(meta)
+
+	match, err := k8sutil.ClusterNodesMatchVersion(ctx, cli, desiredVersion)
+	if err != nil {
+		return fmt.Errorf("check cluster nodes match version: %w", err)
+	}
+	if match {
 		return nil
 	}
-
-	//// if the current version is < 1.30 and the desired version is >= 1.30, we need to remove 'timeout: 0' from the /etc/k0s/k0s.yaml
-	//// file on each controller node. This is because the format changed in 1.30 and expects this value to be a string instead of an integer.
-	//if semver.Compare(currentVersion, "v1.30.0") < 0 && semver.Compare(desiredVersion, "v1.30.0") >= 0 {
-	//	err = removeTimeoutFromK0sConfig(ctx, cli, currentInstall)
-	//	if err != nil {
-	//		return fmt.Errorf("failed to remove timeout from k0s config: %w", err)
-	//	}
-	//}
 
 	// create an autopilot upgrade plan if one does not yet exist
 	var plan apv1b2.Plan
@@ -263,6 +246,14 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	if autopilot.HasPlanFailed(plan) {
 		reason := autopilot.ReasonForState(plan)
 		return fmt.Errorf("autopilot plan failed: %s", reason)
+	}
+
+	match, err = k8sutil.ClusterNodesMatchVersion(ctx, cli, desiredVersion)
+	if err != nil {
+		return fmt.Errorf("check cluster nodes match version after plan completion: %w", err)
+	}
+	if !match {
+		return fmt.Errorf("cluster nodes did not match version after upgrade")
 	}
 
 	// the plan has been completed, so we can move on - kubernetes is now upgraded
