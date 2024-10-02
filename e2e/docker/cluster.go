@@ -47,7 +47,7 @@ func NewNode(in *ClusterInput) *Container {
 
 func (c *Cluster) WaitForReady() {
 	for _, node := range c.Nodes {
-		timeout := time.After(15 * time.Second)
+		timeout := time.After(30 * time.Second)
 		tick := time.Tick(time.Second)
 		for {
 			select {
