@@ -14,6 +14,9 @@ func K0sVersionFromMetadata(meta *types.ReleaseMetadata) string {
 	if meta == nil || meta.Versions == nil {
 		return ""
 	}
+	if _, ok := meta.Versions["Kubernetes"]; !ok {
+		return ""
+	}
 	desiredParts := strings.Split(meta.Versions["Kubernetes"], "k0s")
 	desiredVersion := desiredParts[0] + "k0s"
 	return desiredVersion
