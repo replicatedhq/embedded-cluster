@@ -2074,8 +2074,10 @@ func copyPlaywrightReport(t *testing.T, tc *cluster.Output) {
 }
 
 func cleanupCluster(t *testing.T, tc *cluster.Output, nodes []*docker.Container) {
-	generateAndCopySupportBundle(t, tc, nodes)
-	copyPlaywrightReport(t, tc)
+	if t.Failed() {
+		generateAndCopySupportBundle(t, tc, nodes)
+		copyPlaywrightReport(t, tc)
+	}
 	for _, node := range nodes {
 		node.Destroy()
 	}
