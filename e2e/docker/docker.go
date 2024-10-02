@@ -8,15 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
-
-func DockerBinPath(t *testing.T) string {
-	path, err := exec.LookPath("docker")
-	if err != nil {
-		t.Fatalf("failed to find docker in path: %v", err)
-	}
-	return path
-}
 
 type Container struct {
 	Image   string
@@ -25,6 +18,14 @@ type Container struct {
 
 	id string
 	t  *testing.T
+}
+
+func DockerBinPath(t *testing.T) string {
+	path, err := exec.LookPath("docker")
+	if err != nil {
+		t.Fatalf("failed to find docker in path: %v", err)
+	}
+	return path
 }
 
 func NewContainer(t *testing.T) *Container {
@@ -127,9 +128,9 @@ func (c *Container) Start() {
 	}
 	execCmd.Args = append(execCmd.Args, c.Image)
 	c.t.Logf("starting container: docker %s", strings.Join(execCmd.Args, " "))
-	err := execCmd.Run()
+	output, err := execCmd.CombinedOutput()
 	if err != nil {
-		c.t.Fatalf("failed to start container: %v", err)
+		c.t.Fatalf("failed to start container: %v: %s", err, string(output))
 	}
 }
 
@@ -163,6 +164,26 @@ func (c *Container) CopyFile(src, dst string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
+func (c *Container) WaitForSystemd() {
+	timeout := time.After(30 * time.Second)
+	tick := time.Tick(time.Second)
+	for {
+		select {
+		case <-timeout:
+			c.t.Fatalf("timeout waiting for systemd to start")
+		case <-tick:
+			status, stderr, err := c.Exec("systemctl is-system-running")
+			if err != nil {
+				c.t.Fatalf("fail to check systemd status: %v: %s", err, string(stderr))
+			}
+			c.t.Logf("systemd status: %s", status)
+			if strings.TrimSpace(status) == "running" {
+				return
+			}
+		}
+	}
+}
+
 func NewNode(t *testing.T, distro string) *Container {
 	c := NewContainer(t).
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", distro)).
@@ -175,5 +196,6 @@ func NewNode(t *testing.T, distro string) *Container {
 		c = c.WithLicense(licensePath)
 	}
 	c.Start()
+	c.WaitForSystemd()
 	return c
 }
