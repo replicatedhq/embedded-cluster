@@ -1,4 +1,4 @@
-package cluster
+package lxd
 
 import (
 	"bytes"
@@ -80,9 +80,9 @@ type Dir struct {
 	DestPath   string
 }
 
-// Output is returned when a cluster is created. Contain a list of all node
+// Cluster is returned when a cluster is created. Contain a list of all node
 // names and the cluster id.
-type Output struct {
+type Cluster struct {
 	Nodes   []string
 	IPs     []string
 	network string
@@ -92,7 +92,7 @@ type Output struct {
 }
 
 // Destroy destroys a cluster pointed by the id property inside the output.
-func (o *Output) Destroy() {
+func (o *Cluster) Destroy() {
 	o.T.Logf("Destroying cluster %s", o.id)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
@@ -196,7 +196,7 @@ var imagesMap = map[string]string{
 // NewTestCluster creates a new cluster and returns an object of type Output
 // that can be used to get the created nodes and destroy the cluster when it
 // is no longer needed.
-func NewTestCluster(in *Input) *Output {
+func NewTestCluster(in *Input) *Cluster {
 	if name, ok := imagesMap[in.Image]; ok {
 		in.Image = name
 	}
@@ -204,7 +204,7 @@ func NewTestCluster(in *Input) *Output {
 	in.id = uuid.New().String()[:5]
 	in.network = <-networkaddr
 
-	out := &Output{
+	out := &Cluster{
 		T:       in.T,
 		network: in.network,
 		id:      in.id,
@@ -245,7 +245,7 @@ func NewTestCluster(in *Input) *Output {
 	}
 	for _, node := range out.Nodes {
 		in.T.Logf("Installing deps on node %s", node)
-		RunCommandOnNode(in, []string{"install-deps.sh"}, node, opts...)
+		RunCommand(in, []string{"install-deps.sh"}, node, opts...)
 	}
 	return out
 }
@@ -336,7 +336,7 @@ func ConfigureProxyNode(in *Input) {
 		{"sysctl", "-w", "net.ipv4.ip_forward=1"},
 		{"iptables", "-t", "nat", "-o", "eth0", "-A", "POSTROUTING", "-p", "udp", "--dport", "53", "-j", "MASQUERADE"},
 	} {
-		RunCommandOnNode(in, cmd, proxyName)
+		RunCommand(in, cmd, proxyName)
 	}
 }
 
@@ -346,7 +346,7 @@ func ConfigureProxyNode(in *Input) {
 func ConfigureProxy(in *Input) {
 	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
-	RunCommandOnNode(in, []string{"/usr/local/bin/install-and-configure-squid.sh"}, proxyName)
+	RunCommand(in, []string{"/usr/local/bin/install-and-configure-squid.sh"}, proxyName)
 	if err := CopyFileFromNode(proxyName, "/tmp/ca.crt", "/tmp/ca.crt"); err != nil {
 		in.T.Errorf("failed to copy proxy ca: %v", err)
 		return
@@ -359,7 +359,7 @@ func ConfigureProxy(in *Input) {
 	// them trust it.
 	for i := 0; i < in.Nodes; i++ {
 		name := fmt.Sprintf("node-%s-%02d", in.id, i)
-		RunCommandOnNode(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
+		RunCommand(in, []string{"mkdir", "-p", "/usr/local/share/ca-certificates/proxy"}, name)
 
 		CopyFileToNode(in, name, File{
 			SourcePath: "/tmp/ca.crt",
@@ -371,22 +371,14 @@ func ConfigureProxy(in *Input) {
 			{"update-ca-certificates"},
 			{"/usr/local/bin/default-route-through-proxy.sh"},
 		} {
-			RunCommandOnNode(in, cmd, name)
+			RunCommand(in, cmd, name)
 		}
-	}
-}
-
-type RunCommandOption func(cmd *Command)
-
-func WithEnv(env map[string]string) RunCommandOption {
-	return func(cmd *Command) {
-		cmd.Env = env
 	}
 }
 
 // RunCommand runs the provided command on the provided node (name). Implements a
 // timeout of 2 minutes for the command to run and if it fails calls T.Failf().
-func RunCommandOnNode(in *Input, cmdline []string, name string, opts ...RunCommandOption) {
+func RunCommand(in *Input, cmdline []string, name string, opts ...RunCommandOption) {
 	in.T.Logf("Running `%s` on node %s", strings.Join(cmdline, " "), name)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
@@ -532,7 +524,7 @@ func CopyFileToNode(in *Input, node string, file File) {
 	for _, cmd := range [][]string{
 		{"mkdir", "-p", filepath.Dir(file.DestPath)},
 	} {
-		RunCommandOnNode(in, cmd, node)
+		RunCommand(in, cmd, node)
 	}
 	in.T.Logf("Copying `%s` to `%s` on node %s", file.SourcePath, file.DestPath, node)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)

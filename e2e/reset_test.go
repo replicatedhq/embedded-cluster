@@ -6,30 +6,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/lxd"
 )
 
 // This test creates 4 nodes, installs on the first one and then generate 2 join tokens
 // for controllers and one join token for worker nodes. Joins the nodes and then waits
 // for them to report ready and resets two of the nodes.
 func TestMultiNodeReset(t *testing.T) {
-	tc := cluster.NewTestCluster(&cluster.Input{
+	tc := lxd.NewTestCluster(&lxd.Input{
 		T:                   t,
 		Nodes:               4,
 		Image:               "debian/12",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc, nil)
+	defer tc.Cleanup(t)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 0, []string{"single-node-install.sh", "ui"}); err != nil {
+	if _, _, err := tc.RunCommandOnNode(t, 0, []string{"single-node-install.sh", "ui"}); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, nil, "deploy-app"); err != nil {
+	if _, _, err := tc.SetupPlaywrightAndRunTest(t, "deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -37,7 +37,7 @@ func TestMultiNodeReset(t *testing.T) {
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-controller-command")
+		stdout, stderr, err := tc.RunPlaywrightTest(t, "get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -49,7 +49,7 @@ func TestMultiNodeReset(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, nil, "get-join-worker-command")
+	stdout, stderr, err := tc.RunPlaywrightTest(t, "get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -63,7 +63,7 @@ func TestMultiNodeReset(t *testing.T) {
 	for i, cmd := range controllerCommands {
 		node := i + 1
 		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
-		if _, _, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " ")); err != nil {
+		if _, _, err := tc.RunCommandOnNode(t, node, strings.Split(cmd, " ")); err != nil {
 			t.Fatalf("fail to join node %d as a controller: %v", node, err)
 		}
 		// XXX If we are too aggressive joining nodes we can see the following error being
@@ -76,13 +76,13 @@ func TestMultiNodeReset(t *testing.T) {
 		time.Sleep(30 * time.Second)
 	}
 	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
+	if _, _, err := tc.RunCommandOnNode(t, 3, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	stdout, _, err = tc.RunCommandOnNode(t, 0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to wait for ready nodes: %v", err)
@@ -90,14 +90,14 @@ func TestMultiNodeReset(t *testing.T) {
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line := []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	bin := strings.Split(command, " ")[0]
 	// reset worker node
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 3, []string{bin, "reset", "--no-prompt"})
+	stdout, _, err = tc.RunCommandOnNode(t, 3, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to reset worker node")
@@ -106,13 +106,13 @@ func TestMultiNodeReset(t *testing.T) {
 	// reset a controller node
 	// this should fail with a prompt to override
 	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 2, []string{bin, "reset", "--no-prompt"})
+	stdout, _, err = tc.RunCommandOnNode(t, 2, []string{bin, "reset", "--no-prompt"})
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to remove controller node %s:", err)
 	}
 
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-nodes-removed.sh", "2"})
+	stdout, _, err = tc.RunCommandOnNode(t, 0, []string{"check-nodes-removed.sh", "2"})
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to remove worker node %s:", err)
@@ -120,7 +120,7 @@ func TestMultiNodeReset(t *testing.T) {
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 

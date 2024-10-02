@@ -5,22 +5,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/lxd"
 )
 
 func TestCommandsRequireSudo(t *testing.T) {
 	t.Parallel()
-	tc := cluster.NewTestCluster(&cluster.Input{
+	tc := lxd.NewTestCluster(&lxd.Input{
 		T:                   t,
 		Nodes:               1,
 		CreateRegularUser:   true,
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc, nil)
+	defer tc.Cleanup(t)
 	t.Logf(`%s: running "embedded-cluster version" as regular user`, time.Now().Format(time.RFC3339))
 	command := []string{"embedded-cluster", "version"}
-	if _, _, err := RunRegularUserCommandOnNode(t, tc, 0, command); err != nil {
+	if _, _, err := tc.RunRegularUserCommandOnNode(t, 0, command); err != nil {
 		t.Errorf("expected no error running `version` as regular user, got %v", err)
 	}
 	for _, cmd := range [][]string{
@@ -33,7 +33,7 @@ func TestCommandsRequireSudo(t *testing.T) {
 		{"embedded-cluster", "restore"},
 	} {
 		t.Logf("%s: running %q as regular user", time.Now().Format(time.RFC3339), strings.Join(cmd, "_"))
-		stdout, stderr, err := RunRegularUserCommandOnNode(t, tc, 0, cmd)
+		stdout, stderr, err := tc.RunRegularUserCommandOnNode(t, 0, cmd)
 		if err == nil {
 			t.Fatalf("expected error running `%v` as regular user, got none", cmd)
 		}

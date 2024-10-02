@@ -4,18 +4,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/lxd"
 )
 
 func TestMaterialize(t *testing.T) {
 	t.Parallel()
-	tc := cluster.NewTestCluster(&cluster.Input{
+	tc := lxd.NewTestCluster(&lxd.Input{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
-	defer cleanupCluster(t, tc, nil)
+	defer tc.Cleanup(t)
 
 	commands := [][]string{
 		{"rm", "-rf", "/var/lib/embedded-cluster/bin/kubectl"},
@@ -28,7 +28,7 @@ func TestMaterialize(t *testing.T) {
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/kubectl-support_bundle"},
 		{"ls", "-la", "/var/lib/embedded-cluster/bin/fio"},
 	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+	if err := tc.RunCommandsOnNode(t, 0, commands); err != nil {
 		t.Fatalf("fail testing materialize assets: %v", err)
 	}
 

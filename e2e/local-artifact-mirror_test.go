@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/lxd"
 )
 
 func TestLocalArtifactMirror(t *testing.T) {
@@ -13,18 +13,18 @@ func TestLocalArtifactMirror(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := cluster.NewTestCluster(&cluster.Input{
+	tc := lxd.NewTestCluster(&lxd.Input{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster-original",
 	})
-	defer cleanupCluster(t, tc, nil)
+	defer tc.Cleanup(t)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"default-install.sh", "--local-artifact-mirror-port", "50001"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
@@ -38,30 +38,30 @@ func TestLocalArtifactMirror(t *testing.T) {
 		{"chmod", "755", "/tmp/kubectl-test"},
 		{"/tmp/kubectl-test", "version", "--client"},
 	}
-	if err := RunCommandsOnNode(t, tc, 0, commands); err != nil {
+	if err := tc.RunCommandsOnNode(t, 0, commands); err != nil {
 		t.Fatalf("fail testing local artifact mirror: %v", err)
 	}
 
 	command := []string{"cp", "/etc/passwd", "/var/lib/embedded-cluster/logs/passwd"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, command); err != nil {
+	if _, _, err := tc.RunCommandOnNode(t, 0, command); err != nil {
 		t.Fatalf("fail to copy file: %v", err)
 	}
 
 	command = []string{"curl", "-O", "--fail", "127.0.0.1:50001/logs/passwd"}
 	t.Logf("running %v", command)
-	if _, _, err := RunCommandOnNode(t, tc, 0, command); err == nil {
+	if _, _, err := tc.RunCommandOnNode(t, 0, command); err == nil {
 		t.Fatalf("we should not be able to fetch logs from local artifact mirror")
 	}
 
 	command = []string{"curl", "-O", "--fail", "127.0.0.1:50001/../../../etc/passwd"}
 	t.Logf("running %v", command)
-	if _, _, err := RunCommandOnNode(t, tc, 0, command); err == nil {
+	if _, _, err := tc.RunCommandOnNode(t, 0, command); err == nil {
 		t.Fatalf("we should not be able to fetch paths with ../")
 	}
 
 	t.Logf("testing local artifact mirror restart after materialize")
 	command = []string{"embedded-cluster", "materialize"}
-	if _, _, err := RunCommandOnNode(t, tc, 0, command); err != nil {
+	if _, _, err := tc.RunCommandOnNode(t, 0, command); err != nil {
 		t.Fatalf("fail materialize embedded cluster binaries: %v", err)
 	}
 
@@ -69,7 +69,7 @@ func TestLocalArtifactMirror(t *testing.T) {
 	time.Sleep(20 * time.Second)
 
 	command = []string{"journalctl", "-u", "local-artifact-mirror"}
-	stdout, _, err := RunCommandOnNode(t, tc, 0, command)
+	stdout, _, err := tc.RunCommandOnNode(t, 0, command)
 	if err != nil {
 		t.Fatalf("fail to get journalctl logs: %v", err)
 	}
