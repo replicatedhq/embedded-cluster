@@ -181,7 +181,6 @@ upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: go.mod
 go.mod: Makefile
-	echo "go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)"
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
 
@@ -311,8 +310,7 @@ ssh-node%:
 
 .PHONY: delete-node%
 delete-node%:
-	@docker rm -f node$*
-	@docker volume prune -f
+	@docker rm -f --volumes node$*
 
 .PHONY: %-up
 %-up:
