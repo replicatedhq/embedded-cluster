@@ -12,12 +12,14 @@ type Event interface {
 
 // InstallationStarted event is send back home when the installation starts.
 type InstallationStarted struct {
-	ClusterID  uuid.UUID `json:"clusterID"`
-	Version    string    `json:"version"`
-	Flags      string    `json:"flags"`
-	BinaryName string    `json:"binaryName"`
-	Type       string    `json:"type"`
-	LicenseID  string    `json:"licenseID"`
+	ClusterID    uuid.UUID `json:"clusterID"`
+	Version      string    `json:"version"`
+	Flags        string    `json:"flags"`
+	BinaryName   string    `json:"binaryName"`
+	Type         string    `json:"type"`
+	LicenseID    string    `json:"licenseID"`
+	AppChannelID string    `json:"appChannelID"`
+	AppVersion   string    `json:"appVersion"`
 }
 
 // Title returns the name of the event.
@@ -28,6 +30,7 @@ func (e InstallationStarted) Title() string {
 // InstallationSucceeded event is send back home when the installation finishes.
 type InstallationSucceeded struct {
 	ClusterID uuid.UUID `json:"clusterID"`
+	Version   string    `json:"version"`
 }
 
 // Title returns the name of the event.
@@ -38,6 +41,7 @@ func (e InstallationSucceeded) Title() string {
 // InstallationFailed event is send back home when the installation fails.
 type InstallationFailed struct {
 	ClusterID uuid.UUID `json:"clusterID"`
+	Version   string    `json:"version"`
 	Reason    string    `json:"reason"`
 }
 
@@ -49,6 +53,7 @@ func (e InstallationFailed) Title() string {
 // JoinStarted event is send back home when a node join starts.
 type JoinStarted struct {
 	ClusterID uuid.UUID `json:"clusterID"`
+	Version   string    `json:"version"`
 	NodeName  string    `json:"nodeName"`
 }
 
@@ -68,6 +73,7 @@ func (e JoinSucceeded) Title() string {
 // JoinFailed event is send back home when a node join fails.
 type JoinFailed struct {
 	ClusterID uuid.UUID `json:"clusterID"`
+	Version   string    `json:"version"`
 	NodeName  string    `json:"nodeName"`
 	Reason    string    `json:"reason"`
 }

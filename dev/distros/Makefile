@@ -6,4 +6,4 @@ list:
 
 .PHONY: build-%
 build-%:
-	docker build -t ec-$* -f dockerfiles/$*.Dockerfile .
+	docker build -t replicated/ec-distro:$* -f dockerfiles/$*.Dockerfile .

@@ -13,7 +13,7 @@ import (
 )
 
 // NodeEventFromNode returns a NodeEvent event from a node.
-func NodeEventFromNode(clusterID string, node corev1.Node) NodeEvent {
+func NodeEventFromNode(clusterID string, installVersion string, node corev1.Node) NodeEvent {
 	return NodeEvent{
 		ClusterID:   clusterID,
 		Labels:      node.Labels,
@@ -22,6 +22,7 @@ func NodeEventFromNode(clusterID string, node corev1.Node) NodeEvent {
 		Capacity:    node.Status.Capacity,
 		Allocatable: node.Status.Allocatable,
 		Role:        node.Labels["node.k0sproject.io/role"],
+		Version:     installVersion,
 	}
 }
 
@@ -35,23 +36,29 @@ type NodeEvent struct {
 	Capacity    corev1.ResourceList   `json:"capacity"`
 	Allocatable corev1.ResourceList   `json:"allocatable"`
 	Role        string                `json:"role"`
+	Version     string                `json:"version"`
 }
 
 // UpgradeStartedEvent is send back home when the upgrade starts.
 type UpgradeStartedEvent struct {
-	ClusterID string `json:"clusterID"`
-	Version   string `json:"version"`
+	ClusterID      string `json:"clusterID"`
+	TargetVersion  string `json:"targetVersion"`
+	InitialVersion string `json:"initialVersion"`
 }
 
 // UpgradeFailedEvent is send back home when the upgrade fails.
 type UpgradeFailedEvent struct {
-	ClusterID string `json:"clusterID"`
-	Reason    string `json:"reason"`
+	ClusterID      string `json:"clusterID"`
+	TargetVersion  string `json:"targetVersion"`
+	InitialVersion string `json:"initialVersion"`
+	Reason         string `json:"reason"`
 }
 
 // UpgradeSucceededEvent event is send back home when the upgrade succeeds.
 type UpgradeSucceededEvent struct {
-	ClusterID string `json:"clusterID"`
+	ClusterID      string `json:"clusterID"`
+	TargetVersion  string `json:"targetVersion"`
+	InitialVersion string `json:"initialVersion"`
 }
 
 // Hash returns the hash of the node.
@@ -65,8 +72,9 @@ func (n NodeEvent) Hash() (string, error) {
 
 // NodeRemovedEvent is the event generated when a node is removed from the cluster.
 type NodeRemovedEvent struct {
-	ClusterID string `json:"clusterID"`
-	NodeName  string `json:"nodeName"`
+	ClusterID       string `json:"clusterID"`
+	OperatorVersion string `json:"operatorVersion"`
+	NodeName        string `json:"nodeName"`
 }
 
 // sendEvent sends the received event to the metrics server through a post request.

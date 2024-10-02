@@ -16,6 +16,7 @@ import (
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -104,11 +105,12 @@ func (o *Registry) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefa
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:      releaseName,
-		ChartName: Metadata.Location,
-		Version:   Metadata.Version,
-		TargetNS:  o.namespace,
-		Order:     3,
+		Name:         releaseName,
+		ChartName:    Metadata.Location,
+		Version:      Metadata.Version,
+		TargetNS:     o.namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        3,
 	}
 
 	var values map[string]interface{}
