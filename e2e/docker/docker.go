@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 type Container struct {
@@ -128,12 +127,9 @@ func (c *Container) Start() {
 	}
 	execCmd.Args = append(execCmd.Args, c.Image)
 	c.t.Logf("starting container: %s", strings.Join(execCmd.Args, " "))
-	var stdout, stderr bytes.Buffer
-	execCmd.Stdout = &stdout
-	execCmd.Stderr = &stderr
-	err := execCmd.Run()
+	output, err := execCmd.CombinedOutput()
 	if err != nil {
-		c.t.Fatalf("failed to start container: %v: %s: %s", err, stdout.String(), stderr.String())
+		c.t.Fatalf("failed to start container: %v: %s", err, string(output))
 	}
 }
 
@@ -167,26 +163,6 @@ func (c *Container) CopyFile(src, dst string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-func (c *Container) WaitForSystemd() {
-	timeout := time.After(30 * time.Second)
-	tick := time.Tick(time.Second)
-	for {
-		select {
-		case <-timeout:
-			c.t.Fatalf("timeout waiting for systemd to start")
-		case <-tick:
-			status, stderr, err := c.Exec("systemctl is-system-running")
-			if err != nil {
-				c.t.Fatalf("fail to check systemd status: %v: %s: %s", err, status, string(stderr))
-			}
-			c.t.Logf("systemd status: %s", status)
-			if strings.TrimSpace(status) == "running" {
-				return
-			}
-		}
-	}
-}
-
 func NewNode(t *testing.T, distro string) *Container {
 	c := NewContainer(t).
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", distro)).
@@ -199,6 +175,9 @@ func NewNode(t *testing.T, distro string) *Container {
 		c = c.WithLicense(licensePath)
 	}
 	c.Start()
-	c.WaitForSystemd()
+	stdout, stderr, err := c.Exec("systemctl is-system-running --wait")
+	if err != nil {
+		c.t.Fatalf("failed to wait for systemd to start: %v: %s: %s", err, stdout, stderr)
+	}
 	return c
 }
