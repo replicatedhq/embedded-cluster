@@ -29,6 +29,9 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
+// Minimum character length for the Admin Console password
+const minAdminPasswordLength = 6
+
 // ErrNothingElseToAdd is an error returned when there is nothing else to add to the
 // screen. This is useful when we want to exit an error from a function here but
 // don't want to print anything else (possibly because we have already printed the
@@ -565,7 +568,7 @@ func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Set the Admin Console password:")
+		promptA := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
 		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
 		if validateAdminConsolePassword(promptA, promptB, true) {
@@ -580,8 +583,8 @@ func validateAdminConsolePassword(password, passwordCheck string, mustMatch bool
 		logrus.Info("Passwords don't match. Please try again.")
 		return false
 	}
-	if len(password) < 6 {
-		logrus.Info("Passwords must have more than 6 characters. Please try again.")
+	if len(password) < minAdminPasswordLength {
+		logrus.Infof("Passwords must have more than %d characters. Please try again.", minAdminPasswordLength)
 		return false
 	}
 	return true
@@ -609,7 +612,7 @@ var installCommand = &cli.Command{
 		[]cli.Flag{
 			&cli.StringFlag{
 				Name:   "admin-console-password",
-				Usage:  "Password for the Admin Console",
+				Usage:  fmt.Sprintf("Password for the Admin Console (minimum %d characters)", minAdminPasswordLength),
 				Hidden: false,
 			},
 			&cli.StringFlag{
