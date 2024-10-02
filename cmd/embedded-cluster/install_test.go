@@ -207,30 +207,49 @@ func Test_validateAdminConsolePassword(t *testing.T) {
 		name          string
 		password      string
 		passwordCheck string
+		mustMatch     bool
 		wantSuccess   bool
 	}{
 		{
-			name:          "passwords match, with 3 characters length",
+			name:          "passwords match, with 3 characters length, must match is required",
 			password:      "123",
 			passwordCheck: "123",
+			mustMatch:     true,
 			wantSuccess:   false,
 		},
 		{
-			name:          "passwords don't match, with 3 characters length",
+			name:          "passwords don't match, with 3 characters length, must match is required",
 			password:      "123",
 			passwordCheck: "nop",
+			mustMatch:     true,
 			wantSuccess:   false,
 		},
 		{
-			name:          "passwords don't match, with 7 characters length",
-			password:      "1234567",
-			passwordCheck: "nomatch",
+			name:          "passwords don't match, with 6 characters length, must match is required",
+			password:      "123456",
+			passwordCheck: "nmatch",
+			mustMatch:     true,
 			wantSuccess:   false,
 		},
 		{
-			name:          "passwords match, with 7 characters length",
-			password:      "1234567",
-			passwordCheck: "1234567",
+			name:          "passwords match, with 6 characters length, must match is required",
+			password:      "123456",
+			passwordCheck: "123456",
+			mustMatch:     true,
+			wantSuccess:   true,
+		},
+		{
+			name:          "password with 3 characters length, must match is not required",
+			password:      "123",
+			passwordCheck: "",
+			mustMatch:     false,
+			wantSuccess:   false,
+		},
+		{
+			name:          "password with 6 characters length, must match is not required",
+			password:      "123456",
+			passwordCheck: "",
+			mustMatch:     false,
 			wantSuccess:   true,
 		},
 	}
@@ -239,7 +258,7 @@ func Test_validateAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			success := validateAdminConsolePassword(tt.password, tt.passwordCheck)
+			success := validateAdminConsolePassword(tt.password, tt.passwordCheck, tt.mustMatch)
 			if tt.wantSuccess {
 				req.True(success)
 			} else {

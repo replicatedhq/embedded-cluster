@@ -551,36 +551,37 @@ func runOutro(c *cli.Context, applier *addons.Applier, cfg *k0sconfig.ClusterCon
 func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 	defaultPassword := "password"
 	userProvidedPassword := c.String("admin-console-password")
-	if c.Bool("no-prompt") {
-		if userProvidedPassword != "" {
-			return userProvidedPassword, nil
-		} else {
-			logrus.Infof("The Admin Console password is set to %s", defaultPassword)
-			return defaultPassword, nil
-		}
-	}
+	// If there's a user provided password we'll try that first
 	if userProvidedPassword != "" {
+		if !validateAdminConsolePassword(userProvidedPassword, "", false) {
+			return "", fmt.Errorf("unable to set the Admin Console password")
+		}
 		return userProvidedPassword, nil
+	}
+	// No user provided password but prompt is disabled so we set our default password
+	if c.Bool("no-prompt") {
+		logrus.Infof("The Admin Console password is set to %s", defaultPassword)
+		return defaultPassword, nil
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
 		promptA := prompts.New().Password("Set the Admin Console password:")
 		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
-		if validateAdminConsolePassword(promptA, promptB) {
+		if validateAdminConsolePassword(promptA, promptB, true) {
 			return promptA, nil
 		}
 	}
 	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
 }
 
-func validateAdminConsolePassword(password, passwordCheck string) bool {
-	if len(password) < 6 {
-		logrus.Info("Passwords must have more than 6 characters. Please try again.")
+func validateAdminConsolePassword(password, passwordCheck string, mustMatch bool) bool {
+	if mustMatch && password != passwordCheck {
+		logrus.Info("Passwords don't match. Please try again.")
 		return false
 	}
-	if password != passwordCheck {
-		logrus.Info("Passwords don't match. Please try again.")
+	if len(password) < 6 {
+		logrus.Info("Passwords must have more than 6 characters. Please try again.")
 		return false
 	}
 	return true
