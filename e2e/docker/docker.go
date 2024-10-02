@@ -174,7 +174,7 @@ func (c *Container) WaitForSystemd() {
 		case <-tick:
 			status, stderr, err := c.Exec("systemctl is-system-running")
 			if err != nil {
-				c.t.Fatalf("fail to check systemd status: %v: %s", err, string(stderr))
+				c.t.Fatalf("fail to check systemd status: %v: %s: %s", err, status, string(stderr))
 			}
 			c.t.Logf("systemd status: %s", status)
 			if strings.TrimSpace(status) == "running" {
