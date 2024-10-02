@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type Container struct {
@@ -163,6 +164,23 @@ func (c *Container) CopyFile(src, dst string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
+func (c *Container) WaitForSystemd() {
+	timeout := time.After(30 * time.Second)
+	tick := time.Tick(time.Second)
+	for {
+		select {
+		case <-timeout:
+			c.t.Fatalf("timeout waiting for systemd to start")
+		case <-tick:
+			status, _, _ := c.Exec("systemctl is-system-running --wait")
+			c.t.Logf("systemd status: %s", status)
+			if strings.TrimSpace(status) == "running" {
+				return
+			}
+		}
+	}
+}
+
 func NewNode(t *testing.T, distro string) *Container {
 	c := NewContainer(t).
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", distro)).
@@ -175,9 +193,6 @@ func NewNode(t *testing.T, distro string) *Container {
 		c = c.WithLicense(licensePath)
 	}
 	c.Start()
-	stdout, stderr, err := c.Exec("systemctl is-system-running --wait")
-	if err != nil {
-		c.t.Fatalf("failed to wait for systemd to start: %v: %s: %s", err, stdout, stderr)
-	}
+	c.WaitForSystemd()
 	return c
 }
