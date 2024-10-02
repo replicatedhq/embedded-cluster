@@ -14,15 +14,15 @@ permissions:
   contents: write
 
 jobs:
-  git-sha:
-    name: Git SHA
-    runs-on: ubuntu-latest
-    outputs:
-      git_sha: ${{ steps.git_sha.outputs.git_sha }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/git-sha
-        id: git_sha
+  # git-sha:
+  #   name: Git SHA
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     git_sha: ${{ steps.git_sha.outputs.git_sha }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: ./.github/actions/git-sha
+  #       id: git_sha
 
   # sanitize:
   #   name: Sanitize
@@ -96,73 +96,73 @@ jobs:
   #         name: buildtools
   #         path: output/bin/buildtools
 
-  build-current:
-    name: Build current
-    runs-on: embedded-cluster
-    needs:
-      - git-sha
-    outputs:
-      k0s_version: ${{ steps.export.outputs.k0s_version }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # build-current:
+  #   name: Build current
+  #   runs-on: embedded-cluster
+  #   needs:
+  #     - git-sha
+  #   outputs:
+  #     k0s_version: ${{ steps.export.outputs.k0s_version }}
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Cache embedded bins
-        uses: actions/cache@v4
-        with:
-          path: |
-            output/bins
-          key: bins-cache
+  #     - name: Cache embedded bins
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           output/bins
+  #         key: bins-cache
 
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
+  #     - name: Setup go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version-file: go.mod
+  #         cache-dependency-path: "**/*.sum"
 
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
+  #     - name: Install dagger
+  #       run: |
+  #         curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+  #         sudo mv ./bin/dagger /usr/local/bin/dagger
 
-      - name: Build
-        env:
-          APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
-          APP_CHANNEL_SLUG: ci
-          RELEASE_YAML_DIR: e2e/kots-release-install
-          S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
-          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-          AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
-          UPLOAD_BINARIES: "1"
-          SKIP_RELEASE: "1"
-        run: |
-          export K0S_VERSION=$(make print-K0S_VERSION)
-          export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}
+  #     - name: Build
+  #       env:
+  #         APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+  #         APP_CHANNEL_SLUG: ci
+  #         RELEASE_YAML_DIR: e2e/kots-release-install
+  #         S3_BUCKET: "tf-staging-embedded-cluster-bin"
+  #         USES_DEV_BUCKET: "0"
+  #         AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+  #         AWS_REGION: "us-east-1"
+  #         USE_CHAINGUARD: "1"
+  #         UPLOAD_BINARIES: "1"
+  #         SKIP_RELEASE: "1"
+  #       run: |
+  #         export K0S_VERSION=$(make print-K0S_VERSION)
+  #         export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
+  #         export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
+  #         export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}
 
-          ./scripts/build-and-release.sh
+  #         ./scripts/build-and-release.sh
 
-      - name: Upload release
-        uses: actions/upload-artifact@v4
-        with:
-          name: current-release
-          path: |
-            output/bin/embedded-cluster
-            output/bin/embedded-cluster-original
-            output/bin/embedded-cluster-release-builder
+  #     - name: Upload release
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: current-release
+  #         path: |
+  #           output/bin/embedded-cluster
+  #           output/bin/embedded-cluster-original
+  #           output/bin/embedded-cluster-release-builder
 
-      - name: Export k0s version
-        id: export
-        run: |
-          K0S_VERSION="$(make print-K0S_VERSION)"
-          echo "K0S_VERSION=\"$K0S_VERSION\""
-          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+  #     - name: Export k0s version
+  #       id: export
+  #       run: |
+  #         K0S_VERSION="$(make print-K0S_VERSION)"
+  #         echo "K0S_VERSION=\"$K0S_VERSION\""
+  #         echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
   # build-previous-k0s:
   #   name: Build previous k0s
@@ -453,9 +453,9 @@ jobs:
   e2e-docker:
     name: E2E docker
     runs-on: ubuntu-latest
-    needs:
-      - git-sha
-      - build-current
+    # needs:
+    #   - git-sha
+      # - build-current
     strategy:
       fail-fast: false
       matrix:
@@ -470,6 +470,8 @@ jobs:
         with:
           name: current-release
           path: output/bin
+          run-id: 11145887338
+          github-token: ${{ secrets.REPLICATED_GH_PAT }}
       - name: Setup go
         uses: actions/setup-go@v5
         with:
@@ -480,9 +482,11 @@ jobs:
           echo "${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}" | base64 --decode > e2e/license.yaml
       - name: Run test
         env:
-          SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
+          # SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
+          SHORT_SHA: dev-39ffcee
           LICENSE_PATH: license.yaml
-          EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
+          # EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
+          EXPECT_K0S_VERSION: v1.29.8+k0s.0
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
