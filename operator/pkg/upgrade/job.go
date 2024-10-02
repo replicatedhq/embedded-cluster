@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -66,17 +67,31 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		return fmt.Errorf("failed to marshal installation spec: %w", err)
 	}
 
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "embedded-cluster",
-			Name:      fmt.Sprintf(upgradeJobConfigMap, in.Name),
-		},
-		Data: map[string]string{
-			"installation.yaml": string(installationData),
-		},
-	}
-	if err = cli.Create(ctx, cm); err != nil {
-		return fmt.Errorf("failed to create upgrade job configmap: %w", err)
+	// check if the configmap exists already or if we can just create it
+	existingCm := &corev1.ConfigMap{}
+	err = cli.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: fmt.Sprintf(upgradeJobConfigMap, in.Name)}, existingCm)
+	if err == nil {
+		// if the configmap already exists, update it to have the expected data just in case
+		existingCm.Data["installation.yaml"] = string(installationData)
+		if err = cli.Update(ctx, existingCm); err != nil {
+			return fmt.Errorf("failed to update configmap: %w", err)
+		}
+		return nil
+	} else if !k8serrors.IsNotFound(err) {
+		return fmt.Errorf("failed to get configmap: %w", err)
+	} else {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "embedded-cluster",
+				Name:      fmt.Sprintf(upgradeJobConfigMap, in.Name),
+			},
+			Data: map[string]string{
+				"installation.yaml": string(installationData),
+			},
+		}
+		if err = cli.Create(ctx, cm); err != nil {
+			return fmt.Errorf("failed to create upgrade job configmap: %w", err)
+		}
 	}
 
 	operatorImage, err := operatorImageName(ctx, cli, in)

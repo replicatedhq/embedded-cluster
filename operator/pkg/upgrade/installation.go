@@ -30,9 +30,9 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 		return fmt.Errorf("create installation: %w", err)
 	}
 
-	// set the state to 'waiting' so that the operator will not reconcile based on it
+	// set the state to 'installing'
 	// we will set the state to 'kubernetesInstalled' after the installation is complete
-	in.Status.State = clusterv1beta1.InstallationStateWaiting
+	in.Status.State = clusterv1beta1.InstallationStateInstalling
 	err = cli.Status().Update(ctx, in)
 	if err != nil {
 		return fmt.Errorf("update installation status: %w", err)
@@ -43,6 +43,9 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 	return nil
 }
 
+// unLockInstallation updates the installation spec to match what's in the configmap used by the upgrade job.
+// This is required because the installation CRD may have been updated as part of this upgrade, and additional fields may be present now.
+// it also sets the state to 'kubernetesInstalled' to indicate that the installation is ready to proceed.
 func unLockInstallation(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
 	existingInstallation := &clusterv1beta1.Installation{}
 	err := cli.Get(ctx, client.ObjectKey{Name: in.Name}, existingInstallation)
@@ -57,7 +60,7 @@ func unLockInstallation(ctx context.Context, cli client.Client, in *clusterv1bet
 	}
 
 	// if the installation is locked, we need to unlock it
-	if existingInstallation.Status.State == clusterv1beta1.InstallationStateWaiting {
+	if existingInstallation.Status.State == clusterv1beta1.InstallationStateInstalling {
 		existingInstallation.Status.State = clusterv1beta1.InstallationStateKubernetesInstalled
 		err := cli.Status().Update(ctx, existingInstallation)
 		if err != nil {
