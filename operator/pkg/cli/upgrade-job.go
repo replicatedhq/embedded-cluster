@@ -2,9 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/spf13/cobra"
 )
@@ -12,7 +14,7 @@ import (
 // UpgradeJobCmd returns a cobra command for upgrading the embedded cluster operator.
 // It is called by KOTS admin console to upgrade the embedded cluster operator and installation.
 func UpgradeJobCmd() *cobra.Command {
-	var installationFile string
+	var installationFile, previousInstallationVersion string
 
 	cmd := &cobra.Command{
 		Use:          "upgrade-job",
@@ -41,12 +43,24 @@ func UpgradeJobCmd() *cobra.Command {
 			fmt.Printf("Upgrading to installation %s (version %s)\n", in.Name, in.Spec.Config.Version)
 
 			i := 0
+			allErrors := []string{}
+			sleepDuration := time.Second * 5
 			for {
 				err = upgrade.Upgrade(cmd.Context(), cli, in)
 				if err != nil {
 					fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
-					sleepDuration := time.Duration(i) * time.Second
-					if i >= 50 {
+					allErrors = append(allErrors, err.Error())
+					if i >= 10 {
+						err = metrics.NotifyUpgradeFailed(cmd.Context(), in.Spec.MetricsBaseURL, metrics.UpgradeFailedEvent{
+							ClusterID:      in.Spec.ClusterID,
+							TargetVersion:  in.Spec.Config.Version,
+							InitialVersion: previousInstallationVersion,
+							Reason:         strings.Join(allErrors, ", "),
+						})
+						if err != nil {
+							fmt.Printf("failed to report that the upgrade was started: %v\n", err)
+						}
+
 						return fmt.Errorf("failed to upgrade after %s", (sleepDuration * time.Duration(i)).String())
 					}
 
@@ -63,7 +77,12 @@ func UpgradeJobCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&installationFile, "installation", "", "Path to the installation file")
+	cmd.Flags().StringVar(&previousInstallationVersion, "previous-version", "", "the previous installation version")
 	err := cmd.MarkFlagRequired("installation")
+	if err != nil {
+		panic(err)
+	}
+	err = cmd.MarkFlagRequired("previous-version")
 	if err != nil {
 		panic(err)
 	}

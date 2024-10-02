@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -31,7 +32,7 @@ import (
 // if the installation is airgapped, the artifacts are copied to the nodes and the autopilot plan is
 // created to copy the images to the cluster. A configmap is then created containing the target installation
 // spec and the upgrade job is created. The upgrade job will update the cluster version, and then update the operator chart.
-func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
+func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string, previousInstallVersion string) error {
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
 	err := cli.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
@@ -176,6 +177,8 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 								"upgrade-job",
 								"--installation",
 								"/config/installation.yaml",
+								"--previous-version",
+								previousInstallVersion,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -381,4 +384,31 @@ func getAutopilotAirgapArtifactsPlan(ctx context.Context, cli client.Client, in 
 	}
 
 	return plan, nil
+}
+
+// GetPreviousInstallation returns the latest installation object in the cluster OTHER than the one passed as an argument.
+func GetPreviousInstallation(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
+	installations := &clusterv1beta1.InstallationList{}
+	if err := cli.List(ctx, installations); err != nil {
+		return nil, fmt.Errorf("failed to list installations: %w", err)
+	}
+
+	if len(installations.Items) == 0 {
+		return nil, fmt.Errorf("no installations found")
+	}
+
+	// sort the installations by name in descending order
+	sort.Slice(installations.Items, func(i, j int) bool {
+		return installations.Items[i].Name > installations.Items[j].Name
+	})
+
+	// find the first installation with a different name than the one we're upgrading to
+	for _, installation := range installations.Items {
+		if installation.Name != in.Name {
+			return &installation, nil
+		}
+	}
+
+	// if we get here, we didn't find a previous installation
+	return nil, fmt.Errorf("installation not found")
 }

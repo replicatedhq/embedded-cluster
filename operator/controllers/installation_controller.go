@@ -260,11 +260,13 @@ func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, 
 	}
 	switch after.Status.State {
 	case v1beta1.InstallationStateInstalling:
-		err = metrics.NotifyUpgradeStarted(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
-			ClusterID:      after.Spec.ClusterID,
-			TargetVersion:  afterVer,
-			InitialVersion: beforeVer,
-		})
+		if beforeVer != "" {
+			err = metrics.NotifyUpgradeStarted(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
+				ClusterID:      after.Spec.ClusterID,
+				TargetVersion:  afterVer,
+				InitialVersion: beforeVer,
+			})
+		}
 	case v1beta1.InstallationStateInstalled:
 		err = metrics.NotifyUpgradeSucceeded(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeSucceededEvent{
 			ClusterID:      after.Spec.ClusterID,

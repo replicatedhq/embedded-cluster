@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"io"
 	"os"
 
@@ -14,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
-// UpgradeCmd returns a cobra command for upgrading the embedded cluster operator.
+// UpgradeCmd returns a cobra command for creating a job to upgrade the embedded cluster operator.
 // It is called by KOTS admin console and will preposition images before creating a job to truly upgrade the cluster.
 func UpgradeCmd() *cobra.Command {
 	var installationFile, localArtifactMirrorImage string
@@ -48,10 +49,22 @@ func UpgradeCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("apply installation: %w", err)
 			}
+			previousInstallation, err := upgrade.GetPreviousInstallation(cmd.Context(), cli, in)
+			if err != nil {
+				return fmt.Errorf("get previous installation: %w", err)
+			}
 
-			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, in, localArtifactMirrorImage)
+			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, in, localArtifactMirrorImage, previousInstallation.Spec.Config.Version)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
+			}
+			err = metrics.NotifyUpgradeStarted(cmd.Context(), in.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
+				ClusterID:      in.Spec.ClusterID,
+				TargetVersion:  in.Spec.Config.Version,
+				InitialVersion: previousInstallation.Spec.Config.Version,
+			})
+			if err != nil {
+				fmt.Printf("failed to report that the upgrade was started: %v\n", err)
 			}
 
 			fmt.Println("Upgrade job created successfully")
