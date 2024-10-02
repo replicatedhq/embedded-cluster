@@ -112,7 +112,7 @@ pkg/goods/bins/local-artifact-mirror:
 	touch $@
 
 ifndef FIO_VERSION
-FIO_VERSION = $(shell curl -fsSL https://api.github.com/repos/axboe/fio/releases/latest | jq -r '.tag_name' | cut -d- -f2)
+FIO_VERSION = $(shell curl --retry 5 --retry-all-errors -fsSL https://api.github.com/repos/axboe/fio/releases/latest | jq -r '.tag_name' | cut -d- -f2)
 endif
 
 output/bins/fio-%:
