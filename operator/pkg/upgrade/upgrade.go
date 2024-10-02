@@ -132,7 +132,7 @@ func chartUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Ins
 	input := in.DeepCopy()
 	input.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
 
-	err := charts.ReconcileHelmCharts(ctx, cli, in.DeepCopy())
+	err := charts.ReconcileHelmCharts(ctx, cli, input)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile helm charts: %w", err)
 	}
