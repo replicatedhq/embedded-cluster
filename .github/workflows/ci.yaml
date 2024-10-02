@@ -464,11 +464,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # - name: Download binary
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: current-release
-      #     path: output/bin
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: current-release
+          path: output/bin
+          run-id: 11145887338
       - name: Setup go
         uses: actions/setup-go@v5
         with:
@@ -486,10 +487,10 @@ jobs:
           LICENSE_PATH: license.yaml
           EXPECT_K0S_VERSION: v1.29.8+k0s.0
         run: |
-          curl -f https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci -H "Authorization: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}" -o embedded-cluster-smoke-test-staging-app-ci.tgz
-          tar -xvzf embedded-cluster-smoke-test-staging-app-ci.tgz
-          mkdir -p output/bin
-          mv embedded-cluster-smoke-test-staging-app output/bin/embedded-cluster
+          # curl -f https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci -H "Authorization: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}" -o embedded-cluster-smoke-test-staging-app-ci.tgz
+          # tar -xvzf embedded-cluster-smoke-test-staging-app-ci.tgz
+          # mkdir -p output/bin
+          # mv embedded-cluster-smoke-test-staging-app output/bin/embedded-cluster
           make e2e-test TEST_NAME=${{ matrix.test }}
 
   # e2e:
