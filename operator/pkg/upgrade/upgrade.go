@@ -3,12 +3,9 @@ package upgrade
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
-	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
@@ -131,86 +128,22 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	return nil
 }
 
-// copied from ReconcileHelmCharts in https://github.com/replicatedhq/embedded-cluster/blob/c6a57a4/operator/controllers/installation_controller.go#L568
 func chartUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	meta, err := release.MetadataFor(ctx, in, cli)
+	input := in.DeepCopy()
+	input.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
+
+	err := charts.ReconcileHelmCharts(ctx, cli, in.DeepCopy())
 	if err != nil {
-		return fmt.Errorf("failed to get release metadata: %w", err)
+		return fmt.Errorf("failed to reconcile helm charts: %w", err)
 	}
 
-	// fetch the current clusterConfig
-	var clusterConfig k0sv1beta1.ClusterConfig
-	if err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterConfig); err != nil {
-		return fmt.Errorf("failed to get cluster config: %w", err)
+	// check the status and return an error if appropriate
+	// 'InstallationStateAddonsInstalling' is the one we expect to be set
+	if input.Status.State != v1beta1.InstallationStateAddonsInstalling && input.Status.State != v1beta1.InstallationStateInstalled {
+		return fmt.Errorf("got unexpected state %s with message %s reconciling charts", input.Status.State, input.Status.Reason)
 	}
 
-	combinedConfigs, err := charts.K0sHelmExtensionsFromInstallation(ctx, in, meta, &clusterConfig)
-	if err != nil {
-		return fmt.Errorf("failed to get helm charts from installation: %w", err)
-	}
-
-	cfgs := &k0sv1beta1.HelmExtensions{}
-	cfgs, err = v1beta1.ConvertTo(*combinedConfigs, cfgs)
-	if err != nil {
-		return fmt.Errorf("failed to convert chart types: %w", err)
-	}
-
-	existingHelm := &k0sv1beta1.HelmExtensions{}
-	if clusterConfig.Spec != nil && clusterConfig.Spec.Extensions != nil && clusterConfig.Spec.Extensions.Helm != nil {
-		existingHelm = clusterConfig.Spec.Extensions.Helm
-	}
-
-	chartDrift, changedCharts, err := charts.DetectChartDrift(cfgs, existingHelm)
-	if err != nil {
-		return fmt.Errorf("failed to check chart drift: %w", err)
-	}
-
-	// detect drift between the cluster config and the installer metadata
-	var installedCharts k0shelm.ChartList
-	if err := cli.List(ctx, &installedCharts); err != nil {
-		return fmt.Errorf("failed to list installed charts: %w", err)
-	}
-	pendingCharts, chartErrors, err := charts.DetectChartCompletion(existingHelm, installedCharts)
-	if err != nil {
-		return fmt.Errorf("failed to check chart completion: %w", err)
-	}
-
-	// if there is a difference between what we want and what we have
-	// we should update the cluster instead of letting chart errors stop deployment permanently
-	// otherwise if there are errors we need to abort
-	if len(chartErrors) > 0 && !chartDrift {
-		chartErrorString := strings.Join(chartErrors, ",")
-		chartErrorString = "failed to update helm charts: " + chartErrorString
-		fmt.Printf("Chart errors: %s\n", chartErrorString)
-		return fmt.Errorf("helm charts have errors and there is no update to be applied")
-	}
-
-	// If all addons match their target version + values, things are successful
-	// This should not happen on upgrades
-	if len(pendingCharts) == 0 && !chartDrift {
-		return nil
-	}
-
-	if len(pendingCharts) > 0 {
-		// If there are pending charts, return an error because we need to wait for some prior installation to complete
-		return fmt.Errorf("pending charts: %v", pendingCharts)
-	}
-
-	if !chartDrift {
-		// if there is no drift, we should not reapply the cluster config
-		// This should not happen on upgrades
-		return nil
-	}
-
-	// Replace the current chart configs with the new chart configs
-	clusterConfig.Spec.Extensions.Helm = cfgs
-	fmt.Printf("Updating cluster config with new helm charts %v\n", changedCharts)
-	//Update the clusterConfig
-	if err := cli.Update(ctx, &clusterConfig); err != nil {
-		return fmt.Errorf("failed to update cluster config: %w", err)
-	}
 	return nil
-
 }
 
 func unLockInstallation(ctx context.Context, cli client.Client, in *v1beta1.Installation) error {

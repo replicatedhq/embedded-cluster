@@ -85,6 +85,7 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 	// If any chart has errors, update installer state and return
 	// if there is a difference between what we want and what we have
 	// we should update the cluster instead of letting chart errors stop deployment permanently
+	// otherwise if there are errors we need to abort
 	if len(chartErrors) > 0 && !chartDrift {
 		chartErrorString := strings.Join(chartErrors, ",")
 		chartErrorString = "failed to update helm charts: " + chartErrorString
@@ -117,6 +118,7 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 	if !chartDrift {
 		// if there is no drift, we should not reapply the cluster config
 		// however, the charts have not been applied yet, so we should not mark the installation as complete
+		// this should not happen on upgrades
 		return nil
 	}
 
