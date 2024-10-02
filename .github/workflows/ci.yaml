@@ -453,8 +453,8 @@ jobs:
   e2e-docker:
     name: E2E docker
     runs-on: ubuntu-latest
-    # needs:
-    #   - build-current
+    needs:
+      - build-current
     strategy:
       fail-fast: false
       matrix:
@@ -464,11 +464,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # - name: Download binary
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: current-release
-      #     path: output/bin
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: current-release
+          path: output/bin
           # run-id: 11145887338
           # github-token: ${{ secrets.REPLICATED_GH_PAT }}
       - name: Setup go
@@ -482,16 +482,13 @@ jobs:
       - name: Write license file
         run: |
           echo "${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}" | base64 --decode > e2e/license.yaml
-      - name: Check systemd status
+      - name: Run test
+        env:
+          SHORT_SHA: dev-${{ steps.git_sha.outputs.git_sha }}
+          LICENSE_PATH: license.yaml
+          EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
         run: |
-          systemctl status
-      # - name: Run test
-      #   env:
-      #     SHORT_SHA: dev-${{ steps.git_sha.outputs.git_sha }}
-      #     LICENSE_PATH: license.yaml
-      #     EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
-      #   run: |
-      #     make e2e-test TEST_NAME=${{ matrix.test }}
+          make e2e-test TEST_NAME=${{ matrix.test }}
 
   # e2e:
   #   name: E2E
