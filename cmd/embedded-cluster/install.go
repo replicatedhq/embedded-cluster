@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -140,6 +141,7 @@ func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL
 		IsAirgap:                isAirgap,
 		AdminConsolePort:        adminConsolePort,
 		LocalArtifactMirrorPort: localArtifactMirrorPort,
+		SystemArchitecture:      runtime.GOARCH,
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
