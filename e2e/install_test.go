@@ -26,6 +26,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 	node0 := docker.NewNode(t, "ubuntu-jammy")
 	defer cleanupCluster(t, nil, []*docker.Container{node0})
 
+	time.Sleep(time.Minute * 1)
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := node0.Exec("single-node-install.sh ui --admin-console-port 30002")
 	if err != nil {
