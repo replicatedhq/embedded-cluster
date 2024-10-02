@@ -114,7 +114,6 @@ func (c *Container) Start() {
 		"run",
 		"--rm",
 		"-d",
-		"-w=/ec",
 		"--privileged",
 		"--cgroupns=host",
 		"--name",
@@ -145,7 +144,7 @@ func (c *Container) Destroy() {
 func (c *Container) Exec(cmd string) (string, string, error) {
 	args := []string{"exec", c.id, "sh", "-c", cmd}
 	execCmd := exec.Command(DockerBinPath(c.t), args...)
-	c.t.Logf("executing command: docker %s", strings.Join(execCmd.Args, " "))
+	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
 	var stdout, stderr bytes.Buffer
 	execCmd.Stdout = &stdout
 	execCmd.Stderr = &stderr
@@ -156,7 +155,7 @@ func (c *Container) Exec(cmd string) (string, string, error) {
 func (c *Container) CopyFile(src, dst string) (string, string, error) {
 	args := []string{"cp", src, dst}
 	execCmd := exec.Command(DockerBinPath(c.t), args...)
-	c.t.Logf("executing command: docker %s", strings.Join(execCmd.Args, " "))
+	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
 	var stdout, stderr bytes.Buffer
 	execCmd.Stdout = &stdout
 	execCmd.Stderr = &stderr

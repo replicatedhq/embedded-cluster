@@ -488,6 +488,7 @@ jobs:
           LICENSE_PATH: license.yaml
           EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
         run: |
+          sleep 60
           make e2e-test TEST_NAME=${{ matrix.test }}
 
   # e2e:

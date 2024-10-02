@@ -1980,7 +1980,7 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output, nodes []*doc
 				}
 
 				t.Logf("%s: copying host support bundle from node %d to local machine", time.Now().Format(time.RFC3339), i)
-				src := fmt.Sprintf("%s:/root/host.tar.gz", nodes[i].GetID())
+				src := fmt.Sprintf("%s:host.tar.gz", nodes[i].GetID())
 				dst := fmt.Sprintf("support-bundle-host-%d.tar.gz", i)
 				if stdout, stderr, err := nodes[i].CopyFile(src, dst); err != nil {
 					t.Logf("stdout: %s", stdout)
@@ -1998,7 +1998,7 @@ func generateAndCopySupportBundle(t *testing.T, tc *cluster.Output, nodes []*doc
 			t.Logf("fail to generate cluster support from node %d bundle: %v", 0, err)
 		} else {
 			t.Logf("%s: copying cluster support bundle from node 0 to local machine", time.Now().Format(time.RFC3339))
-			src := fmt.Sprintf("%s:/root/cluster.tar.gz", nodes[0].GetID())
+			src := fmt.Sprintf("%s:cluster.tar.gz", nodes[0].GetID())
 			dst := "support-bundle-cluster.tar.gz"
 			if stdout, stderr, err := nodes[0].CopyFile(src, dst); err != nil {
 				t.Logf("stdout: %s", stdout)
