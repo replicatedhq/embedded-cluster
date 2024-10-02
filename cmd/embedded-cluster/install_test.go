@@ -200,3 +200,51 @@ versionLabel: testversion
 		})
 	}
 }
+
+func Test_validateAdminConsolePassword(t *testing.T) {
+
+	tests := []struct {
+		name          string
+		password      string
+		passwordCheck string
+		wantSuccess   bool
+	}{
+		{
+			name:          "passwords match, with 3 characters length",
+			password:      "123",
+			passwordCheck: "123",
+			wantSuccess:   false,
+		},
+		{
+			name:          "passwords don't match, with 3 characters length",
+			password:      "123",
+			passwordCheck: "nop",
+			wantSuccess:   false,
+		},
+		{
+			name:          "passwords don't match, with 7 characters length",
+			password:      "1234567",
+			passwordCheck: "nomatch",
+			wantSuccess:   false,
+		},
+		{
+			name:          "passwords match, with 7 characters length",
+			password:      "1234567",
+			passwordCheck: "1234567",
+			wantSuccess:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			success := validateAdminConsolePassword(tt.password, tt.passwordCheck)
+			if tt.wantSuccess {
+				req.True(success)
+			} else {
+				req.False(success)
+			}
+		})
+	}
+}

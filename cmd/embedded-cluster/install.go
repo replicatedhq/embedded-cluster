@@ -567,14 +567,14 @@ func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 		promptA := prompts.New().Password("Set the Admin Console password:")
 		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
-		if validatePassword(promptA, promptB) {
+		if validateAdminConsolePassword(promptA, promptB) {
 			return promptA, nil
 		}
 	}
 	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
 }
 
-func validatePassword(password, passwordCheck string) bool {
+func validateAdminConsolePassword(password, passwordCheck string) bool {
 	if len(password) < 6 {
 		logrus.Info("Passwords must have more than 6 characters. Please try again.")
 		return false
