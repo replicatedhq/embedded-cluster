@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
   kmod \
   iproute2 \
   systemd-timesyncd \
+  expect \
   vim
 
 # Override timesyncd config to allow it to run in containers
