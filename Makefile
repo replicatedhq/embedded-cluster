@@ -10,7 +10,7 @@ ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.28.14+k0s.0
+K0S_VERSION = v1.28.14+k0s.0-ec.0
 K0S_GO_VERSION = v1.28.14+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.11+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
@@ -27,10 +27,10 @@ METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
 
 ifeq ($(ARCH),amd64)
-ifeq ($(K0S_VERSION),v1.29.9+k0s.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.29.9%2Bk0s.0-amd64
-else ifeq ($(K0S_VERSION),v1.28.14+k0s.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.28.14%2Bk0s.0-amd64
+ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
+K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.29.9%2Bk0s.0-ec.0-amd64
+else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
+K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.28.14%2Bk0s.0-ec.0-amd64
 endif
 endif
 
@@ -112,7 +112,7 @@ pkg/goods/bins/local-artifact-mirror:
 	touch $@
 
 ifndef FIO_VERSION
-FIO_VERSION = $(shell curl -fsSL https://api.github.com/repos/axboe/fio/releases/latest | jq -r '.tag_name' | cut -d- -f2)
+FIO_VERSION = $(shell curl --retry 5 --retry-all-errors -fsSL https://api.github.com/repos/axboe/fio/releases/latest | jq -r '.tag_name' | cut -d- -f2)
 endif
 
 output/bins/fio-%:
