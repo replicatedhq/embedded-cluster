@@ -146,30 +146,6 @@ func chartUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Ins
 	return nil
 }
 
-func unLockInstallation(ctx context.Context, cli client.Client, in *v1beta1.Installation) error {
-	existingInstallation := &v1beta1.Installation{}
-	err := cli.Get(ctx, client.ObjectKey{Name: in.Name}, existingInstallation)
-	if err != nil {
-		return fmt.Errorf("get installation: %w", err)
-	}
-
-	existingInstallation.Spec = *in.Spec.DeepCopy() // copy the spec in, in case there were fields added to the spec
-	err = cli.Update(ctx, existingInstallation)
-	if err != nil {
-		return fmt.Errorf("update installation: %w", err)
-	}
-
-	// if the installation is locked, we need to unlock it
-	if existingInstallation.Status.State == v1beta1.InstallationStateWaiting {
-		existingInstallation.Status.State = v1beta1.InstallationStateKubernetesInstalled
-		err := cli.Status().Update(ctx, existingInstallation)
-		if err != nil {
-			return fmt.Errorf("update installation status: %w", err)
-		}
-	}
-	return nil
-}
-
 func waitForOperatorChart(ctx context.Context, cli client.Client, version string) error {
 	err := wait.PollUntilContextCancel(ctx, 5*time.Second, true, func(ctx context.Context) (bool, error) {
 		ready, err := k8sutil.GetChartHealthVersion(ctx, cli, operatorChartName, version)

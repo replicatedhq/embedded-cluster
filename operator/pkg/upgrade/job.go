@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
-	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
@@ -59,12 +58,6 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		}
 
 		pullPolicy = corev1.PullNever
-	}
-
-	// create the installation object so that kotsadm can immediately find it and watch it for the upgrade process
-	err = createInstallation(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("apply installation: %w", err)
 	}
 
 	// create the upgrade job configmap with the target installation spec
@@ -158,8 +151,6 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 								"upgrade-job",
 								"--installation",
 								"/config/installation.yaml",
-								"--local-artifact-mirror-image",
-								localArtifactMirrorImage,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -198,38 +189,6 @@ func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta
 		}
 	}
 	return operatorImage, nil
-}
-
-func createInstallation(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) error {
-	log := controllerruntime.LoggerFrom(ctx)
-	in := original.DeepCopy()
-
-	// check if the installation already exists - this function can be called multiple times
-	// if the installation is already created, we can just return
-	nsn := types.NamespacedName{Name: in.Name}
-	var existingInstallation clusterv1beta1.Installation
-	if err := cli.Get(ctx, nsn, &existingInstallation); err == nil {
-		log.Info(fmt.Sprintf("Installation %s already exists", in.Name))
-		return nil
-	}
-	log.Info(fmt.Sprintf("Creating installation %s", in.Name))
-
-	err := cli.Create(ctx, in)
-	if err != nil {
-		return fmt.Errorf("create installation: %w", err)
-	}
-
-	// set the state to 'waiting' so that the operator will not reconcile based on it
-	// we will set the state to 'kubernetesInstalled' after the installation is complete
-	in.Status.State = v1beta1.InstallationStateWaiting
-	err = cli.Status().Update(ctx, in)
-	if err != nil {
-		return fmt.Errorf("update installation status: %w", err)
-	}
-
-	log.Info("Installation created")
-
-	return nil
 }
 
 func airgapDistributeArtifacts(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
