@@ -463,7 +463,9 @@ jobs:
           - TestPreflights
           - TestSingleNodeInstallation
           - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos9Stream
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -511,8 +513,6 @@ jobs:
   #     fail-fast: false
   #     matrix:
   #       test:
-  #       #   - TestSingleNodeInstallationDebian11
-  #       #   - TestSingleNodeInstallationCentos9Stream
   #       #   - TestVersion
   #       #   - TestHostPreflightCustomSpec
   #       #   - TestHostPreflightInBuiltSpec
