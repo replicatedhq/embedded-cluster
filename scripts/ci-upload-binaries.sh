@@ -32,7 +32,7 @@ function init_vars() {
 
 function k0sbin() {
     local k0s_override=
-    k0s_override=$(make print-K0S_BINARY_SOURCE_OVERRIDE)
+    k0s_override=$(make print-K0S_BINARY_SOURCE_OVERRIDE K0S_VERSION="${K0S_VERSION}")
 
     # check if the binary already exists in the bucket
     local k0s_binary_exists=
