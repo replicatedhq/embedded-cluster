@@ -488,6 +488,7 @@ jobs:
         run: |
           curl -f https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci -H "Authorization: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}" -o embedded-cluster-smoke-test-staging-app-ci.tgz
           tar -xvzf embedded-cluster-smoke-test-staging-app-ci.tgz
+          mkdir -p output/bin
           mv embedded-cluster-smoke-test-staging-app output/bin/embedded-cluster
           make e2e-test TEST_NAME=${{ matrix.test }}
 
