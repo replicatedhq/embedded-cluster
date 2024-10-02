@@ -470,6 +470,7 @@ jobs:
           name: current-release
           path: output/bin
           run-id: 11145887338
+          github-token: ${{ secrets.REPLICATED_GH_PAT }}
       - name: Setup go
         uses: actions/setup-go@v5
         with:
