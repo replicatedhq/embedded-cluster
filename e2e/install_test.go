@@ -21,7 +21,11 @@ func TestSingleNodeInstallation(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := docker.NewTestCluster(t, "ubuntu-jammy", 1)
+	tc := docker.NewCluster(&docker.ClusterInput{
+		Nodes:  1,
+		Distro: "ubuntu-jammy",
+		T:      t,
+	})
 	defer tc.Cleanup(t)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -62,7 +66,11 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := docker.NewTestCluster(t, "almalinux-8", 1)
+	tc := docker.NewCluster(&docker.ClusterInput{
+		Nodes:  1,
+		Distro: "almalinux-8",
+		T:      t,
+	})
 	defer tc.Cleanup(t)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
@@ -103,7 +111,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
@@ -152,7 +160,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/11",
@@ -201,7 +209,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "centos/9-Stream",
@@ -254,7 +262,7 @@ func TestHostPreflightCustomSpec(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                                 t,
 		Nodes:                             1,
 		Image:                             "centos/9-Stream",
@@ -288,7 +296,7 @@ func TestHostPreflightInBuiltSpec(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "centos/9-Stream",
@@ -310,7 +318,7 @@ func TestHostPreflightInBuiltSpec(t *testing.T) {
 // for controllers and one join token for worker nodes. Joins the nodes and then waits
 // for them to report ready.
 func TestMultiNodeInstallation(t *testing.T) {
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		Image:               "debian/12",
@@ -399,7 +407,7 @@ func TestInstallWithoutEmbed(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "almalinux/8",
@@ -422,7 +430,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:     t,
 		Nodes: 1,
 		Image: "debian/12",
@@ -473,7 +481,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:     t,
 		Nodes: 1,
 		Image: "debian/12",
@@ -524,7 +532,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:     t,
 		Nodes: 1,
 		Image: "debian/12",
@@ -575,7 +583,7 @@ func TestResetAndReinstall(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
@@ -642,7 +650,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 
 	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   1,
 		Image:                   "debian/12",
@@ -710,7 +718,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:     t,
 		Nodes: 1,
 		Image: "debian/12",
@@ -766,7 +774,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 		},
 	)
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   1,
 		Image:                   "debian/12",
@@ -858,7 +866,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 		},
 	)
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   1,
 		Image:                   "debian/12",
@@ -960,7 +968,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 		},
 	)
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   1,
 		Image:                   "debian/12",
@@ -1057,7 +1065,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 		},
 	)
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   2,
 		Image:                   "debian/12",
@@ -1211,7 +1219,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 		},
 	)
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   2,
 		Image:                   "debian/12",
@@ -1345,7 +1353,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 // for controllers and one join token for worker nodes. Joins the nodes as HA and then waits
 // for them to report ready. Runs additional high availability validations afterwards.
 func TestMultiNodeHAInstallation(t *testing.T) {
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		Image:               "debian/12",
@@ -1488,7 +1496,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 		},
 	)
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   4,
 		Image:                   "debian/12",
@@ -1696,7 +1704,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA", "SNAPSHOT_LICENSE_ID"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:     t,
 		Nodes: 1,
 		Image: "debian/12",
@@ -1754,7 +1762,7 @@ func TestCustomCIDR(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		Image:               "debian/12",
@@ -1856,7 +1864,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "ubuntu/jammy",
@@ -1915,7 +1923,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		},
 	)
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   5,
 		Image:                   "debian/12",
@@ -2014,14 +2022,14 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 func TestInstallWithPrivateCAs(t *testing.T) {
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	input := &lxd.Input{
+	input := &lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "ubuntu/jammy",
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	}
-	tc := lxd.NewTestCluster(input)
+	tc := lxd.NewCluster(input)
 	defer tc.Cleanup(t)
 
 	certBuilder, err := certs.NewBuilder()

@@ -19,14 +19,6 @@ type Container struct {
 	t  *testing.T
 }
 
-func DockerBinPath(t *testing.T) string {
-	path, err := exec.LookPath("docker")
-	if err != nil {
-		t.Fatalf("failed to find docker in path: %v", err)
-	}
-	return path
-}
-
 func NewContainer(t *testing.T) *Container {
 	return &Container{
 		id: generateID(),
@@ -110,7 +102,7 @@ func (c *Container) WithPort(port string) *Container {
 
 func (c *Container) Start() {
 	execCmd := exec.Command(
-		DockerBinPath(c.t),
+		dockerBinPath(c.t),
 		"run",
 		"--rm",
 		"-d",
@@ -134,7 +126,7 @@ func (c *Container) Start() {
 }
 
 func (c *Container) Destroy() {
-	execCmd := exec.Command(DockerBinPath(c.t), "rm", "-f", c.id)
+	execCmd := exec.Command(dockerBinPath(c.t), "rm", "-f", c.id)
 	output, err := execCmd.CombinedOutput()
 	if err != nil {
 		c.t.Fatalf("failed to destroy container: %v: %s", err, string(output))
@@ -143,7 +135,7 @@ func (c *Container) Destroy() {
 
 func (c *Container) Exec(cmd string) (string, string, error) {
 	args := []string{"exec", c.id, "sh", "-c", cmd}
-	execCmd := exec.Command(DockerBinPath(c.t), args...)
+	execCmd := exec.Command(dockerBinPath(c.t), args...)
 	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
 	var stdout, stderr bytes.Buffer
 	execCmd.Stdout = &stdout
@@ -154,7 +146,7 @@ func (c *Container) Exec(cmd string) (string, string, error) {
 
 func (c *Container) CopyFile(src, dst string) (string, string, error) {
 	args := []string{"cp", src, dst}
-	execCmd := exec.Command(DockerBinPath(c.t), args...)
+	execCmd := exec.Command(dockerBinPath(c.t), args...)
 	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
 	var stdout, stderr bytes.Buffer
 	execCmd.Stdout = &stdout

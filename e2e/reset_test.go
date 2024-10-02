@@ -13,7 +13,7 @@ import (
 // for controllers and one join token for worker nodes. Joins the nodes and then waits
 // for them to report ready and resets two of the nodes.
 func TestMultiNodeReset(t *testing.T) {
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		Image:               "debian/12",

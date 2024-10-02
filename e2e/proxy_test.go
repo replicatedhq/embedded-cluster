@@ -28,7 +28,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		WithProxy:           true,
@@ -141,7 +141,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		WithProxy:           true,
@@ -263,7 +263,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		WithProxy:           true,

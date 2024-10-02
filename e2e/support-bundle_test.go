@@ -12,7 +12,7 @@ func TestCollectSupportBundle(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",

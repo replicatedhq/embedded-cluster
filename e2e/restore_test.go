@@ -28,7 +28,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		testArgs = append(testArgs, os.Getenv(envVar))
 	}
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
@@ -118,7 +118,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		testArgs = append(testArgs, os.Getenv(envVar))
 	}
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
@@ -198,7 +198,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		testArgs = append(testArgs, os.Getenv(envVar))
 	}
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		Image:               "debian/12",
@@ -284,7 +284,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		},
 	)
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   1,
 		Image:                   "debian/12",
@@ -401,7 +401,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		testArgs = append(testArgs, os.Getenv(envVar))
 	}
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               3,
 		Image:               "debian/12",
@@ -597,7 +597,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   3,
 		Image:                   "debian/12",

@@ -50,9 +50,9 @@ func (n *NoopCloser) Close() error {
 	return nil
 }
 
-// Input are the options passed in to the cluster creation plus some data
+// ClusterInput are the options passed in to the cluster creation plus some data
 // for internal consumption only.
-type Input struct {
+type ClusterInput struct {
 	Nodes                             int
 	CreateRegularUser                 bool
 	LicensePath                       string
@@ -91,16 +91,16 @@ type Cluster struct {
 	Proxy   string
 }
 
-// Destroy destroys a cluster pointed by the id property inside the output.
-func (o *Cluster) Destroy() {
-	o.T.Logf("Destroying cluster %s", o.id)
+// Destroy destroys a cluster pointed by the id property.
+func (c *Cluster) Destroy() {
+	c.T.Logf("Destroying cluster %s", c.id)
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
-		o.T.Fatalf("Failed to connect to LXD: %v", err)
+		c.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	nodes := o.Nodes
-	if o.Proxy != "" {
-		nodes = append(nodes, o.Proxy)
+	nodes := c.Nodes
+	if c.Proxy != "" {
+		nodes = append(nodes, c.Proxy)
 	}
 	for _, node := range nodes {
 		reqstate := api.InstanceStatePut{
@@ -109,26 +109,26 @@ func (o *Cluster) Destroy() {
 		}
 		op, err := client.UpdateInstanceState(node, reqstate, "")
 		if err != nil {
-			o.T.Logf("Failed to stop node %s: %v", node, err)
+			c.T.Logf("Failed to stop node %s: %v", node, err)
 			continue
 		}
 		if err := op.Wait(); err != nil {
-			o.T.Logf("Failed to wait node %s to stop: %v", node, err)
+			c.T.Logf("Failed to wait node %s to stop: %v", node, err)
 		}
 	}
-	netname := fmt.Sprintf("internal-%s", o.id)
+	netname := fmt.Sprintf("internal-%s", c.id)
 	if err := client.DeleteNetwork(netname); err != nil {
-		o.T.Logf("Failed to delete network %s: %v", netname, err)
+		c.T.Logf("Failed to delete network %s: %v", netname, err)
 	}
-	netname = fmt.Sprintf("external-%s", o.id)
+	netname = fmt.Sprintf("external-%s", c.id)
 	if err := client.DeleteNetwork(netname); err != nil {
-		o.T.Logf("Failed to delete external network: %v", err)
+		c.T.Logf("Failed to delete external network: %v", err)
 	}
-	profilename := fmt.Sprintf("profile-%s", o.id)
+	profilename := fmt.Sprintf("profile-%s", c.id)
 	if err := client.DeleteProfile(profilename); err != nil {
-		o.T.Logf("Failed to delete profile: %v", err)
+		c.T.Logf("Failed to delete profile: %v", err)
 	}
-	networkaddr <- o.network
+	networkaddr <- c.network
 }
 
 // Command is a command to be run in a node.
@@ -193,10 +193,10 @@ var imagesMap = map[string]string{
 	"ubuntu/jammy": "j",
 }
 
-// NewTestCluster creates a new cluster and returns an object of type Output
+// NewCluster creates a new cluster and returns an object of type Output
 // that can be used to get the created nodes and destroy the cluster when it
 // is no longer needed.
-func NewTestCluster(in *Input) *Cluster {
+func NewCluster(in *ClusterInput) *Cluster {
 	if name, ok := imagesMap[in.Image]; ok {
 		in.Image = name
 	}
@@ -262,7 +262,7 @@ const (
 // sure that all nodes are configured to use the proxy as default gateway. Internet
 // won't work on them by design (exception made for DNS requests and http requests
 // using the proxy). Proxy is accessible from the cluster nodes on 10.0.0.254:3128.
-func CreateProxy(in *Input) string {
+func CreateProxy(in *ClusterInput) string {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -323,7 +323,7 @@ func CreateProxy(in *Input) string {
 // ConfigureProxyNode installs squid and iptables on the target node. Configures the needed
 // ip addresses and sets up iptables to allow nat for requests coming out on eth0 using
 // port 53(UDP).
-func ConfigureProxyNode(in *Input) {
+func ConfigureProxyNode(in *ClusterInput) {
 	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
 	// starts by installing dependencies, setting up the second network interface ip
@@ -343,7 +343,7 @@ func ConfigureProxyNode(in *Input) {
 // ConfigureProxy configures squid to accept requests coming from 10.0.0.0/24 network.
 // Proxy will be listening on http://10.0.0.254 using the following ports:
 // 3128 (http), 3129 (http, ssl-bump), and 3130 (https).
-func ConfigureProxy(in *Input) {
+func ConfigureProxy(in *ClusterInput) {
 	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
 	RunCommand(in, []string{"/usr/local/bin/install-and-configure-squid.sh"}, proxyName)
@@ -378,7 +378,7 @@ func ConfigureProxy(in *Input) {
 
 // RunCommand runs the provided command on the provided node (name). Implements a
 // timeout of 2 minutes for the command to run and if it fails calls T.Failf().
-func RunCommand(in *Input, cmdline []string, name string, opts ...RunCommandOption) {
+func RunCommand(in *ClusterInput, cmdline []string, name string, opts ...RunCommandOption) {
 	in.T.Logf("Running `%s` on node %s", strings.Join(cmdline, " "), name)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
@@ -403,7 +403,7 @@ func RunCommand(in *Input, cmdline []string, name string, opts ...RunCommandOpti
 
 // CreateRegularUser adds an unprivileged user to the node. The username is
 // "user" and there is no password. Creates the user with UID 9999.
-func CreateRegularUser(in *Input, node string) {
+func CreateRegularUser(in *ClusterInput, node string) {
 	in.T.Logf("Creating regular user `user(9999)` on node %s", node)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -431,7 +431,7 @@ func CreateRegularUser(in *Input, node string) {
 
 // CopyFilesToNode copies the files needed for the cluster to the node. Copies
 // the provided ssh key and the embedded-cluster release files.
-func CopyFilesToNode(in *Input, node string) {
+func CopyFilesToNode(in *ClusterInput, node string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -473,7 +473,7 @@ func CopyFilesToNode(in *Input, node string) {
 }
 
 // CopyDirsToNode copies the directories needed to the node.
-func CopyDirsToNode(in *Input, node string) {
+func CopyDirsToNode(in *ClusterInput, node string) {
 	dirs := []Dir{
 		{
 			SourcePath: "scripts",
@@ -490,7 +490,7 @@ func CopyDirsToNode(in *Input, node string) {
 }
 
 // CopyDirToNode copies a single directory to a node.
-func CopyDirToNode(in *Input, node string, dir Dir) {
+func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
 	if err := filepath.Walk(dir.SourcePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -515,7 +515,7 @@ func CopyDirToNode(in *Input, node string, dir Dir) {
 }
 
 // CopyFileToNode copies a single file to a node.
-func CopyFileToNode(in *Input, node string, file File) {
+func CopyFileToNode(in *ClusterInput, node string, file File) {
 	if file.SourcePath == "" {
 		in.T.Logf("Skipping file %s: source path is empty", file.DestPath)
 		return
@@ -569,7 +569,7 @@ func CopyFileFromNode(node, source, dest string) error {
 
 // CreateNodes creats the nodes for the cluster. The amount of nodes is
 // specified in the input.
-func CreateNodes(in *Input) ([]string, []string) {
+func CreateNodes(in *ClusterInput) ([]string, []string) {
 	nodes := []string{}
 	IPs := []string{}
 	for i := 0; i < in.Nodes; i++ {
@@ -587,7 +587,7 @@ func CreateNodes(in *Input) ([]string, []string) {
 
 // NodeHasInternet checks if the node has internet access. It does this by
 // pinging google.com.
-func NodeHasInternet(in *Input, node string) {
+func NodeHasInternet(in *ClusterInput, node string) {
 	in.T.Logf("Testing if node %s can reach the internet", node)
 	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
@@ -637,7 +637,7 @@ func NodeHasInternet(in *Input, node string) {
 
 // NodeHasNoInternet checks if the node has internet access and fails if so. It does this by
 // pinging google.com.
-func NodeHasNoInternet(in *Input, node string) {
+func NodeHasNoInternet(in *ClusterInput, node string) {
 	in.T.Logf("Ensuring node %s cannot reach the internet", node)
 	fp, err := os.CreateTemp("/tmp", "internet-*.sh")
 	if err != nil {
@@ -685,7 +685,7 @@ func NodeHasNoInternet(in *Input, node string) {
 // CreateNode creates a single node. The i here is used to create a unique
 // name for the node. Node is named as "node-<cluster id>-<i>". The node
 // name is returned.
-func CreateNode(in *Input, i int) (string, string) {
+func CreateNode(in *ClusterInput, i int) (string, string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -764,7 +764,7 @@ func getInetIP(state *api.InstanceState) string {
 // CreateNetworks create two networks, one of type bridge and inside of it another one of
 // type ovn, the latter is completely isolated from the host network and from the other
 // networks on the same server.
-func CreateNetworks(in *Input) {
+func CreateNetworks(in *ClusterInput) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -809,7 +809,7 @@ func CreateNetworks(in *Input) {
 
 // CreateProfile that restricts the hardware and provides privileged access to the
 // containers.
-func CreateProfile(in *Input) {
+func CreateProfile(in *ClusterInput) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
@@ -849,7 +849,7 @@ func CreateProfile(in *Input) {
 }
 
 // PullImage pull the image used for the nodes.
-func PullImage(in *Input, image string) {
+func PullImage(in *ClusterInput, image string) {
 	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)

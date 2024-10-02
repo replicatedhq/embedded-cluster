@@ -13,7 +13,7 @@ import (
 
 func TestVersion(t *testing.T) {
 	t.Parallel()
-	tc := lxd.NewTestCluster(&lxd.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		CreateRegularUser:   true,
