@@ -7,6 +7,7 @@ metadata:
 spec:
   uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster-operator/main/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
   collectors:
+  - goldpinger: {}
   - logs:
       name: podlogs/embedded-cluster-operator
       namespace: embedded-cluster
@@ -64,6 +65,7 @@ spec:
       limits:
         maxAge: 720h
   analyzers:
+  - goldpinger: {}
   - textAnalyze:
       checkName: Cluster installation status
       fileName: cluster-resources/custom-resources/installations.embeddedcluster.replicated.com.yaml
