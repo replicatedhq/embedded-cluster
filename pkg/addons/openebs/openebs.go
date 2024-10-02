@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -75,11 +76,12 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
 func (o *OpenEBS) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	chartConfig := ecv1beta1.Chart{
-		Name:      releaseName,
-		ChartName: Metadata.Location,
-		Version:   Metadata.Version,
-		TargetNS:  namespace,
-		Order:     1,
+		Name:         releaseName,
+		ChartName:    Metadata.Location,
+		Version:      Metadata.Version,
+		TargetNS:     namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        1,
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)
