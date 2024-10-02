@@ -74,17 +74,7 @@ runs:
            external_ids:ovn-encap-ip=127.0.0.1
   - name: Free up runner disk space
     if: ${{ inputs.is-large-runner == 'false' }}
-    shell: bash
-    run: |
-      df -h
-      sudo docker system prune -af
-      sudo rm -rf /usr/local/lib/android
-      sudo rm -rf /opt/hostedtoolcache/CodeQL
-      sudo rm -rf /opt/hostedtoolcache/Python
-      sudo rm -rf /usr/share/dotnet
-      sudo rm -rf /opt/ghc
-      sudo rm -rf /usr/local/share/boost
-      df -h
+    uses: ./.github/actions/free-disk-space
   - name: Set AppArmor mode to complain
     shell: bash
     run: |

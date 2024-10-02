@@ -1,8 +1,8 @@
-name: End to End
-description: e2e tests for embedded-cluster
+name: E2E Troubleshoot
+description: Troubleshoot e2e tests for embedded-cluster
 inputs:
   test-name:
-    description: 'individual test to run'
+    description: 'individual test to troubleshoot'
     required: true
 
 runs:

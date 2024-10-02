@@ -478,18 +478,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Free up runner disk space
-        # if: ${{ inputs.is-large-runner == 'false' }}
-        shell: bash
-        run: |
-          df -h
-          sudo docker system prune -af
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /opt/hostedtoolcache/Python
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          df -h
+        uses: ./.github/actions/free-disk-space
       - name: Write license file
         run: |
           echo "${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}" | base64 --decode > e2e/license.yaml
