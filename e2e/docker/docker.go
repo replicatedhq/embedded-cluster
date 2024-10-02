@@ -127,10 +127,13 @@ func (c *Container) Start() {
 		execCmd.Args = append(execCmd.Args, "-p", port)
 	}
 	execCmd.Args = append(execCmd.Args, c.Image)
-	c.t.Logf("starting container: docker %s", strings.Join(execCmd.Args, " "))
-	output, err := execCmd.CombinedOutput()
+	c.t.Logf("starting container: %s", strings.Join(execCmd.Args, " "))
+	var stdout, stderr bytes.Buffer
+	execCmd.Stdout = &stdout
+	execCmd.Stderr = &stderr
+	err := execCmd.Run()
 	if err != nil {
-		c.t.Fatalf("failed to start container: %v: %s", err, string(output))
+		c.t.Fatalf("failed to start container: %v: %s: %s", err, stdout.String(), stderr.String())
 	}
 }
 
