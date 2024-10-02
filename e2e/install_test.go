@@ -32,8 +32,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, nil, node0, "deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if _, stderr, err := setupPlaywrightAndRunTest(t, nil, node0, "deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s", err, string(stderr))
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
@@ -46,8 +46,8 @@ func TestSingleNodeInstallation(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, nil, node0, "deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-upgrade: %v", err)
+	if _, stderr, err := runPlaywrightTest(t, nil, node0, "deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s", err, string(stderr))
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
