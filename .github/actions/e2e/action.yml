@@ -94,6 +94,7 @@ runs:
   - name: Check systemd status
     run: |
       systemctl status
+    shell: bash
   - name: Setup Go
     uses: actions/setup-go@v5
     with:
