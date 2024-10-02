@@ -94,7 +94,6 @@ type Chart struct {
 	// +kubebuilder:validation:Optional
 	Timeout time.Duration `json:"timeout,omitempty"`
 	// ForceUpgrade when set to false, disables the use of the "--force" flag when upgrading the the chart (default: true).
-	// +kubebuilder:default=true
 	// +optional
 	ForceUpgrade *bool `json:"forceUpgrade,omitempty"`
 	// +kubebuilder:validation:Optional
