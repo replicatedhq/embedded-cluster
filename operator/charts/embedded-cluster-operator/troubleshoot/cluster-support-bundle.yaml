@@ -7,7 +7,8 @@ metadata:
 spec:
   uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster-operator/main/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
   collectors:
-  - goldpinger: {}
+  - goldpinger:
+      namespace: goldpinger
   - logs:
       name: podlogs/embedded-cluster-operator
       namespace: embedded-cluster
