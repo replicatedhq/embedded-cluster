@@ -13,6 +13,7 @@ type TemplateData struct {
 	ProxyRegistryURL        string
 	AdminConsolePort        int
 	LocalArtifactMirrorPort int
+	SystemArchitecture      string
 }
 
 func renderTemplate(spec string, data TemplateData) (string, error) {
