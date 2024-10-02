@@ -126,9 +126,19 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
 			Name:      fmt.Sprintf(upgradeJobName, in.Name),
+			Labels: map[string]string{
+				"app.kubernetes.io/instance": "embedded-cluster-upgrade",
+				"app.kubernetes.io/name":     "embedded-cluster-upgrade",
+			},
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app.kubernetes.io/instance": "embedded-cluster-upgrade",
+						"app.kubernetes.io/name":     "embedded-cluster-upgrade",
+					},
+				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: "embedded-cluster-operator",
