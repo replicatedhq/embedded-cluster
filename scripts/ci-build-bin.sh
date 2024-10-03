@@ -24,7 +24,7 @@ function init_vars() {
         K0S_VERSION=$(make print-K0S_VERSION)
     fi
     if [ -z "${K0S_GO_VERSION:-}" ]; then
-        K0S_GO_VERSION=$(make print-K0S_VERSION)
+        K0S_GO_VERSION=$(make print-K0S_GO_VERSION)
     fi
 
     require EC_VERSION "${EC_VERSION:-}"
