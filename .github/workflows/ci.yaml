@@ -468,6 +468,7 @@ jobs:
           - TestSingleNodeInstallationCentos9Stream
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
+          - TestInstallWithoutEmbed
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -493,6 +494,7 @@ jobs:
           # SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
           SHORT_SHA: dev-39ffcee
           LICENSE_PATH: license.yaml
+          LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           # EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
           EXPECT_K0S_VERSION: v1.29.8+k0s.0
         run: |
@@ -522,7 +524,6 @@ jobs:
   #       #   - TestMultiNodeInstallation
   #       #   - TestMultiNodeReset
   #       #   - TestCommandsRequireSudo
-  #       #   - TestInstallWithoutEmbed
   #       #   - TestUpgradeEC18FromReplicatedApp
   #       #   - TestResetAndReinstall
   #       #   - TestResetAndReinstallAirgap
