@@ -105,7 +105,6 @@ func (c *Container) Run() {
 	execCmd := exec.Command(
 		dockerBinPath(c.t),
 		"run",
-		"--rm",
 		"-d",
 		"--privileged",
 		"--cgroupns=host",
