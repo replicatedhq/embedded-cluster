@@ -27,7 +27,11 @@ type ClusterInput struct {
 func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{t: in.T}
 	for i := 0; i < in.Nodes; i++ {
-		c.Nodes = append(c.Nodes, NewNode(in))
+		node := NewNode(in)
+		if i == 0 {
+			node = node.WithPort("30003:30003")
+		}
+		c.Nodes = append(c.Nodes, node)
 	}
 	c.WaitForReady()
 	return c
@@ -37,7 +41,6 @@ func NewNode(in *ClusterInput) *Container {
 	c := NewContainer(in.T).
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", in.Distro)).
 		WithVolume("/var/lib/k0s").
-		WithPort("30003:30003").
 		WithScripts()
 	if in.ECBinaryPath != "" {
 		in.T.Logf("using embedded cluster binary %s", in.ECBinaryPath)
