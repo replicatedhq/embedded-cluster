@@ -1,8 +1,6 @@
 package e2e
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -13,47 +11,38 @@ import (
 func TestPreflights(t *testing.T) {
 	t.Parallel()
 
-	container := docker.NewContainer(t).
-		WithImage("debian:bookworm-slim").
-		WithECBinary()
-	if licensePath := os.Getenv("LICENSE_PATH"); licensePath != "" {
-		t.Logf("using license %s", licensePath)
-		container = container.WithLicense(licensePath)
-	}
-	container.Start()
-
-	t.Cleanup(func() {
-		container.Destroy()
+	tc := docker.NewCluster(&docker.ClusterInput{
+		Nodes:  1,
+		Distro: "debian-bookworm",
+		T:      t,
 	})
+	defer tc.Cleanup()
 
-	_, stderr, err := container.Exec(
-		"apt-get update && apt-get install -y apt-utils kmod netcat-traditional",
+	_, stderr, err := tc.Nodes[0].Exec(
+		"apt-get update && apt-get install -y apt-utils netcat-traditional",
 	)
 	if err != nil {
 		t.Fatalf("failed to install deps: err=%v, stderr=%s", err, stderr)
 	}
 
-	if _, stderr, err = container.Exec("nohup netcat -l -p 10250 &"); err != nil {
+	if _, stderr, err = tc.Nodes[0].Exec("nohup netcat -l -p 10250 &"); err != nil {
 		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
 	}
 
-	if _, stderr, err = container.Exec("nohup netcat -l 127.0.0.1 -p 50000 &"); err != nil {
+	if _, stderr, err = tc.Nodes[0].Exec("nohup netcat -l 127.0.0.1 -p 50000 &"); err != nil {
 		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
 	}
 
-	if _, stderr, err = container.Exec("nohup netcat -l -u -p 4789 &"); err != nil {
+	if _, stderr, err = tc.Nodes[0].Exec("nohup netcat -l -u -p 4789 &"); err != nil {
 		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
 	}
 
-	runCmd := fmt.Sprintf("%s install run-preflights --no-prompt", container.GetECBinaryPath())
-	if os.Getenv("LICENSE_PATH") != "" {
-		runCmd = fmt.Sprintf("%s --license %s", runCmd, container.GetLicensePath())
-	}
+	runCmd := "embedded-cluster install run-preflights --no-prompt --license /assets/license.yaml"
 
 	// we are more interested in the results
-	runStdout, runStderr, runErr := container.Exec(runCmd)
+	runStdout, runStderr, runErr := tc.Nodes[0].Exec(runCmd)
 
-	stdout, stderr, err := container.Exec(
+	stdout, stderr, err := tc.Nodes[0].Exec(
 		"cat /var/lib/embedded-cluster/support/host-preflight-results.json",
 	)
 	if err != nil {
@@ -61,7 +50,7 @@ func TestPreflights(t *testing.T) {
 		t.Fatalf("failed to get preflight results: err=%v, stderr=%s", err, stderr)
 	}
 
-	_, stderr, err = container.Exec(
+	_, stderr, err = tc.Nodes[0].Exec(
 		"ls /var/lib/embedded-cluster/support/preflight-bundle.tar.gz",
 	)
 	if err != nil {

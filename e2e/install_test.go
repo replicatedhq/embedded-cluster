@@ -26,7 +26,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		Distro: "ubuntu-jammy",
 		T:      t,
 	})
-	defer tc.Cleanup(t)
+	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui --admin-console-port 30002")
@@ -34,7 +34,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
-	if _, stderr, err := tc.SetupPlaywrightAndRunTest(t, "deploy-app"); err != nil {
+	if _, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s", err, string(stderr))
 	}
 
@@ -48,7 +48,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, stderr, err := tc.RunPlaywrightTest(t, "deploy-upgrade", testArgs...); err != nil {
+	if _, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s", err, string(stderr))
 	}
 
@@ -71,7 +71,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		Distro: "almalinux-8",
 		T:      t,
 	})
-	defer tc.Cleanup(t)
+	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
@@ -79,7 +79,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
-	if _, stderr, err := tc.SetupPlaywrightAndRunTest(t, "deploy-app"); err != nil {
+	if _, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s", err, string(stderr))
 	}
 
@@ -93,7 +93,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, stderr, err := tc.RunPlaywrightTest(t, "deploy-upgrade", testArgs...); err != nil {
+	if _, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s", err, string(stderr))
 	}
 
@@ -116,7 +116,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		Distro: "debian-bookworm",
 		T:      t,
 	})
-	defer tc.Cleanup(t)
+	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
@@ -124,7 +124,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
-	if _, stderr, err := tc.SetupPlaywrightAndRunTest(t, "deploy-app"); err != nil {
+	if _, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s", err, string(stderr))
 	}
 
@@ -138,7 +138,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, stderr, err := tc.RunPlaywrightTest(t, "deploy-upgrade", testArgs...); err != nil {
+	if _, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s", err, string(stderr))
 	}
 
@@ -161,7 +161,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 		Distro: "debian-bullseye",
 		T:      t,
 	})
-	defer tc.Cleanup(t)
+	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
@@ -169,7 +169,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
-	if _, stderr, err := tc.SetupPlaywrightAndRunTest(t, "deploy-app"); err != nil {
+	if _, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s", err, string(stderr))
 	}
 
@@ -183,7 +183,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, stderr, err := tc.RunPlaywrightTest(t, "deploy-upgrade", testArgs...); err != nil {
+	if _, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s", err, string(stderr))
 	}
 
@@ -206,18 +206,15 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 		Distro: "centos-9",
 		T:      t,
 	})
-	defer tc.Cleanup(t)
-
-	stdout, stderr, err := tc.Nodes[0].Exec("chronyc tracking")
-	t.Logf("chronyd status: %s: %s", string(stdout), string(stderr))
+	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, string(stdout), string(stderr))
 	}
 
-	if _, stderr, err := tc.SetupPlaywrightAndRunTest(t, "deploy-app"); err != nil {
+	if _, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s", err, string(stderr))
 	}
 
@@ -231,7 +228,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, stderr, err := tc.RunPlaywrightTest(t, "deploy-upgrade", testArgs...); err != nil {
+	if _, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s", err, string(stderr))
 	}
 
