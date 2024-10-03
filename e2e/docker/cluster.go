@@ -51,6 +51,13 @@ func NewNode(in *ClusterInput) *Container {
 	return c
 }
 
+func (c *Cluster) Start() {
+	for _, node := range c.Nodes {
+		node.Start()
+	}
+	c.WaitForReady()
+}
+
 func (c *Cluster) WaitForReady() {
 	for i, node := range c.Nodes {
 		c.t.Logf("waiting for node %d to be ready", i)
