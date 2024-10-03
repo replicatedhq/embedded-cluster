@@ -471,6 +471,8 @@ jobs:
           - TestInstallWithoutEmbed
           - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
+          - TestOldVersionUpgrade
+          - TestInstallSnapshotFromReplicatedApp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -510,6 +512,7 @@ jobs:
           # EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
           EXPECT_K0S_VERSION: v1.29.8+k0s.0
           # EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          EXPECT_K0S_VERSION_PREVIOUS: v1.28.10+k0s.0
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
@@ -539,13 +542,11 @@ jobs:
   #       #   - TestCommandsRequireSudo
   #       #   - TestResetAndReinstallAirgap
   #       #   - TestCollectSupportBundle
-  #       #   - TestOldVersionUpgrade
   #       #   - TestMaterialize
   #       #   - TestLocalArtifactMirror
   #       #   - TestSingleNodeAirgapUpgrade
   #       #   - TestSingleNodeAirgapUpgradeFromEC18
   #       #   - TestSingleNodeAirgapUpgradeCustomCIDR
-  #       #   - TestInstallSnapshotFromReplicatedApp
   #       #   - TestMultiNodeAirgapUpgrade
   #       #   - TestSingleNodeDisasterRecovery
   #       #   - TestSingleNodeDisasterRecoveryWithProxy

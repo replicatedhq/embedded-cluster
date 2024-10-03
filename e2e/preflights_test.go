@@ -12,9 +12,11 @@ func TestPreflights(t *testing.T) {
 	t.Parallel()
 
 	tc := docker.NewCluster(&docker.ClusterInput{
-		Nodes:  1,
-		Distro: "debian-bookworm",
-		T:      t,
+		T:            t,
+		Nodes:        1,
+		Distro:       "debian-bookworm",
+		LicensePath:  "license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
 
