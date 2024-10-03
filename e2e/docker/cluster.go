@@ -47,7 +47,6 @@ func NewNode(in *ClusterInput) *Container {
 func (c *Cluster) WaitForReady() {
 	for _, node := range c.Nodes {
 		node.WaitForSystemd()
-		time.Sleep(30 * time.Second)
 		node.WaitForClockSync()
 	}
 }
