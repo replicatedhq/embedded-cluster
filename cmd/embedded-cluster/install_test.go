@@ -1,12 +1,15 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 func Test_getLicenseFromFilepath(t *testing.T) {
@@ -196,6 +199,116 @@ versionLabel: testversion
 				req.EqualError(err, tt.wantErr)
 			} else {
 				req.NoError(err)
+			}
+		})
+	}
+}
+
+func Test_validateAdminConsolePassword(t *testing.T) {
+
+	tests := []struct {
+		name          string
+		password      string
+		passwordCheck string
+		wantSuccess   bool
+	}{
+		{
+			name:          "passwords match, with 3 characters length",
+			password:      "123",
+			passwordCheck: "123",
+			wantSuccess:   false,
+		},
+		{
+			name:          "passwords don't match, with 3 characters length",
+			password:      "123",
+			passwordCheck: "nop",
+			wantSuccess:   false,
+		},
+		{
+			name:          "passwords don't match, with 6 characters length",
+			password:      "123456",
+			passwordCheck: "nmatch",
+			wantSuccess:   false,
+		},
+		{
+			name:          "passwords match, with 6 characters length",
+			password:      "123456",
+			passwordCheck: "123456",
+			wantSuccess:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			success := validateAdminConsolePassword(tt.password, tt.passwordCheck)
+			if tt.wantSuccess {
+				req.True(success)
+			} else {
+				req.False(success)
+			}
+		})
+	}
+}
+
+func Test_maybeAskAdminConsolePassword(t *testing.T) {
+
+	tests := []struct {
+		name         string
+		userPassword string
+		noPrompt     bool
+		wantPassword string
+		wantError    bool
+	}{
+		{
+			name:         "no user provided password, no-prompt true",
+			userPassword: "",
+			noPrompt:     true,
+			wantPassword: "password",
+			wantError:    false,
+		},
+		{
+			name:         "invalid user provided password, no-prompt false",
+			userPassword: "123",
+			noPrompt:     false,
+			wantPassword: "",
+			wantError:    true,
+		},
+		{
+			name:         "user provided password, no-prompt true",
+			userPassword: "123456",
+			noPrompt:     true,
+			wantPassword: "123456",
+			wantError:    false,
+		},
+		{
+			name:         "user provided password, no-prompt false",
+			userPassword: "123456",
+			noPrompt:     false,
+			wantPassword: "123456",
+			wantError:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			flags := installCommand.Flags
+			flagSet := flag.NewFlagSet("test", 0)
+			for _, flag := range flags {
+				flag.Apply(flagSet)
+			}
+			flagSet.Set("no-prompt", strconv.FormatBool(tt.noPrompt))
+			flagSet.Set("admin-console-password", tt.userPassword)
+			c := cli.NewContext(cli.NewApp(), flagSet, nil)
+			passwordSet, err := maybeAskAdminConsolePassword(c)
+
+			if tt.wantError {
+				req.Error(err)
+			} else {
+				req.Equal(tt.wantPassword, passwordSet)
 			}
 		})
 	}

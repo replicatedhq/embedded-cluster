@@ -30,6 +30,9 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
+// Minimum character length for the Admin Console password
+const minAdminPasswordLength = 6
+
 // ErrNothingElseToAdd is an error returned when there is nothing else to add to the
 // screen. This is useful when we want to exit an error from a function here but
 // don't want to print anything else (possibly because we have already printed the
@@ -553,29 +556,41 @@ func runOutro(c *cli.Context, applier *addons.Applier, cfg *k0sconfig.ClusterCon
 func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 	defaultPassword := "password"
 	userProvidedPassword := c.String("admin-console-password")
-	if c.Bool("no-prompt") {
-		if userProvidedPassword != "" {
-			return userProvidedPassword, nil
-		} else {
-			logrus.Infof("The Admin Console password is set to %s", defaultPassword)
-			return defaultPassword, nil
-		}
-	}
+	// If there's a user provided password we'll try that first
 	if userProvidedPassword != "" {
+		// Password isn't retyped so we provided it twice
+		if !validateAdminConsolePassword(userProvidedPassword, userProvidedPassword) {
+			return "", fmt.Errorf("unable to set the Admin Console password")
+		}
 		return userProvidedPassword, nil
+	}
+	// No user provided password but prompt is disabled so we set our default password
+	if c.Bool("no-prompt") {
+		logrus.Infof("The Admin Console password is set to %s", defaultPassword)
+		return defaultPassword, nil
 	}
 	maxTries := 3
 	for i := 0; i < maxTries; i++ {
-		promptA := prompts.New().Password("Set the Admin Console password:")
+		promptA := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
 		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
-		if promptA == promptB {
-			// TODO: Should we add extra password validation here? e.g length, complexity etc
+		if validateAdminConsolePassword(promptA, promptB) {
 			return promptA, nil
 		}
-		logrus.Info("Passwords don't match. Please try again.")
 	}
 	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
+}
+
+func validateAdminConsolePassword(password, passwordCheck string) bool {
+	if password != passwordCheck {
+		logrus.Info("Passwords don't match. Please try again.")
+		return false
+	}
+	if len(password) < minAdminPasswordLength {
+		logrus.Infof("Passwords must have more than %d characters. Please try again.", minAdminPasswordLength)
+		return false
+	}
+	return true
 }
 
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
@@ -600,7 +615,7 @@ var installCommand = &cli.Command{
 		[]cli.Flag{
 			&cli.StringFlag{
 				Name:   "admin-console-password",
-				Usage:  "Password for the Admin Console",
+				Usage:  fmt.Sprintf("Password for the Admin Console (minimum %d characters)", minAdminPasswordLength),
 				Hidden: false,
 			},
 			&cli.StringFlag{
