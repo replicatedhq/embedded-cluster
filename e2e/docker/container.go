@@ -172,9 +172,9 @@ func (c *Container) WaitForSystemd() {
 		case <-timeout:
 			c.t.Fatalf("timeout waiting for systemd to start")
 		case <-tick:
-			status, _, _ := c.Exec("systemctl is-system-running")
-			c.t.Logf("systemd status: %s", status)
-			if strings.TrimSpace(status) == "running" {
+			stdout, stderr, err := c.Exec("systemctl is-system-running")
+			c.t.Logf("systemd stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			if strings.TrimSpace(stdout) == "running" {
 				return
 			}
 		}
@@ -201,9 +201,9 @@ func (c *Container) WaitForChronyd() {
 		case <-timeout:
 			c.t.Fatalf("timeout waiting for chronyd to start")
 		case <-tick:
-			status, _, _ := c.Exec("chronyc tracking | grep 'Leap status'")
-			c.t.Logf("chronyd status: %s", status)
-			if strings.Contains(status, "Normal") {
+			stdout, stderr, err := c.Exec("chronyc tracking | grep 'Leap status'")
+			c.t.Logf("chronyd stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			if strings.Contains(stdout, "Normal") {
 				return
 			}
 		}
@@ -218,9 +218,9 @@ func (c *Container) WaitForTimesyncd() {
 		case <-timeout:
 			c.t.Fatalf("timeout waiting for timesyncd to start")
 		case <-tick:
-			status, _, _ := c.Exec("timedatectl show | grep NTPSynchronized")
-			c.t.Logf("timesyncd status: %s", status)
-			if strings.Contains(status, "yes") {
+			stdout, stderr, err := c.Exec("timedatectl show | grep NTPSynchronized")
+			c.t.Logf("timesyncd stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			if strings.Contains(stdout, "yes") {
 				return
 			}
 		}
