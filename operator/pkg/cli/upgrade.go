@@ -58,13 +58,15 @@ func UpgradeCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
-			err = metrics.NotifyUpgradeStarted(cmd.Context(), in.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
-				ClusterID:      in.Spec.ClusterID,
-				TargetVersion:  in.Spec.Config.Version,
-				InitialVersion: previousInstallation.Spec.Config.Version,
-			})
-			if err != nil {
-				fmt.Printf("failed to report that the upgrade was started: %v\n", err)
+			if !in.Spec.AirGap {
+				err = metrics.NotifyUpgradeStarted(cmd.Context(), in.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
+					ClusterID:      in.Spec.ClusterID,
+					TargetVersion:  in.Spec.Config.Version,
+					InitialVersion: previousInstallation.Spec.Config.Version,
+				})
+				if err != nil {
+					fmt.Printf("failed to report that the upgrade was started: %v\n", err)
+				}
 			}
 
 			fmt.Println("Upgrade job created successfully")
