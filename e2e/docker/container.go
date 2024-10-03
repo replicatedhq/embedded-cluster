@@ -36,8 +36,8 @@ func (c *Container) WithImage(image string) *Container {
 	return c
 }
 
-func (c *Container) WithECBinary() *Container {
-	path, err := filepath.Abs("../output/bin/embedded-cluster")
+func (c *Container) WithECBinary(path string) *Container {
+	path, err := filepath.Abs(path)
 	if err != nil {
 		c.t.Fatalf("failed to get absolute path to embedded-cluster binary: %v", err)
 	}

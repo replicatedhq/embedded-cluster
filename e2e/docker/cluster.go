@@ -17,9 +17,11 @@ type Cluster struct {
 }
 
 type ClusterInput struct {
-	T      *testing.T
-	Nodes  int
-	Distro string
+	T            *testing.T
+	Nodes        int
+	Distro       string
+	LicensePath  string
+	ECBinaryPath string
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
@@ -36,11 +38,14 @@ func NewNode(in *ClusterInput) *Container {
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", in.Distro)).
 		WithVolume("/var/lib/k0s").
 		WithPort("30003:30003").
-		WithScripts().
-		WithECBinary()
-	if licensePath := os.Getenv("LICENSE_PATH"); licensePath != "" {
-		in.T.Logf("using license %s", licensePath)
-		c = c.WithLicense(licensePath)
+		WithScripts()
+	if in.ECBinaryPath != "" {
+		in.T.Logf("using embedded cluster binary %s", in.ECBinaryPath)
+		c = c.WithECBinary(in.ECBinaryPath)
+	}
+	if in.LicensePath != "" {
+		in.T.Logf("using license %s", in.LicensePath)
+		c = c.WithLicense(in.LicensePath)
 	}
 	c.Start()
 	return c
