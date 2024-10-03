@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -46,23 +45,16 @@ func NewNode(in *ClusterInput) *Container {
 }
 
 func (c *Cluster) WaitForReady() {
+	var wg sync.WaitGroup
 	for _, node := range c.Nodes {
-		timeout := time.After(2 * time.Minute)
-		tick := time.Tick(time.Second)
-		for {
-			select {
-			case <-timeout:
-				node.t.Fatalf("timeout waiting for systemd to start")
-			case <-tick:
-				status, stderr, err := node.Exec("systemctl is-system-running")
-				node.t.Logf("systemd status: %s, err: %v, stderr: %s", status, err, stderr)
-				if strings.TrimSpace(status) == "running" {
-					goto NextNode
-				}
-			}
-		}
-	NextNode:
+		wg.Add(1)
+		go func(node *Container) {
+			defer wg.Done()
+			node.WaitForSystemd()
+			node.WaitForClockSync()
+		}(node)
 	}
+	wg.Wait()
 }
 
 func (c *Cluster) Cleanup(t *testing.T) {

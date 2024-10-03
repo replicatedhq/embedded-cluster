@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type Container struct {
@@ -153,4 +154,72 @@ func (c *Container) CopyFile(src, dst string) (string, string, error) {
 	execCmd.Stderr = &stderr
 	err := execCmd.Run()
 	return stdout.String(), stderr.String(), err
+}
+
+func (c *Container) WaitForSystemd() {
+	timeout := time.After(2 * time.Minute)
+	tick := time.Tick(time.Second)
+	for {
+		select {
+		case <-timeout:
+			c.t.Fatalf("timeout waiting for systemd to start")
+		case <-tick:
+			status, _, _ := c.Exec("systemctl is-system-running")
+			c.t.Logf("systemd status: %s", status)
+			if strings.TrimSpace(status) == "running" {
+				return
+			}
+		}
+	}
+}
+
+func (c *Container) WaitForClockSync() {
+	if c.SystemdServiceExists("systemd-timesyncd") {
+		c.WaitForTimesyncd()
+		return
+	}
+	if c.SystemdServiceExists("chronyd") {
+		c.WaitForChronyd()
+		return
+	}
+	c.t.Fatalf("no time sync service found")
+}
+
+func (c *Container) WaitForChronyd() {
+	timeout := time.After(2 * time.Minute)
+	tick := time.Tick(time.Second)
+	for {
+		select {
+		case <-timeout:
+			c.t.Fatalf("timeout waiting for chronyd to start")
+		case <-tick:
+			status, _, _ := c.Exec("chronyc tracking | grep 'Leap status'")
+			c.t.Logf("chronyd status: %s", status)
+			if strings.Contains(status, "Normal") {
+				return
+			}
+		}
+	}
+}
+
+func (c *Container) WaitForTimesyncd() {
+	timeout := time.After(2 * time.Minute)
+	tick := time.Tick(time.Second)
+	for {
+		select {
+		case <-timeout:
+			c.t.Fatalf("timeout waiting for timesyncd to start")
+		case <-tick:
+			status, _, _ := c.Exec("timedatectl show | grep NTPSynchronized")
+			c.t.Logf("timesyncd status: %s", status)
+			if strings.Contains(status, "yes") {
+				return
+			}
+		}
+	}
+}
+
+func (c *Container) SystemdServiceExists(service string) bool {
+	stdout, _, _ := c.Exec(fmt.Sprintf("systemctl list-unit-files | grep %s", service))
+	return strings.TrimSpace(stdout) == "enabled"
 }
