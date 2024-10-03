@@ -31,7 +31,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui --admin-console-port 30002")
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh", "ui", "--admin-console-port 30002")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -41,7 +41,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -55,7 +55,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -78,7 +78,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -88,7 +88,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -102,7 +102,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -125,7 +125,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -135,7 +135,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -149,7 +149,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -172,7 +172,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -182,7 +182,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -196,7 +196,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -219,7 +219,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -229,7 +229,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -243,7 +243,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -322,7 +322,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -385,7 +385,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -429,13 +429,13 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec(fmt.Sprintf("vandoor-prepare.sh %s %s", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID")))
+	stdout, stderr, err := tc.Nodes[0].Exec("vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"))
 	if err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -445,7 +445,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -459,7 +459,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -480,13 +480,13 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec(fmt.Sprintf("vandoor-prepare.sh %s %s", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID")))
+	stdout, stderr, err := tc.Nodes[0].Exec("vandoor-prepare.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"))
 	if err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -496,7 +496,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -510,7 +510,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -531,13 +531,13 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec(fmt.Sprintf("vandoor-prepare.sh 1.8.0+k8s-1.28 %s", os.Getenv("LICENSE_ID")))
+	stdout, stderr, err := tc.Nodes[0].Exec("vandoor-prepare.sh", "1.8.0+k8s-1.28", os.Getenv("LICENSE_ID"))
 	if err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: installing embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -547,7 +547,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh 1.8.0+k8s-1.28 v1.28.11")
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", "1.8.0+k8s-1.28", "v1.28.11")
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -561,7 +561,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -584,7 +584,7 @@ func TestResetAndReinstall(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -594,7 +594,7 @@ func TestResetAndReinstall(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -610,7 +610,7 @@ func TestResetAndReinstall(t *testing.T) {
 	tc.Start()
 
 	t.Logf("%s: installing embedded-cluster on node 0 after reset", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -620,7 +620,7 @@ func TestResetAndReinstall(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after reinstall", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -718,7 +718,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec(fmt.Sprintf("vandoor-prepare.sh %s %s", fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID")))
+	stdout, stderr, err := tc.Nodes[0].Exec("vandoor-prepare.sh", fmt.Sprintf("appver-%s-pre-minio-removal", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"))
 	if err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -730,7 +730,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-pre-minio-removal-installation-state.sh %s", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA"))))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-pre-minio-removal-installation-state.sh", fmt.Sprintf("%s-pre-minio-removal", os.Getenv("SHORT_SHA")))
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -742,7 +742,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1710,7 +1710,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh", "ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1720,7 +1720,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-installation-state.sh %s %s", os.Getenv("SHORT_SHA"), k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1740,7 +1740,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-postupgrade-state.sh %s", k8sVersion()))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
 	if err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}

@@ -142,8 +142,8 @@ func (c *Container) Destroy() {
 	}
 }
 
-func (c *Container) Exec(cmd string) (string, string, error) {
-	args := []string{"exec", c.id, "sh", "-c", cmd}
+func (c *Container) Exec(cmd ...string) (string, string, error) {
+	args := []string{"exec", c.id, "sh", "-c", strings.Join(cmd, " ")}
 	execCmd := exec.Command(dockerBinPath(c.t), args...)
 	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
 	var stdout, stderr bytes.Buffer
