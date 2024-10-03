@@ -482,7 +482,7 @@ jobs:
         with:
           name: current-release
           path: output/bin
-          run-id: 11145887338
+          run-id: 11169315337
           github-token: ${{ secrets.REPLICATED_GH_PAT }}
       - name: Setup go
         uses: actions/setup-go@v5
@@ -498,7 +498,7 @@ jobs:
       - name: Run test
         env:
           # SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
-          SHORT_SHA: dev-39ffcee
+          SHORT_SHA: dev-72d2ee3
           LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           AIRGAP_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
           SNAPSHOT_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
@@ -511,9 +511,9 @@ jobs:
           DR_AWS_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           DR_AWS_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           # EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
-          EXPECT_K0S_VERSION: v1.29.8+k0s.0
+          EXPECT_K0S_VERSION: v1.29.9+k0s.0-ec.0
           # EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.build-previous-k0s.outputs.k0s_version }}
-          EXPECT_K0S_VERSION_PREVIOUS: v1.28.10+k0s.0
+          EXPECT_K0S_VERSION_PREVIOUS: v1.28.14+k0s.0-ec.0
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
