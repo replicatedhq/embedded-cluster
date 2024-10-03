@@ -42,7 +42,7 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		return fmt.Errorf("wait for operator chart: %w", err)
 	}
 
-	err = unLockInstallation(ctx, cli, in)
+	err = reApplyInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("unlock installation: %w", err)
 	}
@@ -127,11 +127,17 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	if err := cli.Delete(ctx, &plan); err != nil {
 		return fmt.Errorf("failed to delete successful upgrade plan: %w", err)
 	}
+
+	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateKubernetesInstalled, "Kubernetes upgraded")
+	if err != nil {
+		return fmt.Errorf("set installation state: %w", err)
+	}
+
 	return nil
 }
 
-func chartUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	input := in.DeepCopy()
+func chartUpgrade(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) error {
+	input := original.DeepCopy()
 	input.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, "", nil)
 
 	err := charts.ReconcileHelmCharts(ctx, cli, input)
@@ -143,6 +149,11 @@ func chartUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Ins
 	// 'InstallationStateAddonsInstalling' is the one we expect to be set
 	if input.Status.State != v1beta1.InstallationStateAddonsInstalling && input.Status.State != v1beta1.InstallationStateInstalled {
 		return fmt.Errorf("got unexpected state %s with message %s reconciling charts", input.Status.State, input.Status.Reason)
+	}
+
+	err = setInstallationState(ctx, cli, original.Name, input.Status.State, input.Status.Reason, input.Status.PendingCharts...)
+	if err != nil {
+		return fmt.Errorf("set installation state: %w", err)
 	}
 
 	return nil
