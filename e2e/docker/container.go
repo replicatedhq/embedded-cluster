@@ -174,8 +174,6 @@ func (c *Container) WaitForSystemd() {
 }
 
 func (c *Container) WaitForClockSync() {
-	stdout, _, _ := c.Exec(fmt.Sprintf("systemctl list-unit-files"))
-	c.t.Logf("systemd services: %s", stdout)
 	if c.SystemdServiceExists("systemd-timesyncd") {
 		c.WaitForTimesyncd()
 		return
@@ -223,5 +221,5 @@ func (c *Container) WaitForTimesyncd() {
 
 func (c *Container) SystemdServiceExists(service string) bool {
 	stdout, _, _ := c.Exec(fmt.Sprintf("systemctl list-unit-files | grep %s", service))
-	return strings.TrimSpace(stdout) == "enabled"
+	return strings.Contains(stdout, "enabled")
 }
