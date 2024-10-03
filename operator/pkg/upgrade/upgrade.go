@@ -96,15 +96,17 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	}
 
 	// check if this was actually a k0s upgrade plan, or just an image download plan
-	isK0sUpgrade := false
+	isOurK0sUpgrade := false
 	for _, command := range plan.Spec.Commands {
 		if command.K0sUpdate != nil {
-			isK0sUpgrade = true
-			break
+			if command.K0sUpdate.Version == meta.Versions["Kubernetes"] {
+				isOurK0sUpgrade = true
+				break
+			}
 		}
 	}
 	// if this was not a k0s upgrade plan, we can just delete the plan and restart the function to get a k0s upgrade
-	if !isK0sUpgrade {
+	if !isOurK0sUpgrade {
 		err = cli.Delete(ctx, &plan)
 		if err != nil {
 			return fmt.Errorf("delete autopilot plan: %w", err)
