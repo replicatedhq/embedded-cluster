@@ -410,5 +410,5 @@ func GetPreviousInstallation(ctx context.Context, cli client.Client, in *cluster
 	}
 
 	// if we get here, we didn't find a previous installation
-	return nil, fmt.Errorf("installation not found")
+	return nil, fmt.Errorf("previous installation not found")
 }
