@@ -109,6 +109,7 @@ func (c *Container) Run() {
 		"-d",
 		"--privileged",
 		"--cgroupns=host",
+		"--restart=unless-stopped",
 		"--name",
 		c.id,
 	)
@@ -140,17 +141,6 @@ func (c *Container) Destroy() {
 	if err != nil {
 		c.t.Fatalf("failed to destroy container: %v: %s", err, string(output))
 	}
-}
-
-func (c *Container) ExecI(cmd ...string) (string, string, error) {
-	args := []string{"exec", c.id, "sh", "-c", strings.Join(cmd, " ")}
-	execCmd := exec.Command(dockerBinPath(c.t), args...)
-	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
-	var stdout, stderr bytes.Buffer
-	execCmd.Stdout = os.Stdout
-	execCmd.Stderr = os.Stderr
-	err := execCmd.Run()
-	return stdout.String(), stderr.String(), err
 }
 
 func (c *Container) Exec(cmd ...string) (string, string, error) {

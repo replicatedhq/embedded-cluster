@@ -605,9 +605,8 @@ func TestResetAndReinstall(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// docker containers don't reboot,
-	// we have to start them manually
-	tc.Start()
+	// wait for the cluster nodes to reboot
+	tc.WaitForReady()
 
 	t.Logf("%s: installing embedded-cluster on node 0 after reset", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh", "ui")
@@ -736,7 +735,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].ExecI("kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA"))
+	stdout, stderr, err = tc.Nodes[0].Exec("kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA"))
 	if err != nil {
 		t.Fatalf("fail to run kots upstream upgrade: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1704,7 +1703,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec(fmt.Sprintf("vandoor-prepare.sh %s %s", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("SNAPSHOT_LICENSE_ID")))
+	stdout, stderr, err := tc.Nodes[0].Exec("vandoor-prepare.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), os.Getenv("SNAPSHOT_LICENSE_ID"))
 	if err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1726,7 +1725,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: ensuring velero is installed", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("check-velero-state.sh %s", os.Getenv("SHORT_SHA")))
+	stdout, stderr, err = tc.Nodes[0].Exec("check-velero-state.sh", os.Getenv("SHORT_SHA"))
 	if err != nil {
 		t.Fatalf("fail to check velero state: %v: %s: %s", err, stdout, stderr)
 	}
