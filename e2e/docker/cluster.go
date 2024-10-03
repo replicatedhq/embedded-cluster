@@ -33,7 +33,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 		}
 		c.Nodes = append(c.Nodes, node)
 	}
-	c.WaitForReady()
+	c.Run()
 	return c
 }
 
@@ -50,8 +50,14 @@ func NewNode(in *ClusterInput) *Container {
 		in.T.Logf("using license %s", in.LicensePath)
 		c = c.WithLicense(in.LicensePath)
 	}
-	c.Run()
 	return c
+}
+
+func (c *Cluster) Run() {
+	for _, node := range c.Nodes {
+		node.Run()
+	}
+	c.WaitForReady()
 }
 
 func (c *Cluster) Start() {
