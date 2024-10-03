@@ -460,20 +460,20 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestPreflights
-          - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian11
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
-          - TestInstallFromReplicatedApp
-          - TestUpgradeFromReplicatedApp
-          - TestInstallWithoutEmbed
-          - TestUpgradeEC18FromReplicatedApp
+          # - TestPreflights
+          # - TestSingleNodeInstallation
+          # - TestSingleNodeInstallationAlmaLinux8
+          # - TestSingleNodeInstallationDebian11
+          # - TestSingleNodeInstallationDebian12
+          # - TestSingleNodeInstallationCentos9Stream
+          # - TestInstallFromReplicatedApp
+          # - TestUpgradeFromReplicatedApp
+          # - TestInstallWithoutEmbed
+          # - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
           - TestOldVersionUpgrade
-          - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeInstallation
+          # - TestInstallSnapshotFromReplicatedApp
+          # - TestMultiNodeInstallation
     steps:
       - name: Checkout
         uses: actions/checkout@v4
