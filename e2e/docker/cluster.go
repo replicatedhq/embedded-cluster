@@ -45,16 +45,11 @@ func NewNode(in *ClusterInput) *Container {
 }
 
 func (c *Cluster) WaitForReady() {
-	var wg sync.WaitGroup
 	for _, node := range c.Nodes {
-		wg.Add(1)
-		go func(node *Container) {
-			defer wg.Done()
-			node.WaitForSystemd()
-			node.WaitForClockSync()
-		}(node)
+		node.WaitForSystemd()
+		time.Sleep(30 * time.Second)
+		node.WaitForClockSync()
 	}
-	wg.Wait()
 }
 
 func (c *Cluster) Cleanup(t *testing.T) {
