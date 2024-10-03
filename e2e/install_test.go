@@ -608,8 +608,9 @@ func TestResetAndReinstall(t *testing.T) {
 		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
-	time.Sleep(30 * time.Second)
+	// docker containers don't reboot,
+	// we have to start them manually
+	tc.Nodes[0].Start()
 
 	t.Logf("%s: installing embedded-cluster on node 0 after reset", time.Now().Format(time.RFC3339))
 	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh ui")

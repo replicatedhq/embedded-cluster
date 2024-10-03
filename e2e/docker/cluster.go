@@ -47,7 +47,7 @@ func NewNode(in *ClusterInput) *Container {
 		in.T.Logf("using license %s", in.LicensePath)
 		c = c.WithLicense(in.LicensePath)
 	}
-	c.Start()
+	c.Run()
 	return c
 }
 

@@ -101,7 +101,7 @@ func (c *Container) WithPort(port string) *Container {
 	return c
 }
 
-func (c *Container) Start() {
+func (c *Container) Run() {
 	execCmd := exec.Command(
 		dockerBinPath(c.t),
 		"run",
@@ -119,7 +119,15 @@ func (c *Container) Start() {
 		execCmd.Args = append(execCmd.Args, "-p", port)
 	}
 	execCmd.Args = append(execCmd.Args, c.Image)
-	c.t.Logf("starting container: %s", strings.Join(execCmd.Args, " "))
+	c.t.Logf("running container: %s", strings.Join(execCmd.Args, " "))
+	output, err := execCmd.CombinedOutput()
+	if err != nil {
+		c.t.Fatalf("failed to run container: %v: %s", err, string(output))
+	}
+}
+
+func (c *Container) Start() {
+	execCmd := exec.Command(dockerBinPath(c.t), "start", c.id)
 	output, err := execCmd.CombinedOutput()
 	if err != nil {
 		c.t.Fatalf("failed to start container: %v: %s", err, string(output))
