@@ -135,7 +135,7 @@ func (c *Container) Start() {
 }
 
 func (c *Container) Destroy() {
-	execCmd := exec.Command(dockerBinPath(c.t), "rm", "-f", c.id)
+	execCmd := exec.Command(dockerBinPath(c.t), "rm", "-f", "--volumes", c.id)
 	output, err := execCmd.CombinedOutput()
 	if err != nil {
 		c.t.Fatalf("failed to destroy container: %v: %s", err, string(output))
