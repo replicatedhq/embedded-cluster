@@ -142,15 +142,24 @@ func (c *Container) Destroy() {
 	}
 }
 
+func (c *Container) ExecI(cmd ...string) (string, string, error) {
+	args := []string{"exec", c.id, "sh", "-c", strings.Join(cmd, " ")}
+	execCmd := exec.Command(dockerBinPath(c.t), args...)
+	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
+	var stdout, stderr bytes.Buffer
+	execCmd.Stdout = os.Stdout
+	execCmd.Stderr = os.Stderr
+	err := execCmd.Run()
+	return stdout.String(), stderr.String(), err
+}
+
 func (c *Container) Exec(cmd ...string) (string, string, error) {
 	args := []string{"exec", c.id, "sh", "-c", strings.Join(cmd, " ")}
 	execCmd := exec.Command(dockerBinPath(c.t), args...)
 	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
 	var stdout, stderr bytes.Buffer
-	// execCmd.Stdout = &stdout
-	// execCmd.Stderr = &stderr
-	execCmd.Stdout = os.Stdout
-	execCmd.Stderr = os.Stderr
+	execCmd.Stdout = &stdout
+	execCmd.Stderr = &stderr
 	err := execCmd.Run()
 	return stdout.String(), stderr.String(), err
 }

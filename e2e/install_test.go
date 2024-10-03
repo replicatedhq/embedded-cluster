@@ -736,7 +736,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: running kots upstream upgrade", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.Nodes[0].Exec(fmt.Sprintf("kots-upstream-upgrade.sh %s", os.Getenv("SHORT_SHA")))
+	stdout, stderr, err = tc.Nodes[0].ExecI("kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA"))
 	if err != nil {
 		t.Fatalf("fail to run kots upstream upgrade: %v: %s: %s", err, stdout, stderr)
 	}
