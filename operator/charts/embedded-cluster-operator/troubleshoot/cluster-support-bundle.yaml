@@ -9,6 +9,9 @@ spec:
   collectors:
   - goldpinger:
       namespace: goldpinger
+      image: bloomberg/goldpinger:3.10.1
+      podLaunchOptions:
+        image: busybox:1
   - logs:
       name: podlogs/embedded-cluster-operator
       namespace: embedded-cluster
