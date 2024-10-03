@@ -208,7 +208,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	})
 	defer tc.Cleanup(t)
 
-	stdout, stderr, err := tc.Nodes[0].Exec("systemctl status chronyd")
+	stdout, stderr, err := tc.Nodes[0].Exec("chronyc tracking")
 	t.Logf("chronyd status: %s: %s", string(stdout), string(stderr))
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
