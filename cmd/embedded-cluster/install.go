@@ -556,7 +556,8 @@ func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 	userProvidedPassword := c.String("admin-console-password")
 	// If there's a user provided password we'll try that first
 	if userProvidedPassword != "" {
-		if !validateAdminConsolePassword(userProvidedPassword, "", false) {
+		// Password isn't retyped so we provided it twice
+		if !validateAdminConsolePassword(userProvidedPassword, userProvidedPassword) {
 			return "", fmt.Errorf("unable to set the Admin Console password")
 		}
 		return userProvidedPassword, nil
@@ -571,15 +572,15 @@ func maybeAskAdminConsolePassword(c *cli.Context) (string, error) {
 		promptA := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
 		promptB := prompts.New().Password("Confirm the Admin Console password:")
 
-		if validateAdminConsolePassword(promptA, promptB, true) {
+		if validateAdminConsolePassword(promptA, promptB) {
 			return promptA, nil
 		}
 	}
 	return "", fmt.Errorf("unable to set the Admin Console password after %d tries", maxTries)
 }
 
-func validateAdminConsolePassword(password, passwordCheck string, mustMatch bool) bool {
-	if mustMatch && password != passwordCheck {
+func validateAdminConsolePassword(password, passwordCheck string) bool {
+	if password != passwordCheck {
 		logrus.Info("Passwords don't match. Please try again.")
 		return false
 	}
