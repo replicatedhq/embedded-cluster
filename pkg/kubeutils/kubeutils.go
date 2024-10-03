@@ -318,7 +318,7 @@ func WaitForControllerNode(ctx context.Context, kcli client.Client, name string)
 	return nil
 }
 
-// WaitForJob waits for a job to be ready.
+// WaitForJob waits for a job to have a certain number of completions.
 func WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxSteps int, completions int32) error {
 	backoff := wait.Backoff{Steps: maxSteps, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error

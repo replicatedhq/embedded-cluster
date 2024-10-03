@@ -216,6 +216,9 @@ func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta
 			break
 		}
 	}
+	if operatorImage == "" {
+		return "", fmt.Errorf("no embedded-cluster-operator image found in release metadata")
+	}
 	return operatorImage, nil
 }
 
