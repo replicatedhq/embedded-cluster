@@ -23,9 +23,13 @@ function init_vars() {
     if [ -z "${K0S_VERSION:-}" ]; then
         K0S_VERSION=$(make print-K0S_VERSION)
     fi
+    if [ -z "${K0S_GO_VERSION:-}" ]; then
+        K0S_GO_VERSION=$(make print-K0S_VERSION)
+    fi
 
     require EC_VERSION "${EC_VERSION:-}"
     require K0S_VERSION "${K0S_VERSION:-}"
+    require K0S_GO_VERSION "${K0S_GO_VERSION:-}"
 }
 
 function deps() {
@@ -48,7 +52,7 @@ function binary() {
 
     make embedded-cluster-linux-$ARCH \
         K0S_VERSION="$K0S_VERSION" \
-        K0S_GO_VERSION="$K0S_VERSION" \
+        K0S_GO_VERSION="$K0S_GO_VERSION" \
         VERSION="$EC_VERSION" \
         METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
         METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
