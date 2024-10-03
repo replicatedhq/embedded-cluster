@@ -46,6 +46,25 @@ spec:
   `,
 		},
 		{
+			name:       "valid multi-channel license, with release",
+			useRelease: true,
+			licenseContents: `
+spec:
+  appSlug: embedded-cluster-smoke-test-staging-app
+  channelID: "OtherChannelID"
+  isEmbeddedClusterDownloadEnabled: true
+  channels:
+    - channelID: OtherChannelID
+      channelName: OtherChannel
+      channelSlug: other-channel
+      isDefault: true
+    - channelID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+      channelName: ExpectedChannel
+      channelSlug: expected-channel
+      isDefault: false
+  `,
+		},
+		{
 			name:       "expired license, with release",
 			useRelease: true,
 			licenseContents: `
@@ -107,6 +126,38 @@ spec:
   isEmbeddedClusterDownloadEnabled: false
   `,
 			wantErr: "license does not have embedded cluster enabled, please provide a valid license",
+		},
+		{
+			name:       "incorrect license (multichan license)",
+			useRelease: true,
+			licenseContents: `
+spec:
+  appSlug: embedded-cluster-smoke-test-staging-app
+  channelID: "2i9fCbxTNIhuAOaC6MoKMVeGzuK"
+  isEmbeddedClusterDownloadEnabled: false
+  channels:
+    - channelID: 2i9fCbxTNIhuAOaC6MoKMVeGzuK
+      channelName: Stable
+      channelSlug: stable
+      isDefault: true
+    - channelID: 4l9fCbxTNIhuAOaC6MoKMVeV3K
+      channelName: Alternate
+      channelSlug: alternate
+      isDefault: false
+  `,
+			wantErr: "binary channel 2cHXb1RCttzpR0xvnNWyaZCgDBP (CI) not present in license, channels allowed by license are: stable (2i9fCbxTNIhuAOaC6MoKMVeGzuK), alternate (4l9fCbxTNIhuAOaC6MoKMVeV3K)",
+		},
+		{
+			name:       "incorrect license (pre-multichan license)",
+			useRelease: true,
+			licenseContents: `
+spec:
+  appSlug: embedded-cluster-smoke-test-staging-app
+  channelID: "2i9fCbxTNIhuAOaC6MoKMVeGzuK"
+  channelName: "Stable"
+  isEmbeddedClusterDownloadEnabled: false
+  `,
+			wantErr: "binary channel 2cHXb1RCttzpR0xvnNWyaZCgDBP (CI) not present in license, channels allowed by license are: Stable (2i9fCbxTNIhuAOaC6MoKMVeGzuK)",
 		},
 	}
 	for _, tt := range tests {

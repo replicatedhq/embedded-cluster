@@ -193,7 +193,12 @@ func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *
 	seen := map[string]bool{}
 	for _, node := range nodes.Items {
 		seen[node.Name] = true
-		event := metrics.NodeEventFromNode(in.Spec.ClusterID, node)
+		ver := ""
+		if in.Spec.Config != nil {
+			ver = in.Spec.Config.Version
+		}
+
+		event := metrics.NodeEventFromNode(in.Spec.ClusterID, ver, node)
 		changed, isnew, err := r.NodeHasChanged(in, event)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if node has changed: %w", err)
@@ -250,20 +255,32 @@ func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, 
 		return
 	}
 	var err error
+	var beforeVer, afterVer string
+	if before.Spec.Config != nil {
+		beforeVer = before.Spec.Config.Version
+	}
+	if after.Spec.Config != nil {
+		afterVer = after.Spec.Config.Version
+	}
 	switch after.Status.State {
 	case v1beta1.InstallationStateInstalling:
 		err = metrics.NotifyUpgradeStarted(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
-			ClusterID: after.Spec.ClusterID,
-			Version:   after.Spec.Config.Version,
+			ClusterID:      after.Spec.ClusterID,
+			TargetVersion:  afterVer,
+			InitialVersion: beforeVer,
 		})
 	case v1beta1.InstallationStateInstalled:
 		err = metrics.NotifyUpgradeSucceeded(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeSucceededEvent{
-			ClusterID: after.Spec.ClusterID,
+			ClusterID:      after.Spec.ClusterID,
+			TargetVersion:  afterVer,
+			InitialVersion: beforeVer,
 		})
 	case v1beta1.InstallationStateFailed:
 		err = metrics.NotifyUpgradeFailed(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeFailedEvent{
-			ClusterID: after.Spec.ClusterID,
-			Reason:    after.Status.Reason,
+			ClusterID:      after.Spec.ClusterID,
+			Reason:         after.Status.Reason,
+			TargetVersion:  afterVer,
+			InitialVersion: beforeVer,
 		})
 	}
 	if err != nil {

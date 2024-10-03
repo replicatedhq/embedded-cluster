@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -78,11 +79,12 @@ func (o *SeaweedFS) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDef
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:      releaseName,
-		ChartName: Metadata.Location,
-		Version:   Metadata.Version,
-		TargetNS:  o.namespace,
-		Order:     2,
+		Name:         releaseName,
+		ChartName:    Metadata.Location,
+		Version:      Metadata.Version,
+		TargetNS:     o.namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        2,
 	}
 
 	valuesStringData, err := yaml.Marshal(helmValues)

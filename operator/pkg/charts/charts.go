@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -126,6 +128,19 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *cl
 // updateInfraChartsFromInstall updates the infrastructure charts with dynamic values from the installation spec
 func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig, charts []v1beta1.Chart) ([]v1beta1.Chart, error) {
 	for i, chart := range charts {
+		ecCharts := []string{
+			"admin-console",
+			"docker-registry",
+			"embedded-cluster-operator",
+			"openebs",
+			"seaweedfs",
+			"velero",
+		}
+		if slices.Contains(ecCharts, chart.Name) && charts[i].ForceUpgrade == nil {
+			// run helm upgrade --force=false
+			charts[i].ForceUpgrade = ptr.To(false)
+		}
+
 		if chart.Name == "admin-console" {
 			newVals, err := helm.UnmarshalValues(chart.Values)
 			if err != nil {

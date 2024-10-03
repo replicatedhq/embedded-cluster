@@ -373,7 +373,7 @@ var resetCommand = &cli.Command{
 		}
 
 		logrus.Info("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
-		logrus.Info("This action will cause the node to reboot. Do not reset another node until this is complete.")
+		logrus.Info("This node will also reboot. Do not reset another node until this is complete.")
 		if !c.Bool("force") && !c.Bool("no-prompt") && !prompts.New().Confirm("Do you want to continue?", false) {
 			return fmt.Errorf("Aborting")
 		}

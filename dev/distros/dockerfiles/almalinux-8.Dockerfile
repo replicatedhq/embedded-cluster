@@ -14,6 +14,7 @@ RUN dnf install -y \
   kmod \
   iproute \
   chrony \
+  expect \
   vim \
   --allowerasing
 

@@ -27,6 +27,7 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -100,11 +101,12 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
 func (e *EmbeddedClusterOperator) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	chartConfig := ecv1beta1.Chart{
-		Name:      releaseName,
-		ChartName: Metadata.Location,
-		Version:   Metadata.Version,
-		TargetNS:  "embedded-cluster",
-		Order:     3,
+		Name:         releaseName,
+		ChartName:    Metadata.Location,
+		Version:      Metadata.Version,
+		TargetNS:     "embedded-cluster",
+		ForceUpgrade: ptr.To(false),
+		Order:        3,
 	}
 
 	if !onlyDefaults {

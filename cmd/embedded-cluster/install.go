@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -139,6 +141,7 @@ func RunHostPreflights(c *cli.Context, applier *addons.Applier, replicatedAPIURL
 		IsAirgap:                isAirgap,
 		AdminConsolePort:        adminConsolePort,
 		LocalArtifactMirrorPort: localArtifactMirrorPort,
+		SystemArchitecture:      runtime.GOARCH,
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
@@ -273,10 +276,10 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
 		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
 	}
-	if rel.ChannelID != license.Spec.ChannelID {
-		// if the channel is different, we will not be able to install the pinned vendor application version within kots
-		// this may result in an immediate k8s upgrade after installation, which is undesired
-		return nil, fmt.Errorf("license channel %s (%s) does not match binary channel %s, please provide the correct license", license.Spec.ChannelID, license.Spec.ChannelName, rel.ChannelID)
+
+	// Ensure the binary channel actually is present in the supplied license
+	if err := checkChannelExistence(license, rel); err != nil {
+		return nil, err
 	}
 
 	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
@@ -787,4 +790,30 @@ func getAddonsApplier(c *cli.Context, adminConsolePwd string, proxy *ecv1beta1.P
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}
 	return addons.NewApplier(opts...), nil
+}
+
+// checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly
+// error message actually listing available channels, if it does not.
+func checkChannelExistence(license *kotsv1beta1.License, rel *release.ChannelRelease) error {
+	var allowedChannels []string
+	channelExists := false
+
+	if len(license.Spec.Channels) == 0 { // support pre-multichannel licenses
+		allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", license.Spec.ChannelName, license.Spec.ChannelID))
+		channelExists = license.Spec.ChannelID == rel.ChannelID
+	} else {
+		for _, channel := range license.Spec.Channels {
+			allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", channel.ChannelSlug, channel.ChannelID))
+			if channel.ChannelID == rel.ChannelID {
+				channelExists = true
+			}
+		}
+	}
+
+	if !channelExists {
+		return fmt.Errorf("binary channel %s (%s) not present in license, channels allowed by license are: %s",
+			rel.ChannelID, rel.ChannelSlug, strings.Join(allowedChannels, ", "))
+	}
+
+	return nil
 }
