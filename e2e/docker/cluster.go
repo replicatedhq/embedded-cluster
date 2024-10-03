@@ -17,9 +17,9 @@ type Cluster struct {
 }
 
 type ClusterInput struct {
+	T      *testing.T
 	Nodes  int
 	Distro string
-	T      *testing.T
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
