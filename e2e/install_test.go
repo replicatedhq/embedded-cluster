@@ -212,7 +212,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	t.Logf("chronyd status: %s: %s", string(stdout), string(stderr))
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh ui")
+	stdout, stderr, err = tc.Nodes[0].Exec("single-node-install.sh ui")
 	if err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, string(stdout), string(stderr))
 	}
