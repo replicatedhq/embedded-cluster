@@ -8,11 +8,42 @@ runs:
     shell: bash
     run: |
       df -h
+      echo "Starting disk space cleanup at $(date)"
+      start_time=$(date +%s)
+      
+      echo "Pruning Docker system"
       sudo docker system prune -af
+      echo "Docker system prune completed in $(($(date +%s) - start_time)) seconds"
+      start_time=$(date +%s)
+      
+      echo "Removing Android libraries"
       sudo rm -rf /usr/local/lib/android
+      echo "Android libraries removal completed in $(($(date +%s) - start_time)) seconds"
+      start_time=$(date +%s)
+      
+      echo "Removing CodeQL cache"
       sudo rm -rf /opt/hostedtoolcache/CodeQL
+      echo "CodeQL cache removal completed in $(($(date +%s) - start_time)) seconds"
+      start_time=$(date +%s)
+      
+      echo "Removing Python cache"
       sudo rm -rf /opt/hostedtoolcache/Python
+      echo "Python cache removal completed in $(($(date +%s) - start_time)) seconds"
+      start_time=$(date +%s)
+      
+      echo "Removing .NET shared directory"
       sudo rm -rf /usr/share/dotnet
+      echo ".NET shared directory removal completed in $(($(date +%s) - start_time)) seconds"
+      start_time=$(date +%s)
+      
+      echo "Removing GHC"
       sudo rm -rf /opt/ghc
+      echo "GHC removal completed in $(($(date +%s) - start_time)) seconds"
+      start_time=$(date +%s)
+      
+      echo "Removing Boost shared directory"
       sudo rm -rf /usr/local/share/boost
+      echo "Boost shared directory removal completed in $(($(date +%s) - start_time)) seconds"
+      
+      echo "Disk space cleanup finished at $(date)"
       df -h
