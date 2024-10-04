@@ -18,6 +18,9 @@ RUN dnf install -y \
   vim \
   --allowerasing
 
+# Disable getty service as it's flaky and doesn't apply in containers
+RUN systemctl mask getty@tty1.service
+
 # Export kube config
 ENV KUBECONFIG=/var/lib/k0s/pki/admin.conf
 
