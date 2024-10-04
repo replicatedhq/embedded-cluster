@@ -39,8 +39,11 @@ jobs:
 
       - name: Upload build
         env:
+          S3_BUCKET: tf-staging-embedded-cluster-bin
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-          AWS_REGION: "us-east-1"
+          AWS_REGION: us-east-1
         run: |
-          aws s3 cp k0s s3://tf-staging-embedded-cluster-bin/custom-k0s-binaries/k0s-${{ github.event.inputs.tag }}-$(go env GOARCH)
+          object_key="custom-k0s-binaries/k0s-${{ github.event.inputs.tag }}-${{ matrix.runner.arch }}"
+          aws s3 cp "k0s s3://${S3_BUCKET}/${object_key}"
+          echo "::notice ::Binary uploaded to https://${S3_BUCKET}.s3.amazonaws.com/${object_key}"
