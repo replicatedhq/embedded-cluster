@@ -475,6 +475,8 @@ jobs:
           # - TestInstallSnapshotFromReplicatedApp
           # - TestMultiNodeInstallation
           - TestSingleNodeDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
+          - TestMultiNodeHADisasterRecovery
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -483,7 +485,7 @@ jobs:
         with:
           name: current-release
           path: output/bin
-          run-id: 11169315337
+          run-id: 11173771047
           github-token: ${{ secrets.REPLICATED_GH_PAT }}
       - name: Setup go
         uses: actions/setup-go@v5
@@ -499,7 +501,7 @@ jobs:
       - name: Run test
         env:
           # SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
-          SHORT_SHA: dev-72d2ee3
+          SHORT_SHA: dev-f9c958a
           LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
           AIRGAP_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
           SNAPSHOT_LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
@@ -550,10 +552,8 @@ jobs:
   #       #   - TestSingleNodeAirgapUpgradeCustomCIDR
   #       #   - TestMultiNodeAirgapUpgrade
   #       #   - TestSingleNodeDisasterRecoveryWithProxy
-  #       #   - TestSingleNodeResumeDisasterRecovery
   #       #   - TestProxiedEnvironment
   #       #   - TestMultiNodeHAInstallation
-  #       #   - TestMultiNodeHADisasterRecovery
   #       #   - TestCustomCIDR
   #       #   - TestProxiedCustomCIDR
   #       #   - TestSingleNodeInstallationNoopUpgrade
