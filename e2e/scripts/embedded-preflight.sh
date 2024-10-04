@@ -122,8 +122,6 @@ embed_preflight() {
     rm -rf /root/preflight*
     echo "$content" > /root/preflight.yaml
     tar -czvf /root/preflight.tar.gz /root/preflight.yaml
-    rm -rf /usr/local/bin/embedded-cluster
-    cp -Rfp /usr/local/bin/embedded-cluster-copy /usr/local/bin/embedded-cluster
     embedded-cluster-release-builder /usr/local/bin/embedded-cluster /root/preflight.tar.gz /usr/local/bin/embedded-cluster
 }
 
@@ -134,7 +132,6 @@ has_applied_host_preflight() {
 }
 
 main() {
-    cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_preflight "$preflight_with_failure"
     if /usr/local/bin/embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         cat /tmp/log
