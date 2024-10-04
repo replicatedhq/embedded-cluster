@@ -34,6 +34,30 @@ runs:
       echo "GHC removal completed in $(($(date +%s) - start_time)) seconds"
       df -h
       start_time=$(date +%s)
+
+      echo "Removing PowerShell"
+      sudo rm -rf /usr/local/share/powershell
+      echo "PowerShell removal completed in $(($(date +%s) - start_time)) seconds"
+      df -h
+      start_time=$(date +%s)
+
+      echo "Removing Swift"
+      sudo rm -rf /usr/share/swift
+      echo "Swift removal completed in $(($(date +%s) - start_time)) seconds"
+      df -h
+      start_time=$(date +%s)
+
+      echo "Removing GHCup"
+      sudo rm -rf /usr/local/.ghcup
+      echo "GHCup removal completed in $(($(date +%s) - start_time)) seconds"
+      df -h
+      start_time=$(date +%s)
+
+      echo "Removing JVM"
+      sudo rm -rf /usr/lib/jvm
+      echo "JVM removal completed in $(($(date +%s) - start_time)) seconds"
+      df -h
+      start_time=$(date +%s)
       
       echo "Removing Boost shared directory"
       sudo rm -rf /usr/local/share/boost
