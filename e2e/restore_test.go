@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/e2e/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/lxd"
 )
 
@@ -28,70 +29,69 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		testArgs = append(testArgs, os.Getenv(envVar))
 	}
 
-	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		Image:               "debian/12",
-		LicensePath:         "snapshot-license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "debian-bookworm",
+		LicensePath:  "snapshot-license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Cleanup(t)
-
-	tc.InstallTestDependenciesDebian(t, 0, false)
+	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
-	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	stdout, stderr, err := tc.Nodes[0].Exec("single-node-install.sh", "ui")
+	if err != nil {
+		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest(t, "deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
+	if err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	if _, _, err := tc.RunPlaywrightTest(t, "create-backup", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test create-backup: %v", err)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("create-backup", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
-	line = []string{"reset-installation.sh"}
-	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
-		t.Fatalf("fail to reset the installation: %v", err)
+	stdout, stderr, err = tc.Nodes[0].Exec("reset-installation.sh")
+	if err != nil {
+		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
-	time.Sleep(30 * time.Second)
+	// wait for the cluster nodes to reboot
+	tc.WaitForReady()
 
 	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-installation.exp"}, testArgs...)
-	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
-		t.Fatalf("fail to restore the installation: %v", err)
+	cmd := append([]string{"restore-installation.exp"}, testArgs...)
+	stdout, stderr, err = tc.Nodes[0].Exec(cmd...)
+	if err != nil {
+		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
+	stdout, stderr, err = tc.Nodes[0].Exec("check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion())
+	if err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunPlaywrightTest(t, "deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-upgrade: %v", err)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-postupgrade-state.sh", k8sVersion()}
-	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v", err)
+	stdout, stderr, err = tc.Nodes[0].Exec("check-postupgrade-state.sh", k8sVersion())
+	if err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

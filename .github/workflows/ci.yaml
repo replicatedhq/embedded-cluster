@@ -470,10 +470,11 @@ jobs:
           # - TestUpgradeFromReplicatedApp
           # - TestInstallWithoutEmbed
           # - TestUpgradeEC18FromReplicatedApp
-          - TestResetAndReinstall
-          - TestOldVersionUpgrade
+          # - TestResetAndReinstall
+          # - TestOldVersionUpgrade
           # - TestInstallSnapshotFromReplicatedApp
           # - TestMultiNodeInstallation
+          - TestSingleNodeDisasterRecovery
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -548,7 +549,6 @@ jobs:
   #       #   - TestSingleNodeAirgapUpgradeFromEC18
   #       #   - TestSingleNodeAirgapUpgradeCustomCIDR
   #       #   - TestMultiNodeAirgapUpgrade
-  #       #   - TestSingleNodeDisasterRecovery
   #       #   - TestSingleNodeDisasterRecoveryWithProxy
   #       #   - TestSingleNodeResumeDisasterRecovery
   #       #   - TestProxiedEnvironment
