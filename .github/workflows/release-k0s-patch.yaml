@@ -43,4 +43,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
         run: |
-          aws s3 cp k0s s3://custom-k0s-binaries/k0s-${{ github.event.inputs.tag }}-$(go env GOARCH)
+          aws s3 cp k0s s3://tf-staging-embedded-cluster-bin/custom-k0s-binaries/k0s-${{ github.event.inputs.tag }}-$(go env GOARCH)
