@@ -256,30 +256,24 @@ func TestHostPreflightCustomSpec(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                                 t,
-		Nodes:                             1,
-		Image:                             "centos/9-Stream",
-		LicensePath:                       "license.yaml",
-		EmbeddedClusterPath:               "../output/bin/embedded-cluster",
-		EmbeddedClusterReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:                    t,
+		Nodes:                1,
+		Distro:               "centos-9",
+		LicensePath:          "license.yaml",
+		ECBinaryPath:         "../output/bin/embedded-cluster",
+		ECReleaseBuilderPath: "../output/bin/embedded-cluster-release-builder",
 	})
-	defer tc.Cleanup(t)
+	defer tc.Cleanup()
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	commands := [][]string{
-		{"dnf", "install", "-y", "openssh-server", "binutils", "tar", "fio"},
-		{"systemctl", "enable", "sshd"},
-		{"systemctl", "start", "sshd"},
-	}
-	if err := tc.RunCommandsOnNode(t, 0, commands); err != nil {
-		t.Fatalf("fail to install dependencies on node %s: %v", tc.Nodes[0], err)
+	if stdout, stderr, err := tc.Nodes[0].Exec("yum", "install", "-y", "binutils", "fio"); err != nil {
+		t.Fatalf("fail to install dependencies on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running embedded-cluster preflights on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"embedded-preflight.sh"}
-	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	if stdout, stderr, err := tc.Nodes[0].Exec("embedded-preflight.sh"); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -290,19 +284,18 @@ func TestHostPreflightInBuiltSpec(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
-	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		Image:               "centos/9-Stream",
-		LicensePath:         "license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "centos-9",
+		LicensePath:  "license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
-	defer tc.Cleanup(t)
+	defer tc.Cleanup()
 
 	t.Logf("%s: install single node with in-built host preflights", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-host-preflight-install.sh"}
-	if _, _, err := tc.RunCommandOnNode(t, 0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster node with host preflights: %v", err)
+	if stdout, stderr, err := tc.Nodes[0].Exec("single-node-host-preflight-install.sh"); err != nil {
+		t.Fatalf("fail to install embedded-cluster node with host preflights: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

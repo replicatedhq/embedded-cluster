@@ -447,7 +447,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 	t.Log("controller join token command:", command)
 	t.Logf("%s: joining node 2 to the cluster (controller) in ha mode", time.Now().Format(time.RFC3339))
-	cmd := append([]string{"join-ha.exp"}, command)
+	cmd := append([]string{"join-ha.exp"}, fmt.Sprintf("'%s'", command)) // pass join command as a single argument
 	if stdout, stderr, err := tc.Nodes[2].Exec(cmd...); err != nil {
 		t.Fatalf("fail to join node 2 as a controller in ha mode: %v: %s: %s", err, stdout, stderr)
 	}

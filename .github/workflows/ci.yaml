@@ -461,6 +461,8 @@ jobs:
       matrix:
         test:
           # - TestPreflights
+          - TestHostPreflightCustomSpec
+          - TestHostPreflightInBuiltSpec
           # - TestSingleNodeInstallation
           # - TestSingleNodeInstallationAlmaLinux8
           # - TestSingleNodeInstallationDebian11
@@ -539,8 +541,6 @@ jobs:
   #     matrix:
   #       test:
   #       #   - TestVersion
-  #       #   - TestHostPreflightCustomSpec
-  #       #   - TestHostPreflightInBuiltSpec
   #       #   - TestUnsupportedOverrides
   #       #   - TestMultiNodeReset
   #       #   - TestCommandsRequireSudo

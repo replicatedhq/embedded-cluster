@@ -17,11 +17,12 @@ type Cluster struct {
 }
 
 type ClusterInput struct {
-	T            *testing.T
-	Nodes        int
-	Distro       string
-	LicensePath  string
-	ECBinaryPath string
+	T                    *testing.T
+	Nodes                int
+	Distro               string
+	LicensePath          string
+	ECBinaryPath         string
+	ECReleaseBuilderPath string
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
@@ -45,6 +46,10 @@ func NewNode(in *ClusterInput) *Container {
 	if in.ECBinaryPath != "" {
 		in.T.Logf("using embedded cluster binary %s", in.ECBinaryPath)
 		c = c.WithECBinary(in.ECBinaryPath)
+	}
+	if in.ECReleaseBuilderPath != "" {
+		in.T.Logf("using embedded cluster release builder %s", in.ECReleaseBuilderPath)
+		c = c.WithECReleaseBuilder(in.ECReleaseBuilderPath)
 	}
 	if in.LicensePath != "" {
 		in.T.Logf("using license %s", in.LicensePath)
