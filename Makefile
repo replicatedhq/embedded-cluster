@@ -26,12 +26,10 @@ METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
 
-ifeq ($(ARCH),amd64)
 ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.29.9%2Bk0s.0-ec.0-amd64
+K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)
 else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.28.14%2Bk0s.0-ec.0-amd64
-endif
+K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.28.14%2Bk0s.0-ec.0-$(ARCH)
 endif
 
 LD_FLAGS = \
