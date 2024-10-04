@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"k8s.io/utils/ptr"
 	"os"
 	"strings"
 
@@ -44,7 +45,7 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
-	cfg.Spec.Telemetry.Enabled = false
+	cfg.Spec.Telemetry.Enabled = ptr.To[bool](false)
 	if cfg.Spec.API.ExtraArgs == nil {
 		cfg.Spec.API.ExtraArgs = map[string]string{}
 	}
