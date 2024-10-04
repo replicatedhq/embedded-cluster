@@ -477,6 +477,7 @@ jobs:
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
+          - TestSingleNodeInstallationNoopUpgrade
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -556,7 +557,6 @@ jobs:
   #       #   - TestMultiNodeHAInstallation
   #       #   - TestCustomCIDR
   #       #   - TestProxiedCustomCIDR
-  #       #   - TestSingleNodeInstallationNoopUpgrade
   #       #   - TestInstallWithPrivateCAs
   #       #   - TestInstallWithMITMProxy
   #       # include:
