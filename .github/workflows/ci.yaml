@@ -476,10 +476,12 @@ jobs:
           # - TestOldVersionUpgrade
           # - TestInstallSnapshotFromReplicatedApp
           # - TestMultiNodeInstallation
+          - TestMultiNodeHAInstallation
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
+          - TestCustomCIDR
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -554,8 +556,6 @@ jobs:
   #       #   - TestMultiNodeAirgapUpgrade
   #       #   - TestSingleNodeDisasterRecoveryWithProxy
   #       #   - TestProxiedEnvironment
-  #       #   - TestMultiNodeHAInstallation
-  #       #   - TestCustomCIDR
   #       #   - TestProxiedCustomCIDR
   #       #   - TestInstallWithPrivateCAs
   #       #   - TestInstallWithMITMProxy
