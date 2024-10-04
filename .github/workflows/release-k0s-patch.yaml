@@ -1,0 +1,42 @@
+name: Build and Release K0s Patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag to build and release"
+        required: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: github.com/replicatedhq/k0s
+          ref: refs/tags/${{ github.event.inputs.tag }}
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Build k0s
+        env:
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          make build
+
+      - name: Upload build
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+        run: |
+          aws s3 cp k0s s3://custom-k0s-binaries/k0s-${{ github.event.inputs.tag }}-${{ matrix.arch }}
