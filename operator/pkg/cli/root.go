@@ -115,5 +115,6 @@ func addSubcommands(cmd *cobra.Command) {
 	cmd.AddCommand(
 		MigrateCmd(),
 		UpgradeCmd(),
+		UpgradeJobCmd(),
 	)
 }

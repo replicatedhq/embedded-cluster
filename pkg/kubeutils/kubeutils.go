@@ -8,6 +8,7 @@ import (
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,7 +57,6 @@ func WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
 		}
 	}
 	return nil
-
 }
 
 // WaitForDeployment waits for the provided deployment to be ready.
@@ -318,6 +318,29 @@ func WaitForControllerNode(ctx context.Context, kcli client.Client, name string)
 	return nil
 }
 
+// WaitForJob waits for a job to have a certain number of completions.
+func WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxSteps int, completions int32) error {
+	backoff := wait.Backoff{Steps: maxSteps, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := IsJobComplete(ctx, cli, ns, name, completions)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get job status: %w", err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for job %s: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for job %s", name)
+		}
+	}
+	return nil
+}
+
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
 	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {
@@ -360,6 +383,19 @@ func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (
 		return false, err
 	}
 	if daemonset.Status.DesiredNumberScheduled == daemonset.Status.NumberReady {
+		return true, nil
+	}
+	return false, nil
+}
+
+// IsJobComplete returns true if the job has been completed successfully.
+func IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
+	var job batchv1.Job
+	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	if err := cli.Get(ctx, nsn, &job); err != nil {
+		return false, err
+	}
+	if job.Status.Succeeded >= completions {
 		return true, nil
 	}
 	return false, nil

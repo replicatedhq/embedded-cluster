@@ -184,6 +184,7 @@ upgrade-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade
 upgrade-release: APP_VERSION = appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
+	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
 		./scripts/build-and-release.sh
 
 .PHONY: go.mod
@@ -313,7 +314,7 @@ ssh-node%:
 
 .PHONY: delete-node%
 delete-node%:
-	@docker rm -f node$*
+	@docker rm -f --volumes node$*
 
 .PHONY: %-up
 %-up:
