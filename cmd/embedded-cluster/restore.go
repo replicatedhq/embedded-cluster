@@ -202,7 +202,7 @@ func resetECRestoreState(ctx context.Context) error {
 // It returns an error if a backup is defined in the restore state but:
 //   - is not found by Velero anymore.
 //   - is not restorable by the current binary.
-func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Backup, error) {
+func getBackupFromRestoreState(ctx context.Context, provider *defaults.Provider, isAirgap bool) (*velerov1.Backup, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
@@ -244,7 +244,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
-	if restorable, reason := isBackupRestorable(backup, rel, isAirgap, k0sCfg); !restorable {
+	if restorable, reason := isBackupRestorable(backup, provider, rel, isAirgap, k0sCfg); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
 	}
 	return backup, nil
@@ -962,7 +962,7 @@ func restoreCommand() *cli.Command {
 			if state != ecRestoreStateNew {
 				logrus.Debugf("getting backup from restore state")
 				var err error
-				backupToRestore, err = getBackupFromRestoreState(c.Context, c.String("airgap-bundle") != "")
+				backupToRestore, err = getBackupFromRestoreState(c.Context, provider, c.String("airgap-bundle") != "")
 				if err != nil {
 					return fmt.Errorf("unable to resume: %w", err)
 				}
