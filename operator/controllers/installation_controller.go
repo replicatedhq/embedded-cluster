@@ -414,7 +414,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 		// actually upgrades the k0s version. we need to make sure that this is the second plan
 		// before setting the installation state to the plan state.
 		if isAutopilotUpgradeToVersion(&plan, desiredVersion) {
-			r.SetStateBasedOnPlan(in, plan)
+			r.SetStateBasedOnPlan(in, plan, desiredVersion)
 			return nil
 		}
 	}
@@ -428,7 +428,6 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 		return nil
 	}
 
-	r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeCompleted", "Upgrade of k0s to %s completed", desiredVersion)
 	// it seems like the plan previously created by other installation object
 	// has been finished, we can delete it. this will trigger a new reconcile
 	// this time without the plan (i.e. we will be able to create our own plan).
@@ -589,7 +588,7 @@ func (r *InstallationReconciler) ReconcileHAStatus(ctx context.Context, in *v1be
 // SetStateBasedOnPlan sets the installation state based on the Plan state. For now we do not
 // report anything fancy but we should consider reporting here a summary of how many nodes
 // have been upgraded and how many are still pending.
-func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, plan apv1b2.Plan) {
+func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, plan apv1b2.Plan, desiredVersion string) {
 	reason := autopilot.ReasonForState(plan)
 	switch plan.Status.State {
 	case "":
@@ -605,14 +604,17 @@ func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, p
 	case apcore.PlanMissingSignalNode:
 		fallthrough
 	case apcore.PlanApplyFailed:
+		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeFailed", "Upgrade of k0s to %s failed (%q)", desiredVersion, plan.Status.State)
 		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 	case apcore.PlanSchedulable:
 		fallthrough
 	case apcore.PlanSchedulableWait:
 		in.Status.SetState(v1beta1.InstallationStateInstalling, reason, nil)
 	case apcore.PlanCompleted:
+		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeComplete", "Upgrade of k0s to %s completed", desiredVersion)
 		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, reason, nil)
 	default:
+		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeUnknownState", "Upgrade of k0s to %s has an unknown state %q", desiredVersion, plan.Status.State)
 		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 	}
 }
