@@ -670,12 +670,12 @@ func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, it
 	for _, in := range items[1:] {
 		in.Status.NodesStatus = nil
 		if in.Status.State != v1beta1.InstallationStateObsolete {
+			r.Recorder.Eventf(&in, corev1.EventTypeNormal, "Obsolete", "This has been obsoleted by a newer installation object")
 			in.Status.SetState(
 				v1beta1.InstallationStateObsolete,
 				"This is not the most recent installation object",
 				nil,
 			)
-			r.Recorder.Eventf(&in, corev1.EventTypeNormal, "Obsolete", "This is no longer the most recent installation object")
 			r.Status().Update(ctx, &in)
 		}
 	}
@@ -857,7 +857,9 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
 	}
-	r.Recorder.Event(in, corev1.EventTypeNormal, ev.Reason, ev.Message)
+	if ev != nil {
+		r.Recorder.Event(in, corev1.EventTypeNormal, ev.Reason, ev.Message)
+	}
 
 	if err := r.ReconcileHAStatus(ctx, in); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile HA status: %w", err)

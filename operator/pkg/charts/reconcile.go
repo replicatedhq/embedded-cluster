@@ -3,6 +3,9 @@ package charts
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
+
 	v1beta3 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	v1beta2 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -92,32 +95,45 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 	if len(chartErrors) > 0 && !chartDrift {
 		chartErrorString := ""
 		chartsWithErrors := []string{}
-		for k, v := range chartErrors {
-			chartErrorString += fmt.Sprintf("%s: %s\n", k, v)
+		for k, _ := range chartErrors {
 			chartsWithErrors = append(chartsWithErrors, k)
 		}
+		sort.Strings(chartsWithErrors)
+		for _, chartName := range chartsWithErrors {
+			chartErrorString += fmt.Sprintf("%s: %s\n", chartName, chartErrors[chartName])
+		}
+
 		chartErrorString = "failed to update helm charts: \n" + chartErrorString
 		log.Info("Chart errors", "errors", chartErrorString)
 		if len(chartErrorString) > 1024 {
 			chartErrorString = chartErrorString[:1024]
 		}
 		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, chartErrorString, nil)
-		ev := RecordedEvent{Reason: "ChartErrors", Message: fmt.Sprintf("Chart errors %v", chartsWithErrors)}
-		return &ev, nil
+		var ev *RecordedEvent
+		if in.Status.State != v1beta1.InstallationStateHelmChartUpdateFailure || chartErrorString != in.Status.Reason {
+			ev = &RecordedEvent{Reason: "ChartErrors", Message: fmt.Sprintf("Chart errors %v", chartsWithErrors)}
+		}
+		return ev, nil
 	}
 
 	// If all addons match their target version + values, mark installation as complete
 	if len(pendingCharts) == 0 && !chartDrift {
+		var ev *RecordedEvent
+		if in.Status.State != v1beta1.InstallationStateInstalled {
+			ev = &RecordedEvent{Reason: "AddonsUpgraded", Message: "Addons upgraded"}
+		}
 		in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded", nil)
-		ev := RecordedEvent{Reason: "AddonsUpgraded", Message: "Addons upgraded"}
-		return &ev, nil
+		return ev, nil
 	}
 
 	if len(pendingCharts) > 0 {
 		// If there are pending charts, mark the installation as pending with a message about the pending charts
 		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts), pendingCharts)
-		ev := RecordedEvent{Reason: "PendingHelmCharts", Message: fmt.Sprintf("Pending helm charts %v", pendingCharts)}
-		return &ev, nil
+		var ev *RecordedEvent
+		if in.Status.State != v1beta1.InstallationStatePendingChartCreation || strings.Join(pendingCharts, ",") != strings.Join(in.Status.PendingCharts, ",") {
+			ev = &RecordedEvent{Reason: "PendingHelmCharts", Message: fmt.Sprintf("Pending helm charts %v", pendingCharts)}
+		}
+		return ev, nil
 	}
 
 	if in.Status.State == v1beta1.InstallationStateAddonsInstalling {
