@@ -365,7 +365,7 @@ func runOutroForRestore(c *cli.Context, applier *addons.Applier, cfg *k0sv1beta1
 	return applier.OutroForRestore(c.Context, cfg)
 }
 
-func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
+func isBackupRestorable(backup *velerov1.Backup, provider *defaults.Provider, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
@@ -421,6 +421,11 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 			}
 		}
 	}
+
+	if v := backup.Annotations["kots.io/embedded-cluster-data-dir"]; v != "" && v != provider.EmbeddedClusterHomeDirectory() {
+		return false, fmt.Sprintf("has a different data directory than the current cluster. Please rerun with '--data-dir %s'.", v)
+	}
+
 	return true, ""
 }
 
@@ -434,7 +439,7 @@ func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
 
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
-func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, error) {
+func waitForBackups(ctx context.Context, provider *defaults.Provider, isAirgap bool) ([]velerov1.Backup, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
@@ -479,7 +484,7 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		invalidReasons := []string{}
 
 		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup, rel, isAirgap, k0sCfg)
+			restorable, reason := isBackupRestorable(&backup, provider, rel, isAirgap, k0sCfg)
 			if restorable {
 				validBackups = append(validBackups, backup)
 			} else {
@@ -1074,7 +1079,7 @@ func restoreCommand() *cli.Command {
 				}
 
 				logrus.Debugf("waiting for backups to become available")
-				backups, err := waitForBackups(c.Context, c.String("airgap-bundle") != "")
+				backups, err := waitForBackups(c.Context, provider, c.String("airgap-bundle") != "")
 				if err != nil {
 					return err
 				}
