@@ -16,7 +16,7 @@ func Test_detectChartCompletion(t *testing.T) {
 	tests := []struct {
 		name                 string
 		args                 args
-		wantChartErrors      []string
+		wantChartErrors      map[string]string
 		wantIncompleteCharts []string
 	}{
 		{
@@ -58,7 +58,7 @@ func Test_detectChartCompletion(t *testing.T) {
 				},
 			},
 			wantIncompleteCharts: []string{},
-			wantChartErrors:      []string{},
+			wantChartErrors:      map[string]string{},
 		},
 		{
 			name: "new chart",
@@ -90,7 +90,7 @@ func Test_detectChartCompletion(t *testing.T) {
 				},
 			},
 			wantIncompleteCharts: []string{"test2"},
-			wantChartErrors:      []string{},
+			wantChartErrors:      map[string]string{},
 		},
 		{
 			name: "removed chart",
@@ -126,7 +126,7 @@ func Test_detectChartCompletion(t *testing.T) {
 				},
 			},
 			wantIncompleteCharts: []string{},
-			wantChartErrors:      []string{},
+			wantChartErrors:      map[string]string{},
 		},
 		{
 			name: "added and removed chart",
@@ -154,7 +154,7 @@ func Test_detectChartCompletion(t *testing.T) {
 				},
 			},
 			wantIncompleteCharts: []string{"test2"},
-			wantChartErrors:      []string{},
+			wantChartErrors:      map[string]string{},
 		},
 		{
 			name: "no drift, but error",
@@ -195,7 +195,7 @@ func Test_detectChartCompletion(t *testing.T) {
 				},
 			},
 			wantIncompleteCharts: []string{},
-			wantChartErrors:      []string{"test chart error", "test chart two error"},
+			wantChartErrors:      map[string]string{"test": "test chart error", "test2": "test chart two error"},
 		},
 		{
 			name: "drift and error",
@@ -236,7 +236,7 @@ func Test_detectChartCompletion(t *testing.T) {
 				},
 			},
 			wantIncompleteCharts: []string{},
-			wantChartErrors:      []string{"test chart error", "test chart two error"},
+			wantChartErrors:      map[string]string{"test": "test chart error", "test2": "test chart two error"},
 		},
 		{
 			name: "drift values",
@@ -270,7 +270,7 @@ func Test_detectChartCompletion(t *testing.T) {
 				},
 			},
 			wantIncompleteCharts: []string{"test"},
-			wantChartErrors:      []string{},
+			wantChartErrors:      map[string]string{},
 		},
 		{
 			name: "values hash differs",
@@ -304,7 +304,7 @@ func Test_detectChartCompletion(t *testing.T) {
 				},
 			},
 			wantIncompleteCharts: []string{"test"},
-			wantChartErrors:      []string{},
+			wantChartErrors:      map[string]string{},
 		},
 	}
 	for _, tt := range tests {

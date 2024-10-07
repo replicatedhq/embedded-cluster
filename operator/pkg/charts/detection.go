@@ -84,9 +84,9 @@ func YamlDiff(a, b string) (bool, error) {
 }
 
 // check if all charts in the combinedConfigs are installed successfully with the desired version and values
-func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts v1beta2.ChartList) ([]string, []string, error) {
+func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts v1beta2.ChartList) ([]string, map[string]string, error) {
 	incompleteCharts := []string{}
-	chartErrors := []string{}
+	chartErrors := map[string]string{}
 	if existingHelm == nil {
 		return incompleteCharts, chartErrors, nil
 	}
@@ -115,7 +115,7 @@ func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts
 				}
 
 				if installedChart.Status.Error != "" {
-					chartErrors = append(chartErrors, installedChart.Status.Error)
+					chartErrors[chart.Name] = installedChart.Status.Error
 					diffDetected = false
 				}
 

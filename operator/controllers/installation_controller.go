@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -140,6 +141,7 @@ type InstallationReconciler struct {
 	client.Client
 	Discovery discovery.DiscoveryInterface
 	Scheme    *runtime.Scheme
+	Recorder  record.EventRecorder
 }
 
 // NodeHasChanged returns true if the node configuration has changed when compared to
@@ -205,9 +207,11 @@ func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *
 			return nil, fmt.Errorf("failed to update node status: %w", err)
 		}
 		if isnew {
+			r.Recorder.Eventf(in, corev1.EventTypeNormal, "NodeAdded", "Node %s has been added", node.Name)
 			batch.NodesAdded = append(batch.NodesAdded, event)
 			continue
 		}
+		r.Recorder.Eventf(in, corev1.EventTypeNormal, "NodeUpdated", "Node %s has been updated", node.Name)
 		batch.NodesUpdated = append(batch.NodesUpdated, event)
 	}
 	trimmed := []v1beta1.NodeStatus{}
@@ -219,6 +223,7 @@ func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *
 		rmevent := metrics.NodeRemovedEvent{
 			ClusterID: in.Spec.ClusterID, NodeName: nodeStatus.Name,
 		}
+		r.Recorder.Eventf(in, corev1.EventTypeNormal, "NodeRemoved", "Node %s has been removed", nodeStatus.Name)
 		batch.NodesRemoved = append(batch.NodesRemoved, rmevent)
 	}
 	sort.SliceStable(trimmed, func(i, j int) bool { return trimmed[i].Name < trimmed[j].Name })
@@ -379,6 +384,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 			return fmt.Errorf("failed to determine if k0s should be upgraded: %w", err)
 		}
 		if shouldUpgrade {
+			r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgrade", "Upgrading k0s to %s", desiredVersion)
 			log.Info("Starting k0s autopilot upgrade plan", "version", desiredVersion)
 
 			// there is no autopilot plan in the cluster so we are free to
@@ -408,7 +414,7 @@ func (r *InstallationReconciler) ReconcileK0sVersion(ctx context.Context, in *v1
 		// actually upgrades the k0s version. we need to make sure that this is the second plan
 		// before setting the installation state to the plan state.
 		if isAutopilotUpgradeToVersion(&plan, desiredVersion) {
-			r.SetStateBasedOnPlan(in, plan)
+			r.SetStateBasedOnPlan(in, plan, desiredVersion)
 			return nil
 		}
 	}
@@ -582,7 +588,7 @@ func (r *InstallationReconciler) ReconcileHAStatus(ctx context.Context, in *v1be
 // SetStateBasedOnPlan sets the installation state based on the Plan state. For now we do not
 // report anything fancy but we should consider reporting here a summary of how many nodes
 // have been upgraded and how many are still pending.
-func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, plan apv1b2.Plan) {
+func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, plan apv1b2.Plan, desiredVersion string) {
 	reason := autopilot.ReasonForState(plan)
 	switch plan.Status.State {
 	case "":
@@ -598,14 +604,17 @@ func (r *InstallationReconciler) SetStateBasedOnPlan(in *v1beta1.Installation, p
 	case apcore.PlanMissingSignalNode:
 		fallthrough
 	case apcore.PlanApplyFailed:
+		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeFailed", "Upgrade of k0s to %s failed (%q)", desiredVersion, plan.Status.State)
 		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 	case apcore.PlanSchedulable:
 		fallthrough
 	case apcore.PlanSchedulableWait:
 		in.Status.SetState(v1beta1.InstallationStateInstalling, reason, nil)
 	case apcore.PlanCompleted:
+		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeComplete", "Upgrade of k0s to %s completed", desiredVersion)
 		in.Status.SetState(v1beta1.InstallationStateKubernetesInstalled, reason, nil)
 	default:
+		r.Recorder.Eventf(in, corev1.EventTypeNormal, "K0sUpgradeUnknownState", "Upgrade of k0s to %s has an unknown state %q", desiredVersion, plan.Status.State)
 		in.Status.SetState(v1beta1.InstallationStateFailed, reason, nil)
 	}
 }
@@ -660,12 +669,15 @@ func (r *InstallationReconciler) DisableOldInstallations(ctx context.Context, it
 	})
 	for _, in := range items[1:] {
 		in.Status.NodesStatus = nil
-		in.Status.SetState(
-			v1beta1.InstallationStateObsolete,
-			"This is not the most recent installation object",
-			nil,
-		)
-		r.Status().Update(ctx, &in)
+		if in.Status.State != v1beta1.InstallationStateObsolete {
+			r.Recorder.Eventf(&in, corev1.EventTypeNormal, "Obsolete", "This has been obsoleted by a newer installation object")
+			in.Status.SetState(
+				v1beta1.InstallationStateObsolete,
+				"This is not the most recent installation object",
+				nil,
+			)
+			r.Status().Update(ctx, &in)
+		}
 	}
 }
 
@@ -841,8 +853,12 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// reconcile the add-ons (k0s helm extensions).
 	log.Info("Reconciling addons")
-	if err := charts.ReconcileHelmCharts(ctx, r.Client, in); err != nil {
+	ev, err := charts.ReconcileHelmCharts(ctx, r.Client, in)
+	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
+	}
+	if ev != nil {
+		r.Recorder.Event(in, corev1.EventTypeNormal, ev.Reason, ev.Message)
 	}
 
 	if err := r.ReconcileHAStatus(ctx, in); err != nil {
