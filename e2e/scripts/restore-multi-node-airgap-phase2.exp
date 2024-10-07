@@ -2,7 +2,7 @@
 
 source /usr/local/bin/env.exp
 
-spawn embedded-cluster restore --airgap-bundle /assets/release.airgap --proxy
+spawn embedded-cluster restore --airgap-bundle /assets/release.airgap --proxy --local-artifact-mirror-port 50001 --data-dir /var/lib/ec
 
 expect {
     "A previous restore operation was detected. Would you like to resume?" {
