@@ -159,38 +159,11 @@ spec:
           - fail:
               when: 'total < 40Gi'
               message: The filesystem at {{ .DataDir }} has less than 40Gi of total space
-          - pass:
-              message: The filesystem at {{ .DataDir }} has sufficient space
-    - diskUsage:
-        checkName: k0s Disk Space
-        collectorName: k0s-path-usage
-        outcomes:
-          - fail:
-              when: 'total < 40Gi'
-              message: The filesystem at {{ .K0sDataDir }} has less than 40Gi of total space
           - fail:
               when: 'used/total > 80%'
-              message: The filesystem at {{ .K0sDataDir }} is more than 80% full
+              message: The filesystem at {{ .DataDir }} is more than 80% full
           - pass:
-              message: The filesystem at {{ .K0sDataDir }} has sufficient space
-    - diskUsage:
-        checkName: OpenEBS Disk Space
-        collectorName: openebs-path-usage
-        outcomes:
-          - fail:
-              when: 'total < 5Gi'
-              message: The filesystem at {{ .OpenEBSDataDir }} has less than 5Gi of total space
-          - pass:
-              message: The filesystem at {{ .OpenEBSDataDir }} has sufficient space
-    - diskUsage:
-        checkName: tmp Disk Space
-        collectorName: tmp-path-usage
-        outcomes:
-          - fail:
-              when: 'total < 5Gi'
-              message: The filesystem at /tmp has less than 5Gi of total space
-          - pass:
-              message: The filesystem at /tmp has sufficient space
+              message: The filesystem at {{ .DataDir }} has sufficient space
     - textAnalyze:
         checkName: Default Route
         fileName: host-collectors/run-host/ip-route-table.txt
