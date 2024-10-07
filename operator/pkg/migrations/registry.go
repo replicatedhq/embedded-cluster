@@ -79,7 +79,7 @@ func RegistryData(ctx context.Context) error {
 		}
 		defer f.Close()
 
-		relPath, err := filepath.Rel("/registry", path)
+		relPath, err := filepath.Rel("/", path)
 		if err != nil {
 			return fmt.Errorf("get relative path: %w", err)
 		}
