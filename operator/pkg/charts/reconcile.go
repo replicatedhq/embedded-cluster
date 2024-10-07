@@ -108,11 +108,11 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 		if len(chartErrorString) > 1024 {
 			chartErrorString = chartErrorString[:1024]
 		}
-		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, chartErrorString, nil)
 		var ev *RecordedEvent
 		if in.Status.State != v1beta1.InstallationStateHelmChartUpdateFailure || chartErrorString != in.Status.Reason {
 			ev = &RecordedEvent{Reason: "ChartErrors", Message: fmt.Sprintf("Chart errors %v", chartsWithErrors)}
 		}
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, chartErrorString, nil)
 		return ev, nil
 	}
 
@@ -128,11 +128,11 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 
 	if len(pendingCharts) > 0 {
 		// If there are pending charts, mark the installation as pending with a message about the pending charts
-		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts), pendingCharts)
 		var ev *RecordedEvent
 		if in.Status.State != v1beta1.InstallationStatePendingChartCreation || strings.Join(pendingCharts, ",") != strings.Join(in.Status.PendingCharts, ",") {
 			ev = &RecordedEvent{Reason: "PendingHelmCharts", Message: fmt.Sprintf("Pending helm charts %v", pendingCharts)}
 		}
+		in.Status.SetState(v1beta1.InstallationStatePendingChartCreation, fmt.Sprintf("Pending charts: %v", pendingCharts), pendingCharts)
 		return ev, nil
 	}
 
