@@ -95,7 +95,7 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 	if len(chartErrors) > 0 && !chartDrift {
 		chartErrorString := ""
 		chartsWithErrors := []string{}
-		for k, _ := range chartErrors {
+		for k := range chartErrors {
 			chartsWithErrors = append(chartsWithErrors, k)
 		}
 		sort.Strings(chartsWithErrors)
