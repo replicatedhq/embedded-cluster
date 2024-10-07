@@ -70,8 +70,8 @@ const ecNamespace = "embedded-cluster"
 
 // copyHostPreflightResultsJob is a job we create everytime we need to copy host preflight results
 // from a newly added node in the cluster. Host preflight are run on installation, join or restore
-// operations. The results are stored in the Embedded Cluster data directory in
-// support/host-preflight-results.json. During a reconcile cycle we will populate the node
+// operations. The results are stored in the data directory in
+// /support/host-preflight-results.json. During a reconcile cycle we will populate the node
 // selector, any env variables and labels.
 var copyHostPreflightResultsJob = &batchv1.Job{
 	ObjectMeta: metav1.ObjectMeta{

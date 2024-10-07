@@ -467,9 +467,8 @@ func resetCommand() *cli.Command {
 				return fmt.Errorf("failed to remove proxy worker config directory: %w", err)
 			}
 
-			// Now that k0s is nested under the embedded cluster data directory, we see the
-			// following error in the dev environment because k0s is mounted in the docker
-			// container:
+			// Now that k0s is nested under the data directory, we see the following error in the
+			// dev environment because k0s is mounted in the docker container:
 			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
 			entries, err := os.ReadDir(provider.EmbeddedClusterHomeDirectory())
 			if err != nil && !os.IsNotExist(err) {

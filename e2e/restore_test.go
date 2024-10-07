@@ -597,6 +597,11 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Use an alternate data directory
+	withEnv := WithEnv(map[string]string{
+		"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec",
+	})
+
 	tc := cluster.NewTestCluster(&cluster.Input{
 		T:                       t,
 		Nodes:                   3,
@@ -604,7 +609,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 	})
-	defer cleanupCluster(t, tc)
+	defer cleanupCluster(t, tc, withEnv)
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	// install "expect" dependency on node 2 as that's where the HA join command will run.
@@ -615,11 +620,6 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
 		t.Logf("failed to remove airgap install bundle: %v", err)
 	}
-
-	// Use an alternate data directory
-	withEnv := WithEnv(map[string]string{
-		"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec",
-	})
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}

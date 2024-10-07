@@ -26,11 +26,11 @@ var (
 // only on localhost and is used to serve files needed by the autopilot during an upgrade.
 var serveCommand = &cli.Command{
 	Name:  "serve",
-	Usage: "Serve files from the Embedded Cluster data directory over HTTP",
+	Usage: "Serve files from the data directory over HTTP",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "data-dir",
-			Usage:   "Path to the Embedded Cluster data directory",
+			Usage:   "Path to the data directory",
 			Value:   ecv1beta1.DefaultDataDir,
 			EnvVars: []string{"LOCAL_ARTIFACT_MIRROR_DATA_DIR"},
 		},

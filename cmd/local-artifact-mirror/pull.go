@@ -268,7 +268,7 @@ func decodeInstallation(ctx context.Context, data string) (*ecv1beta1.Installati
 func getPullDataDirFlag() cli.Flag {
 	return &cli.StringFlag{
 		Name:     "data-dir",
-		Usage:    "Path to the Embedded Cluster data directory",
+		Usage:    "Path to the data directory",
 		Value:    ecv1beta1.DefaultDataDir,
 		EnvVars:  []string{"LOCAL_ARTIFACT_MIRROR_DATA_DIR"},
 		Required: true,

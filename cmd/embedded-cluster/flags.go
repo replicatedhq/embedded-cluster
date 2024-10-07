@@ -61,7 +61,7 @@ func getLocalArtifactMirrorPortFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) 
 func getDataDirFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) cli.Flag {
 	return &cli.StringFlag{
 		Name:   "data-dir",
-		Usage:  "Path to the Embedded Cluster data directory",
+		Usage:  "Path to the data directory",
 		Value:  ecv1beta1.DefaultDataDir,
 		Hidden: false,
 		Action: func(c *cli.Context, s string) error {

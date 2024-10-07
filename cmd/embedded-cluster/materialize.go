@@ -16,7 +16,7 @@ func materializeCommand() *cli.Command {
 
 	return &cli.Command{
 		Name:   "materialize",
-		Usage:  "Materialize embedded assets into the Embedded Cluster data directory",
+		Usage:  "Materialize embedded assets into the data directory",
 		Hidden: true,
 		Flags: []cli.Flag{
 			getDataDirFlag(runtimeConfig),

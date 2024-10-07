@@ -35,9 +35,9 @@ const (
 )
 
 // copyArtifactsJob is a job we create everytime we need to sync files into all nodes. This job
-// mounts the Embedded Cluster data directory from the node and uses binaries that are present
-// there. This is not yet a complete version of the job as it misses some env variables and a node
-// selector, those are populated during the reconcile cycle.
+// mounts the data directory from the node and uses binaries that are present there. This is not
+// yet a complete version of the job as it misses some env variables and a node selector, those are
+// populated during the reconcile cycle.
 var copyArtifactsJob = &batchv1.Job{
 	TypeMeta: metav1.TypeMeta{
 		APIVersion: "batch/v1",
