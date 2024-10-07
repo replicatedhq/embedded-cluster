@@ -189,7 +189,7 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 			},
 			out: v1beta1.InstallationStatus{
 				State:  v1beta1.InstallationStateHelmChartUpdateFailure,
-				Reason: "failed to update helm charts: exterror",
+				Reason: "failed to update helm charts: \nextchart: exterror\n",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
 				Configs: v1beta1.Helm{
@@ -253,7 +253,7 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 			},
 			out: v1beta1.InstallationStatus{
 				State:  v1beta1.InstallationStateHelmChartUpdateFailure,
-				Reason: "failed to update helm charts: metaerror",
+				Reason: "failed to update helm charts: \nmetachart: metaerror\n",
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
 				Configs: v1beta1.Helm{
@@ -889,7 +889,7 @@ password: original`,
 			req.NoError(k0shelmv1beta1.AddToScheme(sch))
 			fakeCli := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(tt.fields.State...).Build()
 
-			err := ReconcileHelmCharts(context.Background(), fakeCli, &tt.in)
+			_, err := ReconcileHelmCharts(context.Background(), fakeCli, &tt.in)
 			req.NoError(err)
 			req.Equal(tt.out, tt.in.Status)
 
