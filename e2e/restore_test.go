@@ -705,7 +705,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	// reset the cluster
-	line = []string{"reset-installation.sh", "--force"}
+	line = []string{"reset-installation.sh", "--force", "--data-dir", "/var/lib/ec"}
 	t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
 	if _, _, err := RunCommandOnNode(t, tc, 2, line, withEnv); err != nil {
 		t.Fatalf("fail to reset the installation: %v", err)
