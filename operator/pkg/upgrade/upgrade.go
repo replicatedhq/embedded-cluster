@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/charts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -29,6 +30,11 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 	err := k0sUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
+	}
+
+	err = registryMigrationStatus(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("registry migration status: %w", err)
 	}
 
 	err = chartUpgrade(ctx, cli, in)
@@ -133,6 +139,20 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 		return fmt.Errorf("set installation state: %w", err)
 	}
 
+	return nil
+}
+
+// registryMigrationStatus ensures that the registry migration complete condition is set orior to
+// reconciling the helm charts. Otherwise, the registry chart will revert back to non-ha mode.
+func registryMigrationStatus(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+	if in == nil || !in.Spec.AirGap || !in.Spec.HighAvailability {
+		return nil
+	}
+
+	_, err := registry.EnsureRegistryMigrationCompleteCondition(ctx, in, cli)
+	if err != nil {
+		return fmt.Errorf("ensure registry migration complete condition: %w", err)
+	}
 	return nil
 }
 

@@ -30,22 +30,10 @@ const registryS3SecretName = "seaweedfs-s3-rw"
 // before finally creating a 'migration is complete' secret in the registry namespace
 // if this secret is present, the function will return without reattempting the migration
 func MigrateRegistryData(ctx context.Context, in *clusterv1beta1.Installation, cli client.Client) error {
-	migrationStatus := k8sutil.CheckConditionStatus(in.Status, RegistryMigrationStatusConditionType)
-	if migrationStatus == metav1.ConditionTrue {
-		return nil
-	}
-
-	hasMigrated, err := HasRegistryMigrated(ctx, cli)
+	hasMigrated, err := EnsureRegistryMigrationCompleteCondition(ctx, in, cli)
 	if err != nil {
-		return fmt.Errorf("check if registry has migrated before running migration: %w", err)
-	}
-	if hasMigrated {
-		in.Status.SetCondition(metav1.Condition{
-			Type:               RegistryMigrationStatusConditionType,
-			Status:             metav1.ConditionTrue,
-			Reason:             "MigrationJobCompleted",
-			ObservedGeneration: in.Generation,
-		})
+		return err
+	} else if hasMigrated {
 		return nil
 	}
 
@@ -125,6 +113,31 @@ func MigrateRegistryData(ctx context.Context, in *clusterv1beta1.Installation, c
 	})
 
 	return nil
+}
+
+// EnsureRegistryMigrationCompleteCondition will check if the registry migration has been
+// completed. If so, it will set the condition and return true.
+func EnsureRegistryMigrationCompleteCondition(ctx context.Context, in *clusterv1beta1.Installation, cli client.Client) (bool, error) {
+	migrationStatus := k8sutil.CheckConditionStatus(in.Status, RegistryMigrationStatusConditionType)
+	if migrationStatus == metav1.ConditionTrue {
+		return true, nil
+	}
+
+	hasMigrated, err := HasRegistryMigrated(ctx, cli)
+	if err != nil {
+		return false, fmt.Errorf("check if registry has migrated before running migration: %w", err)
+	}
+	if !hasMigrated {
+		return false, nil
+	}
+
+	in.Status.SetCondition(metav1.Condition{
+		Type:               RegistryMigrationStatusConditionType,
+		Status:             metav1.ConditionTrue,
+		Reason:             "MigrationJobCompleted",
+		ObservedGeneration: in.Generation,
+	})
+	return true, nil
 }
 
 // HasRegistryMigrated checks if the registry data has been migrated by looking for the 'migration complete' secret in the registry namespace
