@@ -631,6 +631,9 @@ func installCommand() *cli.Command {
 			if c.String("airgap-bundle") != "" {
 				metrics.DisableMetrics()
 			}
+			if err := validateDataDir(c); err != nil {
+				return err
+			}
 			return nil
 		},
 		Flags: withProxyFlags(withSubnetCIDRFlags(

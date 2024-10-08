@@ -167,6 +167,9 @@ var joinCommand = &cli.Command{
 		if c.String("airgap-bundle") != "" {
 			metrics.DisableMetrics()
 		}
+		if err := validateDataDir(c); err != nil {
+			return err
+		}
 		return nil
 	},
 	Action: func(c *cli.Context) error {

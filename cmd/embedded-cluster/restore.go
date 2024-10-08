@@ -929,6 +929,9 @@ func restoreCommand() *cli.Command {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("restore command must be run as root")
 			}
+			if err := validateDataDir(c); err != nil {
+				return err
+			}
 			return nil
 		},
 		Action: func(c *cli.Context) error {

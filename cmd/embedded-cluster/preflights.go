@@ -181,3 +181,34 @@ var joinRunPreflightsCommand = &cli.Command{
 		return nil
 	},
 }
+
+// validateDataDir checks if the data dir is valid before we start to
+// materialize binaries in it. at this point we don't have the preflights
+// binary available yet ( it is also materialized in the data dir ).
+func validateDataDir(c *cli.Context) error {
+	if c.Bool("skip-host-preflights") {
+		return nil
+	}
+
+	dataDir := c.String("data-dir")
+	dinfo, err := os.Lstat(dataDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// if the data dir doesn't exist that is okay as we
+			// will create it later.
+			return nil
+		}
+		return fmt.Errorf("unable to stat data dir: %v", err)
+	}
+
+	// if it is not a symlink, it is valid.
+	if dinfo.Mode()&os.ModeSymlink == 0 {
+		return nil
+	}
+
+	// we attempt to mimic the behavior of the preflight results here.
+	logrus.Infof("✗ 1 host preflight failed\n")
+	logrus.Infof(" •  %s cannot be symlinked. Remove the symlink, or use the --data-dir flag to provide an alternate data directory.\n", dataDir)
+	logrus.Infof("Please address this issue and try again.")
+	return ErrNothingElseToAdd
+}
