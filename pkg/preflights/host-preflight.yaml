@@ -776,7 +776,7 @@ spec:
         outcomes:
           - fail:
               when: 'false'
-              message: 'Wildcard DNS entry {{ "{{" }}  .resolvedFromSearch {{ "}}" }} detected. Remove the wildcard DNS entry or the {{ "{{" }}  .resolvedFromSearch {{ "}}" }} search domain from resolv.conf.'
+              message: 'Wildcard DNS entry .*{{ "{{" }}  .resolvedFromSearch {{ "}}" }} detected. Remove the wildcard DNS entry or the {{ "{{" }}  .resolvedFromSearch {{ "}}" }} search domain from resolv.conf.'
           - pass:
               when: 'true'
               message: No wildcard DNS entry detected.
