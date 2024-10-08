@@ -19,7 +19,7 @@ data:
       collectors:
         - runDaemonSet:
             name: "k0scontroller"
-            namespace: default
+            namespace: embedded-cluster
             podSpec:
               containers:
               - image: {{ .Values.utilsImage }}
@@ -47,12 +47,12 @@ data:
                 name: host-root
         - runDaemonSet:
             name: "k0sworker"
-            namespace: default
+            namespace: embedded-cluster
             podSpec:
               containers:
               - image: {{ .Values.utilsImage }}
                 imagePullPolicy: Always
-                args: ["chroot","/host","journalctl","-u","k0scontroller","--no-pager","--since","2 days ago"]
+                args: ["chroot","/host","journalctl","-u","k0sworker","--no-pager","--since","2 days ago"]
                 name: debugger
                 resources: {}
                 terminationMessagePath: /dev/termination-log
