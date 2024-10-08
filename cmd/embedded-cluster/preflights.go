@@ -142,7 +142,7 @@ var joinRunPreflightsCommand = &cli.Command{
 		}
 
 		// check to make sure the version returned by the join token is the same as the one we are running
-		if jcmd.EmbeddedClusterVersion != versions.Version {
+		if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
 			return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 		}
 
