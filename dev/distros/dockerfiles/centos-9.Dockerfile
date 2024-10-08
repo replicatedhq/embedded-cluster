@@ -18,11 +18,9 @@ RUN dnf install -y \
   vim \
   --allowerasing
 
-# Disable getty service as it's flaky and doesn't apply in containers
-RUN systemctl mask getty@tty1.service
-
 # Export kube config
 ENV KUBECONFIG=/var/lib/k0s/pki/admin.conf
 
-# Default command to run systemd
-CMD ["/sbin/init"]
+# Entrypoint for runtime configurations
+COPY ./entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
