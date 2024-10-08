@@ -45,5 +45,11 @@ jobs:
           AWS_REGION: us-east-1
         run: |
           object_key="custom-k0s-binaries/k0s-${{ github.event.inputs.tag }}-${{ matrix.runner.arch }}"
+          # check if the file already exists
+          if aws s3 ls "k0s s3://${S3_BUCKET}/${object_key}" > /dev/null; then
+            echo "::notice ::Binary already exists in https://${S3_BUCKET}.s3.amazonaws.com/${object_key}"
+            exit 1
+          fi
+          # upload the file
           aws s3 cp "k0s s3://${S3_BUCKET}/${object_key}"
           echo "::notice ::Binary uploaded to https://${S3_BUCKET}.s3.amazonaws.com/${object_key}"
