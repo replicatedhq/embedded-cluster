@@ -164,6 +164,9 @@ func newMigrationJob(in *clusterv1beta1.Installation, cli client.Client) (batchv
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      registryDataMigrationJobName,
 			Namespace: registryNamespace,
+			Labels: map[string]string{
+				"replicated.com/disaster-recovery": "ec-install",
+			},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Job",
