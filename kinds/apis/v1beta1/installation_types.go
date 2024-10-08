@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"encoding/json"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -112,25 +113,10 @@ type InstallationSpec struct {
 	ClusterID string `json:"clusterID,omitempty"`
 	// MetricsBaseURL holds the base URL for the metrics server.
 	MetricsBaseURL string `json:"metricsBaseURL,omitempty"`
-	// HighAvailability indicates if the installation is high availability.
-	HighAvailability bool `json:"highAvailability,omitempty"`
-	// AirGap indicates if the installation is airgapped.
-	AirGap bool `json:"airGap,omitempty"`
 	// Artifacts holds the location of the airgap bundle.
 	Artifacts *ArtifactsLocation `json:"artifacts,omitempty"`
-	// Proxy holds the proxy configuration.
-	Proxy *ProxySpec `json:"proxy,omitempty"`
-	// Network holds the network configuration.
-	Network *NetworkSpec `json:"network,omitempty"`
-	// AdminConsole holds the admin console configuration.
-	AdminConsole *AdminConsoleSpec `json:"adminConsole,omitempty"`
-	// LocalArtifactMirrorPort holds the local artifact mirror configuration.
-	LocalArtifactMirror *LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
 	// Config holds the configuration used at installation time.
 	Config *ConfigSpec `json:"config,omitempty"`
-	// EndUserK0sConfigOverrides holds the end user k0s config overrides
-	// used at installation time.
-	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
 	// BinaryName holds the name of the binary used to install the cluster.
 	// this will follow the pattern 'appslug-channelslug'
 	BinaryName string `json:"binaryName,omitempty"`
@@ -140,6 +126,53 @@ type InstallationSpec struct {
 	// the Config for this Installation object must be read from there. This option
 	// supersedes (overrides) the Config field.
 	ConfigSecret *ConfigSecret `json:"configSecret,omitempty"`
+
+	// RuntimeConfig holds the runtime configuration used at installation time.
+	RuntimeConfig *RuntimeConfigSpec `json:"runtimeConfig,omitempty"`
+
+	// TODO: all fields below should be moved to RuntimeConfig
+
+	// HighAvailability indicates if the installation is high availability.
+	HighAvailability bool `json:"highAvailability,omitempty"`
+	// AirGap indicates if the installation is airgapped.
+	AirGap bool `json:"airGap,omitempty"`
+	// Proxy holds the proxy configuration.
+	Proxy *ProxySpec `json:"proxy,omitempty"`
+	// Network holds the network configuration.
+	Network *NetworkSpec `json:"network,omitempty"`
+	// EndUserK0sConfigOverrides holds the end user k0s config overrides
+	// used at installation time.
+	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`
+
+	AdminConsole        *AdminConsoleSpec        `json:"adminConsole,omitempty"`
+	LocalArtifactMirror *LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
+}
+
+func (i *InstallationSpec) UnmarshalJSON(data []byte) error {
+	type alias InstallationSpec
+	ji := (*alias)(i)
+	err := json.Unmarshal(data, &ji)
+	if err != nil {
+		return err
+	}
+
+	if i.AdminConsole != nil && i.AdminConsole.Port > 0 {
+		if i.RuntimeConfig == nil {
+			i.RuntimeConfig = &RuntimeConfigSpec{}
+		}
+		if i.RuntimeConfig.AdminConsole.Port == 0 {
+			i.RuntimeConfig.AdminConsole.Port = i.AdminConsole.Port
+		}
+	}
+	if i.LocalArtifactMirror != nil && i.LocalArtifactMirror.Port > 0 {
+		if i.RuntimeConfig == nil {
+			i.RuntimeConfig = &RuntimeConfigSpec{}
+		}
+		if i.RuntimeConfig.LocalArtifactMirror.Port == 0 {
+			i.RuntimeConfig.LocalArtifactMirror.Port = i.LocalArtifactMirror.Port
+		}
+	}
+	return nil
 }
 
 // ParseConfigSpecFromSecret reads the embedded cluster configuration from a secret.
