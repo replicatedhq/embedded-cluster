@@ -21,7 +21,7 @@ require (
 	github.com/google/go-github/v62 v62.0.0
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.14.0
-	github.com/jedib0t/go-pretty/v6 v6.5.9
+	github.com/jedib0t/go-pretty/v6 v6.6.0
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.10-0.20240930110610-443e28b75d21
 	github.com/k0sproject/version v0.6.0
