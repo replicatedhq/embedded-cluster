@@ -125,6 +125,13 @@ spec:
     - udpPortStatus:
         collectorName: Calico Communication Port
         port: 4789
+    - run:
+        collectorName: check-data-dir-symlink
+        command: sh
+        args:
+          - -c
+          - |
+            [ -d "{{ .DataDir }}" ] && [ -L "{{ .DataDir }}" ] && echo "{{ .DataDir }} is a symlink" || echo "{{ .DataDir }} is not a symlink"
   analyzers:
     - cpu:
         checkName: CPU
@@ -754,3 +761,14 @@ spec:
               message: Port 4789/UDP is available.
           - error:
               message: Port 4789/UDP is required, but an unexpected error occurred when trying to connect to it. Ensure port 4789/UDP is available.
+    - textAnalyze:
+        checkName: Data Dir Symlink Check
+        fileName: host-collectors/run-host/check-data-dir-symlink.txt
+        regex: 'is a symlink'
+        outcomes:
+          - fail:
+              when: 'true'
+              message: {{ .DataDir }} cannot be symlinked. Remove the symlink, or use the --data-dir flag to provide an alternate data directory.
+          - pass:
+              when: 'false'
+              message: {{ .DataDir }} is not a symlink.
