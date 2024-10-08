@@ -92,6 +92,8 @@ func installRunPreflightsCommand() *cli.Command {
 
 			logrus.Info("Host preflights completed successfully")
 
+			tryRemoveTmpDirContents(provider)
+
 			return nil
 		},
 	}
@@ -177,6 +179,8 @@ var joinRunPreflightsCommand = &cli.Command{
 		}
 
 		logrus.Info("Host preflights completed successfully")
+
+		tryRemoveTmpDirContents(provider)
 
 		return nil
 	},

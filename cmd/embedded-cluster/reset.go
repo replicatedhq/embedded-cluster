@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"time"
 
@@ -470,17 +469,6 @@ func resetCommand() *cli.Command {
 			// Now that k0s is nested under the data directory, we see the following error in the
 			// dev environment because k0s is mounted in the docker container:
 			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
-			entries, err := os.ReadDir(provider.EmbeddedClusterHomeDirectory())
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("failed to read embedded cluster directory: %w", err)
-			}
-			for _, entry := range entries {
-				path := filepath.Join(provider.EmbeddedClusterHomeDirectory(), entry.Name())
-				err = os.RemoveAll(path)
-				if err != nil {
-					logrus.Debugf("Failed to remove embedded cluster sub entry %s: %v", path, err)
-				}
-			}
 			if err := helpers.RemoveAll(provider.EmbeddedClusterHomeDirectory()); err != nil {
 				logrus.Debugf("Failed to remove embedded cluster directory: %v", err)
 			}

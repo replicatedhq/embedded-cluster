@@ -69,3 +69,10 @@ Environment="NO_PROXY=%s"`,
 
 	return nil
 }
+
+func tryRemoveTmpDirContents(provider *defaults.Provider) {
+	err := helpers.RemoveAll(provider.EmbeddedClusterTmpSubDir())
+	if err != nil {
+		logrus.Debugf("failed to remove tmp dir contents: %v", err)
+	}
+}

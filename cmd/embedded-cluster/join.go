@@ -336,6 +336,8 @@ var joinCommand = &cli.Command{
 			}
 		}
 
+		tryRemoveTmpDirContents(provider)
+
 		metrics.ReportJoinSucceeded(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Debugf("controller node join finished")
 		return nil

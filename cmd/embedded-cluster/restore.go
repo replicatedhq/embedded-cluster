@@ -1214,6 +1214,8 @@ func restoreCommand() *cli.Command {
 				return fmt.Errorf("unknown restore state: %q", state)
 			}
 
+			tryRemoveTmpDirContents(provider)
+
 			return nil
 		},
 	}

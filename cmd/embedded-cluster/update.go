@@ -61,6 +61,8 @@ func updateCommand() *cli.Command {
 				return err
 			}
 
+			tryRemoveTmpDirContents(provider)
+
 			return nil
 		},
 	}

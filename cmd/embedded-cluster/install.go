@@ -769,6 +769,7 @@ func installCommand() *cli.Command {
 				metrics.ReportApplyFinished(c, err)
 				return err
 			}
+			tryRemoveTmpDirContents(provider)
 			metrics.ReportApplyFinished(c, nil)
 			return nil
 		},

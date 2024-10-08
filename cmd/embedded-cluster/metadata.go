@@ -53,6 +53,7 @@ func metadataCommand() *cli.Command {
 				return fmt.Errorf("failed to marshal versions: %w", err)
 			}
 			fmt.Println(string(data))
+			tryRemoveTmpDirContents(provider)
 			return nil
 		},
 	}

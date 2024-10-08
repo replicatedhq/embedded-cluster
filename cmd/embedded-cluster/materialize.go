@@ -35,6 +35,9 @@ func materializeCommand() *cli.Command {
 			if err := materializer.Materialize(); err != nil {
 				return fmt.Errorf("unable to materialize: %v", err)
 			}
+
+			tryRemoveTmpDirContents(provider)
+
 			return nil
 		},
 	}

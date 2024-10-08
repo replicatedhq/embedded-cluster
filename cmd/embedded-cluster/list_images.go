@@ -40,6 +40,8 @@ func listImagesCommand() *cli.Command {
 				fmt.Println(image)
 			}
 
+			tryRemoveTmpDirContents(provider)
+
 			return nil
 		},
 	}
