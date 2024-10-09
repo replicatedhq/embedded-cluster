@@ -14,6 +14,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
@@ -35,87 +36,96 @@ func handleResize(ch chan os.Signal, tty *os.File) {
 	}
 }
 
-var shellCommand = &cli.Command{
-	Name:  "shell",
-	Usage: "Start a shell with access to the cluster",
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("shell command must be run as root")
-		}
-		return nil
-	},
-	Action: func(c *cli.Context) error {
-		cfgpath := defaults.PathToKubeConfig()
-		if _, err := os.Stat(cfgpath); err != nil {
-			return fmt.Errorf("kubeconfig not found at %s", cfgpath)
-		}
+func shellCommand() *cli.Command {
+	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
 
-		shpath := os.Getenv("SHELL")
-		if shpath == "" {
-			shpath = "/bin/bash"
-		}
+	return &cli.Command{
+		Name:  "shell",
+		Usage: "Start a shell with access to the cluster",
+		Flags: []cli.Flag{
+			getDataDirFlag(runtimeConfig),
+		},
+		Before: func(c *cli.Context) error {
+			if os.Getuid() != 0 {
+				return fmt.Errorf("shell command must be run as root")
+			}
+			return nil
+		},
+		Action: func(c *cli.Context) error {
+			provider := discoverBestProvider(c.Context, runtimeConfig)
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
-		fmt.Printf(welcome, defaults.BinaryName())
-		shell := exec.Command(shpath)
-		shell.Env = os.Environ()
+			if _, err := os.Stat(provider.PathToKubeConfig()); err != nil {
+				return fmt.Errorf("kubeconfig not found at %s", provider.PathToKubeConfig())
+			}
 
-		// get the current working directory
-		var err error
-		shell.Dir, err = os.Getwd()
-		if err != nil {
-			return fmt.Errorf("unable to get current working directory: %w", err)
-		}
+			shpath := os.Getenv("SHELL")
+			if shpath == "" {
+				shpath = "/bin/bash"
+			}
 
-		shellpty, err := pty.Start(shell)
-		if err != nil {
-			return fmt.Errorf("unable to start shell: %w", err)
-		}
+			fmt.Printf(welcome, defaults.BinaryName())
+			shell := exec.Command(shpath)
+			shell.Env = os.Environ()
 
-		sigch := make(chan os.Signal, 1)
-		signal.Notify(sigch, syscall.SIGWINCH)
-		go handleResize(sigch, shellpty)
-		sigch <- syscall.SIGWINCH
-		state, err := term.MakeRaw(int(os.Stdin.Fd()))
-		if err != nil {
-			return fmt.Errorf("unable to make raw terminal: %w", err)
-		}
+			// get the current working directory
+			var err error
+			shell.Dir, err = os.Getwd()
+			if err != nil {
+				return fmt.Errorf("unable to get current working directory: %w", err)
+			}
 
-		defer func() {
-			signal.Stop(sigch)
-			close(sigch)
-			fd := int(os.Stdin.Fd())
-			_ = term.Restore(fd, state)
-		}()
+			shellpty, err := pty.Start(shell)
+			if err != nil {
+				return fmt.Errorf("unable to start shell: %w", err)
+			}
 
-		kcpath := defaults.PathToKubeConfig()
-		config := fmt.Sprintf("export KUBECONFIG=%q\n", kcpath)
-		_, _ = shellpty.WriteString(config)
-		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+			sigch := make(chan os.Signal, 1)
+			signal.Notify(sigch, syscall.SIGWINCH)
+			go handleResize(sigch, shellpty)
+			sigch <- syscall.SIGWINCH
+			state, err := term.MakeRaw(int(os.Stdin.Fd()))
+			if err != nil {
+				return fmt.Errorf("unable to make raw terminal: %w", err)
+			}
 
-		bindir := defaults.EmbeddedClusterBinsSubDir()
-		config = fmt.Sprintf("export PATH=\"$PATH:%s\"\n", bindir)
-		_, _ = shellpty.WriteString(config)
-		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+			defer func() {
+				signal.Stop(sigch)
+				close(sigch)
+				fd := int(os.Stdin.Fd())
+				_ = term.Restore(fd, state)
+			}()
 
-		// if /etc/bash_completion is present enable kubectl auto completion.
-		if _, err := os.Stat("/etc/bash_completion"); err == nil {
-			config = fmt.Sprintf("source <(k0s completion %s)\n", filepath.Base(shpath))
+			kcpath := provider.PathToKubeConfig()
+			config := fmt.Sprintf("export KUBECONFIG=%q\n", kcpath)
 			_, _ = shellpty.WriteString(config)
 			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-			comppath := defaults.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
-			config = fmt.Sprintf("source <(cat %s)\n", comppath)
+			bindir := provider.EmbeddedClusterBinsSubDir()
+			config = fmt.Sprintf("export PATH=\"$PATH:%s\"\n", bindir)
 			_, _ = shellpty.WriteString(config)
 			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-			config = "source /etc/bash_completion\n"
-			_, _ = shellpty.WriteString(config)
-			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
-		}
+			// if /etc/bash_completion is present enable kubectl auto completion.
+			if _, err := os.Stat("/etc/bash_completion"); err == nil {
+				config = fmt.Sprintf("source <(k0s completion %s)\n", filepath.Base(shpath))
+				_, _ = shellpty.WriteString(config)
+				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
-		go func() { _, _ = io.Copy(shellpty, os.Stdin) }()
-		go func() { _, _ = io.Copy(os.Stdout, shellpty) }()
-		_ = shell.Wait()
-		return nil
-	},
+				comppath := provider.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
+				config = fmt.Sprintf("source <(cat %s)\n", comppath)
+				_, _ = shellpty.WriteString(config)
+				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+
+				config = "source /etc/bash_completion\n"
+				_, _ = shellpty.WriteString(config)
+				_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+			}
+
+			go func() { _, _ = io.Copy(shellpty, os.Stdin) }()
+			go func() { _, _ = io.Copy(os.Stdout, shellpty) }()
+			_ = shell.Wait()
+			return nil
+		},
+	}
 }

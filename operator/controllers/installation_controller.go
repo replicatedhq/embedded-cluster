@@ -29,6 +29,8 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	"github.com/k0sproject/version"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -67,11 +69,11 @@ var requeueAfter = time.Hour
 const copyHostPreflightResultsJobPrefix = "copy-host-preflight-results-"
 const ecNamespace = "embedded-cluster"
 
-// copyHostPreflightResultsJob is a job we create everytime we need to copy
-// host preflight results from a newly added node in the cluster. Host preflight
-// are run on installation, join or restore operations. The results are stored
-// in /var/lib/embedded-cluster/support/host-preflight-results.json. During a
-// reconcile cycle we will populate the node selector, any env variables and labels.
+// copyHostPreflightResultsJob is a job we create everytime we need to copy host preflight results
+// from a newly added node in the cluster. Host preflight are run on installation, join or restore
+// operations. The results are stored in the data directory in
+// /support/host-preflight-results.json. During a reconcile cycle we will populate the node
+// selector, any env variables and labels.
 var copyHostPreflightResultsJob = &batchv1.Job{
 	ObjectMeta: metav1.ObjectMeta{
 		Namespace: ecNamespace,
@@ -87,7 +89,7 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 						Name: "host",
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
-								Path: "/var/lib/embedded-cluster",
+								Path: v1beta1.DefaultDataDir,
 								Type: ptr.To[corev1.HostPathType]("Directory"),
 							},
 						},
@@ -102,22 +104,22 @@ var copyHostPreflightResultsJob = &batchv1.Job{
 							"/bin/sh",
 							"-e",
 							"-c",
-							"if [ -f /var/lib/embedded-cluster/support/host-preflight-results.json ]; " +
+							"if [ -f /embedded-cluster/support/host-preflight-results.json ]; " +
 								"then " +
-								"/var/lib/embedded-cluster/bin/kubectl create configmap ${HSPF_CM_NAME} " +
-								"--from-file=results.json=/var/lib/embedded-cluster/support/host-preflight-results.json " +
+								"/embedded-cluster/bin/kubectl create configmap ${HSPF_CM_NAME} " +
+								"--from-file=results.json=/embedded-cluster/support/host-preflight-results.json " +
 								"-n embedded-cluster --dry-run=client -oyaml | " +
-								"/var/lib/embedded-cluster/bin/kubectl label -f - embedded-cluster/host-preflight-result=${EC_NODE_NAME} --local -o yaml | " +
-								"/var/lib/embedded-cluster/bin/kubectl apply -f - && " +
-								"/var/lib/embedded-cluster/bin/kubectl annotate configmap ${HSPF_CM_NAME} \"update-timestamp=$(date +'%Y-%m-%dT%H:%M:%SZ')\" --overwrite; " +
+								"/embedded-cluster/bin/kubectl label -f - embedded-cluster/host-preflight-result=${EC_NODE_NAME} --local -o yaml | " +
+								"/embedded-cluster/bin/kubectl apply -f - && " +
+								"/embedded-cluster/bin/kubectl annotate configmap ${HSPF_CM_NAME} \"update-timestamp=$(date +'%Y-%m-%dT%H:%M:%SZ')\" --overwrite; " +
 								"else " +
-								"echo '/var/lib/embedded-cluster/support/host-preflight-results.json does not exist'; " +
+								"echo '/embedded-cluster/support/host-preflight-results.json does not exist'; " +
 								"fi",
 						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
-								MountPath: "/var/lib/embedded-cluster",
+								MountPath: "/embedded-cluster",
 								ReadOnly:  false,
 							},
 						},
@@ -293,7 +295,7 @@ func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, 
 
 // HasOnlyOneInstallation returns true if only one Installation object exists in the cluster.
 func (r *InstallationReconciler) HasOnlyOneInstallation(ctx context.Context) (bool, error) {
-	ins, err := r.listInstallations(ctx)
+	ins, err := kubeutils.ListInstallations(ctx, r.Client)
 	if err != nil {
 		return false, fmt.Errorf("failed to list installations: %w", err)
 	}
@@ -624,19 +626,6 @@ func (r *InstallationReconciler) StartAutopilotUpgrade(ctx context.Context, in *
 	return upgrade.StartAutopilotUpgrade(ctx, r.Client, in, meta)
 }
 
-// listInstallations returns a list of all the installation objects in the cluster in order.
-func (r *InstallationReconciler) listInstallations(ctx context.Context) ([]v1beta1.Installation, error) {
-	var list v1beta1.InstallationList
-	if err := r.List(ctx, &list); err != nil {
-		return nil, fmt.Errorf("list installations: %w", err)
-	}
-	items := list.Items
-	sort.SliceStable(items, func(i, j int) bool {
-		return items[j].Name < items[i].Name
-	})
-	return items, nil
-}
-
 // CoalesceInstallations goes through all the installation objects and make sure that the
 // status of the newest one is coherent with whole cluster status. Returns the newest
 // installation object.
@@ -711,7 +700,7 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 	for _, event := range events.NodesAdded {
 		log.Info("Creating job to copy host preflight results from node", "node", event.NodeName, "installation", in.Name)
 
-		job := constructHostPreflightResultsJob(event.NodeName, in.Name)
+		job := constructHostPreflightResultsJob(in, event.NodeName)
 
 		// overrides the job image if the environment says so.
 		if img := os.Getenv("EMBEDDEDCLUSTER_UTILS_IMAGE"); img != "" {
@@ -727,10 +716,12 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 	return nil
 }
 
-func constructHostPreflightResultsJob(nodeName, installationName string) *batchv1.Job {
+func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string) *batchv1.Job {
+	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
+
 	labels := map[string]string{
 		"embedded-cluster/node-name":    nodeName,
-		"embedded-cluster/installation": installationName,
+		"embedded-cluster/installation": in.Name,
 	}
 
 	job := copyHostPreflightResultsJob.DeepCopy()
@@ -738,6 +729,7 @@ func constructHostPreflightResultsJob(nodeName, installationName string) *batchv
 
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = nodeName
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = provider.EmbeddedClusterHomeDirectory()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "EC_NODE_NAME", Value: nodeName},
@@ -764,7 +756,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// are going to operate only on the newest one (sorting by installation
 	// name).
 	log := ctrl.LoggerFrom(ctx)
-	installs, err := r.listInstallations(ctx)
+	installs, err := kubeutils.ListInstallations(ctx, r.Client)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to list installations: %w", err)
 	}

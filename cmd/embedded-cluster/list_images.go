@@ -13,7 +13,6 @@ var listImagesCommand = &cli.Command{
 	Hidden: true,
 	Action: func(c *cli.Context) error {
 		k0sCfg := config.RenderK0sConfig()
-
 		metadata, err := gatherVersionMetadata(k0sCfg)
 		if err != nil {
 			return fmt.Errorf("failed to gather version metadata: %w", err)

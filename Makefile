@@ -199,22 +199,22 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: OS = linux
-embedded-cluster-linux-amd64: ARCH = amd64
+embedded-cluster-linux-amd64: export OS = linux
+embedded-cluster-linux-amd64: export ARCH = amd64
 embedded-cluster-linux-amd64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-linux-arm64
-embedded-cluster-linux-arm64: OS = linux
-embedded-cluster-linux-arm64: ARCH = arm64
+embedded-cluster-linux-arm64: export OS = linux
+embedded-cluster-linux-arm64: export ARCH = arm64
 embedded-cluster-linux-arm64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: OS = darwin
-embedded-cluster-darwin-arm64: ARCH = arm64
+embedded-cluster-darwin-arm64: export OS = darwin
+embedded-cluster-darwin-arm64: export ARCH = arm64
 embedded-cluster-darwin-arm64: go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
@@ -291,7 +291,7 @@ list-distros:
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
-create-node%: K0S_DATA_DIR = /var/lib/k0s
+create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
 create-node%:
 	@docker run -d \
 		--name node$* \

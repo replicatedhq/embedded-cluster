@@ -20,13 +20,14 @@ localpv-provisioner:
   hostpathClass:
     enabled: true
     isDefaultClass: true
-{{- if .ReplaceImages }}
   localpv:
+{{- if .ReplaceImages }}
     image:
       registry: proxy.replicated.com/anonymous/
       repository: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "openebs-provisioner-localpv").Repo }}'
       tag: '{{ index (index .Images "openebs-provisioner-localpv").Tag .GOARCH }}'
 {{- end }}
+    basePath: "/var/lib/embedded-cluster/openebs-local"
 lvm-localpv:
   enabled: false
 mayastor:

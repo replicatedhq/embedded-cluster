@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
+DIR=/usr/local/bin
+. $DIR/common.sh
+
 main() {
     local installation_version=
     installation_version="$1"
@@ -10,6 +13,4 @@ main() {
     sleep 30 # wait for the app version to be created
 }
 
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main "$@"

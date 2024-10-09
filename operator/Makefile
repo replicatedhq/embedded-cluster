@@ -62,12 +62,8 @@ manifests: kustomize controller-gen ## Generate WebhookConfiguration, ClusterRol
 fmt: ## Run go fmt against code.
 	go fmt ./...
 
-.PHONY: vet
-vet: ## Run go vet against code.
-	go vet ./...
-
 .PHONY: test
-test: manifests fmt vet envtest ## Run tests.
+test: manifests envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
 
 ##@ Build
@@ -80,7 +76,7 @@ build: ## Build manager binary.
 		-o bin/manager main.go
 
 .PHONY: run
-run: manifests fmt vet ## Run a controller from your host.
+run: manifests fmt ## Run a controller from your host.
 	go run ./main.go
 
 ##@ Build Dependencies

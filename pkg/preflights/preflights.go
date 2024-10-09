@@ -33,7 +33,7 @@ func SerializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) 
 
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*Output, string, error) {
+func Run(ctx context.Context, provider *defaults.Provider, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*Output, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
@@ -44,13 +44,14 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	}
 	defer os.Remove(fpath)
 
-	binpath := defaults.PathToEmbeddedClusterBinary("kubectl-preflight")
+	binpath := provider.PathToEmbeddedClusterBinary("kubectl-preflight")
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
-	cmd.Env = os.Environ()
-	cmd.Env = proxyEnv(cmd.Env, proxy)
-	cmd.Env = pathEnv(cmd.Env)
+	cmdEnv := cmd.Environ()
+	cmdEnv = proxyEnv(cmdEnv, proxy)
+	cmdEnv = pathEnv(cmdEnv, provider)
+	cmd.Env = cmdEnv
 	cmd.Stdout, cmd.Stderr = stdout, stderr
 	if err = cmd.Run(); err == nil {
 		out, err := OutputFromReader(stdout)
@@ -65,7 +66,7 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	return out, stderr.String(), err
 }
 
-func CopyBundleToECSupportDir() error {
+func CopyBundleToECSupportDir(provider *defaults.Provider) error {
 	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
 	if err != nil {
 		return fmt.Errorf("find preflight bundle: %w", err)
@@ -80,7 +81,7 @@ func CopyBundleToECSupportDir() error {
 			src = match
 		}
 	}
-	dst := defaults.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")
+	dst := provider.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")
 	if err := helpers.MoveFile(src, dst); err != nil {
 		return fmt.Errorf("move preflight bundle to %s: %w", dst, err)
 	}
@@ -145,7 +146,7 @@ func proxyEnv(env []string, proxy *ecv1beta1.ProxySpec) []string {
 	return next
 }
 
-func pathEnv(env []string) []string {
+func pathEnv(env []string, provider *defaults.Provider) []string {
 	path := ""
 	next := []string{}
 	for _, e := range env {
@@ -158,9 +159,9 @@ func pathEnv(env []string) []string {
 		}
 	}
 	if path != "" {
-		next = append(next, fmt.Sprintf("PATH=%s:%s", path, defaults.EmbeddedClusterBinsSubDir()))
+		next = append(next, fmt.Sprintf("PATH=%s:%s", path, provider.EmbeddedClusterBinsSubDir()))
 	} else {
-		next = append(next, fmt.Sprintf("PATH=%s", defaults.EmbeddedClusterBinsSubDir()))
+		next = append(next, fmt.Sprintf("PATH=%s", provider.EmbeddedClusterBinsSubDir()))
 	}
 	return next
 }

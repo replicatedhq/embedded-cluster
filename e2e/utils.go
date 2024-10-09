@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -32,19 +33,23 @@ func RequireEnvVars(t *testing.T, envVars []string) {
 
 type RunCommandOption func(cmd *cluster.Command)
 
-func WithECShelEnv() RunCommandOption {
-	return func(cmd *cluster.Command) {
-		cmd.Env = map[string]string{
-			"EMBEDDED_CLUSTER_METRICS_BASEURL": "https://staging.replicated.app",
-			"KUBECONFIG":                       "/var/lib/k0s/pki/admin.conf",
-			"PATH":                             "/var/lib/embedded-cluster/bin",
-		}
+func WithECShellEnv(dataDir string) RunCommandOption {
+	env := map[string]string{
+		"EMBEDDED_CLUSTER_METRICS_BASEURL": "https://staging.replicated.app",
+		"KUBECONFIG":                       filepath.Join(dataDir, "k0s/pki/admin.conf"),
+		"PATH":                             filepath.Join(dataDir, "bin"),
 	}
+	return WithEnv(env)
 }
 
 func WithEnv(env map[string]string) RunCommandOption {
 	return func(cmd *cluster.Command) {
-		cmd.Env = env
+		if cmd.Env == nil {
+			cmd.Env = map[string]string{}
+		}
+		for k, v := range env {
+			cmd.Env[k] = v
+		}
 	}
 }
 

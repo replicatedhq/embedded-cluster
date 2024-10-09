@@ -3,9 +3,16 @@
 // these should not happen in the first place.
 package defaults
 
-var (
-	// DefaultProvider holds the default provider and is used by the exported functions.
-	DefaultProvider = NewProvider("")
+import (
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/gosimple/slug"
+	"github.com/sirupsen/logrus"
 )
 
 // Holds the default no proxy values.
@@ -18,79 +25,96 @@ const SeaweedFSNamespace = "seaweedfs"
 const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
 
-const AdminConsolePort = 30000
-const LocalArtifactMirrorPort = 50000
-
-// BinaryName calls BinaryName on the default provider.
+// BinaryName returns the binary name, this is useful for places where we
+// need to present the name of the binary to the user (the name may vary if
+// the binary is renamed). We make sure the name does not contain invalid
+// characters for a filename.
 func BinaryName() string {
-	return DefaultProvider.BinaryName()
+	exe, err := os.Executable()
+	if err != nil {
+		logrus.Fatalf("unable to get executable path: %s", err)
+	}
+	base := filepath.Base(exe)
+	return slug.Make(base)
 }
 
-// EmbeddedClusterBinsSubDir calls EmbeddedClusterBinsSubDir on the default provider.
-func EmbeddedClusterBinsSubDir() string {
-	return DefaultProvider.EmbeddedClusterBinsSubDir()
-}
-
-// EmbeddedClusterChartsSubDir calls EmbeddedClusterChartsSubDir on the default provider.
-func EmbeddedClusterChartsSubDir() string {
-	return DefaultProvider.EmbeddedClusterChartsSubDir()
-}
-
-// EmbeddedClusterImagesSubDir calls EmbeddedClusterImagesSubDir on the default provider.
-func EmbeddedClusterImagesSubDir() string {
-	return DefaultProvider.EmbeddedClusterImagesSubDir()
-}
-
-// EmbeddedClusterLogsSubDir calls EmbeddedClusterLogsSubDir on the default provider.
+// EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs
+// are stored.
 func EmbeddedClusterLogsSubDir() string {
-	return DefaultProvider.EmbeddedClusterLogsSubDir()
+	path := "/var/log/embedded-cluster"
+	if err := os.MkdirAll(path, 0755); err != nil {
+		logrus.Fatalf("unable to create embedded-cluster logs dir: %s", err)
+	}
+	return path
 }
 
-// K0sBinaryPath calls K0sBinaryPath on the default provider.
-func K0sBinaryPath() string {
-	return DefaultProvider.K0sBinaryPath()
-}
-
-// PathToEmbeddedClusterBinary calls PathToEmbeddedClusterBinary on the default provider.
-func PathToEmbeddedClusterBinary(name string) string {
-	return DefaultProvider.PathToEmbeddedClusterBinary(name)
-}
-
-// PathToLog calls PathToLog on the default provider.
+// PathToLog returns the full path to a log file. This function does not check
+// if the file exists.
 func PathToLog(name string) string {
-	return DefaultProvider.PathToLog(name)
+	return filepath.Join(EmbeddedClusterLogsSubDir(), name)
 }
 
-// PathToKubeConfig calls PathToKubeConfig on the default provider.
-func PathToKubeConfig() string {
-	return DefaultProvider.PathToKubeConfig()
+// K0sBinaryPath returns the path to the k0s binary when it is installed on the node. This
+// does not return the binary just after we materilized it but the path we want it to be
+// once it is installed.
+func K0sBinaryPath() string {
+	return "/usr/local/bin/k0s"
 }
 
-// TryDiscoverPublicIP calls TryDiscoverPublicIP on the default provider.
+// TryDiscoverPublicIP tries to discover the public IP of the node by querying
+// a list of known providers. If the public IP cannot be discovered, an empty
+// string is returned.
+
 func TryDiscoverPublicIP() string {
-	return DefaultProvider.TryDiscoverPublicIP()
+	// List of providers and their respective metadata URLs
+	providers := []struct {
+		name    string
+		url     string
+		headers map[string]string
+	}{
+		{"gce", "http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip", map[string]string{"Metadata-Flavor": "Google"}},
+		{"ec2", "http://169.254.169.254/latest/meta-data/public-ipv4", nil},
+		{"azure", "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text", map[string]string{"Metadata": "true"}},
+	}
+
+	for _, provider := range providers {
+		client := &http.Client{
+			Timeout: 5 * time.Second,
+		}
+		req, _ := http.NewRequest("GET", provider.url, nil)
+		for k, v := range provider.headers {
+			req.Header.Add(k, v)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return ""
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			publicIP := string(bodyBytes)
+			if net.ParseIP(publicIP).To4() != nil {
+				return publicIP
+			} else {
+				return ""
+			}
+		}
+	}
+	return ""
 }
 
-// PathToK0sConfig calls PathToK0sConfig on the default provider.
-func PathToK0sConfig() string {
-	return DefaultProvider.PathToK0sConfig()
-}
-
-// PathToK0sStatusSocket calls PathToK0sStatusSocket on the default provider.
+// PathToK0sStatusSocket returns the full path to the k0s status socket.
 func PathToK0sStatusSocket() string {
-	return DefaultProvider.PathToK0sStatusSocket()
+	return "/run/k0s/status.sock"
 }
 
+// PathToK0sConfig returns the full path to the k0s configuration file.
+func PathToK0sConfig() string {
+	return "/etc/k0s/k0s.yaml"
+}
+
+// PathToK0sContainerdConfig returns the full path to the k0s containerd configuration directory
 func PathToK0sContainerdConfig() string {
-	return DefaultProvider.PathToK0sContainerdConfig()
-}
-
-// EmbeddedClusterHomeDirectory calls EmbeddedClusterHomeDirectory on the default provider.
-func EmbeddedClusterHomeDirectory() string {
-	return DefaultProvider.EmbeddedClusterHomeDirectory()
-}
-
-// PathToEmbeddedClusterSupportFile calls PathToEmbeddedClusterSupportFile on the default provider.
-func PathToEmbeddedClusterSupportFile(name string) string {
-	return DefaultProvider.PathToEmbeddedClusterSupportFile(name)
+	return "/etc/k0s/containerd.d/"
 }

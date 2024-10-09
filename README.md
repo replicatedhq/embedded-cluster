@@ -115,7 +115,7 @@ $ output/bin/embedded-cluster shell
  ((____!___/) Type 'exit' (or CTRL+d) to exit.
   \0\0\0\0\/  Happy hacking.
  ~~~~~~~~~~~
-$ export KUBECONFIG="/var/lib/k0s/pki/admin.conf"
+$ export KUBECONFIG="/var/lib/embedded-cluster/k0s/pki/admin.conf"
 $ export PATH="$PATH:/var/lib/embedded-cluster/bin"
 $ source <(kubectl completion bash)
 $ source /etc/bash_completion

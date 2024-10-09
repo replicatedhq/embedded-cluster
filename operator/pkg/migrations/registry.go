@@ -19,9 +19,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// RegistryData runs a migration that copies data from the disk (/var/lib/embedded-cluster/registry)
-// to the seaweedfs s3 store. If it fails, it will scale the registry deployment back to 1. If it
-// succeeds, it will create a secret used to indicate success to the operator.
+// RegistryData runs a migration that copies data on disk in the registry-data PVC to the seaweedfs
+// s3 store. If it fails, it will scale the registry deployment back to 1. If it succeeds, it will
+// create a secret used to indicate success to the operator.
 func RegistryData(ctx context.Context) error {
 	// if the migration fails, we need to scale the registry back to 1
 	success := false
@@ -64,7 +64,7 @@ func RegistryData(ctx context.Context) error {
 	}
 
 	fmt.Printf("Running registry data migration\n")
-	err = filepath.Walk("/var/lib/embedded-cluster/registry", func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk("/registry", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("walk: %w", err)
 		}
@@ -79,7 +79,7 @@ func RegistryData(ctx context.Context) error {
 		}
 		defer f.Close()
 
-		relPath, err := filepath.Rel("/var/lib/embedded-cluster", path)
+		relPath, err := filepath.Rel("/", path)
 		if err != nil {
 			return fmt.Errorf("get relative path: %w", err)
 		}
@@ -110,6 +110,9 @@ func RegistryData(ctx context.Context) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      registry.RegistryDataMigrationCompleteSecretName,
 			Namespace: registry.RegistryNamespace(),
+			Labels: map[string]string{
+				"replicated.com/disaster-recovery": "ec-install",
+			},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
