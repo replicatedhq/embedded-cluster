@@ -981,15 +981,14 @@ func restoreCommand() *cli.Command {
 
 			// If the installation is available, we can further augment the runtime config from the
 			// installation.
-			if state != ecRestoreStateNew &&
-				state != ecRestoreStateConfirmBackup &&
-				state != ecRestoreStateRestoreECInstall {
-
-				var err error
-				runtimeConfig, err = getRuntimeConfigFromInstallation(c)
-				if err != nil {
-					return fmt.Errorf("unable to get runtime config from installation: %w", err)
-				}
+			rc, err := getRuntimeConfigFromInstallation(c)
+			if err != nil {
+				logrus.Debugf(
+					"Unable to get runtime config from installation, this is expected if the installation is not yet available (restore state=%s): %v",
+					state, err,
+				)
+			} else {
+				runtimeConfig = rc
 			}
 
 			provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
