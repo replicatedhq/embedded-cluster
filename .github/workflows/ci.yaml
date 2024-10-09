@@ -503,8 +503,6 @@ jobs:
           - TestHostPreflightCustomSpec
           - TestHostPreflightInBuiltSpec
           - TestUnsupportedOverrides
-          - TestMultiNodeInstallation
-          - TestMultiNodeReset
           - TestCommandsRequireSudo
           - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
@@ -520,19 +518,26 @@ jobs:
           - TestSingleNodeAirgapUpgradeFromEC18
           - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeDisasterRecoveryWithProxy
           - TestSingleNodeResumeDisasterRecovery
           - TestProxiedEnvironment
-          - TestMultiNodeHAInstallation
-          - TestMultiNodeHADisasterRecovery
           - TestCustomCIDR
           - TestProxiedCustomCIDR
           - TestSingleNodeInstallationNoopUpgrade
           - TestInstallWithPrivateCAs
           - TestInstallWithMITMProxy
         include:
+          - test: TestMultiNodeInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeReset
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeHADisasterRecovery
+            runner: embedded-cluster
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
           - test: TestMultiNodeAirgapUpgradeSameK0s
