@@ -31,12 +31,12 @@ func materializeCommand() *cli.Command {
 			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
+			defer tryRemoveTmpDirContents(provider)
+
 			materializer := goods.NewMaterializer(provider)
 			if err := materializer.Materialize(); err != nil {
 				return fmt.Errorf("unable to materialize: %v", err)
 			}
-
-			tryRemoveTmpDirContents(provider)
 
 			return nil
 		},

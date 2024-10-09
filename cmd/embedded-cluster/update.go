@@ -38,6 +38,8 @@ func updateCommand() *cli.Command {
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
+			defer tryRemoveTmpDirContents(provider)
+
 			if c.String("airgap-bundle") != "" {
 				logrus.Debugf("checking airgap bundle matches binary")
 				if err := checkAirgapMatches(c); err != nil {
@@ -60,8 +62,6 @@ func updateCommand() *cli.Command {
 			}); err != nil {
 				return err
 			}
-
-			tryRemoveTmpDirContents(provider)
 
 			return nil
 		},

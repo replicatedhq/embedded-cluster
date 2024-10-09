@@ -53,6 +53,8 @@ func installRunPreflightsCommand() *cli.Command {
 			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
+			defer tryRemoveTmpDirContents(provider)
+
 			var err error
 			proxy := getProxySpecFromFlags(c)
 			proxy, err = includeLocalIPInNoProxy(c, proxy)
@@ -92,8 +94,6 @@ func installRunPreflightsCommand() *cli.Command {
 			}
 
 			logrus.Info("Host preflights completed successfully")
-
-			tryRemoveTmpDirContents(provider)
 
 			return nil
 		},
@@ -143,6 +143,8 @@ var joinRunPreflightsCommand = &cli.Command{
 		provider := defaults.NewProviderFromRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
 		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
+		defer tryRemoveTmpDirContents(provider)
+
 		// check to make sure the version returned by the join token is the same as the one we are running
 		if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
 			return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
@@ -180,8 +182,6 @@ var joinRunPreflightsCommand = &cli.Command{
 		}
 
 		logrus.Info("Host preflights completed successfully")
-
-		tryRemoveTmpDirContents(provider)
 
 		return nil
 	},

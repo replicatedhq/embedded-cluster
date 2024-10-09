@@ -195,6 +195,8 @@ var joinCommand = &cli.Command{
 		os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
+		defer tryRemoveTmpDirContents(provider)
+
 		// check to make sure the version returned by the join token is the same as the one we are running
 		if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
 			return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
@@ -332,8 +334,6 @@ var joinCommand = &cli.Command{
 				return err
 			}
 		}
-
-		tryRemoveTmpDirContents(provider)
 
 		metrics.ReportJoinSucceeded(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 		logrus.Debugf("controller node join finished")

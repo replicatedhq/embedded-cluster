@@ -685,6 +685,8 @@ func installCommand() *cli.Command {
 			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
+			defer tryRemoveTmpDirContents(provider)
+
 			var err error
 			proxy := getProxySpecFromFlags(c)
 			proxy, err = includeLocalIPInNoProxy(c, proxy)
@@ -767,7 +769,6 @@ func installCommand() *cli.Command {
 				metrics.ReportApplyFinished(c, err)
 				return err
 			}
-			tryRemoveTmpDirContents(provider)
 			metrics.ReportApplyFinished(c, nil)
 			return nil
 		},

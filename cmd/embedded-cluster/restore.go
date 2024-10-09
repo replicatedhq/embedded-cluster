@@ -936,6 +936,8 @@ func restoreCommand() *cli.Command {
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
+			defer tryRemoveTmpDirContents(provider)
+
 			proxy := getProxySpecFromFlags(c)
 			setProxyEnv(proxy)
 
@@ -993,6 +995,8 @@ func restoreCommand() *cli.Command {
 			provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+
+			defer tryRemoveTmpDirContents(provider)
 
 			applier, err := getAddonsApplier(c, runtimeConfig, "", proxy)
 			if err != nil {
@@ -1210,8 +1214,6 @@ func restoreCommand() *cli.Command {
 			default:
 				return fmt.Errorf("unknown restore state: %q", state)
 			}
-
-			tryRemoveTmpDirContents(provider)
 
 			return nil
 		},
