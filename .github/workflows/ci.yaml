@@ -521,13 +521,16 @@ jobs:
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeDisasterRecoveryWithProxy
           - TestSingleNodeResumeDisasterRecovery
-          - TestProxiedEnvironment
-          - TestCustomCIDR
-          - TestProxiedCustomCIDR
           - TestSingleNodeInstallationNoopUpgrade
           - TestInstallWithPrivateCAs
           - TestInstallWithMITMProxy
         include:
+          - test: TestCustomCIDR
+            runner: embedded-cluster
+          - test: TestProxiedEnvironment
+            runner: embedded-cluster
+          - test: TestProxiedCustomCIDR
+            runner: embedded-cluster
           - test: TestMultiNodeInstallation
             runner: embedded-cluster
           - test: TestMultiNodeReset
