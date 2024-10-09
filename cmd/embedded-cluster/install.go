@@ -87,6 +87,7 @@ const (
 	localArtifactMirrorDropInFileContents = `[Service]
 Environment="LOCAL_ARTIFACT_MIRROR_PORT=%d"
 Environment="LOCAL_ARTIFACT_MIRROR_DATA_DIR=%s"
+# Empty ExecStart= will clear out the previous ExecStart value
 ExecStart=
 ExecStart=%s serve
 `
