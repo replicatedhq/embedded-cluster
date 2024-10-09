@@ -292,6 +292,7 @@ list-distros:
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
 create-node%: K0S_DATA_DIR = /var/lib/k0s
+create-node%: AIRGAP = 0
 create-node%:
 	@docker run -d \
 		--name node$* \
@@ -301,6 +302,7 @@ create-node%:
 		-v $(K0S_DATA_DIR) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
+		-e AIRGAP=$(AIRGAP) \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
 		replicated/ec-distro:$(DISTRO)
 

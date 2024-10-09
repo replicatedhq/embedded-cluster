@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
   ipvsadm \
   kmod \
   iproute2 \
+  iptables \
+  dnsutils \
   chrony \
   expect \
   vim

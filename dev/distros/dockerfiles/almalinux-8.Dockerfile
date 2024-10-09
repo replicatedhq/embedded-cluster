@@ -13,6 +13,8 @@ RUN dnf install -y \
   ipvsadm \
   kmod \
   iproute \
+  iptables \
+  dnsutils \
   chrony \
   expect \
   vim \

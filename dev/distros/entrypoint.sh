@@ -22,5 +22,14 @@ fi
 ln -sf /etc/machine-id.persistent /etc/machine-id
 ln -sf /etc/machine-id.persistent /var/lib/dbus/machine-id
 
+# Configure firewall for airgap environments
+if [ "$AIRGAP" = "1" ]; then
+    iptables -A INPUT -i lo -j ACCEPT
+    iptables -A OUTPUT -o lo -j ACCEPT
+    iptables -A OUTPUT -p udp --dport 123 -j ACCEPT # ntp
+    iptables -A OUTPUT -p udp --dport 53 -j ACCEPT # dns
+    iptables -A OUTPUT -j DROP
+fi
+
 # Launch the system
 exec /sbin/init
