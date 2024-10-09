@@ -121,21 +121,21 @@ func (o *Registry) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1
 		values = helmValues
 	}
 
+	// use a static cluster IP for the registry service based on the cluster CIDR range
+	serviceCIDR := k0sv1beta1.DefaultNetwork().ServiceCIDR
+	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil && k0sCfg.Spec.Network.ServiceCIDR != "" {
+		serviceCIDR = k0sCfg.Spec.Network.ServiceCIDR
+	}
+
+	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get cluster IP for registry service: %w", err)
+	}
+	values["service"] = map[string]interface{}{
+		"clusterIP": registryServiceIP.String(),
+	}
+
 	if !onlyDefaults {
-		// use a static cluster IP for the registry service based on the cluster CIDR range
-		serviceCIDR := k0sv1beta1.DefaultNetwork().ServiceCIDR
-		if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil && k0sCfg.Spec.Network.ServiceCIDR != "" {
-			serviceCIDR = k0sCfg.Spec.Network.ServiceCIDR
-		}
-
-		registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get cluster IP for registry service: %w", err)
-		}
-		values["service"] = map[string]interface{}{
-			"clusterIP": registryServiceIP.String(),
-		}
-
 		values["tlsSecretName"] = tlsSecretName
 	}
 
