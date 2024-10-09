@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	whilelistServeDirs = []string{"bin", "charts", "images"}
+	whitelistServeDirs = []string{"bin", "charts", "images"}
 )
 
 // serveCommand starts a http server that serves files from the data directory. This server listen
@@ -134,7 +134,7 @@ func startBinaryWatcher(provider *defaults.Provider, stop chan os.Signal) error 
 func logAndFilterRequest(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
-		for _, dir := range whilelistServeDirs {
+		for _, dir := range whitelistServeDirs {
 			if !strings.HasPrefix(dir, "/") {
 				dir = "/" + dir
 			}
