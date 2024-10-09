@@ -1236,11 +1236,6 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context, runtimeC
 		in.Spec.RuntimeConfig = &ecv1beta1.RuntimeConfigSpec{}
 	}
 
-	// We do not support changing these values so we must choose the values from the installation
-	// prior to the restore.
-	in.Spec.RuntimeConfig.DataDir = runtimeConfig.DataDir
-	in.Spec.RuntimeConfig.K0sDataDirOverride = runtimeConfig.K0sDataDirOverride
-
 	// We allow the user to override the port with a flag to the restore command.
 	in.Spec.RuntimeConfig.LocalArtifactMirror.Port = runtimeConfig.LocalArtifactMirror.Port
 
