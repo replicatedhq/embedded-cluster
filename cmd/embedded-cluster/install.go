@@ -560,7 +560,7 @@ func installAndWaitForK0s(c *cli.Context, provider *defaults.Provider, applier *
 func runOutro(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, cfg *k0sconfig.ClusterConfig) error {
 	os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 
-	metadata, err := gatherVersionMetadata(provider, cfg)
+	metadata, err := gatherVersionMetadata(cfg)
 	if err != nil {
 		return fmt.Errorf("unable to gather release metadata: %w", err)
 	}

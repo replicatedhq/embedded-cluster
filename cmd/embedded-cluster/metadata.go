@@ -3,13 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"runtime"
 	"sort"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	eckinds "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -23,47 +21,30 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func metadataCommand() *cli.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
-	return &cli.Command{
-		Name:   "metadata",
-		Usage:  "Print metadata about this release",
-		Hidden: true,
-		Flags: []cli.Flag{
-			getDataDirFlag(runtimeConfig),
-		},
-		Before: func(c *cli.Context) error {
-			if os.Getuid() != 0 {
-				return fmt.Errorf("version metadata command must be run as root")
-			}
-			return nil
-		},
-		Action: func(c *cli.Context) error {
-			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			k0sCfg := config.RenderK0sConfig()
-			metadata, err := gatherVersionMetadata(provider, k0sCfg)
-			if err != nil {
-				return fmt.Errorf("failed to gather version metadata: %w", err)
-			}
-			data, err := json.MarshalIndent(metadata, "", "\t")
-			if err != nil {
-				return fmt.Errorf("failed to marshal versions: %w", err)
-			}
-			fmt.Println(string(data))
-			tryRemoveTmpDirContents(provider)
-			return nil
-		},
-	}
+var metadataCommand = &cli.Command{
+	Name:   "metadata",
+	Usage:  "Print metadata about this release",
+	Hidden: true,
+	Action: func(c *cli.Context) error {
+		k0sCfg := config.RenderK0sConfig()
+		metadata, err := gatherVersionMetadata(k0sCfg)
+		if err != nil {
+			return fmt.Errorf("failed to gather version metadata: %w", err)
+		}
+		data, err := json.MarshalIndent(metadata, "", "\t")
+		if err != nil {
+			return fmt.Errorf("failed to marshal versions: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	},
 }
 
 // gatherVersionMetadata returns the release metadata for this version of
 // embedded cluster. Release metadata involves the default versions of the
 // components that are included in the release plus the default values used
 // when deploying them.
-func gatherVersionMetadata(provider *defaults.Provider, k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetadata, error) {
+func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetadata, error) {
 	applier := addons.NewApplier(
 		addons.WithoutPrompt(),
 		addons.OnlyDefaults(),
@@ -83,8 +64,7 @@ func gatherVersionMetadata(provider *defaults.Provider, k0sCfg *k0sconfig.Cluste
 		versionsMap[defaults.BinaryName()] = channelRelease.VersionLabel
 	}
 
-	materializer := goods.NewMaterializer(provider)
-	sha, err := materializer.K0sBinarySHA256()
+	sha, err := goods.K0sBinarySHA256()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get k0s binary sha256: %w", err)
 	}

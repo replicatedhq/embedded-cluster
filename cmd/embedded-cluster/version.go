@@ -20,9 +20,9 @@ var versionCommand = &cli.Command{
 	Name:  "version",
 	Usage: fmt.Sprintf("Show the %s component versions", defaults.BinaryName()),
 	Subcommands: []*cli.Command{
-		metadataCommand(),
+		metadataCommand,
 		embeddedDataCommand,
-		listImagesCommand(),
+		listImagesCommand,
 	},
 	Action: func(c *cli.Context) error {
 		applierVersions, err := addons.NewApplier(

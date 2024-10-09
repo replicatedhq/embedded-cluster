@@ -167,7 +167,7 @@ jobs:
       - name: Output Metadata
         run: |
           mkdir -p build
-          sudo ./output/bin/embedded-cluster version metadata > build/metadata.json
+          ./output/bin/embedded-cluster version metadata > build/metadata.json
 
       - name: Cache Staging Files
         env:

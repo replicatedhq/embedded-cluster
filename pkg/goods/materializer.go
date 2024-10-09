@@ -1,8 +1,6 @@
 package goods
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -187,20 +185,6 @@ func (m *Materializer) Kubectl() error {
 		return fmt.Errorf("write kubectl completion: %w", err)
 	}
 	return nil
-}
-
-// K0sBinarySHA256 returns the SHA256 checksum of the embedded k0s binary.
-func (m *Materializer) K0sBinarySHA256() (string, error) {
-	fp, err := binfs.Open("bins/k0s")
-	if err != nil {
-		return "", fmt.Errorf("unable to open embedded k0s binary: %w", err)
-	}
-	defer fp.Close()
-	hasher := sha256.New()
-	if _, err := io.Copy(hasher, fp); err != nil {
-		return "", fmt.Errorf("unable to copy embedded k0s binary: %w", err)
-	}
-	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 // Ourselves makes a copy of the embedded-cluster binary into the PathToEmbeddedClusterBinary() directory.
