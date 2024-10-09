@@ -65,6 +65,7 @@ type Input struct {
 	T                                 *testing.T
 	WithProxy                         bool
 	id                                string
+	AdditionalFiles                   []File
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -474,6 +475,9 @@ func CopyFilesToNode(in *Input, node string) {
 			DestPath:   "/assets/ec-release-upgrade.tgz",
 			Mode:       0755,
 		},
+	}
+	for _, file := range in.AdditionalFiles {
+		files = append(files, file)
 	}
 	for _, file := range files {
 		CopyFileToNode(in, node, file)
