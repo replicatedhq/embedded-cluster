@@ -14,7 +14,6 @@ RUN dnf install -y \
   kmod \
   iproute \
   iptables \
-  dnsutils \
   chrony \
   expect \
   vim \

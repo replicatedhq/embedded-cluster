@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y \
   kmod \
   iproute2 \
   iptables \
-  dnsutils \
   chrony \
   expect \
   vim
