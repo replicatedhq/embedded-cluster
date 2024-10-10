@@ -465,9 +465,7 @@ func CopyFilesToNode(in *ClusterInput, node string) {
 			Mode:       0755,
 		},
 	}
-	for _, file := range in.AdditionalFiles {
-		files = append(files, file)
-	}
+	files = append(files, in.AdditionalFiles...)
 	for _, file := range files {
 		CopyFileToNode(in, node, file)
 	}
