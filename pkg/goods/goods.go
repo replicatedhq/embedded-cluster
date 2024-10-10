@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strings"
 )
 
 var (
@@ -36,5 +37,20 @@ func K0sBinarySHA256() (string, error) {
 }
 
 func GetSupportBundleSpec(name string) ([]byte, error) {
-	return materializer.GetSupportBundleSpecFile(name)
+	entries, err := supportfs.ReadDir("support")
+	if err != nil {
+		return nil, fmt.Errorf("unable to read embedded-cluster support dir: %w", err)
+	}
+	for _, entry := range entries {
+		srcpath := fmt.Sprintf("support/%s", entry.Name())
+		if !strings.Contains(entry.Name(), name) {
+			continue
+		}
+		srcfile, err := supportfs.ReadFile(srcpath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read asset: %w", err)
+		}
+		return srcfile, nil
+	}
+	return nil, fmt.Errorf("unable to find support file %s", name)
 }
