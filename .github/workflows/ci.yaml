@@ -484,7 +484,7 @@ jobs:
 
   e2e:
     name: E2E
-    runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     needs:
       - build-current
       - build-previous-k0s
@@ -503,8 +503,6 @@ jobs:
           - TestHostPreflightCustomSpec
           - TestHostPreflightInBuiltSpec
           - TestUnsupportedOverrides
-          - TestMultiNodeInstallation
-          - TestMultiNodeReset
           - TestCommandsRequireSudo
           - TestInstallWithoutEmbed
           - TestInstallFromReplicatedApp
@@ -520,19 +518,29 @@ jobs:
           - TestSingleNodeAirgapUpgradeFromEC18
           - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestInstallSnapshotFromReplicatedApp
-          - TestMultiNodeAirgapUpgrade
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeDisasterRecoveryWithProxy
           - TestSingleNodeResumeDisasterRecovery
-          - TestProxiedEnvironment
-          - TestMultiNodeHAInstallation
-          - TestMultiNodeHADisasterRecovery
-          - TestCustomCIDR
-          - TestProxiedCustomCIDR
           - TestSingleNodeInstallationNoopUpgrade
           - TestInstallWithPrivateCAs
           - TestInstallWithMITMProxy
         include:
+          - test: TestCustomCIDR
+            runner: embedded-cluster
+          - test: TestProxiedEnvironment
+            runner: embedded-cluster
+          - test: TestProxiedCustomCIDR
+            runner: embedded-cluster
+          - test: TestMultiNodeInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeReset
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeHADisasterRecovery
+            runner: embedded-cluster
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
           - test: TestMultiNodeAirgapUpgradeSameK0s

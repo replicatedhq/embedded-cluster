@@ -9,8 +9,6 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	eckinds "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
-	"github.com/urfave/cli/v2"
-
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -20,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/urfave/cli/v2"
 )
 
 var metadataCommand = &cli.Command{

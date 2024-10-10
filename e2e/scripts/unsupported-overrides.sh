@@ -128,8 +128,4 @@ main() {
     fi
 }
 
-export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export K0SCONFIG=/etc/k0s/k0s.yaml
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main

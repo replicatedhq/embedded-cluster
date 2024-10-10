@@ -21,6 +21,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -99,7 +100,7 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
-func (o *Registry) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (o *Registry) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
@@ -262,7 +263,7 @@ func (o *Registry) generateRegistryMigrationRole(ctx context.Context, cli client
 }
 
 // Outro is executed after the cluster deployment.
-func (o *Registry) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (o *Registry) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	if !o.isAirgap {
 		return nil
 	}

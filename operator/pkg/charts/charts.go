@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 )
 
@@ -39,7 +40,7 @@ func K0sHelmExtensionsFromInstallation(
 		// if in airgap mode then all charts are already on the node's disk. we just need to
 		// make sure that the helm charts are pointing to the right location on disk and that
 		// we do not have any kind of helm repository configuration.
-		combinedConfigs = patchExtensionsForAirGap(combinedConfigs)
+		combinedConfigs = patchExtensionsForAirGap(in, combinedConfigs)
 	}
 
 	combinedConfigs, err = applyUserProvidedAddonOverrides(in, combinedConfigs)
@@ -91,6 +92,12 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *cl
 					combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
 					combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
 				}
+			} else {
+				registryConfig, ok := meta.BuiltinConfigs["registry"]
+				if ok {
+					combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
+					combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
+				}
 			}
 		} else {
 			registryConfig, ok := meta.BuiltinConfigs["registry"]
@@ -127,6 +134,8 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *cl
 
 // updateInfraChartsFromInstall updates the infrastructure charts with dynamic values from the installation spec
 func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig, charts []v1beta1.Chart) ([]v1beta1.Chart, error) {
+	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
+
 	for i, chart := range charts {
 		ecCharts := []string{
 			"admin-console",
@@ -171,8 +180,8 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 				}
 			}
 
-			if in.Spec.AdminConsole != nil && in.Spec.AdminConsole.Port > 0 {
-				newVals, err = helm.SetValue(newVals, "kurlProxy.nodePort", in.Spec.AdminConsole.Port)
+			if port := provider.AdminConsolePort(); port > 0 {
+				newVals, err = helm.SetValue(newVals, "kurlProxy.nodePort", port)
 				if err != nil {
 					return nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
 				}
@@ -305,11 +314,12 @@ func applyUserProvidedAddonOverrides(in *clusterv1beta1.Installation, combinedCo
 // sure that all helm charts point to a chart stored on disk as a tgz file. These files are already
 // expected to be present on the disk and, during an upgrade, are laid down on disk by the artifact
 // copy job.
-func patchExtensionsForAirGap(config *v1beta1.Helm) *v1beta1.Helm {
+func patchExtensionsForAirGap(in *clusterv1beta1.Installation, config *v1beta1.Helm) *v1beta1.Helm {
+	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
 	config.Repositories = nil
 	for idx, chart := range config.Charts {
 		chartName := fmt.Sprintf("%s-%s.tgz", chart.Name, chart.Version)
-		chartPath := filepath.Join("/var/lib/embedded-cluster/charts", chartName)
+		chartPath := filepath.Join(provider.EmbeddedClusterHomeDirectory(), "charts", chartName)
 		config.Charts[idx].ChartName = chartPath
 	}
 	return config

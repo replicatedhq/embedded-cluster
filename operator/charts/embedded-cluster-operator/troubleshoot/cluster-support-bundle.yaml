@@ -15,6 +15,13 @@ spec:
       limits:
         maxAge: 720h
   - logs:
+      name: podlogs/embedded-cluster-operator
+      namespace: embedded-cluster
+      selector:
+        - app.kubernetes.io/name=embedded-cluster-upgrade
+      limits:
+        maxAge: 720h
+  - logs:
       name: podlogs/calico-kube-controllers
       namespace: kube-system
       selector:
@@ -53,7 +60,7 @@ spec:
       name: podlogs/openebs
       namespace: openebs
       selector:
-      - app=openebs
+      - app=localpv-provisioner
       limits:
         maxAge: 720h
   - logs:
@@ -75,3 +82,15 @@ spec:
       - pass:
           when: "true"
           message: Cluster installation in 'Installed' state found
+  - textAnalyze:
+      checkName: "OpenEBS Local PV provisioner"
+      regex: "Failed to provision Local PV"
+      ignoreIfNoFiles: true
+      fileName: podlogs/openebs/openebs-localpv-provisioner-*/openebs-localpv-provisioner.log
+      outcomes:
+      - fail:
+          when: "true"
+          message: "OpenEBS Local Provisioner is failing to provision PVs"
+      - pass:
+          when: "false"
+          message: "OpenEBS Local Provisioner is provisioning PVs"

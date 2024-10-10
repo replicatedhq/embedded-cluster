@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -24,8 +25,9 @@ type InstallOptions struct {
 	AirgapBundle string
 }
 
-func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
-	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
+func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.MessageWriter) error {
+	materializer := goods.NewMaterializer(provider)
+	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
@@ -88,8 +90,9 @@ type AirgapUpdateOptions struct {
 	AirgapBundle string
 }
 
-func AirgapUpdate(opts AirgapUpdateOptions) error {
-	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
+func AirgapUpdate(provider *defaults.Provider, opts AirgapUpdateOptions) error {
+	materializer := goods.NewMaterializer(provider)
+	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
@@ -133,8 +136,9 @@ type VeleroConfigureOtherS3Options struct {
 	Namespace       string
 }
 
-func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
-	kotsBinPath, err := goods.MaterializeInternalBinary("kubectl-kots")
+func VeleroConfigureOtherS3(provider *defaults.Provider, opts VeleroConfigureOtherS3Options) error {
+	materializer := goods.NewMaterializer(provider)
+	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}

@@ -14,7 +14,7 @@ K0S_VERSION = v1.28.11+k0s.0-ec.0
 K0S_GO_VERSION = v1.28.11+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0-ec.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.105.0
+TROUBLESHOOT_VERSION = v0.105.2
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
@@ -26,16 +26,14 @@ METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
 
-ifeq ($(ARCH),amd64)
 ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.29.9%2Bk0s.0-ec.0-amd64
+K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)
 else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.28.14%2Bk0s.0-ec.0-amd64
+K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.28.14%2Bk0s.0-ec.0-$(ARCH)
 else ifeq ($(K0S_VERSION),v1.28.11+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.28.11%2Bk0s.0-ec.0-amd64
 else ifeq ($(K0S_VERSION),v1.28.10+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://embedded-cluster-assets.s3.amazonaws.com/k0s-v1.28.10%2Bk0s.0-ec.0-amd64
-endif
 endif
 
 LD_FLAGS = \
@@ -188,6 +186,7 @@ upgrade-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade
 upgrade-release: APP_VERSION = appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
+	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
 		./scripts/build-and-release.sh
 
 .PHONY: go.mod
@@ -204,22 +203,22 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: OS = linux
-embedded-cluster-linux-amd64: ARCH = amd64
+embedded-cluster-linux-amd64: export OS = linux
+embedded-cluster-linux-amd64: export ARCH = amd64
 embedded-cluster-linux-amd64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-linux-arm64
-embedded-cluster-linux-arm64: OS = linux
-embedded-cluster-linux-arm64: ARCH = arm64
+embedded-cluster-linux-arm64: export OS = linux
+embedded-cluster-linux-arm64: export ARCH = arm64
 embedded-cluster-linux-arm64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: OS = darwin
-embedded-cluster-darwin-arm64: ARCH = arm64
+embedded-cluster-darwin-arm64: export OS = darwin
+embedded-cluster-darwin-arm64: export ARCH = arm64
 embedded-cluster-darwin-arm64: go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
@@ -296,7 +295,7 @@ list-distros:
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
-create-node%: K0S_DATA_DIR = /var/lib/k0s
+create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
 create-node%:
 	@docker run -d \
 		--name node$* \
@@ -317,7 +316,7 @@ ssh-node%:
 
 .PHONY: delete-node%
 delete-node%:
-	@docker rm -f node$*
+	@docker rm -f --volumes node$*
 
 .PHONY: %-up
 %-up:

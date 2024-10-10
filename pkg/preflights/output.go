@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/term"
 )
@@ -107,7 +106,7 @@ func (o Output) printTable() {
 	logrus.Info("Please address this issue and try again.")
 }
 
-func (o Output) SaveToDisk() error {
+func (o Output) SaveToDisk(path string) error {
 	// Store results on disk of the host that ran the preflights
 	data, err := json.MarshalIndent(o, "", "  ")
 	if err != nil {
@@ -116,7 +115,6 @@ func (o Output) SaveToDisk() error {
 
 	// If we ever want to store multiple preflight results
 	// we can add a timestamp to the filename.
-	path := defaults.PathToEmbeddedClusterSupportFile("host-preflight-results.json")
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		return fmt.Errorf("unable to write preflight results to %s: %w", path, err)
 	}

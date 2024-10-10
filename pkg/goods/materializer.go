@@ -1,8 +1,6 @@
 package goods
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -22,8 +20,8 @@ type Materializer struct {
 
 // NewMaterializer returns a new entity capable of materialize (write to disk) embedded
 // assets. Other operations on embedded assets are also available.
-func NewMaterializer(basedir string) *Materializer {
-	return &Materializer{def: defaults.NewProvider(basedir)}
+func NewMaterializer(provider *defaults.Provider) *Materializer {
+	return &Materializer{def: provider}
 }
 
 // InternalBinary materializes an internal binary from inside internal/bins directory
@@ -171,7 +169,7 @@ func (m *Materializer) Kubectl() error {
 	// https://github.com/k0sproject/k0s/blob/5d48d20767851fe8e299aacd3d5aae6fcfbeab37/main.go#L40
 	dstpath := m.def.PathToEmbeddedClusterBinary("kubectl")
 	_ = os.RemoveAll(dstpath)
-	k0spath := m.def.K0sBinaryPath()
+	k0spath := defaults.K0sBinaryPath()
 	content := fmt.Sprintf(kubectlScript, k0spath)
 	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
 		return fmt.Errorf("write kubectl completion: %w", err)
@@ -189,20 +187,6 @@ func (m *Materializer) Kubectl() error {
 	return nil
 }
 
-// K0sBinarySHA256 returns the SHA256 checksum of the embedded k0s binary.
-func (m *Materializer) K0sBinarySHA256() (string, error) {
-	fp, err := binfs.Open("bins/k0s")
-	if err != nil {
-		return "", fmt.Errorf("unable to open embedded k0s binary: %w", err)
-	}
-	defer fp.Close()
-	hasher := sha256.New()
-	if _, err := io.Copy(hasher, fp); err != nil {
-		return "", fmt.Errorf("unable to copy embedded k0s binary: %w", err)
-	}
-	return hex.EncodeToString(hasher.Sum(nil)), nil
-}
-
 // Ourselves makes a copy of the embedded-cluster binary into the PathToEmbeddedClusterBinary() directory.
 // We are doing this copy for three reasons: 1. We make sure we have it in a standard location across all
 // installations. 2. We can overwrite it during cluster upgrades. 3. we can serve a copy of the binary
@@ -213,7 +197,7 @@ func (m *Materializer) Ourselves() error {
 		return fmt.Errorf("unable to get our own executable path: %w", err)
 	}
 
-	dstpath := m.def.PathToEmbeddedClusterBinary(m.def.BinaryName())
+	dstpath := m.def.PathToEmbeddedClusterBinary(defaults.BinaryName())
 	if srcpath == dstpath {
 		return nil
 	}

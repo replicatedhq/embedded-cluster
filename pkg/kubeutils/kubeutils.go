@@ -8,6 +8,7 @@ import (
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,7 +57,6 @@ func WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
 		}
 	}
 	return nil
-
 }
 
 // WaitForDeployment waits for the provided deployment to be ready.
@@ -173,29 +173,42 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 	return nil
 }
 
+func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedclusterv1beta1.Installation, error) {
+	var list embeddedclusterv1beta1.InstallationList
+	if err := cli.List(ctx, &list); err != nil {
+		return nil, err
+	}
+	installs := list.Items
+	sort.SliceStable(installs, func(i, j int) bool {
+		return installs[j].Name < installs[i].Name
+	})
+	return installs, nil
+}
+
+func GetInstallation(ctx context.Context, cli client.Client, name string) (*embeddedclusterv1beta1.Installation, error) {
+	nsn := types.NamespacedName{Name: name}
+	var install embeddedclusterv1beta1.Installation
+	if err := cli.Get(ctx, nsn, &install); err != nil {
+		return nil, fmt.Errorf("unable to get installation: %w", err)
+	}
+	return &install, nil
+}
+
 func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
-	var installList embeddedclusterv1beta1.InstallationList
-	if err := cli.List(ctx, &installList); meta.IsNoMatchError(err) {
+	installs, err := ListInstallations(ctx, cli)
+	if meta.IsNoMatchError(err) {
 		// this will happen if the CRD is not yet installed
 		return nil, ErrNoInstallations{}
 	} else if err != nil {
 		return nil, fmt.Errorf("unable to list installations: %v", err)
 	}
 
-	installs := installList.Items
 	if len(installs) == 0 {
 		return nil, ErrNoInstallations{}
 	}
 
-	// sort the installations
-	sort.SliceStable(installs, func(i, j int) bool {
-		return installs[j].Name < installs[i].Name
-	})
-
 	// get the latest installation
-	lastInstall := installs[0]
-
-	return &lastInstall, nil
+	return &installs[0], nil
 }
 
 func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {
@@ -318,6 +331,29 @@ func WaitForControllerNode(ctx context.Context, kcli client.Client, name string)
 	return nil
 }
 
+// WaitForJob waits for a job to have a certain number of completions.
+func WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxSteps int, completions int32) error {
+	backoff := wait.Backoff{Steps: maxSteps, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := IsJobComplete(ctx, cli, ns, name, completions)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get job status: %w", err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for job %s: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for job %s", name)
+		}
+	}
+	return nil
+}
+
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
 	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {
@@ -360,6 +396,19 @@ func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (
 		return false, err
 	}
 	if daemonset.Status.DesiredNumberScheduled == daemonset.Status.NumberReady {
+		return true, nil
+	}
+	return false, nil
+}
+
+// IsJobComplete returns true if the job has been completed successfully.
+func IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
+	var job batchv1.Job
+	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	if err := cli.Get(ctx, nsn, &job); err != nil {
+		return false, err
+	}
+	if job.Status.Succeeded >= completions {
 		return true, nil
 	}
 	return false, nil

@@ -2,7 +2,6 @@
 set -euox pipefail
 
 DIR=/usr/local/bin
-
 . $DIR/common.sh
 
 preflight_with_failure="
@@ -151,7 +150,7 @@ main() {
         cat /tmp/log
         exit 1
     fi
-    rm /var/lib/embedded-cluster/support/host-preflight-results.json
+    rm "${EMBEDDED_CLUSTER_BASE_DIR}/support/host-preflight-results.json"
     mv /tmp/log /tmp/log-failure
     # Warnings should not fail installations
     embed_preflight "$preflight_with_warning"
@@ -189,7 +188,4 @@ main() {
     fi
 }
 
-export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main
