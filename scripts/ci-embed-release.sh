@@ -66,10 +66,8 @@ function create_release_archive() {
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
 
-    echo "embed release metadataURL: \"${metadata_url}\""
-    cat output/tmp/release/cluster-config.yaml
-    echo "ls"
-    ls output/tmp/release
+    # remove the backup file
+    rm output/tmp/release/cluster-config.yaml.bak
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 

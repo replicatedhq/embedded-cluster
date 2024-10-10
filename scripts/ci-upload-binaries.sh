@@ -136,8 +136,6 @@ function metadata() {
     # check if a file 'build/metadata.json' exists in the directory
     # if it does, upload it as metadata/v${EC_VERSION}.json
     if [ -f "build/metadata.json" ]; then
-        echo "uploading metadata.json"
-        cat build/metadata.json
         # append a 'v' prefix to the version if it doesn't already have one
         retry 3 aws s3 cp --no-progress build/metadata.json "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}.json"
     else

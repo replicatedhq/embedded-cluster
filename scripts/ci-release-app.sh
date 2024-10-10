@@ -66,10 +66,8 @@ function create_release() {
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
 
-    echo "ci release appmetadataURL: \"${metadata_url}\""
-    cat output/tmp/release/cluster-config.yaml
-    echo "ls"
-    ls output/tmp/release
+    # remove the backup file
+    rm output/tmp/release/cluster-config.yaml.bak
 
     export REPLICATED_APP REPLICATED_API_TOKEN REPLICATED_API_ORIGIN
     replicated release create --yaml-dir output/tmp/release --promote "${APP_CHANNEL}" --version "${APP_VERSION}"
