@@ -77,5 +77,5 @@ jobs:
             exit 1
           fi
           # upload the file
-          aws s3 cp "k0s/k0s s3://${S3_BUCKET}/${object_key}"
+          aws s3 cp "k0s/k0s" "s3://${S3_BUCKET}/${object_key}"
           echo "::notice ::Binary uploaded to https://${S3_BUCKET}.s3.amazonaws.com/${object_key}"
