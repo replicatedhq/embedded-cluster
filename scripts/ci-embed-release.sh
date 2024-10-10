@@ -81,6 +81,7 @@ function build() {
 }
 
 function main() {
+    set -x
     init_vars
     deps
     create_release_archive
