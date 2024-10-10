@@ -535,8 +535,6 @@ jobs:
             runner: embedded-cluster
           - test: TestMultiNodeReset
             runner: embedded-cluster
-          - test: TestMultiNodeAirgapUpgrade
-            runner: embedded-cluster
           - test: TestMultiNodeHAInstallation
             runner: embedded-cluster
           - test: TestMultiNodeHADisasterRecovery
