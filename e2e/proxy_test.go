@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +28,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
-	tc := cluster.NewTestCluster(&cluster.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		WithProxy:           true,
@@ -36,23 +36,23 @@ func TestProxiedEnvironment(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer tc.Cleanup()
 	t.Log("Proxied infrastructure created")
 
 	// install "curl" dependency on node 0 for app version checks.
-	installTestDependenciesDebian(t, tc, 0, true)
+	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
-	line = append(line, "--http-proxy", cluster.HTTPProxy)
-	line = append(line, "--https-proxy", cluster.HTTPProxy)
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
+	line = append(line, "--http-proxy", lxd.HTTPProxy)
+	line = append(line, "--https-proxy", lxd.HTTPProxy)
+	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -72,7 +72,7 @@ func TestProxiedEnvironment(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -86,7 +86,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	for i, cmd := range controllerCommands {
 		node := i + 1
 		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
-		if _, _, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " ")); err != nil {
+		if _, _, err := tc.RunCommandOnNode(node, strings.Split(cmd, " ")); err != nil {
 			t.Fatalf("fail to join node %d as a controller: %v", node, err)
 		}
 		// XXX If we are too aggressive joining nodes we can see the following error being
@@ -99,13 +99,13 @@ func TestProxiedEnvironment(t *testing.T) {
 		time.Sleep(30 * time.Second)
 	}
 	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
+	if _, _, err := tc.RunCommandOnNode(3, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to wait for ready nodes: %v", err)
@@ -113,7 +113,7 @@ func TestProxiedEnvironment(t *testing.T) {
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
@@ -121,13 +121,13 @@ func TestProxiedEnvironment(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
@@ -141,7 +141,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
-	tc := cluster.NewTestCluster(&cluster.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		WithProxy:           true,
@@ -149,26 +149,26 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		LicensePath:         "license.yaml",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 	})
-	defer cleanupCluster(t, tc)
+	defer tc.Cleanup()
 	t.Log("Proxied infrastructure created")
 
 	// install "curl" dependency on node 0 for app version checks.
-	installTestDependenciesDebian(t, tc, 0, true)
+	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
-	line = append(line, "--http-proxy", cluster.HTTPProxy)
-	line = append(line, "--https-proxy", cluster.HTTPProxy)
+	line = append(line, "--http-proxy", lxd.HTTPProxy)
+	line = append(line, "--https-proxy", lxd.HTTPProxy)
 	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
-	if _, _, err := RunCommandOnNode(t, tc, 0, line, withProxyEnv(tc.IPs)); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := setupPlaywrightAndRunTest(t, tc, "deploy-app"); err != nil {
+	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
@@ -176,7 +176,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-command")
 		if err != nil {
 			t.Fatalf("fail to generate controller join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 		}
@@ -188,7 +188,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		t.Log("controller join token command:", command)
 	}
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -202,7 +202,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	for i, cmd := range controllerCommands {
 		node := i + 1
 		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
-		if _, _, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " ")); err != nil {
+		if _, _, err := tc.RunCommandOnNode(node, strings.Split(cmd, " ")); err != nil {
 			t.Fatalf("fail to join node %d as a controller: %v", node, err)
 		}
 		// XXX If we are too aggressive joining nodes we can see the following error being
@@ -215,13 +215,13 @@ func TestProxiedCustomCIDR(t *testing.T) {
 		time.Sleep(30 * time.Second)
 	}
 	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	if _, _, err := RunCommandOnNode(t, tc, 3, strings.Split(command, " ")); err != nil {
+	if _, _, err := tc.RunCommandOnNode(3, strings.Split(command, " ")); err != nil {
 		t.Fatalf("fail to join node 3 to the cluster as a worker: %v", err)
 	}
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to wait for ready nodes: %v", err)
@@ -229,13 +229,13 @@ func TestProxiedCustomCIDR(t *testing.T) {
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
-	stdout, _, err = RunCommandOnNode(t, tc, 0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
@@ -245,13 +245,13 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := runPlaywrightTest(t, tc, "deploy-upgrade", testArgs...); err != nil {
+	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
-	if _, _, err := RunCommandOnNode(t, tc, 0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
@@ -263,7 +263,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		t.Skip("skipping test for k0s versions < 1.29.0")
 	}
 
-	tc := cluster.NewTestCluster(&cluster.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               4,
 		WithProxy:           true,
@@ -271,29 +271,29 @@ func TestInstallWithMITMProxy(t *testing.T) {
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
 		LicensePath:         "license.yaml",
 	})
-	defer cleanupCluster(t, tc)
+	defer tc.Cleanup()
 
 	// install "curl" dependency on node 0 for app version checks.
-	installTestDependenciesDebian(t, tc, 0, true)
+	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
-	line = append(line, "--http-proxy", cluster.HTTPMITMProxy)
-	line = append(line, "--https-proxy", cluster.HTTPMITMProxy)
+	line = append(line, "--http-proxy", lxd.HTTPMITMProxy)
+	line = append(line, "--https-proxy", lxd.HTTPMITMProxy)
 	line = append(line, "--private-ca", "/usr/local/share/ca-certificates/proxy/ca.crt")
-	_, _, err := RunCommandOnNode(t, tc, 0, line, withMITMProxyEnv(tc.IPs))
+	_, _, err := tc.RunCommandOnNode(0, line, lxd.WithMITMProxyEnv(tc.IPs))
 	require.NoError(t, err, "failed to install embedded-cluster on node 0")
 
-	_, _, err = setupPlaywrightAndRunTest(t, tc, "deploy-app")
+	_, _, err = tc.SetupPlaywrightAndRunTest("deploy-app")
 	require.NoError(t, err, "failed to deploy app")
 
 	// generate all node join commands (2 for controllers and 1 for worker).
 	t.Logf("%s: generating two new controller token commands", time.Now().Format(time.RFC3339))
 	controllerCommands := []string{}
 	for i := 0; i < 2; i++ {
-		stdout, _, err := runPlaywrightTest(t, tc, "get-join-controller-command")
+		stdout, _, err := tc.RunPlaywrightTest("get-join-controller-command")
 		require.NoError(t, err, "failed to generate controller join token")
 
 		command, err := findJoinCommandInOutput(stdout)
@@ -304,7 +304,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, _, err := runPlaywrightTest(t, tc, "get-join-worker-command")
+	stdout, _, err := tc.RunPlaywrightTest("get-join-worker-command")
 	require.NoError(t, err, "failed to generate worker join token")
 
 	command, err := findJoinCommandInOutput(stdout)
@@ -315,7 +315,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	for i, cmd := range controllerCommands {
 		node := i + 1
 		t.Logf("%s: joining node %d to the cluster (controller)", time.Now().Format(time.RFC3339), node)
-		_, _, err := RunCommandOnNode(t, tc, node, strings.Split(cmd, " "))
+		_, _, err := tc.RunCommandOnNode(node, strings.Split(cmd, " "))
 		require.NoError(t, err, "failed to join node as a controller")
 
 		// XXX If we are too aggressive joining nodes we can see the following error being
@@ -329,17 +329,17 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: joining node 3 to the cluster as a worker", time.Now().Format(time.RFC3339))
-	_, _, err = RunCommandOnNode(t, tc, 3, strings.Split(command, " "))
+	_, _, err = tc.RunCommandOnNode(3, strings.Split(command, " "))
 	require.NoError(t, err, "failed to join node 3 to the cluster as a worker")
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	_, _, err = RunCommandOnNode(t, tc, 0, []string{"wait-for-ready-nodes.sh", "4"})
+	_, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "4"})
 	require.NoError(t, err, "failed to wait for nodes to be ready")
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
-	_, _, err = RunCommandOnNode(t, tc, 0, line)
+	_, _, err = tc.RunCommandOnNode(0, line)
 	require.NoError(t, err, "failed to check installation state")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

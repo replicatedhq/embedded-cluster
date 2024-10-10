@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,7 +23,7 @@ func CanEnableHA(ctx context.Context, kcli client.Client) (bool, error) {
 	if installation.Spec.HighAvailability {
 		return false, nil
 	}
-	if err := kcli.Get(ctx, types.NamespacedName{Name: constants.EcRestoreStateCMName, Namespace: "embedded-cluster"}, &v1.ConfigMap{}); err == nil {
+	if err := kcli.Get(ctx, types.NamespacedName{Name: constants.EcRestoreStateCMName, Namespace: "embedded-cluster"}, &corev1.ConfigMap{}); err == nil {
 		return false, nil // cannot enable HA during a restore
 	} else if !errors.IsNotFound(err) {
 		return false, fmt.Errorf("unable to get restore state configmap: %w", err)

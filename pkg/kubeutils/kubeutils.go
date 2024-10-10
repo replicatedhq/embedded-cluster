@@ -306,19 +306,21 @@ func WaitForControllerNode(ctx context.Context, kcli client.Client, name string)
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			var nodes corev1.NodeList
-			if err := kcli.List(ctx, &nodes); err != nil {
-				lasterr = fmt.Errorf("unable to list nodes: %v", err)
+			var node corev1.Node
+			if err := kcli.Get(ctx, client.ObjectKey{Name: name}, &node); err != nil {
+				lasterr = fmt.Errorf("unable to get node: %v", err)
 				return false, nil
 			}
-			for _, node := range nodes.Items {
-				if node.Name == name {
-					if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
-						return true, nil
-					}
+			if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; !ok {
+				lasterr = fmt.Errorf("control plane label not found")
+				return false, nil
+			}
+			for _, condition := range node.Status.Conditions {
+				if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+					return true, nil
 				}
 			}
-			lasterr = fmt.Errorf("node %s not found", name)
+			lasterr = fmt.Errorf("node %s not ready", name)
 			return false, nil
 		},
 	); err != nil {

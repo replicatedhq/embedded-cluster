@@ -297,7 +297,7 @@ create-node%:
 		--name node$* \
 		--hostname node$* \
 		--privileged \
-		--cgroupns=host \
+		--restart=unless-stopped \
 		-v $(K0S_DATA_DIR) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
