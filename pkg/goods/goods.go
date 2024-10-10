@@ -34,3 +34,7 @@ func K0sBinarySHA256() (string, error) {
 	}
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
+
+func GetSupportBundleSpec(name string) ([]byte, error) {
+	return materializer.GetSupportBundleSpecFile(name)
+}
