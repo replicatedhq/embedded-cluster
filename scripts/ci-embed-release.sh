@@ -68,6 +68,8 @@ function create_release_archive() {
 
     echo "embed release metadataURL: \"${metadata_url}\""
     cat output/tmp/release/cluster-config.yaml
+    echo "ls"
+    ls output/tmp/release
 
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 

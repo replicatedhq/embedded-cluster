@@ -68,6 +68,8 @@ function create_release() {
 
     echo "ci release appmetadataURL: \"${metadata_url}\""
     cat output/tmp/release/cluster-config.yaml
+    echo "ls"
+    ls output/tmp/release
 
     export REPLICATED_APP REPLICATED_API_TOKEN REPLICATED_API_ORIGIN
     replicated release create --yaml-dir output/tmp/release --promote "${APP_CHANNEL}" --version "${APP_VERSION}"
