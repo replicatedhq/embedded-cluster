@@ -158,16 +158,12 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
-      - name: Export k0s version
+      - name: Export k0s version and version specifier
         id: export
         run: |
           K0S_VERSION="$(make print-K0S_VERSION)"
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Export version specifier
-        id: export-version-specifier
-        run: |
           echo "version_specifier=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
   build-previous-k0s:
