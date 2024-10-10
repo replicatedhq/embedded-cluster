@@ -44,6 +44,9 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Git SHA
+    id: git_sha
+    uses: ./.github/actions/git-sha
   - name: Remove MS repo
     shell: bash
     run: |
