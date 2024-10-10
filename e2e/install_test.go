@@ -1975,11 +1975,17 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		{"rm", "/assets/release.airgap"},
 		{"rm", "/usr/local/bin/embedded-cluster"},
 	}
-	for i := 1; i < 5; i++ {
-		if err := tc.RunCommandsOnNode(i, joinCommandsSequence); err != nil {
-			t.Fatalf("fail to join controller node %s: %v", tc.Nodes[i], err)
-		}
-	}
+	runInParallel(t,
+		func(t *testing.T) error {
+			return tc.RunCommandsOnNode(1, joinCommandsSequence)
+		}, func(t *testing.T) error {
+			return tc.RunCommandsOnNode(2, joinCommandsSequence)
+		}, func(t *testing.T) error {
+			return tc.RunCommandsOnNode(3, joinCommandsSequence)
+		}, func(t *testing.T) error {
+			return tc.RunCommandsOnNode(4, joinCommandsSequence)
+		},
+	)
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
