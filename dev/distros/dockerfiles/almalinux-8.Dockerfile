@@ -18,9 +18,6 @@ RUN dnf install -y \
   vim \
   --allowerasing
 
-# Export kube config
-ENV KUBECONFIG=/var/lib/k0s/pki/admin.conf
-
 # Entrypoint for runtime configurations
 COPY ./entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
