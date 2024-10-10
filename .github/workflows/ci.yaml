@@ -562,7 +562,7 @@ jobs:
           - TestInstallWithPrivateCAs
           - TestInstallWithMITMProxy
         include:
-          - test: TestMultiNodeAirgapUpgrade # TODO NOW: make sure this runs
+          - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
           - test: TestMultiNodeAirgapUpgradeSameK0s
             runner: embedded-cluster

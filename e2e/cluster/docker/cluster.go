@@ -88,7 +88,7 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 	return c.Nodes[node].Exec(line, envs...)
 }
 
-func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (stdout, stderr string, err error) {
+func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
 	if err := c.SetupPlaywright(); err != nil {
 		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
 	}
@@ -146,7 +146,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 			c.t.Logf("%s: copying host support bundle from node %d to local machine", time.Now().Format(time.RFC3339), i)
 			src := fmt.Sprintf("%s:host.tar.gz", c.Nodes[i].GetName())
 			dst := fmt.Sprintf("support-bundle-host-%d.tar.gz", i)
-			if stdout, stderr, err := c.Nodes[i].CopyFile(src, dst); err != nil { // TODO NOW:
+			if stdout, stderr, err := c.Nodes[i].CopyFile(src, dst); err != nil {
 				c.t.Logf("stdout: %s", stdout)
 				c.t.Logf("stderr: %s", stderr)
 				c.t.Logf("fail to generate support bundle from node %d: %v", i, err)
@@ -164,7 +164,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 		c.t.Logf("%s: copying cluster support bundle from node 0 to local machine", time.Now().Format(time.RFC3339))
 		src := fmt.Sprintf("%s:cluster.tar.gz", c.Nodes[0].GetName())
 		dst := "support-bundle-cluster.tar.gz"
-		if stdout, stderr, err := c.Nodes[0].CopyFile(src, dst); err != nil { // TODO NOW:
+		if stdout, stderr, err := c.Nodes[0].CopyFile(src, dst); err != nil {
 			c.t.Logf("stdout: %s", stdout)
 			c.t.Logf("stderr: %s", stderr)
 			c.t.Logf("fail to generate cluster support bundle from node 0: %v", err)

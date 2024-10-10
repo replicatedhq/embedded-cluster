@@ -889,24 +889,6 @@ func PullImage(in *ClusterInput, image string) {
 	in.T.Fatalf("Failed to pull image %s (tried in all servers)", image)
 }
 
-type buffer struct {
-	*bytes.Buffer
-}
-
-func (b *buffer) Close() error {
-	return nil
-}
-
-func mergeMaps(maps ...map[string]string) map[string]string {
-	merged := map[string]string{}
-	for _, m := range maps {
-		for k, v := range m {
-			merged[k] = v
-		}
-	}
-	return merged
-}
-
 // RunCommandsOnNode runs a series of commands on a node.
 func (c *Cluster) RunCommandsOnNode(node int, cmds [][]string, envs ...map[string]string) error {
 	for _, cmd := range cmds {
@@ -1004,30 +986,6 @@ func (c *Cluster) InstallTestDependenciesDebian(t *testing.T, node int, withProx
 	}
 }
 
-func WithECShellEnv(dataDir string) map[string]string {
-	return map[string]string{
-		"EMBEDDED_CLUSTER_METRICS_BASEURL": "https://staging.replicated.app",
-		"KUBECONFIG":                       filepath.Join(dataDir, "k0s/pki/admin.conf"),
-		"PATH":                             filepath.Join(dataDir, "bin"),
-	}
-}
-
-func WithMITMProxyEnv(nodeIPs []string) map[string]string {
-	return map[string]string{
-		"HTTP_PROXY":  HTTPMITMProxy,
-		"HTTPS_PROXY": HTTPMITMProxy,
-		"NO_PROXY":    strings.Join(nodeIPs, ","),
-	}
-}
-
-func WithProxyEnv(nodeIPs []string) map[string]string {
-	return map[string]string{
-		"HTTP_PROXY":  HTTPProxy,
-		"HTTPS_PROXY": HTTPProxy,
-		"NO_PROXY":    strings.Join(nodeIPs, ","),
-	}
-}
-
 func (c *Cluster) Cleanup(envs ...map[string]string) {
 	if c.T.Failed() {
 		c.generateSupportBundle(envs...)
@@ -1035,7 +993,7 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 	}
 }
 
-func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (stdout, stderr string, err error) {
+func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
 	if err := c.SetupPlaywright(); err != nil {
 		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
 	}
@@ -1056,11 +1014,11 @@ func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
 	return nil
 }
 
-func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (stdout, stderr string, err error) {
+func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, string, error) {
 	c.T.Logf("%s: running playwright test %s on proxy node", time.Now().Format(time.RFC3339), testName)
 	line := []string{"playwright.sh", testName}
 	line = append(line, args...)
-	stdout, stderr, err = c.RunCommandOnProxyNode(c.T, line)
+	stdout, stderr, err := c.RunCommandOnProxyNode(c.T, line)
 	if err != nil {
 		return stdout, stderr, fmt.Errorf("fail to run playwright test %s on node %s: %v", testName, c.Proxy, err)
 	}
