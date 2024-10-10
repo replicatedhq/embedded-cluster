@@ -164,6 +164,7 @@ jobs:
           K0S_VERSION="$(make print-K0S_VERSION)"
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           echo "version_specifier=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
   build-previous-k0s:
