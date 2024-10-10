@@ -66,6 +66,9 @@ function create_release_archive() {
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
 
+    echo "metadataURL: \"${metadata_url}\""
+    cat output/tmp/release/cluster-config.yaml
+
     tar -czf output/tmp/release.tar.gz -C output/tmp/release .
 
     log "created output/tmp/release.tar.gz"
