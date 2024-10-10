@@ -2,12 +2,14 @@ package helm
 
 import (
 	"fmt"
+	"os"
 	"slices"
 	"sort"
 
 	"github.com/distribution/reference"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"gopkg.in/yaml.v2"
+	"helm.sh/helm/v3/pkg/chart"
 )
 
 type reducedResource struct {
@@ -39,6 +41,7 @@ func ExtractImagesFromOCIChart(hcli *Helm, url, name, version string, values map
 	if err != nil {
 		return nil, fmt.Errorf("pull oci: %w", err)
 	}
+	defer os.RemoveAll(chartPath)
 
 	return ExtractImagesFromLocalChart(hcli, name, chartPath, values)
 }
@@ -48,6 +51,7 @@ func ExtractImagesFromChart(hcli *Helm, repo, name, version string, values map[s
 	if err != nil {
 		return nil, fmt.Errorf("pull: %w", err)
 	}
+	defer os.RemoveAll(chartPath)
 
 	return ExtractImagesFromLocalChart(hcli, name, chartPath, values)
 }
@@ -71,6 +75,26 @@ func ExtractImagesFromLocalChart(hcli *Helm, name, path string, values map[strin
 	sort.Strings(images)
 
 	return images, nil
+}
+
+func GetOCIChartMetadata(hcli *Helm, url, name, version string) (*chart.Metadata, error) {
+	chartPath, err := hcli.PullOCI(url, version)
+	if err != nil {
+		return nil, fmt.Errorf("pull oci: %w", err)
+	}
+	defer os.RemoveAll(chartPath)
+
+	return hcli.GetChartMetadata(chartPath)
+}
+
+func GetChartMetadata(hcli *Helm, repo, name, version string) (*chart.Metadata, error) {
+	chartPath, err := hcli.Pull(repo, name, version)
+	if err != nil {
+		return nil, fmt.Errorf("pull oci: %w", err)
+	}
+	defer os.RemoveAll(chartPath)
+
+	return hcli.GetChartMetadata(chartPath)
 }
 
 func extractImagesFromK8sManifest(resource []byte) ([]string, error) {

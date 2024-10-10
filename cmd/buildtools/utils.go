@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
+	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/repo"
 )
 
@@ -442,6 +443,16 @@ func GetImagesFromOCIChart(url, name, version string, values map[string]interfac
 	return helm.ExtractImagesFromOCIChart(hcli, url, name, version, values)
 }
 
+func GetOCIChartMetadata(url, name, version string) (*chart.Metadata, error) {
+	hcli, err := NewHelm()
+	if err != nil {
+		return nil, fmt.Errorf("create helm client: %w", err)
+	}
+	defer hcli.Close()
+
+	return helm.GetOCIChartMetadata(hcli, url, name, version)
+}
+
 func MirrorChart(repo *repo.Entry, name, ver string) error {
 	hcli, err := NewHelm()
 	if err != nil {
@@ -463,6 +474,11 @@ func MirrorChart(repo *repo.Entry, name, ver string) error {
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
 
+	srcMeta, err := hcli.GetChartMetadata(chpath)
+	if err != nil {
+		return fmt.Errorf("get source chart metadata: %w", err)
+	}
+
 	if val := os.Getenv("CHARTS_REGISTRY_SERVER"); val != "" {
 		logrus.Infof("authenticating with %q", os.Getenv("CHARTS_REGISTRY_SERVER"))
 		if err := hcli.RegistryAuth(
@@ -475,13 +491,17 @@ func MirrorChart(repo *repo.Entry, name, ver string) error {
 	}
 
 	dst := fmt.Sprintf("oci://%s", os.Getenv("CHARTS_DESTINATION"))
+	chartURL := fmt.Sprintf("%s/%s", dst, name)
 	logrus.Infof("verifying if destination tag already exists")
-	tmpf, err := hcli.Pull(dst, name, ver)
+	dstMeta, err := GetOCIChartMetadata(chartURL, name, ver)
 	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
 		return fmt.Errorf("verify tag exists: %w", err)
 	} else if err == nil {
-		os.Remove(tmpf)
-		logrus.Warnf("cowardly refusing to override dst (tag %s already exist)", ver)
+		if srcMeta.AppVersion == dstMeta.AppVersion {
+			logrus.Infof("cowardly refusing to override dst (tag %s already exist)", ver)
+			return nil
+		}
+		logrus.Warnf("dst tag exists but app versions do not match (src: %s, dst: %s)", srcMeta.AppVersion, dstMeta.AppVersion)
 		return nil
 	}
 	logrus.Infof("destination tag does not exist")
