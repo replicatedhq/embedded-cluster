@@ -4,15 +4,19 @@
 package addons
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -22,10 +26,18 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	serializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
+
+const SpecDataKey = "support-bundle-spec"
 
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
@@ -81,9 +93,76 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 	if err := spinForInstallation(ctx, kcli); err != nil {
 		return err
 	}
-	if err := printKotsadmLinkMessage(a.licenseFile, networkInterface, a.provider.AdminConsolePort()); err != nil {
+
+	err = createHostSupportBundle()
+	if err != nil {
+		logrus.Warnf("failed to create host support bundle: %v", err)
+	}
+
+	if err := printKotsadmLinkMessage(a.licenseFile, networkInterface, a.GetAdminConsolePort()); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
+
+	return nil
+}
+
+func createHostSupportBundle() error {
+	mat := spinner.Start()
+	defer mat.Close()
+	mat.Infof("Creating host support bundle")
+	specFile, err := goods.GetSupportBundleSpec("host-support-bundle-remote")
+
+	if err != nil {
+		return fmt.Errorf("unable to get support bundle spec: %w", err)
+	}
+
+	var b bytes.Buffer
+	s := serializer.NewYAMLSerializer(serializer.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
+	hostSupportBundle := troubleshootv1beta2.SupportBundle{}
+
+	err = yaml.Unmarshal(specFile, &hostSupportBundle)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal support bundle spec: %w", err)
+	}
+
+	if err := s.Encode(&hostSupportBundle, &b); err != nil {
+		return fmt.Errorf("unable to encode support bundle spec: %w", err)
+	}
+
+	renderedSpec := b.Bytes()
+
+	configMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "embedded-cluster-host-support-bundle",
+			Namespace: "kotsadm",
+		},
+		Data: map[string]string{
+			SpecDataKey: string(renderedSpec),
+		},
+	}
+
+	ctx := context.Background()
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	err = kcli.Create(ctx, configMap)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("unable to create config map: %w", err)
+	}
+
+	if errors.IsAlreadyExists(err) {
+		if err := kcli.Update(ctx, configMap); err != nil {
+			return fmt.Errorf("unable to update config map: %w", err)
+		}
+	}
+
+	mat.Infof("Host support bundle created!")
 	return nil
 }
 
