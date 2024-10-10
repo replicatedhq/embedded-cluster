@@ -103,6 +103,7 @@ jobs:
       - git-sha
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
+      version_specifier: ${{ steps.export.outputs.version_specifier }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -163,6 +164,11 @@ jobs:
           K0S_VERSION="$(make print-K0S_VERSION)"
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Export version specifier
+        id: export
+        run: |
+          echo "version_specifier=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
   build-previous-k0s:
     name: Build previous k0s
@@ -576,7 +582,7 @@ jobs:
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
           k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
-          version-specifier: dev-${{ needs.git-sha.outputs.git_sha }}
+          version-specifier: ${{ needs.build-current.outputs.version_specifier }}
 
   # this job will validate that all the tests passed
   # it is used for the github branch protection rule
