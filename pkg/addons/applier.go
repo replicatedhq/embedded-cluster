@@ -106,66 +106,6 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 	return nil
 }
 
-func createHostSupportBundle() error {
-	mat := spinner.Start()
-	defer mat.Close()
-	mat.Infof("Creating host support bundle")
-	specFile, err := goods.GetSupportBundleSpec("host-support-bundle-remote")
-
-	if err != nil {
-		return fmt.Errorf("unable to get support bundle spec: %w", err)
-	}
-
-	var b bytes.Buffer
-	s := serializer.NewYAMLSerializer(serializer.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-	hostSupportBundle := troubleshootv1beta2.SupportBundle{}
-
-	err = yaml.Unmarshal(specFile, &hostSupportBundle)
-	if err != nil {
-		return fmt.Errorf("unable to unmarshal support bundle spec: %w", err)
-	}
-
-	if err := s.Encode(&hostSupportBundle, &b); err != nil {
-		return fmt.Errorf("unable to encode support bundle spec: %w", err)
-	}
-
-	renderedSpec := b.Bytes()
-
-	configMap := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "embedded-cluster-host-support-bundle",
-			Namespace: "kotsadm",
-		},
-		Data: map[string]string{
-			SpecDataKey: string(renderedSpec),
-		},
-	}
-
-	ctx := context.Background()
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("unable to create kube client: %w", err)
-	}
-
-	err = kcli.Create(ctx, configMap)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("unable to create config map: %w", err)
-	}
-
-	if errors.IsAlreadyExists(err) {
-		if err := kcli.Update(ctx, configMap); err != nil {
-			return fmt.Errorf("unable to update config map: %w", err)
-		}
-	}
-
-	mat.Infof("Host support bundle created!")
-	return nil
-}
-
 // OutroForRestore runs the outro in all enabled add-ons for restore operations.
 func (a *Applier) OutroForRestore(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig) error {
 	kcli, err := kubeutils.KubeClient()
@@ -528,4 +468,60 @@ func NewApplier(opts ...Option) *Applier {
 		fn(applier)
 	}
 	return applier
+}
+
+func createHostSupportBundle() error {
+	specFile, err := goods.GetSupportBundleSpec("host-support-bundle-remote")
+
+	if err != nil {
+		return fmt.Errorf("unable to get support bundle spec: %w", err)
+	}
+
+	var b bytes.Buffer
+	s := serializer.NewYAMLSerializer(serializer.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
+	hostSupportBundle := troubleshootv1beta2.SupportBundle{}
+
+	err = yaml.Unmarshal(specFile, &hostSupportBundle)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal support bundle spec: %w", err)
+	}
+
+	if err := s.Encode(&hostSupportBundle, &b); err != nil {
+		return fmt.Errorf("unable to encode support bundle spec: %w", err)
+	}
+
+	renderedSpec := b.Bytes()
+
+	configMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "embedded-cluster-host-support-bundle",
+			Namespace: "kotsadm",
+		},
+		Data: map[string]string{
+			SpecDataKey: string(renderedSpec),
+		},
+	}
+
+	ctx := context.Background()
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	err = kcli.Create(ctx, configMap)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("unable to create config map: %w", err)
+	}
+
+	if errors.IsAlreadyExists(err) {
+		if err := kcli.Update(ctx, configMap); err != nil {
+			return fmt.Errorf("unable to update config map: %w", err)
+		}
+	}
+
+	return nil
 }

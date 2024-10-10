@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
@@ -228,23 +227,4 @@ func (m *Materializer) Ourselves() error {
 		return fmt.Errorf("unable to write file: %w", err)
 	}
 	return nil
-}
-
-func (m *Materializer) GetSupportBundleSpecFile(name string) ([]byte, error) {
-	entries, err := supportfs.ReadDir("support")
-	if err != nil {
-		return nil, fmt.Errorf("unable to read embedded-cluster support dir: %w", err)
-	}
-	for _, entry := range entries {
-		srcpath := fmt.Sprintf("support/%s", entry.Name())
-		if !strings.Contains(entry.Name(), name) {
-			continue
-		}
-		srcfile, err := supportfs.ReadFile(srcpath)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read asset: %w", err)
-		}
-		return srcfile, nil
-	}
-	return nil, fmt.Errorf("unable to find support file %s", name)
 }
