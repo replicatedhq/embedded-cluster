@@ -537,6 +537,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		T:      t,
 		Nodes:  1,
 		Distro: "debian-bookworm",
+		K0sDir: "/var/lib/k0s",
 	})
 	defer tc.Cleanup(withEnv)
 
@@ -728,6 +729,7 @@ func TestOldVersionUpgrade(t *testing.T) {
 		T:      t,
 		Nodes:  1,
 		Distro: "debian-bookworm",
+		K0sDir: "/var/lib/k0s",
 	})
 	defer tc.Cleanup(withEnv)
 

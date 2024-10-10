@@ -23,6 +23,7 @@ type ClusterInput struct {
 	LicensePath          string
 	ECBinaryPath         string
 	ECReleaseBuilderPath string
+	K0sDir               string
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
@@ -41,8 +42,14 @@ func NewCluster(in *ClusterInput) *Cluster {
 func NewNode(in *ClusterInput, name string) *Container {
 	c := NewContainer(in.T, name).
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", in.Distro)).
-		WithVolume("/var/lib/k0s").
 		WithScripts()
+	if in.K0sDir != "" {
+		in.T.Logf("using k0s dir %s", in.K0sDir)
+		c = c.WithVolume(in.K0sDir)
+	} else {
+		in.T.Logf("using default k0s dir")
+		c = c.WithVolume("/var/lib/embedded-cluster/k0s")
+	}
 	if in.ECBinaryPath != "" {
 		in.T.Logf("using embedded cluster binary %s", in.ECBinaryPath)
 		c = c.WithECBinary(in.ECBinaryPath)
