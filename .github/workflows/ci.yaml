@@ -166,7 +166,7 @@ jobs:
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Export version specifier
-        id: export
+        id: export-version-specifier
         run: |
           echo "version_specifier=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
