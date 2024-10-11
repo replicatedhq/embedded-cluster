@@ -1,71 +1,54 @@
 package e2e
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/docker"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 )
 
 func TestPreflights(t *testing.T) {
 	t.Parallel()
 
-	cli := docker.NewCLI(t)
-
-	container := docker.NewContainer(t).
-		WithImage("debian:bookworm-slim").
-		WithECBinary()
-	if licensePath := os.Getenv("LICENSE_PATH"); licensePath != "" {
-		t.Logf("using license %s", licensePath)
-		container = container.WithLicense(licensePath)
-	}
-	container.Start(cli)
-
-	t.Cleanup(func() {
-		container.Destroy(cli)
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "debian-bookworm",
+		LicensePath:  "license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
+	defer tc.Cleanup()
 
-	_, stderr, err := container.Exec(cli,
-		"apt-get update && apt-get install -y apt-utils kmod netcat-traditional",
-	)
+	_, stderr, err := tc.RunCommandOnNode(0, []string{"apt-get update && apt-get install -y apt-utils netcat-traditional"})
 	if err != nil {
 		t.Fatalf("failed to install deps: err=%v, stderr=%s", err, stderr)
 	}
 
-	if _, stderr, err = container.Exec(cli, "nohup netcat -l -p 10250 &"); err != nil {
+	if _, stderr, err = tc.RunCommandOnNode(0, []string{"nohup netcat -l -p 10250 &"}); err != nil {
 		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
 	}
 
-	if _, stderr, err = container.Exec(cli, "nohup netcat -l 127.0.0.1 -p 50000 &"); err != nil {
+	if _, stderr, err = tc.RunCommandOnNode(0, []string{"nohup netcat -l 127.0.0.1 -p 50000 &"}); err != nil {
 		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
 	}
 
-	if _, stderr, err = container.Exec(cli, "nohup netcat -l -u -p 4789 &"); err != nil {
+	if _, stderr, err = tc.RunCommandOnNode(0, []string{"nohup netcat -l -u -p 4789 &"}); err != nil {
 		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
 	}
 
-	runCmd := fmt.Sprintf("%s install run-preflights --no-prompt", container.GetECBinaryPath())
-	if os.Getenv("LICENSE_PATH") != "" {
-		runCmd = fmt.Sprintf("%s --license %s", runCmd, container.GetLicensePath())
-	}
+	runCmd := []string{"embedded-cluster install run-preflights --no-prompt --license /assets/license.yaml"}
 
 	// we are more interested in the results
-	runStdout, runStderr, runErr := container.Exec(cli, runCmd)
+	runStdout, runStderr, runErr := tc.RunCommandOnNode(0, runCmd)
 
-	stdout, stderr, err := container.Exec(cli,
-		"cat /var/lib/embedded-cluster/support/host-preflight-results.json",
-	)
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"cat /var/lib/embedded-cluster/support/host-preflight-results.json"})
 	if err != nil {
 		t.Logf("run-preflights: err=%v, stdout=%s, stderr=%s", runErr, runStdout, runStderr)
 		t.Fatalf("failed to get preflight results: err=%v, stderr=%s", err, stderr)
 	}
 
-	_, stderr, err = container.Exec(cli,
-		"ls /var/lib/embedded-cluster/support/preflight-bundle.tar.gz",
-	)
+	_, stderr, err = tc.RunCommandOnNode(0, []string{"ls /var/lib/embedded-cluster/support/preflight-bundle.tar.gz"})
 	if err != nil {
 		t.Logf("run-preflights: err=%v, stdout=%s, stderr=%s", runErr, runStdout, runStderr)
 		t.Fatalf("failed to list preflight bundle: err=%v, stderr=%s", err, stderr)
