@@ -17,7 +17,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
 const (
@@ -51,10 +50,6 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	}
 	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
 	overrideK0sImages(cfg)
-	if strings.HasPrefix(versions.K0sVersion, "v1.28") {
-		cfg.Spec.Images.Pause.Version = "3.8@sha256:9001185023633d17a2f98ff69b6ff2615b8ea02a825adffa40422f51dfdcde9d"
-		cfg.Spec.Images.KubeProxy.Version = "v1.28.12@sha256:7dd7829fa889ac805a0b1047eba04599fa5006bdbcb5cb9c8d14e1dc8910488b"
-	}
 	return cfg
 }
 
