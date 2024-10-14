@@ -20,7 +20,7 @@ func TestVersion(t *testing.T) {
 		CreateRegularUser:   true,
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-		AdditionalFiles: []cluster.File{
+		AdditionalFiles: []lxd.File{
 			{
 				SourcePath: "../output/bin/embedded-cluster-original",
 				DestPath:   "/usr/local/bin/embedded-cluster-original",
@@ -52,12 +52,12 @@ func TestVersion(t *testing.T) {
 
 	t.Logf("%s: validating 'embedded-cluster version metadata --omit-release-metadata' in node 0", time.Now().Format(time.RFC3339))
 	line = []string{"embedded-cluster", "version", "metadata", "--omit-release-metadata"}
-	embedMetadata, _, err := RunRegularUserCommandOnNode(t, tc, 0, line)
+	embedMetadata, _, err := tc.RunRegularUserCommandOnNode(t, 0, line)
 	if err != nil {
 		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
 	}
 	line = []string{"embedded-cluster-original", "version", "metadata"}
-	noembedMetadata, _, err := RunRegularUserCommandOnNode(t, tc, 0, line)
+	noembedMetadata, _, err := tc.RunRegularUserCommandOnNode(t, 0, line)
 	if err != nil {
 		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
 	}
