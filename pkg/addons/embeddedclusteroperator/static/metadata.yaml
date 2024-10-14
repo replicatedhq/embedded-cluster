@@ -5,16 +5,16 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 1.12.1+k8s-1.29
-location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator
+version: 1.15.0+k8s-1.29-51-g097b9760
+location: oci://proxy.replicated.com/anonymous/ttl.sh/ada/embedded-cluster-operator
 images:
     embedded-cluster-operator:
-        repo: proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image
+        repo: proxy.replicated.com/anonymous/ttl.sh/ada/embedded-cluster-operator-image
         tag:
-            amd64: v1.12.1-k8s-1.29-amd64@sha256:eeed01216b5d18dd05ac4f39351a055b4aebe5a9e35ed287595391b6988c8950
-            arm64: v1.11.1-k8s-1.29@sha256:2520e1593a323d5f7218d9501c6f6f08ef34d8eee4dbc4a7306878e3572aa4cb
+            amd64: 1.15.0-k8s-1.29-51-g097b9760-amd64@sha256:69f6e842729b263f26cd10155b1cd328548a83b037bbb8bff71c1495a3acc83a
+            arm64: 1.15.0-k8s-1.29-51-g097b9760-arm64@sha256:b868b49cb449e2ce5cb53cef90acae04938e41ff033012410e197a055b72878e
     utils:
-        repo: proxy.replicated.com/anonymous/replicated/ec-utils
+        repo: proxy.replicated.com/anonymous/ttl.sh/replicated/ec-utils
         tag:
-            amd64: latest-amd64@sha256:92dec6e167ff57b35953da389ceffca0227056368d369a5b20a36fb2fe7e3e11
-            arm64: latest-arm64@sha256:a9ab9db181f9898283a8778070ef7945299ffc933d7da081b5326f3296da6d0a
+            amd64: latest-amd64@sha256:503c085087e50d11312c01ca5533ec8622a6f686650556d00f9c5b1fc5fd3099
+            arm64: latest-arm64@sha256:ba4719d4e734daa6fa085ea37e5a4ed5f0ba3809db1c998dbf3526d21ce7f53b

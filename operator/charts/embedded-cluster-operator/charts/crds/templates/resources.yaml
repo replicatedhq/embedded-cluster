@@ -603,6 +603,9 @@ spec:
                       OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage
                       provisioner. By default the data will be stored in a subdirectory of DataDir.
                     type: string
+                  privateCA:
+                    description: Private CA holds a path to a trusted private CA certificate PEM file.
+                    type: string
                 type: object
             type: object
           status:

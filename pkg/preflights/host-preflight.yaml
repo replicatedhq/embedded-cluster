@@ -43,6 +43,14 @@ spec:
         get:
           url: '{{ .ReplicatedAPIURL }}'
           timeout: 5s
+{{- if ne .PrivateCA  "" -}}
+          tls:
+            cacert: '{{ .PrivateCA }}'
+{{- end }}
+{{- if ne .HTTPSProxy "" -}}
+        proxy:
+          url: '{{ .HTTPSProxy }}'
+{{- end }}
         exclude: '{{ or .IsAirgap (eq .ReplicatedAPIURL "") }}'
     - http:
         collectorName: http-proxy-replicated-com

@@ -47,7 +47,7 @@ func Run(ctx context.Context, provider *defaults.Provider, spec *troubleshootv1b
 	binpath := provider.PathToEmbeddedClusterBinary("kubectl-preflight")
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
-	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
+	cmd := exec.Command(binpath, "--v=4", "--interactive=false", "--format=json", fpath)
 	cmdEnv := cmd.Environ()
 	cmdEnv = proxyEnv(cmdEnv, proxy)
 	cmdEnv = pathEnv(cmdEnv, provider)

@@ -28,6 +28,11 @@ type TemplateData struct {
 	ServiceCIDR             CIDRData
 	PodCIDR                 CIDRData
 	GlobalCIDR              CIDRData
+	PrivateCA               string
+	HTTPProxy               string
+	HTTPSProxy              string
+	ProvidedNoProxy         string
+	NoProxy                 string
 }
 
 // WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings
