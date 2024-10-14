@@ -150,13 +150,13 @@ var joinRunPreflightsCommand = &cli.Command{
 			return fmt.Errorf("embedded cluster version mismatch - this binary is version %q, but the cluster is running version %q", versions.Version, jcmd.EmbeddedClusterVersion)
 		}
 
-		setProxyEnv(jcmd.InstallationSpec.RuntimeConfig.Proxy)
-		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.RuntimeConfig.Proxy, c.String("network-interface"))
+		setProxyEnv(jcmd.InstallationSpec.Proxy)
+		proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, c.String("network-interface"))
 		if err != nil {
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
 		if !proxyOK {
-			return fmt.Errorf("no-proxy config %q does not allow access to local IP %q", jcmd.InstallationSpec.RuntimeConfig.Proxy.NoProxy, localIP)
+			return fmt.Errorf("no-proxy config %q does not allow access to local IP %q", jcmd.InstallationSpec.Proxy.NoProxy, localIP)
 		}
 
 		isAirgap := c.String("airgap-bundle") != ""
@@ -166,7 +166,7 @@ var joinRunPreflightsCommand = &cli.Command{
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, jcmd.InstallationSpec.RuntimeConfig, "", jcmd.InstallationSpec.RuntimeConfig.Proxy)
+		applier, err := getAddonsApplier(c, jcmd.InstallationSpec.RuntimeConfig, "", jcmd.InstallationSpec.Proxy)
 		if err != nil {
 			return err
 		}
@@ -174,7 +174,7 @@ var joinRunPreflightsCommand = &cli.Command{
 		logrus.Debugf("running host preflights")
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.RuntimeConfig.Proxy); err != nil {
+		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
 			if err == ErrPreflightsHaveFail {
 				return ErrNothingElseToAdd
 			}
