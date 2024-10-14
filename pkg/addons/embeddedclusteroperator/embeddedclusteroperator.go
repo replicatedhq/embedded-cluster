@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	types2 "k8s.io/apimachinery/pkg/types"
 	"strings"
 	"time"
 
@@ -292,7 +293,13 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 	if err := cli.Create(ctx, &installation); err != nil {
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
-	if err := cli.Status().Update(ctx, &installation); err != nil {
+
+	gotInstallation := &ecv1beta1.Installation{}
+	if err := cli.Get(ctx, types2.NamespacedName{Name: installation.Name}, &installation); err != nil {
+		return fmt.Errorf("unable to get installation: %w", err)
+	}
+	gotInstallation.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
+	if err := cli.Status().Update(ctx, gotInstallation); err != nil {
 		return fmt.Errorf("unable to update installation status: %w", err)
 	}
 
