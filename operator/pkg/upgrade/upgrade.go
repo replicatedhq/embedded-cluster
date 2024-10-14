@@ -30,14 +30,14 @@ const (
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	err := k0sUpgrade(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("k0s upgrade: %w", err)
-	}
-
-	err = clusterConfigUpgrade(ctx, cli, in)
+	err := clusterConfigUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("cluster config upgrade: %w", err)
+	}
+
+	err = k0sUpgrade(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("k0s upgrade: %w", err)
 	}
 
 	err = registryMigrationStatus(ctx, cli, in)
@@ -171,7 +171,7 @@ func clusterConfigUpgrade(ctx context.Context, cli client.Client, in *clusterv1b
 	if err != nil {
 		return fmt.Errorf("update cluster config: %w", err)
 	}
-	fmt.Println("Updated k0s ClusterConfig with latest images")
+	fmt.Println("Updating cluster config with new images")
 
 	return nil
 }
