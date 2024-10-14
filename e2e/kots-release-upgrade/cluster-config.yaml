@@ -53,9 +53,6 @@ spec:
           namespace: ingress-nginx
           version: "4.9.1"
           values: |
-            global:
-              image:
-                registry: proxy.replicated.com/anonymous/registry.k8s.io
             controller:
               service:
                 type: NodePort
