@@ -32,7 +32,7 @@ const (
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
 	err := clusterConfigUpdate(ctx, cli, in)
 	if err != nil {
-		return fmt.Errorf("cluster config upgrade: %w", err)
+		return fmt.Errorf("cluster config update: %w", err)
 	}
 
 	err = k0sUpgrade(ctx, cli, in)
