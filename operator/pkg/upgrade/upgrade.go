@@ -171,7 +171,7 @@ func clusterConfigUpgrade(ctx context.Context, cli client.Client, in *clusterv1b
 	if err != nil {
 		return fmt.Errorf("update cluster config: %w", err)
 	}
-	fmt.Println("Updating cluster config with new images")
+	fmt.Println("Updated cluster config with new images")
 
 	return nil
 }
