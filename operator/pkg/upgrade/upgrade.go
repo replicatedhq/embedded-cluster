@@ -30,7 +30,7 @@ const (
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	err := clusterConfigUpgrade(ctx, cli, in)
+	err := clusterConfigUpdate(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("cluster config upgrade: %w", err)
 	}
@@ -150,8 +150,8 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	return nil
 }
 
-// clusterConfigUpgrade updates the cluster config with the latest images.
-func clusterConfigUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+// clusterConfigUpdate updates the cluster config with the latest images.
+func clusterConfigUpdate(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
 	var currentCfg k0sv1beta1.ClusterConfig
 	err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &currentCfg)
 	if err != nil {
