@@ -161,6 +161,11 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 		K0sDataDir:              provider.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          provider.EmbeddedClusterOpenEBSLocalSubDir(),
 		SystemArchitecture:      runtime.GOARCH,
+		PrivateCA:               provider.PrivateCA(),
+		HTTPProxy:               provider.HttpProxy(),
+		HTTPSProxy:              provider.HttpsProxy(),
+		ProvidedNoProxy:         provider.ProvidedNoProxy(),
+		NoProxy:                 provider.NoProxy(),
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
