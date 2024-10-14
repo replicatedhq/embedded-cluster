@@ -187,38 +187,3 @@ func (d *Provider) AdminConsolePort() int {
 	}
 	return ecv1beta1.DefaultAdminConsolePort
 }
-
-func (d *Provider) HttpProxy() string {
-	if d.runtimeConfig != nil && d.runtimeConfig.Proxy != nil {
-		return d.runtimeConfig.Proxy.HTTPProxy
-	}
-	return ""
-}
-
-func (d *Provider) HttpsProxy() string {
-	if d.runtimeConfig != nil && d.runtimeConfig.Proxy != nil {
-		return d.runtimeConfig.Proxy.HTTPSProxy
-	}
-	return ""
-}
-
-func (d *Provider) ProvidedNoProxy() string {
-	if d.runtimeConfig != nil && d.runtimeConfig.Proxy != nil {
-		return d.runtimeConfig.Proxy.ProvidedNoProxy
-	}
-	return ""
-}
-
-func (d *Provider) NoProxy() string {
-	if d.runtimeConfig != nil && d.runtimeConfig.Proxy != nil {
-		return d.runtimeConfig.Proxy.NoProxy
-	}
-	return ""
-}
-
-func (d *Provider) PrivateCA() string {
-	if d.runtimeConfig != nil && d.runtimeConfig.PrivateCA != "" {
-		return d.runtimeConfig.PrivateCA
-	}
-	return ""
-}
