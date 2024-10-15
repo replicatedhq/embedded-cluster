@@ -1979,13 +1979,29 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	}
 	runInParallel(t,
 		func(t *testing.T) error {
-			return tc.RunCommandsOnNode(1, joinCommandsSequence)
+			err := tc.RunCommandsOnNode(1, joinCommandsSequence)
+			if err != nil {
+				return fmt.Errorf("unable to join node 1: %w", err)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return tc.RunCommandsOnNode(2, joinCommandsSequence)
+			err := tc.RunCommandsOnNode(2, joinCommandsSequence)
+			if err != nil {
+				return fmt.Errorf("unable to join node 2: %w", err)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return tc.RunCommandsOnNode(3, joinCommandsSequence)
+			err := tc.RunCommandsOnNode(3, joinCommandsSequence)
+			if err != nil {
+				return fmt.Errorf("unable to join node 3: %w", err)
+			}
+			return nil
 		}, func(t *testing.T) error {
-			return tc.RunCommandsOnNode(4, joinCommandsSequence)
+			err := tc.RunCommandsOnNode(4, joinCommandsSequence)
+			if err != nil {
+				return fmt.Errorf("unable to join node 4: %w", err)
+			}
+			return nil
 		},
 	)
 

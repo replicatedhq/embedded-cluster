@@ -519,7 +519,7 @@ func waitForK0s() error {
 		_, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status")
 		if err == nil {
 			return nil
-		} else if i == 5 {
+		} else if i == 30 {
 			return fmt.Errorf("unable to get status: %w", err)
 		}
 		time.Sleep(2 * time.Second)
