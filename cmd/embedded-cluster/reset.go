@@ -342,6 +342,7 @@ func resetCommand() *cli.Command {
 		},
 		Args: false,
 		Flags: []cli.Flag{
+			getDataDirFlag(runtimeConfig),
 			&cli.BoolFlag{
 				Name:    "force",
 				Aliases: []string{"f"},
@@ -353,7 +354,6 @@ func resetCommand() *cli.Command {
 				Usage: "Disable interactive prompts",
 				Value: false,
 			},
-			getDataDirFlag(runtimeConfig),
 		},
 		Usage: fmt.Sprintf("Remove %s from the current node", binName),
 		Action: func(c *cli.Context) error {
