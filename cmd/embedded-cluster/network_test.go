@@ -55,3 +55,37 @@ func Test_validateCIDR(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitNetworkCIDR(t *testing.T) {
+	for _, tt := range []struct {
+		name            string
+		cidr            string
+		expectedPodCIDR string
+		expectedSvcCIDR string
+		err             string
+	}{
+		{
+			name:            "valid cidr",
+			cidr:            "10.0.0.0/8",
+			expectedPodCIDR: "10.0.0.0/9",
+			expectedSvcCIDR: "10.128.0.0/9",
+		},
+		{
+			name:            "a /16 cidr",
+			cidr:            "10.1.0.0/16",
+			expectedPodCIDR: "10.1.0.0/17",
+			expectedSvcCIDR: "10.1.128.0/17",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			podnet, svcnet, err := SplitNetworkCIDR(tt.cidr)
+			if err != nil {
+				assert.NotEmpty(t, tt.err, "received unexpected error")
+				assert.Contains(t, err.Error(), tt.err, "unexpected error message")
+			}
+			assert.Empty(t, tt.err, "unexpected error received")
+			assert.Equal(t, tt.expectedPodCIDR, podnet, "unexpected pod cidr")
+			assert.Equal(t, tt.expectedSvcCIDR, svcnet, "unexpected service cidr")
+		})
+	}
+}

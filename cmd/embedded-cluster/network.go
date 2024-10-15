@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/apparentlymart/go-cidr/cidr"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/urfave/cli/v2"
 )
@@ -55,4 +56,26 @@ func validateCIDR(value string) error {
 	}
 
 	return fmt.Errorf("cidr is not within the private ranges %s", strings.Join(privates, ", "))
+}
+
+// SplitNetworkCIDR splits the provided network CIDR into pod and service
+// CIDRs. The network is split in half, with the first half being the pod CIDR
+// and the second half being the service CIDR.
+func SplitNetworkCIDR(netaddr string) (string, string, error) {
+	_, ipnet, err := net.ParseCIDR(netaddr)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to parse cidr: %w", err)
+	}
+
+	podnet, err := cidr.Subnet(ipnet, 1, 0)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to determine pod cidr: %w", err)
+	}
+
+	svcnet, err := cidr.Subnet(ipnet, 1, 1)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to determine service cidr: %w", err)
+	}
+
+	return podnet.String(), svcnet.String(), nil
 }
