@@ -79,3 +79,14 @@ func SplitNetworkCIDR(netaddr string) (string, string, error) {
 
 	return podnet.String(), svcnet.String(), nil
 }
+
+// DeterminePodAndServiceCIDRS determines, based on the command line flags,
+// what are the pod and service CIDRs to be used for the cluster. If both
+// --pod-cidr and --service-cidr have been set, they are used. Otherwise,
+// the cidr flag is split into pod and service CIDRs.
+func DeterminePodAndServiceCIDRs(c *cli.Context) (string, string, error) {
+	if c.IsSet("pod-cidr") && c.IsSet("service-cidr") {
+		return c.String("pod-cidr"), c.String("service-cidr"), nil
+	}
+	return SplitNetworkCIDR(c.String("cidr"))
+}
