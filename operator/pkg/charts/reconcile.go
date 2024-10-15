@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	v1beta3 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
-	v1beta2 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -48,7 +49,7 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 	}
 
 	// fetch the current clusterConfig
-	var clusterConfig v1beta2.ClusterConfig
+	var clusterConfig k0sv1beta1.ClusterConfig
 	if err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterConfig); err != nil {
 		return nil, fmt.Errorf("failed to get cluster config: %w", err)
 	}
@@ -59,13 +60,13 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 		return nil, nil
 	}
 
-	cfgs := &v1beta2.HelmExtensions{}
+	cfgs := &k0sv1beta1.HelmExtensions{}
 	cfgs, err = v1beta1.ConvertTo(*combinedConfigs, cfgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert chart types: %w", err)
 	}
 
-	existingHelm := &v1beta2.HelmExtensions{}
+	existingHelm := &k0sv1beta1.HelmExtensions{}
 	if clusterConfig.Spec != nil && clusterConfig.Spec.Extensions != nil && clusterConfig.Spec.Extensions.Helm != nil {
 		existingHelm = clusterConfig.Spec.Extensions.Helm
 	}
@@ -150,8 +151,14 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 	clusterConfig.Spec.Extensions.Helm = cfgs
 	in.Status.SetState(v1beta1.InstallationStateAddonsInstalling, "Installing addons", nil)
 	log.Info("Updating cluster config with new helm charts", "updated charts", changedCharts)
-	//Update the clusterConfig
-	if err := cli.Update(ctx, &clusterConfig); err != nil {
+
+	unstructured, err := helpers.K0sClusterConfigTo129Compat(&clusterConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert cluster config to 1.29 compat: %w", err)
+	}
+
+	// Update the clusterConfig
+	if err := cli.Update(ctx, unstructured); err != nil {
 		return nil, fmt.Errorf("failed to update cluster config: %w", err)
 	}
 	ev := RecordedEvent{Reason: "HelmChartsUpdated", Message: fmt.Sprintf("Updated helm charts %v", changedCharts)}

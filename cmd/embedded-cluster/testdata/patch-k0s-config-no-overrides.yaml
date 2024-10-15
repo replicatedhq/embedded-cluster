@@ -1,6 +1,6 @@
 original: |-
   apiVersion: k0s.k0sproject.io/v1beta1
-  kind: Cluster
+  kind: ClusterConfig
   metadata:
     name: k0s
   spec:
@@ -19,7 +19,7 @@ override: |-
       k0s: ""
 expected: |-
   apiVersion: k0s.k0sproject.io/v1beta1
-  kind: Cluster
+  kind: ClusterConfig
   metadata:
     name: k0s
   spec:
