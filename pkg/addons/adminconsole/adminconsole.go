@@ -120,7 +120,7 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	if !onlyDefaults {
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if a.airgapBundle != "" || a.isAirgap {

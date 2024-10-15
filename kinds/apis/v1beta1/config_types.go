@@ -91,8 +91,9 @@ type Chart struct {
 	Values   string `json:"values,omitempty"`
 	TargetNS string `json:"namespace,omitempty"`
 	// Timeout specifies the timeout for how long to wait for the chart installation to finish.
-	// +kubebuilder:validation:Optional
-	Timeout time.Duration `json:"timeout,omitempty"`
+	// A duration string is a sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+	// +kubebuilder:validation:XIntOrString
+	Timeout BackwardCompatibleDuration `json:"timeout,omitempty"`
 	// ForceUpgrade when set to false, disables the use of the "--force" flag when upgrading the the chart (default: true).
 	// +optional
 	ForceUpgrade *bool `json:"forceUpgrade,omitempty"`
@@ -100,15 +101,37 @@ type Chart struct {
 	Order int `json:"order,omitempty"`
 }
 
-type Repository struct {
-	Name     string `json:"name,omitempty"`
-	URL      string `json:"url,omitempty"`
-	CAFile   string `json:"caFile,omitempty"`
-	CertFile string `json:"certFile,omitempty"`
-	Insecure bool   `json:"insecure,omitempty"`
-	KeyFile  string `json:"keyfile,omitempty"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
+// BackwardCompatibleDuration is a metav1.Duration with a different JSON
+// unmarshaler. The unmashaler accepts its value as either a string (e.g.
+// 10m15s) or as an integer 64. If the value is of type integer then, for
+// backward compatibility, it is interpreted as nano seconds.
+type BackwardCompatibleDuration metav1.Duration
+
+// MarshalJSON marshals the BackwardCompatibleDuration to integer nano seconds,
+// the reverse of the k0s type.
+func (b BackwardCompatibleDuration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.Duration)
+}
+
+// UnmarshalJSON attempts unmarshals the provided value into a
+// BackwardCompatibleDuration. This function attempts to unmarshal it as a
+// string first and if that fails it attempts to parse it as an integer.
+func (b *BackwardCompatibleDuration) UnmarshalJSON(data []byte) error {
+	var duration metav1.Duration
+	ustrerr := duration.UnmarshalJSON(data)
+	if ustrerr == nil {
+		*b = BackwardCompatibleDuration(duration)
+		return nil
+	}
+
+	var integer int64
+	if err := json.Unmarshal(data, &integer); err != nil {
+		// we return the error from the first unmarshal attempt.
+		return ustrerr
+	}
+	metadur := metav1.Duration{Duration: time.Duration(integer)}
+	*b = BackwardCompatibleDuration(metadur)
+	return nil
 }
 
 // Helm contains helm extension settings
@@ -116,7 +139,7 @@ type Helm struct {
 	// +kubebuilder:validation:Optional
 	ConcurrencyLevel int `json:"concurrencyLevel"`
 	// +kubebuilder:validation:Optional
-	Repositories []Repository `json:"repositories"`
+	Repositories []k0sv1beta1.Repository `json:"repositories"`
 	// +kubebuilder:validation:Optional
 	Charts []Chart `json:"charts"`
 }

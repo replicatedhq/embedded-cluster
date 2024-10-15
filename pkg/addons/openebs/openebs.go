@@ -79,7 +79,7 @@ func (o *OpenEBS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the OpenEBS chart.
-func (o *OpenEBS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (o *OpenEBS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	chartConfig := ecv1beta1.Chart{
 		Name:         releaseName,
 		ChartName:    Metadata.Location,
