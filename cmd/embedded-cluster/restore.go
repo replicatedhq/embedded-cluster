@@ -905,9 +905,15 @@ func restoreCommand() *cli.Command {
 		Flags: withProxyFlags(withSubnetCIDRFlags(
 			[]cli.Flag{
 				&cli.StringFlag{
-					Name:   "airgap-bundle",
-					Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
-					Hidden: true,
+					Name:  "airgap-bundle",
+					Usage: "Path to the air gap bundle. If set, the restore will complete without internet access.",
+				},
+				getDataDirFlag(runtimeConfig),
+				&cli.StringFlag{
+					Name:  "local-artifact-mirror-port",
+					Usage: "Port on which the Local Artifact Mirror will be served. If left empty, the port will be retrieved from the snapshot.",
+					// DefaultText: strconv.Itoa(ecv1beta1.DefaultLocalArtifactMirrorPort),
+					Hidden: false,
 				},
 				&cli.StringFlag{
 					Name:  "network-interface",
@@ -930,13 +936,6 @@ func restoreCommand() *cli.Command {
 					Value:  false,
 					Hidden: true,
 				},
-				&cli.StringFlag{
-					Name:  "local-artifact-mirror-port",
-					Usage: "Port on which the Local Artifact Mirror will be served. If left empty, the port will be retrieved from the snapshot.",
-					// DefaultText: strconv.Itoa(ecv1beta1.DefaultLocalArtifactMirrorPort),
-					Hidden: false,
-				},
-				getDataDirFlag(runtimeConfig),
 			},
 		)),
 		Before: func(c *cli.Context) error {
