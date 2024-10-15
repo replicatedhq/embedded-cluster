@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/urfave/cli/v2"
@@ -40,9 +41,18 @@ func validateCIDR(value string) error {
 	if err != nil {
 		return fmt.Errorf("invalid cidr: %w", err)
 	}
+
 	size, _ := ipnet.Mask.Size()
 	if size > 16 {
 		return fmt.Errorf("cidr needs to be at least a /16")
 	}
-	return nil
+
+	privates := []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}
+	for _, cidr := range privates {
+		if _, privnet, _ := net.ParseCIDR(cidr); privnet.Contains(ipnet.IP) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cidr is not within the private ranges %s", strings.Join(privates, ", "))
 }

@@ -31,6 +31,19 @@ func Test_validateCIDR(t *testing.T) {
 			cidr: "10.0.0.0/32",
 			err:  "cidr needs to be at least a /16",
 		},
+		{
+			name: "a public cidr",
+			cidr: "100.0.0.0/16",
+			err:  "cidr is not within the private ranges",
+		},
+		{
+			name: "matching the whole private range",
+			cidr: "192.168.0.0/16",
+		},
+		{
+			name: "matching the whole 172 range",
+			cidr: "172.16.0.0/12",
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := validateCIDR(tt.cidr); err != nil {
