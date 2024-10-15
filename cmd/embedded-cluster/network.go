@@ -26,9 +26,12 @@ func withSubnetCIDRFlags(flags []cli.Flag) []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:  "cidr",
-			Usage: "IP address range for Services and Pods (needs to be at least a /16)",
+			Usage: "IP Address Range for Pods and Services, allocate a range of at least /16. This will be evenly divided into separate subnets",
 			Value: k0sv1beta1.DefaultNetwork().PodCIDR,
 			Action: func(c *cli.Context, value string) error {
+				if c.IsSet("pod-cidr") || c.IsSet("service-cidr") {
+					return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
+				}
 				return validateCIDR(value)
 			},
 		},
