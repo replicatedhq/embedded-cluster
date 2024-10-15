@@ -3,9 +3,11 @@ package upgrade
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
@@ -13,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,7 +30,12 @@ const (
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	err := k0sUpgrade(ctx, cli, in)
+	err := clusterConfigUpdate(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("cluster config update: %w", err)
+	}
+
+	err = k0sUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
@@ -138,6 +146,32 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
 	}
+
+	return nil
+}
+
+// clusterConfigUpdate updates the cluster config with the latest images.
+func clusterConfigUpdate(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+	var currentCfg k0sv1beta1.ClusterConfig
+	err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &currentCfg)
+	if err != nil {
+		return fmt.Errorf("get cluster config: %w", err)
+	}
+
+	cfg := config.RenderK0sConfig()
+	if currentCfg.Spec.Images != nil {
+		if reflect.DeepEqual(*currentCfg.Spec.Images, *cfg.Spec.Images) {
+			return nil
+		}
+	}
+
+	currentCfg.Spec.Images = cfg.Spec.Images
+
+	err = cli.Update(ctx, &currentCfg)
+	if err != nil {
+		return fmt.Errorf("update cluster config: %w", err)
+	}
+	fmt.Println("Updated cluster config with new images")
 
 	return nil
 }

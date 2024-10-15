@@ -66,6 +66,7 @@ type ClusterInput struct {
 	T                                 *testing.T
 	WithProxy                         bool
 	id                                string
+	AdditionalFiles                   []File
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -464,6 +465,7 @@ func CopyFilesToNode(in *ClusterInput, node string) {
 			Mode:       0755,
 		},
 	}
+	files = append(files, in.AdditionalFiles...)
 	for _, file := range files {
 		CopyFileToNode(in, node, file)
 	}
