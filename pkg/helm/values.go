@@ -42,3 +42,15 @@ func SetValue(values map[string]interface{}, path string, newValue interface{}) 
 
 	return newValuesMap, nil
 }
+
+func GetValue(values map[string]interface{}, path string) (interface{}, error) {
+	x, err := jp.ParseString(path)
+	if err != nil {
+		return nil, fmt.Errorf("parse json path %q: %w", path, err)
+	}
+	v := x.Get(values)
+	if len(v) == 0 {
+		return nil, fmt.Errorf("value not found in path %q", path)
+	}
+	return v[0], nil
+}
