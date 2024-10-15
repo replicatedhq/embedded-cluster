@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 	types2 "k8s.io/apimachinery/pkg/types"
 	"strings"
 	"time"
@@ -294,9 +295,9 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
 
-	gotInstallation := &ecv1beta1.Installation{}
-	if err := cli.Get(ctx, types2.NamespacedName{Name: installation.Name}, &installation); err != nil {
-		return fmt.Errorf("unable to get installation: %w", err)
+	gotInstallation, err := waitForInstallationToExist(ctx, cli, installation.Name)
+	if err != nil {
+		return fmt.Errorf("unable to wait for installation to exist: %w", err)
 	}
 	gotInstallation.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
 	if err := cli.Status().Update(ctx, gotInstallation); err != nil {
@@ -349,4 +350,19 @@ func k0sConfigToNetworkSpec(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.Network
 	}
 
 	return network
+}
+
+func waitForInstallationToExist(ctx context.Context, cli client.Client, name string) (*ecv1beta1.Installation, error) {
+	var installation ecv1beta1.Installation
+	for i := 0; i < 20; i++ {
+		if err := cli.Get(ctx, types2.NamespacedName{Name: name}, &installation); err != nil {
+			if !errors.IsNotFound(err) {
+				return nil, fmt.Errorf("unable to get installation: %w", err)
+			}
+		} else {
+			return &installation, nil
+		}
+		time.Sleep(time.Second)
+	}
+	return nil, fmt.Errorf("installation %s not found after 20 seconds", name)
 }
