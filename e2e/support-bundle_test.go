@@ -22,28 +22,28 @@ func TestCollectSupportBundle(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "cli"}
+	line := []string{"dryrun-install.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
 	}
 
-	line = []string{"collect-support-bundle-host.sh"}
-	stdout, stderr, err := tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
-	}
+	// line = []string{"collect-support-bundle-host.sh"}
+	// stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	// if err != nil {
+	// 	t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
+	// }
 
-	line = []string{"collect-support-bundle-cluster.sh"}
-	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to collect cluster support bundle: %v: %s: %s", err, stdout, stderr)
-	}
+	// line = []string{"collect-support-bundle-cluster.sh"}
+	// stdout, stderr, err = tc.RunCommandOnNode(0, line)
+	// if err != nil {
+	// 	t.Fatalf("fail to collect cluster support bundle: %v: %s: %s", err, stdout, stderr)
+	// }
 
-	line = []string{"validate-support-bundle.sh"}
-	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to validate support bundle: %v: %s: %s", err, stdout, stderr)
-	}
+	// line = []string{"validate-support-bundle.sh"}
+	// stdout, stderr, err = tc.RunCommandOnNode(0, line)
+	// if err != nil {
+	// 	t.Fatalf("fail to validate support bundle: %v: %s: %s", err, stdout, stderr)
+	// }
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

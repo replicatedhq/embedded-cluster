@@ -43,10 +43,10 @@ function init_vars() {
 }
 
 function build() {
-    ./scripts/ci-build-deps.sh
+    # ./scripts/ci-build-deps.sh
     ./scripts/ci-build-bin.sh
     ./scripts/ci-embed-release.sh
-    ./scripts/ci-upload-binaries.sh
+    # ./scripts/ci-upload-binaries.sh
     if [ "$SKIP_RELEASE" != "1" ]; then
         ./scripts/ci-release-app.sh
     fi
@@ -59,7 +59,7 @@ function clean() {
 }
 
 function main() {
-    clean
+    # clean
     init_vars
     build
 }

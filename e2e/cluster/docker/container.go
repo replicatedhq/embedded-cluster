@@ -3,6 +3,7 @@ package docker
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -163,9 +164,11 @@ func (c *Container) Exec(line []string, envs ...map[string]string) (string, stri
 	args = append(args, c.name, "sh", "-c", strings.Join(line, " "))
 	execCmd := exec.Command(dockerBinPath(c.t), args...)
 	c.t.Logf("executing command: %s", strings.Join(execCmd.Args, " "))
-	var stdout, stderr bytes.Buffer
-	execCmd.Stdout = &stdout
-	execCmd.Stderr = &stderr
+	stderr := bytes.NewBuffer(nil)
+	stdout := bytes.NewBuffer(nil)
+	// TODO NOW: revert
+	execCmd.Stdout = io.MultiWriter(os.Stdout, stdout)
+	execCmd.Stderr = io.MultiWriter(os.Stderr, stderr)
 	err := execCmd.Run()
 	return stdout.String(), stderr.String(), err
 }

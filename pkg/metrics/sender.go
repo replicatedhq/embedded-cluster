@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 )
@@ -29,6 +30,11 @@ type Sender struct {
 func (s *Sender) Send(ctx context.Context, ev Event) {
 	if metricsDisabled {
 		logrus.Debugf("metrics are disabled, not sending event %s", ev.Title())
+		return
+	}
+
+	if dryrun.IsDryRun() {
+		dryrun.RecordMetric(ev)
 		return
 	}
 
