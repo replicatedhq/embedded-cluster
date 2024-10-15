@@ -113,3 +113,9 @@ func WithAirgap(isAirgap bool) Option {
 		a.isAirgap = isAirgap
 	}
 }
+
+func WithHAMigrationInProgress(isHAMigrationInProgress bool) Option {
+	return func(a *Applier) {
+		a.isHAMigrationInProgress = isHAMigrationInProgress
+	}
+}

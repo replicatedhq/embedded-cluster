@@ -56,7 +56,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
+	Render()
+}
 
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
@@ -117,7 +120,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(provider *defaults.Provider
 	}
 
 	if !onlyDefaults {
-		helmValues["embeddedBinaryName"] = defaults.BinaryName()
+		helmValues["embeddedBinaryName"] = defaults.BinaryName() // TODO make this configurable
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if len(e.proxyEnv) > 0 {
 			extraEnv := []map[string]interface{}{}

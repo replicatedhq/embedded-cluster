@@ -6,16 +6,88 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	registryAddon "github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
-func Test_mergeHelmConfigs(t *testing.T) {
+func Test_generateHelmConfigs(t *testing.T) {
+	var addonMetadata = map[string]release.AddonMetadata{}
+
+	// this function is used to replace the values of the addons so that we can test without having to update tests constantly
+	replaceAddonMeta := func() {
+		addonMetadata["admin-console"] = adminconsole.Metadata
+		adminconsole.Metadata = release.AddonMetadata{
+			Version:  "1.2.3-admin-console",
+			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+		}
+
+		addonMetadata["embedded-cluster-operator"] = embeddedclusteroperator.Metadata
+		embeddedclusteroperator.Metadata = release.AddonMetadata{
+			Version:  "1.2.3-operator",
+			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+		}
+
+		addonMetadata["openebs"] = openebs.Metadata
+		openebs.Metadata = release.AddonMetadata{
+			Version:  "1.2.3-openebs",
+			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+		}
+
+		addonMetadata["registry"] = registryAddon.Metadata
+		registryAddon.Metadata = release.AddonMetadata{
+			Version:  "1.2.3-registry",
+			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+		}
+
+		addonMetadata["seaweedfs"] = seaweedfs.Metadata
+		seaweedfs.Metadata = release.AddonMetadata{
+			Version:  "1.2.3-seaweedfs",
+			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
+		}
+
+		addonMetadata["velero"] = velero.Metadata
+		velero.Metadata = release.AddonMetadata{
+			Version:  "1.2.3-velero",
+			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/velero",
+		}
+
+		adminconsole.Render()
+		embeddedclusteroperator.Render()
+		openebs.Render()
+		registryAddon.Render()
+		seaweedfs.Render()
+		velero.Render()
+	}
+
+	restoreAddonMeta := func() {
+		adminconsole.Metadata = addonMetadata["admin-console"]
+		embeddedclusteroperator.Metadata = addonMetadata["embedded-cluster-operator"]
+		openebs.Metadata = addonMetadata["openebs"]
+		registryAddon.Metadata = addonMetadata["registry"]
+		seaweedfs.Metadata = addonMetadata["seaweedfs"]
+		velero.Metadata = addonMetadata["velero"]
+
+		adminconsole.Render()
+		embeddedclusteroperator.Render()
+		openebs.Render()
+		registryAddon.Render()
+		seaweedfs.Render()
+		velero.Render()
+	}
+
+	replaceAddonMeta()
+	defer restoreAddonMeta()
+
 	type args struct {
-		meta          *ectypes.ReleaseMetadata
 		in            v1beta1.Extensions
 		conditions    []metav1.Condition
 		clusterConfig k0sv1beta1.ClusterConfig
@@ -29,9 +101,11 @@ func Test_mergeHelmConfigs(t *testing.T) {
 		want             *v1beta1.Helm
 	}{
 		{
-			name: "no meta",
+			name:             "online non-ha no-velero",
+			airgap:           false,
+			highAvailability: false,
+			disasterRecovery: false,
 			args: args{
-				meta: nil,
 				in: v1beta1.Extensions{
 					Helm: &v1beta1.Helm{
 						ConcurrencyLevel: 2,
@@ -40,7 +114,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 							{
 								Name:    "test",
 								Version: "1.0.0",
-								Order:   2,
+								Order:   20,
 							},
 						},
 					},
@@ -53,302 +127,263 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					{
 						Name:    "test",
 						Version: "1.0.0",
-						Order:   102,
+						Order:   120,
+					},
+					{
+						Name:      "openebs",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:   "1.2.3-openebs",
+						Values: `engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+  helperPod:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+  localpv:
+    basePath: /var/lib/embedded-cluster/openebs-local
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+preUpgradeHook:
+  image:
+    registry: proxy.replicated.com/anonymous
+    repo: ""
+    tag: ""
+zfs-localpv:
+  enabled: false
+`,
+						TargetNS:     "openebs",
+						ForceUpgrade: ptr.To(false),
+						Order:        101,
+					},
+					{
+						Name:      "embedded-cluster-operator",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:   "1.2.3-operator",
+						Values: `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: v0.0.0
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: ""
+  tag: ""
+kotsVersion: 1.2.3-admin-console
+utilsImage: ':'
+`,
+						TargetNS:     "embedded-cluster",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:      "admin-console",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:   "1.2.3-admin-console",
+						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: v0.0.0
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "false"
+isHA: false
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`,
+						TargetNS:     "kotsadm",
+						ForceUpgrade: ptr.To(false),
+						Order:        105,
 					},
 				},
 			},
 		},
 		{
-			name: "add new chart + repo",
-			args: args{
-				meta: &ectypes.ReleaseMetadata{
-					Configs: v1beta1.Helm{
-						ConcurrencyLevel: 1,
-						Repositories: []v1beta1.Repository{
-							{
-								Name: "origrepo",
-							},
-						},
-						Charts: []v1beta1.Chart{
-							{
-								Name: "origchart",
-							},
-						},
-					},
-				},
-				in: v1beta1.Extensions{
-					Helm: &v1beta1.Helm{
-						Repositories: []v1beta1.Repository{
-							{
-								Name: "newrepo",
-							},
-						},
-						Charts: []v1beta1.Chart{
-							{
-								Name:    "newchart",
-								Version: "1.0.0",
-							},
-						},
-					},
-				},
-			},
-			want: &v1beta1.Helm{
-				ConcurrencyLevel: 1,
-				Repositories: []v1beta1.Repository{
-					{
-						Name: "origrepo",
-					},
-					{
-						Name: "newrepo",
-					},
-				},
-				Charts: []v1beta1.Chart{
-					{
-						Name:  "origchart",
-						Order: 110,
-					},
-					{
-						Name:    "newchart",
-						Version: "1.0.0",
-						Order:   110,
-					},
-				},
-			},
-		},
-		{
-			name:             "disaster recovery enabled",
-			disasterRecovery: true,
-			args: args{
-				meta: &ectypes.ReleaseMetadata{
-					Configs: v1beta1.Helm{
-						ConcurrencyLevel: 1,
-						Repositories: []v1beta1.Repository{
-							{
-								Name: "origrepo",
-							},
-						},
-						Charts: []v1beta1.Chart{
-							{
-								Name: "origchart",
-							},
-						},
-					},
-					BuiltinConfigs: map[string]v1beta1.Helm{
-						"velero": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "velerorepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "velerochart",
-								},
-							},
-						},
-					},
-				},
-				in: v1beta1.Extensions{},
-			},
-			want: &v1beta1.Helm{
-				ConcurrencyLevel: 1,
-				Repositories: []v1beta1.Repository{
-					{
-						Name: "origrepo",
-					},
-					{
-						Name: "velerorepo",
-					},
-				},
-				Charts: []v1beta1.Chart{
-					{
-						Name:  "origchart",
-						Order: 100,
-					},
-					{
-						Name:  "velerochart",
-						Order: 100,
-					},
-				},
-			},
-		},
-		{
-			name:   "airgap enabled",
-			airgap: true,
-			args: args{
-				meta: &ectypes.ReleaseMetadata{
-					Configs: v1beta1.Helm{
-						ConcurrencyLevel: 1,
-						Repositories: []v1beta1.Repository{
-							{
-								Name: "origrepo",
-							},
-						},
-						Charts: []v1beta1.Chart{
-							{
-								Name: "origchart",
-							},
-						},
-					},
-					BuiltinConfigs: map[string]v1beta1.Helm{
-						"seaweedfs": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "seaweedfsrepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "seaweedfschart",
-									// Values: `{"filer":{"s3":{"existingConfigSecret":"seaweedfs-s3-secret"}}}`,
-								},
-							},
-						},
-						"registry": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "registryrepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "registrychart",
-								},
-							},
-						},
-						"registry-ha": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "registryharepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "registryhachart",
-									// Values: `{"secrets":{"s3":{"secretRef":"registry-s3-secret"}}}`,
-								},
-							},
-						},
-					},
-				},
-				in: v1beta1.Extensions{},
-			},
-			want: &v1beta1.Helm{
-				ConcurrencyLevel: 1,
-				Repositories: []v1beta1.Repository{
-					{
-						Name: "origrepo",
-					},
-					{
-						Name: "registryrepo",
-					},
-				},
-				Charts: []v1beta1.Chart{
-					{
-						Name:  "origchart",
-						Order: 100,
-					},
-					{
-						Name:  "registrychart",
-						Order: 100,
-					},
-				},
-			},
-		},
-		{
-			name:             "ha airgap enabled",
+			name:             "airgap, non-ha, no-velero",
 			airgap:           true,
-			highAvailability: true,
+			highAvailability: false,
+			disasterRecovery: false,
 			args: args{
-				meta: &ectypes.ReleaseMetadata{
-					Configs: v1beta1.Helm{
-						ConcurrencyLevel: 1,
-						Repositories: []v1beta1.Repository{
-							{
-								Name: "origrepo",
-							},
-						},
-						Charts: []v1beta1.Chart{
-							{
-								Name: "origchart",
-							},
-						},
-					},
-					BuiltinConfigs: map[string]v1beta1.Helm{
-						"seaweedfs": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "seaweedfsrepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "seaweedfschart",
-									// Values: `{"filer":{"s3":{"existingConfigSecret":"seaweedfs-s3-secret"}}}`,
-								},
-							},
-						},
-						"registry": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "registryrepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "registrychart",
-								},
-							},
-						},
-						"registry-ha": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "registryharepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "registryhachart",
-									// Values: `{"secrets":{"s3":{"secretRef":"registry-s3-secret"}}}`,
-								},
-							},
-						},
-					},
-				},
 				in: v1beta1.Extensions{},
-				conditions: []metav1.Condition{
-					{
-						Type:   registry.RegistryMigrationStatusConditionType,
-						Status: metav1.ConditionTrue,
-						Reason: "MigrationJobCompleted",
-					},
-				},
 			},
 			want: &v1beta1.Helm{
 				ConcurrencyLevel: 1,
-				Repositories: []v1beta1.Repository{
-					{
-						Name: "origrepo",
-					},
-					{
-						Name: "seaweedfsrepo",
-					},
-					{
-						Name: "registryharepo",
-					},
-				},
+				Repositories:     nil,
 				Charts: []v1beta1.Chart{
 					{
-						Name:  "origchart",
-						Order: 100,
+						Name:      "openebs",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:   "1.2.3-openebs",
+						Values: `engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+  helperPod:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+  localpv:
+    basePath: /var/lib/embedded-cluster/openebs-local
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+preUpgradeHook:
+  image:
+    registry: proxy.replicated.com/anonymous
+    repo: ""
+    tag: ""
+zfs-localpv:
+  enabled: false
+`,
+						TargetNS:     "openebs",
+						ForceUpgrade: ptr.To(false),
+						Order:        101,
 					},
 					{
-						Name:  "seaweedfschart",
-						Order: 100,
+						Name:      "docker-registry",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+						Version:   "1.2.3-registry",
+						Values: `configData:
+  auth:
+    htpasswd:
+      path: /auth/htpasswd
+      realm: Registry
+extraVolumeMounts:
+- mountPath: /auth
+  name: auth
+extraVolumes:
+- name: auth
+  secret:
+    secretName: registry-auth
+fullnameOverride: registry
+image:
+  repository: ""
+  tag: ""
+persistence:
+  accessMode: ReadWriteOnce
+  enabled: true
+  size: 10Gi
+  storageClass: openebs-hostpath
+podAnnotations:
+  backup.velero.io/backup-volumes: data
+replicaCount: 1
+service:
+  clusterIP: 10.96.0.11
+storage: filesystem
+tlsSecretName: registry-tls
+`,
+						TargetNS:     "registry",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
 					},
 					{
-						Name:  "registryhachart",
-						Order: 100,
+						Name:      "embedded-cluster-operator",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:   "1.2.3-operator",
+						Values: `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: v0.0.0
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: ""
+  tag: ""
+kotsVersion: 1.2.3-admin-console
+utilsImage: ':'
+`,
+						TargetNS:     "embedded-cluster",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:      "admin-console",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:   "1.2.3-admin-console",
+						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: v0.0.0
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "true"
+isHA: false
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`,
+						TargetNS:     "kotsadm",
+						ForceUpgrade: ptr.To(false),
+						Order:        105,
 					},
 				},
 			},
@@ -358,61 +393,6 @@ func Test_mergeHelmConfigs(t *testing.T) {
 			airgap:           true,
 			highAvailability: true,
 			args: args{
-				meta: &ectypes.ReleaseMetadata{
-					Configs: v1beta1.Helm{
-						ConcurrencyLevel: 1,
-						Repositories: []v1beta1.Repository{
-							{
-								Name: "origrepo",
-							},
-						},
-						Charts: []v1beta1.Chart{
-							{
-								Name: "origchart",
-							},
-						},
-					},
-					BuiltinConfigs: map[string]v1beta1.Helm{
-						"seaweedfs": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "seaweedfsrepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "seaweedfschart",
-									// Values: `{"filer":{"s3":{"existingConfigSecret":"seaweedfs-s3-secret"}}}`,
-								},
-							},
-						},
-						"registry": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "registryrepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "registrychart",
-								},
-							},
-						},
-						"registry-ha": {
-							Repositories: []v1beta1.Repository{
-								{
-									Name: "registryharepo",
-								},
-							},
-							Charts: []v1beta1.Chart{
-								{
-									Name: "registryhachart",
-									// Values: `{"secrets":{"s3":{"secretRef":"registry-s3-secret"}}}`,
-								},
-							},
-						},
-					},
-				},
 				in: v1beta1.Extensions{},
 				conditions: []metav1.Condition{
 					{
@@ -424,29 +404,512 @@ func Test_mergeHelmConfigs(t *testing.T) {
 			},
 			want: &v1beta1.Helm{
 				ConcurrencyLevel: 1,
-				Repositories: []v1beta1.Repository{
-					{
-						Name: "origrepo",
-					},
-					{
-						Name: "seaweedfsrepo",
-					},
-					{
-						Name: "registryrepo",
-					},
-				},
+				Repositories:     nil,
 				Charts: []v1beta1.Chart{
 					{
-						Name:  "origchart",
-						Order: 100,
+						Name:      "openebs",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:   "1.2.3-openebs",
+						Values: `engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+  helperPod:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+  localpv:
+    basePath: /var/lib/embedded-cluster/openebs-local
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+preUpgradeHook:
+  image:
+    registry: proxy.replicated.com/anonymous
+    repo: ""
+    tag: ""
+zfs-localpv:
+  enabled: false
+`,
+						TargetNS:     "openebs",
+						ForceUpgrade: ptr.To(false),
+						Order:        101,
 					},
 					{
-						Name:  "seaweedfschart",
-						Order: 100,
+						Name:      "docker-registry",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+						Version:   "1.2.3-registry",
+						Values: `configData:
+  auth:
+    htpasswd:
+      path: /auth/htpasswd
+      realm: Registry
+extraVolumeMounts:
+- mountPath: /auth
+  name: auth
+extraVolumes:
+- name: auth
+  secret:
+    secretName: registry-auth
+fullnameOverride: registry
+image:
+  repository: ""
+  tag: ""
+persistence:
+  accessMode: ReadWriteOnce
+  enabled: true
+  size: 10Gi
+  storageClass: openebs-hostpath
+podAnnotations:
+  backup.velero.io/backup-volumes: data
+replicaCount: 1
+service:
+  clusterIP: 10.96.0.11
+storage: filesystem
+tlsSecretName: registry-tls
+`,
+						TargetNS:     "registry",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
 					},
 					{
-						Name:  "registrychart",
-						Order: 100,
+						Name:      "seaweedfs",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
+						Version:   "1.2.3-seaweedfs",
+						Values: `filer:
+  data:
+    size: 1Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  imageOverride: ':'
+  logs:
+    size: 1Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  podAnnotations:
+    backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
+  replicas: 3
+  s3:
+    createBuckets:
+    - anonymousRead: false
+      name: registry
+    enableAuth: true
+    enabled: true
+    existingConfigSecret: secret-seaweedfs-s3
+global:
+  data:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
+  enableReplication: true
+  logs:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
+  registry: proxy.replicated.com/anonymous/
+  replicationPlacment: "001"
+master:
+  config: |-
+    [master.maintenance]
+    # periodically run these scripts are the same as running them from 'weed shell'
+    # note: running 'fs.meta.save' then 'fs.meta.load' will ensure metadata of all filers
+    # are in sync in case of data loss from 1 or more filers
+    scripts = """
+      ec.encode -fullPercent=95 -quietFor=1h
+      ec.rebuild -force
+      ec.balance -force
+      volume.balance -force
+      volume.configure.replication -replication 001 -collectionPattern *
+      volume.fix.replication
+      fs.meta.save -o filer-backup.meta
+      fs.meta.load filer-backup.meta
+    """
+    sleep_minutes = 17          # sleep minutes between each script execution
+  data:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
+  disableHttp: true
+  imageOverride: ':'
+  logs:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
+  replicas: 1
+  volumeSizeLimitMB: 30000
+volume:
+  affinity: |
+    # schedule on control-plane nodes
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+    # schedule on different nodes when possible
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - seaweedfs
+            - key: app.kubernetes.io/component
+              operator: In
+              values:
+              - volume
+          topologyKey: "kubernetes.io/hostname"
+  dataDirs:
+  - maxVolumes: 50
+    name: data
+    size: 10Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  imageOverride: ':'
+  podAnnotations:
+    backup.velero.io/backup-volumes: data
+  replicas: 3
+`,
+						TargetNS:     "seaweedfs",
+						ForceUpgrade: ptr.To(false),
+						Order:        102,
+					},
+					{
+						Name:      "embedded-cluster-operator",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:   "1.2.3-operator",
+						Values: `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: v0.0.0
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: ""
+  tag: ""
+kotsVersion: 1.2.3-admin-console
+utilsImage: ':'
+`,
+						TargetNS:     "embedded-cluster",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:      "admin-console",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:   "1.2.3-admin-console",
+						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: v0.0.0
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "true"
+isHA: false
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`,
+						TargetNS:     "kotsadm",
+						ForceUpgrade: ptr.To(false),
+						Order:        105,
+					},
+				},
+			},
+		},
+		{
+			name:             "ha airgap enabled, migration complete",
+			airgap:           true,
+			highAvailability: true,
+			args: args{
+				in: v1beta1.Extensions{},
+				conditions: []metav1.Condition{
+					{
+						Type:   registry.RegistryMigrationStatusConditionType,
+						Status: metav1.ConditionTrue,
+						Reason: "MigrationComplete",
+					},
+				},
+			},
+			want: &v1beta1.Helm{
+				ConcurrencyLevel: 1,
+				Repositories:     nil,
+				Charts: []v1beta1.Chart{
+					{
+						Name:      "openebs",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:   "1.2.3-openebs",
+						Values: `engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+  helperPod:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+  localpv:
+    basePath: /var/lib/embedded-cluster/openebs-local
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+preUpgradeHook:
+  image:
+    registry: proxy.replicated.com/anonymous
+    repo: ""
+    tag: ""
+zfs-localpv:
+  enabled: false
+`,
+						TargetNS:     "openebs",
+						ForceUpgrade: ptr.To(false),
+						Order:        101,
+					},
+					{
+						Name:      "docker-registry",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+						Version:   "1.2.3-registry",
+						Values: `affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - docker-registry
+      topologyKey: kubernetes.io/hostname
+configData:
+  auth:
+    htpasswd:
+      path: /auth/htpasswd
+      realm: Registry
+  storage:
+    s3:
+      secure: false
+extraVolumeMounts:
+- mountPath: /auth
+  name: auth
+extraVolumes:
+- name: auth
+  secret:
+    secretName: registry-auth
+fullnameOverride: registry
+image:
+  repository: ""
+  tag: ""
+replicaCount: 2
+s3:
+  bucket: registry
+  encrypt: false
+  region: us-east-1
+  regionEndpoint: DYNAMIC
+  rootdirectory: /registry
+  secure: false
+secrets:
+  s3:
+    secretRef: seaweedfs-s3-rw
+service:
+  clusterIP: 10.96.0.11
+storage: s3
+tlsSecretName: registry-tls
+`,
+						TargetNS:     "registry",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:      "seaweedfs",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
+						Version:   "1.2.3-seaweedfs",
+						Values: `filer:
+  data:
+    size: 1Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  imageOverride: ':'
+  logs:
+    size: 1Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  podAnnotations:
+    backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
+  replicas: 3
+  s3:
+    createBuckets:
+    - anonymousRead: false
+      name: registry
+    enableAuth: true
+    enabled: true
+    existingConfigSecret: secret-seaweedfs-s3
+global:
+  data:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
+  enableReplication: true
+  logs:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
+  registry: proxy.replicated.com/anonymous/
+  replicationPlacment: "001"
+master:
+  config: |-
+    [master.maintenance]
+    # periodically run these scripts are the same as running them from 'weed shell'
+    # note: running 'fs.meta.save' then 'fs.meta.load' will ensure metadata of all filers
+    # are in sync in case of data loss from 1 or more filers
+    scripts = """
+      ec.encode -fullPercent=95 -quietFor=1h
+      ec.rebuild -force
+      ec.balance -force
+      volume.balance -force
+      volume.configure.replication -replication 001 -collectionPattern *
+      volume.fix.replication
+      fs.meta.save -o filer-backup.meta
+      fs.meta.load filer-backup.meta
+    """
+    sleep_minutes = 17          # sleep minutes between each script execution
+  data:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
+  disableHttp: true
+  imageOverride: ':'
+  logs:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
+  replicas: 1
+  volumeSizeLimitMB: 30000
+volume:
+  affinity: |
+    # schedule on control-plane nodes
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+    # schedule on different nodes when possible
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - seaweedfs
+            - key: app.kubernetes.io/component
+              operator: In
+              values:
+              - volume
+          topologyKey: "kubernetes.io/hostname"
+  dataDirs:
+  - maxVolumes: 50
+    name: data
+    size: 10Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  imageOverride: ':'
+  podAnnotations:
+    backup.velero.io/backup-volumes: data
+  replicas: 3
+`,
+						TargetNS:     "seaweedfs",
+						ForceUpgrade: ptr.To(false),
+						Order:        102,
+					},
+					{
+						Name:      "embedded-cluster-operator",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:   "1.2.3-operator",
+						Values: `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: v0.0.0
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: ""
+  tag: ""
+kotsVersion: 1.2.3-admin-console
+utilsImage: ':'
+`,
+						TargetNS:     "embedded-cluster",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:      "admin-console",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:   "1.2.3-admin-console",
+						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: v0.0.0
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "true"
+isHA: false
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`,
+						TargetNS:     "kotsadm",
+						ForceUpgrade: ptr.To(false),
+						Order:        105,
 					},
 				},
 			},
@@ -465,6 +928,8 @@ func Test_mergeHelmConfigs(t *testing.T) {
 					LicenseInfo: &v1beta1.LicenseInfo{
 						IsDisasterRecoverySupported: tt.disasterRecovery,
 					},
+					ClusterID:  "e79f0701-67f3-4abf-a672-42a1f3ed231b",
+					BinaryName: "test-binary-name",
 				},
 				Status: v1beta1.InstallationStatus{
 					Conditions: tt.args.conditions,
@@ -472,7 +937,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 			}
 
 			req := require.New(t)
-			got, err := mergeHelmConfigs(context.TODO(), &installation, &tt.args.clusterConfig)
+			got, err := generateHelmConfigs(context.TODO(), &installation, &tt.args.clusterConfig)
 			req.NoError(err)
 			req.Equal(tt.want, got)
 		})

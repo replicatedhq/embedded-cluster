@@ -6,18 +6,22 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 )
 
 const (
@@ -31,7 +35,7 @@ func K0sHelmExtensionsFromInstallation(
 	ctx context.Context, in *clusterv1beta1.Installation,
 	clusterConfig *k0sv1beta1.ClusterConfig,
 ) (*v1beta1.Helm, error) {
-	combinedConfigs, err := mergeHelmConfigs(ctx, in, clusterConfig)
+	combinedConfigs, err := generateHelmConfigs(ctx, in, clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("merge helm configs: %w", err)
 	}
@@ -51,8 +55,8 @@ func K0sHelmExtensionsFromInstallation(
 	return combinedConfigs, nil
 }
 
-// merge the default helm charts and repositories (from meta.Configs) with vendor helm charts (from in.Spec.Config.Extensions.Helm)
-func mergeHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig) (*v1beta1.Helm, error) {
+// generate the helm configs for the cluster, with the default charts from data compiled into the binary and the additional user provided charts
+func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig) (*v1beta1.Helm, error) {
 	if in == nil {
 		return nil, fmt.Errorf("installation not found")
 	}
@@ -77,13 +81,24 @@ func mergeHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, clus
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, in.Spec.Config.Extensions.Helm.Repositories...)
 	}
 
+	//set the cluster ID for the operator chart
+	clusterUUID, err := uuid.Parse(in.Spec.ClusterID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse cluster ID: %w", err)
+	}
+	metrics.SetClusterID(clusterUUID)
+	defaults.SetBinaryName(in.Spec.BinaryName)
+
+	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
+
 	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
 
 	opts := []addons.Option{
-		addons.WithHA(in.Spec.HighAvailability),
 		addons.WithRuntimeConfig(in.Spec.RuntimeConfig),
 		addons.WithProxy(in.Spec.Proxy),
 		addons.WithAirgap(in.Spec.AirGap),
+		addons.WithHA(in.Spec.HighAvailability),
+		addons.WithHAMigrationInProgress(migrationStatus == metav1.ConditionFalse),
 		// TODO add more
 	}
 	if in.Spec.LicenseInfo != nil {

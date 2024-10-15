@@ -56,7 +56,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
+	Render()
+}
 
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
@@ -72,9 +75,10 @@ func init() {
 
 // Registry manages the installation of the Registry helm chart.
 type Registry struct {
-	namespace string
-	isAirgap  bool
-	isHA      bool
+	namespace           string
+	isAirgap            bool
+	isHA                bool
+	migrationInProgress bool
 }
 
 // Version returns the version of the Registry chart.
@@ -115,7 +119,7 @@ func (o *Registry) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1
 	}
 
 	var values map[string]interface{}
-	if o.isHA {
+	if o.isHA && !o.migrationInProgress {
 		values = helmValuesHA
 	} else {
 		values = helmValues
@@ -358,8 +362,8 @@ func (o *Registry) Outro(ctx context.Context, provider *defaults.Provider, cli c
 }
 
 // New creates a new Registry addon.
-func New(namespace string, isAirgap bool, isHA bool) (*Registry, error) {
-	return &Registry{namespace: namespace, isAirgap: isAirgap, isHA: isHA}, nil
+func New(namespace string, isAirgap bool, isHA bool, migrationInProgress bool) (*Registry, error) {
+	return &Registry{namespace: namespace, isAirgap: isAirgap, isHA: isHA, migrationInProgress: migrationInProgress}, nil
 }
 
 func GetRegistryPassword() string {

@@ -41,20 +41,21 @@ type AddOn interface {
 
 // Applier is an entity that applies (installs and updates) addons in the cluster.
 type Applier struct {
-	prompt          bool
-	verbose         bool
-	adminConsolePwd string // admin console password
-	license         *kotsv1beta1.License
-	licenseFile     string
-	onlyDefaults    bool
-	endUserConfig   *ecv1beta1.Config
-	airgapBundle    string
-	isAirgap        bool
-	proxyEnv        map[string]string
-	privateCAs      map[string]string
-	provider        *defaults.Provider
-	runtimeConfig   *ecv1beta1.RuntimeConfigSpec
-	isHA            bool
+	prompt                  bool
+	verbose                 bool
+	adminConsolePwd         string // admin console password
+	license                 *kotsv1beta1.License
+	licenseFile             string
+	onlyDefaults            bool
+	endUserConfig           *ecv1beta1.Config
+	airgapBundle            string
+	isAirgap                bool
+	proxyEnv                map[string]string
+	privateCAs              map[string]string
+	provider                *defaults.Provider
+	runtimeConfig           *ecv1beta1.RuntimeConfigSpec
+	isHA                    bool
+	isHAMigrationInProgress bool
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -279,7 +280,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.airgapBundle != "" || a.isAirgap, a.isHA)
+	reg, err := registry.New(defaults.RegistryNamespace, a.airgapBundle != "" || a.isAirgap, a.isHA, a.isHAMigrationInProgress)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
@@ -340,13 +341,13 @@ func (a *Applier) loadBuiltIn() (map[string]AddOn, error) {
 	}
 	addons["velero"] = vel
 
-	reg, err := registry.New(defaults.RegistryNamespace, true, false)
+	reg, err := registry.New(defaults.RegistryNamespace, true, false, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons["registry"] = reg
 
-	regHA, err := registry.New(defaults.RegistryNamespace, true, true)
+	regHA, err := registry.New(defaults.RegistryNamespace, true, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
