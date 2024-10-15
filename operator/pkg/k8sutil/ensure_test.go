@@ -7,11 +7,10 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestEnsureObject(t *testing.T) {
@@ -172,18 +171,7 @@ func TestEnsureObject(t *testing.T) {
 			log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
 			ctx := logr.NewContext(context.Background(), log)
 
-			testEnv := &envtest.Environment{}
-			cfg, err := testEnv.Start()
-			require.NoError(t, err)
-			t.Cleanup(func() { _ = testEnv.Stop() })
-
-			cli, err := client.New(cfg, client.Options{Scheme: Scheme()})
-			require.NoError(t, err)
-
-			for _, obj := range tt.initRuntimeObjs {
-				err := cli.Create(ctx, obj)
-				require.NoError(t, err)
-			}
+			cli := fake.NewClientBuilder().WithScheme(Scheme()).WithObjects(tt.initRuntimeObjs...).Build()
 
 			if err := EnsureObject(ctx, cli, tt.args.obj, tt.args.applyOpts...); (err != nil) != tt.wantErr {
 				t.Errorf("EnsureObject() error = %v, wantErr %v", err, tt.wantErr)
