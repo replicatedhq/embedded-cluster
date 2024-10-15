@@ -108,7 +108,7 @@ runs:
       export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Troubleshoot
-    if: ${{ failed() }}
+    if: ${{ failure() }}
     uses: ./.github/actions/e2e-troubleshoot
     with:
       test-name: ${{ inputs.test-name }}
