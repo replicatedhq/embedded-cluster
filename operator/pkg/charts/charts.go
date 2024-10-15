@@ -18,7 +18,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -91,8 +90,6 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 
 	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
 
-	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
-
 	opts := []addons.Option{
 		addons.WithRuntimeConfig(in.Spec.RuntimeConfig),
 		addons.WithProxy(in.Spec.Proxy),
@@ -116,16 +113,6 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 	}
 	combinedConfigs.Charts = append(combinedConfigs.Charts, charts...)
 	combinedConfigs.Repositories = append(combinedConfigs.Repositories, repos...)
-
-	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
-		vel, err := velero.New(defaults.VeleroNamespace, true, nil)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create velero addon: %w", err)
-		}
-		velCharts, velReg, err := vel.GenerateHelmConfig(provider, clusterConfig, false)
-		combinedConfigs.Charts = append(combinedConfigs.Charts, velCharts...)
-		combinedConfigs.Repositories = append(combinedConfigs.Repositories, velReg...)
-	}
 
 	// k0s sorts order numbers alphabetically because they're used in file names,
 	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").

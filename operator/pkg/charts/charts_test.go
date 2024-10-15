@@ -235,6 +235,177 @@ service:
 			},
 		},
 		{
+			name:             "online non-ha velero",
+			airgap:           false,
+			highAvailability: false,
+			disasterRecovery: true,
+			args: args{
+				in: v1beta1.Extensions{
+					Helm: &v1beta1.Helm{
+						ConcurrencyLevel: 2,
+						Repositories:     nil,
+						Charts: []v1beta1.Chart{
+							{
+								Name:    "test",
+								Version: "1.0.0",
+								Order:   20,
+							},
+						},
+					},
+				},
+			},
+			want: &v1beta1.Helm{
+				ConcurrencyLevel: 1,
+				Repositories:     nil,
+				Charts: []v1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Order:   120,
+					},
+					{
+						Name:      "openebs",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:   "1.2.3-openebs",
+						Values: `engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+  helperPod:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+  localpv:
+    basePath: /var/lib/embedded-cluster/openebs-local
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+preUpgradeHook:
+  image:
+    registry: proxy.replicated.com/anonymous
+    repo: ""
+    tag: ""
+zfs-localpv:
+  enabled: false
+`,
+						TargetNS:     "openebs",
+						ForceUpgrade: ptr.To(false),
+						Order:        101,
+					},
+					{
+						Name:      "embedded-cluster-operator",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:   "1.2.3-operator",
+						Values: `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: v0.0.0
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: ""
+  tag: ""
+kotsVersion: 1.2.3-admin-console
+utilsImage: ':'
+`,
+						TargetNS:     "embedded-cluster",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:      "velero",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/velero",
+						Version:   "1.2.3-velero",
+						Values: `backupsEnabled: false
+configMaps:
+  fs-restore-action-config:
+    data:
+      image: ':'
+    labels:
+      velero.io/plugin-config: ""
+      velero.io/pod-volume-restore: RestoreItemAction
+credentials:
+  existingSecret: cloud-credentials
+deployNodeAgent: true
+image:
+  repository: ""
+  tag: ""
+initContainers:
+- image: ':'
+  imagePullPolicy: IfNotPresent
+  name: velero-plugin-for-aws
+  volumeMounts:
+  - mountPath: /target
+    name: plugins
+kubectl:
+  image:
+    repository: ""
+    tag: ""
+nodeAgent:
+  podVolumePath: /var/lib/embedded-cluster/k0s/kubelet/pods
+snapshotsEnabled: false
+`,
+						TargetNS:     "velero",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:      "admin-console",
+						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:   "1.2.3-admin-console",
+						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: v0.0.0
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "false"
+isHA: false
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`,
+						TargetNS:     "kotsadm",
+						ForceUpgrade: ptr.To(false),
+						Order:        105,
+					},
+				},
+			},
+		},
+		{
 			name:             "airgap, non-ha, no-velero",
 			airgap:           true,
 			highAvailability: false,
