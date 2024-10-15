@@ -13,6 +13,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -73,7 +74,7 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 		appVersion = rel.VersionLabel
 	}
 
-	Send(ctx, BaseURL(license), InstallationStarted{
+	Send(ctx, BaseURL(license), types.InstallationStarted{
 		ClusterID:    ClusterID(),
 		Version:      versions.Version,
 		Flags:        strings.Join(os.Args[1:], " "),
@@ -87,12 +88,16 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 
 // ReportInstallationSucceeded reports that the installation has succeeded.
 func ReportInstallationSucceeded(ctx context.Context, license *kotsv1beta1.License) {
-	Send(ctx, BaseURL(license), InstallationSucceeded{ClusterID: ClusterID(), Version: versions.Version})
+	Send(ctx, BaseURL(license), types.InstallationSucceeded{ClusterID: ClusterID(), Version: versions.Version})
 }
 
 // ReportInstallationFailed reports that the installation has failed.
 func ReportInstallationFailed(ctx context.Context, license *kotsv1beta1.License, err error) {
-	Send(ctx, BaseURL(license), InstallationFailed{ClusterID(), versions.Version, err.Error()})
+	Send(ctx, BaseURL(license), types.InstallationFailed{
+		ClusterID: ClusterID(),
+		Version:   versions.Version,
+		Reason:    err.Error(),
+	})
 }
 
 // ReportJoinStarted reports that a join has started.
@@ -102,7 +107,11 @@ func ReportJoinStarted(ctx context.Context, baseURL string, clusterID uuid.UUID)
 		logrus.Warnf("unable to get hostname: %s", err)
 		hostname = "unknown"
 	}
-	Send(ctx, baseURL, JoinStarted{clusterID, versions.Version, hostname})
+	Send(ctx, baseURL, types.JoinStarted{
+		ClusterID: clusterID,
+		Version:   versions.Version,
+		NodeName:  hostname,
+	})
 }
 
 // ReportJoinSucceeded reports that a join has finished successfully.
@@ -112,7 +121,11 @@ func ReportJoinSucceeded(ctx context.Context, baseURL string, clusterID uuid.UUI
 		logrus.Warnf("unable to get hostname: %s", err)
 		hostname = "unknown"
 	}
-	Send(ctx, baseURL, JoinSucceeded{clusterID, versions.Version, hostname})
+	Send(ctx, baseURL, types.JoinSucceeded{
+		ClusterID: clusterID,
+		Version:   versions.Version,
+		NodeName:  hostname,
+	})
 }
 
 // ReportJoinFailed reports that a join has failed.
@@ -122,7 +135,12 @@ func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, 
 		logrus.Warnf("unable to get hostname: %s", err)
 		hostname = "unknown"
 	}
-	Send(ctx, baseURL, JoinFailed{clusterID, versions.Version, hostname, exterr.Error()})
+	Send(ctx, baseURL, types.JoinFailed{
+		ClusterID: clusterID,
+		Version:   versions.Version,
+		NodeName:  hostname,
+		Reason:    exterr.Error(),
+	})
 }
 
 // ReportApplyStarted reports an InstallationStarted event.

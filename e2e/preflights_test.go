@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 )
 

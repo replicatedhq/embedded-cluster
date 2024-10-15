@@ -9,6 +9,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -45,6 +46,9 @@ func BackOffToDuration(backoff wait.Backoff) time.Duration {
 }
 
 func WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -68,6 +72,9 @@ func WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
 
 // WaitForDeployment waits for the provided deployment to be ready.
 func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -91,6 +98,9 @@ func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) 
 
 // WaitForDaemonset waits for the provided daemonset to be ready.
 func WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -113,6 +123,9 @@ func WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) e
 }
 
 func WaitForService(ctx context.Context, cli client.Client, ns, name string) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -136,6 +149,10 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 }
 
 func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
+
 	backoff := wait.Backoff{Steps: 60 * 5, Duration: time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 
@@ -341,6 +358,9 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 }
 
 func WaitForHAInstallation(ctx context.Context, cli client.Client) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -370,6 +390,9 @@ func CheckConditionStatus(inStat embeddedclusterv1beta1.InstallationStatus, cond
 }
 
 func WaitForNodes(ctx context.Context, cli client.Client) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -401,6 +424,9 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 
 // WaitForControllerNode waits for a specific controller node to be registered with the cluster.
 func WaitForControllerNode(ctx context.Context, kcli client.Client, name string) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -434,6 +460,9 @@ func WaitForControllerNode(ctx context.Context, kcli client.Client, name string)
 
 // WaitForJob waits for a job to have a certain number of completions.
 func WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxSteps int, completions int32) error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
 	backoff := wait.Backoff{Steps: maxSteps, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -456,6 +485,9 @@ func WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxStep
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
+	if dryrun.IsDryRun() {
+		return true, nil
+	}
 	var namespace corev1.Namespace
 	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {
 		return false, err
@@ -465,6 +497,9 @@ func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, 
 
 // IsDeploymentReady returns true if the deployment is ready.
 func IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
+	if dryrun.IsDryRun() {
+		return true, nil
+	}
 	var deploy appsv1.Deployment
 	nsn := types.NamespacedName{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &deploy); err != nil {
@@ -478,6 +513,9 @@ func IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) 
 
 // IsStatefulSetReady returns true if the statefulset is ready.
 func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
+	if dryrun.IsDryRun() {
+		return true, nil
+	}
 	var statefulset appsv1.StatefulSet
 	nsn := types.NamespacedName{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &statefulset); err != nil {
@@ -491,6 +529,9 @@ func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string)
 
 // IsDaemonsetReady returns true if the daemonset is ready.
 func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
+	if dryrun.IsDryRun() {
+		return true, nil
+	}
 	var daemonset appsv1.DaemonSet
 	nsn := types.NamespacedName{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &daemonset); err != nil {
@@ -504,6 +545,9 @@ func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (
 
 // IsJobComplete returns true if the job has been completed successfully.
 func IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
+	if dryrun.IsDryRun() {
+		return true, nil
+	}
 	var job batchv1.Job
 	nsn := types.NamespacedName{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &job); err != nil {
@@ -518,6 +562,10 @@ func IsJobComplete(ctx context.Context, cli client.Client, ns, name string, comp
 // WaitForKubernetes waits for all deployments to be ready in kube-system, and returns an error channel.
 // if either of them fails to become healthy, an error is returned via the channel.
 func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
+	if dryrun.IsDryRun() {
+		return nil
+	}
+
 	errch := make(chan error, 1)
 
 	// wait until there is at least one deployment in kube-system

@@ -3,6 +3,7 @@ package spinner
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
 )
@@ -29,6 +30,14 @@ type MessageWriter struct {
 	printf WriteFn
 	mask   MaskFn
 	lbreak LineBreakerFn
+}
+
+var writeFn = fmt.Printf
+
+func SetWriter(out io.Writer) {
+	writeFn = func(format string, a ...interface{}) (n int, err error) {
+		return out.Write([]byte(fmt.Sprintf(format, a...)))
+	}
 }
 
 // Write implements io.Writer for the MessageWriter.
@@ -144,7 +153,7 @@ func Start(opts ...Option) *MessageWriter {
 	mw := &MessageWriter{
 		ch:     make(chan string, 1024),
 		end:    make(chan struct{}),
-		printf: fmt.Printf,
+		printf: writeFn,
 	}
 	for _, opt := range opts {
 		opt(mw)

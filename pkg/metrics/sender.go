@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 )
@@ -15,7 +17,7 @@ import (
 // Metrics endpoint can be overwritten by the license.spec.endpoint field
 // or by the EMBEDDED_CLUSTER_METRICS_BASEURL environment variable, the latter has
 // precedence over the former.
-func Send(ctx context.Context, baseURL string, ev Event) {
+func Send(ctx context.Context, baseURL string, ev types.Event) {
 	sender := Sender{baseURL}
 	sender.Send(ctx, ev)
 }
@@ -26,9 +28,14 @@ type Sender struct {
 }
 
 // Send sends an event to the metrics endpoint.
-func (s *Sender) Send(ctx context.Context, ev Event) {
+func (s *Sender) Send(ctx context.Context, ev types.Event) {
 	if metricsDisabled {
 		logrus.Debugf("metrics are disabled, not sending event %s", ev.Title())
+		return
+	}
+
+	if dryrun.IsDryRun() {
+		dryrun.RecordMetric(ev)
 		return
 	}
 
@@ -56,7 +63,7 @@ func (s *Sender) Send(ctx context.Context, ev Event) {
 }
 
 // payload returns the payload to be sent to the metrics endpoint.
-func (s *Sender) payload(ev Event) ([]byte, error) {
+func (s *Sender) payload(ev types.Event) ([]byte, error) {
 	vmap := map[string]string{
 		"EmbeddedCluster": versions.Version,
 		"Kubernetes":      versions.K0sVersion,

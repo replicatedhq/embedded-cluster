@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
+	"github.com/replicatedhq/embedded-cluster/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/cluster/lxd"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 )
 

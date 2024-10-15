@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
+	"github.com/replicatedhq/embedded-cluster/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/cluster/lxd"
 )
 
 func TestSingleNodeDisasterRecovery(t *testing.T) {

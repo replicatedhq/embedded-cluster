@@ -39,16 +39,16 @@ function deps() {
 function binary() {
     local local_artifact_mirror_image k0s_binary_url="" kots_binary_url="" operator_binary_url=""
 
-    if [ ! -f "local-artifact-mirror/build/image-$EC_VERSION" ]; then
-        fail "file local-artifact-mirror/build/image-$EC_VERSION not found"
-    fi
+    # if [ ! -f "local-artifact-mirror/build/image-$EC_VERSION" ]; then
+    #     fail "file local-artifact-mirror/build/image-$EC_VERSION not found"
+    # fi
 
     if [ "$USES_DEV_BUCKET" == "1" ]; then
         k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$(url_encode_semver "$K0S_VERSION")-$ARCH"
         kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")-$ARCH.tar.gz"
         operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")-$ARCH.tar.gz"
     fi
-    local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
+    local_artifact_mirror_image=""
 
     make embedded-cluster-linux-$ARCH \
         K0S_VERSION="$K0S_VERSION" \
@@ -108,11 +108,11 @@ function metadata() {
 
 function main() {
     init_vars
-    deps
-    update_operator_metadata
+    # deps
+    # update_operator_metadata
     binary
-    archive
-    metadata
+    # archive
+    # metadata
 }
 
 main "$@"

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
+	"github.com/replicatedhq/embedded-cluster/cluster/lxd"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/stretchr/testify/require"
 )

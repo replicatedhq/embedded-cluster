@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
+	"github.com/replicatedhq/embedded-cluster/cluster/lxd"
 )
 
 func TestCommandsRequireSudo(t *testing.T) {

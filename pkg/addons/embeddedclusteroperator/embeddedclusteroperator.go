@@ -167,6 +167,10 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 	// the result as a suffix for the config map name.
 	slugver := slug.Make(strings.TrimPrefix(versions.Version, "v"))
 	configmap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("version-metadata-%s", slugver),
 			Namespace: e.namespace,
@@ -256,6 +260,10 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 	}
 
 	installation := ecv1beta1.Installation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: ecv1beta1.GroupVersion.String(),
+			Kind:       "Installation",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
 			Labels: map[string]string{

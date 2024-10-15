@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/cluster/docker"
 )
 
 // This test creates 4 nodes, installs on the first one and then generate 2 join tokens

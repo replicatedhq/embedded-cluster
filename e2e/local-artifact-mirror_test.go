@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/cluster/docker"
 )
 
 func TestLocalArtifactMirror(t *testing.T) {

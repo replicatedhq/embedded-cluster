@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"time"
 
@@ -103,9 +102,9 @@ func (h *hostInfo) drainNode() error {
 		"--timeout", "60s",
 		h.Hostname,
 	}
-	out, err := exec.Command(k0s, drainArgList...).CombinedOutput()
+	out, err := helpers.RunCommand(k0s, drainArgList...)
 	if err != nil {
-		if notFoundRegex.Match(out) {
+		if notFoundRegex.Match([]byte(out + err.Error())) {
 			return nil
 		}
 		return fmt.Errorf("could not drain node: %w, %s", err, out)
@@ -208,12 +207,12 @@ func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
 func (h *hostInfo) leaveEtcdcluster() error {
 
 	// if we're the only etcd member we don't need to leave the cluster
-	out, err := exec.Command(k0s, "etcd", "member-list").Output()
+	out, err := helpers.RunCommand(k0s, "etcd", "member-list")
 	if err != nil {
 		return err
 	}
 	memberlist := etcdMembers{}
-	err = json.Unmarshal(out, &memberlist)
+	err = json.Unmarshal([]byte(out), &memberlist)
 	if err != nil {
 		return err
 	}
@@ -221,22 +220,22 @@ func (h *hostInfo) leaveEtcdcluster() error {
 		return nil
 	}
 
-	out, err = exec.Command(k0s, "etcd", "leave").CombinedOutput()
+	out, err = helpers.RunCommand(k0s, "etcd", "leave")
 	if err != nil {
-		return fmt.Errorf("unable to leave etcd cluster: %w, %s", err, string(out))
+		return fmt.Errorf("unable to leave etcd cluster: %w, %s", err, out)
 	}
 	return nil
 }
 
 // stopK0s attempts to stop the k0s service
 func stopAndResetK0s(dataDir string) error {
-	out, err := exec.Command(k0s, "stop").CombinedOutput()
+	out, err := helpers.RunCommand(k0s, "stop")
 	if err != nil {
-		return fmt.Errorf("could not stop k0s service: %w, %s", err, string(out))
+		return fmt.Errorf("could not stop k0s service: %w, %s", err, out)
 	}
-	out, err = exec.Command(k0s, "reset", "--data-dir", dataDir).CombinedOutput()
+	out, err = helpers.RunCommand(k0s, "reset", "--data-dir", dataDir)
 	if err != nil {
-		return fmt.Errorf("could not reset k0s: %w, %s", err, string(out))
+		return fmt.Errorf("could not reset k0s: %w, %s", err, out)
 	}
 	return nil
 }
@@ -497,7 +496,7 @@ func resetCommand() *cli.Command {
 				return fmt.Errorf("failed to remove embedded cluster data config: %w", err)
 			}
 
-			if _, err := exec.Command("reboot").Output(); err != nil {
+			if _, err := helpers.RunCommand("reboot"); err != nil {
 				return err
 			}
 

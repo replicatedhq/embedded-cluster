@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -175,6 +176,11 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 	for _, h := range chpfs {
 		hpf.Collectors = append(hpf.Collectors, h.Spec.Collectors...)
 		hpf.Analyzers = append(hpf.Analyzers, h.Spec.Analyzers...)
+	}
+
+	if dryrun.IsDryRun() {
+		dryrun.RecordHostPreflightSpec(hpf)
+		return nil
 	}
 
 	return runHostPreflights(c, provider, hpf, proxy)
@@ -517,18 +523,20 @@ func installK0s(c *cli.Context, provider *defaults.Provider) error {
 // waitForK0s waits for the k0s API to be available. We wait for the k0s socket to
 // appear in the system and until the k0s status command to finish.
 func waitForK0s() error {
-	var success bool
-	for i := 0; i < 30; i++ {
-		time.Sleep(2 * time.Second)
-		spath := defaults.PathToK0sStatusSocket()
-		if _, err := os.Stat(spath); err != nil {
-			continue
+	if !dryrun.IsDryRun() {
+		var success bool
+		for i := 0; i < 30; i++ {
+			time.Sleep(2 * time.Second)
+			spath := defaults.PathToK0sStatusSocket()
+			if _, err := os.Stat(spath); err != nil {
+				continue
+			}
+			success = true
+			break
 		}
-		success = true
-		break
-	}
-	if !success {
-		return fmt.Errorf("timeout waiting for %s", defaults.BinaryName())
+		if !success {
+			return fmt.Errorf("timeout waiting for %s", defaults.BinaryName())
+		}
 	}
 
 	for i := 1; ; i++ {
@@ -656,6 +664,17 @@ func installCommand() *cli.Command {
 			}
 			if c.String("airgap-bundle") != "" {
 				metrics.DisableMetrics()
+			}
+			if dryrun.IsDryRun() {
+				dryrun.RecordFlags(c)
+			}
+			return nil
+		},
+		After: func(c *cli.Context) error {
+			if dryrun.IsDryRun() {
+				if err := dryrun.Dump(); err != nil {
+					return fmt.Errorf("unable to dump dry run info: %w", err)
+				}
 			}
 			return nil
 		},

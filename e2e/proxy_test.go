@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
+	"github.com/replicatedhq/embedded-cluster/cluster/lxd"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/stretchr/testify/require"
 )

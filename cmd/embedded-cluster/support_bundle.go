@@ -63,8 +63,8 @@ func supportBundleCommand() *cli.Command {
 			stderr := bytes.NewBuffer(nil)
 			if err := helpers.RunCommandWithOptions(
 				helpers.RunCommandOptions{
-					Writer:       stdout,
-					ErrWriter:    stderr,
+					Stdout:       stdout,
+					Stderr:       stderr,
 					LogOnSuccess: true,
 					Env:          env,
 				},

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -12,6 +13,9 @@ import (
 
 // KubeClient returns a new kubernetes client.
 func KubeClient() (client.Client, error) {
+	if dryrun.IsDryRun() {
+		return dryrun.KubeClient()
+	}
 	k8slogger := zap.New(func(o *zap.Options) {
 		o.DestWriter = io.Discard
 	})

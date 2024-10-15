@@ -1,4 +1,4 @@
-package metrics
+package types
 
 import (
 	"github.com/google/uuid"
