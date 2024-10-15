@@ -472,7 +472,7 @@ func Test_mergeHelmConfigs(t *testing.T) {
 			}
 
 			req := require.New(t)
-			got, err := mergeHelmConfigs(context.TODO(), tt.args.meta, &installation, &tt.args.clusterConfig)
+			got, err := mergeHelmConfigs(context.TODO(), &installation, &tt.args.clusterConfig)
 			req.NoError(err)
 			req.Equal(tt.want, got)
 		})

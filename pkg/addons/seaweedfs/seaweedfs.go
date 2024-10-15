@@ -51,6 +51,7 @@ func init() {
 type SeaweedFS struct {
 	namespace string
 	isAirgap  bool
+	isHA      bool
 }
 
 // Version returns the version of the SeaweedFS chart.
@@ -77,7 +78,7 @@ func (o *SeaweedFS) GetProtectedFields() map[string][]string {
 
 // GenerateHelmConfig generates the helm config for the SeaweedFS chart.
 func (o *SeaweedFS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
-	if !o.isAirgap {
+	if !o.isAirgap || !o.isHA {
 		return nil, nil, nil
 	}
 
@@ -132,8 +133,8 @@ func (o *SeaweedFS) Outro(ctx context.Context, provider *defaults.Provider, cli 
 }
 
 // New creates a new SeaweedFS addon.
-func New(namespace string, isAirgap bool) (*SeaweedFS, error) {
-	return &SeaweedFS{namespace: namespace, isAirgap: isAirgap}, nil
+func New(namespace string, isAirgap bool, isHA bool) (*SeaweedFS, error) {
+	return &SeaweedFS{namespace: namespace, isAirgap: isAirgap, isHA: isHA}, nil
 }
 
 // WaitForReady waits for SeaweedFS to be ready.

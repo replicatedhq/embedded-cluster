@@ -18,7 +18,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -76,7 +75,7 @@ type EmbeddedClusterOperator struct {
 	deployName    string
 	endUserConfig *ecv1beta1.Config
 	runtimeConfig *ecv1beta1.RuntimeConfigSpec
-	licenseFile   string
+	license       *kotsv1beta1.License
 	airgap        bool
 	proxyEnv      map[string]string
 	privateCAs    map[string]string
@@ -244,14 +243,6 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 	if e.endUserConfig != nil {
 		euOverrides = e.endUserConfig.Spec.UnsupportedOverrides.K0s
 	}
-	var license *kotsv1beta1.License
-	if e.licenseFile != "" {
-		l, err := helpers.ParseLicense(e.licenseFile)
-		if err != nil {
-			return fmt.Errorf("unable to parse license: %w", err)
-		}
-		license = l
-	}
 
 	// Configure proxy
 	var proxySpec *ecv1beta1.ProxySpec
@@ -275,7 +266,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 		},
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
-			MetricsBaseURL:            metrics.BaseURL(license),
+			MetricsBaseURL:            metrics.BaseURL(e.license),
 			AirGap:                    e.airgap,
 			Proxy:                     proxySpec,
 			Network:                   k0sConfigToNetworkSpec(k0sCfg),
@@ -284,7 +275,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
-				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(license),
+				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(e.license),
 			},
 		},
 		Status: ecv1beta1.InstallationStatus{
@@ -310,7 +301,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 // New creates a new EmbeddedClusterOperator addon.
 func New(
 	endUserConfig *ecv1beta1.Config,
-	licenseFile string,
+	license *kotsv1beta1.License,
 	airgapEnabled bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
@@ -320,7 +311,7 @@ func New(
 		namespace:     "embedded-cluster",
 		deployName:    "embedded-cluster-operator",
 		endUserConfig: endUserConfig,
-		licenseFile:   licenseFile,
+		license:       license,
 		airgap:        airgapEnabled,
 		proxyEnv:      proxyEnv,
 		privateCAs:    privateCAs,

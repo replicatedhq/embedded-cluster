@@ -89,6 +89,7 @@ type AdminConsole struct {
 	password     string
 	licenseFile  string
 	airgapBundle string
+	isAirgap     bool
 	proxyEnv     map[string]string
 	privateCAs   map[string]string
 }
@@ -118,7 +119,7 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !onlyDefaults {
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
-		if a.airgapBundle != "" {
+		if a.airgapBundle != "" || a.isAirgap {
 			helmValues["isAirgap"] = "true"
 		} else {
 			helmValues["isAirgap"] = "false"
@@ -228,6 +229,7 @@ func New(
 	password string,
 	licenseFile string,
 	airgapBundle string,
+	isAirgap bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
 ) (*AdminConsole, error) {
@@ -237,6 +239,7 @@ func New(
 		password:     password,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
+		isAirgap:     isAirgap,
 		proxyEnv:     proxyEnv,
 		privateCAs:   privateCAs,
 	}, nil

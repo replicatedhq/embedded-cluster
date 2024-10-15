@@ -7,15 +7,15 @@ import (
 	"slices"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"k8s.io/utils/ptr"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 )
@@ -29,9 +29,9 @@ const (
 // charts and repositories from the installation spec.
 func K0sHelmExtensionsFromInstallation(
 	ctx context.Context, in *clusterv1beta1.Installation,
-	metadata *ectypes.ReleaseMetadata, clusterConfig *k0sv1beta1.ClusterConfig,
+	clusterConfig *k0sv1beta1.ClusterConfig,
 ) (*v1beta1.Helm, error) {
-	combinedConfigs, err := mergeHelmConfigs(ctx, metadata, in, clusterConfig)
+	combinedConfigs, err := mergeHelmConfigs(ctx, in, clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("merge helm configs: %w", err)
 	}
@@ -52,14 +52,14 @@ func K0sHelmExtensionsFromInstallation(
 }
 
 // merge the default helm charts and repositories (from meta.Configs) with vendor helm charts (from in.Spec.Config.Extensions.Helm)
-func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *clusterv1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig) (*v1beta1.Helm, error) {
+func mergeHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig) (*v1beta1.Helm, error) {
+	if in == nil {
+		return nil, fmt.Errorf("installation not found")
+	}
+
 	// merge default helm charts (from meta.Configs) with vendor helm charts (from in.Spec.Config.Extensions.Helm)
 	combinedConfigs := &v1beta1.Helm{ConcurrencyLevel: 1}
-	if meta != nil {
-		combinedConfigs.Charts = meta.Configs.Charts
-		combinedConfigs.Repositories = meta.Configs.Repositories
-	}
-	if in != nil && in.Spec.Config != nil && in.Spec.Config.Extensions.Helm != nil {
+	if in.Spec.Config != nil && in.Spec.Config.Extensions.Helm != nil {
 		// set the concurrency level to the minimum of our default and the user provided value
 		if in.Spec.Config.Extensions.Helm.ConcurrencyLevel > 0 {
 			combinedConfigs.ConcurrencyLevel = min(in.Spec.Config.Extensions.Helm.ConcurrencyLevel, combinedConfigs.ConcurrencyLevel)
@@ -77,50 +77,39 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *cl
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, in.Spec.Config.Extensions.Helm.Repositories...)
 	}
 
-	if in != nil && in.Spec.AirGap {
-		if in.Spec.HighAvailability {
-			seaweedfsConfig, ok := meta.BuiltinConfigs["seaweedfs"]
-			if ok {
-				combinedConfigs.Charts = append(combinedConfigs.Charts, seaweedfsConfig.Charts...)
-				combinedConfigs.Repositories = append(combinedConfigs.Repositories, seaweedfsConfig.Repositories...)
-			}
+	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
 
-			migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
-			if migrationStatus == metav1.ConditionTrue {
-				registryConfig, ok := meta.BuiltinConfigs["registry-ha"]
-				if ok {
-					combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
-					combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
-				}
-			} else {
-				registryConfig, ok := meta.BuiltinConfigs["registry"]
-				if ok {
-					combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
-					combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
-				}
-			}
-		} else {
-			registryConfig, ok := meta.BuiltinConfigs["registry"]
-			if ok {
-				combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
-				combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
-			}
-		}
+	opts := []addons.Option{
+		addons.WithHA(in.Spec.HighAvailability),
+		addons.WithRuntimeConfig(in.Spec.RuntimeConfig),
+		addons.WithProxy(in.Spec.Proxy),
+		addons.WithAirgap(in.Spec.AirGap),
+		// TODO add more
+	}
+	if in.Spec.LicenseInfo != nil {
+		opts = append(opts,
+			addons.WithLicense(&kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{IsDisasterRecoverySupported: in.Spec.LicenseInfo.IsDisasterRecoverySupported}}),
+		)
 	}
 
-	if in != nil && in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
-		config, ok := meta.BuiltinConfigs["velero"]
-		if ok {
-			combinedConfigs.Charts = append(combinedConfigs.Charts, config.Charts...)
-			combinedConfigs.Repositories = append(combinedConfigs.Repositories, config.Repositories...)
-		}
-	}
-
-	// update the infrastructure charts from the install spec
-	var err error
-	combinedConfigs.Charts, err = updateInfraChartsFromInstall(in, clusterConfig, combinedConfigs.Charts)
+	a := addons.NewApplier(
+		opts...,
+	)
+	charts, repos, err := a.GenerateHelmConfigs(clusterConfig, nil, nil)
 	if err != nil {
-		return nil, fmt.Errorf("update infrastructure charts from install: %w", err)
+		return nil, fmt.Errorf("unable to generate helm configs: %w", err)
+	}
+	combinedConfigs.Charts = append(combinedConfigs.Charts, charts...)
+	combinedConfigs.Repositories = append(combinedConfigs.Repositories, repos...)
+
+	if in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
+		vel, err := velero.New(defaults.VeleroNamespace, true, nil)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create velero addon: %w", err)
+		}
+		velCharts, velReg, err := vel.GenerateHelmConfig(provider, clusterConfig, false)
+		combinedConfigs.Charts = append(combinedConfigs.Charts, velCharts...)
+		combinedConfigs.Repositories = append(combinedConfigs.Repositories, velReg...)
 	}
 
 	// k0s sorts order numbers alphabetically because they're used in file names,

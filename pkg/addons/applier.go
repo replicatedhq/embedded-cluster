@@ -44,14 +44,17 @@ type Applier struct {
 	prompt          bool
 	verbose         bool
 	adminConsolePwd string // admin console password
+	license         *kotsv1beta1.License
 	licenseFile     string
 	onlyDefaults    bool
 	endUserConfig   *ecv1beta1.Config
 	airgapBundle    string
+	isAirgap        bool
 	proxyEnv        map[string]string
 	privateCAs      map[string]string
 	provider        *defaults.Provider
 	runtimeConfig   *ecv1beta1.RuntimeConfigSpec
+	isHA            bool
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -81,7 +84,7 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 	if err := spinForInstallation(ctx, kcli); err != nil {
 		return err
 	}
-	if err := printKotsadmLinkMessage(a.licenseFile, networkInterface, a.provider.AdminConsolePort()); err != nil {
+	if err := printKotsadmLinkMessage(a.license, networkInterface, a.provider.AdminConsolePort()); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
 	return nil
@@ -276,16 +279,21 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.airgapBundle != "", false)
+	reg, err := registry.New(defaults.RegistryNamespace, a.airgapBundle != "" || a.isAirgap, a.isHA)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons = append(addons, reg)
+	sea, err := seaweedfs.New(defaults.SeaweedFSNamespace, a.airgapBundle != "" || a.isAirgap, a.isHA)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
+	}
+	addons = append(addons, sea)
 
 	embedoperator, err := embeddedclusteroperator.New(
 		a.endUserConfig,
-		a.licenseFile,
-		a.airgapBundle != "",
+		a.license,
+		a.airgapBundle != "" || a.isAirgap,
 		a.proxyEnv,
 		a.privateCAs,
 		a.runtimeConfig,
@@ -295,7 +303,7 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, embedoperator)
 
-	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(a.licenseFile)
+	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(a.license)
 	if err != nil {
 		return nil, fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
 	}
@@ -311,6 +319,7 @@ func (a *Applier) load() ([]AddOn, error) {
 		a.adminConsolePwd,
 		a.licenseFile,
 		a.airgapBundle,
+		a.isAirgap,
 		a.proxyEnv,
 		a.privateCAs,
 	)
@@ -343,7 +352,7 @@ func (a *Applier) loadBuiltIn() (map[string]AddOn, error) {
 	}
 	addons["registry-ha"] = regHA
 
-	seaweed, err := seaweedfs.New(defaults.SeaweedFSNamespace, true)
+	seaweed, err := seaweedfs.New(defaults.SeaweedFSNamespace, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
 	}
@@ -408,16 +417,7 @@ func spinForInstallation(ctx context.Context, cli client.Client) error {
 }
 
 // printKotsadmLinkMessage prints the success message when the admin console is online.
-func printKotsadmLinkMessage(licenseFile string, networkInterface string, adminConsolePort int) error {
-	var err error
-	license := &kotsv1beta1.License{}
-	if licenseFile != "" {
-		license, err = helpers.ParseLicense(licenseFile)
-		if err != nil {
-			return fmt.Errorf("unable to parse license: %w", err)
-		}
-	}
-
+func printKotsadmLinkMessage(license *kotsv1beta1.License, networkInterface string, adminConsolePort int) error {
 	adminConsoleURL := adminconsole.GetURL(networkInterface, adminConsolePort)
 
 	successColor := "\033[32m"
@@ -442,7 +442,6 @@ func NewApplier(opts ...Option) *Applier {
 	applier := &Applier{
 		prompt:       true,
 		verbose:      true,
-		licenseFile:  "",
 		airgapBundle: "",
 	}
 	for _, fn := range opts {
