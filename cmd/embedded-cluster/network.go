@@ -11,13 +11,13 @@ func withSubnetCIDRFlags(flags []cli.Flag) []cli.Flag {
 			Name:   "pod-cidr",
 			Usage:  "IP address range for Pods",
 			Value:  k0sv1beta1.DefaultNetwork().PodCIDR,
-			Hidden: false,
+			Hidden: true,
 		},
 		&cli.StringFlag{
 			Name:   "service-cidr",
 			Usage:  "IP address range for Services",
 			Value:  k0sv1beta1.DefaultNetwork().ServiceCIDR,
-			Hidden: false,
+			Hidden: true,
 		},
 	)
 }
