@@ -21,8 +21,8 @@ import (
 
 func TestEnsureArtifactsJobForNodes(t *testing.T) {
 	removeJobFinalizers := func(ctx context.Context, t *testing.T, cli client.Client, in *clusterv1beta1.Installation) {
-		timer := time.NewTimer(1 * time.Second)
 		for {
+			timer := time.NewTimer(1 * time.Second)
 			select {
 			case <-timer.C:
 			case <-ctx.Done():
