@@ -16,7 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
 func TestEnsureArtifactsJobForNodes(t *testing.T) {
@@ -224,10 +224,22 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
 			log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
 			ctx = logr.NewContext(ctx, log)
 
-			cli := fake.NewClientBuilder().WithScheme(k8sutil.Scheme()).WithObjects(tt.initRuntimeObjs...).Build()
+			testEnv := &envtest.Environment{}
+			cfg, err := testEnv.Start()
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = testEnv.Stop() })
+
+			cli, err := client.New(cfg, client.Options{Scheme: k8sutil.Scheme()})
+			require.NoError(t, err)
+
+			for _, obj := range tt.initRuntimeObjs {
+				err := cli.Create(ctx, obj)
+				require.NoError(t, err)
+			}
 
 			wg := sync.WaitGroup{}
 			if tt.modifyRuntime != nil {
@@ -379,7 +391,19 @@ func TestListArtifactsJobForNodes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			log := testr.NewWithOptions(t, testr.Options{Verbosity: 10})
 			ctx := logr.NewContext(context.Background(), log)
-			cli := fake.NewClientBuilder().WithScheme(k8sutil.Scheme()).WithObjects(tt.initRuntimeObjs...).Build()
+
+			testEnv := &envtest.Environment{}
+			cfg, err := testEnv.Start()
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = testEnv.Stop() })
+
+			cli, err := client.New(cfg, client.Options{Scheme: k8sutil.Scheme()})
+			require.NoError(t, err)
+
+			for _, obj := range tt.initRuntimeObjs {
+				err := cli.Create(ctx, obj)
+				require.NoError(t, err)
+			}
 
 			got, err := ListArtifactsJobForNodes(ctx, cli, tt.args.in)
 			if (err != nil) != tt.wantErr {
