@@ -479,6 +479,7 @@ jobs:
       fail-fast: false
       matrix:
         test:
+          - TestHostCollectSupportBundleInCluster
           - TestPreflights
           - TestMaterialize
           - TestHostPreflightCustomSpec
