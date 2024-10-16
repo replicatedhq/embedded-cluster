@@ -60,10 +60,10 @@ func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 	return fmt.Errorf("cidr is not in private ranges %s", strings.Join(privates, ", "))
 }
 
-// AreAdjacentAndSameSize returns true if the two provided CIDRs are adjacent
-// and have the same size. If this function returns true then the second
-// returned value is the CIDR that encompasses the two provided CIDRs.
-func AreAdjacentAndSameSize(a, b string) (bool, string, error) {
+// NetworksAreAdjacentAndSameSize returns true if the two provided CIDRs are
+// adjacent and have the same size. If this function returns true then the
+// second returned value is the CIDR that encompasses the two provided CIDRs.
+func NetworksAreAdjacentAndSameSize(a, b string) (bool, string, error) {
 	_, anet, err := net.ParseCIDR(a)
 	if err != nil {
 		return false, "", fmt.Errorf("unable to parse first cidr %s: %w", a, err)
