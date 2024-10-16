@@ -112,8 +112,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flags := []cli.Flag{}
-			flags = withProxyFlags(withSubnetCIDRFlags(flags))
+			flags := withProxyFlags(withSubnetCIDRFlags([]cli.Flag{}))
 
 			flagSet := flag.NewFlagSet("test", 0)
 			for _, flag := range flags {
