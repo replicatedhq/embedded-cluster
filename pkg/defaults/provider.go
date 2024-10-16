@@ -50,7 +50,8 @@ func NewProviderFromCluster(ctx context.Context, cli client.Client) (*Provider, 
 // of EC that used a different directory for k0s and openebs.
 func NewProviderFromFilesystem() (*Provider, error) {
 	provider := NewProvider(ecv1beta1.DefaultDataDir)
-	_, err := os.Stat(provider.PathToKubeConfig())
+	// ca.crt is available on both control plane and worker nodes
+	_, err := os.Stat(filepath.Join(provider.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
 	if err == nil {
 		return provider, nil
 	}
@@ -60,7 +61,8 @@ func NewProviderFromFilesystem() (*Provider, error) {
 		K0sDataDirOverride:     "/var/lib/k0s",
 		OpenEBSDataDirOverride: "/var/openebs",
 	})
-	_, err = os.Stat(provider.PathToKubeConfig())
+	// ca.crt is available on both control plane and worker nodes
+	_, err = os.Stat(filepath.Join(provider.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
 	if err == nil {
 		return provider, nil
 	}
