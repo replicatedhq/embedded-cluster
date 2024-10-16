@@ -422,6 +422,9 @@ func isBackupRestorable(backup *velerov1.Backup, provider *defaults.Provider, re
 		if k0sCfg != nil && k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
 			if k0sCfg.Spec.Network.PodCIDR != "" || k0sCfg.Spec.Network.ServiceCIDR != "" {
 				if podCIDR != k0sCfg.Spec.Network.PodCIDR || serviceCIDR != k0sCfg.Spec.Network.ServiceCIDR {
+					if cidr, ok := backup.Annotations["kots.io/embedded-cluster-cidr"]; ok {
+						return false, fmt.Sprintf("has a different network configuration than the current cluster. Please rerun with '--cidr %s'.", cidr)
+					}
 					return false, fmt.Sprintf("has a different network configuration than the current cluster. Please rerun with '--pod-cidr %s --service-cidr %s'.", podCIDR, serviceCIDR)
 				}
 			}
