@@ -8,6 +8,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -186,4 +187,18 @@ func (d *Provider) AdminConsolePort() int {
 		return d.runtimeConfig.AdminConsole.Port
 	}
 	return ecv1beta1.DefaultAdminConsolePort
+}
+
+// PodAndServiceCIDRs returns the pod and service CIDRs for the cluster.
+func (d *Provider) PodAndServiceCIDRs() (string, string, error) {
+	cidr := ecv1beta1.DefaultNetworkCIDR
+	if d.runtimeConfig != nil && d.runtimeConfig.NetworkCIDR != "" {
+		cidr = d.runtimeConfig.NetworkCIDR
+	}
+
+	if err := netutils.ValidateCIDR(cidr, 16, true); err != nil {
+		return "", "", fmt.Errorf("invalid network cidr: %w", err)
+	}
+
+	return netutils.SplitNetworkCIDR(cidr)
 }

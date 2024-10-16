@@ -8,6 +8,7 @@ const (
 	DefaultDataDir                 = "/var/lib/embedded-cluster"
 	DefaultAdminConsolePort        = 30000
 	DefaultLocalArtifactMirrorPort = 50000
+	DefaultNetworkCIDR             = "10.244.0.0/16"
 )
 
 // RuntimeConfigSpec defines the configuration for the Embedded Cluster at runtime.
@@ -26,6 +27,10 @@ type RuntimeConfigSpec struct {
 	AdminConsole AdminConsoleSpec `json:"adminConsole,omitempty"`
 	// LocalArtifactMirrorPort holds the Local Artifact Mirror configuration.
 	LocalArtifactMirror LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
+
+	// NetworkCIDR holds the network CIDR for the cluster. This cidr is
+	// split into two subnets, one for pods and one for services.
+	NetworkCIDR string `json:"networkCIDR,omitempty"`
 }
 
 func (c *RuntimeConfigSpec) UnmarshalJSON(data []byte) error {

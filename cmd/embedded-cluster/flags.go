@@ -5,10 +5,30 @@ import (
 	"strconv"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	k8snet "k8s.io/utils/net"
 )
+
+func getNetworkCIDRFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) cli.Flag {
+	return &cli.StringFlag{
+		Name:  "cidr",
+		Usage: "IP Address Range for Pods and Services, allocate a range of at least /16. This will be evenly divided into separate subnets",
+		Value: ecv1beta1.DefaultNetworkCIDR,
+		Action: func(c *cli.Context, addr string) error {
+			if c.IsSet("pod-cidr") || c.IsSet("service-cidr") {
+				return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
+			}
+			if err := netutils.ValidateCIDR(addr, 16, true); err != nil {
+				return err
+			}
+			logrus.Debugf("Setting network cidr to %q from flag", addr)
+			runtimeConfig.NetworkCIDR = addr
+			return nil
+		},
+	}
+}
 
 func getAdminConsolePortFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) cli.Flag {
 	return &cli.StringFlag{

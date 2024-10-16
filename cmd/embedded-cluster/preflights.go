@@ -41,6 +41,7 @@ func installRunPreflightsCommand() *cli.Command {
 				getDataDirFlag(runtimeConfig),
 				getAdminConsolePortFlag(runtimeConfig),
 				getLocalArtifactMirrorPortFlag(runtimeConfig),
+				getNetworkCIDRFlag(runtimeConfig),
 			},
 		)),
 		Before: func(c *cli.Context) error {
@@ -56,12 +57,12 @@ func installRunPreflightsCommand() *cli.Command {
 			defer tryRemoveTmpDirContents(provider)
 
 			var err error
-			proxy, err := getProxySpecFromFlags(c)
+			proxy, err := getProxySpecFromFlags(c, provider)
 			if err != nil {
 				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
 			}
 
-			proxy, err = includeLocalIPInNoProxy(c, proxy)
+			proxy, err = includeLocalIPInNoProxy(c, proxy, provider)
 			if err != nil {
 				return err
 			}

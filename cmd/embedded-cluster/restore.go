@@ -332,7 +332,7 @@ func ensureK0sConfigForRestore(c *cli.Context, provider *defaults.Provider, appl
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
-	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(c)
+	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(c, provider)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
@@ -871,7 +871,7 @@ func installAndWaitForRestoredK0sNode(c *cli.Context, provider *defaults.Provide
 		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
 
-	proxy, err := getProxySpecFromFlags(c)
+	proxy, err := getProxySpecFromFlags(c, provider)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get proxy spec from flags: %w", err)
 	}
@@ -934,6 +934,7 @@ func restoreCommand() *cli.Command {
 					Hidden: false,
 				},
 				getDataDirFlag(runtimeConfig),
+				getNetworkCIDRFlag(runtimeConfig),
 			},
 		)),
 		Before: func(c *cli.Context) error {
@@ -949,7 +950,7 @@ func restoreCommand() *cli.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
-			proxy, err := getProxySpecFromFlags(c)
+			proxy, err := getProxySpecFromFlags(c, provider)
 			if err != nil {
 				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
 			}

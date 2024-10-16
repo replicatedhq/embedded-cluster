@@ -1,12 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"net"
-	"strings"
-
-	"github.com/apparentlymart/go-cidr/cidr"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/urfave/cli/v2"
 )
 
@@ -24,72 +20,16 @@ func withSubnetCIDRFlags(flags []cli.Flag) []cli.Flag {
 			Value:  k0sv1beta1.DefaultNetwork().ServiceCIDR,
 			Hidden: true,
 		},
-		&cli.StringFlag{
-			Name:  "cidr",
-			Usage: "IP Address Range for Pods and Services, allocate a range of at least /16. This will be evenly divided into separate subnets",
-			Value: k0sv1beta1.DefaultNetwork().PodCIDR,
-			Action: func(c *cli.Context, value string) error {
-				if c.IsSet("pod-cidr") || c.IsSet("service-cidr") {
-					return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
-				}
-				return validateCIDR(value)
-			},
-		},
 	)
-}
-
-// validateCIDR parses the cidr provided by the user and returns an error if it
-// is invalid or if it is smaller of a /16.
-func validateCIDR(value string) error {
-	_, ipnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return fmt.Errorf("invalid cidr: %w", err)
-	}
-
-	size, _ := ipnet.Mask.Size()
-	if size > 16 {
-		return fmt.Errorf("cidr needs to be at least a /16")
-	}
-
-	privates := []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}
-	for _, cidr := range privates {
-		if _, privnet, _ := net.ParseCIDR(cidr); privnet.Contains(ipnet.IP) {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("cidr is not within the private ranges %s", strings.Join(privates, ", "))
-}
-
-// SplitNetworkCIDR splits the provided network CIDR into pod and service
-// CIDRs. The network is split in half, with the first half being the pod CIDR
-// and the second half being the service CIDR.
-func SplitNetworkCIDR(netaddr string) (string, string, error) {
-	_, ipnet, err := net.ParseCIDR(netaddr)
-	if err != nil {
-		return "", "", fmt.Errorf("unable to parse cidr: %w", err)
-	}
-
-	podnet, err := cidr.Subnet(ipnet, 1, 0)
-	if err != nil {
-		return "", "", fmt.Errorf("unable to determine pod cidr: %w", err)
-	}
-
-	svcnet, err := cidr.Subnet(ipnet, 1, 1)
-	if err != nil {
-		return "", "", fmt.Errorf("unable to determine service cidr: %w", err)
-	}
-
-	return podnet.String(), svcnet.String(), nil
 }
 
 // DeterminePodAndServiceCIDRS determines, based on the command line flags,
 // what are the pod and service CIDRs to be used for the cluster. If both
 // --pod-cidr and --service-cidr have been set, they are used. Otherwise,
 // the cidr flag is split into pod and service CIDRs.
-func DeterminePodAndServiceCIDRs(c *cli.Context) (string, string, error) {
+func DeterminePodAndServiceCIDRs(c *cli.Context, provider *defaults.Provider) (string, string, error) {
 	if c.IsSet("pod-cidr") && c.IsSet("service-cidr") {
 		return c.String("pod-cidr"), c.String("service-cidr"), nil
 	}
-	return SplitNetworkCIDR(c.String("cidr"))
+	return provider.PodAndServiceCIDRs()
 }
