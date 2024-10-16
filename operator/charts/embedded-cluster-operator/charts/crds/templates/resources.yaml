@@ -576,11 +576,6 @@ spec:
                         description: Port holds the port on which the local artifact mirror will be served.
                         type: integer
                     type: object
-                  networkCIDR:
-                    description: |-
-                      NetworkCIDR holds the network CIDR for the cluster. This cidr is
-                      split into two subnets, one for pods and one for services.
-                    type: string
                   openEBSDataDirOverride:
                     description: |-
                       OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage
