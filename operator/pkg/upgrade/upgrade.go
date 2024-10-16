@@ -30,6 +30,7 @@ const (
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
+	fmt.Printf("Upgrading to version %s\n", in.Spec.Config.Version)
 	err := clusterConfigUpdate(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
@@ -40,22 +41,26 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
 
+	fmt.Printf("updating registry migration status\n")
 	err = registryMigrationStatus(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("registry migration status: %w", err)
 	}
 
+	fmt.Printf("upgrading addons\n")
 	err = chartUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("chart upgrade: %w", err)
 	}
 
+	fmt.Printf("waiting for operator chart to be ready\n")
 	// wait for the operator chart to be ready
 	err = waitForOperatorChart(ctx, cli, in.Spec.Config.Version)
 	if err != nil {
 		return fmt.Errorf("wait for operator chart: %w", err)
 	}
 
+	fmt.Printf("re-applying installation\n")
 	err = reApplyInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("unlock installation: %w", err)
@@ -81,6 +86,8 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	if match {
 		return nil
 	}
+
+	fmt.Printf("Upgrading k0s to version %s\n", desiredVersion)
 
 	// create an autopilot upgrade plan if one does not yet exist
 	var plan apv1b2.Plan

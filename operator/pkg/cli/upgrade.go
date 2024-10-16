@@ -25,7 +25,7 @@ func UpgradeCmd() *cobra.Command {
 		Short:        "create a job to upgrade the embedded cluster operator",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Upgrade command started")
+			fmt.Println("Upgrade job creation started")
 
 			cli, err := k8sutil.KubeClient()
 			if err != nil {
