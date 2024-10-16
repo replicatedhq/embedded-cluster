@@ -118,6 +118,9 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(provider *defaults.Provider
 	if !onlyDefaults {
 		helmValues["embeddedBinaryName"] = defaults.BinaryName()
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
+		if e.airgap {
+			helmValues["isAirgap"] = "true"
+		}
 		if len(e.proxyEnv) > 0 {
 			extraEnv := []map[string]interface{}{}
 			for k, v := range e.proxyEnv {
