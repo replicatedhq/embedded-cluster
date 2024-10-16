@@ -500,6 +500,9 @@ func createHostSupportBundle() error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "embedded-cluster-host-support-bundle",
 			Namespace: "kotsadm",
+			Labels: map[string]string{
+				"troubleshoot.sh/kind": "support-bundle",
+			},
 		},
 		Data: map[string]string{
 			SpecDataKey: string(renderedSpec),
