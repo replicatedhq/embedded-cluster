@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -18,9 +19,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 const (
@@ -32,9 +35,10 @@ const (
 // charts and repositories from the installation spec.
 func K0sHelmExtensionsFromInstallation(
 	ctx context.Context, in *clusterv1beta1.Installation,
+	images []string,
 	clusterConfig *k0sv1beta1.ClusterConfig,
 ) (*v1beta1.Helm, error) {
-	combinedConfigs, err := generateHelmConfigs(ctx, in, clusterConfig)
+	combinedConfigs, err := generateHelmConfigs(ctx, in, images, clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("merge helm configs: %w", err)
 	}
@@ -55,7 +59,7 @@ func K0sHelmExtensionsFromInstallation(
 }
 
 // generate the helm configs for the cluster, with the default charts from data compiled into the binary and the additional user provided charts
-func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig) (*v1beta1.Helm, error) {
+func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, images []string, clusterConfig *k0sv1beta1.ClusterConfig) (*v1beta1.Helm, error) {
 	if in == nil {
 		return nil, fmt.Errorf("installation not found")
 	}
@@ -80,13 +84,49 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, in.Spec.Config.Extensions.Helm.Repositories...)
 	}
 
-	//set the cluster ID for the operator chart
+	//set the cluster ID for the operator chart to use
 	clusterUUID, err := uuid.Parse(in.Spec.ClusterID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse cluster ID: %w", err)
 	}
 	metrics.SetClusterID(clusterUUID)
+	// set the binary name for the operator chart to use
 	defaults.SetBinaryName(in.Spec.BinaryName)
+
+	// determine the images to use for the operator chart
+	ecOperatorImage := ""
+	ecUtilsImage := ""
+	for _, image := range images {
+		if strings.Contains(image, "/embedded-cluster-operator-image:") {
+			ecOperatorImage = image
+		}
+		if strings.Contains(image, "/ec-utils:") {
+			ecUtilsImage = image
+		}
+	}
+	if ecOperatorImage == "" {
+		return nil, fmt.Errorf("no embedded-cluster-operator-image found in images")
+	}
+	if ecUtilsImage == "" {
+		return nil, fmt.Errorf("no ec-utils found in images")
+	}
+	embeddedclusteroperator.Metadata.Images = map[string]release.AddonImage{
+		"embedded-cluster-operator": {
+			Repo: strings.Split(ecOperatorImage, ":")[0],
+			Tag: map[string]string{
+				"amd64": strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":"),
+				"arm64": strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":"),
+			},
+		},
+		"utils": {
+			Repo: strings.Split(ecUtilsImage, ":")[0],
+			Tag: map[string]string{
+				"amd64": strings.Join(strings.Split(ecUtilsImage, ":")[1:], ":"),
+				"arm64": strings.Join(strings.Split(ecUtilsImage, ":")[1:], ":"),
+			},
+		},
+	}
+	embeddedclusteroperator.Render()
 
 	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
 

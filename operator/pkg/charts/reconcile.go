@@ -9,6 +9,7 @@ import (
 	v1beta3 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	v1beta2 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -35,13 +36,24 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 		return nil, nil
 	}
 
+	meta, err := release.MetadataFor(ctx, in, cli)
+	if err != nil {
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, err.Error(), nil)
+		return nil, nil
+	}
+
+	if meta == nil || meta.Images == nil {
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, "No images available", nil)
+		return nil, nil
+	}
+
 	// fetch the current clusterConfig
 	var clusterConfig v1beta2.ClusterConfig
 	if err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &clusterConfig); err != nil {
 		return nil, fmt.Errorf("failed to get cluster config: %w", err)
 	}
 
-	combinedConfigs, err := K0sHelmExtensionsFromInstallation(ctx, in, &clusterConfig)
+	combinedConfigs, err := K0sHelmExtensionsFromInstallation(ctx, in, meta.Images, &clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get helm charts from installation: %w", err)
 	}

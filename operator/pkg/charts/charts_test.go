@@ -188,10 +188,10 @@ global:
     replicated.com/disaster-recovery: infra
     replicated.com/disaster-recovery-chart: embedded-cluster-operator
 image:
-  repository: ""
-  tag: ""
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
 kotsVersion: 1.2.3-admin-console
-utilsImage: ':'
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
 `,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
@@ -322,10 +322,10 @@ global:
     replicated.com/disaster-recovery: infra
     replicated.com/disaster-recovery-chart: embedded-cluster-operator
 image:
-  repository: ""
-  tag: ""
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
 kotsVersion: 1.2.3-admin-console
-utilsImage: ':'
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
 `,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
@@ -513,10 +513,10 @@ global:
     replicated.com/disaster-recovery: infra
     replicated.com/disaster-recovery-chart: embedded-cluster-operator
 image:
-  repository: ""
-  tag: ""
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
 kotsVersion: 1.2.3-admin-console
-utilsImage: ':'
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
 `,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
@@ -768,10 +768,10 @@ global:
     replicated.com/disaster-recovery: infra
     replicated.com/disaster-recovery-chart: embedded-cluster-operator
 image:
-  repository: ""
-  tag: ""
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
 kotsVersion: 1.2.3-admin-console
-utilsImage: ':'
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
 `,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
@@ -1039,10 +1039,10 @@ global:
     replicated.com/disaster-recovery: infra
     replicated.com/disaster-recovery-chart: embedded-cluster-operator
 image:
-  repository: ""
-  tag: ""
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
 kotsVersion: 1.2.3-admin-console
-utilsImage: ':'
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
 `,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
@@ -1107,8 +1107,14 @@ service:
 				},
 			}
 
+			images := []string{
+				"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
+				"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
+				"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+			}
+
 			req := require.New(t)
-			got, err := generateHelmConfigs(context.TODO(), &installation, &tt.args.clusterConfig)
+			got, err := generateHelmConfigs(context.TODO(), &installation, images, &tt.args.clusterConfig)
 			req.NoError(err)
 			req.Equal(tt.want, got)
 		})
