@@ -479,7 +479,6 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestHostCollectSupportBundleInCluster
           - TestPreflights
           - TestMaterialize
           - TestHostPreflightCustomSpec
@@ -507,6 +506,7 @@ jobs:
           - TestMultiNodeReset
           - TestCollectSupportBundle
           - TestUnsupportedOverrides
+          - TestHostCollectSupportBundleInCluster
     steps:
       - name: Checkout
         uses: actions/checkout@v4
