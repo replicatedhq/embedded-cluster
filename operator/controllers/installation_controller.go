@@ -616,8 +616,9 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	in := r.CoalesceInstallations(ctx, items)
 
 	// if the embedded cluster version has changed we should not reconcile with the old version
-	if r.needsUpgrade(ctx, in) {
-		return ctrl.Result{}, fmt.Errorf("embedded cluster version has changed")
+	versionChanged, err := r.needsUpgrade(ctx, in)
+	if versionChanged {
+		return ctrl.Result{}, err
 	}
 
 	// if this cluster has no id we bail out immediately.
@@ -704,16 +705,17 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
 
-func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.Installation) bool {
+func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.Installation) (bool, error) {
 	if in.Spec.Config == nil || in.Spec.Config.Version == "" {
-		return false
+		return false, nil
 	}
 	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
 	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
+	var err error
 	if curstr != desstr {
-		fmt.Printf("Current version (%s) is different from the desired version (%s)\n", curstr, desstr)
+		err = fmt.Errorf("current version (%s) is different from the desired version (%s)", curstr, desstr)
 	}
-	return curstr != desstr
+	return curstr != desstr, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
