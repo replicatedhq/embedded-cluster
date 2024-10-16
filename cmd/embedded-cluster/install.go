@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -552,6 +553,16 @@ func installAndWaitForK0s(c *cli.Context, provider *defaults.Provider, applier *
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
+
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create kube client: %w", err)
+	}
+	// wait for a node to exist
+	if err := kubeutils.WaitForNodes(c.Context, kcli); err != nil {
+		return nil, fmt.Errorf("unable to wait for node to exist: %w", err)
+	}
+
 	loading.Infof("Node installation finished!")
 	return cfg, nil
 }
