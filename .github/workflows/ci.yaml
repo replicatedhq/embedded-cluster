@@ -492,6 +492,7 @@ jobs:
           - TestUpgradeFromReplicatedApp
           - TestInstallWithoutEmbed
           - TestUpgradeEC18FromReplicatedApp
+          - TestUpgradeEC114FromReplicatedApp
           - TestResetAndReinstall
           - TestOldVersionUpgrade
           - TestInstallSnapshotFromReplicatedApp
@@ -571,7 +572,8 @@ jobs:
           - TestCommandsRequireSudo
           - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
-          - TestAirgapUpgradeFromEC18
+          - TestSingleNodeAirgapUpgradeFromEC18
+          - TestAirgapUpgradeFromEC114
           - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestSingleNodeDisasterRecoveryWithProxy
           - TestProxiedEnvironment
