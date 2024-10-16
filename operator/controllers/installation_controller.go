@@ -710,6 +710,9 @@ func (r *InstallationReconciler) needsUpgrade(ctx context.Context, in *v1beta1.I
 	}
 	curstr := strings.TrimPrefix(os.Getenv("EMBEDDEDCLUSTER_VERSION"), "v")
 	desstr := strings.TrimPrefix(in.Spec.Config.Version, "v")
+	if curstr != desstr {
+		fmt.Printf("Current version (%s) is different from the desired version (%s)\n", curstr, desstr)
+	}
 	return curstr != desstr
 }
 
