@@ -562,11 +562,20 @@ func installAndWaitForK0s(c *cli.Context, provider *defaults.Provider, applier *
 
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		return nil, fmt.Errorf("unable to create kube client: %w", err)
+		err = fmt.Errorf("unable to get kube client: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return nil, err
 	}
-	// wait for a node to exist
-	if err := kubeutils.WaitForNodes(c.Context, kcli); err != nil {
-		return nil, fmt.Errorf("unable to wait for node to exist: %w", err)
+	hostname, err := os.Hostname()
+	if err != nil {
+		err = fmt.Errorf("unable to get hostname: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return nil, err
+	}
+	if err := waitForNode(c.Context, kcli, hostname); err != nil {
+		err = fmt.Errorf("unable to wait for node: %w", err)
+		metrics.ReportApplyFinished(c, err)
+		return nil, err
 	}
 
 	loading.Infof("Node installation finished!")
