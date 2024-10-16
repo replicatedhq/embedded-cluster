@@ -515,10 +515,16 @@ func waitForK0s() error {
 	if !success {
 		return fmt.Errorf("timeout waiting for %s", defaults.BinaryName())
 	}
-	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
-		return fmt.Errorf("unable to get status: %w", err)
+
+	for i := 1; ; i++ {
+		_, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status")
+		if err == nil {
+			return nil
+		} else if i == 30 {
+			return fmt.Errorf("unable to get status: %w", err)
+		}
+		time.Sleep(2 * time.Second)
 	}
-	return nil
 }
 
 // installAndWaitForK0s installs the k0s binary and waits for it to be ready
