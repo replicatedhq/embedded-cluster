@@ -43,6 +43,12 @@ func RootCmd() *cobra.Command {
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
+			err := printVersions()
+			if err != nil {
+				setupLog.Error(err, "unable to print versions")
+				os.Exit(1)
+			}
+
 			zaplog := zap.New(zap.UseDevMode(true))
 			ctrl.SetLogger(zaplog)
 
