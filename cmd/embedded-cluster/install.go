@@ -21,7 +21,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -556,24 +555,6 @@ func installAndWaitForK0s(c *cli.Context, provider *defaults.Provider, applier *
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		err := fmt.Errorf("unable to wait for node: %w", err)
-		metrics.ReportApplyFinished(c, err)
-		return nil, err
-	}
-
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		err = fmt.Errorf("unable to get kube client: %w", err)
-		metrics.ReportApplyFinished(c, err)
-		return nil, err
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		err = fmt.Errorf("unable to get hostname: %w", err)
-		metrics.ReportApplyFinished(c, err)
-		return nil, err
-	}
-	if err := waitForNode(c.Context, kcli, hostname); err != nil {
-		err = fmt.Errorf("unable to wait for node: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
