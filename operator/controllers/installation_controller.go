@@ -667,8 +667,8 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// reconcile the add-ons (k0s helm extensions).
-	log.Info("Reconciling addon status")
-	_, ev, err := charts.UpdateChartStatus(ctx, r.Client, in, false)
+	log.Info("Reconciling helm charts")
+	ev, err := charts.ReconcileHelmCharts(ctx, r.Client, in)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile helm charts: %w", err)
 	}
