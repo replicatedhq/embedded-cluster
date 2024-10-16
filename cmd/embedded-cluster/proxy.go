@@ -38,7 +38,7 @@ func withProxyFlags(flags []cli.Flag) []cli.Flag {
 	)
 }
 
-func getProxySpecFromFlags(c *cli.Context, provider *defaults.Provider) (*ecv1beta1.ProxySpec, error) {
+func getProxySpecFromFlags(c *cli.Context) (*ecv1beta1.ProxySpec, error) {
 	proxy := &ecv1beta1.ProxySpec{}
 	var providedNoProxy []string
 	if c.Bool("proxy") {
@@ -59,7 +59,7 @@ func getProxySpecFromFlags(c *cli.Context, provider *defaults.Provider) (*ecv1be
 	}
 
 	proxy.ProvidedNoProxy = strings.Join(providedNoProxy, ",")
-	if err := combineNoProxySuppliedValuesAndDefaults(c, proxy, provider); err != nil {
+	if err := combineNoProxySuppliedValuesAndDefaults(c, proxy); err != nil {
 		return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
 	}
 
@@ -69,14 +69,14 @@ func getProxySpecFromFlags(c *cli.Context, provider *defaults.Provider) (*ecv1be
 	return proxy, nil
 }
 
-func combineNoProxySuppliedValuesAndDefaults(c *cli.Context, proxy *ecv1beta1.ProxySpec, provider *defaults.Provider) error {
+func combineNoProxySuppliedValuesAndDefaults(c *cli.Context, proxy *ecv1beta1.ProxySpec) error {
 	if proxy.ProvidedNoProxy == "" {
 		return nil
 	}
 	noProxy := strings.Split(proxy.ProvidedNoProxy, ",")
 	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
 		noProxy = append(defaults.DefaultNoProxy, noProxy...)
-		podnet, svcnet, err := DeterminePodAndServiceCIDRs(c, provider)
+		podnet, svcnet, err := DeterminePodAndServiceCIDRs(c)
 		if err != nil {
 			return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 		}
@@ -103,7 +103,7 @@ func setProxyEnv(proxy *ecv1beta1.ProxySpec) {
 	}
 }
 
-func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, provider *defaults.Provider) (*ecv1beta1.ProxySpec, error) {
+func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1beta1.ProxySpec, error) {
 	if proxy != nil && (proxy.HTTPProxy != "" || proxy.HTTPSProxy != "") {
 		// if there is a proxy set, then there needs to be a no proxy set
 		// if it is not set, prompt with a default (the local IP or subnet)
@@ -119,7 +119,7 @@ func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, provide
 		if proxy.ProvidedNoProxy == "" {
 			logrus.Infof("--no-proxy was not set. Adding the default interface's subnet (%q) to the no-proxy list.", cleanIPNet)
 			proxy.ProvidedNoProxy = cleanIPNet
-			if err := combineNoProxySuppliedValuesAndDefaults(c, proxy, provider); err != nil {
+			if err := combineNoProxySuppliedValuesAndDefaults(c, proxy); err != nil {
 				return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
 			}
 			return proxy, nil
@@ -130,7 +130,7 @@ func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec, provide
 			} else if !isValid {
 				logrus.Infof("The node IP (%q) is not included in the provided no-proxy list (%q). Adding the default interface's subnet (%q) to the no-proxy list.", ipnet.IP.String(), proxy.ProvidedNoProxy, cleanIPNet)
 				proxy.ProvidedNoProxy = cleanIPNet
-				if err := combineNoProxySuppliedValuesAndDefaults(c, proxy, provider); err != nil {
+				if err := combineNoProxySuppliedValuesAndDefaults(c, proxy); err != nil {
 					return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
 				}
 				return proxy, nil

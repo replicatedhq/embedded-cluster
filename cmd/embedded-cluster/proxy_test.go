@@ -6,7 +6,6 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v2"
 )
@@ -113,9 +112,6 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runtimeConfig := &ecv1beta1.RuntimeConfigSpec{}
-			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-
 			flags := []cli.Flag{}
 			flags = withProxyFlags(withSubnetCIDRFlags(flags))
 
@@ -128,7 +124,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			}
 
 			c := cli.NewContext(cli.NewApp(), flagSet, nil)
-			got, err := getProxySpecFromFlags(c, provider)
+			got, err := getProxySpecFromFlags(c)
 			assert.NoError(t, err, "unexpected error received")
 			assert.Equal(t, tt.want, got)
 		})

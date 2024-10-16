@@ -5,7 +5,6 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/urfave/cli/v2"
 )
@@ -45,7 +44,7 @@ func withSubnetCIDRFlags(flags []cli.Flag) []cli.Flag {
 // what are the pod and service CIDRs to be used for the cluster. If both
 // --pod-cidr and --service-cidr have been set, they are used. Otherwise,
 // the cidr flag is split into pod and service CIDRs.
-func DeterminePodAndServiceCIDRs(c *cli.Context, provider *defaults.Provider) (string, string, error) {
+func DeterminePodAndServiceCIDRs(c *cli.Context) (string, string, error) {
 	if c.IsSet("pod-cidr") && c.IsSet("service-cidr") {
 		return c.String("pod-cidr"), c.String("service-cidr"), nil
 	}

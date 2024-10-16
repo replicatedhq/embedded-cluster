@@ -409,7 +409,7 @@ func ensureK0sConfig(c *cli.Context, provider *defaults.Provider, applier *addon
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
-	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(c, provider)
+	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(c)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
@@ -701,12 +701,12 @@ func installCommand() *cli.Command {
 			defer tryRemoveTmpDirContents(provider)
 
 			var err error
-			proxy, err := getProxySpecFromFlags(c, provider)
+			proxy, err := getProxySpecFromFlags(c)
 			if err != nil {
 				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
 			}
 
-			proxy, err = includeLocalIPInNoProxy(c, proxy, provider)
+			proxy, err = includeLocalIPInNoProxy(c, proxy)
 			if err != nil {
 				metrics.ReportApplyFinished(c, err)
 				return err
