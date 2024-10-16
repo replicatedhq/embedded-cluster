@@ -46,7 +46,6 @@ func RootCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			zaplog := zap.New(zap.UseDevMode(true))
 			ctrl.SetLogger(zaplog)
-			setupLog.Info("Starting manager", "version", versions.Version, "k0sversion", versions.K0sVersion)
 
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 				Scheme: k8sutil.Scheme(),
@@ -83,7 +82,7 @@ func RootCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			setupLog.Info("Starting manager")
+			setupLog.Info("Starting manager", "version", versions.Version, "k0sversion", versions.K0sVersion)
 			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 				setupLog.Error(err, "problem running manager")
 				os.Exit(1)
