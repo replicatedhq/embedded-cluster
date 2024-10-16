@@ -7,6 +7,16 @@ metadata:
 spec:
   uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster-operator/main/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
   collectors:
+  - clusterInfo: {}
+  - clusterResources:
+      namespaces:
+      - kube-system
+      - openebs
+      - registry
+      - embedded-cluster
+      - seaweedfs
+      - default
+      - velero
   - logs:
       name: podlogs/embedded-cluster-operator
       namespace: embedded-cluster
@@ -68,6 +78,41 @@ spec:
       namespace: registry
       selector:
       - app=registry
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=objectstorage-provisioner
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=filer
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=master
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=s3
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=volume
       limits:
         maxAge: 720h
   analyzers:
