@@ -563,8 +563,19 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
 
+	// wait for the nodes to report as ready.
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "1"})
+	if err != nil {
+		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
+	}
+
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec18-app-version"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
+	stdout, stderr, err = tc.RunPlaywrightTest("get-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1066,6 +1077,18 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
+	// wait for the nodes to report as ready.
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	stdout, _, err := tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "1"})
+	if err != nil {
+		t.Log(stdout)
+		t.Fatalf("fail to wait for ready nodes: %v", err)
+	}
+
+	if _, _, err := tc.RunPlaywrightTest("deploy-ec18-app-version"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
 	}
 
 	// generate worker node join command.
