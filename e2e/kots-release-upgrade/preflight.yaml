@@ -3,9 +3,6 @@ kind: Preflight
 metadata:
   name: preflight-checks
 spec:
-  collectors:
-    - clusterInfo: {}
-    - clusterResources: {}
   analyzers:
     - customResourceDefinition:
         customResourceDefinitionName: installations.embeddedcluster.replicated.com

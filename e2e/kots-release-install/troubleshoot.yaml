@@ -1,8 +1,0 @@
-apiVersion: troubleshoot.sh/v1beta2
-kind: SupportBundle
-metadata:
-  name: preflight-checks
-spec:
-  collectors:
-    - clusterInfo: {}
-    - clusterResources: {}
