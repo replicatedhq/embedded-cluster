@@ -41,7 +41,6 @@ func installRunPreflightsCommand() *cli.Command {
 				getDataDirFlag(runtimeConfig),
 				getAdminConsolePortFlag(runtimeConfig),
 				getLocalArtifactMirrorPortFlag(runtimeConfig),
-				getNetworkCIDRFlag(runtimeConfig),
 			},
 		)),
 		Before: func(c *cli.Context) error {

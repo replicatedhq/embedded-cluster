@@ -692,7 +692,6 @@ func installCommand() *cli.Command {
 				getDataDirFlag(runtimeConfig),
 				getAdminConsolePortFlag(runtimeConfig),
 				getLocalArtifactMirrorPortFlag(runtimeConfig),
-				getNetworkCIDRFlag(runtimeConfig),
 			},
 		)),
 		Action: func(c *cli.Context) error {

@@ -116,7 +116,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			runtimeConfig := &ecv1beta1.RuntimeConfigSpec{}
 			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 
-			flags := []cli.Flag{getNetworkCIDRFlag(runtimeConfig)}
+			flags := []cli.Flag{}
 			flags = withProxyFlags(withSubnetCIDRFlags(flags))
 
 			flagSet := flag.NewFlagSet("test", 0)

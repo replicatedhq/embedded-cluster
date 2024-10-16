@@ -937,7 +937,6 @@ func restoreCommand() *cli.Command {
 					Hidden: false,
 				},
 				getDataDirFlag(runtimeConfig),
-				getNetworkCIDRFlag(runtimeConfig),
 			},
 		)),
 		Before: func(c *cli.Context) error {
