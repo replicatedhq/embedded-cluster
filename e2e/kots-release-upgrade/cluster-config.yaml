@@ -73,10 +73,15 @@ spec:
           namespace: goldpinger
           version: 6.1.2
           order: 11
+          values: |
+            image:
+              repository: proxy.replicated.com/anonymous/bloomberg/goldpinger
         - chartname: oci://registry-1.docker.io/bitnamicharts/memcached
           name: memcached
           namespace: memcached
           values: |
+            global:
+              imageRegistry: proxy.replicated.com/anonymous
             volumePermissions:
              resources:
                requests:

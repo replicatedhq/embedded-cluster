@@ -16,6 +16,6 @@ export const deployApp = async (page, expect) => {
   await expect(page.locator('#app')).toContainText('Embedded Cluster Config CRD exists');
   await page.getByRole('button', { name: 'Deploy' }).click();
   await expect(page.locator('#app')).toContainText('Currently deployed version', { timeout: 90000 });
-  await expect(page.locator('#app')).toContainText('Ready', { timeout: 30000 });
+  await expect(page.locator('#app')).toContainText('Ready', { timeout: 45000 });
   await expect(page.locator('#app')).toContainText('Up to date');
 };

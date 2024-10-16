@@ -123,6 +123,10 @@ spec:
           - -c
           - |
             [ -d "{{ .DataDir }}" ] && [ -L "{{ .DataDir }}" ] && echo "{{ .DataDir }} is a symlink" || echo "{{ .DataDir }} is not a symlink"
+    - dns:
+        collectorName: 'wildcard-check'
+        hostnames:
+          - '*'
   analyzers:
     - cpu:
         checkName: CPU
@@ -403,7 +407,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: "Neither 'nameserver localhost' nor 'nameserver 127.0.0.1' can be present in resolv.conf. Remove them to continue."
+              message: "Local DNS resolver detected. Remove the localhost and/or 127.0.0.1 nameserver entries from resolv.conf."
           - pass:
               when: "false"
               message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf"
@@ -763,3 +767,16 @@ spec:
           - pass:
               when: 'false'
               message: {{ .DataDir }} is not a symlink.
+    - jsonCompare:
+        checkName: Wildcard DNS
+        fileName: host-collectors/dns/wildcard-check/result.json
+        path: 'resolvedFromSearch'
+        value: |
+          ""
+        outcomes:
+          - fail:
+              when: 'false'
+              message: 'Wildcard DNS entry *.{{ "{{" }}  .resolvedFromSearch {{ "}}" }} detected. Remove the wildcard DNS entry or the {{ "{{" }}  .resolvedFromSearch {{ "}}" }} search domain from resolv.conf.'
+          - pass:
+              when: 'true'
+              message: No wildcard DNS entry detected.

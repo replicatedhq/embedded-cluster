@@ -514,10 +514,16 @@ func waitForK0s() error {
 	if !success {
 		return fmt.Errorf("timeout waiting for %s", defaults.BinaryName())
 	}
-	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status"); err != nil {
-		return fmt.Errorf("unable to get status: %w", err)
+
+	for i := 1; ; i++ {
+		_, err := helpers.RunCommand(defaults.K0sBinaryPath(), "status")
+		if err == nil {
+			return nil
+		} else if i == 30 {
+			return fmt.Errorf("unable to get status: %w", err)
+		}
+		time.Sleep(2 * time.Second)
 	}
-	return nil
 }
 
 // installAndWaitForK0s installs the k0s binary and waits for it to be ready
@@ -560,7 +566,9 @@ func installAndWaitForK0s(c *cli.Context, provider *defaults.Provider, applier *
 func runOutro(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, cfg *k0sconfig.ClusterConfig) error {
 	os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 
-	metadata, err := gatherVersionMetadata(cfg)
+	// This metadata should be the same as the artifact from the release without the vendor customizations
+	defaultCfg := config.RenderK0sConfig()
+	metadata, err := gatherVersionMetadata(defaultCfg, false)
 	if err != nil {
 		return fmt.Errorf("unable to gather release metadata: %w", err)
 	}

@@ -3,7 +3,7 @@ on:
   push:
     tags:
       - '[0-9]+\.[0-9]+\.[0-9]+\+k8s-[0-9]+\.[0-9]+'
-      - '[0-9]+\.[0-9]+\.[0-9]+\+k8s-[0-9]+\.[0-9]+-.+'
+      - '[0-9]+\.[0-9]+\.[0-9]+\+k8s-[0-9]+\.[0-9]+-*'
 permissions:
   contents: write
 jobs:
@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag-name: ${{ steps.get-tag.outputs.tag-name }}
+      k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,6 +28,13 @@ jobs:
           export V_TAG=$(echo "$RAW_TAG" | sed 's/^[^v]/v&/')
           # store the tag name in an output for later steps
           echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Export k0s version
+        id: export
+        run: |
+          K0S_VERSION="$(make print-K0S_VERSION)"
+          echo "K0S_VERSION=\"$K0S_VERSION\""
+          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
   buildtools:
     runs-on: ubuntu-latest
