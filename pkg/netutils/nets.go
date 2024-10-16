@@ -38,6 +38,10 @@ func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 		return fmt.Errorf("invalid cidr: %w", err)
 	}
 
+	if ipnet.String() != cidr {
+		return fmt.Errorf("the provided address is not a valid CIDR")
+	}
+
 	if size, _ := ipnet.Mask.Size(); size > notLessThan {
 		return fmt.Errorf("cidr needs to be at least a /%d", notLessThan)
 	}
@@ -53,5 +57,36 @@ func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 		}
 	}
 
-	return fmt.Errorf("cidr is not within the private ranges %s", strings.Join(privates, ", "))
+	return fmt.Errorf("cidr is not in private ranges %s", strings.Join(privates, ", "))
+}
+
+// AreAdjacentAndSameSize returns true if the two provided CIDRs are adjacent
+// and have the same size. If this function returns true then the second
+// returned value is the CIDR that encompasses the two provided CIDRs.
+func AreAdjacentAndSameSize(a, b string) (bool, string, error) {
+	_, anet, err := net.ParseCIDR(a)
+	if err != nil {
+		return false, "", fmt.Errorf("unable to parse first cidr %s: %w", a, err)
+	}
+
+	_, bnet, err := net.ParseCIDR(b)
+	if err != nil {
+		return false, "", fmt.Errorf("unable to parse second cidr %s: %w", b, err)
+	}
+
+	// if the mask is different we can bail out immediately.
+	if anet.Mask.String() != bnet.Mask.String() {
+		return false, "", nil
+	}
+
+	first, last := cidr.AddressRange(anet)
+	last = cidr.Inc(last)
+	if bnetfirst, _ := cidr.AddressRange(bnet); !bnetfirst.Equal(last) {
+		return false, "", nil
+	}
+
+	suffix, _ := anet.Mask.Size()
+	suffix--
+	supernet := fmt.Sprintf("%s/%d", first.String(), suffix)
+	return true, supernet, nil
 }
