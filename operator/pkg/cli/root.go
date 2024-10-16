@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -43,14 +44,9 @@ func RootCmd() *cobra.Command {
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			err := printVersions()
-			if err != nil {
-				setupLog.Error(err, "unable to print versions")
-				os.Exit(1)
-			}
-
 			zaplog := zap.New(zap.UseDevMode(true))
 			ctrl.SetLogger(zaplog)
+			setupLog.Info("Starting manager", "version", versions.Version, "k0sversion", versions.K0sVersion)
 
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 				Scheme: k8sutil.Scheme(),
