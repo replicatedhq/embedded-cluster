@@ -10,6 +10,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// K0sClusterConfigTo129Compat converts a k0s cluster config to a 1.29 compatible cluster config.
+// This changes the chart timeout from a string to a duration. 1.30+ is backwards compatible
+// and time timeout can be set as either.
 func K0sClusterConfigTo129Compat(clusterConfig *k0sv1beta1.ClusterConfig) (*unstructured.Unstructured, error) {
 	obj, err := objectToUnstructured(clusterConfig)
 	if err != nil {
