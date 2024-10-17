@@ -567,20 +567,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test:
+        test: []
           # - TestVersion
           # - TestCommandsRequireSudo
           # - TestResetAndReinstallAirgap
           # - TestSingleNodeAirgapUpgrade
-          - TestAirgapUpgradeFromEC18
-          - TestAirgapUpgradeFromEC114
           # - TestSingleNodeAirgapUpgradeCustomCIDR
           # - TestSingleNodeDisasterRecoveryWithProxy
           # - TestProxiedEnvironment
           # - TestProxiedCustomCIDR
           # - TestInstallWithPrivateCAs
           # - TestInstallWithMITMProxy
-        include: []
+        include:
+          - test: TestAirgapUpgradeFromEC18
+            runner: embedded-cluster
+          - test: TestAirgapUpgradeFromEC114
+            runner: embedded-cluster
           # - test: TestMultiNodeAirgapUpgrade
           #   runner: embedded-cluster
           # - test: TestMultiNodeAirgapUpgradeSameK0s

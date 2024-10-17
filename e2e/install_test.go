@@ -547,8 +547,8 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: downloading embedded-cluster 1.14.2+k8s-1.28 on worker node", time.Now().Format(time.RFC3339))
-	line = []string{"vandoor-prepare.sh", "1.14.2+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
+	t.Logf("%s: downloading embedded-cluster 1.8.0+k8s-1.28 on worker node", time.Now().Format(time.RFC3339))
+	line = []string{"vandoor-prepare.sh", "1.8.0+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
