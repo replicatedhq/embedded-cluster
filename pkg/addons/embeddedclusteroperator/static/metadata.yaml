@@ -6,7 +6,7 @@
 # $ output/bin/buildtools update addon <addon name>
 #
 version: 1.12.1+k8s-1.29
-location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator
+location: oci://proxy.replicated.com/anonymous/ttl.sh/runner/embedded-cluster-operator
 images:
     embedded-cluster-operator:
         repo: proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image
