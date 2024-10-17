@@ -14,10 +14,50 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
+
+const openebsValues = `engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+  helperPod:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+  localpv:
+    basePath: /var/lib/embedded-cluster/openebs-local
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: ""
+      tag: ""
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+preUpgradeHook:
+  image:
+    registry: proxy.replicated.com/anonymous
+    repo: ""
+    tag: ""
+zfs-localpv:
+  enabled: false
+`
 
 func Test_generateHelmConfigs(t *testing.T) {
 	var addonMetadata = map[string]release.AddonMetadata{}
@@ -32,9 +72,11 @@ func Test_generateHelmConfigs(t *testing.T) {
 
 		addonMetadata["embedded-cluster-operator"] = embeddedclusteroperator.Metadata
 		embeddedclusteroperator.Metadata = release.AddonMetadata{
-			Version:  "1.2.3-operator",
 			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 		}
+		versions.Version = "1.2.3-operator" // This is not great, the operator addon uses this to determine what version to deploy
+		// we can't use the version from the metadata because it won't be set in the operator binary
+		// TODO fix this
 
 		addonMetadata["openebs"] = openebs.Metadata
 		openebs.Metadata = release.AddonMetadata{
@@ -130,47 +172,10 @@ func Test_generateHelmConfigs(t *testing.T) {
 						Order:   120,
 					},
 					{
-						Name:      "openebs",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
-						Version:   "1.2.3-openebs",
-						Values: `engines:
-  local:
-    lvm:
-      enabled: false
-    zfs:
-      enabled: false
-  replicated:
-    mayastor:
-      enabled: false
-localpv-provisioner:
-  analytics:
-    enabled: false
-  helperPod:
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-  hostpathClass:
-    enabled: true
-    isDefaultClass: true
-  localpv:
-    basePath: /var/lib/embedded-cluster/openebs-local
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-lvm-localpv:
-  enabled: false
-mayastor:
-  enabled: false
-preUpgradeHook:
-  image:
-    registry: proxy.replicated.com/anonymous
-    repo: ""
-    tag: ""
-zfs-localpv:
-  enabled: false
-`,
+						Name:         "openebs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:      "1.2.3-openebs",
+						Values:       openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -182,7 +187,7 @@ zfs-localpv:
 						Values: `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 global:
   labels:
     replicated.com/disaster-recovery: infra
@@ -202,7 +207,7 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:   "1.2.3-admin-console",
 						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -264,47 +269,10 @@ service:
 						Order:   120,
 					},
 					{
-						Name:      "openebs",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
-						Version:   "1.2.3-openebs",
-						Values: `engines:
-  local:
-    lvm:
-      enabled: false
-    zfs:
-      enabled: false
-  replicated:
-    mayastor:
-      enabled: false
-localpv-provisioner:
-  analytics:
-    enabled: false
-  helperPod:
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-  hostpathClass:
-    enabled: true
-    isDefaultClass: true
-  localpv:
-    basePath: /var/lib/embedded-cluster/openebs-local
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-lvm-localpv:
-  enabled: false
-mayastor:
-  enabled: false
-preUpgradeHook:
-  image:
-    registry: proxy.replicated.com/anonymous
-    repo: ""
-    tag: ""
-zfs-localpv:
-  enabled: false
-`,
+						Name:         "openebs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:      "1.2.3-openebs",
+						Values:       openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -316,7 +284,7 @@ zfs-localpv:
 						Values: `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 global:
   labels:
     replicated.com/disaster-recovery: infra
@@ -373,7 +341,7 @@ snapshotsEnabled: false
 						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:   "1.2.3-admin-console",
 						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -418,47 +386,10 @@ service:
 				Repositories:     nil,
 				Charts: []v1beta1.Chart{
 					{
-						Name:      "openebs",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
-						Version:   "1.2.3-openebs",
-						Values: `engines:
-  local:
-    lvm:
-      enabled: false
-    zfs:
-      enabled: false
-  replicated:
-    mayastor:
-      enabled: false
-localpv-provisioner:
-  analytics:
-    enabled: false
-  helperPod:
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-  hostpathClass:
-    enabled: true
-    isDefaultClass: true
-  localpv:
-    basePath: /var/lib/embedded-cluster/openebs-local
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-lvm-localpv:
-  enabled: false
-mayastor:
-  enabled: false
-preUpgradeHook:
-  image:
-    registry: proxy.replicated.com/anonymous
-    repo: ""
-    tag: ""
-zfs-localpv:
-  enabled: false
-`,
+						Name:         "openebs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:      "1.2.3-openebs",
+						Values:       openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -507,7 +438,7 @@ tlsSecretName: registry-tls
 						Values: `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 global:
   labels:
     replicated.com/disaster-recovery: infra
@@ -527,7 +458,7 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:   "1.2.3-admin-console",
 						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -578,47 +509,10 @@ service:
 				Repositories:     nil,
 				Charts: []v1beta1.Chart{
 					{
-						Name:      "openebs",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
-						Version:   "1.2.3-openebs",
-						Values: `engines:
-  local:
-    lvm:
-      enabled: false
-    zfs:
-      enabled: false
-  replicated:
-    mayastor:
-      enabled: false
-localpv-provisioner:
-  analytics:
-    enabled: false
-  helperPod:
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-  hostpathClass:
-    enabled: true
-    isDefaultClass: true
-  localpv:
-    basePath: /var/lib/embedded-cluster/openebs-local
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-lvm-localpv:
-  enabled: false
-mayastor:
-  enabled: false
-preUpgradeHook:
-  image:
-    registry: proxy.replicated.com/anonymous
-    repo: ""
-    tag: ""
-zfs-localpv:
-  enabled: false
-`,
+						Name:         "openebs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:      "1.2.3-openebs",
+						Values:       openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -762,7 +656,7 @@ volume:
 						Values: `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 global:
   labels:
     replicated.com/disaster-recovery: infra
@@ -782,7 +676,7 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:   "1.2.3-admin-console",
 						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -833,47 +727,10 @@ service:
 				Repositories:     nil,
 				Charts: []v1beta1.Chart{
 					{
-						Name:      "openebs",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
-						Version:   "1.2.3-openebs",
-						Values: `engines:
-  local:
-    lvm:
-      enabled: false
-    zfs:
-      enabled: false
-  replicated:
-    mayastor:
-      enabled: false
-localpv-provisioner:
-  analytics:
-    enabled: false
-  helperPod:
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-  hostpathClass:
-    enabled: true
-    isDefaultClass: true
-  localpv:
-    basePath: /var/lib/embedded-cluster/openebs-local
-    image:
-      registry: proxy.replicated.com/anonymous/
-      repository: ""
-      tag: ""
-lvm-localpv:
-  enabled: false
-mayastor:
-  enabled: false
-preUpgradeHook:
-  image:
-    registry: proxy.replicated.com/anonymous
-    repo: ""
-    tag: ""
-zfs-localpv:
-  enabled: false
-`,
+						Name:         "openebs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:      "1.2.3-openebs",
+						Values:       openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -1033,7 +890,7 @@ volume:
 						Values: `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 global:
   labels:
     replicated.com/disaster-recovery: infra
@@ -1053,7 +910,7 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:   "1.2.3-admin-console",
 						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: v0.0.0
+embeddedClusterVersion: 1.2.3-operator
 images:
   kotsadm: ':'
   kurlProxy: ':'
