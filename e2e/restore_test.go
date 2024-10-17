@@ -73,6 +73,12 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
+	line = []string{"collect-support-bundle-host-in-cluster.sh"}
+	stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	if err != nil {
+		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
@@ -91,12 +97,6 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
-	}
-
-	line = []string{"collect-support-bundle-host-in-cluster.sh"}
-	stdout, stderr, err := tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
