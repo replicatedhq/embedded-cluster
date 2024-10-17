@@ -556,9 +556,22 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec18-app-version"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", "1.8.0+k8s-1.28", "v1.28.11"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
@@ -1066,16 +1079,13 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
-		Nodes:                   2,
+		Nodes:                   1,
 		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
 	defer tc.Cleanup(withEnv)
-
-	// install "curl" dependency on node 0 for app version checks.
-	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -1084,6 +1094,9 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
 		t.Logf("failed to remove airgap upgrade bundle: %v", err)
 	}
+
+	// install "curl" dependency on node 0 for app version checks.
+	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
 	line := []string{"airgap-prepare.sh"}
@@ -1105,7 +1118,6 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
-
 	if _, _, err := tc.RunPlaywrightTest("deploy-ec18-app-version"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v", err)
 	}
