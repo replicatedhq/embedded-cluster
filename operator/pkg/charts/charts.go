@@ -110,6 +110,9 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, i
 	if ecUtilsImage == "" {
 		return nil, fmt.Errorf("no ec-utils found in images")
 	}
+
+	fmt.Printf("Embedded Cluster Operator location: %q\n", embeddedclusteroperator.Metadata.Location) // TODO remove this after debugging
+
 	embeddedclusteroperator.Metadata.Images = map[string]release.AddonImage{
 		"embedded-cluster-operator": {
 			Repo: strings.Split(ecOperatorImage, ":")[0],

@@ -41,26 +41,26 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
 
-	fmt.Printf("updating registry migration status\n")
+	fmt.Printf("Updating registry migration status\n")
 	err = registryMigrationStatus(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("registry migration status: %w", err)
 	}
 
-	fmt.Printf("upgrading addons\n")
+	fmt.Printf("Upgrading addons\n")
 	err = chartUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("chart upgrade: %w", err)
 	}
 
-	fmt.Printf("waiting for operator chart to be ready\n")
+	fmt.Printf("Waiting for operator chart to be ready\n")
 	// wait for the operator chart to be ready
 	err = waitForOperatorChart(ctx, cli, in.Spec.Config.Version)
 	if err != nil {
 		return fmt.Errorf("wait for operator chart: %w", err)
 	}
 
-	fmt.Printf("re-applying installation\n")
+	fmt.Printf("Re-applying installation\n")
 	err = reApplyInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("unlock installation: %w", err)
