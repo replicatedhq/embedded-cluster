@@ -444,7 +444,7 @@ func patchK0sConfig(path string, patch string) error {
 	}
 	defer out.Close()
 	// This is necessary to install the previous version of k0s in e2e tests
-	// TODO: factor this out
+	// TODO: remove this once the previous version is > 1.29
 	unstructured, err := helpers.K0sClusterConfigTo129Compat(&finalcfg)
 	if err != nil {
 		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
