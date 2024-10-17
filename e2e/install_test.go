@@ -523,6 +523,12 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	line = []string{"collect-support-bundle-host-in-cluster.sh"}
+	stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	if err != nil {
+		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -578,12 +584,6 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
-	}
-
-	line = []string{"collect-support-bundle-host-in-cluster.sh"}
-	stdout, stderr, err := tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
