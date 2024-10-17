@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -27,7 +26,7 @@ func init() {
 	}
 }
 
-func ListK0sImages(cfg *k0sconfig.ClusterConfig) []string {
+func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 	var images []string
 	for _, image := range airgap.GetImageURIs(cfg.Spec, true) {
 		switch image {
