@@ -99,38 +99,6 @@ type Chart struct {
 	Order int `json:"order,omitempty"`
 }
 
-// BackwardCompatibleDuration is a metav1.Duration with a different JSON
-// unmarshaler. The unmashaler accepts its value as either a string (e.g.
-// 10m15s) or as an integer 64. If the value is of type integer then, for
-// backward compatibility, it is interpreted as nano seconds.
-type BackwardCompatibleDuration metav1.Duration
-
-// MarshalJSON marshals the BackwardCompatibleDuration to JSON.
-func (b BackwardCompatibleDuration) MarshalJSON() ([]byte, error) {
-	return json.Marshal(b.Duration.String())
-}
-
-// UnmarshalJSON attempts unmarshals the provided value into a
-// BackwardCompatibleDuration. This function attempts to unmarshal it as a
-// string first and if that fails it attempts to parse it as an integer.
-func (b *BackwardCompatibleDuration) UnmarshalJSON(data []byte) error {
-	var duration metav1.Duration
-	ustrerr := duration.UnmarshalJSON(data)
-	if ustrerr == nil {
-		*b = BackwardCompatibleDuration(duration)
-		return nil
-	}
-
-	var integer int64
-	if err := json.Unmarshal(data, &integer); err != nil {
-		// we return the error from the first unmarshal attempt.
-		return ustrerr
-	}
-	metadur := metav1.Duration{Duration: time.Duration(integer)}
-	*b = BackwardCompatibleDuration(metadur)
-	return nil
-}
-
 // Helm contains helm extension settings
 type Helm struct {
 	// +kubebuilder:validation:Optional
