@@ -20,8 +20,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-func Test_generateHelmConfigs(t *testing.T) {
-	const openebsValues = `engines:
+const test_openebsValues = `engines:
   local:
     lvm:
       enabled: false
@@ -60,7 +59,7 @@ zfs-localpv:
   enabled: false
 `
 
-	const operatorValues = `embeddedBinaryName: test-binary-name
+const test_operatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
 embeddedClusterVersion: 1.2.3-operator
@@ -74,7 +73,23 @@ image:
 kotsVersion: 1.2.3-admin-console
 utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
 `
-	const onlineAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+
+const test_overriddenOperatorValues = `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: abctest
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
+kotsVersion: 1.2.3-admin-console
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
+`
+
+const test_onlineAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: 1.2.3-operator
 images:
   kotsadm: ':'
@@ -101,7 +116,34 @@ service:
   enabled: false
 `
 
-	const airgapAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+const test_overriddenOnlineAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: abctest
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "false"
+isHA: false
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`
+
+const test_airgapAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: 1.2.3-operator
 images:
   kotsadm: ':'
@@ -128,7 +170,7 @@ service:
   enabled: false
 `
 
-	const airgapHAAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+const test_airgapHAAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: 1.2.3-operator
 images:
   kotsadm: ':'
@@ -155,7 +197,7 @@ service:
   enabled: false
 `
 
-	const veleroValues = `backupsEnabled: false
+const test_veleroValues = `backupsEnabled: false
 configMaps:
   fs-restore-action-config:
     data:
@@ -185,7 +227,7 @@ nodeAgent:
 snapshotsEnabled: false
 `
 
-	const registryValues = `configData:
+const test_registryValues = `configData:
   auth:
     htpasswd:
       path: /auth/htpasswd
@@ -215,7 +257,7 @@ storage: filesystem
 tlsSecretName: registry-tls
 `
 
-	const haRegistryValues = `affinity:
+const test_haRegistryValues = `affinity:
   podAntiAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
     - labelSelector:
@@ -261,7 +303,7 @@ storage: s3
 tlsSecretName: registry-tls
 `
 
-	const seaweedfsValues = `filer:
+const test_seaweedfsValues = `filer:
   data:
     size: 1Gi
     storageClass: openebs-hostpath
@@ -349,74 +391,75 @@ volume:
   replicas: 3
 `
 
-	var addonMetadata = map[string]release.AddonMetadata{}
+var test_addonMetadata = map[string]release.AddonMetadata{}
 
-	// this function is used to replace the values of the addons so that we can test without having to update tests constantly
-	replaceAddonMeta := func() {
-		addonMetadata["admin-console"] = adminconsole.Metadata
-		adminconsole.Metadata = release.AddonMetadata{
-			Version:  "1.2.3-admin-console",
-			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
-		}
-
-		addonMetadata["embedded-cluster-operator"] = embeddedclusteroperator.Metadata
-		embeddedclusteroperator.Metadata = release.AddonMetadata{
-			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
-		}
-		versions.Version = "1.2.3-operator" // This is not great, the operator addon uses this to determine what version to deploy
-		// we can't use the version from the metadata because it won't be set in the operator binary
-		// TODO fix this
-
-		addonMetadata["openebs"] = openebs.Metadata
-		openebs.Metadata = release.AddonMetadata{
-			Version:  "1.2.3-openebs",
-			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
-		}
-
-		addonMetadata["registry"] = registryAddon.Metadata
-		registryAddon.Metadata = release.AddonMetadata{
-			Version:  "1.2.3-registry",
-			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
-		}
-
-		addonMetadata["seaweedfs"] = seaweedfs.Metadata
-		seaweedfs.Metadata = release.AddonMetadata{
-			Version:  "1.2.3-seaweedfs",
-			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
-		}
-
-		addonMetadata["velero"] = velero.Metadata
-		velero.Metadata = release.AddonMetadata{
-			Version:  "1.2.3-velero",
-			Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/velero",
-		}
-
-		adminconsole.Render()
-		embeddedclusteroperator.Render()
-		openebs.Render()
-		registryAddon.Render()
-		seaweedfs.Render()
-		velero.Render()
+// this function is used to replace the values of the addons so that we can run unit tests without having to update values constantly
+func test_replaceAddonMeta() {
+	test_addonMetadata["admin-console"] = adminconsole.Metadata
+	adminconsole.Metadata = release.AddonMetadata{
+		Version:  "1.2.3-admin-console",
+		Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 	}
 
-	restoreAddonMeta := func() {
-		adminconsole.Metadata = addonMetadata["admin-console"]
-		embeddedclusteroperator.Metadata = addonMetadata["embedded-cluster-operator"]
-		openebs.Metadata = addonMetadata["openebs"]
-		registryAddon.Metadata = addonMetadata["registry"]
-		seaweedfs.Metadata = addonMetadata["seaweedfs"]
-		velero.Metadata = addonMetadata["velero"]
+	test_addonMetadata["embedded-cluster-operator"] = embeddedclusteroperator.Metadata
+	embeddedclusteroperator.Metadata = release.AddonMetadata{
+		Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+	}
+	versions.Version = "1.2.3-operator" // This is not great, the operator addon uses this to determine what version to deploy
+	// we can't use the version from the metadata because it won't be set in the operator binary
+	// TODO fix this
 
-		adminconsole.Render()
-		embeddedclusteroperator.Render()
-		openebs.Render()
-		registryAddon.Render()
-		seaweedfs.Render()
-		velero.Render()
+	test_addonMetadata["openebs"] = openebs.Metadata
+	openebs.Metadata = release.AddonMetadata{
+		Version:  "1.2.3-openebs",
+		Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
 	}
 
-	replaceAddonMeta()
-	defer restoreAddonMeta()
+	test_addonMetadata["registry"] = registryAddon.Metadata
+	registryAddon.Metadata = release.AddonMetadata{
+		Version:  "1.2.3-registry",
+		Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+	}
+
+	test_addonMetadata["seaweedfs"] = seaweedfs.Metadata
+	seaweedfs.Metadata = release.AddonMetadata{
+		Version:  "1.2.3-seaweedfs",
+		Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
+	}
+
+	test_addonMetadata["velero"] = velero.Metadata
+	velero.Metadata = release.AddonMetadata{
+		Version:  "1.2.3-velero",
+		Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/velero",
+	}
+
+	adminconsole.Render()
+	embeddedclusteroperator.Render()
+	openebs.Render()
+	registryAddon.Render()
+	seaweedfs.Render()
+	velero.Render()
+}
+
+func test_restoreAddonMeta() {
+	adminconsole.Metadata = test_addonMetadata["admin-console"]
+	embeddedclusteroperator.Metadata = test_addonMetadata["embedded-cluster-operator"]
+	openebs.Metadata = test_addonMetadata["openebs"]
+	registryAddon.Metadata = test_addonMetadata["registry"]
+	seaweedfs.Metadata = test_addonMetadata["seaweedfs"]
+	velero.Metadata = test_addonMetadata["velero"]
+
+	adminconsole.Render()
+	embeddedclusteroperator.Render()
+	openebs.Render()
+	registryAddon.Render()
+	seaweedfs.Render()
+	velero.Render()
+}
+
+func Test_generateHelmConfigs(t *testing.T) {
+	test_replaceAddonMeta()
+	defer test_restoreAddonMeta()
 
 	type args struct {
 		in            v1beta1.Extensions
@@ -464,7 +507,7 @@ volume:
 						Name:         "openebs",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
 						Version:      "1.2.3-openebs",
-						Values:       openebsValues,
+						Values:       test_openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -473,7 +516,7 @@ volume:
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 						Version:      "1.2.3-operator",
-						Values:       operatorValues,
+						Values:       test_operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -482,7 +525,7 @@ volume:
 						Name:         "admin-console",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:      "1.2.3-admin-console",
-						Values:       onlineAdminConsoleValues,
+						Values:       test_onlineAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
@@ -523,7 +566,7 @@ volume:
 						Name:         "openebs",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
 						Version:      "1.2.3-openebs",
-						Values:       openebsValues,
+						Values:       test_openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -532,7 +575,7 @@ volume:
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 						Version:      "1.2.3-operator",
-						Values:       operatorValues,
+						Values:       test_operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -541,7 +584,7 @@ volume:
 						Name:         "velero",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/velero",
 						Version:      "1.2.3-velero",
-						Values:       veleroValues,
+						Values:       test_veleroValues,
 						TargetNS:     "velero",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -550,7 +593,7 @@ volume:
 						Name:         "admin-console",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:      "1.2.3-admin-console",
-						Values:       onlineAdminConsoleValues,
+						Values:       test_onlineAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
@@ -574,7 +617,7 @@ volume:
 						Name:         "openebs",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
 						Version:      "1.2.3-openebs",
-						Values:       openebsValues,
+						Values:       test_openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -583,7 +626,7 @@ volume:
 						Name:         "docker-registry",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
 						Version:      "1.2.3-registry",
-						Values:       registryValues,
+						Values:       test_registryValues,
 						TargetNS:     "registry",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -592,7 +635,7 @@ volume:
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 						Version:      "1.2.3-operator",
-						Values:       operatorValues,
+						Values:       test_operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -601,7 +644,7 @@ volume:
 						Name:         "admin-console",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:      "1.2.3-admin-console",
-						Values:       airgapAdminConsoleValues,
+						Values:       test_airgapAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
@@ -631,7 +674,7 @@ volume:
 						Name:         "openebs",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
 						Version:      "1.2.3-openebs",
-						Values:       openebsValues,
+						Values:       test_openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -640,7 +683,7 @@ volume:
 						Name:         "docker-registry",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
 						Version:      "1.2.3-registry",
-						Values:       registryValues,
+						Values:       test_registryValues,
 						TargetNS:     "registry",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -649,7 +692,7 @@ volume:
 						Name:         "seaweedfs",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
 						Version:      "1.2.3-seaweedfs",
-						Values:       seaweedfsValues,
+						Values:       test_seaweedfsValues,
 						TargetNS:     "seaweedfs",
 						ForceUpgrade: ptr.To(false),
 						Order:        102,
@@ -658,7 +701,7 @@ volume:
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 						Version:      "1.2.3-operator",
-						Values:       operatorValues,
+						Values:       test_operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -667,7 +710,7 @@ volume:
 						Name:         "admin-console",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:      "1.2.3-admin-console",
-						Values:       airgapHAAdminConsoleValues,
+						Values:       test_airgapHAAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
@@ -697,7 +740,7 @@ volume:
 						Name:         "openebs",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
 						Version:      "1.2.3-openebs",
-						Values:       openebsValues,
+						Values:       test_openebsValues,
 						TargetNS:     "openebs",
 						ForceUpgrade: ptr.To(false),
 						Order:        101,
@@ -706,7 +749,7 @@ volume:
 						Name:         "docker-registry",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
 						Version:      "1.2.3-registry",
-						Values:       haRegistryValues,
+						Values:       test_haRegistryValues,
 						TargetNS:     "registry",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -715,7 +758,7 @@ volume:
 						Name:         "seaweedfs",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
 						Version:      "1.2.3-seaweedfs",
-						Values:       seaweedfsValues,
+						Values:       test_seaweedfsValues,
 						TargetNS:     "seaweedfs",
 						ForceUpgrade: ptr.To(false),
 						Order:        102,
@@ -724,7 +767,7 @@ volume:
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 						Version:      "1.2.3-operator",
-						Values:       operatorValues,
+						Values:       test_operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -733,7 +776,7 @@ volume:
 						Name:         "admin-console",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
 						Version:      "1.2.3-admin-console",
-						Values:       airgapHAAdminConsoleValues,
+						Values:       test_airgapHAAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
