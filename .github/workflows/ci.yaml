@@ -566,8 +566,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: []
-          # - TestVersion
+        test:
+          - TestVersion
           # - TestCommandsRequireSudo
           # - TestResetAndReinstallAirgap
           # - TestSingleNodeAirgapUpgrade
