@@ -108,7 +108,7 @@ func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts
 
 				// if the spec's HashValues does not match the status's ValuesHash, the chart is currently being applied with the new values
 				if installedChart.Spec.HashValues() != installedChart.Status.ValuesHash {
-					fmt.Printf("Chart %s is currently being applied with new values\n", chart.Name)
+					fmt.Printf("Chart %s is currently being applied with new values, waiting for hash %q\n", chart.Name, installedChart.Spec.HashValues())
 					diffDetected = true
 				}
 

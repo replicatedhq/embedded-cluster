@@ -55,7 +55,8 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 
 	combinedConfigs, err := K0sHelmExtensionsFromInstallation(ctx, in, meta.Images, &clusterConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get helm charts from installation: %w", err)
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, fmt.Sprintf("failed to get helm charts from installation: %s", err.Error()), nil)
+		return nil, nil
 	}
 
 	cfgs := &v1beta2.HelmExtensions{}

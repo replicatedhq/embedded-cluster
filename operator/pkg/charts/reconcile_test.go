@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
+func TestReconcileHelmCharts(t *testing.T) {
 	test_replaceAddonMeta()
 	defer test_restoreAddonMeta()
 
@@ -53,6 +53,76 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				},
 			},
 			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateInstalling},
+		},
+		{
+			name: "no images available",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+					},
+				},
+			},
+			releaseMeta: ectypes.ReleaseMetadata{
+				Images: nil,
+			},
+			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "No images available"},
+		},
+		{
+			name: "no uuid",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+					},
+					BinaryName: "test-binary-name",
+				},
+			},
+			releaseMeta: ectypes.ReleaseMetadata{
+				Images: []string{},
+			},
+			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "failed to get helm charts from installation: merge helm configs: unable to parse cluster ID: invalid UUID length: 0"},
+			fields: fields{
+				State: []runtime.Object{
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{},
+					},
+				},
+			},
+		},
+		{
+			name: "no operator image available",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+					},
+					ClusterID:  "e79f0701-67f3-4abf-a672-42a1f3ed231b",
+					BinaryName: "test-binary-name",
+				},
+			},
+			releaseMeta: ectypes.ReleaseMetadata{
+				Images: []string{},
+			},
+			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "failed to get helm charts from installation: merge helm configs: no embedded-cluster-operator-image found in images"},
+			fields: fields{
+				State: []runtime.Object{
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{},
+					},
+				},
+			},
 		},
 		{
 			name: "k8s install completed, good version, both types of charts, no drift",
@@ -1029,6 +1099,153 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "k8s install completed, good version, both types of charts, no drift, airgap + velero",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+						Extensions: v1beta1.Extensions{
+							Helm: &v1beta1.Helm{
+								Charts: []v1beta1.Chart{
+									{
+										Name:    "extchart",
+										Version: "2",
+									},
+								},
+							},
+						},
+					},
+					ClusterID:  "e79f0701-67f3-4abf-a672-42a1f3ed231b",
+					BinaryName: "test-binary-name",
+					AirGap:     true,
+					LicenseInfo: &v1beta1.LicenseInfo{
+						IsDisasterRecoverySupported: true,
+					},
+				},
+			},
+			out: v1beta1.InstallationStatus{
+				State:  v1beta1.InstallationStateInstalled,
+				Reason: "Addons upgraded",
+			},
+			releaseMeta: ectypes.ReleaseMetadata{
+				Images: []string{
+					"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
+					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
+					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				},
+			},
+			fields: fields{
+				State: []runtime.Object{
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "extchart",
+						},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "extchart"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "2", ValuesHash: "c687e5ae3f4a71927fb7ba3a3fee85f40c2debeec3b8bf66d038955a60ccf3ba"},
+					},
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "openebs",
+						},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: "c0ea0af176f78196117571c1a50f6f679da08a2975e442fe39542cbe419b55c6"},
+					},
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "docker-registry",
+						},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "docker-registry", Values: test_registryValues},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-registry", ValuesHash: "badd606a0c4c22e5fd4ca08740d7d1e7b11a9bc68073119de51b19788e42db35"},
+					},
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "embedded-cluster-operator",
+						},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: "215c33c6a56953b6d6814251f6fa0e78d3884a4d15dbb515a3942baf40900893"},
+					},
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "admin-console",
+						},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_airgapAdminConsoleValues},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: "680c7e7d9650d2e9e5668ff495ba669bcc9bab188216e5854e07339ec0924068"},
+					},
+					&k0shelmv1beta1.Chart{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "velero",
+						},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "velero", Values: test_veleroValues},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-velero", ValuesHash: "050987f9133fd4377ea2811116896f285549b39b5dffafb1cb3b6a3f306c6dd7"},
+					},
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{
+							Extensions: &k0sv1beta1.ClusterExtensions{
+								Helm: &k0sv1beta1.HelmExtensions{
+									Charts: []k0sv1beta1.Chart{
+										{
+											Name:    "extchart",
+											Version: "2",
+										},
+										{
+											Name:         "openebs",
+											ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+											Version:      "1.2.3-openebs",
+											Values:       test_openebsValues,
+											TargetNS:     "openebs",
+											ForceUpgrade: ptr.To(false),
+											Order:        101,
+										},
+										{
+											Name:         "docker-registry",
+											ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+											Version:      "1.2.3-registry",
+											Values:       test_registryValues,
+											TargetNS:     "registry",
+											ForceUpgrade: ptr.To(false),
+											Order:        103,
+										},
+										{
+											Name:         "embedded-cluster-operator",
+											ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+											Version:      "1.2.3-operator",
+											Values:       test_operatorValues,
+											TargetNS:     "embedded-cluster",
+											ForceUpgrade: ptr.To(false),
+											Order:        103,
+										},
+										{
+											Name:         "velero",
+											ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/velero",
+											Version:      "1.2.3-velero",
+											Values:       test_veleroValues,
+											TargetNS:     "velero",
+											ForceUpgrade: ptr.To(false),
+											Order:        103,
+										},
+										{
+											Name:         "admin-console",
+											ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+											Version:      "1.2.3-admin-console",
+											Values:       test_airgapAdminConsoleValues,
+											TargetNS:     "kotsadm",
+											ForceUpgrade: ptr.To(false),
+											Order:        105,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 
@@ -1053,6 +1270,48 @@ func TestInstallationReconciler_ReconcileHelmCharts(t *testing.T) {
 				req.ElementsMatch(tt.updatedHelm.Charts, gotCluster.Spec.Extensions.Helm.Charts)
 				req.ElementsMatch(tt.updatedHelm.Repositories, gotCluster.Spec.Extensions.Helm.Repositories)
 			}
+		})
+	}
+}
+
+func TestReconcileHelmChartsErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		in          v1beta1.Installation
+		releaseMeta ectypes.ReleaseMetadata
+		state       []runtime.Object
+		wantError   string
+	}{
+		{
+			name: "no cluster config exists",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+					},
+				},
+			},
+			releaseMeta: ectypes.ReleaseMetadata{
+				Images: []string{},
+			},
+			wantError: "failed to get cluster config",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			release.CacheMeta("goodver", tt.releaseMeta)
+
+			sch := runtime.NewScheme()
+			req.NoError(k0sv1beta1.AddToScheme(sch))
+			req.NoError(k0shelmv1beta1.AddToScheme(sch))
+			fakeCli := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(tt.state...).Build()
+
+			_, err := ReconcileHelmCharts(context.Background(), fakeCli, &tt.in)
+			req.Error(err)
+			req.ErrorContains(err, tt.wantError)
 		})
 	}
 }
