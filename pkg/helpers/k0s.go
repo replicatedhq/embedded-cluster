@@ -1,0 +1,58 @@
+package helpers
+
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
+func K0sClusterConfigTo129Compat(clusterConfig *k0sv1beta1.ClusterConfig) (*unstructured.Unstructured, error) {
+	obj, err := objectToUnstructured(clusterConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert cluster config to unstructured: %w", err)
+	}
+	unst := obj.UnstructuredContent()
+	charts, ok := unst["spec"].(map[string]interface{})["extensions"].(map[string]interface{})["helm"].(map[string]interface{})["charts"].([]interface{})
+	if !ok {
+		return obj, nil
+	}
+	for _, chart := range charts {
+		chartMap := chart.(map[string]interface{})
+		d, err := timeoutStringToDuration(chartMap["timeout"].(string))
+		if err != nil {
+			return nil, err
+		}
+		chartMap["timeout"] = d
+	}
+	return obj, nil
+}
+
+func timeoutStringToDuration(str string) (time.Duration, error) {
+	if str == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(str)
+	if err != nil {
+		return 0, fmt.Errorf("parse duration: %w", err)
+	}
+	return d, nil
+}
+
+func objectToUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal object: %w", err)
+	}
+	objMap := map[string]interface{}{}
+	err = json.Unmarshal(data, &objMap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal object: %w", err)
+	}
+	unstructuredObj := &unstructured.Unstructured{}
+	unstructuredObj.Object = objMap
+	return unstructuredObj, nil
+}

@@ -133,23 +133,12 @@ func (b *BackwardCompatibleDuration) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type Repository struct {
-	Name     string `json:"name,omitempty"`
-	URL      string `json:"url,omitempty"`
-	CAFile   string `json:"caFile,omitempty"`
-	CertFile string `json:"certFile,omitempty"`
-	Insecure bool   `json:"insecure,omitempty"`
-	KeyFile  string `json:"keyfile,omitempty"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-}
-
 // Helm contains helm extension settings
 type Helm struct {
 	// +kubebuilder:validation:Optional
 	ConcurrencyLevel int `json:"concurrencyLevel"`
 	// +kubebuilder:validation:Optional
-	Repositories []Repository `json:"repositories"`
+	Repositories []k0sv1beta1.Repository `json:"repositories"`
 	// +kubebuilder:validation:Optional
 	Charts []Chart `json:"charts"`
 }
