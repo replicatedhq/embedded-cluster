@@ -1459,9 +1459,6 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	// install "curl" dependency on node 0 for app version checks.
-	tc.InstallTestDependenciesDebian(t, 0, true)
-
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
 		t.Logf("failed to remove airgap install bundle: %v", err)
@@ -1469,6 +1466,9 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
 		t.Logf("failed to remove airgap upgrade bundle: %v", err)
 	}
+
+	// install "curl" dependency on node 0 for app version checks.
+	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	// upgrade airgap bundle is only needed on the first node
 	line := []string{"rm", "/assets/ec-release-upgrade.tgz"}
