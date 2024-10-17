@@ -75,3 +75,32 @@ data:
                   path: /
                   type: ""
                 name: host-root
+        - runDaemonSet:
+            name: "local-artifact-mirror"
+            namespace: embedded-cluster
+            podSpec:
+              containers:
+              - image: {{ .Values.utilsImage }}
+                imagePullPolicy: Always
+                args: ["chroot","/host","journalctl","-u","local-artifact-mirror","--no-pager","--since","2 days ago"]
+                name: debugger
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                - mountPath: /host
+                  name: host-root
+              dnsPolicy: ClusterFirst
+              enableServiceLinks: true
+              hostIPC: true
+              hostNetwork: true
+              hostPID: true
+              securityContext:
+                runAsUser: 0
+              tolerations:
+              - operator: Exists
+              volumes:
+              - hostPath:
+                  path: /
+                  type: ""
+                name: host-root
