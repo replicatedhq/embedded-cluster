@@ -27,9 +27,6 @@ type RuntimeConfigSpec struct {
 	// LocalArtifactMirrorPort holds the Local Artifact Mirror configuration.
 	LocalArtifactMirror LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
 
-	// Proxy holds the proxy configuration.
-	Proxy *ProxySpec `json:"proxy,omitempty"`
-
 	// Private CA holds a path to a trusted private CA certificate PEM file.
 	PrivateCA string `json:"privateCA,omitempty"`
 }

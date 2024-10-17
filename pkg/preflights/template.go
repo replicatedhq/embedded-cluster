@@ -17,7 +17,7 @@ type TemplateData struct {
 	K0sDataDir              string
 	OpenEBSDataDir          string
 	SystemArchitecture      string
-	PrivateCA               string
+	PrivateCA               []string
 	HTTPProxy               string
 	HTTPSProxy              string
 	ProvidedNoProxy         string

@@ -252,6 +252,11 @@ func (a *Applier) HostPreflightsForRestore() (*v1beta2.HostPreflightSpec, error)
 	return a.hostPreflights(addons)
 }
 
+// PrivateCAs returns a list of private CAs for the cluster.
+func (a *Applier) PrivateCAs() map[string]string {
+	return a.privateCAs
+}
+
 func (a *Applier) hostPreflights(addons []AddOn) (*v1beta2.HostPreflightSpec, error) {
 	allpf := &v1beta2.HostPreflightSpec{}
 	for _, addon := range addons {

@@ -80,13 +80,15 @@ func installRunPreflightsCommand() *cli.Command {
 				return err
 			}
 
+			privateCAs := getPrivateCAPaths(c)
+
 			logrus.Debugf("running host preflights")
 			var replicatedAPIURL, proxyRegistryURL string
 			if license != nil {
 				replicatedAPIURL = license.Spec.Endpoint
 				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 			}
-			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, privateCAs); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -171,10 +173,12 @@ var joinRunPreflightsCommand = &cli.Command{
 			return err
 		}
 
+		privateCAs := getPrivateCAPaths(c)
+
 		logrus.Debugf("running host preflights")
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
+		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, privateCAs); err != nil {
 			if err == ErrPreflightsHaveFail {
 				return ErrNothingElseToAdd
 			}
