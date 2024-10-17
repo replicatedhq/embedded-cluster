@@ -346,6 +346,8 @@ func ensureK0sConfigForRestore(c *cli.Context, provider *defaults.Provider, appl
 		airgap.RemapHelm(provider, cfg)
 		airgap.SetAirgapConfig(cfg)
 	}
+	// This is necessary to install the previous version of k0s in e2e tests
+	// TODO: factor this out
 	unstructured, err := helpers.K0sClusterConfigTo129Compat(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
