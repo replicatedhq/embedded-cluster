@@ -945,6 +945,11 @@ func restoreCommand() *cli.Command {
 			state := getECRestoreState(c.Context)
 			logrus.Debugf("restore state is: %q", state)
 
+			err := kotscli.CreateHostSupportBundle()
+			if err != nil {
+				logrus.Warnf("Failed to restore host support bundle: %v", err)
+			}
+
 			if state != ecRestoreStateNew {
 				shouldResume := prompts.New().Confirm("A previous restore operation was detected. Would you like to resume?", true)
 				logrus.Info("")
@@ -1212,11 +1217,6 @@ func restoreCommand() *cli.Command {
 
 			default:
 				return fmt.Errorf("unknown restore state: %q", state)
-			}
-
-			err = kotscli.CreateHostSupportBundle()
-			if err != nil {
-				logrus.Warnf("Failed to restore host support bundle: %v", err)
 			}
 
 			return nil
