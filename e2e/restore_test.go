@@ -93,6 +93,12 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	line = []string{"validate-support-bundle.sh"}
+	stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	if err != nil {
+		t.Fatalf("fail to validate support bundle: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -174,12 +180,6 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
-	}
-
-	line = []string{"validate-support-bundle.sh"}
-	stdout, stderr, err := tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to validate support bundle: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
