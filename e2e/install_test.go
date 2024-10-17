@@ -642,7 +642,7 @@ func TestUpgradeEC114FromReplicatedApp(t *testing.T) {
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"})
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"}, withEnv)
 	if err != nil {
 		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1269,7 +1269,7 @@ func TestAirgapUpgradeFromEC114(t *testing.T) {
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"})
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"}, withEnv)
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to wait for ready nodes: %v", err)
