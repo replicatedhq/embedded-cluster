@@ -93,6 +93,7 @@ type AdminConsole struct {
 	licenseFile  string
 	airgapBundle string
 	isAirgap     bool
+	isHA         bool
 	proxyEnv     map[string]string
 	privateCAs   map[string]string
 }
@@ -126,6 +127,9 @@ func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k
 			helmValues["isAirgap"] = "true"
 		} else {
 			helmValues["isAirgap"] = "false"
+		}
+		if a.isHA {
+			helmValues["isHA"] = true
 		}
 		if len(a.proxyEnv) > 0 {
 			extraEnv := []map[string]interface{}{}
@@ -233,6 +237,7 @@ func New(
 	licenseFile string,
 	airgapBundle string,
 	isAirgap bool,
+	isHA bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
 ) (*AdminConsole, error) {
@@ -243,6 +248,7 @@ func New(
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
 		isAirgap:     isAirgap,
+		isHA:         isHA,
 		proxyEnv:     proxyEnv,
 		privateCAs:   privateCAs,
 	}, nil

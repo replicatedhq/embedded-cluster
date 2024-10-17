@@ -101,6 +101,60 @@ service:
   enabled: false
 `
 
+	const airgapAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: 1.2.3-operator
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "true"
+isHA: false
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`
+
+	const airgapHAAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: 1.2.3-operator
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "true"
+isHA: true
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`
+
 	const veleroValues = `backupsEnabled: false
 configMaps:
   fs-restore-action-config:
@@ -205,6 +259,94 @@ service:
   clusterIP: 10.96.0.11
 storage: s3
 tlsSecretName: registry-tls
+`
+
+	const seaweedfsValues = `filer:
+  data:
+    size: 1Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  imageOverride: ':'
+  logs:
+    size: 1Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  podAnnotations:
+    backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
+  replicas: 3
+  s3:
+    createBuckets:
+    - anonymousRead: false
+      name: registry
+    enableAuth: true
+    enabled: true
+    existingConfigSecret: secret-seaweedfs-s3
+global:
+  data:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
+  enableReplication: true
+  logs:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
+  registry: proxy.replicated.com/anonymous/
+  replicationPlacment: "001"
+master:
+  config: |-
+    [master.maintenance]
+    # periodically run these scripts are the same as running them from 'weed shell'
+    # note: running 'fs.meta.save' then 'fs.meta.load' will ensure metadata of all filers
+    # are in sync in case of data loss from 1 or more filers
+    scripts = """
+      ec.encode -fullPercent=95 -quietFor=1h
+      ec.rebuild -force
+      ec.balance -force
+      volume.balance -force
+      volume.configure.replication -replication 001 -collectionPattern *
+      volume.fix.replication
+      fs.meta.save -o filer-backup.meta
+      fs.meta.load filer-backup.meta
+    """
+    sleep_minutes = 17          # sleep minutes between each script execution
+  data:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
+  disableHttp: true
+  imageOverride: ':'
+  logs:
+    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
+  replicas: 1
+  volumeSizeLimitMB: 30000
+volume:
+  affinity: |
+    # schedule on control-plane nodes
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+    # schedule on different nodes when possible
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - seaweedfs
+            - key: app.kubernetes.io/component
+              operator: In
+              values:
+              - volume
+          topologyKey: "kubernetes.io/hostname"
+  dataDirs:
+  - maxVolumes: 50
+    name: data
+    size: 10Gi
+    storageClass: openebs-hostpath
+    type: persistentVolumeClaim
+  imageOverride: ':'
+  podAnnotations:
+    backup.velero.io/backup-volumes: data
+  replicas: 3
 `
 
 	var addonMetadata = map[string]release.AddonMetadata{}
@@ -456,35 +598,10 @@ tlsSecretName: registry-tls
 						Order:        103,
 					},
 					{
-						Name:      "admin-console",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
-						Version:   "1.2.3-admin-console",
-						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
-images:
-  kotsadm: ':'
-  kurlProxy: ':'
-  migrations: ':'
-  rqlite: ':'
-isAirgap: "true"
-isHA: false
-isHelmManaged: false
-kurlProxy:
-  enabled: true
-  nodePort: 30000
-labels:
-  replicated.com/disaster-recovery: infra
-  replicated.com/disaster-recovery-chart: admin-console
-minimalRBAC: false
-passwordSecretRef:
-  key: passwordBcrypt
-  name: kotsadm-password
-privateCAs:
-  configmapName: kotsadm-private-cas
-  enabled: true
-service:
-  enabled: false
-`,
+						Name:         "admin-console",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:      "1.2.3-admin-console",
+						Values:       airgapAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
@@ -529,96 +646,10 @@ service:
 						Order:        103,
 					},
 					{
-						Name:      "seaweedfs",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
-						Version:   "1.2.3-seaweedfs",
-						Values: `filer:
-  data:
-    size: 1Gi
-    storageClass: openebs-hostpath
-    type: persistentVolumeClaim
-  imageOverride: ':'
-  logs:
-    size: 1Gi
-    storageClass: openebs-hostpath
-    type: persistentVolumeClaim
-  podAnnotations:
-    backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
-  replicas: 3
-  s3:
-    createBuckets:
-    - anonymousRead: false
-      name: registry
-    enableAuth: true
-    enabled: true
-    existingConfigSecret: secret-seaweedfs-s3
-global:
-  data:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
-  enableReplication: true
-  logs:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
-  registry: proxy.replicated.com/anonymous/
-  replicationPlacment: "001"
-master:
-  config: |-
-    [master.maintenance]
-    # periodically run these scripts are the same as running them from 'weed shell'
-    # note: running 'fs.meta.save' then 'fs.meta.load' will ensure metadata of all filers
-    # are in sync in case of data loss from 1 or more filers
-    scripts = """
-      ec.encode -fullPercent=95 -quietFor=1h
-      ec.rebuild -force
-      ec.balance -force
-      volume.balance -force
-      volume.configure.replication -replication 001 -collectionPattern *
-      volume.fix.replication
-      fs.meta.save -o filer-backup.meta
-      fs.meta.load filer-backup.meta
-    """
-    sleep_minutes = 17          # sleep minutes between each script execution
-  data:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
-  disableHttp: true
-  imageOverride: ':'
-  logs:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
-  replicas: 1
-  volumeSizeLimitMB: 30000
-volume:
-  affinity: |
-    # schedule on control-plane nodes
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
-    # schedule on different nodes when possible
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        - labelSelector:
-            matchExpressions:
-            - key: app.kubernetes.io/name
-              operator: In
-              values:
-              - seaweedfs
-            - key: app.kubernetes.io/component
-              operator: In
-              values:
-              - volume
-          topologyKey: "kubernetes.io/hostname"
-  dataDirs:
-  - maxVolumes: 50
-    name: data
-    size: 10Gi
-    storageClass: openebs-hostpath
-    type: persistentVolumeClaim
-  imageOverride: ':'
-  podAnnotations:
-    backup.velero.io/backup-volumes: data
-  replicas: 3
-`,
+						Name:         "seaweedfs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
+						Version:      "1.2.3-seaweedfs",
+						Values:       seaweedfsValues,
 						TargetNS:     "seaweedfs",
 						ForceUpgrade: ptr.To(false),
 						Order:        102,
@@ -633,35 +664,10 @@ volume:
 						Order:        103,
 					},
 					{
-						Name:      "admin-console",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
-						Version:   "1.2.3-admin-console",
-						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
-images:
-  kotsadm: ':'
-  kurlProxy: ':'
-  migrations: ':'
-  rqlite: ':'
-isAirgap: "true"
-isHA: false
-isHelmManaged: false
-kurlProxy:
-  enabled: true
-  nodePort: 30000
-labels:
-  replicated.com/disaster-recovery: infra
-  replicated.com/disaster-recovery-chart: admin-console
-minimalRBAC: false
-passwordSecretRef:
-  key: passwordBcrypt
-  name: kotsadm-password
-privateCAs:
-  configmapName: kotsadm-private-cas
-  enabled: true
-service:
-  enabled: false
-`,
+						Name:         "admin-console",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:      "1.2.3-admin-console",
+						Values:       airgapHAAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
@@ -706,96 +712,10 @@ service:
 						Order:        103,
 					},
 					{
-						Name:      "seaweedfs",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
-						Version:   "1.2.3-seaweedfs",
-						Values: `filer:
-  data:
-    size: 1Gi
-    storageClass: openebs-hostpath
-    type: persistentVolumeClaim
-  imageOverride: ':'
-  logs:
-    size: 1Gi
-    storageClass: openebs-hostpath
-    type: persistentVolumeClaim
-  podAnnotations:
-    backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
-  replicas: 3
-  s3:
-    createBuckets:
-    - anonymousRead: false
-      name: registry
-    enableAuth: true
-    enabled: true
-    existingConfigSecret: secret-seaweedfs-s3
-global:
-  data:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
-  enableReplication: true
-  logs:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
-  registry: proxy.replicated.com/anonymous/
-  replicationPlacment: "001"
-master:
-  config: |-
-    [master.maintenance]
-    # periodically run these scripts are the same as running them from 'weed shell'
-    # note: running 'fs.meta.save' then 'fs.meta.load' will ensure metadata of all filers
-    # are in sync in case of data loss from 1 or more filers
-    scripts = """
-      ec.encode -fullPercent=95 -quietFor=1h
-      ec.rebuild -force
-      ec.balance -force
-      volume.balance -force
-      volume.configure.replication -replication 001 -collectionPattern *
-      volume.fix.replication
-      fs.meta.save -o filer-backup.meta
-      fs.meta.load filer-backup.meta
-    """
-    sleep_minutes = 17          # sleep minutes between each script execution
-  data:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
-  disableHttp: true
-  imageOverride: ':'
-  logs:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
-  replicas: 1
-  volumeSizeLimitMB: 30000
-volume:
-  affinity: |
-    # schedule on control-plane nodes
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
-    # schedule on different nodes when possible
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        - labelSelector:
-            matchExpressions:
-            - key: app.kubernetes.io/name
-              operator: In
-              values:
-              - seaweedfs
-            - key: app.kubernetes.io/component
-              operator: In
-              values:
-              - volume
-          topologyKey: "kubernetes.io/hostname"
-  dataDirs:
-  - maxVolumes: 50
-    name: data
-    size: 10Gi
-    storageClass: openebs-hostpath
-    type: persistentVolumeClaim
-  imageOverride: ':'
-  podAnnotations:
-    backup.velero.io/backup-volumes: data
-  replicas: 3
-`,
+						Name:         "seaweedfs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs",
+						Version:      "1.2.3-seaweedfs",
+						Values:       seaweedfsValues,
 						TargetNS:     "seaweedfs",
 						ForceUpgrade: ptr.To(false),
 						Order:        102,
@@ -810,35 +730,10 @@ volume:
 						Order:        103,
 					},
 					{
-						Name:      "admin-console",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
-						Version:   "1.2.3-admin-console",
-						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
-images:
-  kotsadm: ':'
-  kurlProxy: ':'
-  migrations: ':'
-  rqlite: ':'
-isAirgap: "true"
-isHA: false
-isHelmManaged: false
-kurlProxy:
-  enabled: true
-  nodePort: 30000
-labels:
-  replicated.com/disaster-recovery: infra
-  replicated.com/disaster-recovery-chart: admin-console
-minimalRBAC: false
-passwordSecretRef:
-  key: passwordBcrypt
-  name: kotsadm-password
-privateCAs:
-  configmapName: kotsadm-private-cas
-  enabled: true
-service:
-  enabled: false
-`,
+						Name:         "admin-console",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:      "1.2.3-admin-console",
+						Values:       airgapHAAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,

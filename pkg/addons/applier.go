@@ -321,6 +321,7 @@ func (a *Applier) load() ([]AddOn, error) {
 		a.licenseFile,
 		a.airgapBundle,
 		a.isAirgap,
+		a.isHA,
 		a.proxyEnv,
 		a.privateCAs,
 	)
