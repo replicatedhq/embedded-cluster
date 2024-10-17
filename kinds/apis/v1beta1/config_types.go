@@ -90,6 +90,7 @@ type Chart struct {
 	// +kubebuilder:validation:Optional
 	Values   string `json:"values,omitempty"`
 	TargetNS string `json:"namespace,omitempty"`
+	// Timeout specifies the timeout for how long to wait for the chart installation to finish.
 	// +kubebuilder:validation:Optional
 	Timeout time.Duration `json:"timeout,omitempty"`
 	// ForceUpgrade when set to false, disables the use of the "--force" flag when upgrading the the chart (default: true).
