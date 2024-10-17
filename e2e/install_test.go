@@ -1059,7 +1059,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
+func TestAirgapUpgradeFromEC18(t *testing.T) {
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
@@ -1079,7 +1079,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
-		Nodes:                   1,
+		Nodes:                   2,
 		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
@@ -1095,11 +1095,17 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 		t.Logf("failed to remove airgap upgrade bundle: %v", err)
 	}
 
+	// upgrade airgap bundle is only needed on the first node
+	line := []string{"rm", "/assets/ec-release-upgrade.tgz"}
+	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to remove upgrade airgap bundle on node %s: %v", tc.Nodes[1], err)
+	}
+
 	// install "curl" dependency on node 0 for app version checks.
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
-	line := []string{"airgap-prepare.sh"}
+	line = []string{"airgap-prepare.sh"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1200,6 +1206,20 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	withUpgradeBin := map[string]string{"EMBEDDED_CLUSTER_BIN": "embedded-cluster-upgrade"}
+
+	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(1, line, withUpgradeBin); err != nil {
+		t.Fatalf("fail to reset worker node: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: resetting node 0", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withUpgradeBin); err != nil {
+		t.Fatalf("fail to reset node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -1355,15 +1375,17 @@ func TestAirgapUpgradeFromEC114(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
+	withUpgradeBin := map[string]string{"EMBEDDED_CLUSTER_BIN": "embedded-cluster-upgrade"}
+
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(1, line, withUpgradeBin); err != nil {
 		t.Fatalf("fail to reset worker node: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: resetting node 0", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withUpgradeBin); err != nil {
 		t.Fatalf("fail to reset node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
