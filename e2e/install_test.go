@@ -1150,13 +1150,14 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
-	withUpgradeBin := map[string]string{"EMBEDDED_CLUSTER_BIN": "embedded-cluster-upgrade"}
-
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(1, line, withUpgradeBin); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to reset worker node: %v: %s: %s", err, stdout, stderr)
 	}
+
+	// use upgrade binary for reset
+	withUpgradeBin := map[string]string{"EMBEDDED_CLUSTER_BIN": "embedded-cluster-upgrade"}
 
 	t.Logf("%s: resetting node 0", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
