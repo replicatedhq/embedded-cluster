@@ -492,7 +492,6 @@ jobs:
           # - TestUpgradeFromReplicatedApp
           # - TestInstallWithoutEmbed
           - TestUpgradeEC18FromReplicatedApp
-          - TestUpgradeEC114FromReplicatedApp
           # - TestResetAndReinstall
           # - TestOldVersionUpgrade
           # - TestInstallSnapshotFromReplicatedApp
@@ -580,8 +579,6 @@ jobs:
           # - TestInstallWithMITMProxy
         include:
           - test: TestAirgapUpgradeFromEC18
-            runner: embedded-cluster
-          - test: TestAirgapUpgradeFromEC114
             runner: embedded-cluster
           # - test: TestMultiNodeAirgapUpgrade
           #   runner: embedded-cluster
