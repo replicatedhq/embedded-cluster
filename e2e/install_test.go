@@ -1124,7 +1124,7 @@ func TestSingleNodeAirgapUpgradeFromEC18(t *testing.T) {
 
 	// generate worker node join command.
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command")
+	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command-ec18")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
