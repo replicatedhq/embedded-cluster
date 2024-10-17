@@ -30,14 +30,17 @@ const (
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	err := clusterConfigUpdate(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("cluster config update: %w", err)
-	}
-
-	err = k0sUpgrade(ctx, cli, in)
+	err := k0sUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
+	}
+
+	// We must update the cluster config after we upgrade k0s as it is possible that the schema
+	// between versions has changed. One drawback of this is that the sandbox (pause) image does
+	// not get updated, and possibly others but I cannot confirm this.
+	err = clusterConfigUpdate(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("cluster config update: %w", err)
 	}
 
 	err = registryMigrationStatus(ctx, cli, in)
