@@ -4,26 +4,21 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
-
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -162,166 +157,6 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, i
 		combinedConfigs.Charts[k].Order += 100
 	}
 	return combinedConfigs, nil
-}
-
-// updateInfraChartsFromInstall updates the infrastructure charts with dynamic values from the installation spec
-func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig, charts []v1beta1.Chart) ([]v1beta1.Chart, error) {
-	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
-
-	for i, chart := range charts {
-		ecCharts := []string{
-			"admin-console",
-			"docker-registry",
-			"embedded-cluster-operator",
-			"openebs",
-			"seaweedfs",
-			"velero",
-		}
-		if slices.Contains(ecCharts, chart.Name) && charts[i].ForceUpgrade == nil {
-			// run helm upgrade --force=false
-			charts[i].ForceUpgrade = ptr.To(false)
-		}
-
-		if chart.Name == "admin-console" {
-			newVals, err := helm.UnmarshalValues(chart.Values)
-			if err != nil {
-				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-			}
-
-			// admin-console has "embeddedClusterID" and "isAirgap" as dynamic values
-			newVals, err = helm.SetValue(newVals, "embeddedClusterID", in.Spec.ClusterID)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values admin-console.embeddedClusterID: %w", err)
-			}
-
-			newVals, err = helm.SetValue(newVals, "isAirgap", fmt.Sprintf("%t", in.Spec.AirGap))
-			if err != nil {
-				return nil, fmt.Errorf("set helm values admin-console.isAirgap: %w", err)
-			}
-
-			newVals, err = helm.SetValue(newVals, "isHA", in.Spec.HighAvailability)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values admin-console.isHA: %w", err)
-			}
-
-			if in.Spec.Proxy != nil {
-				extraEnv := getExtraEnvFromProxy(in.Spec.Proxy.HTTPProxy, in.Spec.Proxy.HTTPSProxy, in.Spec.Proxy.NoProxy)
-				newVals, err = helm.SetValue(newVals, "extraEnv", extraEnv)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values admin-console.extraEnv: %w", err)
-				}
-			}
-
-			if port := provider.AdminConsolePort(); port > 0 {
-				newVals, err = helm.SetValue(newVals, "kurlProxy.nodePort", port)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
-				}
-			}
-
-			charts[i].Values, err = helm.MarshalValues(newVals)
-			if err != nil {
-				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-			}
-		}
-		if chart.Name == "embedded-cluster-operator" {
-			newVals, err := helm.UnmarshalValues(chart.Values)
-			if err != nil {
-				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-			}
-
-			// embedded-cluster-operator has "embeddedBinaryName" and "embeddedClusterID" as dynamic values
-			newVals, err = helm.SetValue(newVals, "embeddedBinaryName", in.Spec.BinaryName)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values embedded-cluster-operator.embeddedBinaryName: %w", err)
-			}
-
-			newVals, err = helm.SetValue(newVals, "embeddedClusterID", in.Spec.ClusterID)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values embedded-cluster-operator.embeddedClusterID: %w", err)
-			}
-
-			if in.Spec.Proxy != nil {
-				extraEnv := getExtraEnvFromProxy(in.Spec.Proxy.HTTPProxy, in.Spec.Proxy.HTTPSProxy, in.Spec.Proxy.NoProxy)
-				newVals, err = helm.SetValue(newVals, "extraEnv", extraEnv)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values embedded-cluster-operator.extraEnv: %w", err)
-				}
-			}
-
-			charts[i].Values, err = helm.MarshalValues(newVals)
-			if err != nil {
-				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-			}
-		}
-		if chart.Name == "docker-registry" {
-			if !in.Spec.AirGap {
-				continue
-			}
-
-			newVals, err := helm.UnmarshalValues(chart.Values)
-			if err != nil {
-				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-			}
-
-			// handle the registry IP, which will always be present in airgap
-			serviceCIDR := util.ClusterServiceCIDR(*clusterConfig, in)
-			registryEndpoint, err := registry.GetRegistryServiceIP(serviceCIDR)
-			if err != nil {
-				return nil, fmt.Errorf("get registry service IP: %w", err)
-			}
-
-			newVals, err = helm.SetValue(newVals, "service.clusterIP", registryEndpoint)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values docker-registry.service.clusterIP: %w", err)
-			}
-
-			if in.Spec.HighAvailability {
-				// handle the seaweedFS endpoint, which will only be present in HA airgap
-				seaweedfsS3Endpoint, err := registry.GetSeaweedfsS3Endpoint(serviceCIDR)
-				if err != nil {
-					return nil, fmt.Errorf("get seaweedfs s3 endpoint: %w", err)
-				}
-
-				newVals, err = helm.SetValue(newVals, "s3.regionEndpoint", seaweedfsS3Endpoint)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values docker-registry.s3.regionEndpoint: %w", err)
-				}
-			}
-
-			charts[i].Values, err = helm.MarshalValues(newVals)
-			if err != nil {
-				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-			}
-		}
-		if chart.Name == "velero" {
-			if in.Spec.Proxy != nil {
-				newVals, err := helm.UnmarshalValues(chart.Values)
-				if err != nil {
-					return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-				}
-
-				extraEnvVars := map[string]interface{}{
-					"extraEnvVars": map[string]string{
-						"HTTP_PROXY":  in.Spec.Proxy.HTTPProxy,
-						"HTTPS_PROXY": in.Spec.Proxy.HTTPSProxy,
-						"NO_PROXY":    in.Spec.Proxy.NoProxy,
-					},
-				}
-
-				newVals, err = helm.SetValue(newVals, "configuration", extraEnvVars)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values velero.configuration: %w", err)
-				}
-
-				charts[i].Values, err = helm.MarshalValues(newVals)
-				if err != nil {
-					return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-				}
-			}
-		}
-	}
-	return charts, nil
 }
 
 // applyUserProvidedAddonOverrides applies user-provided overrides to the HelmExtensions spec.
