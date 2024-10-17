@@ -19,7 +19,7 @@ func K0sClusterConfigTo129Compat(clusterConfig *k0sv1beta1.ClusterConfig) (*unst
 
 	obj, err := objectToUnstructured(clusterConfig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to convert cluster config to unstructured: %w", err)
+		return nil, fmt.Errorf("convert to unstructured: %w", err)
 	}
 	unst := obj.UnstructuredContent()
 	charts, ok := unst["spec"].(map[string]interface{})["extensions"].(map[string]interface{})["helm"].(map[string]interface{})["charts"].([]interface{})
@@ -51,12 +51,12 @@ func timeoutStringToDuration(str string) (time.Duration, error) {
 func objectToUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {
 	data, err := json.Marshal(obj)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal object: %w", err)
+		return nil, fmt.Errorf("marshal: %w", err)
 	}
 	objMap := map[string]interface{}{}
 	err = json.Unmarshal(data, &objMap)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal object: %w", err)
+		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
 	unstructuredObj := &unstructured.Unstructured{}
 	unstructuredObj.Object = objMap
