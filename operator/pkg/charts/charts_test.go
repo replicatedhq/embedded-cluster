@@ -20,7 +20,8 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-const openebsValues = `engines:
+func Test_generateHelmConfigs(t *testing.T) {
+	const openebsValues = `engines:
   local:
     lvm:
       enabled: false
@@ -59,7 +60,153 @@ zfs-localpv:
   enabled: false
 `
 
-func Test_generateHelmConfigs(t *testing.T) {
+	const operatorValues = `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: 1.2.3-operator
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
+kotsVersion: 1.2.3-admin-console
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
+`
+	const onlineAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: 1.2.3-operator
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "false"
+isHA: false
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`
+
+	const veleroValues = `backupsEnabled: false
+configMaps:
+  fs-restore-action-config:
+    data:
+      image: ':'
+    labels:
+      velero.io/plugin-config: ""
+      velero.io/pod-volume-restore: RestoreItemAction
+credentials:
+  existingSecret: cloud-credentials
+deployNodeAgent: true
+image:
+  repository: ""
+  tag: ""
+initContainers:
+- image: ':'
+  imagePullPolicy: IfNotPresent
+  name: velero-plugin-for-aws
+  volumeMounts:
+  - mountPath: /target
+    name: plugins
+kubectl:
+  image:
+    repository: ""
+    tag: ""
+nodeAgent:
+  podVolumePath: /var/lib/embedded-cluster/k0s/kubelet/pods
+snapshotsEnabled: false
+`
+
+	const registryValues = `configData:
+  auth:
+    htpasswd:
+      path: /auth/htpasswd
+      realm: Registry
+extraVolumeMounts:
+- mountPath: /auth
+  name: auth
+extraVolumes:
+- name: auth
+  secret:
+    secretName: registry-auth
+fullnameOverride: registry
+image:
+  repository: ""
+  tag: ""
+persistence:
+  accessMode: ReadWriteOnce
+  enabled: true
+  size: 10Gi
+  storageClass: openebs-hostpath
+podAnnotations:
+  backup.velero.io/backup-volumes: data
+replicaCount: 1
+service:
+  clusterIP: 10.96.0.11
+storage: filesystem
+tlsSecretName: registry-tls
+`
+
+	const haRegistryValues = `affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - docker-registry
+      topologyKey: kubernetes.io/hostname
+configData:
+  auth:
+    htpasswd:
+      path: /auth/htpasswd
+      realm: Registry
+  storage:
+    s3:
+      secure: false
+extraVolumeMounts:
+- mountPath: /auth
+  name: auth
+extraVolumes:
+- name: auth
+  secret:
+    secretName: registry-auth
+fullnameOverride: registry
+image:
+  repository: ""
+  tag: ""
+replicaCount: 2
+s3:
+  bucket: registry
+  encrypt: false
+  region: us-east-1
+  regionEndpoint: DYNAMIC
+  rootdirectory: /registry
+  secure: false
+secrets:
+  s3:
+    secretRef: seaweedfs-s3-rw
+service:
+  clusterIP: 10.96.0.11
+storage: s3
+tlsSecretName: registry-tls
+`
+
 	var addonMetadata = map[string]release.AddonMetadata{}
 
 	// this function is used to replace the values of the addons so that we can test without having to update tests constantly
@@ -181,57 +328,19 @@ func Test_generateHelmConfigs(t *testing.T) {
 						Order:        101,
 					},
 					{
-						Name:      "embedded-cluster-operator",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
-						Version:   "1.2.3-operator",
-						Values: `embeddedBinaryName: test-binary-name
-embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: 1.2.3-operator
-global:
-  labels:
-    replicated.com/disaster-recovery: infra
-    replicated.com/disaster-recovery-chart: embedded-cluster-operator
-image:
-  repository: docker.io/replicated/embedded-cluster-operator-image
-  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
-kotsVersion: 1.2.3-admin-console
-utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
-`,
+						Name:         "embedded-cluster-operator",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:      "1.2.3-operator",
+						Values:       operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
 					},
 					{
-						Name:      "admin-console",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
-						Version:   "1.2.3-admin-console",
-						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
-images:
-  kotsadm: ':'
-  kurlProxy: ':'
-  migrations: ':'
-  rqlite: ':'
-isAirgap: "false"
-isHA: false
-isHelmManaged: false
-kurlProxy:
-  enabled: true
-  nodePort: 30000
-labels:
-  replicated.com/disaster-recovery: infra
-  replicated.com/disaster-recovery-chart: admin-console
-minimalRBAC: false
-passwordSecretRef:
-  key: passwordBcrypt
-  name: kotsadm-password
-privateCAs:
-  configmapName: kotsadm-private-cas
-  enabled: true
-service:
-  enabled: false
-`,
+						Name:         "admin-console",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:      "1.2.3-admin-console",
+						Values:       onlineAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
@@ -278,94 +387,28 @@ service:
 						Order:        101,
 					},
 					{
-						Name:      "embedded-cluster-operator",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
-						Version:   "1.2.3-operator",
-						Values: `embeddedBinaryName: test-binary-name
-embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: 1.2.3-operator
-global:
-  labels:
-    replicated.com/disaster-recovery: infra
-    replicated.com/disaster-recovery-chart: embedded-cluster-operator
-image:
-  repository: docker.io/replicated/embedded-cluster-operator-image
-  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
-kotsVersion: 1.2.3-admin-console
-utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
-`,
+						Name:         "embedded-cluster-operator",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:      "1.2.3-operator",
+						Values:       operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
 					},
 					{
-						Name:      "velero",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/velero",
-						Version:   "1.2.3-velero",
-						Values: `backupsEnabled: false
-configMaps:
-  fs-restore-action-config:
-    data:
-      image: ':'
-    labels:
-      velero.io/plugin-config: ""
-      velero.io/pod-volume-restore: RestoreItemAction
-credentials:
-  existingSecret: cloud-credentials
-deployNodeAgent: true
-image:
-  repository: ""
-  tag: ""
-initContainers:
-- image: ':'
-  imagePullPolicy: IfNotPresent
-  name: velero-plugin-for-aws
-  volumeMounts:
-  - mountPath: /target
-    name: plugins
-kubectl:
-  image:
-    repository: ""
-    tag: ""
-nodeAgent:
-  podVolumePath: /var/lib/embedded-cluster/k0s/kubelet/pods
-snapshotsEnabled: false
-`,
+						Name:         "velero",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/velero",
+						Version:      "1.2.3-velero",
+						Values:       veleroValues,
 						TargetNS:     "velero",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
 					},
 					{
-						Name:      "admin-console",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
-						Version:   "1.2.3-admin-console",
-						Values: `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
-images:
-  kotsadm: ':'
-  kurlProxy: ':'
-  migrations: ':'
-  rqlite: ':'
-isAirgap: "false"
-isHA: false
-isHelmManaged: false
-kurlProxy:
-  enabled: true
-  nodePort: 30000
-labels:
-  replicated.com/disaster-recovery: infra
-  replicated.com/disaster-recovery-chart: admin-console
-minimalRBAC: false
-passwordSecretRef:
-  key: passwordBcrypt
-  name: kotsadm-password
-privateCAs:
-  configmapName: kotsadm-private-cas
-  enabled: true
-service:
-  enabled: false
-`,
+						Name:         "admin-console",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:      "1.2.3-admin-console",
+						Values:       onlineAdminConsoleValues,
 						TargetNS:     "kotsadm",
 						ForceUpgrade: ptr.To(false),
 						Order:        105,
@@ -395,60 +438,19 @@ service:
 						Order:        101,
 					},
 					{
-						Name:      "docker-registry",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
-						Version:   "1.2.3-registry",
-						Values: `configData:
-  auth:
-    htpasswd:
-      path: /auth/htpasswd
-      realm: Registry
-extraVolumeMounts:
-- mountPath: /auth
-  name: auth
-extraVolumes:
-- name: auth
-  secret:
-    secretName: registry-auth
-fullnameOverride: registry
-image:
-  repository: ""
-  tag: ""
-persistence:
-  accessMode: ReadWriteOnce
-  enabled: true
-  size: 10Gi
-  storageClass: openebs-hostpath
-podAnnotations:
-  backup.velero.io/backup-volumes: data
-replicaCount: 1
-service:
-  clusterIP: 10.96.0.11
-storage: filesystem
-tlsSecretName: registry-tls
-`,
+						Name:         "docker-registry",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+						Version:      "1.2.3-registry",
+						Values:       registryValues,
 						TargetNS:     "registry",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
 					},
 					{
-						Name:      "embedded-cluster-operator",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
-						Version:   "1.2.3-operator",
-						Values: `embeddedBinaryName: test-binary-name
-embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: 1.2.3-operator
-global:
-  labels:
-    replicated.com/disaster-recovery: infra
-    replicated.com/disaster-recovery-chart: embedded-cluster-operator
-image:
-  repository: docker.io/replicated/embedded-cluster-operator-image
-  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
-kotsVersion: 1.2.3-admin-console
-utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
-`,
+						Name:         "embedded-cluster-operator",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:      "1.2.3-operator",
+						Values:       operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -518,38 +520,10 @@ service:
 						Order:        101,
 					},
 					{
-						Name:      "docker-registry",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
-						Version:   "1.2.3-registry",
-						Values: `configData:
-  auth:
-    htpasswd:
-      path: /auth/htpasswd
-      realm: Registry
-extraVolumeMounts:
-- mountPath: /auth
-  name: auth
-extraVolumes:
-- name: auth
-  secret:
-    secretName: registry-auth
-fullnameOverride: registry
-image:
-  repository: ""
-  tag: ""
-persistence:
-  accessMode: ReadWriteOnce
-  enabled: true
-  size: 10Gi
-  storageClass: openebs-hostpath
-podAnnotations:
-  backup.velero.io/backup-volumes: data
-replicaCount: 1
-service:
-  clusterIP: 10.96.0.11
-storage: filesystem
-tlsSecretName: registry-tls
-`,
+						Name:         "docker-registry",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+						Version:      "1.2.3-registry",
+						Values:       registryValues,
 						TargetNS:     "registry",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -650,23 +624,10 @@ volume:
 						Order:        102,
 					},
 					{
-						Name:      "embedded-cluster-operator",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
-						Version:   "1.2.3-operator",
-						Values: `embeddedBinaryName: test-binary-name
-embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: 1.2.3-operator
-global:
-  labels:
-    replicated.com/disaster-recovery: infra
-    replicated.com/disaster-recovery-chart: embedded-cluster-operator
-image:
-  repository: docker.io/replicated/embedded-cluster-operator-image
-  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
-kotsVersion: 1.2.3-admin-console
-utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
-`,
+						Name:         "embedded-cluster-operator",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:      "1.2.3-operator",
+						Values:       operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -736,54 +697,10 @@ service:
 						Order:        101,
 					},
 					{
-						Name:      "docker-registry",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
-						Version:   "1.2.3-registry",
-						Values: `affinity:
-  podAntiAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-    - labelSelector:
-        matchExpressions:
-        - key: app
-          operator: In
-          values:
-          - docker-registry
-      topologyKey: kubernetes.io/hostname
-configData:
-  auth:
-    htpasswd:
-      path: /auth/htpasswd
-      realm: Registry
-  storage:
-    s3:
-      secure: false
-extraVolumeMounts:
-- mountPath: /auth
-  name: auth
-extraVolumes:
-- name: auth
-  secret:
-    secretName: registry-auth
-fullnameOverride: registry
-image:
-  repository: ""
-  tag: ""
-replicaCount: 2
-s3:
-  bucket: registry
-  encrypt: false
-  region: us-east-1
-  regionEndpoint: DYNAMIC
-  rootdirectory: /registry
-  secure: false
-secrets:
-  s3:
-    secretRef: seaweedfs-s3-rw
-service:
-  clusterIP: 10.96.0.11
-storage: s3
-tlsSecretName: registry-tls
-`,
+						Name:         "docker-registry",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/docker-registry",
+						Version:      "1.2.3-registry",
+						Values:       haRegistryValues,
 						TargetNS:     "registry",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -884,23 +801,10 @@ volume:
 						Order:        102,
 					},
 					{
-						Name:      "embedded-cluster-operator",
-						ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
-						Version:   "1.2.3-operator",
-						Values: `embeddedBinaryName: test-binary-name
-embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: 1.2.3-operator
-global:
-  labels:
-    replicated.com/disaster-recovery: infra
-    replicated.com/disaster-recovery-chart: embedded-cluster-operator
-image:
-  repository: docker.io/replicated/embedded-cluster-operator-image
-  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
-kotsVersion: 1.2.3-admin-console
-utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
-`,
+						Name:         "embedded-cluster-operator",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:      "1.2.3-operator",
+						Values:       operatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
