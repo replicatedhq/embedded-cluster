@@ -2,12 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"sort"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
-	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +31,7 @@ func printVersions() error {
 		addons.WithoutPrompt(),
 		addons.OnlyDefaults(),
 		addons.Quiet(),
-	).Versions(config.AdditionalCharts())
+	).Versions(nil)
 	if err != nil {
 		return fmt.Errorf("unable to get versions: %w", err)
 	}
@@ -53,5 +53,8 @@ func printVersions() error {
 		writer.AppendRow(table.Row{k, version})
 	}
 	fmt.Printf("%s\n", writer.Render())
+
+	fmt.Printf("The operator chart repository is %s\n", embeddedclusteroperator.Metadata.Location)
+
 	return nil
 }
