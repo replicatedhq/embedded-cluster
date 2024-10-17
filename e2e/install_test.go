@@ -535,7 +535,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:      t,
-		Nodes:  1,
+		Nodes:  2,
 		Distro: "debian-bookworm",
 		K0sDir: "/var/lib/k0s",
 	})
@@ -544,6 +544,12 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	t.Logf("%s: downloading embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", "1.8.0+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: downloading embedded-cluster 1.14.2+k8s-1.28 on worker node", time.Now().Format(time.RFC3339))
+	line = []string{"vandoor-prepare.sh", "1.14.2+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
+	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -558,6 +564,29 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-ec18-app-version"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-ec18-app-version: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command-ec18")
+	if err != nil {
+		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
+	}
+	command, err := findJoinCommandInOutput(stdout)
+	if err != nil {
+		t.Fatalf("fail to find the join command in the output: %v: %s: %s", err, stdout, stderr)
+	}
+	t.Log("worker join token command:", command)
+
+	t.Logf("%s: joining worker node to the cluster as a worker", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(1, strings.Split(command, " ")); err != nil {
+		t.Fatalf("fail to join worker node to the cluster as a worker: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// wait for the nodes to report as ready.
+	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"}, withEnv)
+	if err != nil {
+		t.Fatalf("fail to wait for ready nodes: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
@@ -578,6 +607,18 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to reset worker node: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: resetting node 0", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to reset node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
