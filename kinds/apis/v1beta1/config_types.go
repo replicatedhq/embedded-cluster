@@ -163,7 +163,6 @@ func ConvertTo(e Helm, t *k0sv1beta1.HelmExtensions) (*k0sv1beta1.HelmExtensions
 	if err != nil {
 		return t, fmt.Errorf("unable to convert extensions: %w", err)
 	}
-	fmt.Println(string(j))
 
 	if err = json.Unmarshal(j, t); err != nil {
 		return t, fmt.Errorf("unable to unmarshal to new type: %w", err)
