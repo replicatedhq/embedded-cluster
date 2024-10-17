@@ -63,6 +63,11 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		return fmt.Errorf("unlock installation: %w", err)
 	}
 
+	err = kotscli.CreateHostSupportBundle()
+	if err != nil {
+		logrus.Warnf("Failed to upgrade host support bundle: %v", err)
+	}
+
 	return nil
 }
 
@@ -147,11 +152,6 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	err = setInstallationState(ctx, cli, in.Name, v1beta1.InstallationStateKubernetesInstalled, "Kubernetes upgraded")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
-	}
-
-	err = kotscli.CreateHostSupportBundle()
-	if err != nil {
-		logrus.Warnf("Failed to upgrade host support bundle: %v", err)
 	}
 
 	return nil
