@@ -282,6 +282,12 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 					return nil, fmt.Errorf("set helm values velero.configuration: %w", err)
 				}
 
+				podVolumePath := filepath.Join(provider.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+				newVals, err = helm.SetValue(newVals, "nodeAgent.podVolumePath", podVolumePath)
+				if err != nil {
+					return nil, fmt.Errorf("set helm values velero.nodeAgent.podVolumePath: %w", err)
+				}
+
 				charts[i].Values, err = helm.MarshalValues(newVals)
 				if err != nil {
 					return nil, fmt.Errorf("marshal admin-console.values: %w", err)
