@@ -145,7 +145,7 @@ func configureNetworkManager(c *cli.Context, provider *defaults.Provider) error 
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
+func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, privateCA []string) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
@@ -161,6 +161,11 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 		K0sDataDir:              provider.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          provider.EmbeddedClusterOpenEBSLocalSubDir(),
 		SystemArchitecture:      runtime.GOARCH,
+		PrivateCA:               privateCA,
+		HTTPProxy:               proxy.HTTPProxy,
+		HTTPSProxy:              proxy.HTTPSProxy,
+		ProvidedNoProxy:         proxy.ProvidedNoProxy,
+		NoProxy:                 proxy.NoProxy,
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
@@ -621,6 +626,14 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 	return true
 }
 
+func getPrivateCAPaths(c *cli.Context) []string {
+	privateCAs := []string{}
+	if len(c.StringSlice("private-ca")) > 0 {
+		privateCAs = append(privateCAs, c.StringSlice("private-ca")...)
+	}
+	return privateCAs
+}
+
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
 // and then run `k0s install` to apply the cluster. Once this is finished then a "kubeconfig"
 // file is created. Resulting kubeconfig is stored in the configuration dir.
@@ -760,7 +773,9 @@ func installCommand() *cli.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 			}
 
-			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+			privateCAs := getPrivateCAPaths(c)
+
+			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, privateCAs); err != nil {
 				metrics.ReportApplyFinished(c, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
