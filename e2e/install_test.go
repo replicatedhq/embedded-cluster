@@ -567,7 +567,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command-ec18")
+	stdout, stderr, err := tc.RunPlaywrightTest("get-ec18-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -1072,7 +1072,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 
 	// generate worker node join command.
 	t.Logf("%s: generating a new worker token command", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunPlaywrightTest("get-join-worker-command-ec18")
+	stdout, stderr, err := tc.RunPlaywrightTest("get-ec18-join-worker-command")
 	if err != nil {
 		t.Fatalf("fail to generate worker join token:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
