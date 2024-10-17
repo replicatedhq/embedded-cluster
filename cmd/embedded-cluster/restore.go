@@ -1061,6 +1061,11 @@ func restoreCommand() *cli.Command {
 					return fmt.Errorf("unable to run outro: %w", err)
 				}
 
+				err = kotscli.CreateHostSupportBundle()
+				if err != nil {
+					logrus.Warnf("Failed to restore host support bundle: %v", err)
+				}
+
 				logrus.Debugf("configuring velero backup storage location")
 				if err := kotscli.VeleroConfigureOtherS3(provider, kotscli.VeleroConfigureOtherS3Options{
 					Endpoint:        s3Store.endpoint,
