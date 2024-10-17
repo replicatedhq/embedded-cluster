@@ -56,7 +56,11 @@ func installRunPreflightsCommand() *cli.Command {
 			defer tryRemoveTmpDirContents(provider)
 
 			var err error
-			proxy := getProxySpecFromFlags(c)
+			proxy, err := getProxySpecFromFlags(c)
+			if err != nil {
+				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
+			}
+
 			proxy, err = includeLocalIPInNoProxy(c, proxy)
 			if err != nil {
 				return err

@@ -4,6 +4,7 @@ go 1.23.0
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
+	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.43

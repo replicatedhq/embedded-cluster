@@ -903,8 +903,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	line = append(line, "--pod-cidr", "10.128.0.0/20")
-	line = append(line, "--service-cidr", "10.129.0.0/20")
+	line = append(line, "--cidr", "192.168.0.0/16")
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -951,7 +950,15 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"}); err != nil {
+
+	// we have used --cidr 192.168.0.0/16 during install time so pods are
+	// expected to be in the 192.168.0.0/17 range while services are in the
+	// 192.168.128.0/17 range. i.e. pods are in 192.168.0-127.* while
+	// services in 192.168.128-254.*.
+	podregex := `192\.168\.\([0-9]\|[1-9][0-9]\|12[0-7]\)\.`
+	svcregex := `192\.168\.\(12[8-9]\|1[3-9][0-9]\|[2-5][0-9][0-9]\)\.`
+
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", podregex, svcregex}); err != nil {
 		t.Log(stdout)
 		t.Log(stderr)
 		t.Fatalf("fail to check addresses on node %s: %v", tc.Nodes[0], err)
