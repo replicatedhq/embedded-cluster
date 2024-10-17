@@ -443,7 +443,13 @@ func patchK0sConfig(path string, patch string) error {
 		return fmt.Errorf("unable to open node config file for writing: %w", err)
 	}
 	defer out.Close()
-	data, err := k8syaml.Marshal(finalcfg)
+	// This is necessary to install the previous version of k0s in e2e tests
+	// TODO: factor this out
+	unstructured, err := helpers.K0sClusterConfigTo129Compat(&finalcfg)
+	if err != nil {
+		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+	}
+	data, err := k8syaml.Marshal(unstructured)
 	if err != nil {
 		return fmt.Errorf("unable to marshal node config: %w", err)
 	}
