@@ -20,11 +20,10 @@ import (
 
 const welcome = `
     __4___
- _  \ \ \ \   Welcome to %s debug shell.
+ _  \ \ \ \   Welcome to the %s debug shell.
 <'\ /_/_/_/   This terminal is now configured to access your cluster.
  ((____!___/) Type 'exit' (or CTRL+d) to exit.
-  \0\0\0\0\/  Happy hacking.
- ~~~~~~~~~~~
+  \0\0\0\0\/
 `
 
 // handleResize is a helper function to handle pty resizes.
@@ -98,6 +97,10 @@ func shellCommand() *cli.Command {
 
 			kcpath := provider.PathToKubeConfig()
 			config := fmt.Sprintf("export KUBECONFIG=%q\n", kcpath)
+			_, _ = shellpty.WriteString(config)
+			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+
+			config = "alias k=kubectl\n"
 			_, _ = shellpty.WriteString(config)
 			_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
