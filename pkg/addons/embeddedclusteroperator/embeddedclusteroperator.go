@@ -7,6 +7,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
+	types2 "k8s.io/apimachinery/pkg/types"
 	"strings"
 	"time"
 
@@ -16,7 +18,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -55,7 +56,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
+	Render()
+}
 
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
@@ -65,6 +69,7 @@ func init() {
 	helmValues["kotsVersion"] = adminconsole.Metadata.Version
 	helmValues["embeddedClusterVersion"] = versions.Version
 	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
+	Metadata.Version = versions.Version
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
@@ -74,7 +79,7 @@ type EmbeddedClusterOperator struct {
 	deployName    string
 	endUserConfig *ecv1beta1.Config
 	runtimeConfig *ecv1beta1.RuntimeConfigSpec
-	licenseFile   string
+	license       *kotsv1beta1.License
 	airgap        bool
 	proxyEnv      map[string]string
 	privateCAs    map[string]string
@@ -116,7 +121,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(provider *defaults.Provider
 	}
 
 	if !onlyDefaults {
-		helmValues["embeddedBinaryName"] = defaults.BinaryName()
+		helmValues["embeddedBinaryName"] = defaults.BinaryName() // TODO make this configurable
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if len(e.proxyEnv) > 0 {
 			extraEnv := []map[string]interface{}{}
@@ -242,14 +247,6 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 	if e.endUserConfig != nil {
 		euOverrides = e.endUserConfig.Spec.UnsupportedOverrides.K0s
 	}
-	var license *kotsv1beta1.License
-	if e.licenseFile != "" {
-		l, err := helpers.ParseLicense(e.licenseFile)
-		if err != nil {
-			return fmt.Errorf("unable to parse license: %w", err)
-		}
-		license = l
-	}
 
 	// Configure proxy
 	var proxySpec *ecv1beta1.ProxySpec
@@ -273,7 +270,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 		},
 		Spec: ecv1beta1.InstallationSpec{
 			ClusterID:                 metrics.ClusterID().String(),
-			MetricsBaseURL:            metrics.BaseURL(license),
+			MetricsBaseURL:            metrics.BaseURL(e.license),
 			AirGap:                    e.airgap,
 			Proxy:                     proxySpec,
 			Network:                   k0sConfigToNetworkSpec(k0sCfg),
@@ -282,20 +279,33 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                defaults.BinaryName(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
-				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(license),
+				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(e.license),
 			},
+		},
+		Status: ecv1beta1.InstallationStatus{
+			State: ecv1beta1.InstallationStateKubernetesInstalled,
 		},
 	}
 	if err := cli.Create(ctx, &installation); err != nil {
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
+
+	gotInstallation, err := waitForInstallationToExist(ctx, cli, installation.Name)
+	if err != nil {
+		return fmt.Errorf("unable to wait for installation to exist: %w", err)
+	}
+	gotInstallation.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
+	if err := cli.Status().Update(ctx, gotInstallation); err != nil {
+		return fmt.Errorf("unable to update installation status: %w", err)
+	}
+
 	return nil
 }
 
 // New creates a new EmbeddedClusterOperator addon.
 func New(
 	endUserConfig *ecv1beta1.Config,
-	licenseFile string,
+	license *kotsv1beta1.License,
 	airgapEnabled bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
@@ -305,7 +315,7 @@ func New(
 		namespace:     "embedded-cluster",
 		deployName:    "embedded-cluster-operator",
 		endUserConfig: endUserConfig,
-		licenseFile:   licenseFile,
+		license:       license,
 		airgap:        airgapEnabled,
 		proxyEnv:      proxyEnv,
 		privateCAs:    privateCAs,
@@ -335,4 +345,19 @@ func k0sConfigToNetworkSpec(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.Network
 	}
 
 	return network
+}
+
+func waitForInstallationToExist(ctx context.Context, cli client.Client, name string) (*ecv1beta1.Installation, error) {
+	var installation ecv1beta1.Installation
+	for i := 0; i < 20; i++ {
+		if err := cli.Get(ctx, types2.NamespacedName{Name: name}, &installation); err != nil {
+			if !errors.IsNotFound(err) {
+				return nil, fmt.Errorf("unable to get installation: %w", err)
+			}
+		} else {
+			return &installation, nil
+		}
+		time.Sleep(time.Second)
+	}
+	return nil, fmt.Errorf("installation %s not found after 20 seconds", name)
 }

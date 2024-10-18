@@ -128,11 +128,6 @@ function metadata() {
         return 0
     fi
 
-    if [ "$MANGLE_METADATA" == "1" ]; then
-        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' build/metadata.json > build/metadata.tmp.json
-        mv build/metadata.tmp.json build/metadata.json
-    fi
-
     # check if a file 'build/metadata.json' exists in the directory
     # if it does, upload it as metadata/v${EC_VERSION}.json
     if [ -f "build/metadata.json" ]; then
