@@ -175,10 +175,18 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 
 func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedclusterv1beta1.Installation, error) {
 	var list embeddedclusterv1beta1.InstallationList
-	if err := cli.List(ctx, &list); err != nil {
+	err := cli.List(ctx, &list)
+	if err != nil {
 		return nil, err
 	}
 	installs := list.Items
+	for i := range installs {
+		install, err := MaybeOverrideInstallationDataDirs(ctx, cli, &installs[i])
+		if err != nil {
+			return nil, fmt.Errorf("override installation data dirs: %w", err)
+		}
+		installs[i] = *install
+	}
 	sort.SliceStable(installs, func(i, j int) bool {
 		return installs[j].Name < installs[i].Name
 	})
@@ -187,11 +195,16 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedcluste
 
 func GetInstallation(ctx context.Context, cli client.Client, name string) (*embeddedclusterv1beta1.Installation, error) {
 	nsn := types.NamespacedName{Name: name}
-	var install embeddedclusterv1beta1.Installation
-	if err := cli.Get(ctx, nsn, &install); err != nil {
+	var install *embeddedclusterv1beta1.Installation
+	err := cli.Get(ctx, nsn, install)
+	if err != nil {
 		return nil, fmt.Errorf("unable to get installation: %w", err)
 	}
-	return &install, nil
+	install, err = MaybeOverrideInstallationDataDirs(ctx, cli, install)
+	if err != nil {
+		return nil, fmt.Errorf("override installation data dirs: %w", err)
+	}
+	return install, nil
 }
 
 func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
@@ -209,6 +222,42 @@ func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclu
 
 	// get the latest installation
 	return &installs[0], nil
+}
+
+const (
+	// AnnotationHasDataDirectories is an annotation on the installation object that indicates that
+	// it was created by an operator that stored information about the location of the data
+	// directories. If this is not set, the operator will update the installation object.
+	AnnotationHasDataDirectories = "embedded-cluster.replicated.com/has-data-directories"
+)
+
+// MaybeOverrideInstallationDataDirs checks if the installation has an annotation indicating that
+// it was created or updated by a version that stored the location of the data directories in the
+// installation object. If it is not set, it will set the annotation and update the installation
+// object with the old location of the data directories.
+func MaybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *embeddedclusterv1beta1.Installation) (*embeddedclusterv1beta1.Installation, error) {
+	previous, err := GetLatestInstallation(ctx, cli)
+	if err != nil {
+		return in, fmt.Errorf("get latest installation: %w", err)
+	}
+
+	if ok := previous.Annotations[AnnotationHasDataDirectories]; ok == "true" {
+		return in, nil
+	}
+	if in.ObjectMeta.Annotations == nil {
+		in.ObjectMeta.Annotations = map[string]string{}
+	}
+	in.ObjectMeta.Annotations[AnnotationHasDataDirectories] = "true"
+
+	if in.Spec.RuntimeConfig == nil {
+		in.Spec.RuntimeConfig = &embeddedclusterv1beta1.RuntimeConfigSpec{}
+	}
+
+	// In prior versions, the data directories are not a subdirectory of /var/lib/embedded-cluster.
+	in.Spec.RuntimeConfig.K0sDataDirOverride = "/var/lib/k0s"
+	in.Spec.RuntimeConfig.OpenEBSDataDirOverride = "/var/openebs"
+
+	return in, nil
 }
 
 func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {
