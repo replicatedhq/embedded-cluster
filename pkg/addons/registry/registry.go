@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -24,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -146,7 +146,7 @@ func (o *Registry) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1
 	}
 
 	if o.isHA && !o.migrationInProgress {
-		seaweedEndpoint, err := registry.GetSeaweedfsS3Endpoint(serviceCIDR)
+		seaweedEndpoint, err := highavailability.GetSeaweedfsS3Endpoint(serviceCIDR)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to get seaweedfs s3 endpoint: %w", err)
 		}
