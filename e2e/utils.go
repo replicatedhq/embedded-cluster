@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 func RequireEnvVars(t *testing.T, envVars []string) {
@@ -71,10 +72,15 @@ func k8sVersionPrevious() string {
 }
 
 func runInParallel(t *testing.T, fns ...func(t *testing.T) error) {
+	runInParallelOffset(t, time.Duration(0), fns...)
+}
+
+func runInParallelOffset(t *testing.T, offset time.Duration, fns ...func(t *testing.T) error) {
 	t.Helper()
 	errCh := make(chan error, len(fns))
-	for _, fn := range fns {
+	for idx, fn := range fns {
 		go func(fn func(t *testing.T) error) {
+			time.Sleep(offset * time.Duration(idx))
 			errCh <- fn(t)
 		}(fn)
 	}
