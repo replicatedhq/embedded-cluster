@@ -190,7 +190,7 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedcluste
 		return installs[j].Name < installs[i].Name
 	})
 	var previous *embeddedclusterv1beta1.Installation
-	for i := range installs {
+	for i := len(installs) - 1; i >= 0; i-- {
 		install, didUpdate, err := MaybeOverrideInstallationDataDirs(installs[i], previous)
 		if err != nil {
 			return nil, fmt.Errorf("override installation data dirs: %w", err)

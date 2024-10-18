@@ -94,7 +94,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            "20230000000000",
-					ResourceVersion: "999",
+					ResourceVersion: "1000",
 				},
 				Spec: embeddedclusterv1beta1.InstallationSpec{
 					Config: &embeddedclusterv1beta1.ConfigSpec{
@@ -212,6 +212,183 @@ func Test_lessThanK0s115(t *testing.T) {
 			if got := lessThanK0s115(tt.args.ver); got != tt.want {
 				t.Errorf("lessThanK0s115() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestGetInstallation(t *testing.T) {
+	scheme := scheme.Scheme
+	embeddedclusterv1beta1.AddToScheme(scheme)
+
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *embeddedclusterv1beta1.Installation
+		wantErr bool
+		objects []client.Object
+	}{
+		{
+			name: "migrates data dirs for previous versions prior to 1.15",
+			args: args{
+				name: "20241002205018",
+			},
+			want: &embeddedclusterv1beta1.Installation{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Installation",
+					APIVersion: "v1beta1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "20241002205018",
+					ResourceVersion: "1000",
+				},
+				Spec: embeddedclusterv1beta1.InstallationSpec{
+					Config: &embeddedclusterv1beta1.ConfigSpec{
+						Version: "1.15.0+k8s-1.29-49-gf92daca6",
+					},
+					RuntimeConfig: &embeddedclusterv1beta1.RuntimeConfigSpec{
+						K0sDataDirOverride:     "/var/lib/k0s",
+						OpenEBSDataDirOverride: "/var/openebs",
+					},
+				},
+			},
+			wantErr: false,
+			objects: []client.Object{
+				&embeddedclusterv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20241002205018",
+					},
+					Spec: embeddedclusterv1beta1.InstallationSpec{
+						Config: &embeddedclusterv1beta1.ConfigSpec{
+							Version: "1.15.0+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+				&embeddedclusterv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20231002205018",
+					},
+					Spec: embeddedclusterv1beta1.InstallationSpec{
+						Config: &embeddedclusterv1beta1.ConfigSpec{
+							Version: "1.14.0+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "does not migrate data dirs for previous version 1.15 or greater",
+			args: args{
+				name: "20241002205018",
+			},
+			want: &embeddedclusterv1beta1.Installation{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Installation",
+					APIVersion: "v1beta1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "20241002205018",
+					ResourceVersion: "999",
+				},
+				Spec: embeddedclusterv1beta1.InstallationSpec{
+					Config: &embeddedclusterv1beta1.ConfigSpec{
+						Version: "1.15.1+k8s-1.29-49-gf92daca6",
+					},
+				},
+			},
+			wantErr: false,
+			objects: []client.Object{
+				&embeddedclusterv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20241002205018",
+					},
+					Spec: embeddedclusterv1beta1.InstallationSpec{
+						Config: &embeddedclusterv1beta1.ConfigSpec{
+							Version: "1.15.1+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+				&embeddedclusterv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20231002205018",
+					},
+					Spec: embeddedclusterv1beta1.InstallationSpec{
+						Config: &embeddedclusterv1beta1.ConfigSpec{
+							Version: "1.15.0+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "does not migrate data dirs if no previous installation",
+			args: args{
+				name: "20241002205018",
+			},
+			want: &embeddedclusterv1beta1.Installation{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Installation",
+					APIVersion: "v1beta1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "20241002205018",
+					ResourceVersion: "999",
+				},
+				Spec: embeddedclusterv1beta1.InstallationSpec{
+					Config: &embeddedclusterv1beta1.ConfigSpec{
+						Version: "1.15.0+k8s-1.29-49-gf92daca6",
+					},
+				},
+			},
+			wantErr: false,
+			objects: []client.Object{
+				&embeddedclusterv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20241002205018",
+					},
+					Spec: embeddedclusterv1beta1.InstallationSpec{
+						Config: &embeddedclusterv1beta1.ConfigSpec{
+							Version: "1.15.0+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+			cli := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.objects...).Build()
+
+			got, err := GetInstallation(context.Background(), cli, tt.args.name)
+			if tt.wantErr {
+				req.Error(err)
+				return
+			}
+			req.NoError(err)
+			req.Equal(tt.want, got)
 		})
 	}
 }
