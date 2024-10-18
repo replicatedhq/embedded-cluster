@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateInstallation(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
+func CreateInstallation(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) error {
 	log := controllerruntime.LoggerFrom(ctx)
 	in := original.DeepCopy()
 
@@ -18,28 +18,23 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 	// if the installation is already created, we can just return
 	if in, err := kubeutils.GetInstallation(ctx, cli, in.Name); err == nil {
 		log.Info(fmt.Sprintf("Installation %s already exists", in.Name))
-		return in, nil
+		return nil
 	}
 	log.Info(fmt.Sprintf("Creating installation %s", in.Name))
 
-	in, err := maybeOverrideInstallationDataDirs(ctx, cli, in)
+	err := cli.Create(ctx, in)
 	if err != nil {
-		return nil, fmt.Errorf("override installation data dirs: %w", err)
-	}
-
-	err = cli.Create(ctx, in)
-	if err != nil {
-		return nil, fmt.Errorf("create installation: %w", err)
+		return fmt.Errorf("create installation: %w", err)
 	}
 
 	err = setInstallationState(ctx, cli, in.Name, clusterv1beta1.InstallationStateInstalling, "Upgrading Kubernetes via job", "")
 	if err != nil {
-		return nil, fmt.Errorf("update installation status: %w", err)
+		return fmt.Errorf("update installation status: %w", err)
 	}
 
 	log.Info("Installation created")
 
-	return in, nil
+	return nil
 }
 
 // setInstallationState gets the installation object of the given name and sets the state to the given state.
@@ -76,7 +71,7 @@ func reApplyInstallation(ctx context.Context, cli client.Client, in *clusterv1be
 }
 
 func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
-	previous, err := kubeutils.GetLatestInstallation(ctx, cli)
+	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
 	if err != nil {
 		return in, fmt.Errorf("get latest installation: %w", err)
 	}

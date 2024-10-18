@@ -30,7 +30,14 @@ const (
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	err := clusterConfigUpdate(ctx, cli, in)
+	// Augment the installation with data dirs that may not be present in the previous version.
+	// We still cannot update the installation object as the CRDs are not updated yet.
+	in, err := maybeOverrideInstallationDataDirs(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("override installation data dirs: %w", err)
+	}
+
+	err = clusterConfigUpdate(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
 	}
