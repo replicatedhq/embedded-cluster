@@ -135,9 +135,8 @@ var joinCommand = &cli.Command{
 	},
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:   "airgap-bundle",
-			Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
-			Hidden: true,
+			Name:  "airgap-bundle",
+			Usage: "Path to the air gap bundle. If set, the installation will complete without internet access.",
 		},
 		&cli.BoolFlag{
 			Name:   "enable-ha",
