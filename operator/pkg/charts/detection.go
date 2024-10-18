@@ -102,18 +102,15 @@ func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts
 					return nil, nil, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
 				}
 				if valuesDiff {
-					fmt.Printf("Chart %s values differ from the current values\n", chart.Name)
 					diffDetected = true
 				}
 
 				// if the spec's HashValues does not match the status's ValuesHash, the chart is currently being applied with the new values
 				if installedChart.Spec.HashValues() != installedChart.Status.ValuesHash {
-					fmt.Printf("Chart %s is currently being applied with new values, waiting for hash %q\n", chart.Name, installedChart.Spec.HashValues())
 					diffDetected = true
 				}
 
 				if installedChart.Status.Version != chart.Version {
-					fmt.Printf("Chart %s version is different from the current version\n", chart.Name)
 					diffDetected = true
 				}
 
