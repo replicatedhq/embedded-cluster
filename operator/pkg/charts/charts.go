@@ -91,8 +91,6 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 		return nil, fmt.Errorf("unable to parse cluster ID: %w", err)
 	}
 	metrics.SetClusterID(clusterUUID)
-	// set the binary name for the operator chart to use
-	defaults.SetBinaryName(in.Spec.BinaryName)
 
 	// determine the images to use for the operator chart
 	ecOperatorImage := ""
@@ -139,7 +137,7 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 		addons.WithAirgap(in.Spec.AirGap),
 		addons.WithHA(in.Spec.HighAvailability),
 		addons.WithHAMigrationInProgress(migrationStatus == metav1.ConditionFalse),
-		// TODO add more
+		addons.WithBinaryNameOverride(in.Spec.BinaryName),
 	}
 	if in.Spec.LicenseInfo != nil {
 		opts = append(opts,

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/gosimple/slug"
@@ -26,33 +25,17 @@ const SeaweedFSNamespace = "seaweedfs"
 const RegistryNamespace = "registry"
 const VeleroNamespace = "velero"
 
-var binaryNameLock sync.Mutex
-var binaryName string
-
 // BinaryName returns the binary name, this is useful for places where we
 // need to present the name of the binary to the user (the name may vary if
 // the binary is renamed). We make sure the name does not contain invalid
 // characters for a filename.
 func BinaryName() string {
-	binaryNameLock.Lock()
-	defer binaryNameLock.Unlock()
-	if binaryName != "" {
-		return binaryName
-	}
-
 	exe, err := os.Executable()
 	if err != nil {
 		logrus.Fatalf("unable to get executable path: %s", err)
 	}
 	base := filepath.Base(exe)
-	binaryName = slug.Make(base)
-	return binaryName
-}
-
-func SetBinaryName(name string) {
-	binaryNameLock.Lock()
-	defer binaryNameLock.Unlock()
-	binaryName = name
+	return slug.Make(base)
 }
 
 // EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs

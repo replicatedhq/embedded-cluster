@@ -56,6 +56,7 @@ type Applier struct {
 	runtimeConfig           *ecv1beta1.RuntimeConfigSpec
 	isHA                    bool
 	isHAMigrationInProgress bool
+	binaryNameOverride      string
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -298,6 +299,7 @@ func (a *Applier) load() ([]AddOn, error) {
 		a.proxyEnv,
 		a.privateCAs,
 		a.runtimeConfig,
+		a.binaryNameOverride,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create embedded cluster operator addon: %w", err)

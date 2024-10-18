@@ -119,3 +119,9 @@ func WithHAMigrationInProgress(isHAMigrationInProgress bool) Option {
 		a.isHAMigrationInProgress = isHAMigrationInProgress
 	}
 }
+
+func WithBinaryNameOverride(name string) Option {
+	return func(a *Applier) {
+		a.binaryNameOverride = name
+	}
+}

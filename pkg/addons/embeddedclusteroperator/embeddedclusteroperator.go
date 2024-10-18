@@ -83,6 +83,7 @@ type EmbeddedClusterOperator struct {
 	airgap        bool
 	proxyEnv      map[string]string
 	privateCAs    map[string]string
+	binaryName    string
 }
 
 // Version returns the version of the embedded cluster operator chart.
@@ -121,7 +122,7 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(provider *defaults.Provider
 	}
 
 	if !onlyDefaults {
-		helmValues["embeddedBinaryName"] = defaults.BinaryName() // TODO make this configurable
+		helmValues["embeddedBinaryName"] = e.binaryName
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if len(e.proxyEnv) > 0 {
 			extraEnv := []map[string]interface{}{}
@@ -279,7 +280,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 			Config:                    cfgspec,
 			RuntimeConfig:             e.runtimeConfig,
 			EndUserK0sConfigOverrides: euOverrides,
-			BinaryName:                defaults.BinaryName(),
+			BinaryName:                e.binaryName,
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(e.license),
 			},
@@ -309,7 +310,11 @@ func New(
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
 	runtimeConfig *ecv1beta1.RuntimeConfigSpec,
+	binaryNameOverride string,
 ) (*EmbeddedClusterOperator, error) {
+	if binaryNameOverride == "" {
+		binaryNameOverride = defaults.BinaryName()
+	}
 	return &EmbeddedClusterOperator{
 		namespace:     "embedded-cluster",
 		deployName:    "embedded-cluster-operator",
@@ -319,6 +324,7 @@ func New(
 		proxyEnv:      proxyEnv,
 		privateCAs:    privateCAs,
 		runtimeConfig: runtimeConfig,
+		binaryName:    binaryNameOverride,
 	}, nil
 }
 
