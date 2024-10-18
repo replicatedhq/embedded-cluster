@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"os/exec"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 var (
@@ -27,6 +30,10 @@ type k0sVars struct {
 
 // getK0sStatus returns the status of the k0s service.
 func getK0sStatus(ctx context.Context) (*k0sStatus, error) {
+	if _, err := os.Stat(k0s); err != nil {
+		return nil, fmt.Errorf("%s does not seem to be installed on this node", defaults.BinaryName())
+	}
+
 	// get k0s status json
 	out, err := exec.CommandContext(ctx, k0s, "status", "-o", "json").Output()
 	if err != nil {
