@@ -68,15 +68,3 @@ func reApplyInstallation(ctx context.Context, cli client.Client, in *clusterv1be
 
 	return nil
 }
-
-func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
-	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
-	if err != nil {
-		return in, fmt.Errorf("get latest installation: %w", err)
-	}
-	next, _, err := kubeutils.MaybeOverrideInstallationDataDirs(*in, previous)
-	if err != nil {
-		return in, fmt.Errorf("override installation data dirs: %w", err)
-	}
-	return &next, nil
-}

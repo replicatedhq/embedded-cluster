@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -74,6 +75,18 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 	}
 
 	return nil
+}
+
+func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
+	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
+	if err != nil {
+		return in, fmt.Errorf("get latest installation: %w", err)
+	}
+	next, _, err := kubeutils.MaybeOverrideInstallationDataDirs(*in, previous)
+	if err != nil {
+		return in, fmt.Errorf("override installation data dirs: %w", err)
+	}
+	return &next, nil
 }
 
 func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
