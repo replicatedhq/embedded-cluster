@@ -284,9 +284,6 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(e.license),
 			},
 		},
-		Status: ecv1beta1.InstallationStatus{
-			State: ecv1beta1.InstallationStateKubernetesInstalled,
-		},
 	}
 	if err := cli.Create(ctx, &installation); err != nil {
 		return fmt.Errorf("unable to create installation: %w", err)
