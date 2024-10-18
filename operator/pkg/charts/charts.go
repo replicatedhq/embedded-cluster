@@ -239,10 +239,6 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 			}
 		}
 		if chart.Name == "docker-registry" {
-			if !in.Spec.AirGap {
-				continue
-			}
-
 			newVals, err := helm.UnmarshalValues(chart.Values)
 			if err != nil {
 				return nil, fmt.Errorf("unmarshal docker-registry.values: %w", err)
@@ -279,10 +275,6 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 			}
 		}
 		if chart.Name == "seaweedfs" {
-			if !in.Spec.AirGap || !in.Spec.HighAvailability {
-				continue
-			}
-
 			newVals, err := helm.UnmarshalValues(chart.Values)
 			if err != nil {
 				return nil, fmt.Errorf("unmarshal seaweedfs.values: %w", err)
