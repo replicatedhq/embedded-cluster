@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"k8s.io/apimachinery/pkg/types"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 )
 
 func CreateInstallation(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) error {
@@ -27,7 +25,7 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 	}
 	log.Info(fmt.Sprintf("Creating installation %s", in.Name))
 
-	in, err := maybeOverrideInstallationDataDirs(ctx, cli, in)
+	in, err := kubeutils.MaybeOverrideInstallationDataDirs(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("override installation data dirs: %w", err)
 	}
@@ -78,33 +76,4 @@ func reApplyInstallation(ctx context.Context, cli client.Client, in *clusterv1be
 	}
 
 	return nil
-}
-
-// maybeOverrideInstallationDataDirs checks if the installation has an annotation indicating that
-// it was created or updated by a version that stored the location of the data directories in the
-// installation object. If it is not set, it will set the annotation and update the installation
-// object with the old location of the data directories.
-func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
-	previous, err := kubeutils.GetLatestInstallation(ctx, cli)
-	if err != nil {
-		return in, fmt.Errorf("get latest installation: %w", err)
-	}
-
-	if ok := previous.Annotations[embeddedclusteroperator.AnnotationHasDataDirectories]; ok == "true" {
-		return in, nil
-	}
-	if in.ObjectMeta.Annotations == nil {
-		in.ObjectMeta.Annotations = map[string]string{}
-	}
-	in.ObjectMeta.Annotations[embeddedclusteroperator.AnnotationHasDataDirectories] = "true"
-
-	if in.Spec.RuntimeConfig == nil {
-		in.Spec.RuntimeConfig = &clusterv1beta1.RuntimeConfigSpec{}
-	}
-
-	// In prior versions, the data directories are not a subdirectory of /var/lib/embedded-cluster.
-	in.Spec.RuntimeConfig.K0sDataDirOverride = "/var/lib/k0s"
-	in.Spec.RuntimeConfig.OpenEBSDataDirOverride = "/var/openebs"
-
-	return in, nil
 }
