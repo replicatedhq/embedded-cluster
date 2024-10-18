@@ -291,7 +291,7 @@ s3:
   bucket: registry
   encrypt: false
   region: us-east-1
-  regionEndpoint: DYNAMIC
+  regionEndpoint: 10.96.0.12:8333
   rootdirectory: /registry
   secure: false
 secrets:

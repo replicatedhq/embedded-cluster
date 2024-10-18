@@ -150,6 +150,19 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 	a := addons.NewApplier(
 		opts...,
 	)
+
+	if in.Spec.Network != nil {
+		if clusterConfig.Spec == nil {
+			clusterConfig.Spec = &k0sv1beta1.ClusterSpec{}
+		}
+		if clusterConfig.Spec.Network == nil {
+			clusterConfig.Spec.Network = &k0sv1beta1.Network{}
+		}
+		clusterConfig.Spec.Network.PodCIDR = in.Spec.Network.PodCIDR
+		clusterConfig.Spec.Network.ServiceCIDR = in.Spec.Network.ServiceCIDR
+		fmt.Printf("Generating helm configs with network config %+v\n", clusterConfig.Spec.Network)
+	}
+
 	charts, repos, err := a.GenerateHelmConfigs(clusterConfig, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate helm configs: %w", err)

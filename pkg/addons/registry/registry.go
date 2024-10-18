@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -142,6 +143,15 @@ func (o *Registry) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1
 	}
 	values["service"] = map[string]interface{}{
 		"clusterIP": registryServiceIP.String(),
+	}
+
+	if o.isHA && !o.migrationInProgress {
+		seaweedEndpoint, err := registry.GetSeaweedfsS3Endpoint(serviceCIDR)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to get seaweedfs s3 endpoint: %w", err)
+		}
+
+		values["s3"].(map[string]interface{})["regionEndpoint"] = seaweedEndpoint
 	}
 
 	valuesStringData, err := yaml.Marshal(values)
