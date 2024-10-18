@@ -8,6 +8,7 @@ const (
 	DefaultDataDir                 = "/var/lib/embedded-cluster"
 	DefaultAdminConsolePort        = 30000
 	DefaultLocalArtifactMirrorPort = 50000
+	DefaultNetworkCIDR             = "10.244.0.0/16"
 )
 
 // RuntimeConfigSpec defines the configuration for the Embedded Cluster at runtime.
