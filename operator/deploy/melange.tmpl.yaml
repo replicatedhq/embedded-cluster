@@ -18,6 +18,7 @@ environment:
       - go
   environment:
     GOMODCACHE: /var/cache/melange
+    VERSION: ${PACKAGE_VERSION}
 
 pipeline:
   - runs: |

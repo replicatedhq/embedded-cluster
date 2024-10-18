@@ -563,6 +563,7 @@ func installAndWaitForK0s(c *cli.Context, provider *defaults.Provider, applier *
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
+
 	loading.Infof("Node installation finished!")
 	return cfg, nil
 }
@@ -799,13 +800,19 @@ func getAddonsApplier(c *cli.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec
 		opts = append(opts, addons.WithoutPrompt())
 	}
 	if l := c.String("license"); l != "" {
-		opts = append(opts, addons.WithLicense(l))
+		license, err := helpers.ParseLicense(l)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse license: %w", err)
+		}
+
+		opts = append(opts, addons.WithLicense(license))
+		opts = append(opts, addons.WithLicenseFile(l))
 	}
 	if ab := c.String("airgap-bundle"); ab != "" {
 		opts = append(opts, addons.WithAirgapBundle(ab))
 	}
 	if proxy != nil {
-		opts = append(opts, addons.WithProxy(proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy))
+		opts = append(opts, addons.WithProxy(proxy))
 	}
 	if c.String("overrides") != "" {
 		eucfg, err := helpers.ParseEndUserConfig(c.String("overrides"))

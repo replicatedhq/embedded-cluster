@@ -288,7 +288,7 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 					}
 				}
 			}
-			return readynodes == len(nodes.Items), nil
+			return readynodes == len(nodes.Items) && len(nodes.Items) > 0, nil
 		},
 	); err != nil {
 		if lasterr != nil {

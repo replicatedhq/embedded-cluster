@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -56,7 +57,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
+	Render()
+}
 
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
@@ -72,9 +76,10 @@ func init() {
 
 // Registry manages the installation of the Registry helm chart.
 type Registry struct {
-	namespace string
-	isAirgap  bool
-	isHA      bool
+	namespace           string
+	isAirgap            bool
+	isHA                bool
+	migrationInProgress bool
 }
 
 // Version returns the version of the Registry chart.
@@ -115,7 +120,7 @@ func (o *Registry) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1
 	}
 
 	var values map[string]interface{}
-	if o.isHA {
+	if o.isHA && !o.migrationInProgress {
 		values = helmValuesHA
 	} else {
 		values = helmValues
@@ -138,6 +143,15 @@ func (o *Registry) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1
 	}
 	values["service"] = map[string]interface{}{
 		"clusterIP": registryServiceIP.String(),
+	}
+
+	if o.isHA && !o.migrationInProgress {
+		seaweedEndpoint, err := highavailability.GetSeaweedfsS3Endpoint(serviceCIDR)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to get seaweedfs s3 endpoint: %w", err)
+		}
+
+		values["s3"].(map[string]interface{})["regionEndpoint"] = seaweedEndpoint
 	}
 
 	valuesStringData, err := yaml.Marshal(values)
@@ -359,8 +373,8 @@ func (o *Registry) Outro(ctx context.Context, provider *defaults.Provider, cli c
 }
 
 // New creates a new Registry addon.
-func New(namespace string, isAirgap bool, isHA bool) (*Registry, error) {
-	return &Registry{namespace: namespace, isAirgap: isAirgap, isHA: isHA}, nil
+func New(namespace string, isAirgap bool, isHA bool, migrationInProgress bool) (*Registry, error) {
+	return &Registry{namespace: namespace, isAirgap: isAirgap, isHA: isHA, migrationInProgress: migrationInProgress}, nil
 }
 
 func GetRegistryPassword() string {

@@ -895,7 +895,7 @@ func PullImage(in *ClusterInput, image string) {
 func (c *Cluster) RunCommandsOnNode(node int, cmds [][]string, envs ...map[string]string) error {
 	for _, cmd := range cmds {
 		cmdstr := strings.Join(cmd, " ")
-		c.T.Logf("running `%s` node %d", cmdstr, node)
+		c.T.Logf("%s running `%s` node %d", time.Now().Format(time.RFC3339), cmdstr, node)
 		_, _, err := c.RunCommandOnNode(node, cmd, envs...)
 		if err != nil {
 			return err

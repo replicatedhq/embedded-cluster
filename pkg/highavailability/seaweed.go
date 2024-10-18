@@ -26,7 +26,6 @@ const (
 	seaweedfsS3SVCName = "ec-seaweedfs-s3"
 
 	// seaweedfsLowerBandIPIndex is the index of the seaweedfs service IP in the service CIDR.
-	// HACK: this is shared with the cli and operator as it is used by the registry to redirect requests for blobs.
 	seaweedfsLowerBandIPIndex = 11
 
 	// seaweedfsS3SecretName is the name of the Seaweedfs secret.
@@ -192,6 +191,14 @@ func applySeaweedFSLabels(labels map[string]string, component string) map[string
 	labels["app.kubernetes.io/part-of"] = "embedded-cluster"
 	labels["app.kubernetes.io/managed-by"] = "embedded-cluster-operator"
 	return labels
+}
+
+func GetSeaweedfsS3Endpoint(serviceCIDR string) (string, error) {
+	ip, err := getSeaweedfsS3ServiceIP(serviceCIDR)
+	if err != nil {
+		return "", fmt.Errorf("get seaweedfs s3 service IP: %w", err)
+	}
+	return fmt.Sprintf("%s:8333", ip), nil
 }
 
 func getSeaweedfsS3ServiceIP(serviceCIDR string) (string, error) {
