@@ -87,7 +87,7 @@ func WithProxy(proxy *ecv1beta1.ProxySpec) Option {
 	proxyEnv := map[string]string{
 		"HTTP_PROXY":  proxy.HTTPProxy,
 		"HTTPS_PROXY": proxy.HTTPSProxy,
-		"NO_PROXY":    proxy.ProvidedNoProxy,
+		"NO_PROXY":    proxy.NoProxy,
 	}
 
 	return func(a *Applier) {

@@ -74,6 +74,28 @@ kotsVersion: 1.2.3-admin-console
 utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
 `
 
+const test_proxyOperatorValues = `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: 1.2.3-operator
+extraEnv:
+- name: HTTP_PROXY
+  value: http://proxy
+- name: HTTPS_PROXY
+  value: https://proxy
+- name: NO_PROXY
+  value: test.proxy,1.2.3.4
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
+kotsVersion: 1.2.3-admin-console
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
+`
+
 const test_overriddenOperatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
@@ -179,6 +201,40 @@ images:
   rqlite: ':'
 isAirgap: "true"
 isHA: true
+isHelmManaged: false
+kurlProxy:
+  enabled: true
+  nodePort: 30000
+labels:
+  replicated.com/disaster-recovery: infra
+  replicated.com/disaster-recovery-chart: admin-console
+minimalRBAC: false
+passwordSecretRef:
+  key: passwordBcrypt
+  name: kotsadm-password
+privateCAs:
+  configmapName: kotsadm-private-cas
+  enabled: true
+service:
+  enabled: false
+`
+
+const test_proxyAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterVersion: 1.2.3-operator
+extraEnv:
+- name: HTTP_PROXY
+  value: http://proxy
+- name: HTTPS_PROXY
+  value: https://proxy
+- name: NO_PROXY
+  value: test.proxy,1.2.3.4
+images:
+  kotsadm: ':'
+  kurlProxy: ':'
+  migrations: ':'
+  rqlite: ':'
+isAirgap: "false"
+isHA: false
 isHelmManaged: false
 kurlProxy:
   enabled: true
@@ -473,6 +529,7 @@ func Test_generateHelmConfigs(t *testing.T) {
 		highAvailability bool
 		disasterRecovery bool
 		operatorLocation string
+		proxy            *v1beta1.ProxySpec
 		want             *v1beta1.Helm
 	}{
 		{
@@ -845,6 +902,70 @@ func Test_generateHelmConfigs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:             "online non-ha no-velero with-proxy",
+			airgap:           false,
+			highAvailability: false,
+			disasterRecovery: false,
+			proxy: &v1beta1.ProxySpec{
+				HTTPProxy:  "http://proxy",
+				HTTPSProxy: "https://proxy",
+				NoProxy:    "test.proxy,1.2.3.4",
+			},
+			args: args{
+				in: v1beta1.Extensions{
+					Helm: &v1beta1.Helm{
+						ConcurrencyLevel: 2,
+						Repositories:     nil,
+						Charts: []v1beta1.Chart{
+							{
+								Name:    "test",
+								Version: "1.0.0",
+								Order:   20,
+							},
+						},
+					},
+				},
+			},
+			want: &v1beta1.Helm{
+				ConcurrencyLevel: 1,
+				Repositories:     nil,
+				Charts: []v1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Order:   120,
+					},
+					{
+						Name:         "openebs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:      "1.2.3-openebs",
+						Values:       test_openebsValues,
+						TargetNS:     "openebs",
+						ForceUpgrade: ptr.To(false),
+						Order:        101,
+					},
+					{
+						Name:         "embedded-cluster-operator",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:      "1.2.3-operator",
+						Values:       test_proxyOperatorValues,
+						TargetNS:     "embedded-cluster",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:         "admin-console",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:      "1.2.3-admin-console",
+						Values:       test_proxyAdminConsoleValues,
+						TargetNS:     "kotsadm",
+						ForceUpgrade: ptr.To(false),
+						Order:        105,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -861,6 +982,7 @@ func Test_generateHelmConfigs(t *testing.T) {
 					},
 					ClusterID:  "e79f0701-67f3-4abf-a672-42a1f3ed231b",
 					BinaryName: "test-binary-name",
+					Proxy:      tt.proxy,
 				},
 				Status: v1beta1.InstallationStatus{
 					Conditions: tt.args.conditions,

@@ -125,13 +125,15 @@ func (e *EmbeddedClusterOperator) GenerateHelmConfig(provider *defaults.Provider
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if len(e.proxyEnv) > 0 {
 			extraEnv := []map[string]interface{}{}
-			for k, v := range e.proxyEnv {
+			for _, k := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
 				extraEnv = append(extraEnv, map[string]interface{}{
 					"name":  k,
-					"value": v,
+					"value": e.proxyEnv[k],
 				})
 			}
 			helmValues["extraEnv"] = extraEnv
+		} else {
+			delete(helmValues, "extraEnv")
 		}
 	}
 

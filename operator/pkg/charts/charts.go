@@ -212,23 +212,6 @@ func patchExtensionsForAirGap(in *clusterv1beta1.Installation, config *v1beta1.H
 	return config
 }
 
-func getExtraEnvFromProxy(httpProxy string, httpsProxy string, noProxy string) []map[string]interface{} {
-	extraEnv := []map[string]interface{}{}
-	extraEnv = append(extraEnv, map[string]interface{}{
-		"name":  "HTTP_PROXY",
-		"value": httpProxy,
-	})
-	extraEnv = append(extraEnv, map[string]interface{}{
-		"name":  "HTTPS_PROXY",
-		"value": httpsProxy,
-	})
-	extraEnv = append(extraEnv, map[string]interface{}{
-		"name":  "NO_PROXY",
-		"value": noProxy,
-	})
-	return extraEnv
-}
-
 func operatorLocation(meta *types.ReleaseMetadata) (string, error) {
 	// search through for the operator chart, and find the location
 	for _, chart := range meta.Configs.Charts {

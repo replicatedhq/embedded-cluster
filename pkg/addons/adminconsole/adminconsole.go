@@ -128,18 +128,18 @@ func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k
 		} else {
 			helmValues["isAirgap"] = "false"
 		}
-		if a.isHA {
-			helmValues["isHA"] = true
-		}
+		helmValues["isHA"] = a.isHA
 		if len(a.proxyEnv) > 0 {
 			extraEnv := []map[string]interface{}{}
-			for k, v := range a.proxyEnv {
+			for _, k := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
 				extraEnv = append(extraEnv, map[string]interface{}{
 					"name":  k,
-					"value": v,
+					"value": a.proxyEnv[k],
 				})
 			}
 			helmValues["extraEnv"] = extraEnv
+		} else {
+			delete(helmValues, "extraEnv")
 		}
 
 		var err error
