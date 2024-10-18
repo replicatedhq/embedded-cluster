@@ -46,7 +46,7 @@ func UpgradeCmd() *cobra.Command {
 			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
 
 			// create the installation object so that kotsadm can immediately find it and watch it for the upgrade process
-			err = upgrade.CreateInstallation(cmd.Context(), cli, in)
+			in, err = upgrade.CreateInstallation(cmd.Context(), cli, in)
 			if err != nil {
 				return fmt.Errorf("apply installation: %w", err)
 			}

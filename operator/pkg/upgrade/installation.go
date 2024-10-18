@@ -10,39 +10,36 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateInstallation(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) error {
+func CreateInstallation(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
 	log := controllerruntime.LoggerFrom(ctx)
 	in := original.DeepCopy()
 
 	// check if the installation already exists - this function can be called multiple times
 	// if the installation is already created, we can just return
-	if _, err := kubeutils.GetInstallation(ctx, cli, in.Name); err == nil {
+	if in, err := kubeutils.GetInstallation(ctx, cli, in.Name); err == nil {
 		log.Info(fmt.Sprintf("Installation %s already exists", in.Name))
-		return nil
+		return in, nil
 	}
 	log.Info(fmt.Sprintf("Creating installation %s", in.Name))
 
-	if in.ObjectMeta.Annotations == nil {
-		in.ObjectMeta.Annotations = map[string]string{}
-	}
 	in, err := maybeOverrideInstallationDataDirs(ctx, cli, in)
 	if err != nil {
-		return fmt.Errorf("override installation data dirs: %w", err)
+		return nil, fmt.Errorf("override installation data dirs: %w", err)
 	}
 
 	err = cli.Create(ctx, in)
 	if err != nil {
-		return fmt.Errorf("create installation: %w", err)
+		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
 	err = setInstallationState(ctx, cli, in.Name, clusterv1beta1.InstallationStateInstalling, "Upgrading Kubernetes via job", "")
 	if err != nil {
-		return fmt.Errorf("update installation status: %w", err)
+		return nil, fmt.Errorf("update installation status: %w", err)
 	}
 
 	log.Info("Installation created")
 
-	return nil
+	return in, nil
 }
 
 // setInstallationState gets the installation object of the given name and sets the state to the given state.
