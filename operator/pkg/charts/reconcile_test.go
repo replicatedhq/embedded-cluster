@@ -70,6 +70,33 @@ func TestReconcileHelmCharts(t *testing.T) {
 			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "No images available"},
 		},
 		{
+			name: "no operator location",
+			in: v1beta1.Installation{
+				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
+				Spec: v1beta1.InstallationSpec{
+					Config: &v1beta1.ConfigSpec{
+						Version: "goodver",
+					},
+					BinaryName: "test-binary-name",
+				},
+			},
+			releaseMeta: ectypes.ReleaseMetadata{
+				Images: []string{},
+			},
+			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "failed to get helm charts from installation: get operator location: no embedded-cluster-operator chart found in release metadata"},
+			fields: fields{
+				State: []runtime.Object{
+					&k0sv1beta1.ClusterConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "k0s",
+							Namespace: "kube-system",
+						},
+						Spec: &k0sv1beta1.ClusterSpec{},
+					},
+				},
+			},
+		},
+		{
 			name: "no uuid",
 			in: v1beta1.Installation{
 				Status: v1beta1.InstallationStatus{State: v1beta1.InstallationStateKubernetesInstalled},
@@ -82,6 +109,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
 				Images: []string{},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
+				},
 			},
 			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "failed to get helm charts from installation: merge helm configs: unable to parse cluster ID: invalid UUID length: 0"},
 			fields: fields{
@@ -110,6 +145,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 			},
 			releaseMeta: ectypes.ReleaseMetadata{
 				Images: []string{},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
+				},
 			},
 			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "failed to get helm charts from installation: merge helm configs: no embedded-cluster-operator-image found in images"},
 			fields: fields{
@@ -155,6 +198,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
 				},
 			},
 			fields: fields{
@@ -267,6 +318,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
 				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
+				},
 			},
 			fields: fields{
 				State: []runtime.Object{
@@ -367,6 +426,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
 				},
 			},
 			fields: fields{
@@ -474,6 +541,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
 				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
+				},
 			},
 			fields: fields{
 				State: []runtime.Object{
@@ -522,6 +597,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
 				},
 			},
 			fields: fields{
@@ -619,6 +702,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
 				},
 			},
 			fields: fields{
@@ -747,6 +838,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
 				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
+				},
 			},
 			fields: fields{
 				State: []runtime.Object{
@@ -853,6 +952,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
 				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
+				},
 			},
 			fields: fields{
 				State: []runtime.Object{
@@ -940,6 +1047,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
 				},
 			},
 			fields: fields{
@@ -1030,6 +1145,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
 				},
 			},
 			fields: fields{
@@ -1134,6 +1257,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 					"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
 					"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
 					"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				},
+				Configs: v1beta1.Helm{
+					Charts: []v1beta1.Chart{
+						{
+							Name:      "embedded-cluster-operator",
+							ChartName: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						},
+					},
 				},
 			},
 			fields: fields{

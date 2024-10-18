@@ -472,6 +472,7 @@ func Test_generateHelmConfigs(t *testing.T) {
 		airgap           bool
 		highAvailability bool
 		disasterRecovery bool
+		operatorLocation string
 		want             *v1beta1.Helm
 	}{
 		{
@@ -515,6 +516,66 @@ func Test_generateHelmConfigs(t *testing.T) {
 					{
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
+						Version:      "1.2.3-operator",
+						Values:       test_operatorValues,
+						TargetNS:     "embedded-cluster",
+						ForceUpgrade: ptr.To(false),
+						Order:        103,
+					},
+					{
+						Name:         "admin-console",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console",
+						Version:      "1.2.3-admin-console",
+						Values:       test_onlineAdminConsoleValues,
+						TargetNS:     "kotsadm",
+						ForceUpgrade: ptr.To(false),
+						Order:        105,
+					},
+				},
+			},
+		},
+		{
+			name:             "online non-ha no-velero different operator location",
+			operatorLocation: "test-operator-location",
+			airgap:           false,
+			highAvailability: false,
+			disasterRecovery: false,
+			args: args{
+				in: v1beta1.Extensions{
+					Helm: &v1beta1.Helm{
+						ConcurrencyLevel: 2,
+						Repositories:     nil,
+						Charts: []v1beta1.Chart{
+							{
+								Name:    "test",
+								Version: "1.0.0",
+								Order:   20,
+							},
+						},
+					},
+				},
+			},
+			want: &v1beta1.Helm{
+				ConcurrencyLevel: 1,
+				Repositories:     nil,
+				Charts: []v1beta1.Chart{
+					{
+						Name:    "test",
+						Version: "1.0.0",
+						Order:   120,
+					},
+					{
+						Name:         "openebs",
+						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/openebs",
+						Version:      "1.2.3-openebs",
+						Values:       test_openebsValues,
+						TargetNS:     "openebs",
+						ForceUpgrade: ptr.To(false),
+						Order:        101,
+					},
+					{
+						Name:         "embedded-cluster-operator",
+						ChartName:    "test-operator-location",
 						Version:      "1.2.3-operator",
 						Values:       test_operatorValues,
 						TargetNS:     "embedded-cluster",
@@ -807,13 +868,18 @@ func Test_generateHelmConfigs(t *testing.T) {
 			}
 
 			images := []string{
-				"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",
-				"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",
-				"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
+				"abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0",                                    // the utils image is needed
+				"docker.io/replicated/another-image:latest-arm64@sha256:a9ab9db181f9898283a87be0f79d85cb8f3d22a790b71f52c8a9d339e225dedd",                   // this image is here to ensure we're actually searching
+				"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8", // this operator image is needed
+			}
+
+			ol := "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator"
+			if tt.operatorLocation != "" {
+				ol = tt.operatorLocation
 			}
 
 			req := require.New(t)
-			got, err := generateHelmConfigs(context.TODO(), &installation, images, &tt.args.clusterConfig)
+			got, err := generateHelmConfigs(context.TODO(), &installation, &tt.args.clusterConfig, images, ol)
 			req.NoError(err)
 			req.Equal(tt.want, got)
 		})

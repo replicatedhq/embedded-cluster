@@ -196,11 +196,6 @@ ifdef REGISTRY_SERVER
 			--arch $(ARCH) \
 	> build/digest
 else
-	# edit ../pkg/addons/embeddedclusteroperator/static/metadata.yaml to change the chart remote to match this
-	# there is a line starting with 'location:' that needs to be changed
-	mv ../pkg/addons/embeddedclusteroperator/static/metadata.yaml ../pkg/addons/embeddedclusteroperator/static/metadata.yaml.bak
-	sed 's|location: .*|location: oci://proxy.replicated.com/anonymous/ttl.sh/$(CURRENT_USER)/embedded-cluster-operator|g' ../pkg/addons/embeddedclusteroperator/static/metadata.yaml.bak > ../pkg/addons/embeddedclusteroperator/static/metadata.yaml
-	rm ../pkg/addons/embeddedclusteroperator/static/metadata.yaml.bak
 	dagger call \
 		publish-operator-image \
 			--ec-version $(PACKAGE_VERSION) \

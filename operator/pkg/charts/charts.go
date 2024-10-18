@@ -10,6 +10,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -30,10 +31,15 @@ const (
 // charts and repositories from the installation spec.
 func K0sHelmExtensionsFromInstallation(
 	ctx context.Context, in *clusterv1beta1.Installation,
-	images []string,
+	meta *types.ReleaseMetadata,
 	clusterConfig *k0sv1beta1.ClusterConfig,
 ) (*v1beta1.Helm, error) {
-	combinedConfigs, err := generateHelmConfigs(ctx, in, images, clusterConfig)
+	ol, err := operatorLocation(meta)
+	if err != nil {
+		return nil, fmt.Errorf("get operator location: %w", err)
+	}
+
+	combinedConfigs, err := generateHelmConfigs(ctx, in, clusterConfig, meta.Images, ol)
 	if err != nil {
 		return nil, fmt.Errorf("merge helm configs: %w", err)
 	}
@@ -54,7 +60,7 @@ func K0sHelmExtensionsFromInstallation(
 }
 
 // generate the helm configs for the cluster, with the default charts from data compiled into the binary and the additional user provided charts
-func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, images []string, clusterConfig *k0sv1beta1.ClusterConfig) (*v1beta1.Helm, error) {
+func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig, images []string, operatorLocation string) (*v1beta1.Helm, error) {
 	if in == nil {
 		return nil, fmt.Errorf("installation not found")
 	}
@@ -122,6 +128,7 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, i
 			},
 		},
 	}
+	embeddedclusteroperator.Metadata.Location = operatorLocation
 	embeddedclusteroperator.Render()
 
 	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
@@ -207,4 +214,14 @@ func getExtraEnvFromProxy(httpProxy string, httpsProxy string, noProxy string) [
 		"value": noProxy,
 	})
 	return extraEnv
+}
+
+func operatorLocation(meta *types.ReleaseMetadata) (string, error) {
+	// search through for the operator chart, and find the location
+	for _, chart := range meta.Configs.Charts {
+		if chart.Name == "embedded-cluster-operator" {
+			return chart.ChartName, nil
+		}
+	}
+	return "", fmt.Errorf("no embedded-cluster-operator chart found in release metadata")
 }
