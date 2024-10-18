@@ -989,10 +989,10 @@ func (c *Cluster) InstallTestDependenciesDebian(t *testing.T, node int, withProx
 }
 
 func (c *Cluster) Cleanup(envs ...map[string]string) {
-	if c.T.Failed() {
-		c.generateSupportBundle(envs...)
-		c.copyPlaywrightReport()
-	}
+	// if c.T.Failed() {
+	c.generateSupportBundle(envs...)
+	c.copyPlaywrightReport()
+	// }
 }
 
 func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
