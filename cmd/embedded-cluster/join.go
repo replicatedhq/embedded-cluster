@@ -232,10 +232,12 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
+		privateCAs := getPrivateCAPaths(c)
+
 		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
+		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, privateCAs); err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			if err == ErrPreflightsHaveFail {
 				return ErrNothingElseToAdd

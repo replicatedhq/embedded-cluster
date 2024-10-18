@@ -17,6 +17,11 @@ type TemplateData struct {
 	K0sDataDir              string
 	OpenEBSDataDir          string
 	SystemArchitecture      string
+	PrivateCA               []string
+	HTTPProxy               string
+	HTTPSProxy              string
+	ProvidedNoProxy         string
+	NoProxy                 string
 }
 
 func renderTemplate(spec string, data TemplateData) (string, error) {
