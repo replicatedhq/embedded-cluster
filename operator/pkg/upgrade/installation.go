@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +29,6 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 	if err != nil {
 		return fmt.Errorf("override installation data dirs: %w", err)
 	}
-	in.Annotations[embeddedclusteroperator.AnnotationHasDataDirectories] = "true"
 
 	err = cli.Create(ctx, in)
 	if err != nil {
@@ -85,7 +83,7 @@ func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, i
 	if err != nil {
 		return in, fmt.Errorf("get latest installation: %w", err)
 	}
-	next, err := kubeutils.MaybeOverrideInstallationDataDirs(*in, previous)
+	next, _, err := kubeutils.MaybeOverrideInstallationDataDirs(*in, previous)
 	if err != nil {
 		return in, fmt.Errorf("override installation data dirs: %w", err)
 	}

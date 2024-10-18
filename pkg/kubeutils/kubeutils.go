@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -190,11 +191,21 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedcluste
 	})
 	var previous *embeddedclusterv1beta1.Installation
 	for i := range installs {
-		installs[i], err = MaybeOverrideInstallationDataDirs(installs[i], previous)
+		install, didUpdate, err := MaybeOverrideInstallationDataDirs(installs[i], previous)
 		if err != nil {
 			return nil, fmt.Errorf("override installation data dirs: %w", err)
 		}
-		previous = &installs[i]
+		installs[i] = install
+		previous = &install
+
+		if didUpdate {
+			err := cli.Update(ctx, &installs[i])
+			if err != nil {
+				return nil, fmt.Errorf("update installation with legacy data dirs: %w", err)
+			}
+			log := ctrl.LoggerFrom(ctx)
+			log.Info("Updated installation with legacy data dirs", "installation", installs[i].Name)
+		}
 	}
 	return installs, nil
 }
@@ -264,25 +275,35 @@ func lessThanK0s115(ver *semver.Version) bool {
 // didn't store the location of the data directories in the installation object. If it is not set,
 // it will set the annotation and update the installation object with the old location of the data
 // directories.
-func MaybeOverrideInstallationDataDirs(in embeddedclusterv1beta1.Installation, previous *embeddedclusterv1beta1.Installation) (embeddedclusterv1beta1.Installation, error) {
+func MaybeOverrideInstallationDataDirs(in embeddedclusterv1beta1.Installation, previous *embeddedclusterv1beta1.Installation) (embeddedclusterv1beta1.Installation, bool, error) {
 	if previous != nil {
 		ver, err := semver.NewVersion(previous.Spec.Config.Version)
 		if err != nil {
-			return in, fmt.Errorf("parse version: %w", err)
+			return in, false, fmt.Errorf("parse version: %w", err)
 		}
 
 		if lessThanK0s115(ver) {
+			didUpdate := false
+
 			if in.Spec.RuntimeConfig == nil {
 				in.Spec.RuntimeConfig = &embeddedclusterv1beta1.RuntimeConfigSpec{}
 			}
 
 			// In prior versions, the data directories are not a subdirectory of /var/lib/embedded-cluster.
-			in.Spec.RuntimeConfig.K0sDataDirOverride = "/var/lib/k0s"
-			in.Spec.RuntimeConfig.OpenEBSDataDirOverride = "/var/openebs"
+			if in.Spec.RuntimeConfig.K0sDataDirOverride != "/var/lib/k0s" {
+				in.Spec.RuntimeConfig.K0sDataDirOverride = "/var/lib/k0s"
+				didUpdate = true
+			}
+			if in.Spec.RuntimeConfig.OpenEBSDataDirOverride != "/var/openebs" {
+				in.Spec.RuntimeConfig.OpenEBSDataDirOverride = "/var/openebs"
+				didUpdate = true
+			}
+
+			return in, didUpdate, nil
 		}
 	}
 
-	return in, nil
+	return in, false, nil
 }
 
 func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {
