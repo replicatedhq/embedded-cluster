@@ -195,17 +195,16 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedcluste
 		if err != nil {
 			return nil, fmt.Errorf("override installation data dirs: %w", err)
 		}
-		installs[i] = install
-		previous = &install
-
 		if didUpdate {
-			err := cli.Update(ctx, &installs[i])
+			err := cli.Update(ctx, &install)
 			if err != nil {
 				return nil, fmt.Errorf("update installation with legacy data dirs: %w", err)
 			}
 			log := ctrl.LoggerFrom(ctx)
-			log.Info("Updated installation with legacy data dirs", "installation", installs[i].Name)
+			log.Info("Updated installation with legacy data dirs", "installation", install.Name)
 		}
+		installs[i] = install
+		previous = &install
 	}
 	return installs, nil
 }

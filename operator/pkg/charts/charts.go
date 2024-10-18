@@ -305,12 +305,12 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 			}
 		}
 		if chart.Name == "velero" {
-			if in.Spec.Proxy != nil {
-				newVals, err := helm.UnmarshalValues(chart.Values)
-				if err != nil {
-					return nil, fmt.Errorf("unmarshal velero.values: %w", err)
-				}
+			newVals, err := helm.UnmarshalValues(chart.Values)
+			if err != nil {
+				return nil, fmt.Errorf("unmarshal velero.values: %w", err)
+			}
 
+			if in.Spec.Proxy != nil {
 				extraEnvVars := map[string]interface{}{
 					"extraEnvVars": map[string]string{
 						"HTTP_PROXY":  in.Spec.Proxy.HTTPProxy,
@@ -323,17 +323,17 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 				if err != nil {
 					return nil, fmt.Errorf("set helm values velero.configuration: %w", err)
 				}
+			}
 
-				podVolumePath := filepath.Join(provider.EmbeddedClusterK0sSubDir(), "kubelet/pods")
-				newVals, err = helm.SetValue(newVals, "nodeAgent.podVolumePath", podVolumePath)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values velero.nodeAgent.podVolumePath: %w", err)
-				}
+			podVolumePath := filepath.Join(provider.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+			newVals, err = helm.SetValue(newVals, "nodeAgent.podVolumePath", podVolumePath)
+			if err != nil {
+				return nil, fmt.Errorf("set helm values velero.nodeAgent.podVolumePath: %w", err)
+			}
 
-				charts[i].Values, err = helm.MarshalValues(newVals)
-				if err != nil {
-					return nil, fmt.Errorf("marshal velero.values: %w", err)
-				}
+			charts[i].Values, err = helm.MarshalValues(newVals)
+			if err != nil {
+				return nil, fmt.Errorf("marshal velero.values: %w", err)
 			}
 		}
 	}
