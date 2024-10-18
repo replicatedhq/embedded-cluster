@@ -32,6 +32,9 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 		return fmt.Errorf("override installation data dirs: %w", err)
 	}
 
+	if in.ObjectMeta.Annotations == nil {
+		in.ObjectMeta.Annotations = map[string]string{}
+	}
 	in.Annotations[embeddedclusteroperator.AnnotationHasDataDirectories] = "true"
 
 	err = cli.Create(ctx, in)
