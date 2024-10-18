@@ -3,26 +3,32 @@ package kubeutils
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 type ErrNoInstallations struct{}
 
 func (e ErrNoInstallations) Error() string {
 	return "no installations found"
+}
+
+type ErrInstallationNotFound struct{}
+
+func (e ErrInstallationNotFound) Error() string {
+	return "installation not found"
 }
 
 // BackOffToDuration returns the maximum duration of the provided backoff.
@@ -179,69 +185,104 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedcluste
 		return nil, err
 	}
 	installs := list.Items
+	sort.SliceStable(installs, func(i, j int) bool {
+		return installs[j].Name < installs[i].Name
+	})
+	var previous *embeddedclusterv1beta1.Installation
 	for i := range installs {
-		installs[i] = MaybeOverrideInstallationDataDirs(installs[i])
+		installs[i], err = MaybeOverrideInstallationDataDirs(installs[i], previous)
+		if err != nil {
+			return nil, fmt.Errorf("override installation data dirs: %w", err)
+		}
+		previous = &installs[i]
 	}
 	return installs, nil
 }
 
 func GetInstallation(ctx context.Context, cli client.Client, name string) (*embeddedclusterv1beta1.Installation, error) {
-	nsn := types.NamespacedName{Name: name}
-	var install embeddedclusterv1beta1.Installation
-	err := cli.Get(ctx, nsn, &install)
+	installations, err := ListInstallations(ctx, cli)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get installation: %w", err)
+		return nil, err
 	}
-	install = MaybeOverrideInstallationDataDirs(install)
-	return &install, nil
+	if len(installations) == 0 {
+		return nil, ErrNoInstallations{}
+	}
+
+	for _, installation := range installations {
+		if installation.Name == name {
+			return &installation, nil
+		}
+	}
+
+	// if we get here, we didn't find the installation
+	return nil, ErrInstallationNotFound{}
 }
 
 func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
-	installs, err := ListInstallations(ctx, cli)
-	if meta.IsNoMatchError(err) {
-		// this will happen if the CRD is not yet installed
-		return nil, ErrNoInstallations{}
-	} else if err != nil {
-		return nil, fmt.Errorf("unable to list installations: %v", err)
+	installations, err := ListInstallations(ctx, cli)
+	if err != nil {
+		return nil, err
 	}
-
-	if len(installs) == 0 {
+	if len(installations) == 0 {
 		return nil, ErrNoInstallations{}
 	}
 
 	// get the latest installation
-	return &installs[0], nil
+	return &installations[0], nil
 }
 
-const (
-	// AnnotationHasDataDirectories is an annotation on the installation object that indicates that
-	// it was created by an operator that stored information about the location of the data
-	// directories. If this is not set, the operator will update the installation object.
-	AnnotationHasDataDirectories = "embedded-cluster.replicated.com/has-data-directories"
+// GetPreviousInstallation returns the latest installation object in the cluster OTHER than the one passed as an argument.
+func GetPreviousInstallation(ctx context.Context, cli client.Client, in *embeddedclusterv1beta1.Installation) (*embeddedclusterv1beta1.Installation, error) {
+	installations, err := ListInstallations(ctx, cli)
+	if err != nil {
+		return nil, err
+	}
+	if len(installations) == 0 {
+		return nil, ErrNoInstallations{}
+	}
+
+	// find the first installation with a different name than the one we're upgrading to
+	for _, installation := range installations {
+		if installation.Name != in.Name {
+			return &installation, nil
+		}
+	}
+
+	// if we get here, we didn't find a previous installation
+	return nil, ErrInstallationNotFound{}
+}
+
+var (
+	Version115 = semver.MustParse("1.15.0")
 )
 
-// MaybeOverrideInstallationDataDirs checks if the installation has an annotation indicating that
-// it was created or updated by a version that stored the location of the data directories in the
-// installation object. If it is not set, it will set the annotation and update the installation
-// object with the old location of the data directories.
-func MaybeOverrideInstallationDataDirs(in embeddedclusterv1beta1.Installation) embeddedclusterv1beta1.Installation {
-	if ok := in.Annotations[AnnotationHasDataDirectories]; ok == "true" {
-		return in
-	}
-	if in.ObjectMeta.Annotations == nil {
-		in.ObjectMeta.Annotations = map[string]string{}
-	}
-	in.ObjectMeta.Annotations[AnnotationHasDataDirectories] = "true"
+func lessThanK0s115(ver *semver.Version) bool {
+	return ver.LessThan(Version115)
+}
 
-	if in.Spec.RuntimeConfig == nil {
-		in.Spec.RuntimeConfig = &embeddedclusterv1beta1.RuntimeConfigSpec{}
+// MaybeOverrideInstallationDataDirs checks if the previous installation is less than 1.15.0 that
+// didn't store the location of the data directories in the installation object. If it is not set,
+// it will set the annotation and update the installation object with the old location of the data
+// directories.
+func MaybeOverrideInstallationDataDirs(in embeddedclusterv1beta1.Installation, previous *embeddedclusterv1beta1.Installation) (embeddedclusterv1beta1.Installation, error) {
+	if previous != nil {
+		ver, err := semver.NewVersion(previous.Spec.Config.Version)
+		if err != nil {
+			return in, fmt.Errorf("parse version: %w", err)
+		}
+
+		if lessThanK0s115(ver) {
+			if in.Spec.RuntimeConfig == nil {
+				in.Spec.RuntimeConfig = &embeddedclusterv1beta1.RuntimeConfigSpec{}
+			}
+
+			// In prior versions, the data directories are not a subdirectory of /var/lib/embedded-cluster.
+			in.Spec.RuntimeConfig.K0sDataDirOverride = "/var/lib/k0s"
+			in.Spec.RuntimeConfig.OpenEBSDataDirOverride = "/var/openebs"
+		}
 	}
 
-	// In prior versions, the data directories are not a subdirectory of /var/lib/embedded-cluster.
-	in.Spec.RuntimeConfig.K0sDataDirOverride = "/var/lib/k0s"
-	in.Spec.RuntimeConfig.OpenEBSDataDirOverride = "/var/openebs"
-
-	return in
+	return in, nil
 }
 
 func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {

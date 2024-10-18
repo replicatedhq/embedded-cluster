@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/types"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func CreateInstallation(ctx context.Context, cli client.Client, original *clusterv1beta1.Installation) error {
@@ -19,9 +17,7 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 
 	// check if the installation already exists - this function can be called multiple times
 	// if the installation is already created, we can just return
-	nsn := types.NamespacedName{Name: in.Name}
-	var existingInstallation clusterv1beta1.Installation
-	if err := cli.Get(ctx, nsn, &existingInstallation); err == nil {
+	if _, err := kubeutils.GetInstallation(ctx, cli, in.Name); err == nil {
 		log.Info(fmt.Sprintf("Installation %s already exists", in.Name))
 		return nil
 	}
@@ -84,20 +80,14 @@ func reApplyInstallation(ctx context.Context, cli client.Client, in *clusterv1be
 	return nil
 }
 
-// maybeOverrideInstallationDataDirs checks if the previous installation has an annotation
-// indicating that it was created or updated by a version that stored the location of the data
-// directories in the installation object. If it is not set, it will set the annotation and update
-// the installation object with the old location of the data directories.
 func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
 	previous, err := kubeutils.GetLatestInstallation(ctx, cli)
 	if err != nil {
 		return in, fmt.Errorf("get latest installation: %w", err)
 	}
-
-	if ok := previous.Annotations[embeddedclusteroperator.AnnotationHasDataDirectories]; ok == "true" {
-		return in, nil
+	next, err := kubeutils.MaybeOverrideInstallationDataDirs(*in, previous)
+	if err != nil {
+		return in, fmt.Errorf("override installation data dirs: %w", err)
 	}
-
-	next := kubeutils.MaybeOverrideInstallationDataDirs(*in)
 	return &next, nil
 }
