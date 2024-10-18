@@ -1,0 +1,21 @@
+engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+zfs-localpv:
+  enabled: false
