@@ -195,7 +195,7 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 		if chart.Name == "embedded-cluster-operator" {
 			newVals, err := helm.UnmarshalValues(chart.Values)
 			if err != nil {
-				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
+				return nil, fmt.Errorf("unmarshal embedded-cluster-operator.values: %w", err)
 			}
 
 			// embedded-cluster-operator has "embeddedBinaryName" and "embeddedClusterID" as dynamic values
@@ -219,17 +219,29 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 
 			charts[i].Values, err = helm.MarshalValues(newVals)
 			if err != nil {
-				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
+				return nil, fmt.Errorf("marshal embedded-cluster-operator.values: %w", err)
+			}
+		}
+		if chart.Name == "openebs" {
+			newVals, err := helm.UnmarshalValues(chart.Values)
+			if err != nil {
+				return nil, fmt.Errorf("unmarshal openebs.values: %w", err)
+			}
+
+			newVals, err = helm.SetValue(newVals, `["localpv-provisioner"].localpv.basePath`, provider.EmbeddedClusterOpenEBSLocalSubDir())
+			if err != nil {
+				return nil, fmt.Errorf("set helm values openebs.localpv-provisioner.localpv.basePath: %w", err)
+			}
+
+			charts[i].Values, err = helm.MarshalValues(newVals)
+			if err != nil {
+				return nil, fmt.Errorf("marshal openebs.values: %w", err)
 			}
 		}
 		if chart.Name == "docker-registry" {
-			if !in.Spec.AirGap {
-				continue
-			}
-
 			newVals, err := helm.UnmarshalValues(chart.Values)
 			if err != nil {
-				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
+				return nil, fmt.Errorf("unmarshal docker-registry.values: %w", err)
 			}
 
 			// handle the registry IP, which will always be present in airgap
@@ -259,16 +271,38 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 
 			charts[i].Values, err = helm.MarshalValues(newVals)
 			if err != nil {
-				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
+				return nil, fmt.Errorf("marshal docker-registry.values: %w", err)
+			}
+		}
+		if chart.Name == "seaweedfs" {
+			newVals, err := helm.UnmarshalValues(chart.Values)
+			if err != nil {
+				return nil, fmt.Errorf("unmarshal seaweedfs.values: %w", err)
+			}
+
+			dataPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "ssd")
+			newVals, err = helm.SetValue(newVals, "global.data.hostPathPrefix", dataPath)
+			if err != nil {
+				return nil, fmt.Errorf("set helm values seaweedfs.global.data.hostPathPrefix: %w", err)
+			}
+			logsPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "storage")
+			newVals, err = helm.SetValue(newVals, "global.logs.hostPathPrefix", logsPath)
+			if err != nil {
+				return nil, fmt.Errorf("set helm values seaweedfs.global.logs.hostPathPrefix: %w", err)
+			}
+
+			charts[i].Values, err = helm.MarshalValues(newVals)
+			if err != nil {
+				return nil, fmt.Errorf("marshal seaweedfs.values: %w", err)
 			}
 		}
 		if chart.Name == "velero" {
-			if in.Spec.Proxy != nil {
-				newVals, err := helm.UnmarshalValues(chart.Values)
-				if err != nil {
-					return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-				}
+			newVals, err := helm.UnmarshalValues(chart.Values)
+			if err != nil {
+				return nil, fmt.Errorf("unmarshal velero.values: %w", err)
+			}
 
+			if in.Spec.Proxy != nil {
 				extraEnvVars := map[string]interface{}{
 					"extraEnvVars": map[string]string{
 						"HTTP_PROXY":  in.Spec.Proxy.HTTPProxy,
@@ -281,11 +315,17 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 				if err != nil {
 					return nil, fmt.Errorf("set helm values velero.configuration: %w", err)
 				}
+			}
 
-				charts[i].Values, err = helm.MarshalValues(newVals)
-				if err != nil {
-					return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-				}
+			podVolumePath := filepath.Join(provider.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+			newVals, err = helm.SetValue(newVals, "nodeAgent.podVolumePath", podVolumePath)
+			if err != nil {
+				return nil, fmt.Errorf("set helm values velero.nodeAgent.podVolumePath: %w", err)
+			}
+
+			charts[i].Values, err = helm.MarshalValues(newVals)
+			if err != nil {
+				return nil, fmt.Errorf("marshal velero.values: %w", err)
 			}
 		}
 	}
