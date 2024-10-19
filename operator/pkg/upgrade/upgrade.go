@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,14 +32,25 @@ const (
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
 func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
 	fmt.Printf("Upgrading to version %s\n", in.Spec.Config.Version)
-	err := clusterConfigUpdate(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("cluster config update: %w", err)
-	}
-
-	err = k0sUpgrade(ctx, cli, in)
+	err := k0sUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
+	}
+
+	// Augment the installation with data dirs that may not be present in the previous version.
+	// This is important to do ahead of updating the cluster config.
+	// We still cannot update the installation object as the CRDs are not updated yet.
+	in, err = maybeOverrideInstallationDataDirs(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("override installation data dirs: %w", err)
+	}
+
+	// We must update the cluster config after we upgrade k0s as it is possible that the schema
+	// between versions has changed. One drawback of this is that the sandbox (pause) image does
+	// not get updated, and possibly others but I cannot confirm this.
+	err = clusterConfigUpdate(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("cluster config update: %w", err)
 	}
 
 	fmt.Printf("Updating registry migration status\n")
@@ -61,12 +73,25 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 	}
 
 	fmt.Printf("Re-applying installation\n")
+	// Finally, re-apply the installation as the CRDs are up-to-date.
 	err = reApplyInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("unlock installation: %w", err)
 	}
 
 	return nil
+}
+
+func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
+	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
+	if err != nil {
+		return in, fmt.Errorf("get latest installation: %w", err)
+	}
+	next, _, err := kubeutils.MaybeOverrideInstallationDataDirs(*in, previous)
+	if err != nil {
+		return in, fmt.Errorf("override installation data dirs: %w", err)
+	}
+	return &next, nil
 }
 
 func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {

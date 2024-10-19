@@ -549,7 +549,7 @@ jobs:
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
-        if: ${{ failure() }}
+        if: ${{ !cancelled() }}
         uses: ./.github/actions/e2e-troubleshoot
         with:
           test-name: '${{ matrix.test }}'
@@ -571,7 +571,6 @@ jobs:
           - TestCommandsRequireSudo
           - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
-          - TestSingleNodeAirgapUpgradeFromEC18
           - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestSingleNodeDisasterRecoveryWithProxy
           - TestProxiedEnvironment
@@ -582,6 +581,8 @@ jobs:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
           - test: TestMultiNodeAirgapUpgradeSameK0s
+            runner: embedded-cluster
+          - test: TestAirgapUpgradeFromEC18
             runner: embedded-cluster
           - test: TestSingleNodeAirgapDisasterRecovery
             runner: embedded-cluster
