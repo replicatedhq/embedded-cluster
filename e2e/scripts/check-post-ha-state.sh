@@ -61,7 +61,10 @@ main() {
         exit 1
     fi
 
-    validate_data_dirs
+    # if this is the current version
+    if echo "$version" | grep -E "^(dev|appver)-" ; then
+        validate_data_dirs
+    fi
 }
 
 main "$@"
