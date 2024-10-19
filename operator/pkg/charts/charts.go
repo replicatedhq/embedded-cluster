@@ -281,14 +281,14 @@ func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1
 			}
 
 			dataPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "ssd")
-			newVals, err = helm.SetValue(newVals, "global.data.hostPathPrefix", dataPath)
+			newVals, err = helm.SetValue(newVals, "master.data.hostPathPrefix", dataPath)
 			if err != nil {
-				return nil, fmt.Errorf("set helm values seaweedfs.global.data.hostPathPrefix: %w", err)
+				return nil, fmt.Errorf("set helm values seaweedfs.master.data.hostPathPrefix: %w", err)
 			}
 			logsPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "storage")
-			newVals, err = helm.SetValue(newVals, "global.logs.hostPathPrefix", logsPath)
+			newVals, err = helm.SetValue(newVals, "master.logs.hostPathPrefix", logsPath)
 			if err != nil {
-				return nil, fmt.Errorf("set helm values seaweedfs.global.logs.hostPathPrefix: %w", err)
+				return nil, fmt.Errorf("set helm values seaweedfs.master.logs.hostPathPrefix: %w", err)
 			}
 
 			charts[i].Values, err = helm.MarshalValues(newVals)
