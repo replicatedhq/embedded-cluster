@@ -345,6 +345,7 @@ maybe_install_curl() {
 }
 
 validate_data_dirs() {
+    local expected_datadir="$EMBEDDED_CLUSTER_BASE_DIR"
     local expected_k0sdatadir="$EMBEDDED_CLUSTER_BASE_DIR/k0s"
     local expected_openebsdatadir="$EMBEDDED_CLUSTER_BASE_DIR/openebs-local"
     if [ "$KUBECONFIG" = "/var/lib/k0s/pki/admin.conf" ]; then
@@ -373,8 +374,8 @@ validate_data_dirs() {
         echo "found seaweedfs chart"
 
         seaweefdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml| grep -v apiVersion | grep -m 1 "hostPathPrefix:" | awk '{print $2}') 
-        if [ "$seaweefdatadir" != "$expected_openebsdatadir" ]; then
-            echo "got unexpected seaweefdatadir $seaweefdatadir, want $expected_openebsdatadir"
+        if ! echo "$seaweefdatadir" | grep -qE "^$expected_datadir/seaweedfs/(ssd|storage)$" ; then
+            echo "got unexpected seaweefdatadir $seaweefdatadir, want $expected_datadir/seaweedfs/(ssd|storage)"
             kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml| grep -v apiVersion | grep -m 1 "hostPathPrefix:" -A5 -B5
             fail=1
         else
