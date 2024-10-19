@@ -47,6 +47,8 @@ main() {
         kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
         exit 1
     fi
+
+    validate_data_dirs
 }
 
 main "$@"
