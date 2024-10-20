@@ -98,12 +98,12 @@ func (o *SeaweedFS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv
 	if !onlyDefaults {
 		var err error
 		dataPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "ssd")
-		helmValues, err = helm.SetValue(helmValues, "global.data.hostPathPrefix", dataPath)
+		helmValues, err = helm.SetValue(helmValues, "master.data.hostPathPrefix", dataPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values global.data.hostPathPrefix: %w", err)
 		}
 		logsPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "storage")
-		helmValues, err = helm.SetValue(helmValues, "global.logs.hostPathPrefix", logsPath)
+		helmValues, err = helm.SetValue(helmValues, "master.logs.hostPathPrefix", logsPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values global.logs.hostPathPrefix: %w", err)
 		}

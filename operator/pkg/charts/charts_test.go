@@ -380,11 +380,7 @@ const test_seaweedfsValues = `filer:
     enabled: true
     existingConfigSecret: secret-seaweedfs-s3
 global:
-  data:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/ssd
   enableReplication: true
-  logs:
-    hostPathPrefix: /var/lib/embedded-cluster/seaweedfs/storage
   registry: proxy.replicated.com/anonymous/
   replicationPlacment: "001"
 master:
