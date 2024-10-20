@@ -154,7 +154,7 @@ func TestReconcileHelmCharts(t *testing.T) {
 					},
 				},
 			},
-			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "failed to get helm charts from installation: merge helm configs: no embedded-cluster-operator-image found in images"},
+			out: v1beta1.InstallationStatus{State: v1beta1.InstallationStateHelmChartUpdateFailure, Reason: "failed to get helm charts from installation: merge helm configs: unable to get operator images: no embedded-cluster-operator-image found in images"},
 			fields: fields{
 				State: []runtime.Object{
 					&k0sv1beta1.ClusterConfig{
