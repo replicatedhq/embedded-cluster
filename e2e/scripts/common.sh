@@ -359,6 +359,7 @@ validate_data_dirs() {
         echo "found openebs chart"
 
         openebsdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-openebs -oyaml | grep -v apiVersion | grep "basePath:" | awk '{print $2}') 
+        echo "found openebsdatadir $openebsdatadir, want $expected_openebsdatadir"
         if [ "$openebsdatadir" != "$expected_openebsdatadir" ]; then
             echo "got unexpected openebsdatadir $openebsdatadir, want $expected_openebsdatadir"
             kubectl -n kube-system get charts k0s-addon-chart-openebs -oyaml | grep -v apiVersion | grep "basePath:" -A5 -B5
@@ -374,6 +375,7 @@ validate_data_dirs() {
         echo "found seaweedfs chart"
 
         seaweefdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml| grep -v apiVersion | grep -m 1 "hostPathPrefix:" | awk '{print $2}') 
+        echo "found seaweefdatadir $seaweefdatadir, want $expected_datadir/seaweedfs/(ssd|storage)"
         if ! echo "$seaweefdatadir" | grep -qE "^$expected_datadir/seaweedfs/(ssd|storage)$" ; then
             echo "got unexpected seaweefdatadir $seaweefdatadir, want $expected_datadir/seaweedfs/(ssd|storage)"
             kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml| grep -v apiVersion | grep -m 1 "hostPathPrefix:" -A5 -B5
@@ -389,6 +391,7 @@ validate_data_dirs() {
         echo "found velero chart"
 
         velerodatadir=$(kubectl -n kube-system get charts k0s-addon-chart-velero -oyaml | grep -v apiVersion | grep "podVolumePath:" | awk '{print $2}') 
+        echo "found velerodatadir $velerodatadir, want $expected_k0sdatadir/kubelet/pods"
         if [ "$velerodatadir" != "$expected_k0sdatadir/kubelet/pods" ]; then
             echo "got unexpected velerodatadir $velerodatadir, want $expected_openebsdatadir/kubelet/pods"
             kubectl -n kube-system get charts k0s-addon-chart-velero -oyaml | grep -v apiVersion | grep "podVolumePath:" -A5 -B5
