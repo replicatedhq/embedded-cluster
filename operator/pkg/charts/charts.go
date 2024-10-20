@@ -92,40 +92,11 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 	}
 	metrics.SetClusterID(clusterUUID)
 
-	// determine the images to use for the operator chart
-	ecOperatorImage := ""
-	ecUtilsImage := ""
-	for _, image := range images {
-		if strings.Contains(image, "/embedded-cluster-operator-image:") {
-			ecOperatorImage = image
-		}
-		if strings.Contains(image, "/ec-utils:") {
-			ecUtilsImage = image
-		}
+	oi, err := operatorImages(images)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get operator images: %w", err)
 	}
-	if ecOperatorImage == "" {
-		return nil, fmt.Errorf("no embedded-cluster-operator-image found in images")
-	}
-	if ecUtilsImage == "" {
-		return nil, fmt.Errorf("no ec-utils found in images")
-	}
-
-	embeddedclusteroperator.Metadata.Images = map[string]release.AddonImage{
-		"embedded-cluster-operator": {
-			Repo: strings.Split(ecOperatorImage, ":")[0],
-			Tag: map[string]string{
-				"amd64": strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":"),
-				"arm64": strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":"),
-			},
-		},
-		"utils": {
-			Repo: strings.Split(ecUtilsImage, ":")[0],
-			Tag: map[string]string{
-				"amd64": strings.Join(strings.Split(ecUtilsImage, ":")[1:], ":"),
-				"arm64": strings.Join(strings.Split(ecUtilsImage, ":")[1:], ":"),
-			},
-		},
-	}
+	embeddedclusteroperator.Metadata.Images = oi
 	embeddedclusteroperator.Metadata.Location = operatorLocation
 	embeddedclusteroperator.Render()
 
@@ -218,4 +189,41 @@ func operatorLocation(meta *types.ReleaseMetadata) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no embedded-cluster-operator chart found in release metadata")
+}
+
+func operatorImages(images []string) (map[string]release.AddonImage, error) {
+	// determine the images to use for the operator chart
+	ecOperatorImage := ""
+	ecUtilsImage := ""
+	for _, image := range images {
+		if strings.Contains(image, "/embedded-cluster-operator-image:") {
+			ecOperatorImage = image
+		}
+		if strings.Contains(image, "/ec-utils:") {
+			ecUtilsImage = image
+		}
+	}
+	if ecOperatorImage == "" {
+		return nil, fmt.Errorf("no embedded-cluster-operator-image found in images")
+	}
+	if ecUtilsImage == "" {
+		return nil, fmt.Errorf("no ec-utils found in images")
+	}
+
+	return map[string]release.AddonImage{
+		"embedded-cluster-operator": {
+			Repo: strings.Split(ecOperatorImage, ":")[0],
+			Tag: map[string]string{
+				"amd64": strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":"),
+				"arm64": strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":"),
+			},
+		},
+		"utils": {
+			Repo: strings.Split(ecUtilsImage, ":")[0],
+			Tag: map[string]string{
+				"amd64": strings.Join(strings.Split(ecUtilsImage, ":")[1:], ":"),
+				"arm64": strings.Join(strings.Split(ecUtilsImage, ":")[1:], ":"),
+			},
+		},
+	}, nil
 }

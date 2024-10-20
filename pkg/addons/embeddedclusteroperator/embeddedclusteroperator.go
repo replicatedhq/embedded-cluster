@@ -6,9 +6,8 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/errors"
-	types2 "k8s.io/apimachinery/pkg/types"
 	"strings"
 	"time"
 
@@ -280,6 +279,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
 
+	// we wait for the installation to exist here because items do not show up in the apiserver instantaneously after being created
 	gotInstallation, err := waitForInstallationToExist(ctx, cli, installation.Name)
 	if err != nil {
 		return fmt.Errorf("unable to wait for installation to exist: %w", err)
@@ -343,14 +343,14 @@ func k0sConfigToNetworkSpec(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.Network
 }
 
 func waitForInstallationToExist(ctx context.Context, cli client.Client, name string) (*ecv1beta1.Installation, error) {
-	var installation ecv1beta1.Installation
 	for i := 0; i < 20; i++ {
-		if err := cli.Get(ctx, types2.NamespacedName{Name: name}, &installation); err != nil {
-			if !errors.IsNotFound(err) {
+		in, err := kubeutils.GetInstallation(ctx, cli, name)
+		if err != nil {
+			if !errors.Is(err, kubeutils.ErrNoInstallations{}) {
 				return nil, fmt.Errorf("unable to get installation: %w", err)
 			}
 		} else {
-			return &installation, nil
+			return in, nil
 		}
 		time.Sleep(time.Second)
 	}

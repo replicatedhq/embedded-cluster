@@ -2,12 +2,12 @@ package cli
 
 import (
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"sort"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
 )
