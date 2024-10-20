@@ -108,6 +108,8 @@ main() {
         echo "not all nodes are running k8s $k8s_version"
         exit 1
     fi
+
+    validate_data_dirs
 }
 
 main "$@"
