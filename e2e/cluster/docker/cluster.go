@@ -82,10 +82,10 @@ func (c *Cluster) WaitForReady() {
 }
 
 func (c *Cluster) Cleanup(envs ...map[string]string) {
-	if c.t.Failed() {
-		c.generateSupportBundle(envs...)
-		c.copyPlaywrightReport()
-	}
+	// if c.t.Failed() {
+	c.generateSupportBundle(envs...)
+	c.copyPlaywrightReport()
+	//}
 	for _, node := range c.Nodes {
 		node.Destroy()
 	}

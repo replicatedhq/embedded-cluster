@@ -31,13 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	// AnnotationHasDataDirectories is an annotation on the installation object that indicates that
-	// it was created by an operator that stored information about the location of the data
-	// directories. If this is not set, the operator will update the installation object.
-	AnnotationHasDataDirectories = "embedded-cluster.replicated.com/has-data-directories"
-)
-
 const releaseName = "embedded-cluster-operator"
 
 var (
@@ -266,9 +259,6 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 			Name: time.Now().Format("20060102150405"),
 			Labels: map[string]string{
 				"replicated.com/disaster-recovery": "ec-install",
-			},
-			Annotations: map[string]string{
-				AnnotationHasDataDirectories: "true",
 			},
 		},
 		Spec: ecv1beta1.InstallationSpec{

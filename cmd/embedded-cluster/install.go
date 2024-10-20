@@ -408,8 +408,13 @@ func ensureK0sConfig(c *cli.Context, provider *defaults.Provider, applier *addon
 	}
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
-	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
-	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+
+	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(c)
+	if err != nil {
+		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+	}
+	cfg.Spec.Network.PodCIDR = podCIDR
+	cfg.Spec.Network.ServiceCIDR = serviceCIDR
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -649,17 +654,19 @@ func installCommand() *cli.Command {
 					Usage:  fmt.Sprintf("Password for the Admin Console (minimum %d characters)", minAdminPasswordLength),
 					Hidden: false,
 				},
+				getAdminConsolePortFlag(runtimeConfig),
 				&cli.StringFlag{
-					Name:   "airgap-bundle",
-					Usage:  "Path to the air gap bundle. If set, the installation will complete without internet access.",
-					Hidden: true,
+					Name:  "airgap-bundle",
+					Usage: "Path to the air gap bundle. If set, the installation will complete without internet access.",
 				},
+				getDataDirFlag(runtimeConfig),
 				&cli.StringFlag{
 					Name:    "license",
 					Aliases: []string{"l"},
 					Usage:   "Path to the license file",
 					Hidden:  false,
 				},
+				getLocalArtifactMirrorPortFlag(runtimeConfig),
 				&cli.StringFlag{
 					Name:  "network-interface",
 					Usage: "The network interface to use for the cluster",
@@ -675,18 +682,15 @@ func installCommand() *cli.Command {
 					Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
 					Hidden: true,
 				},
+				&cli.StringSliceFlag{
+					Name:  "private-ca",
+					Usage: "Path to a trusted private CA certificate file",
+				},
 				&cli.BoolFlag{
 					Name:  "skip-host-preflights",
 					Usage: "Skip host preflight checks. This is not recommended.",
 					Value: false,
 				},
-				&cli.StringSliceFlag{
-					Name:  "private-ca",
-					Usage: "Path to a trusted private CA certificate file",
-				},
-				getDataDirFlag(runtimeConfig),
-				getAdminConsolePortFlag(runtimeConfig),
-				getLocalArtifactMirrorPortFlag(runtimeConfig),
 			},
 		)),
 		Action: func(c *cli.Context) error {
@@ -696,7 +700,11 @@ func installCommand() *cli.Command {
 			defer tryRemoveTmpDirContents(provider)
 
 			var err error
-			proxy := getProxySpecFromFlags(c)
+			proxy, err := getProxySpecFromFlags(c)
+			if err != nil {
+				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
+			}
+
 			proxy, err = includeLocalIPInNoProxy(c, proxy)
 			if err != nil {
 				metrics.ReportApplyFinished(c, err)

@@ -331,8 +331,14 @@ func ensureK0sConfigForRestore(c *cli.Context, provider *defaults.Provider, appl
 	}
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
-	cfg.Spec.Network.PodCIDR = c.String("pod-cidr")
-	cfg.Spec.Network.ServiceCIDR = c.String("service-cidr")
+
+	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(c)
+	if err != nil {
+		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+	}
+	cfg.Spec.Network.PodCIDR = podCIDR
+	cfg.Spec.Network.ServiceCIDR = serviceCIDR
+
 	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
@@ -416,6 +422,9 @@ func isBackupRestorable(backup *velerov1.Backup, provider *defaults.Provider, re
 		if k0sCfg != nil && k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
 			if k0sCfg.Spec.Network.PodCIDR != "" || k0sCfg.Spec.Network.ServiceCIDR != "" {
 				if podCIDR != k0sCfg.Spec.Network.PodCIDR || serviceCIDR != k0sCfg.Spec.Network.ServiceCIDR {
+					if adjacent, supernet, _ := netutils.NetworksAreAdjacentAndSameSize(podCIDR, serviceCIDR); adjacent {
+						return false, fmt.Sprintf("has a different network configuration than the current cluster. Please rerun with '--cidr %s'.", supernet)
+					}
 					return false, fmt.Sprintf("has a different network configuration than the current cluster. Please rerun with '--pod-cidr %s --service-cidr %s'.", podCIDR, serviceCIDR)
 				}
 			}
@@ -864,7 +873,12 @@ func installAndWaitForRestoredK0sNode(c *cli.Context, provider *defaults.Provide
 	if err != nil {
 		return nil, fmt.Errorf("unable to create config file: %w", err)
 	}
-	proxy := getProxySpecFromFlags(c)
+
+	proxy, err := getProxySpecFromFlags(c)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get proxy spec from flags: %w", err)
+	}
+
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(provider, false, proxy); err != nil {
 		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
@@ -891,9 +905,15 @@ func restoreCommand() *cli.Command {
 		Flags: withProxyFlags(withSubnetCIDRFlags(
 			[]cli.Flag{
 				&cli.StringFlag{
-					Name:   "airgap-bundle",
-					Usage:  "Path to the air gap bundle. If set, the restore will complete without internet access.",
-					Hidden: true,
+					Name:  "airgap-bundle",
+					Usage: "Path to the air gap bundle. If set, the restore will complete without internet access.",
+				},
+				getDataDirFlag(runtimeConfig),
+				&cli.StringFlag{
+					Name:  "local-artifact-mirror-port",
+					Usage: "Port on which the Local Artifact Mirror will be served. If left empty, the port will be retrieved from the snapshot.",
+					// DefaultText: strconv.Itoa(ecv1beta1.DefaultLocalArtifactMirrorPort),
+					Hidden: false,
 				},
 				&cli.StringFlag{
 					Name:  "network-interface",
@@ -916,13 +936,6 @@ func restoreCommand() *cli.Command {
 					Value:  false,
 					Hidden: true,
 				},
-				&cli.StringFlag{
-					Name:  "local-artifact-mirror-port",
-					Usage: "Port on which the Local Artifact Mirror will be served. If left empty, the port will be retrieved from the snapshot.",
-					// DefaultText: strconv.Itoa(ecv1beta1.DefaultLocalArtifactMirrorPort),
-					Hidden: false,
-				},
-				getDataDirFlag(runtimeConfig),
 			},
 		)),
 		Before: func(c *cli.Context) error {
@@ -938,7 +951,11 @@ func restoreCommand() *cli.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
-			proxy := getProxySpecFromFlags(c)
+			proxy, err := getProxySpecFromFlags(c)
+			if err != nil {
+				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
+			}
+
 			setProxyEnv(proxy)
 
 			logrus.Debugf("getting restore state")
