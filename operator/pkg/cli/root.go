@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -81,7 +82,7 @@ func RootCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			setupLog.Info("Starting manager")
+			setupLog.Info("Starting manager", "version", versions.Version, "k0sversion", versions.K0sVersion)
 			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 				setupLog.Error(err, "problem running manager")
 				os.Exit(1)
@@ -117,5 +118,6 @@ func addSubcommands(cmd *cobra.Command) {
 		MigrateCmd(),
 		UpgradeCmd(),
 		UpgradeJobCmd(),
+		VersionCmd(),
 	)
 }

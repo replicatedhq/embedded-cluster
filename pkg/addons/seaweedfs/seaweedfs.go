@@ -40,6 +40,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Errorf("failed to unmarshal metadata: %w", err))
 	}
+	Render()
+}
+
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
@@ -51,6 +55,7 @@ func init() {
 type SeaweedFS struct {
 	namespace string
 	isAirgap  bool
+	isHA      bool
 }
 
 // Version returns the version of the SeaweedFS chart.
@@ -77,7 +82,7 @@ func (o *SeaweedFS) GetProtectedFields() map[string][]string {
 
 // GenerateHelmConfig generates the helm config for the SeaweedFS chart.
 func (o *SeaweedFS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
-	if !o.isAirgap {
+	if !o.isAirgap || !o.isHA {
 		return nil, nil, nil
 	}
 
@@ -93,12 +98,12 @@ func (o *SeaweedFS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv
 	if !onlyDefaults {
 		var err error
 		dataPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "ssd")
-		helmValues, err = helm.SetValue(helmValues, "global.data.hostPathPrefix", dataPath)
+		helmValues, err = helm.SetValue(helmValues, "master.data.hostPathPrefix", dataPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values global.data.hostPathPrefix: %w", err)
 		}
 		logsPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "storage")
-		helmValues, err = helm.SetValue(helmValues, "global.logs.hostPathPrefix", logsPath)
+		helmValues, err = helm.SetValue(helmValues, "master.logs.hostPathPrefix", logsPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values global.logs.hostPathPrefix: %w", err)
 		}
@@ -132,8 +137,8 @@ func (o *SeaweedFS) Outro(ctx context.Context, provider *defaults.Provider, cli 
 }
 
 // New creates a new SeaweedFS addon.
-func New(namespace string, isAirgap bool) (*SeaweedFS, error) {
-	return &SeaweedFS{namespace: namespace, isAirgap: isAirgap}, nil
+func New(namespace string, isAirgap bool, isHA bool) (*SeaweedFS, error) {
+	return &SeaweedFS{namespace: namespace, isAirgap: isAirgap, isHA: isHA}, nil
 }
 
 // WaitForReady waits for SeaweedFS to be ready.

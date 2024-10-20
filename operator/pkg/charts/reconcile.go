@@ -42,12 +42,8 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 		return nil, nil
 	}
 
-	// skip if the new release has no addon configs - this should not happen in production
-	if len(meta.Configs.Charts) == 0 {
-		log.Info("Addons", "configcheck", "no addons")
-		if in.Status.State == v1beta1.InstallationStateKubernetesInstalled {
-			in.Status.SetState(v1beta1.InstallationStateInstalled, "Installed", nil)
-		}
+	if meta == nil || meta.Images == nil {
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, "No images available", nil)
 		return nil, nil
 	}
 
@@ -59,7 +55,8 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 
 	combinedConfigs, err := K0sHelmExtensionsFromInstallation(ctx, in, meta, &clusterConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get helm charts from installation: %w", err)
+		in.Status.SetState(v1beta1.InstallationStateHelmChartUpdateFailure, fmt.Sprintf("failed to get helm charts from installation: %s", err.Error()), nil)
+		return nil, nil
 	}
 
 	cfgs := &v1beta2.HelmExtensions{}

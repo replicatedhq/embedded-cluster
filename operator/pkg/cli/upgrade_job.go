@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,7 @@ func UpgradeJobCmd() *cobra.Command {
 		Short:        "Upgrade k0s and then all addons from within a job that may be restarted",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Upgrade command started")
+			fmt.Printf("Upgrade job version %s started\n", versions.Version)
 
 			cli, err := k8sutil.KubeClient()
 			if err != nil {
