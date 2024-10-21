@@ -60,6 +60,16 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: resetting admin console password", time.Now().Format(time.RFC3339))
+	newPassword := "newpass"
+	line = []string{"embedded-cluster", "admin-console", "reset-password", newPassword}
+	_, _, err := tc.RunCommandOnNode(0, line)
+	require.NoError(t, err, "unable to reset admin console password")
+
+	t.Logf("%s: logging in with the new password", time.Now().Format(time.RFC3339))
+	_, _, err = tc.RunPlaywrightTest("login-with-custom-password", newPassword)
+	require.NoError(t, err, "unable to login with the new password")
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
