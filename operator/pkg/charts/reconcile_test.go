@@ -264,7 +264,7 @@ func TestReconcileHelmCharts(t *testing.T) {
 											Name:         "embedded-cluster-operator",
 											ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 											Version:      "1.2.3-operator",
-											Values:       test_operatorValues,
+											Values:       test_airgapOperatorValues,
 											TargetNS:     "embedded-cluster",
 											ForceUpgrade: ptr.To(false),
 											Order:        103,
