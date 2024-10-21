@@ -127,6 +127,21 @@ spec:
         collectorName: 'wildcard-check'
         hostnames:
           - '*'
+    - subnetAvailable:
+        collectorName: Pods Subnet
+        exclude: '{{ or (ne .Global.CIDR "")  (eq .PodsCIDR.CIDR "") }}'
+        CIDRRangeAlloc: '{{ .PodsCIDR.CIDR }}'
+        desiredCIDR: .PodsCIDR.Size
+    - subnetAvailable:
+        collectorName: Services Subnet
+        exclude: '{{ or (ne .Global.CIDR "")  (eq .ServicesCIDR.CIDR "") }}'
+        CIDRRangeAlloc: '{{ .ServicesCIDR.CIDR }}'
+        desiredCIDR: .ServicesCIDR.Size
+    - subnetAvailable:
+        collectorName: Subnet
+        exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
+        CIDRRangeAlloc: '{{ .GlobalCIDR.CIDR }}'
+        desiredCIDR: .GlobalCIDR.Size
   analyzers:
     - cpu:
         checkName: CPU
@@ -780,3 +795,33 @@ spec:
           - pass:
               when: 'true'
               message: No wildcard DNS entry detected.
+    - subnetAvailable:
+        checkName: Pods Subnet Availability
+        collectorName: Pods Subnet
+        outcomes:
+          - fail:
+            when: "no-subnet-available"
+            message: specified pod subnet is not available
+          - pass:
+            when: "a-subnet-is-available"
+            message: specified pod subnet is available
+    - subnetAvailable:
+        checkName: Services Subnet Availability
+        collectorName: Services Subnet
+        outcomes:
+          - fail:
+            when: "no-subnet-available"
+            message: specified services subnet is not available
+          - pass:
+            when: "a-subnet-is-available"
+            message: specified services subnet is available
+    - subnetAvailable:
+        checkName: Subnet Availability
+        collectorName: Subnet
+        outcomes:
+          - fail:
+            when: "no-subnet-available"
+            message: specified subnet is not available
+          - pass:
+            when: "a-subnet-is-available"
+            message: specified subnet is available
