@@ -489,6 +489,10 @@ func resetCommand() *cli.Command {
 				return fmt.Errorf("failed to remove openebs storage: %w", err)
 			}
 
+			if err := helpers.RemoveAll(defaults.PathToECDataConfig()); err != nil {
+				return fmt.Errorf("failed to remove embedded cluster data config: %w", err)
+			}
+
 			if err := helpers.RemoveAll("/etc/NetworkManager/conf.d/embedded-cluster.conf"); err != nil {
 				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
 			}
