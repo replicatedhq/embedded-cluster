@@ -151,7 +151,7 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
-	data := preflights.TemplateData{
+	data, err := preflights.TemplateData{
 		ReplicatedAPIURL:        replicatedAPIURL,
 		ProxyRegistryURL:        proxyRegistryURL,
 		IsAirgap:                isAirgap,
@@ -161,6 +161,10 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 		K0sDataDir:              provider.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          provider.EmbeddedClusterOpenEBSLocalSubDir(),
 		SystemArchitecture:      runtime.GOARCH,
+	}.WithCIDRData(getCIDRs(c))
+
+	if err != nil {
+		return fmt.Errorf("unable to get host preflights data: %w", err)
 	}
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {

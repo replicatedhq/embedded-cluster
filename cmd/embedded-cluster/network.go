@@ -50,3 +50,11 @@ func DeterminePodAndServiceCIDRs(c *cli.Context) (string, string, error) {
 	}
 	return netutils.SplitNetworkCIDR(c.String("cidr"))
 }
+
+// getCIDRs returns the CIDRs in use based on the provided cli flags.
+func getCIDRs(c *cli.Context) (string, string, string) {
+	if c.IsSet("pod-cidr") && c.IsSet("service-cidr") {
+		return c.String("pod-cidr"), c.String("service-cidr"), ""
+	}
+	return "", "", c.String("cidr")
+}
