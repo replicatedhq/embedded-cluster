@@ -7,9 +7,9 @@ require (
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/aws/aws-sdk-go-v2 v1.32.2
-	github.com/aws/aws-sdk-go-v2/config v1.27.43
+	github.com/aws/aws-sdk-go-v2/config v1.28.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.41
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.65.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.66.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/canonical/lxd v0.0.0-20240927232348-ef33aea98aec
 	github.com/containers/image/v5 v5.32.2
@@ -25,14 +25,13 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.6.0
 	github.com/k0sproject/dig v0.2.0
 	github.com/k0sproject/k0s v1.29.10-0.20240930110610-443e28b75d21
-	github.com/k0sproject/version v0.6.0
 	github.com/ohler55/ojg v1.24.1
 	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.2
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20240814191029-3f677ee409a0
-	github.com/replicatedhq/troubleshoot v0.107.0
+	github.com/replicatedhq/troubleshoot v0.107.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
@@ -131,6 +130,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
+	github.com/k0sproject/version v0.6.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
@@ -178,10 +178,10 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.16 // indirect
 	go.opentelemetry.io/contrib/exporters/autoexport v0.52.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
-	go.opentelemetry.io/otel v1.30.0 // indirect
+	go.opentelemetry.io/otel v1.31.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.27.0 // indirect
-	go.opentelemetry.io/otel/metric v1.30.0 // indirect
-	go.opentelemetry.io/otel/trace v1.30.0 // indirect
+	go.opentelemetry.io/otel/metric v1.31.0 // indirect
+	go.opentelemetry.io/otel/trace v1.31.0 // indirect
 	go.starlark.net v0.0.0-20240725214946-42030a7cedce // indirect
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
 	golang.org/x/sync v0.8.0 // indirect

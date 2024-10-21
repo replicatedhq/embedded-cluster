@@ -3,6 +3,7 @@ package kubeutils
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"time"
 
@@ -263,11 +264,15 @@ func GetPreviousInstallation(ctx context.Context, cli client.Client, in *embedde
 }
 
 var (
-	Version115 = semver.MustParse("1.15.0")
+	version115            = semver.MustParse("1.15.0")
+	oldVersionSchemeRegex = regexp.MustCompile(`.*\+ec\.[0-9]+`)
 )
 
 func lessThanK0s115(ver *semver.Version) bool {
-	return ver.LessThan(Version115)
+	if oldVersionSchemeRegex.MatchString(ver.Original()) {
+		return true
+	}
+	return ver.LessThan(version115)
 }
 
 // MaybeOverrideInstallationDataDirs checks if the previous installation is less than 1.15.0 that
@@ -382,7 +387,7 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 					}
 				}
 			}
-			return readynodes == len(nodes.Items), nil
+			return readynodes == len(nodes.Items) && len(nodes.Items) > 0, nil
 		},
 	); err != nil {
 		if lasterr != nil {

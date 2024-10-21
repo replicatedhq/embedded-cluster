@@ -206,6 +206,13 @@ func Test_lessThanK0s115(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "old version scheme",
+			args: args{
+				ver: semver.MustParse("1.28.7+ec.0"),
+			},
+			want: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

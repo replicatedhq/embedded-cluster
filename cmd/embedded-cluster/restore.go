@@ -1258,6 +1258,11 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context, runtimeC
 	if err := kcli.Update(ctx, in); err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
+	in.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
+	if err := kcli.Status().Update(ctx, in); err != nil {
+		return fmt.Errorf("update installation status: %w", err)
+	}
+
 	return nil
 }
 

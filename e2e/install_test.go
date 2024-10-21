@@ -2100,7 +2100,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		{"rm", "/assets/release.airgap"},
 		{"rm", "/usr/local/bin/embedded-cluster"},
 	}
-	runInParallel(t,
+	runInParallelOffset(t, time.Second*30,
 		func(t *testing.T) error {
 			err := tc.RunCommandsOnNode(1, joinCommandsSequence)
 			if err != nil {

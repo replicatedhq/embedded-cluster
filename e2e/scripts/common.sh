@@ -343,3 +343,70 @@ maybe_install_curl() {
         apt-get install -y curl
     fi
 }
+
+validate_data_dirs() {
+    local expected_datadir="$EMBEDDED_CLUSTER_BASE_DIR"
+    local expected_k0sdatadir="$EMBEDDED_CLUSTER_BASE_DIR/k0s"
+    local expected_openebsdatadir="$EMBEDDED_CLUSTER_BASE_DIR/openebs-local"
+    if [ "$KUBECONFIG" = "/var/lib/k0s/pki/admin.conf" ]; then
+        expected_k0sdatadir=/var/lib/k0s
+        expected_openebsdatadir=/var/openebs
+    fi
+
+    local fail=0
+
+    if kubectl -n kube-system get charts k0s-addon-chart-openebs -oyaml >/dev/null 2>&1 ; then
+        echo "found openebs chart"
+
+        openebsdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-openebs -oyaml | grep -v apiVersion | grep "basePath:" | awk '{print $2}') 
+        echo "found openebsdatadir $openebsdatadir, want $expected_openebsdatadir"
+        if [ "$openebsdatadir" != "$expected_openebsdatadir" ]; then
+            echo "got unexpected openebsdatadir $openebsdatadir, want $expected_openebsdatadir"
+            kubectl -n kube-system get charts k0s-addon-chart-openebs -oyaml | grep -v apiVersion | grep "basePath:" -A5 -B5
+            fail=1
+        else
+            echo "validated openebsdatadir $openebsdatadir"
+        fi
+    else
+        echo "did not find openebs chart"
+    fi
+
+    if kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml >/dev/null 2>&1 ; then
+        echo "found seaweedfs chart"
+
+        seaweefdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml| grep -v apiVersion | grep -m 1 "hostPathPrefix:" | awk '{print $2}') 
+        echo "found seaweefdatadir $seaweefdatadir, want $expected_datadir/seaweedfs/(ssd|storage)"
+        if ! echo "$seaweefdatadir" | grep -qE "^$expected_datadir/seaweedfs/(ssd|storage)$" ; then
+            echo "got unexpected seaweefdatadir $seaweefdatadir, want $expected_datadir/seaweedfs/(ssd|storage)"
+            kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml| grep -v apiVersion | grep -m 1 "hostPathPrefix:" -A5 -B5
+            fail=1
+        else
+            echo "validated seaweefdatadir $seaweefdatadir"
+        fi
+    else
+        echo "did not find seaweedfs chart"
+    fi
+
+    if kubectl -n kube-system get charts k0s-addon-chart-velero -oyaml >/dev/null 2>&1 ; then
+        echo "found velero chart"
+
+        velerodatadir=$(kubectl -n kube-system get charts k0s-addon-chart-velero -oyaml | grep -v apiVersion | grep "podVolumePath:" | awk '{print $2}') 
+        echo "found velerodatadir $velerodatadir, want $expected_k0sdatadir/kubelet/pods"
+        if [ "$velerodatadir" != "$expected_k0sdatadir/kubelet/pods" ]; then
+            echo "got unexpected velerodatadir $velerodatadir, want $expected_openebsdatadir/kubelet/pods"
+            kubectl -n kube-system get charts k0s-addon-chart-velero -oyaml | grep -v apiVersion | grep "podVolumePath:" -A5 -B5
+            fail=1
+        else
+            echo "validated velerodatadir $velerodatadir"
+        fi
+    else
+        echo "did not find velero chart"
+    fi
+
+    if [ "$fail" -eq 1 ]; then
+        echo "data dir validation failed"
+        exit 1
+    else
+        echo "data dir validation succeeded"
+    fi
+}
