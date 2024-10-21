@@ -995,8 +995,8 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	// we have used --cidr 172.16.0.0/15 during install time so pods are
 	// expected to be in the 172.16.0.0/16 range while services are in the
 	// 172.17.0.0/16 range.
-	podregex := `172\.16\.`
-	svcregex := `172\.17\.`
+	podregex := `172\.16\.[0-9]+\.[0-9]+`
+	svcregex := `172\.17\.[0-9]+\.[0-9]+`
 
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", podregex, svcregex}); err != nil {
 		t.Log(stdout)
