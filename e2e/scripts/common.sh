@@ -410,3 +410,11 @@ validate_data_dirs() {
         echo "data dir validation succeeded"
     fi
 }
+
+validate_no_pods_in_crashloop() {
+    if kubectl get pods -A | grep CrashLoopBackOff -q ; then
+        echo "found pods in CrashLoopBackOff state"
+        kubectl get pods -A | grep CrashLoopBackOff
+        exit 1
+    fi
+}
