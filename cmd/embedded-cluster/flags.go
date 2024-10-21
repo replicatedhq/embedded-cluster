@@ -58,7 +58,7 @@ func getLocalArtifactMirrorPortFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) 
 	}
 }
 
-func getInstallDataDirFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *cli.StringFlag {
+func getDataDirFlagWithDefault(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *cli.StringFlag {
 	return &cli.StringFlag{
 		Name:   "data-dir",
 		Usage:  "Path to the data directory",

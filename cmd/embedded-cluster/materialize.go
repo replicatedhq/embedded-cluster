@@ -19,7 +19,7 @@ func materializeCommand() *cli.Command {
 		Usage:  "Materialize embedded assets into the data directory",
 		Hidden: true,
 		Flags: []cli.Flag{
-			getInstallDataDirFlag(runtimeConfig),
+			getDataDirFlagWithDefault(runtimeConfig),
 		},
 		Before: func(c *cli.Context) error {
 			if os.Getuid() != 0 {
