@@ -74,6 +74,22 @@ kotsVersion: 1.2.3-admin-console
 utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
 `
 
+const test_airgapOperatorValues = `embeddedBinaryName: test-binary-name
+embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
+embeddedClusterK0sVersion: 0.0.0
+embeddedClusterVersion: 1.2.3-operator
+global:
+  labels:
+    replicated.com/disaster-recovery: infra
+    replicated.com/disaster-recovery-chart: embedded-cluster-operator
+image:
+  repository: docker.io/replicated/embedded-cluster-operator-image
+  tag: latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8
+isAirgap: "true"
+kotsVersion: 1.2.3-admin-console
+utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62c8ed9e529fe8dac3c3621269c3a66291f0
+`
+
 const test_proxyOperatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
@@ -749,7 +765,7 @@ func Test_generateHelmConfigs(t *testing.T) {
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 						Version:      "1.2.3-operator",
-						Values:       test_operatorValues,
+						Values:       test_airgapOperatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -815,7 +831,7 @@ func Test_generateHelmConfigs(t *testing.T) {
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 						Version:      "1.2.3-operator",
-						Values:       test_operatorValues,
+						Values:       test_airgapOperatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
@@ -881,7 +897,7 @@ func Test_generateHelmConfigs(t *testing.T) {
 						Name:         "embedded-cluster-operator",
 						ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 						Version:      "1.2.3-operator",
-						Values:       test_operatorValues,
+						Values:       test_airgapOperatorValues,
 						TargetNS:     "embedded-cluster",
 						ForceUpgrade: ptr.To(false),
 						Order:        103,
