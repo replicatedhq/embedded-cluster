@@ -64,10 +64,11 @@ spec:
                             order:
                               type: integer
                             timeout:
-                              description: Timeout specifies the timeout for how long
-                                to wait for the chart installation to finish.
-                              format: int64
-                              type: integer
+                              description: |-
+                                Timeout specifies the timeout for how long to wait for the chart installation to finish.
+                                A duration string is a sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+                              type: string
+                              x-kubernetes-int-or-string: true
                             values:
                               type: string
                             version:
@@ -78,22 +79,36 @@ spec:
                         type: integer
                       repositories:
                         items:
+                          description: Repository describes single repository entry.
+                            Fields map to the CLI flags for the "helm add" command
                           properties:
                             caFile:
+                              description: CA bundle file to use when verifying HTTPS-enabled
+                                servers.
                               type: string
                             certFile:
+                              description: The TLS certificate file to use for HTTPS
+                                client authentication.
                               type: string
                             insecure:
+                              description: Whether to skip TLS certificate checks
+                                when connecting to the repository.
                               type: boolean
                             keyfile:
+                              description: The TLS key file to use for HTTPS client
+                                authentication.
                               type: string
                             name:
+                              description: The repository name.
                               type: string
                             password:
+                              description: Password for Basic HTTP authentication.
                               type: string
                             url:
+                              description: The repository URL.
                               type: string
                             username:
+                              description: Username for Basic HTTP authentication.
                               type: string
                           type: object
                         type: array
