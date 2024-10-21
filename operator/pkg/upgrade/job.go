@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -23,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -387,31 +386,4 @@ func getAutopilotAirgapArtifactsPlan(ctx context.Context, cli client.Client, in 
 	}
 
 	return plan, nil
-}
-
-// GetPreviousInstallation returns the latest installation object in the cluster OTHER than the one passed as an argument.
-func GetPreviousInstallation(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
-	installations := &clusterv1beta1.InstallationList{}
-	if err := cli.List(ctx, installations); err != nil {
-		return nil, fmt.Errorf("failed to list installations: %w", err)
-	}
-
-	if len(installations.Items) == 0 {
-		return nil, fmt.Errorf("no installations found")
-	}
-
-	// sort the installations by name in descending order
-	sort.Slice(installations.Items, func(i, j int) bool {
-		return installations.Items[i].Name > installations.Items[j].Name
-	})
-
-	// find the first installation with a different name than the one we're upgrading to
-	for _, installation := range installations.Items {
-		if installation.Name != in.Name {
-			return &installation, nil
-		}
-	}
-
-	// if we get here, we didn't find a previous installation
-	return nil, fmt.Errorf("previous installation not found")
 }

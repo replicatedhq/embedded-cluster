@@ -3,27 +3,34 @@ package kubeutils
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 type ErrNoInstallations struct{}
 
 func (e ErrNoInstallations) Error() string {
 	return "no installations found"
+}
+
+type ErrInstallationNotFound struct{}
+
+func (e ErrInstallationNotFound) Error() string {
+	return "installation not found"
 }
 
 // BackOffToDuration returns the maximum duration of the provided backoff.
@@ -175,40 +182,132 @@ func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner
 
 func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedclusterv1beta1.Installation, error) {
 	var list embeddedclusterv1beta1.InstallationList
-	if err := cli.List(ctx, &list); err != nil {
+	err := cli.List(ctx, &list)
+	if err != nil {
 		return nil, err
 	}
 	installs := list.Items
 	sort.SliceStable(installs, func(i, j int) bool {
 		return installs[j].Name < installs[i].Name
 	})
+	var previous *embeddedclusterv1beta1.Installation
+	for i := len(installs) - 1; i >= 0; i-- {
+		install, didUpdate, err := MaybeOverrideInstallationDataDirs(installs[i], previous)
+		if err != nil {
+			return nil, fmt.Errorf("override installation data dirs: %w", err)
+		}
+		if didUpdate {
+			err := cli.Update(ctx, &install)
+			if err != nil {
+				return nil, fmt.Errorf("update installation with legacy data dirs: %w", err)
+			}
+			log := ctrl.LoggerFrom(ctx)
+			log.Info("Updated installation with legacy data dirs", "installation", install.Name)
+		}
+		installs[i] = install
+		previous = &install
+	}
 	return installs, nil
 }
 
 func GetInstallation(ctx context.Context, cli client.Client, name string) (*embeddedclusterv1beta1.Installation, error) {
-	nsn := types.NamespacedName{Name: name}
-	var install embeddedclusterv1beta1.Installation
-	if err := cli.Get(ctx, nsn, &install); err != nil {
-		return nil, fmt.Errorf("unable to get installation: %w", err)
+	installations, err := ListInstallations(ctx, cli)
+	if err != nil {
+		return nil, err
 	}
-	return &install, nil
+	if len(installations) == 0 {
+		return nil, ErrNoInstallations{}
+	}
+
+	for _, installation := range installations {
+		if installation.Name == name {
+			return &installation, nil
+		}
+	}
+
+	// if we get here, we didn't find the installation
+	return nil, ErrInstallationNotFound{}
 }
 
 func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
-	installs, err := ListInstallations(ctx, cli)
-	if meta.IsNoMatchError(err) {
-		// this will happen if the CRD is not yet installed
-		return nil, ErrNoInstallations{}
-	} else if err != nil {
-		return nil, fmt.Errorf("unable to list installations: %v", err)
+	installations, err := ListInstallations(ctx, cli)
+	if err != nil {
+		return nil, err
 	}
-
-	if len(installs) == 0 {
+	if len(installations) == 0 {
 		return nil, ErrNoInstallations{}
 	}
 
 	// get the latest installation
-	return &installs[0], nil
+	return &installations[0], nil
+}
+
+// GetPreviousInstallation returns the latest installation object in the cluster OTHER than the one passed as an argument.
+func GetPreviousInstallation(ctx context.Context, cli client.Client, in *embeddedclusterv1beta1.Installation) (*embeddedclusterv1beta1.Installation, error) {
+	installations, err := ListInstallations(ctx, cli)
+	if err != nil {
+		return nil, err
+	}
+	if len(installations) == 0 {
+		return nil, ErrNoInstallations{}
+	}
+
+	// find the first installation with a different name than the one we're upgrading to
+	for _, installation := range installations {
+		if installation.Name != in.Name {
+			return &installation, nil
+		}
+	}
+
+	// if we get here, we didn't find a previous installation
+	return nil, ErrInstallationNotFound{}
+}
+
+var (
+	version115            = semver.MustParse("1.15.0")
+	oldVersionSchemeRegex = regexp.MustCompile(`.*\+ec\.[0-9]+`)
+)
+
+func lessThanK0s115(ver *semver.Version) bool {
+	if oldVersionSchemeRegex.MatchString(ver.Original()) {
+		return true
+	}
+	return ver.LessThan(version115)
+}
+
+// MaybeOverrideInstallationDataDirs checks if the previous installation is less than 1.15.0 that
+// didn't store the location of the data directories in the installation object. If it is not set,
+// it will set the annotation and update the installation object with the old location of the data
+// directories.
+func MaybeOverrideInstallationDataDirs(in embeddedclusterv1beta1.Installation, previous *embeddedclusterv1beta1.Installation) (embeddedclusterv1beta1.Installation, bool, error) {
+	if previous != nil {
+		ver, err := semver.NewVersion(previous.Spec.Config.Version)
+		if err != nil {
+			return in, false, fmt.Errorf("parse version: %w", err)
+		}
+
+		if lessThanK0s115(ver) {
+			didUpdate := false
+
+			if in.Spec.RuntimeConfig == nil {
+				in.Spec.RuntimeConfig = &embeddedclusterv1beta1.RuntimeConfigSpec{}
+			}
+
+			// In prior versions, the data directories are not a subdirectory of /var/lib/embedded-cluster.
+			if in.Spec.RuntimeConfig.K0sDataDirOverride != "/var/lib/k0s" {
+				in.Spec.RuntimeConfig.K0sDataDirOverride = "/var/lib/k0s"
+				didUpdate = true
+			}
+			if in.Spec.RuntimeConfig.OpenEBSDataDirOverride != "/var/openebs" {
+				in.Spec.RuntimeConfig.OpenEBSDataDirOverride = "/var/openebs"
+				didUpdate = true
+			}
+
+			return in, didUpdate, nil
+		}
+	}
+
+	return in, false, nil
 }
 
 func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {
@@ -288,7 +387,7 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 					}
 				}
 			}
-			return readynodes == len(nodes.Items), nil
+			return readynodes == len(nodes.Items) && len(nodes.Items) > 0, nil
 		},
 	); err != nil {
 		if lasterr != nil {

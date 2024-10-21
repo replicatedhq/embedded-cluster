@@ -18,6 +18,8 @@ main() {
   elif [ "$test_name" == "deploy-upgrade" ]; then
     export APP_UPGRADE_VERSION="$2"
     export SKIP_CLUSTER_UPGRADE_CHECK="${3:-}"
+  elif [ "$test_name" == "login-with-custom-password" ]; then
+    export ADMIN_CONSOLE_PASSWORD="$2"
   fi
 
   export BASE_URL="${BASE_URL:-http://10.0.0.2:30003}"

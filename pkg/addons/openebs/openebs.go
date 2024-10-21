@@ -42,7 +42,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
+	Render()
+}
 
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))

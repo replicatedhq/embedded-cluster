@@ -3,13 +3,14 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"io"
 	"os"
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -25,7 +26,7 @@ func UpgradeCmd() *cobra.Command {
 		Short:        "create a job to upgrade the embedded cluster operator",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Upgrade command started")
+			fmt.Println("Upgrade job creation started")
 
 			cli, err := k8sutil.KubeClient()
 			if err != nil {
@@ -49,7 +50,7 @@ func UpgradeCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("apply installation: %w", err)
 			}
-			previousInstallation, err := upgrade.GetPreviousInstallation(cmd.Context(), cli, in)
+			previousInstallation, err := kubeutils.GetPreviousInstallation(cmd.Context(), cli, in)
 			if err != nil {
 				return fmt.Errorf("get previous installation: %w", err)
 			}

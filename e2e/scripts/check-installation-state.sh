@@ -47,6 +47,13 @@ main() {
         kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml
         exit 1
     fi
+
+    # if this is the current version
+    if echo "$version" | grep -E "^(dev|appver)-" ; then
+        validate_data_dirs
+    fi
+
+    validate_no_pods_in_crashloop
 }
 
 main "$@"

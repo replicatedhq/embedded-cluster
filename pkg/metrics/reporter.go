@@ -58,6 +58,12 @@ func ClusterID() uuid.UUID {
 	return id
 }
 
+func SetClusterID(id uuid.UUID) {
+	clusterIDMut.Lock()
+	defer clusterIDMut.Unlock()
+	clusterID = &id
+}
+
 // ReportInstallationStarted reports that the installation has started.
 func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License) {
 	rel, _ := release.GetChannelRelease()

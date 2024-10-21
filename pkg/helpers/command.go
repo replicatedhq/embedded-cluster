@@ -14,6 +14,8 @@ type RunCommandOptions struct {
 	Writer io.Writer
 	// Env is a map of additional environment variables to set for the command.
 	Env map[string]string
+	// Stdin is the standard input to be used when running the command.
+	Stdin io.Reader
 }
 
 // RunCommandWithOptions runs a the provided command with the options specified.
@@ -27,6 +29,9 @@ func RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) e
 	cmd.Stdout = stdout
 	if opts.Writer != nil {
 		cmd.Stdout = io.MultiWriter(opts.Writer, stdout)
+	}
+	if opts.Stdin != nil {
+		cmd.Stdin = opts.Stdin
 	}
 	cmd.Stderr = stderr
 	cmdEnv := cmd.Environ()
