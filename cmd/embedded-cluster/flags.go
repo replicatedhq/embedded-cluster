@@ -58,11 +58,27 @@ func getLocalArtifactMirrorPortFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) 
 	}
 }
 
-func getDataDirFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) cli.Flag {
+func getInstallDataDirFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *cli.StringFlag {
 	return &cli.StringFlag{
 		Name:   "data-dir",
 		Usage:  "Path to the data directory",
 		Value:  ecv1beta1.DefaultDataDir,
+		Hidden: false,
+		Action: func(c *cli.Context, s string) error {
+			if s == "" {
+				return nil
+			}
+			logrus.Debugf("Setting data dir to %s from flag", s)
+			runtimeConfig.DataDir = s
+			return nil
+		},
+	}
+}
+
+func getDataDirFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *cli.StringFlag {
+	return &cli.StringFlag{
+		Name:   "data-dir",
+		Usage:  "Path to the data directory (default discovered from the cluster)",
 		Hidden: false,
 		Action: func(c *cli.Context, s string) error {
 			if s == "" {

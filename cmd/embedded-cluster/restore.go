@@ -908,7 +908,7 @@ func restoreCommand() *cli.Command {
 					Name:  "airgap-bundle",
 					Usage: "Path to the air gap bundle. If set, the restore will complete without internet access.",
 				},
-				getDataDirFlag(runtimeConfig),
+				getInstallDataDirFlag(runtimeConfig),
 				&cli.StringFlag{
 					Name:  "local-artifact-mirror-port",
 					Usage: "Port on which the Local Artifact Mirror will be served. If left empty, the port will be retrieved from the snapshot.",

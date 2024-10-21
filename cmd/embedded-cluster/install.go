@@ -660,7 +660,7 @@ func installCommand() *cli.Command {
 					Name:  "airgap-bundle",
 					Usage: "Path to the air gap bundle. If set, the installation will complete without internet access.",
 				},
-				getDataDirFlag(runtimeConfig),
+				getInstallDataDirFlag(runtimeConfig),
 				&cli.StringFlag{
 					Name:    "license",
 					Aliases: []string{"l"},
