@@ -11,6 +11,7 @@ ARCH ?= $(shell go env GOARCH)
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 0.0.1
+K0S_VERSION ?= v1.29.9+k0s.0-ec.0
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -25,6 +26,10 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 export PATH := $(shell pwd)/bin:$(PATH)
+
+LD_FLAGS = \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -62,12 +67,8 @@ manifests: kustomize controller-gen ## Generate WebhookConfiguration, ClusterRol
 fmt: ## Run go fmt against code.
 	go fmt ./...
 
-.PHONY: vet
-vet: ## Run go vet against code.
-	go vet ./...
-
 .PHONY: test
-test: manifests fmt vet envtest ## Run tests.
+test: manifests envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
 
 ##@ Build
@@ -76,11 +77,11 @@ test: manifests fmt vet envtest ## Run tests.
 build: ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
-		-ldflags="-s -w -extldflags=-static" \
+		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o bin/manager main.go
 
 .PHONY: run
-run: manifests fmt vet ## Run a controller from your host.
+run: manifests fmt ## Run a controller from your host.
 	go run ./main.go
 
 ##@ Build Dependencies
@@ -163,8 +164,13 @@ build-operator-image-chainguard:
 
 .PHONY: build-operator-image-dockerfile
 build-operator-image-dockerfile:
-	docker build --platform="$(OS)/$(ARCH)" -t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" -f ../dev/dockerfiles/operator/Dockerfile.ttlsh ../
+	docker build --platform="$(OS)/$(ARCH)" \
+		-t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg K0S_VERSION=$(K0S_VERSION) \
+		-f ../dev/dockerfiles/operator/Dockerfile.ttlsh ../
 	mkdir -p build
+	echo "Version $(VERSION) k0s $(K0S_VERSION)"
 	echo "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" > build/image
 
 .PHONY: build-and-push-operator-image

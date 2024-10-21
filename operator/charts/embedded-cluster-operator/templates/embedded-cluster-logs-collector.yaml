@@ -19,7 +19,7 @@ data:
       collectors:
         - runDaemonSet:
             name: "k0scontroller"
-            namespace: default
+            namespace: embedded-cluster
             podSpec:
               containers:
               - image: {{ .Values.utilsImage }}
@@ -37,7 +37,8 @@ data:
               hostIPC: true
               hostNetwork: true
               hostPID: true
-              securityContext: {}
+              securityContext:
+                runAsUser: 0
               tolerations:
               - operator: Exists
               volumes:
@@ -47,12 +48,12 @@ data:
                 name: host-root
         - runDaemonSet:
             name: "k0sworker"
-            namespace: default
+            namespace: embedded-cluster
             podSpec:
               containers:
               - image: {{ .Values.utilsImage }}
                 imagePullPolicy: Always
-                args: ["chroot","/host","journalctl","-u","k0scontroller","--no-pager","--since","2 days ago"]
+                args: ["chroot","/host","journalctl","-u","k0sworker","--no-pager","--since","2 days ago"]
                 name: debugger
                 resources: {}
                 terminationMessagePath: /dev/termination-log
@@ -65,7 +66,37 @@ data:
               hostIPC: true
               hostNetwork: true
               hostPID: true
-              securityContext: {}
+              securityContext:
+                runAsUser: 0
+              tolerations:
+              - operator: Exists
+              volumes:
+              - hostPath:
+                  path: /
+                  type: ""
+                name: host-root
+        - runDaemonSet:
+            name: "local-artifact-mirror"
+            namespace: embedded-cluster
+            podSpec:
+              containers:
+              - image: {{ .Values.utilsImage }}
+                imagePullPolicy: Always
+                args: ["chroot","/host","journalctl","-u","local-artifact-mirror","--no-pager","--since","2 days ago"]
+                name: debugger
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                - mountPath: /host
+                  name: host-root
+              dnsPolicy: ClusterFirst
+              enableServiceLinks: true
+              hostIPC: true
+              hostNetwork: true
+              hostPID: true
+              securityContext:
+                runAsUser: 0
               tolerations:
               - operator: Exists
               volumes:

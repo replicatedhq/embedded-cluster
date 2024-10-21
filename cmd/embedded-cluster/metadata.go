@@ -9,8 +9,6 @@ import (
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	eckinds "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
-	"github.com/urfave/cli/v2"
-
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -20,15 +18,22 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/urfave/cli/v2"
 )
 
 var metadataCommand = &cli.Command{
 	Name:   "metadata",
 	Usage:  "Print metadata about this release",
 	Hidden: true,
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "omit-release-metadata",
+			Usage: "Omit the release metadata from the output",
+		},
+	},
 	Action: func(c *cli.Context) error {
 		k0sCfg := config.RenderK0sConfig()
-		metadata, err := gatherVersionMetadata(k0sCfg)
+		metadata, err := gatherVersionMetadata(k0sCfg, !c.Bool("omit-release-metadata"))
 		if err != nil {
 			return fmt.Errorf("failed to gather version metadata: %w", err)
 		}
@@ -45,14 +50,21 @@ var metadataCommand = &cli.Command{
 // embedded cluster. Release metadata involves the default versions of the
 // components that are included in the release plus the default values used
 // when deploying them.
-func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetadata, error) {
+func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig, withChannelRelease bool) (*types.ReleaseMetadata, error) {
 	applier := addons.NewApplier(
 		addons.WithoutPrompt(),
 		addons.OnlyDefaults(),
 		addons.Quiet(),
 	)
 
-	versionsMap, err := applier.Versions(config.AdditionalCharts())
+	additionalCharts := []eckinds.Chart{}
+	additionalRepos := []eckinds.Repository{}
+	if withChannelRelease {
+		additionalCharts = config.AdditionalCharts()
+		additionalRepos = config.AdditionalRepositories()
+	}
+
+	versionsMap, err := applier.Versions(additionalCharts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get versions: %w", err)
 	}
@@ -60,9 +72,11 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetad
 	versionsMap["Installer"] = versions.Version
 	versionsMap["Troubleshoot"] = versions.TroubleshootVersion
 
-	channelRelease, err := release.GetChannelRelease()
-	if err == nil && channelRelease != nil {
-		versionsMap[defaults.BinaryName()] = channelRelease.VersionLabel
+	if withChannelRelease {
+		channelRelease, err := release.GetChannelRelease()
+		if err == nil && channelRelease != nil {
+			versionsMap[defaults.BinaryName()] = channelRelease.VersionLabel
+		}
 	}
 
 	sha, err := goods.K0sBinarySHA256()
@@ -94,8 +108,8 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig) (*types.ReleaseMetad
 
 	chtconfig, repconfig, err := applier.GenerateHelmConfigs(
 		k0sCfg,
-		config.AdditionalCharts(),
-		config.AdditionalRepositories(),
+		additionalCharts,
+		additionalRepos,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply addons: %w", err)

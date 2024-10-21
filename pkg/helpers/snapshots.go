@@ -1,21 +1,16 @@
 package helpers
 
 import (
-	"fmt"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-func DisasterRecoveryEnabled(licenseFile string) (bool, error) {
-	if licenseFile == "" {
+func DisasterRecoveryEnabled(license *kotsv1beta1.License) (bool, error) {
+	if license == nil {
 		return false, nil
 	}
 
-	lic, err := ParseLicense(licenseFile)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse license: %w", err)
-	}
-
 	// if the license does not have disaster recovery enabled, return false
-	if !lic.Spec.IsDisasterRecoverySupported {
+	if !license.Spec.IsDisasterRecoverySupported {
 		return false, nil
 	}
 

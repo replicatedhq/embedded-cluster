@@ -2,17 +2,19 @@ SHELL := /bin/bash
 
 include common.mk
 
+OS ?= linux
+ARCH ?= $(shell go env GOARCH)
+
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.29.8+k0s.0
-K0S_GO_VERSION = v1.29.8+k0s.0
-PREVIOUS_K0S_VERSION ?= v1.28.10+k0s.0
+K0S_VERSION = v1.29.9+k0s.0-ec.0
+K0S_GO_VERSION = v1.29.9+k0s.0
+PREVIOUS_K0S_VERSION ?= v1.28.14+k0s.0-ec.0
 K0S_BINARY_SOURCE_OVERRIDE =
-PREVIOUS_K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.105.0
+TROUBLESHOOT_VERSION = v0.105.2
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
@@ -23,6 +25,13 @@ LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedde
 METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
+
+ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
+K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)
+else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
+K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.28.14%2Bk0s.0-ec.0-$(ARCH)
+endif
+
 LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION) \
@@ -41,9 +50,6 @@ LD_FLAGS = \
 DISABLE_FIO_BUILD ?= 0
 
 export PATH := $(shell pwd)/bin:$(PATH)
-
-OS ?= linux
-ARCH ?= $(shell go env GOARCH)
 
 .DEFAULT_GOAL := default
 default: build-ttl.sh
@@ -104,7 +110,7 @@ pkg/goods/bins/local-artifact-mirror:
 	touch $@
 
 ifndef FIO_VERSION
-FIO_VERSION = $(shell curl -fsSL https://api.github.com/repos/axboe/fio/releases/latest | jq -r '.tag_name' | cut -d- -f2)
+FIO_VERSION = $(shell curl --retry 5 --retry-all-errors -fsSL https://api.github.com/repos/axboe/fio/releases/latest | jq -r '.tag_name' | cut -d- -f2)
 endif
 
 output/bins/fio-%:
@@ -176,6 +182,7 @@ upgrade-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade
 upgrade-release: APP_VERSION = appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
+	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
 		./scripts/build-and-release.sh
 
 .PHONY: go.mod
@@ -192,22 +199,22 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
-embedded-cluster-linux-amd64: OS = linux
-embedded-cluster-linux-amd64: ARCH = amd64
+embedded-cluster-linux-amd64: export OS = linux
+embedded-cluster-linux-amd64: export ARCH = amd64
 embedded-cluster-linux-amd64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-linux-arm64
-embedded-cluster-linux-arm64: OS = linux
-embedded-cluster-linux-arm64: ARCH = arm64
+embedded-cluster-linux-arm64: export OS = linux
+embedded-cluster-linux-arm64: export ARCH = arm64
 embedded-cluster-linux-arm64: static go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-darwin-arm64
-embedded-cluster-darwin-arm64: OS = darwin
-embedded-cluster-darwin-arm64: ARCH = arm64
+embedded-cluster-darwin-arm64: export OS = darwin
+embedded-cluster-darwin-arm64: export ARCH = arm64
 embedded-cluster-darwin-arm64: go.mod embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
@@ -237,7 +244,7 @@ e2e-tests: embedded-release
 
 .PHONY: e2e-test
 e2e-test:
-	go test -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run $(TEST_NAME)$
+	go test -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
 
 .PHONY: build-ttl.sh
 build-ttl.sh:
@@ -284,13 +291,13 @@ list-distros:
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
-create-node%: K0S_DATA_DIR = /var/lib/k0s
+create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
 create-node%:
 	@docker run -d \
 		--name node$* \
 		--hostname node$* \
 		--privileged \
-		--cgroupns=host \
+		--restart=unless-stopped \
 		-v $(K0S_DATA_DIR) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
@@ -305,7 +312,7 @@ ssh-node%:
 
 .PHONY: delete-node%
 delete-node%:
-	@docker rm -f node$*
+	@docker rm -f --volumes node$*
 
 .PHONY: %-up
 %-up:

@@ -107,7 +107,6 @@ override_applied() {
 }
 
 main() {
-    cp -Rfp /usr/local/bin/embedded-cluster /usr/local/bin/embedded-cluster-copy
     embed_cluster_config "$embedded_cluster_config"
     if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
@@ -128,8 +127,4 @@ main() {
     fi
 }
 
-export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
-export KUBECONFIG=/var/lib/k0s/pki/admin.conf
-export K0SCONFIG=/etc/k0s/k0s.yaml
-export PATH=$PATH:/var/lib/embedded-cluster/bin
 main

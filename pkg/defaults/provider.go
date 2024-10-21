@@ -1,63 +1,98 @@
 package defaults
 
 import (
-	"io"
-	"net"
-	"net/http"
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/gosimple/slug"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// NewProvider returns a new Provider using the provided base dir.
-// Base is the base directory inside which all the other directories are
+// NewProvider returns a new Provider using the provided data dir.
+// Data is the base directory inside which all the other directories are
 // created.
-func NewProvider(base string) *Provider {
-	obj := &Provider{Base: base}
-	obj.Init()
+func NewProvider(dataDir string) *Provider {
+	return NewProviderFromRuntimeConfig(&ecv1beta1.RuntimeConfigSpec{
+		DataDir: dataDir,
+	})
+}
+
+// NewProviderFromRuntimeConfig returns a new Provider using the provided runtime config.
+func NewProviderFromRuntimeConfig(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *Provider {
+	obj := &Provider{
+		runtimeConfig: runtimeConfig,
+	}
 	return obj
+}
+
+// NewProviderFromCluster discovers the provider from the installation object. If there is no
+// runtime config, this is probably a prior version of EC so we will have to fall back to the
+// filesystem.
+func NewProviderFromCluster(ctx context.Context, cli client.Client) (*Provider, error) {
+	in, err := kubeutils.GetLatestInstallation(ctx, cli)
+	if err != nil {
+		return nil, fmt.Errorf("get latest installation: %w", err)
+	}
+
+	if in.Spec.RuntimeConfig == nil {
+		// If there is no runtime config, this is probably a prior version of EC so we will have to
+		// fall back to the filesystem.
+		return NewProviderFromFilesystem()
+	}
+	return NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig), nil
+}
+
+// NewProviderFromFilesystem returns a new provider from the filesystem. It supports older versions
+// of EC that used a different directory for k0s and openebs.
+func NewProviderFromFilesystem() (*Provider, error) {
+	provider := NewProvider(ecv1beta1.DefaultDataDir)
+	// ca.crt is available on both control plane and worker nodes
+	_, err := os.Stat(filepath.Join(provider.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
+	if err == nil {
+		return provider, nil
+	}
+	// Handle versions prior to consolidation of data dirs
+	provider = NewProviderFromRuntimeConfig(&ecv1beta1.RuntimeConfigSpec{
+		DataDir:                ecv1beta1.DefaultDataDir,
+		K0sDataDirOverride:     "/var/lib/k0s",
+		OpenEBSDataDirOverride: "/var/openebs",
+	})
+	// ca.crt is available on both control plane and worker nodes
+	_, err = os.Stat(filepath.Join(provider.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
+	if err == nil {
+		return provider, nil
+	}
+	return nil, fmt.Errorf("unable to discover provider from filesystem")
 }
 
 // Provider is an entity that provides default values used during
 // EmbeddedCluster installation.
 type Provider struct {
-	Base string
+	runtimeConfig *ecv1beta1.RuntimeConfigSpec
 }
 
-// Init makes sure all the necessary directory exists on the system.
-func (d *Provider) Init() {}
-
-// BinaryName returns the binary name, this is useful for places where we
-// need to present the name of the binary to the user (the name may vary if
-// the binary is renamed). We make sure the name does not contain invalid
-// characters for a filename.
-func (d *Provider) BinaryName() string {
-	exe, err := os.Executable()
-	if err != nil {
-		logrus.Fatalf("unable to get executable path: %s", err)
+// EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
+// store all the embedded-cluster related files.
+func (d *Provider) EmbeddedClusterHomeDirectory() string {
+	if d.runtimeConfig != nil && d.runtimeConfig.DataDir != "" {
+		return d.runtimeConfig.DataDir
 	}
-	base := filepath.Base(exe)
-	return slug.Make(base)
+	return ecv1beta1.DefaultDataDir
 }
 
-// EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs
-// are stored.
-func (d *Provider) EmbeddedClusterLogsSubDir() string {
-	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "logs")
+// EmbeddedClusterTmpSubDir returns the path to the tmp directory where embedded-cluster
+// stores temporary files.
+func (d *Provider) EmbeddedClusterTmpSubDir() string {
+	path := filepath.Join(d.EmbeddedClusterHomeDirectory(), "tmp")
+
 	if err := os.MkdirAll(path, 0755); err != nil {
-		logrus.Fatalf("unable to create embedded-cluster logs dir: %s", err)
+		logrus.Fatalf("unable to create embedded-cluster tmp dir: %s", err)
 	}
-
 	return path
-}
-
-// PathToLog returns the full path to a log file. This function does not check
-// if the file exists.
-func (d *Provider) PathToLog(name string) string {
-	return filepath.Join(d.EmbeddedClusterLogsSubDir(), name)
 }
 
 // EmbeddedClusterBinsSubDir returns the path to the directory where embedded-cluster binaries
@@ -91,17 +126,25 @@ func (d *Provider) EmbeddedClusterImagesSubDir() string {
 	return path
 }
 
-// EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
-// store all the embedded-cluster related files.
-func (d *Provider) EmbeddedClusterHomeDirectory() string {
-	return filepath.Join(d.Base, "/var/lib/embedded-cluster")
+// EmbeddedClusterK0sSubDir returns the path to the directory where k0s data is stored.
+func (d *Provider) EmbeddedClusterK0sSubDir() string {
+	if d.runtimeConfig != nil && d.runtimeConfig.K0sDataDirOverride != "" {
+		return d.runtimeConfig.K0sDataDirOverride
+	}
+	return filepath.Join(d.EmbeddedClusterHomeDirectory(), "k0s")
 }
 
-// K0sBinaryPath returns the path to the k0s binary when it is installed on the node. This
-// does not return the binary just after we materilized it but the path we want it to be
-// once it is installed.
-func (d *Provider) K0sBinaryPath() string {
-	return "/usr/local/bin/k0s"
+// EmbeddedClusterSeaweedfsSubDir returns the path to the directory where seaweedfs data is stored.
+func (d *Provider) EmbeddedClusterSeaweedfsSubDir() string {
+	return filepath.Join(d.EmbeddedClusterHomeDirectory(), "seaweedfs")
+}
+
+// EmbeddedClusterOpenEBSLocalSubDir returns the path to the directory where OpenEBS local data is stored.
+func (d *Provider) EmbeddedClusterOpenEBSLocalSubDir() string {
+	if d.runtimeConfig != nil && d.runtimeConfig.OpenEBSDataDirOverride != "" {
+		return d.runtimeConfig.OpenEBSDataDirOverride
+	}
+	return filepath.Join(d.EmbeddedClusterHomeDirectory(), "openebs-local")
 }
 
 // PathToEmbeddedClusterBinary is an utility function that returns the full path to a
@@ -111,65 +154,9 @@ func (d *Provider) PathToEmbeddedClusterBinary(name string) string {
 	return filepath.Join(d.EmbeddedClusterBinsSubDir(), name)
 }
 
+// PathToKubeConfig returns the path to the kubeconfig file.
 func (d *Provider) PathToKubeConfig() string {
-	return "/var/lib/k0s/pki/admin.conf"
-}
-
-// TryDiscoverPublicIP tries to discover the public IP of the node by querying
-// a list of known providers. If the public IP cannot be discovered, an empty
-// string is returned.
-func (d *Provider) TryDiscoverPublicIP() string {
-	// List of providers and their respective metadata URLs
-	providers := []struct {
-		name    string
-		url     string
-		headers map[string]string
-	}{
-		{"gce", "http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip", map[string]string{"Metadata-Flavor": "Google"}},
-		{"ec2", "http://169.254.169.254/latest/meta-data/public-ipv4", nil},
-		{"azure", "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text", map[string]string{"Metadata": "true"}},
-	}
-
-	for _, provider := range providers {
-		client := &http.Client{
-			Timeout: 5 * time.Second,
-		}
-		req, _ := http.NewRequest("GET", provider.url, nil)
-		for k, v := range provider.headers {
-			req.Header.Add(k, v)
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return ""
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == http.StatusOK {
-			bodyBytes, _ := io.ReadAll(resp.Body)
-			publicIP := string(bodyBytes)
-			if net.ParseIP(publicIP).To4() != nil {
-				return publicIP
-			} else {
-				return ""
-			}
-		}
-	}
-	return ""
-}
-
-// PathToK0sStatusSocket returns the full path to the k0s status socket.
-func (d *Provider) PathToK0sStatusSocket() string {
-	return "/run/k0s/status.sock"
-}
-
-// PathToK0sConfig returns the full path to the k0s configuration file.
-func (d *Provider) PathToK0sConfig() string {
-	return "/etc/k0s/k0s.yaml"
-}
-
-// PathToK0sContainerdConfig returns the full path to the k0s containerd configuration directory
-func (d *Provider) PathToK0sContainerdConfig() string {
-	return "/etc/k0s/containerd.d/"
+	return filepath.Join(d.EmbeddedClusterK0sSubDir(), "pki/admin.conf")
 }
 
 // EmbeddedClusterSupportSubDir returns the path to the directory where embedded-cluster
@@ -187,4 +174,18 @@ func (d *Provider) EmbeddedClusterSupportSubDir() string {
 // a materialized support file. This function does not check if the file exists.
 func (d *Provider) PathToEmbeddedClusterSupportFile(name string) string {
 	return filepath.Join(d.EmbeddedClusterSupportSubDir(), name)
+}
+
+func (d *Provider) LocalArtifactMirrorPort() int {
+	if d.runtimeConfig != nil && d.runtimeConfig.LocalArtifactMirror.Port > 0 {
+		return d.runtimeConfig.LocalArtifactMirror.Port
+	}
+	return ecv1beta1.DefaultLocalArtifactMirrorPort
+}
+
+func (d *Provider) AdminConsolePort() int {
+	if d.runtimeConfig != nil && d.runtimeConfig.AdminConsole.Port > 0 {
+		return d.runtimeConfig.AdminConsole.Port
+	}
+	return ecv1beta1.DefaultAdminConsolePort
 }

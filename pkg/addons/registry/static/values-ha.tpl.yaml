@@ -41,3 +41,7 @@ secrets:
   s3:
     secretRef: seaweedfs-s3-rw
 storage: s3
+service:
+  name: registry
+  type: ClusterIP
+  port: 5000

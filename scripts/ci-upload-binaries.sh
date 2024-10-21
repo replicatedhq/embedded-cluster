@@ -32,30 +32,40 @@ function init_vars() {
 
 function k0sbin() {
     local k0s_override=
-    k0s_override=$(make print-K0S_BINARY_SOURCE_OVERRIDE)
+    k0s_override=$(make print-K0S_BINARY_SOURCE_OVERRIDE K0S_VERSION="${K0S_VERSION}")
 
     # check if the binary already exists in the bucket
     local k0s_binary_exists=
     k0s_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}-${ARCH}" || true)
 
+    # For backwards compatibility, we upload the amd64 binary to the bucket without the arch suffix
+    local k0s_noarch_binary_exists=1
+    if [ "${ARCH}" == "amd64" ]; then
+        k0s_noarch_binary_exists=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "k0s-binaries/${K0S_VERSION}" || true)
+    fi
+
     # if the binary already exists, we don't need to upload it again
-    if [ -n "${k0s_binary_exists}" ]; then
-        echo "k0s binary ${K0S_VERSION} already exists in bucket ${S3_BUCKET}, skipping upload"
-        return 0
+    if [ -z "${k0s_binary_exists}" ] || [ -z "${k0s_noarch_binary_exists}" ]; then
+        # if the override is set, we should download this binary and upload it to the bucket so as not to require end users hit the override url
+        if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
+            echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
+            curl --retry 5 --retry-all-errors -fL -o "build/${K0S_VERSION}" "${k0s_override}"
+        else
+            # download the k0s binary from official sources
+            echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-${ARCH}"
+            curl --retry 5 --retry-all-errors -fL -o "build/${K0S_VERSION}" "https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-${ARCH}"
+        fi
     fi
 
-    # if the override is set, we should download this binary and upload it to the bucket so as not to require end users hit the override url
-    if [ -n "${k0s_override}" ] && [ "${k0s_override}" != '' ]; then
-        echo "K0S_BINARY_SOURCE_OVERRIDE is set to '${k0s_override}', using that source"
-        curl --retry 5 --retry-all-errors -fL -o "build/${K0S_VERSION}" "${k0s_override}"
-    else
-        # download the k0s binary from official sources
-        echo "downloading k0s binary from https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-${ARCH}"
-        curl --retry 5 --retry-all-errors -fL -o "build/${K0S_VERSION}" "https://github.com/k0sproject/k0s/releases/download/${K0S_VERSION}/k0s-${K0S_VERSION}-${ARCH}"
+    if [ -z "${k0s_binary_exists}" ]; then
+        # upload the binary to the bucket
+        retry 3 aws s3 cp --no-progress "build/${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}-${ARCH}"
     fi
 
-    # upload the binary to the bucket
-    retry 3 aws s3 cp --no-progress "build/${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}-${ARCH}"
+    if [ -z "${k0s_noarch_binary_exists}" ]; then
+        # upload the amd64 binary to the bucket without the arch suffix
+        retry 3 aws s3 cp --no-progress "build/${K0S_VERSION}" "s3://${S3_BUCKET}/k0s-binaries/${K0S_VERSION}"
+    fi
 }
 
 function operatorbin() {
@@ -116,11 +126,6 @@ function metadata() {
     if [ -z "${EC_VERSION}" ]; then
         echo "EC_VERSION unset, not uploading metadata.json"
         return 0
-    fi
-
-    if [ "$MANGLE_METADATA" == "1" ]; then
-        jq '(.Configs.charts[] | select(.name == "embedded-cluster-operator")).values += "resources:\n  requests:\n    cpu: 123m"' build/metadata.json > build/metadata.tmp.json
-        mv build/metadata.tmp.json build/metadata.json
     fi
 
     # check if a file 'build/metadata.json' exists in the directory

@@ -7,23 +7,31 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVersion(t *testing.T) {
 	t.Parallel()
-	tc := cluster.NewTestCluster(&cluster.Input{
+	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
 		Nodes:               1,
 		CreateRegularUser:   true,
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		AdditionalFiles: []lxd.File{
+			{
+				SourcePath: "../output/bin/embedded-cluster-original",
+				DestPath:   "/usr/local/bin/embedded-cluster-original",
+				Mode:       0755,
+			},
+		},
 	})
-	defer cleanupCluster(t, tc)
+	defer tc.Cleanup()
 	t.Logf("%s: validating 'embedded-cluster version' in node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-cluster", "version"}
-	stdout, stderr, err := RunRegularUserCommandOnNode(t, tc, 0, line)
+	stdout, stderr, err := tc.RunRegularUserCommandOnNode(t, 0, line)
 	if err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
@@ -42,9 +50,22 @@ func TestVersion(t *testing.T) {
 		return
 	}
 
+	t.Logf("%s: validating 'embedded-cluster version metadata --omit-release-metadata' in node 0", time.Now().Format(time.RFC3339))
+	line = []string{"embedded-cluster", "version", "metadata", "--omit-release-metadata"}
+	embedMetadata, _, err := tc.RunRegularUserCommandOnNode(t, 0, line)
+	if err != nil {
+		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
+	}
+	line = []string{"embedded-cluster-original", "version", "metadata"}
+	noembedMetadata, _, err := tc.RunRegularUserCommandOnNode(t, 0, line)
+	if err != nil {
+		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
+	}
+	require.Equal(t, noembedMetadata, embedMetadata, "metadata should be the same")
+
 	t.Logf("%s: validating 'embedded-cluster version metadata' in node 0", time.Now().Format(time.RFC3339))
 	line2 := []string{"embedded-cluster", "version", "metadata"}
-	stdout, stderr, err = RunRegularUserCommandOnNode(t, tc, 0, line2)
+	stdout, stderr, err = tc.RunRegularUserCommandOnNode(t, 0, line2)
 	if err != nil {
 		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
 	}
@@ -167,7 +188,7 @@ func TestVersion(t *testing.T) {
 
 	t.Logf("%s: validating 'embedded-cluster version embedded-data' in node 0", time.Now().Format(time.RFC3339))
 	line3 := []string{"embedded-cluster", "version", "embedded-data"}
-	stdout, stderr, err = RunRegularUserCommandOnNode(t, tc, 0, line3)
+	stdout, stderr, err = tc.RunRegularUserCommandOnNode(t, 0, line3)
 	if err != nil {
 		t.Fatalf("fail to run metadata command on node %s: %v", tc.Nodes[0], err)
 	}

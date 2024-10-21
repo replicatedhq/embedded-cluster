@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 
 	"github.com/sirupsen/logrus"
@@ -30,10 +29,11 @@ func RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) e
 		cmd.Stdout = io.MultiWriter(opts.Writer, stdout)
 	}
 	cmd.Stderr = stderr
-	cmd.Env = os.Environ()
+	cmdEnv := cmd.Environ()
 	for k, v := range opts.Env {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		cmdEnv = append(cmdEnv, fmt.Sprintf("%s=%s", k, v))
 	}
+	cmd.Env = cmdEnv
 	if err := cmd.Run(); err != nil {
 		logrus.Debugf("failed to run command:")
 		logrus.Debugf("stdout: %s", stdout.String())

@@ -14,11 +14,10 @@ RUN dnf install -y \
   kmod \
   iproute \
   chrony \
+  expect \
   vim \
   --allowerasing
 
-# Export kube config
-ENV KUBECONFIG=/var/lib/k0s/pki/admin.conf
-
-# Default command to run systemd
-CMD ["/sbin/init"]
+# Entrypoint for runtime configurations
+COPY ./entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

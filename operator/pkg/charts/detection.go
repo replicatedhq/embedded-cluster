@@ -1,15 +1,14 @@
-package controllers
+package charts
 
 import (
 	"fmt"
-
-	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	v1beta2 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
+	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"sigs.k8s.io/yaml"
 )
 
 // detect if the charts currently installed in the cluster (currentConfigs) match the desired charts (combinedConfigs)
-func detectChartDrift(combinedConfigs, currentConfigs *k0sv1beta1.HelmExtensions) (bool, []string, error) {
+func DetectChartDrift(combinedConfigs, currentConfigs *v1beta1.HelmExtensions) (bool, []string, error) {
 	chartDrift := false
 	driftMap := map[string]struct{}{}
 	if len(currentConfigs.Repositories) != len(combinedConfigs.Repositories) {
@@ -33,7 +32,7 @@ func detectChartDrift(combinedConfigs, currentConfigs *k0sv1beta1.HelmExtensions
 				driftMap[chart.Name] = struct{}{}
 			}
 
-			valuesDiff, err := yamlDiff(targetChart.Values, chart.Values)
+			valuesDiff, err := YamlDiff(targetChart.Values, chart.Values)
 			if err != nil {
 				return false, nil, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
 			}
@@ -58,7 +57,7 @@ func detectChartDrift(combinedConfigs, currentConfigs *k0sv1beta1.HelmExtensions
 }
 
 // yamlDiff compares two yaml strings and returns true if they are different
-func yamlDiff(a, b string) (bool, error) {
+func YamlDiff(a, b string) (bool, error) {
 	aMap := map[string]interface{}{}
 	err := yaml.Unmarshal([]byte(a), &aMap)
 	if err != nil {
@@ -85,9 +84,9 @@ func yamlDiff(a, b string) (bool, error) {
 }
 
 // check if all charts in the combinedConfigs are installed successfully with the desired version and values
-func detectChartCompletion(existingHelm *k0sv1beta1.HelmExtensions, installedCharts k0shelm.ChartList) ([]string, []string, error) {
+func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts v1beta2.ChartList) ([]string, map[string]string, error) {
 	incompleteCharts := []string{}
-	chartErrors := []string{}
+	chartErrors := map[string]string{}
 	if existingHelm == nil {
 		return incompleteCharts, chartErrors, nil
 	}
@@ -98,7 +97,7 @@ func detectChartCompletion(existingHelm *k0sv1beta1.HelmExtensions, installedCha
 			if chart.Name == installedChart.Spec.ReleaseName {
 				chartSeen = true
 
-				valuesDiff, err := yamlDiff(chart.Values, installedChart.Spec.Values)
+				valuesDiff, err := YamlDiff(chart.Values, installedChart.Spec.Values)
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to compare values of chart %s: %w", chart.Name, err)
 				}
@@ -116,7 +115,7 @@ func detectChartCompletion(existingHelm *k0sv1beta1.HelmExtensions, installedCha
 				}
 
 				if installedChart.Status.Error != "" {
-					chartErrors = append(chartErrors, installedChart.Status.Error)
+					chartErrors[chart.Name] = installedChart.Status.Error
 					diffDetected = false
 				}
 

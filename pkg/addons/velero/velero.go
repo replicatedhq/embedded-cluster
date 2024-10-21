@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"path/filepath"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -12,8 +13,11 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -39,6 +43,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
+	Render()
+}
+
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
@@ -76,26 +84,36 @@ func (o *Velero) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Velero chart.
-func (o *Velero) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (o *Velero) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !o.isEnabled {
 		return nil, nil, nil
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:      releaseName,
-		ChartName: Metadata.Location,
-		Version:   Metadata.Version,
-		TargetNS:  o.namespace,
-		Order:     3,
+		Name:         releaseName,
+		ChartName:    Metadata.Location,
+		Version:      Metadata.Version,
+		TargetNS:     o.namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        3,
 	}
 
-	if len(o.proxyEnv) > 0 {
-		extraEnvVars := map[string]interface{}{}
-		for k, v := range o.proxyEnv {
-			extraEnvVars[k] = v
+	if !onlyDefaults {
+		if len(o.proxyEnv) > 0 {
+			extraEnvVars := map[string]interface{}{}
+			for k, v := range o.proxyEnv {
+				extraEnvVars[k] = v
+			}
+			helmValues["configuration"] = map[string]interface{}{
+				"extraEnvVars": extraEnvVars,
+			}
 		}
-		helmValues["configuration"] = map[string]interface{}{
-			"extraEnvVars": extraEnvVars,
+
+		var err error
+		podVolumePath := filepath.Join(provider.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+		helmValues, err = helm.SetValue(helmValues, "nodeAgent.podVolumePath", podVolumePath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("set helm values nodeAgent.podVolumePath: %w", err)
 		}
 	}
 
@@ -128,7 +146,7 @@ func (o *Velero) GetAdditionalImages() []string {
 }
 
 // Outro is executed after the cluster deployment.
-func (o *Velero) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (o *Velero) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	if !o.isEnabled {
 		return nil
 	}

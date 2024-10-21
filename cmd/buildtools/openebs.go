@@ -64,11 +64,12 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		current := openebs.Metadata
 		if current.Version == nextChartVersion && !c.Bool("force") {
 			logrus.Infof("openebs chart version is already up-to-date")
-		} else {
-			logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
-			if err := MirrorChart(openebsRepo, "openebs", nextChartVersion); err != nil {
-				return fmt.Errorf("failed to mirror openebs chart: %v", err)
-			}
+			return nil
+		}
+
+		logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
+		if err := MirrorChart(openebsRepo, "openebs", nextChartVersion); err != nil {
+			return fmt.Errorf("failed to mirror openebs chart: %v", err)
 		}
 
 		upstream := fmt.Sprintf("%s/openebs", os.Getenv("CHARTS_DESTINATION"))

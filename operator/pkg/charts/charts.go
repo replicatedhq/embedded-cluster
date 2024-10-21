@@ -4,17 +4,22 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
+	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -26,9 +31,15 @@ const (
 // charts and repositories from the installation spec.
 func K0sHelmExtensionsFromInstallation(
 	ctx context.Context, in *clusterv1beta1.Installation,
-	metadata *ectypes.ReleaseMetadata, clusterConfig *k0sv1beta1.ClusterConfig,
+	meta *types.ReleaseMetadata,
+	clusterConfig *k0sv1beta1.ClusterConfig,
 ) (*v1beta1.Helm, error) {
-	combinedConfigs, err := mergeHelmConfigs(ctx, metadata, in, clusterConfig)
+	ol, err := operatorLocation(meta)
+	if err != nil {
+		return nil, fmt.Errorf("get operator location: %w", err)
+	}
+
+	combinedConfigs, err := generateHelmConfigs(ctx, in, clusterConfig, meta.Images, ol)
 	if err != nil {
 		return nil, fmt.Errorf("merge helm configs: %w", err)
 	}
@@ -37,7 +48,7 @@ func K0sHelmExtensionsFromInstallation(
 		// if in airgap mode then all charts are already on the node's disk. we just need to
 		// make sure that the helm charts are pointing to the right location on disk and that
 		// we do not have any kind of helm repository configuration.
-		combinedConfigs = patchExtensionsForAirGap(combinedConfigs)
+		combinedConfigs = patchExtensionsForAirGap(in, combinedConfigs)
 	}
 
 	combinedConfigs, err = applyUserProvidedAddonOverrides(in, combinedConfigs)
@@ -48,15 +59,15 @@ func K0sHelmExtensionsFromInstallation(
 	return combinedConfigs, nil
 }
 
-// merge the default helm charts and repositories (from meta.Configs) with vendor helm charts (from in.Spec.Config.Extensions.Helm)
-func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *clusterv1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig) (*v1beta1.Helm, error) {
+// generate the helm configs for the cluster, with the default charts from data compiled into the binary and the additional user provided charts
+func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig, images []string, operatorLocation string) (*v1beta1.Helm, error) {
+	if in == nil {
+		return nil, fmt.Errorf("installation not found")
+	}
+
 	// merge default helm charts (from meta.Configs) with vendor helm charts (from in.Spec.Config.Extensions.Helm)
 	combinedConfigs := &v1beta1.Helm{ConcurrencyLevel: 1}
-	if meta != nil {
-		combinedConfigs.Charts = meta.Configs.Charts
-		combinedConfigs.Repositories = meta.Configs.Repositories
-	}
-	if in != nil && in.Spec.Config != nil && in.Spec.Config.Extensions.Helm != nil {
+	if in.Spec.Config != nil && in.Spec.Config.Extensions.Helm != nil {
 		// set the concurrency level to the minimum of our default and the user provided value
 		if in.Spec.Config.Extensions.Helm.ConcurrencyLevel > 0 {
 			combinedConfigs.ConcurrencyLevel = min(in.Spec.Config.Extensions.Helm.ConcurrencyLevel, combinedConfigs.ConcurrencyLevel)
@@ -74,45 +85,59 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *cl
 		combinedConfigs.Repositories = append(combinedConfigs.Repositories, in.Spec.Config.Extensions.Helm.Repositories...)
 	}
 
-	if in != nil && in.Spec.AirGap {
-		if in.Spec.HighAvailability {
-			seaweedfsConfig, ok := meta.BuiltinConfigs["seaweedfs"]
-			if ok {
-				combinedConfigs.Charts = append(combinedConfigs.Charts, seaweedfsConfig.Charts...)
-				combinedConfigs.Repositories = append(combinedConfigs.Repositories, seaweedfsConfig.Repositories...)
-			}
-
-			migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
-			if migrationStatus == metav1.ConditionTrue {
-				registryConfig, ok := meta.BuiltinConfigs["registry-ha"]
-				if ok {
-					combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
-					combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
-				}
-			}
-		} else {
-			registryConfig, ok := meta.BuiltinConfigs["registry"]
-			if ok {
-				combinedConfigs.Charts = append(combinedConfigs.Charts, registryConfig.Charts...)
-				combinedConfigs.Repositories = append(combinedConfigs.Repositories, registryConfig.Repositories...)
-			}
-		}
-	}
-
-	if in != nil && in.Spec.LicenseInfo != nil && in.Spec.LicenseInfo.IsDisasterRecoverySupported {
-		config, ok := meta.BuiltinConfigs["velero"]
-		if ok {
-			combinedConfigs.Charts = append(combinedConfigs.Charts, config.Charts...)
-			combinedConfigs.Repositories = append(combinedConfigs.Repositories, config.Repositories...)
-		}
-	}
-
-	// update the infrastructure charts from the install spec
-	var err error
-	combinedConfigs.Charts, err = updateInfraChartsFromInstall(in, clusterConfig, combinedConfigs.Charts)
+	//set the cluster ID for the operator chart to use
+	clusterUUID, err := uuid.Parse(in.Spec.ClusterID)
 	if err != nil {
-		return nil, fmt.Errorf("update infrastructure charts from install: %w", err)
+		return nil, fmt.Errorf("unable to parse cluster ID: %w", err)
 	}
+	metrics.SetClusterID(clusterUUID)
+
+	oi, err := operatorImages(images)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get operator images: %w", err)
+	}
+	embeddedclusteroperator.Metadata.Images = oi
+	embeddedclusteroperator.Metadata.Location = operatorLocation
+	embeddedclusteroperator.Render()
+
+	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
+
+	opts := []addons.Option{
+		addons.WithRuntimeConfig(in.Spec.RuntimeConfig),
+		addons.WithProxy(in.Spec.Proxy),
+		addons.WithAirgap(in.Spec.AirGap),
+		addons.WithHA(in.Spec.HighAvailability),
+		addons.WithHAMigrationInProgress(migrationStatus == metav1.ConditionFalse),
+		addons.WithBinaryNameOverride(in.Spec.BinaryName),
+	}
+	if in.Spec.LicenseInfo != nil {
+		opts = append(opts,
+			addons.WithLicense(&kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{IsDisasterRecoverySupported: in.Spec.LicenseInfo.IsDisasterRecoverySupported}}),
+		)
+	}
+
+	a := addons.NewApplier(
+		opts...,
+	)
+
+	if in.Spec.Network != nil {
+		if clusterConfig.Spec == nil {
+			clusterConfig.Spec = &k0sv1beta1.ClusterSpec{}
+		}
+		if clusterConfig.Spec.Network == nil {
+			clusterConfig.Spec.Network = &k0sv1beta1.Network{}
+		}
+		clusterConfig.Spec.Network.PodCIDR = in.Spec.Network.PodCIDR
+		clusterConfig.Spec.Network.ServiceCIDR = in.Spec.Network.ServiceCIDR
+		fmt.Printf("Generating helm configs with network config %+v\n", clusterConfig.Spec.Network)
+	}
+
+	charts, repos, err := a.GenerateHelmConfigs(clusterConfig, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate helm configs: %w", err)
+	}
+	combinedConfigs.Charts = append(combinedConfigs.Charts, charts...)
+	combinedConfigs.Repositories = append(combinedConfigs.Repositories, repos...)
 
 	// k0s sorts order numbers alphabetically because they're used in file names,
 	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").
@@ -121,151 +146,6 @@ func mergeHelmConfigs(ctx context.Context, meta *ectypes.ReleaseMetadata, in *cl
 		combinedConfigs.Charts[k].Order += 100
 	}
 	return combinedConfigs, nil
-}
-
-// updateInfraChartsFromInstall updates the infrastructure charts with dynamic values from the installation spec
-func updateInfraChartsFromInstall(in *v1beta1.Installation, clusterConfig *k0sv1beta1.ClusterConfig, charts []v1beta1.Chart) ([]v1beta1.Chart, error) {
-	for i, chart := range charts {
-		if chart.Name == "admin-console" {
-			newVals, err := helm.UnmarshalValues(chart.Values)
-			if err != nil {
-				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-			}
-
-			// admin-console has "embeddedClusterID" and "isAirgap" as dynamic values
-			newVals, err = helm.SetValue(newVals, "embeddedClusterID", in.Spec.ClusterID)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values admin-console.embeddedClusterID: %w", err)
-			}
-
-			newVals, err = helm.SetValue(newVals, "isAirgap", fmt.Sprintf("%t", in.Spec.AirGap))
-			if err != nil {
-				return nil, fmt.Errorf("set helm values admin-console.isAirgap: %w", err)
-			}
-
-			newVals, err = helm.SetValue(newVals, "isHA", in.Spec.HighAvailability)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values admin-console.isHA: %w", err)
-			}
-
-			if in.Spec.Proxy != nil {
-				extraEnv := getExtraEnvFromProxy(in.Spec.Proxy.HTTPProxy, in.Spec.Proxy.HTTPSProxy, in.Spec.Proxy.NoProxy)
-				newVals, err = helm.SetValue(newVals, "extraEnv", extraEnv)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values admin-console.extraEnv: %w", err)
-				}
-			}
-
-			if in.Spec.AdminConsole != nil && in.Spec.AdminConsole.Port > 0 {
-				newVals, err = helm.SetValue(newVals, "kurlProxy.nodePort", in.Spec.AdminConsole.Port)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
-				}
-			}
-
-			charts[i].Values, err = helm.MarshalValues(newVals)
-			if err != nil {
-				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-			}
-		}
-		if chart.Name == "embedded-cluster-operator" {
-			newVals, err := helm.UnmarshalValues(chart.Values)
-			if err != nil {
-				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-			}
-
-			// embedded-cluster-operator has "embeddedBinaryName" and "embeddedClusterID" as dynamic values
-			newVals, err = helm.SetValue(newVals, "embeddedBinaryName", in.Spec.BinaryName)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values embedded-cluster-operator.embeddedBinaryName: %w", err)
-			}
-
-			newVals, err = helm.SetValue(newVals, "embeddedClusterID", in.Spec.ClusterID)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values embedded-cluster-operator.embeddedClusterID: %w", err)
-			}
-
-			if in.Spec.Proxy != nil {
-				extraEnv := getExtraEnvFromProxy(in.Spec.Proxy.HTTPProxy, in.Spec.Proxy.HTTPSProxy, in.Spec.Proxy.NoProxy)
-				newVals, err = helm.SetValue(newVals, "extraEnv", extraEnv)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values embedded-cluster-operator.extraEnv: %w", err)
-				}
-			}
-
-			charts[i].Values, err = helm.MarshalValues(newVals)
-			if err != nil {
-				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-			}
-		}
-		if chart.Name == "docker-registry" {
-			if !in.Spec.AirGap {
-				continue
-			}
-
-			newVals, err := helm.UnmarshalValues(chart.Values)
-			if err != nil {
-				return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-			}
-
-			// handle the registry IP, which will always be present in airgap
-			serviceCIDR := util.ClusterServiceCIDR(*clusterConfig, in)
-			registryEndpoint, err := registry.GetRegistryServiceIP(serviceCIDR)
-			if err != nil {
-				return nil, fmt.Errorf("get registry service IP: %w", err)
-			}
-
-			newVals, err = helm.SetValue(newVals, "service.clusterIP", registryEndpoint)
-			if err != nil {
-				return nil, fmt.Errorf("set helm values docker-registry.service.clusterIP: %w", err)
-			}
-
-			if in.Spec.HighAvailability {
-				// handle the seaweedFS endpoint, which will only be present in HA airgap
-				seaweedfsS3Endpoint, err := registry.GetSeaweedfsS3Endpoint(serviceCIDR)
-				if err != nil {
-					return nil, fmt.Errorf("get seaweedfs s3 endpoint: %w", err)
-				}
-
-				newVals, err = helm.SetValue(newVals, "s3.regionEndpoint", seaweedfsS3Endpoint)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values docker-registry.s3.regionEndpoint: %w", err)
-				}
-			}
-
-			charts[i].Values, err = helm.MarshalValues(newVals)
-			if err != nil {
-				return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-			}
-		}
-		if chart.Name == "velero" {
-			if in.Spec.Proxy != nil {
-				newVals, err := helm.UnmarshalValues(chart.Values)
-				if err != nil {
-					return nil, fmt.Errorf("unmarshal admin-console.values: %w", err)
-				}
-
-				extraEnvVars := map[string]interface{}{
-					"extraEnvVars": map[string]string{
-						"HTTP_PROXY":  in.Spec.Proxy.HTTPProxy,
-						"HTTPS_PROXY": in.Spec.Proxy.HTTPSProxy,
-						"NO_PROXY":    in.Spec.Proxy.NoProxy,
-					},
-				}
-
-				newVals, err = helm.SetValue(newVals, "configuration", extraEnvVars)
-				if err != nil {
-					return nil, fmt.Errorf("set helm values velero.configuration: %w", err)
-				}
-
-				charts[i].Values, err = helm.MarshalValues(newVals)
-				if err != nil {
-					return nil, fmt.Errorf("marshal admin-console.values: %w", err)
-				}
-			}
-		}
-	}
-	return charts, nil
 }
 
 // applyUserProvidedAddonOverrides applies user-provided overrides to the HelmExtensions spec.
@@ -290,29 +170,60 @@ func applyUserProvidedAddonOverrides(in *clusterv1beta1.Installation, combinedCo
 // sure that all helm charts point to a chart stored on disk as a tgz file. These files are already
 // expected to be present on the disk and, during an upgrade, are laid down on disk by the artifact
 // copy job.
-func patchExtensionsForAirGap(config *v1beta1.Helm) *v1beta1.Helm {
+func patchExtensionsForAirGap(in *clusterv1beta1.Installation, config *v1beta1.Helm) *v1beta1.Helm {
+	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
 	config.Repositories = nil
 	for idx, chart := range config.Charts {
 		chartName := fmt.Sprintf("%s-%s.tgz", chart.Name, chart.Version)
-		chartPath := filepath.Join("/var/lib/embedded-cluster/charts", chartName)
+		chartPath := filepath.Join(provider.EmbeddedClusterHomeDirectory(), "charts", chartName)
 		config.Charts[idx].ChartName = chartPath
 	}
 	return config
 }
 
-func getExtraEnvFromProxy(httpProxy string, httpsProxy string, noProxy string) []map[string]interface{} {
-	extraEnv := []map[string]interface{}{}
-	extraEnv = append(extraEnv, map[string]interface{}{
-		"name":  "HTTP_PROXY",
-		"value": httpProxy,
-	})
-	extraEnv = append(extraEnv, map[string]interface{}{
-		"name":  "HTTPS_PROXY",
-		"value": httpsProxy,
-	})
-	extraEnv = append(extraEnv, map[string]interface{}{
-		"name":  "NO_PROXY",
-		"value": noProxy,
-	})
-	return extraEnv
+func operatorLocation(meta *types.ReleaseMetadata) (string, error) {
+	// search through for the operator chart, and find the location
+	for _, chart := range meta.Configs.Charts {
+		if chart.Name == "embedded-cluster-operator" {
+			return chart.ChartName, nil
+		}
+	}
+	return "", fmt.Errorf("no embedded-cluster-operator chart found in release metadata")
+}
+
+func operatorImages(images []string) (map[string]release.AddonImage, error) {
+	// determine the images to use for the operator chart
+	ecOperatorImage := ""
+	ecUtilsImage := ""
+	for _, image := range images {
+		if strings.Contains(image, "/embedded-cluster-operator-image:") {
+			ecOperatorImage = image
+		}
+		if strings.Contains(image, "/ec-utils:") {
+			ecUtilsImage = image
+		}
+	}
+	if ecOperatorImage == "" {
+		return nil, fmt.Errorf("no embedded-cluster-operator-image found in images")
+	}
+	if ecUtilsImage == "" {
+		return nil, fmt.Errorf("no ec-utils found in images")
+	}
+
+	return map[string]release.AddonImage{
+		"embedded-cluster-operator": {
+			Repo: strings.Split(ecOperatorImage, ":")[0],
+			Tag: map[string]string{
+				"amd64": strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":"),
+				"arm64": strings.Join(strings.Split(ecOperatorImage, ":")[1:], ":"),
+			},
+		},
+		"utils": {
+			Repo: strings.Split(ecUtilsImage, ":")[0],
+			Tag: map[string]string{
+				"amd64": strings.Join(strings.Split(ecUtilsImage, ":")[1:], ":"),
+				"arm64": strings.Join(strings.Split(ecUtilsImage, ":")[1:], ":"),
+			},
+		},
+	}, nil
 }

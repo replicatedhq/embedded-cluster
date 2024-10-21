@@ -16,11 +16,14 @@ import (
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -54,7 +57,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
+	Render()
+}
 
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
@@ -70,9 +76,10 @@ func init() {
 
 // Registry manages the installation of the Registry helm chart.
 type Registry struct {
-	namespace string
-	isAirgap  bool
-	isHA      bool
+	namespace           string
+	isAirgap            bool
+	isHA                bool
+	migrationInProgress bool
 }
 
 // Version returns the version of the Registry chart.
@@ -98,21 +105,22 @@ func (o *Registry) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Registry chart.
-func (o *Registry) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (o *Registry) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !o.isAirgap {
 		return nil, nil, nil
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:      releaseName,
-		ChartName: Metadata.Location,
-		Version:   Metadata.Version,
-		TargetNS:  o.namespace,
-		Order:     3,
+		Name:         releaseName,
+		ChartName:    Metadata.Location,
+		Version:      Metadata.Version,
+		TargetNS:     o.namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        3,
 	}
 
 	var values map[string]interface{}
-	if o.isHA {
+	if o.isHA && !o.migrationInProgress {
 		values = helmValuesHA
 	} else {
 		values = helmValues
@@ -120,8 +128,13 @@ func (o *Registry) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefa
 
 	// use a static cluster IP for the registry service based on the cluster CIDR range
 	serviceCIDR := k0sv1beta1.DefaultNetwork().ServiceCIDR
-	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil && k0sCfg.Spec.Network.ServiceCIDR != "" {
-		serviceCIDR = k0sCfg.Spec.Network.ServiceCIDR
+
+	if !onlyDefaults {
+		if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil && k0sCfg.Spec.Network.ServiceCIDR != "" {
+			serviceCIDR = k0sCfg.Spec.Network.ServiceCIDR
+		}
+
+		values["tlsSecretName"] = tlsSecretName
 	}
 
 	registryServiceIP, err := helpers.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
@@ -132,8 +145,13 @@ func (o *Registry) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefa
 		"clusterIP": registryServiceIP.String(),
 	}
 
-	if !onlyDefaults {
-		values["tlsSecretName"] = tlsSecretName
+	if o.isHA && !o.migrationInProgress {
+		seaweedEndpoint, err := highavailability.GetSeaweedfsS3Endpoint(serviceCIDR)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to get seaweedfs s3 endpoint: %w", err)
+		}
+
+		values["s3"].(map[string]interface{})["regionEndpoint"] = seaweedEndpoint
 	}
 
 	valuesStringData, err := yaml.Marshal(values)
@@ -260,7 +278,7 @@ func (o *Registry) generateRegistryMigrationRole(ctx context.Context, cli client
 }
 
 // Outro is executed after the cluster deployment.
-func (o *Registry) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (o *Registry) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	if !o.isAirgap {
 		return nil
 	}
@@ -355,8 +373,8 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1be
 }
 
 // New creates a new Registry addon.
-func New(namespace string, isAirgap bool, isHA bool) (*Registry, error) {
-	return &Registry{namespace: namespace, isAirgap: isAirgap, isHA: isHA}, nil
+func New(namespace string, isAirgap bool, isHA bool, migrationInProgress bool) (*Registry, error) {
+	return &Registry{namespace: namespace, isAirgap: isAirgap, isHA: isHA, migrationInProgress: migrationInProgress}, nil
 }
 
 func GetRegistryPassword() string {

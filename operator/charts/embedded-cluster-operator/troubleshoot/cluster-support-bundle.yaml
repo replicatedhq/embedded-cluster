@@ -5,13 +5,30 @@ metadata:
   labels:
     troubleshoot.io/kind: support-bundle
 spec:
-  uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster-operator/main/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
+  uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/operator/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
   collectors:
+  - clusterInfo: {}
+  - clusterResources:
+      namespaces:
+      - kube-system
+      - openebs
+      - registry
+      - embedded-cluster
+      - seaweedfs
+      - default
+      - velero
   - logs:
       name: podlogs/embedded-cluster-operator
       namespace: embedded-cluster
       selector:
       - app.kubernetes.io/name=embedded-cluster-operator
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/embedded-cluster-operator
+      namespace: embedded-cluster
+      selector:
+        - app.kubernetes.io/name=embedded-cluster-upgrade
       limits:
         maxAge: 720h
   - logs:
@@ -53,7 +70,7 @@ spec:
       name: podlogs/openebs
       namespace: openebs
       selector:
-      - app=openebs
+      - app=localpv-provisioner
       limits:
         maxAge: 720h
   - logs:
@@ -61,6 +78,41 @@ spec:
       namespace: registry
       selector:
       - app=registry
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=objectstorage-provisioner
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=filer
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=master
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=s3
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/seaweedfs
+      namespace: seaweedfs
+      selector:
+      - app.kubernetes.io/component=volume
       limits:
         maxAge: 720h
   analyzers:
@@ -75,3 +127,15 @@ spec:
       - pass:
           when: "true"
           message: Cluster installation in 'Installed' state found
+  - textAnalyze:
+      checkName: "OpenEBS Local PV provisioner"
+      regex: "Failed to provision Local PV"
+      ignoreIfNoFiles: true
+      fileName: podlogs/openebs/openebs-localpv-provisioner-*/openebs-localpv-provisioner.log
+      outcomes:
+      - fail:
+          when: "true"
+          message: "OpenEBS Local Provisioner is failing to provision PVs"
+      - pass:
+          when: "false"
+          message: "OpenEBS Local Provisioner is provisioning PVs"

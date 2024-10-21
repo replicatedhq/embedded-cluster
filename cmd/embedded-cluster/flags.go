@@ -4,55 +4,73 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	k8snet "k8s.io/utils/net"
 )
 
-func getAdminColsolePortFlag() cli.Flag {
+func getAdminConsolePortFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) cli.Flag {
 	return &cli.StringFlag{
 		Name:   "admin-console-port",
 		Usage:  "Port on which the Admin Console will be served",
-		Value:  strconv.Itoa(defaults.AdminConsolePort),
+		Value:  strconv.Itoa(ecv1beta1.DefaultAdminConsolePort),
 		Hidden: false,
+		Action: func(c *cli.Context, s string) error {
+			if s == "" {
+				return nil
+			}
+			// TODO: add first class support for service node port range and validate the port
+			port, err := k8snet.ParsePort(s, false)
+			if err != nil {
+				return fmt.Errorf("invalid port: %w", err)
+			}
+			logrus.Debugf("Setting admin console port to %d from flag", port)
+			runtimeConfig.AdminConsole.Port = port
+			return nil
+		},
 	}
 }
 
-func getAdminConsolePortFromFlag(c *cli.Context) (int, error) {
-	portStr := c.String("admin-console-port")
-	if portStr == "" {
-		return defaults.AdminConsolePort, nil
-	}
-	// TODO: add first class support for service node port range and validate the port
-	port, err := k8snet.ParsePort(portStr, false)
-	if err != nil {
-		return 0, fmt.Errorf("invalid admin console port: %w", err)
-	}
-	return port, nil
-}
-
-func getLocalArtifactMirrorPortFlag() cli.Flag {
+func getLocalArtifactMirrorPortFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) cli.Flag {
 	return &cli.StringFlag{
 		Name:   "local-artifact-mirror-port",
 		Usage:  "Port on which the Local Artifact Mirror will be served",
-		Value:  strconv.Itoa(defaults.LocalArtifactMirrorPort),
+		Value:  strconv.Itoa(ecv1beta1.DefaultLocalArtifactMirrorPort),
 		Hidden: false,
+		Action: func(c *cli.Context, s string) error {
+			if s == "" {
+				return nil
+			}
+			// TODO: add first class support for service node port range and validate the port does not
+			// conflict with this range
+			port, err := k8snet.ParsePort(s, false)
+			if err != nil {
+				return fmt.Errorf("invalid local artifact mirror port: %w", err)
+			}
+			if s == c.String("admin-console-port") {
+				return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
+			}
+			logrus.Debugf("Setting local artifact mirror port to %d from flag", port)
+			runtimeConfig.LocalArtifactMirror.Port = port
+			return nil
+		},
 	}
 }
 
-func getLocalArtifactMirrorPortFromFlag(c *cli.Context) (int, error) {
-	portStr := c.String("local-artifact-mirror-port")
-	if portStr == "" {
-		return defaults.LocalArtifactMirrorPort, nil
+func getDataDirFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) cli.Flag {
+	return &cli.StringFlag{
+		Name:   "data-dir",
+		Usage:  "Path to the data directory",
+		Value:  ecv1beta1.DefaultDataDir,
+		Hidden: false,
+		Action: func(c *cli.Context, s string) error {
+			if s == "" {
+				return nil
+			}
+			logrus.Debugf("Setting data dir to %s from flag", s)
+			runtimeConfig.DataDir = s
+			return nil
+		},
 	}
-	// TODO: add first class support for service node port range and validate the port does not
-	// conflict with this range
-	port, err := k8snet.ParsePort(portStr, false)
-	if err != nil {
-		return 0, fmt.Errorf("invalid local artifact mirror port: %w", err)
-	}
-	if portStr == c.String("admin-console-port") {
-		return 0, fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
-	}
-	return port, nil
 }

@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -19,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
@@ -31,7 +33,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
 const (
@@ -61,7 +62,10 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
 	}
+	Render()
+}
 
+func Render() {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(fmt.Sprintf("unable to unmarshal values: %v", err))
@@ -83,13 +87,15 @@ func init() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
+	provider     *defaults.Provider
 	namespace    string
 	password     string
 	licenseFile  string
 	airgapBundle string
+	isAirgap     bool
+	isHA         bool
 	proxyEnv     map[string]string
 	privateCAs   map[string]string
-	port         int
 }
 
 // Version returns the embedded admin console version.
@@ -114,30 +120,33 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
 	if !onlyDefaults {
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
-		if a.airgapBundle != "" {
+		if a.airgapBundle != "" || a.isAirgap {
 			helmValues["isAirgap"] = "true"
 		} else {
 			helmValues["isAirgap"] = "false"
 		}
+		helmValues["isHA"] = a.isHA
 		if len(a.proxyEnv) > 0 {
 			extraEnv := []map[string]interface{}{}
-			for k, v := range a.proxyEnv {
+			for _, k := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
 				extraEnv = append(extraEnv, map[string]interface{}{
 					"name":  k,
-					"value": v,
+					"value": a.proxyEnv[k],
 				})
 			}
 			helmValues["extraEnv"] = extraEnv
+		} else {
+			delete(helmValues, "extraEnv")
 		}
-	}
 
-	var err error
-	helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", a.port)
-	if err != nil {
-		return nil, nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
+		var err error
+		helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", a.provider.AdminConsolePort())
+		if err != nil {
+			return nil, nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
+		}
 	}
 
 	values, err := helm.MarshalValues(helmValues)
@@ -151,12 +160,13 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 	}
 
 	chartConfig := ecv1beta1.Chart{
-		Name:      ReleaseName,
-		ChartName: chartName,
-		Version:   Metadata.Version,
-		Values:    string(values),
-		TargetNS:  a.namespace,
-		Order:     5,
+		Name:         ReleaseName,
+		ChartName:    chartName,
+		Version:      Metadata.Version,
+		Values:       string(values),
+		TargetNS:     a.namespace,
+		ForceUpgrade: ptr.To(false),
+		Order:        5,
 	}
 	return []ecv1beta1.Chart{chartConfig}, nil, nil
 }
@@ -174,7 +184,7 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 }
 
 // Outro waits for the adminconsole to be ready.
-func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (a *AdminConsole) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for the Admin Console to deploy")
 	defer loading.Close()
@@ -209,7 +219,7 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 			Namespace:    a.namespace,
 			AirgapBundle: a.airgapBundle,
 		}
-		if err := kotscli.Install(installOpts, loading); err != nil {
+		if err := kotscli.Install(provider, installOpts, loading); err != nil {
 			return err
 		}
 	}
@@ -221,22 +231,26 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 
 // New creates a new AdminConsole object.
 func New(
+	provider *defaults.Provider,
 	namespace string,
 	password string,
 	licenseFile string,
 	airgapBundle string,
+	isAirgap bool,
+	isHA bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
-	port int,
 ) (*AdminConsole, error) {
 	return &AdminConsole{
+		provider:     provider,
 		namespace:    namespace,
 		password:     password,
 		licenseFile:  licenseFile,
 		airgapBundle: airgapBundle,
+		isAirgap:     isAirgap,
+		isHA:         isHA,
 		proxyEnv:     proxyEnv,
 		privateCAs:   privateCAs,
-		port:         GetPort(port),
 	}, nil
 }
 
@@ -286,15 +300,7 @@ func GetURL(networkInterface string, port int) string {
 			ipaddr = "NODE-IP-ADDRESS"
 		}
 	}
-	return fmt.Sprintf("http://%s:%v", ipaddr, GetPort(port))
-}
-
-// GetURL returns the URL to the admin console.
-func GetPort(port int) int {
-	if port <= 0 {
-		return defaults.AdminConsolePort
-	}
-	return port
+	return fmt.Sprintf("http://%s:%v", ipaddr, port)
 }
 
 func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {

@@ -1,9 +1,6 @@
 #!/usr/bin/env expect
 
-set env(EMBEDDED_CLUSTER_PLAIN_PROMPTS) "true"
-set env(EMBEDDED_CLUSTER_METRICS_BASEURL) "https://staging.replicated.app"
-set env(KUBECONFIG) "/var/lib/k0s/pki/admin.conf"
-set env(PATH) "$env(PATH):/var/lib/embedded-cluster/bin"
+source /usr/local/bin/env.exp
 
 set join_command [lindex $argv 0]
 set join_preflights_command [regsub -all {join} $join_command {join run-preflights}]
@@ -22,7 +19,7 @@ expect {
 spawn {*}$join_command
 
 expect {
-    -timeout 120 "Node has joined the cluster!" {}
+    -timeout 240 "Node has joined the cluster!" {}
     timeout {
       puts "\n\nFailed to find successful node join message."
       exit 1
@@ -40,7 +37,7 @@ expect {
 }
 
 expect {
-    -timeout 300 "High availability enabled!" {}
+    -timeout 360 "High availability enabled!" {}
     timeout {
       puts "\n\nFailed to find 'high availability enabled' message."
       exit 1

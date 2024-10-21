@@ -11,6 +11,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/downloader"
@@ -212,6 +213,15 @@ func (h *Helm) Push(path, dst string) error {
 		Options: []pusher.Option{pusher.WithRegistryClient(h.regcli)},
 	}
 	return up.UploadTo(path, dst)
+}
+
+func (h *Helm) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
+	chartRequested, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %w", err)
+	}
+
+	return chartRequested.Metadata, nil
 }
 
 func (h *Helm) Render(chartName string, chartPath string, vals map[string]interface{}, namespace string) ([][]byte, error) {

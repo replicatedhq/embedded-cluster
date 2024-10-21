@@ -8,23 +8,25 @@ import (
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
-// UpgradeCmd returns a cobra command for upgrading the embedded cluster operator.
-// It is called by KOTS admin console to upgrade the embedded cluster operator and installation.
+// UpgradeCmd returns a cobra command for creating a job to upgrade the embedded cluster operator.
+// It is called by KOTS admin console and will preposition images before creating a job to truly upgrade the cluster.
 func UpgradeCmd() *cobra.Command {
 	var installationFile, localArtifactMirrorImage string
 
 	cmd := &cobra.Command{
 		Use:          "upgrade",
-		Short:        "Upgrade the embedded cluster operator",
+		Short:        "create a job to upgrade the embedded cluster operator",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Upgrade command started")
+			fmt.Println("Upgrade job creation started")
 
 			cli, err := k8sutil.KubeClient()
 			if err != nil {
@@ -41,14 +43,35 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
 
-			fmt.Printf("Upgrading to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
+			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
 
-			err = upgrade.Upgrade(cmd.Context(), cli, in, localArtifactMirrorImage)
+			// create the installation object so that kotsadm can immediately find it and watch it for the upgrade process
+			err = upgrade.CreateInstallation(cmd.Context(), cli, in)
+			if err != nil {
+				return fmt.Errorf("apply installation: %w", err)
+			}
+			previousInstallation, err := kubeutils.GetPreviousInstallation(cmd.Context(), cli, in)
+			if err != nil {
+				return fmt.Errorf("get previous installation: %w", err)
+			}
+
+			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, in, localArtifactMirrorImage, previousInstallation.Spec.Config.Version)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
+			if !in.Spec.AirGap {
+				err = metrics.NotifyUpgradeStarted(cmd.Context(), in.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
+					ClusterID:      in.Spec.ClusterID,
+					TargetVersion:  in.Spec.Config.Version,
+					InitialVersion: previousInstallation.Spec.Config.Version,
+				})
+				if err != nil {
+					fmt.Printf("failed to report that the upgrade was started: %v\n", err)
+				}
+			}
 
-			fmt.Println("Upgrade command completed successfully")
+			fmt.Println("Upgrade job created successfully")
+
 			return nil
 		},
 	}

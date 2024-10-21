@@ -57,7 +57,7 @@ spec:
             description: InstallationSpec defines the desired state of Installation.
             properties:
               adminConsole:
-                description: AdminConsole holds the admin console configuration.
+                description: AdminConsoleSpec holds the admin console configuration.
                 properties:
                   port:
                     description: Port holds the port on which the admin console will
@@ -112,6 +112,11 @@ spec:
                               properties:
                                 chartname:
                                   type: string
+                                forceUpgrade:
+                                  description: 'ForceUpgrade when set to false, disables
+                                    the use of the "--force" flag when upgrading the
+                                    the chart (default: true).'
+                                  type: boolean
                                 name:
                                   type: string
                                 namespace:
@@ -302,7 +307,7 @@ spec:
                     type: boolean
                 type: object
               localArtifactMirror:
-                description: LocalArtifactMirrorPort holds the local artifact mirror
+                description: LocalArtifactMirrorSpec holds the local artifact mirror
                   configuration.
                 properties:
                   port:
@@ -333,6 +338,43 @@ spec:
                   noProxy:
                     type: string
                   providedNoProxy:
+                    type: string
+                type: object
+              runtimeConfig:
+                description: RuntimeConfig holds the runtime configuration used at
+                  installation time.
+                properties:
+                  adminConsole:
+                    description: AdminConsole holds the Admin Console configuration.
+                    properties:
+                      port:
+                        description: Port holds the port on which the admin console
+                          will be served.
+                        type: integer
+                    type: object
+                  dataDir:
+                    description: |-
+                      DataDir holds the data directory for the Embedded Cluster
+                      (default: /var/lib/embedded-cluster).
+                    type: string
+                  k0sDataDirOverride:
+                    description: |-
+                      K0sDataDirOverride holds the override for the data directory for K0s. By default the data
+                      will be stored in a subdirectory of DataDir.
+                    type: string
+                  localArtifactMirror:
+                    description: LocalArtifactMirrorPort holds the Local Artifact
+                      Mirror configuration.
+                    properties:
+                      port:
+                        description: Port holds the port on which the local artifact
+                          mirror will be served.
+                        type: integer
+                    type: object
+                  openEBSDataDirOverride:
+                    description: |-
+                      OpenEBSDataDirOverride holds the override for the data directory for the OpenEBS storage
+                      provisioner. By default the data will be stored in a subdirectory of DataDir.
                     type: string
                 type: object
             type: object

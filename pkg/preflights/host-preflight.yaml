@@ -9,16 +9,7 @@ spec:
         path: /
     - diskUsage:
         collectorName: embedded-cluster-path-usage
-        path: /var/lib/embedded-cluster
-    - diskUsage:
-        collectorName: k0s-path-usage
-        path: /var/lib/k0s
-    - diskUsage:
-        collectorName: openebs-path-usage
-        path: /var/openebs
-    - diskUsage:
-        collectorName: tmp-path-usage
-        path: /tmp
+        path: {{ .DataDir }}
     - memory: {}
     - cpu: {}
     - time: {}
@@ -66,7 +57,7 @@ spec:
     - filesystemPerformance:
         collectorName: filesystem-write-latency-etcd
         timeout: 5m
-        directory: /var/lib/k0s/etcd
+        directory: {{ .K0sDataDir }}/etcd
         fileSize: 22Mi
         operationSize: 2300
         datasync: true
@@ -125,6 +116,17 @@ spec:
     - udpPortStatus:
         collectorName: Calico Communication Port
         port: 4789
+    - run:
+        collectorName: check-data-dir-symlink
+        command: sh
+        args:
+          - -c
+          - |
+            [ -d "{{ .DataDir }}" ] && [ -L "{{ .DataDir }}" ] && echo "{{ .DataDir }} is a symlink" || echo "{{ .DataDir }} is not a symlink"
+    - dns:
+        collectorName: 'wildcard-check'
+        hostnames:
+          - '*'
   analyzers:
     - cpu:
         checkName: CPU
@@ -134,6 +136,7 @@ spec:
               message: At least 2 CPU cores are required, but fewer are present
           - pass:
               message: At least 2 CPU cores are present
+{{- if eq .SystemArchitecture "amd64" }}
     - cpu:
         checkName: CPU Features
         outcomes:
@@ -142,6 +145,7 @@ spec:
               message: Host CPU supports x86-64-v2 features
           - fail:
               message: Required x86-64-v2 CPU features are missing. If using a hypervisor, ensure it is configured to expose the necessary CPU features.
+{{- end }}
     - memory:
         checkName: Memory
         outcomes:
@@ -156,39 +160,12 @@ spec:
         outcomes:
           - fail:
               when: 'total < 40Gi'
-              message: The filesystem at /var/lib/embedded-cluster has less than 40Gi of total space
-          - pass:
-              message: The filesystem at /var/lib/embedded-cluster has sufficient space
-    - diskUsage:
-        checkName: k0s Disk Space
-        collectorName: k0s-path-usage
-        outcomes:
-          - fail:
-              when: 'total < 40Gi'
-              message: The filesystem at /var/lib/k0s has less than 40Gi of total space
+              message: The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or use the --data-dir flag to specify an alternative data directory.
           - fail:
               when: 'used/total > 80%'
-              message: The filesystem at /var/lib/k0s is more than 80% full
+              message: The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or use the --data-dir flag to specify an alternative data directory.
           - pass:
-              message: The filesystem at /var/lib/k0s has sufficient space
-    - diskUsage:
-        checkName: OpenEBS Disk Space
-        collectorName: openebs-path-usage
-        outcomes:
-          - fail:
-              when: 'total < 5Gi'
-              message: The filesystem at /var/openebs has less than 5Gi of total space
-          - pass:
-              message: The filesystem at /var/openebs has sufficient space
-    - diskUsage:
-        checkName: tmp Disk Space
-        collectorName: tmp-path-usage
-        outcomes:
-          - fail:
-              when: 'total < 5Gi'
-              message: The filesystem at /tmp has less than 5Gi of total space
-          - pass:
-              message: The filesystem at /tmp has sufficient space
+              message: The filesystem at {{ .DataDir }} has sufficient space
     - textAnalyze:
         checkName: Default Route
         fileName: host-collectors/run-host/ip-route-table.txt
@@ -430,7 +407,7 @@ spec:
         outcomes:
           - fail:
               when: "true"
-              message: "Neither 'nameserver localhost' nor 'nameserver 127.0.0.1' can be present in resolv.conf. Remove them to continue."
+              message: "Local DNS resolver detected. Remove the localhost and/or 127.0.0.1 nameserver entries from resolv.conf."
           - pass:
               when: "false"
               message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf"
@@ -440,9 +417,9 @@ spec:
         outcomes:
           - pass:
               when: "p99 < 10ms"
-              message: 'P99 write latency for the disk at /var/lib/k0s/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
+              message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
           - fail:
-              message: 'P99 write latency for the disk at /var/lib/k0s/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'
+              message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'
     - tcpPortStatus:
         checkName: ETCD Internal Port Availability
         collectorName: ETCD Internal Port
@@ -779,3 +756,27 @@ spec:
               message: Port 4789/UDP is available.
           - error:
               message: Port 4789/UDP is required, but an unexpected error occurred when trying to connect to it. Ensure port 4789/UDP is available.
+    - textAnalyze:
+        checkName: Data Dir Symlink Check
+        fileName: host-collectors/run-host/check-data-dir-symlink.txt
+        regex: 'is a symlink'
+        outcomes:
+          - fail:
+              when: 'true'
+              message: {{ .DataDir }} cannot be symlinked. Remove the symlink, or use the --data-dir flag to provide an alternate data directory.
+          - pass:
+              when: 'false'
+              message: {{ .DataDir }} is not a symlink.
+    - jsonCompare:
+        checkName: Wildcard DNS
+        fileName: host-collectors/dns/wildcard-check/result.json
+        path: 'resolvedFromSearch'
+        value: |
+          ""
+        outcomes:
+          - fail:
+              when: 'false'
+              message: 'Wildcard DNS entry *.{{ "{{" }}  .resolvedFromSearch {{ "}}" }} detected. Remove the wildcard DNS entry or the {{ "{{" }}  .resolvedFromSearch {{ "}}" }} search domain from resolv.conf.'
+          - pass:
+              when: 'true'
+              message: No wildcard DNS entry detected.

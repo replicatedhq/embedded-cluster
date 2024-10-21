@@ -41,7 +41,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://proxy",
 				HTTPSProxy:      "https://proxy",
 				ProvidedNoProxy: "no-proxy-1,no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,10.244.0.0/17,10.244.128.0/17",
 			},
 		},
 		{
@@ -70,7 +70,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://other-proxy",
 				HTTPSProxy:      "https://other-proxy",
 				ProvidedNoProxy: "other-no-proxy-1,other-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,10.244.0.0/17,10.244.128.0/17",
 			},
 		},
 		{
@@ -89,7 +89,7 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				HTTPProxy:       "http://other-proxy",
 				HTTPSProxy:      "https://other-proxy",
 				ProvidedNoProxy: "no-proxy-1,no-proxy-2,other-no-proxy-1,other-no-proxy-2",
-				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,other-no-proxy-1,other-no-proxy-2,10.244.0.0/16,10.96.0.0/12",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,no-proxy-1,no-proxy-2,other-no-proxy-1,other-no-proxy-2,10.244.0.0/17,10.244.128.0/17",
 			},
 		},
 		{
@@ -109,10 +109,27 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,1.1.1.1/24,2.2.2.2/24",
 			},
 		},
+		{
+			name: "custom --cidr should be present in the no-proxy",
+			init: func(t *testing.T, flagSet *flag.FlagSet) {
+				flagSet.Set("http-proxy", "http://other-proxy")
+				flagSet.Set("https-proxy", "https://other-proxy")
+				flagSet.Set("no-proxy", "other-no-proxy-1,other-no-proxy-2")
+
+				flagSet.Set("cidr", "10.0.0.0/16")
+			},
+			want: &ecv1beta1.ProxySpec{
+				HTTPProxy:       "http://other-proxy",
+				HTTPSProxy:      "https://other-proxy",
+				ProvidedNoProxy: "other-no-proxy-1,other-no-proxy-2",
+				NoProxy:         "localhost,127.0.0.1,.cluster.local,.svc,other-no-proxy-1,other-no-proxy-2,10.0.0.0/17,10.0.128.0/17",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			flags := withProxyFlags(withSubnetCIDRFlags([]cli.Flag{}))
+
 			flagSet := flag.NewFlagSet("test", 0)
 			for _, flag := range flags {
 				flag.Apply(flagSet)
@@ -120,8 +137,10 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			if tt.init != nil {
 				tt.init(t, flagSet)
 			}
+
 			c := cli.NewContext(cli.NewApp(), flagSet, nil)
-			got := getProxySpecFromFlags(c)
+			got, err := getProxySpecFromFlags(c)
+			assert.NoError(t, err, "unexpected error received")
 			assert.Equal(t, tt.want, got)
 		})
 	}

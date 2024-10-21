@@ -9,23 +9,23 @@ images:
     calico-cni:
         repo: proxy.replicated.com/anonymous/replicated/ec-calico-cni
         tag:
-            amd64: 3.28.2-r0-amd64@sha256:61de906f9ca1b2abdcca4e15769fa289b2949f0ece27a9247d21a960e70c31eb
-            arm64: 3.28.2-r0-arm64@sha256:959401ba9d9d0e2a2a9bbf37fe780345f889a8477e09591919fb708ca8b7e2ab
+            amd64: 3.28.2-r0-amd64@sha256:9e2e1aae3c963ae98715cba8e39a64eeff3271335652ff1504551fe27a4d6b99
+            arm64: 3.28.2-r0-arm64@sha256:b380795a5860787e39da1824ad5703901358deed61908433a3ab65fbee48a7b0
     calico-kube-controllers:
         repo: proxy.replicated.com/anonymous/replicated/ec-calico-kube-controllers
         tag:
-            amd64: 3.28.2-r0-amd64@sha256:10774c8200c36b8e7af3ad9c88bbf637eb553bbe4dc97810aee9d1a899a9da4a
-            arm64: 3.28.2-r0-arm64@sha256:2bfd308b74b5018c5407433f9c1652d5c32d6328328d5757df705a4c9f1e5adf
+            amd64: 3.28.2-r0-amd64@sha256:1c8958e47306456a48dd63083eba8489d79dc319de6bf07d05133d823cc35263
+            arm64: 3.28.2-r0-arm64@sha256:d0d621eb4a4e1be675dc527630dff297cc1ce5908bcfd21aac643f8ade30d82a
     calico-node:
         repo: proxy.replicated.com/anonymous/replicated/ec-calico-node
         tag:
-            amd64: 3.28.2-r0-amd64@sha256:8946806cce8889d63feb26440e2cb1781b372083d41c882020faaebf834bfa3b
-            arm64: 3.28.2-r0-arm64@sha256:c0a1258f550de1e538c1e3ffb606991b1d6be1f409dd11588500d672e18a7880
+            amd64: 3.28.2-r0-amd64@sha256:4e14cc3459c95ed71d23e7a0082f92018f6c62cd997cca64830282376528fb5b
+            arm64: 3.28.2-r0-arm64@sha256:32b89caf548188241428e886515a0174ee6f7fc460726dff802e532595d40607
     coredns:
         repo: proxy.replicated.com/anonymous/replicated/ec-coredns
         tag:
-            amd64: 1.11.3-r7-amd64@sha256:1258b039d78e85c17bec40e587f5cb963998c6039a7d727bef09a84d7eedddba
-            arm64: 1.11.3-r7-arm64@sha256:668b0c2f611b420df19554f0df08caa4ac4a92fd8fafc6b28ae9e6bc12ecfa71
+            amd64: 1.11.3-r7-amd64@sha256:1fc679ff7641274ca0cbbbbad1b5c8123cf541436ddbd9e1b8b8b8f47038b072
+            arm64: 1.11.3-r7-arm64@sha256:e462a1dca95d38b47365480923453e021c875f44a54517a0036219cac27335f2
     kube-proxy:
         repo: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
         tag:
@@ -34,8 +34,8 @@ images:
     metrics-server:
         repo: proxy.replicated.com/anonymous/replicated/ec-metrics-server
         tag:
-            amd64: 0.7.2-r1-amd64@sha256:05e3db63e7ecce0a543fad1a3c7292ce14e49efbc2ef65524266990df52c95a5
-            arm64: 0.7.2-r1-arm64@sha256:f6cf5333630c436e22a4f4693dc0bd376b589a2f3705f5cc8b45b465eb4d7d83
+            amd64: 0.7.2-r1-amd64@sha256:5abeefa0bc5347384bcc1f8fd5905bf0ea4e56ad7cfd7b2aacc195c6e6056aaf
+            arm64: 0.7.2-r1-arm64@sha256:5411f25a16acaaa64b10eb309af25fc183cc98f32f1135bea7f6da28daa95fa3
     pause:
         repo: proxy.replicated.com/anonymous/registry.k8s.io/pause
         tag:

@@ -13,13 +13,10 @@ RUN apt-get update && apt-get install -y \
   ipvsadm \
   kmod \
   iproute2 \
-  systemd-timesyncd \
+  chrony \
+  expect \
   vim
 
-# Override timesyncd config to allow it to run in containers
-COPY ./timesyncd-override.conf /etc/systemd/system/systemd-timesyncd.service.d/override.conf
-
-# Export kube config
-ENV KUBECONFIG=/var/lib/k0s/pki/admin.conf
-
-CMD ["/sbin/init"]
+# Entrypoint for runtime configurations
+COPY ./entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
