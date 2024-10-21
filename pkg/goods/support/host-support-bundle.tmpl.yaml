@@ -155,7 +155,7 @@ spec:
       args: ['-c', 'command -v umount']
   - copy:
       collectorName: installer/lam-service-config
-      path: /etc/systemd/system/local-artifact-mirror.service.d/embedded-cluster.conf
+      path: /etc/systemd/system/local-artifact-mirror.service.d/*
   hostAnalyzers:
   - ipv4Interfaces:
       outcomes:
