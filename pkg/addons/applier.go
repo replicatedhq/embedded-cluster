@@ -95,7 +95,7 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 		logrus.Warnf("failed to create host support bundle: %v", err)
 	}
 
-	if err := printKotsadmLinkMessage(a.licenseFile, networkInterface, a.provider.AdminConsolePort()); err != nil {
+	if err := printKotsadmLinkMessage(a.license, networkInterface, a.provider.AdminConsolePort()); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
 
