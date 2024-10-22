@@ -619,6 +619,21 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	// use upgraded binaries to run the reset command
+	// TODO: this is a temporary workaround and should eventually be a feature of EC
+
+	t.Logf("%s: downloading embedded-cluster %s on node 0", time.Now().Format(time.RFC3339), appUpgradeVersion)
+	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster version %s on node 0: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
+	}
+
+	t.Logf("%s: downloading embedded-cluster %s on worker node", time.Now().Format(time.RFC3339), appUpgradeVersion)
+	line = []string{"vandoor-prepare.sh", appUpgradeVersion, os.Getenv("LICENSE_ID"), "false"}
+	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
+		t.Fatalf("fail to download embedded-cluster version %s on worker node: %v: %s: %s", appUpgradeVersion, err, stdout, stderr)
+	}
+
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
 	line = []string{"reset-installation.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
@@ -954,7 +969,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh"}
-	line = append(line, "--cidr", "192.168.0.0/16")
+	line = append(line, "--cidr", "172.16.0.0/15")
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1002,12 +1017,11 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	// ensure that the cluster is using the right IP ranges.
 	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
 
-	// we have used --cidr 192.168.0.0/16 during install time so pods are
-	// expected to be in the 192.168.0.0/17 range while services are in the
-	// 192.168.128.0/17 range. i.e. pods are in 192.168.0-127.* while
-	// services in 192.168.128-254.*.
-	podregex := `192\.168\.\([0-9]\|[1-9][0-9]\|12[0-7]\|1[0-1][0-9]\)\.`
-	svcregex := `192\.168\.\(12[8-9]\|1[3-9][0-9]\|[2-5][0-9][0-9]\)\.`
+	// we have used --cidr 172.16.0.0/15 during install time so pods are
+	// expected to be in the 172.16.0.0/16 range while services are in the
+	// 172.17.0.0/16 range.
+	podregex := `172\.16\.[0-9]\+\.[0-9]\+`
+	svcregex := `172\.17\.[0-9]\+\.[0-9]\+`
 
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", podregex, svcregex}); err != nil {
 		t.Log(stdout)

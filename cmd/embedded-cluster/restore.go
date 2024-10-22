@@ -25,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -352,7 +353,13 @@ func ensureK0sConfigForRestore(c *cli.Context, provider *defaults.Provider, appl
 		airgap.RemapHelm(provider, cfg)
 		airgap.SetAirgapConfig(cfg)
 	}
-	data, err := k8syaml.Marshal(cfg)
+	// This is necessary to install the previous version of k0s in e2e tests
+	// TODO: remove this once the previous version is > 1.29
+	unstructured, err := helpers.K0sClusterConfigTo129Compat(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+	}
+	data, err := k8syaml.Marshal(unstructured)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal config: %w", err)
 	}
@@ -886,7 +893,7 @@ func installAndWaitForRestoredK0sNode(c *cli.Context, provider *defaults.Provide
 	}
 	logrus.Debugf("installing k0s")
 	if err := installK0s(c, provider); err != nil {
-		return nil, fmt.Errorf("unable update cluster: %w", err)
+		return nil, fmt.Errorf("unable to install cluster: %w", err)
 	}
 	loading.Infof("Waiting for %s node to be ready", binName)
 	logrus.Debugf("waiting for k0s to be ready")
