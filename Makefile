@@ -225,7 +225,7 @@ embedded-cluster-darwin-arm64: go.mod embedded-cluster
 .PHONY: embedded-cluster
 embedded-cluster:
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
-		-tags osusergo,netgo \
+		-tags osusergo,netgo,exclude_graphdriver_btrfs \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
 		./cmd/embedded-cluster
@@ -234,7 +234,7 @@ embedded-cluster:
 unit-tests:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	go test -v ./pkg/... ./cmd/...
+	go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
