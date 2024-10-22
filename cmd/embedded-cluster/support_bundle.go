@@ -2,14 +2,12 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -26,18 +24,7 @@ func supportBundleCommand() *cli.Command {
 			return nil
 		},
 		Action: func(c *cli.Context) error {
-			var provider *defaults.Provider
-			runtimeConfig, err := configutils.ReadRuntimeConfig()
-			if err != nil {
-				if !errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("unable to read runtime config: %w", err)
-				} else {
-					provider = discoverBestProvider(c.Context)
-				}
-			} else {
-				provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			}
-
+			provider := discoverBestProvider(c.Context)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			supportBundle := provider.PathToEmbeddedClusterBinary("kubectl-support_bundle")

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +14,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
@@ -48,18 +46,7 @@ func shellCommand() *cli.Command {
 			return nil
 		},
 		Action: func(c *cli.Context) error {
-			var provider *defaults.Provider
-			runtimeConfig, err := configutils.ReadRuntimeConfig()
-			if err != nil {
-				if !errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("unable to read runtime config: %w", err)
-				} else {
-					provider = discoverBestProvider(c.Context)
-				}
-			} else {
-				provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			}
-
+			provider := discoverBestProvider(c.Context)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			if _, err := os.Stat(provider.PathToKubeConfig()); err != nil {

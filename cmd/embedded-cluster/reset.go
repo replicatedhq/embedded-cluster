@@ -18,7 +18,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -354,20 +353,7 @@ func resetCommand() *cli.Command {
 		},
 		Usage: fmt.Sprintf("Remove %s from the current node", binName),
 		Action: func(c *cli.Context) error {
-			var provider *defaults.Provider
-			runtimeConfig, err := configutils.ReadRuntimeConfig()
-			if err != nil {
-				if !errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("unable to read runtime config: %w", err)
-				} else {
-					fmt.Printf("resetting with default runtimeConfig\n")
-					provider = discoverBestProvider(c.Context)
-				}
-			} else {
-				fmt.Printf("resetting with runtimeConfig: %+v\n", runtimeConfig)
-				provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			}
-
+			provider := discoverBestProvider(c.Context)
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
