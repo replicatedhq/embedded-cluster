@@ -12,6 +12,8 @@ import (
 type RunCommandOptions struct {
 	// Writer is an additional io.Writer to write the stdout of the command to.
 	Writer io.Writer
+	// ErrWriter is an additional io.Writer to write the stderr of the command to.
+	ErrWriter io.Writer
 	// Env is a map of additional environment variables to set for the command.
 	Env map[string]string
 	// Stdin is the standard input to be used when running the command.
@@ -34,6 +36,9 @@ func RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) e
 		cmd.Stdin = opts.Stdin
 	}
 	cmd.Stderr = stderr
+	if opts.ErrWriter != nil {
+		cmd.Stderr = io.MultiWriter(opts.ErrWriter, stderr)
+	}
 	cmdEnv := cmd.Environ()
 	for k, v := range opts.Env {
 		cmdEnv = append(cmdEnv, fmt.Sprintf("%s=%s", k, v))
