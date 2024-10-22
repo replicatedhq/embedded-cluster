@@ -63,6 +63,7 @@ func shellCommand() *cli.Command {
 			shell.Env = os.Environ()
 
 			// get the current working directory
+			var err error
 			shell.Dir, err = os.Getwd()
 			if err != nil {
 				return fmt.Errorf("unable to get current working directory: %w", err)
