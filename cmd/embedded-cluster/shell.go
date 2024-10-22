@@ -37,7 +37,7 @@ func handleResize(ch chan os.Signal, tty *os.File) {
 }
 
 func shellCommand() *cli.Command {
-	runtimeConfig := &ecv1beta1.RuntimeConfigSpec{}
+	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
 
 	return &cli.Command{
 		Name:  "shell",
@@ -52,7 +52,12 @@ func shellCommand() *cli.Command {
 			return nil
 		},
 		Action: func(c *cli.Context) error {
-			provider := discoverBestProvider(c.Context, runtimeConfig)
+			var provider *defaults.Provider
+			if c.IsSet("data-dir") {
+				provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
+			} else {
+				provider = discoverBestProvider(c.Context)
+			}
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			if _, err := os.Stat(provider.PathToKubeConfig()); err != nil {
