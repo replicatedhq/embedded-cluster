@@ -68,8 +68,8 @@ main() {
         exit 1
     fi
 
-    # if this is the current version
-    if echo "$version" | grep -E "^(dev|appver)-" ; then
+    # if this is the current version in CI
+    if echo "$version" | grep -qvE "^(pre-minio-removal|1.8.0-k8s)" ; then
         validate_data_dirs
     fi
 
