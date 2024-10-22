@@ -225,7 +225,7 @@ embedded-cluster-darwin-arm64: go.mod embedded-cluster
 .PHONY: embedded-cluster
 embedded-cluster:
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
-		-tags osusergo,netgo,exclude_graphdriver_btrfs \
+		-tags osusergo,netgo \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
 		./cmd/embedded-cluster
