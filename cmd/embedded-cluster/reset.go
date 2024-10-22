@@ -357,7 +357,12 @@ func resetCommand() *cli.Command {
 		},
 		Usage: fmt.Sprintf("Remove %s from the current node", binName),
 		Action: func(c *cli.Context) error {
-			provider := discoverBestProvider(c.Context, runtimeConfig)
+			var provider *defaults.Provider
+			if c.IsSet("data-dir") {
+				provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
+			} else {
+				provider = discoverBestProvider(c.Context)
+			}
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
