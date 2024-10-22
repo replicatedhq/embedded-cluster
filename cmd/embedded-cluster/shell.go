@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +15,8 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
 
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
@@ -37,14 +39,9 @@ func handleResize(ch chan os.Signal, tty *os.File) {
 }
 
 func shellCommand() *cli.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
 	return &cli.Command{
 		Name:  "shell",
 		Usage: "Start a shell with access to the cluster",
-		Flags: []cli.Flag{
-			getDataDirFlag(runtimeConfig),
-		},
 		Before: func(c *cli.Context) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("shell command must be run as root")
@@ -52,6 +49,15 @@ func shellCommand() *cli.Command {
 			return nil
 		},
 		Action: func(c *cli.Context) error {
+			runtimeConfig, err := configutils.ReadRuntimeConfig()
+			if err != nil {
+				if !errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("unable to read runtime config: %w", err)
+				} else {
+					runtimeConfig = v1beta1.GetDefaultRuntimeConfig() // use the default runtime config if one was not found on the disk
+				}
+			}
+
 			provider := discoverBestProvider(c.Context, runtimeConfig)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
@@ -69,7 +75,6 @@ func shellCommand() *cli.Command {
 			shell.Env = os.Environ()
 
 			// get the current working directory
-			var err error
 			shell.Dir, err = os.Getwd()
 			if err != nil {
 				return fmt.Errorf("unable to get current working directory: %w", err)

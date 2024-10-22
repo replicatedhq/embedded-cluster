@@ -22,6 +22,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
@@ -950,6 +951,11 @@ func restoreCommand() *cli.Command {
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			defer tryRemoveTmpDirContents(provider)
+
+			err := configutils.WriteRuntimeConfig(runtimeConfig)
+			if err != nil {
+				return fmt.Errorf("unable to write runtime config: %w", err)
+			}
 
 			proxy, err := getProxySpecFromFlags(c)
 			if err != nil {
