@@ -234,7 +234,7 @@ embedded-cluster:
 unit-tests:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	go test -v ./pkg/... ./cmd/...
+	go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
