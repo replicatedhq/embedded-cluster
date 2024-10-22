@@ -330,7 +330,7 @@ func maybePrintHAWarning(ctx context.Context, provider *defaults.Provider) error
 }
 
 func resetCommand() *cli.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
+	runtimeConfig := &ecv1beta1.RuntimeConfigSpec{}
 
 	return &cli.Command{
 		Name: "reset",

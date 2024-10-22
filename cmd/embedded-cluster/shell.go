@@ -37,7 +37,7 @@ func handleResize(ch chan os.Signal, tty *os.File) {
 }
 
 func shellCommand() *cli.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
+	runtimeConfig := &ecv1beta1.RuntimeConfigSpec{}
 
 	return &cli.Command{
 		Name:  "shell",
