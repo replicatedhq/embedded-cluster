@@ -18,7 +18,7 @@ func WriteRuntimeConfig(spec *v1beta1.RuntimeConfigSpec) error {
 
 	location := defaults.PathToECConfig()
 
-	err := os.MkdirAll(filepath.Dir(location), 0700)
+	err := os.MkdirAll(filepath.Dir(location), 0755)
 	if err != nil {
 		return fmt.Errorf("unable to create runtime config directory: %w", err)
 	}
@@ -34,7 +34,7 @@ func WriteRuntimeConfig(spec *v1beta1.RuntimeConfigSpec) error {
 		return fmt.Errorf("unable to marshal runtime config: %w", err)
 	}
 
-	err = os.WriteFile(location, yml, 0600)
+	err = os.WriteFile(location, yml, 0644)
 	if err != nil {
 		return fmt.Errorf("unable to write runtime config: %w", err)
 	}
