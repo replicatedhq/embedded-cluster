@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/sirupsen/logrus"
@@ -206,7 +207,12 @@ func clusterConfigUpdate(ctx context.Context, cli client.Client, in *clusterv1be
 
 	currentCfg.Spec.Images = cfg.Spec.Images
 
-	err = cli.Update(ctx, &currentCfg)
+	unstructured, err := helpers.K0sClusterConfigTo129Compat(&currentCfg)
+	if err != nil {
+		return fmt.Errorf("convert cluster config to 1.29 compat: %w", err)
+	}
+
+	err = cli.Update(ctx, unstructured)
 	if err != nil {
 		return fmt.Errorf("update cluster config: %w", err)
 	}

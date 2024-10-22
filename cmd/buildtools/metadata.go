@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -75,7 +76,7 @@ func readMetadataFromFile(path string) (*types.ReleaseMetadata, error) {
 	return &metadata, nil
 }
 
-func extractImagesFromHelmExtensions(repos []embeddedclusterv1beta1.Repository, charts []embeddedclusterv1beta1.Chart, k8sVersion string) ([]string, error) {
+func extractImagesFromHelmExtensions(repos []k0sv1beta1.Repository, charts []embeddedclusterv1beta1.Chart, k8sVersion string) ([]string, error) {
 	hcli, err := helm.NewHelm(helm.HelmOptions{
 		K0sVersion: k8sVersion,
 	})
@@ -86,16 +87,19 @@ func extractImagesFromHelmExtensions(repos []embeddedclusterv1beta1.Repository, 
 
 	for _, entry := range repos {
 		log.Printf("Adding helm repository %s", entry.Name)
-		err := hcli.AddRepo(&repo.Entry{
-			Name:                  entry.Name,
-			URL:                   entry.URL,
-			Username:              entry.Username,
-			Password:              entry.Password,
-			CertFile:              entry.CertFile,
-			KeyFile:               entry.KeyFile,
-			CAFile:                entry.CAFile,
-			InsecureSkipTLSverify: entry.Insecure,
-		})
+		repo := &repo.Entry{
+			Name:     entry.Name,
+			URL:      entry.URL,
+			Username: entry.Username,
+			Password: entry.Password,
+			CertFile: entry.CertFile,
+			KeyFile:  entry.KeyFile,
+			CAFile:   entry.CAFile,
+		}
+		if entry.Insecure != nil {
+			repo.InsecureSkipTLSverify = *entry.Insecure
+		}
+		err := hcli.AddRepo(repo)
 		if err != nil {
 			return nil, fmt.Errorf("add helm repository %s: %w", entry.Name, err)
 		}

@@ -1155,7 +1155,7 @@ func Test_applyUserProvidedAddonOverrides(t *testing.T) {
 			},
 			config: &v1beta1.Helm{
 				ConcurrencyLevel: 999,
-				Repositories: []v1beta1.Repository{
+				Repositories: []k0sv1beta1.Repository{
 					{
 						Name: "repo",
 						URL:  "https://repo",
@@ -1176,7 +1176,7 @@ func Test_applyUserProvidedAddonOverrides(t *testing.T) {
 			},
 			want: &v1beta1.Helm{
 				ConcurrencyLevel: 999,
-				Repositories: []v1beta1.Repository{
+				Repositories: []k0sv1beta1.Repository{
 					{
 						Name: "repo",
 						URL:  "https://repo",

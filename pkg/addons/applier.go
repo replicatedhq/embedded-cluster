@@ -35,7 +35,7 @@ type AddOn interface {
 	Version() (map[string]string, error)
 	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error)
+	GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error)
 	Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error
 	GetProtectedFields() map[string][]string
 	GetImages() []string
@@ -121,9 +121,9 @@ func (a *Applier) OutroForRestore(ctx context.Context, k0sCfg *k0sv1beta1.Cluste
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, additionalCharts []ecv1beta1.Chart, additionalRepositories []ecv1beta1.Repository) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, additionalCharts []ecv1beta1.Chart, additionalRepositories []k0sv1beta1.Repository) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	charts := []ecv1beta1.Chart{}
-	repositories := []ecv1beta1.Repository{}
+	repositories := []k0sv1beta1.Repository{}
 	addons, err := a.load()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
@@ -147,9 +147,9 @@ func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, addition
 }
 
 // GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
-func (a *Applier) GenerateHelmConfigsForRestore(k0sCfg *k0sv1beta1.ClusterConfig) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (a *Applier) GenerateHelmConfigsForRestore(k0sCfg *k0sv1beta1.ClusterConfig) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	charts := []ecv1beta1.Chart{}
-	repositories := []ecv1beta1.Repository{}
+	repositories := []k0sv1beta1.Repository{}
 	addons, err := a.loadForRestore()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
