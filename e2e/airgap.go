@@ -13,25 +13,27 @@ import (
 // It cannot call t.Fatalf as it is used in a goroutine.
 func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) error {
 	for i := 0; i < 5; i++ {
-		size, err := maybeDownloadAirgapBundle(t, versionLabel, destPath, licenseID)
+		size, err := maybeDownloadAirgapBundle(versionLabel, destPath, licenseID)
 		if err != nil {
-			return fmt.Errorf("failed to download airgap bundle for version %s: %w", versionLabel, err)
-		}
-		if size > 1024*1024*1024 { // more than a GB
-			t.Logf("downloaded airgap bundle to %s (%d bytes)", destPath, size)
-			return nil
-		}
-		t.Logf("downloaded airgap bundle to %s (%d bytes), retrying as it is less than 1GB", destPath, size)
-		err = os.RemoveAll(destPath)
-		if err != nil {
-			return fmt.Errorf("failed to remove airgap bundle at %s: %w", destPath, err)
+			// when we deploy the api to staging it interrupts the download
+			t.Logf("failed to download airgap bundle for version %s with error %q, retrying", versionLabel, err)
+		} else {
+			if size > 1024*1024*1024 { // more than a GB
+				t.Logf("downloaded airgap bundle to %s (%d bytes)", destPath, size)
+				return nil
+			}
+			t.Logf("downloaded airgap bundle to %s (%d bytes), retrying as it is less than 1GB", destPath, size)
+			err = os.RemoveAll(destPath)
+			if err != nil {
+				return fmt.Errorf("failed to remove airgap bundle at %s: %w", destPath, err)
+			}
 		}
 		time.Sleep(2 * time.Minute)
 	}
 	return fmt.Errorf("failed to download airgap bundle for version %s after 5 attempts", versionLabel)
 }
 
-func maybeDownloadAirgapBundle(t *testing.T, versionLabel string, destPath string, licenseID string) (int64, error) {
+func maybeDownloadAirgapBundle(versionLabel string, destPath string, licenseID string) (int64, error) {
 	// download airgap bundle
 	airgapURL := fmt.Sprintf("https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/%s?airgap=true", versionLabel)
 
@@ -59,6 +61,8 @@ func maybeDownloadAirgapBundle(t *testing.T, versionLabel string, destPath strin
 	defer f.Close()
 	size, err := f.ReadFrom(resp.Body)
 	if err != nil {
+		_ = f.Close()
+		_ = os.RemoveAll(airgapBundlePath)
 		return 0, fmt.Errorf("failed to write response to temporary file: %w", err)
 	}
 

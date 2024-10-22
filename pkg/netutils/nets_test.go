@@ -97,23 +97,26 @@ func TestValidateCIDR(t *testing.T) {
 
 func TestNetworksAreAdjacentAndSameSize(t *testing.T) {
 	for _, tt := range []struct {
-		name    string
-		a       string
-		b       string
-		want    bool
-		wantErr bool
+		name     string
+		a        string
+		b        string
+		expected string
+		want     bool
+		wantErr  bool
 	}{
 		{
-			name: "two adjacent networks",
-			a:    "10.96.0.0/16",
-			b:    "10.97.0.0/16",
-			want: true,
+			name:     "two adjacent networks",
+			a:        "10.96.0.0/16",
+			b:        "10.97.0.0/16",
+			expected: "10.96.0.0/15",
+			want:     true,
 		},
 		{
-			name: "another two adjacent networks",
-			a:    "10.1.0.0/17",
-			b:    "10.1.128.0/17",
-			want: true,
+			name:     "another two adjacent networks",
+			a:        "10.1.0.0/17",
+			b:        "10.1.128.0/17",
+			expected: "10.1.0.0/16",
+			want:     true,
 		},
 		{
 			name: "not adjacent networks",
@@ -129,9 +132,12 @@ func TestNetworksAreAdjacentAndSameSize(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _, err := NetworksAreAdjacentAndSameSize(tt.a, tt.b)
+			got, supernet, err := NetworksAreAdjacentAndSameSize(tt.a, tt.b)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want, got)
+			if tt.want {
+				assert.Equal(t, tt.expected, supernet)
+			}
 		})
 	}
 }

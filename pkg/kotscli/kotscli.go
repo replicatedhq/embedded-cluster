@@ -96,6 +96,27 @@ func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.Mess
 	return nil
 }
 
+func ResetPassword(provider *defaults.Provider, password string) error {
+	materializer := goods.NewMaterializer(provider)
+	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	runCommandOptions := helpers.RunCommandOptions{
+		Env:   map[string]string{"KUBECONFIG": provider.PathToKubeConfig()},
+		Stdin: strings.NewReader(fmt.Sprintf("%s\n", password)),
+	}
+
+	resetArgs := []string{"reset-password", "kotsadm"}
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, resetArgs...); err != nil {
+		return fmt.Errorf("unable to reset admin console password: %w", err)
+	}
+
+	return nil
+}
+
 type AirgapUpdateOptions struct {
 	AppSlug      string
 	Namespace    string

@@ -52,6 +52,8 @@ main() {
     if echo "$version" | grep -E "^(dev|appver)-" ; then
         validate_data_dirs
     fi
+
+    validate_no_pods_in_crashloop
 }
 
 main "$@"

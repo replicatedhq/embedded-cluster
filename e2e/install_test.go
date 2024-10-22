@@ -60,6 +60,16 @@ func TestSingleNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: resetting admin console password", time.Now().Format(time.RFC3339))
+	newPassword := "newpass"
+	line = []string{"embedded-cluster", "admin-console", "reset-password", newPassword}
+	_, _, err := tc.RunCommandOnNode(0, line)
+	require.NoError(t, err, "unable to reset admin console password")
+
+	t.Logf("%s: logging in with the new password", time.Now().Format(time.RFC3339))
+	_, _, err = tc.RunPlaywrightTest("login-with-custom-password", newPassword)
+	require.NoError(t, err, "unable to login with the new password")
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -1002,7 +1012,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	// expected to be in the 192.168.0.0/17 range while services are in the
 	// 192.168.128.0/17 range. i.e. pods are in 192.168.0-127.* while
 	// services in 192.168.128-254.*.
-	podregex := `192\.168\.\([0-9]\|[1-9][0-9]\|12[0-7]\)\.`
+	podregex := `192\.168\.\([0-9]\|[1-9][0-9]\|12[0-7]\|1[0-1][0-9]\)\.`
 	svcregex := `192\.168\.\(12[8-9]\|1[3-9][0-9]\|[2-5][0-9][0-9]\)\.`
 
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", podregex, svcregex}); err != nil {

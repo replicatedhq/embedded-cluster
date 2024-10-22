@@ -38,7 +38,7 @@ func installRunPreflightsCommand() *cli.Command {
 					Usage: "Disable interactive prompts.",
 					Value: false,
 				},
-				getDataDirFlag(runtimeConfig),
+				getDataDirFlagWithDefault(runtimeConfig),
 				getAdminConsolePortFlag(runtimeConfig),
 				getLocalArtifactMirrorPortFlag(runtimeConfig),
 			},
