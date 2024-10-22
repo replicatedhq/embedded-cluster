@@ -22,6 +22,18 @@ func getSubnetCollectorByName(name string, spec v1beta2.HostPreflightSpec) *v1be
 	return nil
 }
 
+func getSubnetAnalyzerByName(name string, spec v1beta2.HostPreflightSpec) *v1beta2.SubnetAvailableAnalyze {
+	for _, c := range spec.Analyzers {
+		if c.SubnetAvailable == nil {
+			continue
+		}
+		if c.SubnetAvailable.CollectorName == name {
+			return c.SubnetAvailable
+		}
+	}
+	return nil
+}
+
 func TestTemplateWithCIDRData(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -43,6 +55,209 @@ func TestTemplateWithCIDRData(t *testing.T) {
 					},
 					CIDRRangeAlloc: "10.0.0.0/24",
 					DesiredCIDR:    24,
+				},
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Services Subnet",
+						Exclude:       multitype.FromString("true"),
+					},
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
+				},
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Subnet",
+						Exclude:       multitype.FromString("true"),
+					},
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
+				},
+			},
+			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
+				{
+					CollectorName: "Pods Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("false"),
+					},
+				},
+				{
+					CollectorName: "Services Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("true"),
+					},
+				},
+				{
+					CollectorName: "Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("true"),
+					},
+				},
+			},
+		},
+		{
+			name:    "not a valid podCIDR",
+			podCIDR: "not-a-cidr",
+			wantErr: true,
+		},
+		{
+			name:        "valid serviceCIDR",
+			serviceCIDR: "10.0.0.0/24",
+			expectCollectors: []v1beta2.SubnetAvailable{
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Pods Subnet",
+						Exclude:       multitype.FromString("true"),
+					},
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
+				},
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Services Subnet",
+						Exclude:       multitype.FromString("false"),
+					},
+					CIDRRangeAlloc: "10.0.0.0/24",
+					DesiredCIDR:    24,
+				},
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Subnet",
+						Exclude:       multitype.FromString("true"),
+					},
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
+				},
+			},
+			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
+				{
+					CollectorName: "Pods Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("true"),
+					},
+				},
+				{
+					CollectorName: "Services Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("false"),
+					},
+				},
+				{
+					CollectorName: "Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("true"),
+					},
+				},
+			},
+		},
+		{
+			name:        "not a valid serviceCIDR",
+			serviceCIDR: "not-a-cidr",
+			wantErr:     true,
+		},
+		{
+			name:       "valid CIDR",
+			globalCIDR: "10.0.0.0/24",
+			expectCollectors: []v1beta2.SubnetAvailable{
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Pods Subnet",
+						Exclude:       multitype.FromString("true"),
+					},
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
+				},
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Services Subnet",
+						Exclude:       multitype.FromString("true"),
+					},
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
+				},
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Subnet",
+						Exclude:       multitype.FromString("false"),
+					},
+					CIDRRangeAlloc: "10.0.0.0/24",
+					DesiredCIDR:    24,
+				},
+			},
+			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
+				{
+					CollectorName: "Pods Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("true"),
+					},
+				},
+				{
+					CollectorName: "Services Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("true"),
+					},
+				},
+				{
+					CollectorName: "Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("false"),
+					},
+				},
+			},
+		},
+		{
+			name:       "not a valid CIDR",
+			globalCIDR: "not-a-cidr",
+			wantErr:    true,
+		},
+		{
+			name:        "valid podCIDR, serviceCIDR and CIDR are provided",
+			podCIDR:     "10.1.0.0/24",
+			serviceCIDR: "10.2.0.0/24",
+			globalCIDR:  "10.0.0.0/24",
+			expectCollectors: []v1beta2.SubnetAvailable{
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Pods Subnet",
+						Exclude:       multitype.FromString("true"),
+					},
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
+				},
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Services Subnet",
+						Exclude:       multitype.FromString("true"),
+					},
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
+				},
+				{
+					HostCollectorMeta: v1beta2.HostCollectorMeta{
+						CollectorName: "Subnet",
+						Exclude:       multitype.FromString("false"),
+					},
+					CIDRRangeAlloc: "10.0.0.0/24",
+					DesiredCIDR:    24,
+				},
+			},
+			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
+				{
+					CollectorName: "Pods Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("true"),
+					},
+				},
+				{
+					CollectorName: "Services Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("true"),
+					},
+				},
+				{
+					CollectorName: "Subnet",
+					AnalyzeMeta: v1beta2.AnalyzeMeta{
+						Exclude: multitype.FromString("false"),
+					},
 				},
 			},
 		},
@@ -66,6 +281,12 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				actual := getSubnetCollectorByName(collector.CollectorName, spec)
 				req.NotNil(actual)
 				req.Equal(collector, *actual)
+			}
+
+			for _, analyzer := range test.expectAnalyzers {
+				actual := getSubnetAnalyzerByName(analyzer.CollectorName, spec)
+				req.NotNil(actual)
+				req.Equal(analyzer.Exclude, actual.Exclude)
 			}
 		})
 	}

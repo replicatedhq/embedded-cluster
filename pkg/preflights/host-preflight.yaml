@@ -798,6 +798,7 @@ spec:
     - subnetAvailable:
         checkName: Pods Subnet Availability
         collectorName: Pods Subnet
+        exclude: '{{ or (ne .GlobalCIDR.CIDR "")  (eq .PodCIDR.CIDR "") }}'
         outcomes:
           - fail:
             when: "no-subnet-available"
@@ -808,6 +809,7 @@ spec:
     - subnetAvailable:
         checkName: Services Subnet Availability
         collectorName: Services Subnet
+        exclude: '{{ or (ne .GlobalCIDR.CIDR "")  (eq .ServiceCIDR.CIDR "") }}'
         outcomes:
           - fail:
             when: "no-subnet-available"
@@ -818,6 +820,7 @@ spec:
     - subnetAvailable:
         checkName: Subnet Availability
         collectorName: Subnet
+        exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
         outcomes:
           - fail:
             when: "no-subnet-available"
