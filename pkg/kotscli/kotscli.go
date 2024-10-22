@@ -15,8 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"gopkg.in/yaml.v2"
+	sb "github.com/replicatedhq/troubleshoot/pkg/supportbundle"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -314,14 +313,14 @@ func CreateHostSupportBundle() error {
 
 	var b bytes.Buffer
 	s := serializer.NewYAMLSerializer(serializer.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-	hostSupportBundle := troubleshootv1beta2.SupportBundle{}
 
-	err = yaml.Unmarshal(specFile, &hostSupportBundle)
+	hostSupportBundle, err := sb.ParseSupportBundleFromDoc(specFile)
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal support bundle spec: %w", err)
 	}
+	fmt.Println(hostSupportBundle.APIVersion)
 
-	if err := s.Encode(&hostSupportBundle, &b); err != nil {
+	if err := s.Encode(hostSupportBundle, &b); err != nil {
 		return fmt.Errorf("unable to encode support bundle spec: %w", err)
 	}
 
