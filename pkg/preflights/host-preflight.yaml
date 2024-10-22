@@ -129,19 +129,19 @@ spec:
           - '*'
     - subnetAvailable:
         collectorName: Pods Subnet
-        exclude: '{{ or (ne .Global.CIDR "")  (eq .PodsCIDR.CIDR "") }}'
-        CIDRRangeAlloc: '{{ .PodsCIDR.CIDR }}'
-        desiredCIDR: .PodsCIDR.Size
+        exclude: '{{ or (ne .GlobalCIDR.CIDR "")  (eq .PodCIDR.CIDR "") }}'
+        CIDRRangeAlloc: '{{ .PodCIDR.CIDR }}'
+        desiredCIDR: {{.PodCIDR.Size}}
     - subnetAvailable:
         collectorName: Services Subnet
-        exclude: '{{ or (ne .Global.CIDR "")  (eq .ServicesCIDR.CIDR "") }}'
-        CIDRRangeAlloc: '{{ .ServicesCIDR.CIDR }}'
-        desiredCIDR: .ServicesCIDR.Size
+        exclude: '{{ or (ne .GlobalCIDR.CIDR "")  (eq .ServiceCIDR.CIDR "") }}'
+        CIDRRangeAlloc: '{{ .ServiceCIDR.CIDR }}'
+        desiredCIDR: {{.ServiceCIDR.Size}}
     - subnetAvailable:
         collectorName: Subnet
         exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
         CIDRRangeAlloc: '{{ .GlobalCIDR.CIDR }}'
-        desiredCIDR: .GlobalCIDR.Size
+        desiredCIDR: {{.GlobalCIDR.Size}}
   analyzers:
     - cpu:
         checkName: CPU
