@@ -285,7 +285,7 @@ scan:
 buildtools:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	go build -o ./output/bin/buildtools ./cmd/buildtools
+	go build -tags exclude_graphdriver_btrfs -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: list-distros
 list-distros:
