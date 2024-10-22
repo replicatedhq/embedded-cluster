@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCollectSupportBundle(t *testing.T) {
@@ -23,27 +24,25 @@ func TestCollectSupportBundle(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
-	}
+	stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	assert.NoErrorf(t, err, "fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
 
 	line = []string{"collect-support-bundle-host.sh"}
-	stdout, stderr, err := tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
-	}
+	stdout, stderr, err = tc.RunCommandOnNode(0, line)
+	assert.NoErrorf(t, err, "fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
 
 	line = []string{"collect-support-bundle-cluster.sh"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to collect cluster support bundle: %v: %s: %s", err, stdout, stderr)
-	}
+	assert.NoErrorf(t, err, "fail to collect cluster support bundle: %v: %s: %s", err, stdout, stderr)
+
+	t.Logf("%s: collecting support bundle with the embedded-cluster binary", time.Now().Format(time.RFC3339))
+	line = []string{"embedded-cluster", "support-bundle"}
+	stdout, stderr, err = tc.RunCommandOnNode(0, line)
+	assert.NoErrorf(t, err, "fail to collect support bundle using embedded-cluster binary: %v: %s: %s", err, stdout, stderr)
 
 	line = []string{"validate-support-bundle.sh"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	if err != nil {
-		t.Fatalf("fail to validate support bundle: %v: %s: %s", err, stdout, stderr)
-	}
+	assert.NoErrorf(t, err, "fail to validate support bundle: %v: %s: %s", err, stdout, stderr)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
