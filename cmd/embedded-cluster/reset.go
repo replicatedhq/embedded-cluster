@@ -364,6 +364,8 @@ func resetCommand() *cli.Command {
 				}
 			}
 
+			fmt.Printf("resetting with runtimeConfig: %+v\n", runtimeConfig)
+
 			provider := discoverBestProvider(c.Context, runtimeConfig)
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
