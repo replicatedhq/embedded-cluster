@@ -39,7 +39,8 @@ main() {
     fi
 
     # ensure that new app pods exist
-    if ! kubectl get pods -n kotsadm -l app=second | grep -q Running ; then
+    # wait for new app pods to be running
+    if ! retry 5 kubectl get pods -n kotsadm -l app=second | grep -q Running ; then
         echo "no pods found for second app version"
         kubectl get pods -n kotsadm
         exit 1
