@@ -12,6 +12,10 @@ import (
 )
 
 func WriteRuntimeConfig(spec *v1beta1.RuntimeConfigSpec) error {
+	if spec == nil {
+		return nil
+	}
+
 	location := defaults.PathToECConfig()
 
 	err := os.MkdirAll(filepath.Dir(location), 0700)
