@@ -118,3 +118,9 @@ func PathToK0sConfig() string {
 func PathToK0sContainerdConfig() string {
 	return "/etc/k0s/containerd.d/"
 }
+
+// PathToECConfig returns the full path to the embedded cluster configuration file.
+// This file is used to specify the embedded cluster data directory.
+func PathToECConfig() string {
+	return "/etc/embedded-cluster/ec.yaml"
+}

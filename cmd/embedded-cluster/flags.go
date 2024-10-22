@@ -74,19 +74,3 @@ func getDataDirFlagWithDefault(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *cli.
 		},
 	}
 }
-
-func getDataDirFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *cli.StringFlag {
-	return &cli.StringFlag{
-		Name:   "data-dir",
-		Usage:  "Path to the data directory (default discovered from the cluster)",
-		Hidden: false,
-		Action: func(c *cli.Context, s string) error {
-			if s == "" {
-				return nil
-			}
-			logrus.Debugf("Setting data dir to %s from flag", s)
-			runtimeConfig.DataDir = s
-			return nil
-		},
-	}
-}

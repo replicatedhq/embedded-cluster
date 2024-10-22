@@ -707,21 +707,21 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	runInParallel(t,
 		func(t *testing.T) error {
 			t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force", "--data-dir", "/var/lib/ec"}
+			line = []string{"reset-installation.sh", "--force"}
 			if _, _, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
 				return fmt.Errorf("fail to reset the installation on node 2: %v", err)
 			}
 			return nil
 		}, func(t *testing.T) error {
 			t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force", "--data-dir", "/var/lib/ec"}
+			line = []string{"reset-installation.sh", "--force"}
 			if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
 				return fmt.Errorf("fail to reset the installation on node 1: %v", err)
 			}
 			return nil
 		}, func(t *testing.T) error {
 			t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
-			line = []string{"reset-installation.sh", "--force", "--data-dir", "/var/lib/ec"}
+			line = []string{"reset-installation.sh", "--force"}
 			if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 				return fmt.Errorf("fail to reset the installation on node 0: %v", err)
 			}
@@ -732,6 +732,31 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// wait for reboot
 	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
 	time.Sleep(60 * time.Second)
+
+	runInParallel(t,
+		func(t *testing.T) error {
+			t.Logf("%s: checking that /var/lib/ec is empty on node 0", time.Now().Format(time.RFC3339))
+			line := []string{"check-directory-empty.sh", "/var/lib/ec"}
+			if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+				return fmt.Errorf("fail to check that /var/lib/ec is empty: %v", err)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			t.Logf("%s: checking that /var/lib/ec is empty on node 1", time.Now().Format(time.RFC3339))
+			line := []string{"check-directory-empty.sh", "/var/lib/ec"}
+			if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
+				return fmt.Errorf("fail to check that /var/lib/ec is empty: %v", err)
+			}
+			return nil
+		}, func(t *testing.T) error {
+			t.Logf("%s: checking that /var/lib/ec is empty on node 2", time.Now().Format(time.RFC3339))
+			line := []string{"check-directory-empty.sh", "/var/lib/ec"}
+			if _, _, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
+				return fmt.Errorf("fail to check that /var/lib/ec is empty: %v", err)
+			}
+			return nil
+		},
+	)
 
 	// begin restoring the cluster
 	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
