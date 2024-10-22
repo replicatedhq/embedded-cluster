@@ -58,7 +58,7 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig, withChannelRelease b
 	)
 
 	additionalCharts := []eckinds.Chart{}
-	additionalRepos := []eckinds.Repository{}
+	additionalRepos := []k0sconfig.Repository{}
 	if withChannelRelease {
 		additionalCharts = config.AdditionalCharts()
 		additionalRepos = config.AdditionalRepositories()

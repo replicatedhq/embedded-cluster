@@ -73,7 +73,7 @@ func UpdateHelmConfigsForRestore(applier *addons.Applier, k0sCfg *k0sconfig.Clus
 	return updateHelmConfigs(k0sCfg, chtconfig, repconfig)
 }
 
-func updateHelmConfigs(cfg *k0sconfig.ClusterConfig, chtconfig []embeddedclusterv1beta1.Chart, repconfig []embeddedclusterv1beta1.Repository) error {
+func updateHelmConfigs(cfg *k0sconfig.ClusterConfig, chtconfig []embeddedclusterv1beta1.Chart, repconfig []k0sconfig.Repository) error {
 	// k0s sorts order numbers alphabetically because they're used in file names,
 	// which means double digits can be sorted before single digits (e.g. "10" comes before "5").
 	// We add 100 to the order of each chart to work around this.
@@ -258,7 +258,7 @@ func AdditionalCharts() []embeddedclusterv1beta1.Chart {
 	return []embeddedclusterv1beta1.Chart{}
 }
 
-func AdditionalRepositories() []embeddedclusterv1beta1.Repository {
+func AdditionalRepositories() []k0sconfig.Repository {
 	clusterConfig, err := release.GetEmbeddedClusterConfig()
 	if err == nil {
 		if clusterConfig != nil {
@@ -267,5 +267,5 @@ func AdditionalRepositories() []embeddedclusterv1beta1.Repository {
 			}
 		}
 	}
-	return []embeddedclusterv1beta1.Repository{}
+	return []k0sconfig.Repository{}
 }
