@@ -551,19 +551,21 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	})
 	defer tc.Cleanup(withEnv)
 
-	t.Logf("%s: downloading embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", "1.8.0+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
+	appVer := fmt.Sprintf("appver-%s-1.8.0-k8s-1.28", os.Getenv("SHORT_SHA"))
+
+	t.Logf("%s: downloading embedded-cluster %s on node 0", appVer, time.Now().Format(time.RFC3339))
+	line := []string{"vandoor-prepare.sh", appVer, os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: downloading embedded-cluster 1.8.0+k8s-1.28 on worker node", time.Now().Format(time.RFC3339))
-	line = []string{"vandoor-prepare.sh", "1.8.0+k8s-1.28", os.Getenv("LICENSE_ID"), "false"}
+	t.Logf("%s: downloading embedded-cluster %s on worker node", appVer, time.Now().Format(time.RFC3339))
+	line = []string{"vandoor-prepare.sh", appVer, os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(1, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: installing embedded-cluster 1.8.0+k8s-1.28 on node 0", time.Now().Format(time.RFC3339))
+	t.Logf("%s: installing embedded-cluster %s on node 0", appVer, time.Now().Format(time.RFC3339))
 	line = []string{"single-node-install.sh", "ui"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
@@ -600,7 +602,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", "1.8.0+k8s-1.28", "v1.28.11"}
+	line = []string{"check-installation-state.sh", appVer, "v1.28.11"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1039,12 +1041,14 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 
 	withEnv := map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"}
 
+	appVer := fmt.Sprintf("appver-%s-1.8.0-k8s-1.28", os.Getenv("SHORT_SHA"))
+
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, "1.8.0+k8s-1.28", airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, appVer, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
@@ -1150,7 +1154,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		"check-airgap-installation-state.sh",
 		// the initially installed version is 1.8.0+k8s-1.28
 		// the '+' character is problematic in the regex used to validate the version, so we use '.' instead
-		"1.8.0.k8s-1.28",
+		appVer,
 		"v1.28.11"}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
