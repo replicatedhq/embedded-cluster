@@ -3,6 +3,7 @@ package charts
 import (
 	"context"
 	"fmt"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"path/filepath"
 	"strings"
 
@@ -98,6 +99,7 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 	}
 	embeddedclusteroperator.Metadata.Images = oi
 	embeddedclusteroperator.Metadata.Location = operatorLocation
+	embeddedclusteroperator.Metadata.Version = versions.Version
 	embeddedclusteroperator.Render()
 
 	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
