@@ -16,9 +16,9 @@ import (
 // Data is the base directory inside which all the other directories are
 // created.
 func NewProvider(dataDir string) *Provider {
-	return NewProviderFromRuntimeConfig(&ecv1beta1.RuntimeConfigSpec{
-		DataDir: dataDir,
-	})
+	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
+	runtimeConfig.DataDir = dataDir
+	return NewProviderFromRuntimeConfig(runtimeConfig)
 }
 
 // NewProviderFromRuntimeConfig returns a new Provider using the provided runtime config.
