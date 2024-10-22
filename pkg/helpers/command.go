@@ -18,6 +18,8 @@ type RunCommandOptions struct {
 	Env map[string]string
 	// Stdin is the standard input to be used when running the command.
 	Stdin io.Reader
+	// LogOnSuccess makes the command output to be logged even when it succeeds.
+	LogOnSuccess bool
 }
 
 // RunCommandWithOptions runs a the provided command with the options specified.
@@ -53,6 +55,14 @@ func RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) e
 		}
 		return err
 	}
+
+	if !opts.LogOnSuccess {
+		return nil
+	}
+
+	logrus.Debugf("command succeeded:")
+	logrus.Debugf("stdout: %s", stdout.String())
+	logrus.Debugf("stderr: %s", stderr.String())
 	return nil
 }
 

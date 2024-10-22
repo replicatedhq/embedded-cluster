@@ -2,22 +2,16 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
-
-type collectOutput struct {
-	ArchivePath string `json:"archivePath"`
-}
 
 func supportBundleCommand() *cli.Command {
 	return &cli.Command{
@@ -38,15 +32,20 @@ func supportBundleCommand() *cli.Command {
 				return fmt.Errorf("unable to find support bundle binary")
 			}
 
-			output := bytes.NewBuffer(nil)
 			kubeConfig := provider.PathToKubeConfig()
 			hostSupportBundle := provider.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
 
 			spin := spinner.Start()
 			spin.Infof("Collecting support bundle (this may take a while)")
 
+			stdout := bytes.NewBuffer(nil)
+			stderr := bytes.NewBuffer(nil)
 			if err := helpers.RunCommandWithOptions(
-				helpers.RunCommandOptions{Writer: output, ErrWriter: output},
+				helpers.RunCommandOptions{
+					Writer:       stdout,
+					ErrWriter:    stderr,
+					LogOnSuccess: true,
+				},
 				supportBundle,
 				"--interactive=false",
 				fmt.Sprintf("--kubeconfig=%s", kubeConfig),
@@ -55,19 +54,13 @@ func supportBundleCommand() *cli.Command {
 			); err != nil {
 				spin.Infof("Failed to collect support bundle")
 				spin.CloseWithError()
-				io.Copy(os.Stderr, output)
+				io.Copy(os.Stdout, stdout)
+				io.Copy(os.Stderr, stderr)
 				return ErrNothingElseToAdd
 			}
 
 			spin.Infof("Support bundle collected!")
 			spin.Close()
-
-			var parsedOutput collectOutput
-			if err := json.Unmarshal(output.Bytes(), &parsedOutput); err != nil {
-				return fmt.Errorf("unable to parse support bundle output: %w", err)
-			}
-
-			logrus.Infof("Support bundle saved to %s", parsedOutput.ArchivePath)
 			return nil
 		},
 	}
