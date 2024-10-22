@@ -239,7 +239,7 @@ unit-tests:
 
 .PHONY: vet
 vet: static
-	go vet ./...
+	go vet -tags exclude_graphdriver_btrfs ./...
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
