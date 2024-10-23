@@ -264,7 +264,7 @@ func TestReconcileHelmCharts(t *testing.T) {
 											Name:         "embedded-cluster-operator",
 											ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 											Version:      "1.2.3-operator",
-											Values:       test_airgapOperatorValues,
+											Values:       test_operatorValues,
 											TargetNS:     "embedded-cluster",
 											ForceUpgrade: ptr.To(false),
 											Order:        103,
@@ -1294,7 +1294,7 @@ func TestReconcileHelmCharts(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "embedded-cluster-operator",
 						},
-						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues},
+						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_airgapOperatorValues},
 						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
@@ -1346,7 +1346,7 @@ func TestReconcileHelmCharts(t *testing.T) {
 											Name:         "embedded-cluster-operator",
 											ChartName:    "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 											Version:      "1.2.3-operator",
-											Values:       test_operatorValues,
+											Values:       test_airgapOperatorValues,
 											TargetNS:     "embedded-cluster",
 											ForceUpgrade: ptr.To(false),
 											Order:        103,

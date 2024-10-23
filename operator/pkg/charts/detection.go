@@ -123,6 +123,7 @@ func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts
 			}
 		}
 		if !chartSeen || diffDetected {
+			fmt.Printf("%+v\n", chart)
 			incompleteCharts = append(incompleteCharts, chart.Name)
 		}
 	}
