@@ -71,6 +71,19 @@ func Test_getCIDRs(t *testing.T) {
 				return c
 			},
 		},
+		{
+			name: "with cidr flag",
+			expected: []string{
+				"",
+				"",
+				"10.2.0.0/24",
+			},
+			buildCliContext: func(flagSet *flag.FlagSet) *cli.Context {
+				c := cli.NewContext(cli.NewApp(), flagSet, nil)
+				c.Set("cidr", "10.2.0.0/24")
+				return c
+			},
+		},
 	}
 
 	for _, test := range tests {
