@@ -454,7 +454,7 @@ func test_replaceAddonMeta() {
 	embeddedclusteroperator.Metadata = release.AddonMetadata{
 		Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 	}
-	versions.Version = "1.2.3-operator" // This is not great, the operator addon uses this to determine what version to deploy
+	versions.Version = "1.2.3-operator" // This is not great, we use this to override the version of the operator chart
 	// we can't use the version from the metadata because it won't be set in the operator binary
 	// TODO fix this
 

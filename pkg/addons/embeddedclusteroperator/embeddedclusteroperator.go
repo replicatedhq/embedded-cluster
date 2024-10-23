@@ -60,7 +60,6 @@ func Render() {
 
 	helmValues["kotsVersion"] = adminconsole.Metadata.Version
 	helmValues["embeddedClusterVersion"] = versions.Version
-	Metadata.Version = versions.Version
 }
 
 // EmbeddedClusterOperator manages the installation of the embedded cluster operator
