@@ -23,6 +23,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
@@ -188,6 +189,11 @@ var joinCommand = &cli.Command{
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
 			return fmt.Errorf("unable to get join token: %w", err)
+		}
+
+		err = configutils.WriteRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
+		if err != nil {
+			return fmt.Errorf("unable to write runtime config: %w", err)
 		}
 
 		provider := defaults.NewProviderFromRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)

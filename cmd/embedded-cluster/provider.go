@@ -6,6 +6,7 @@ import (
 	"os"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 )
@@ -36,11 +37,18 @@ func discoverKubeconfigPath(ctx context.Context, runtimeConfig *ecv1beta1.Runtim
 }
 
 // discoverBestProvider discovers the provider from the cluster (if it's up) and will fall back to
-// the filesystem, or the default.
+// the /etc/embedded-cluster/ec.yaml file, the filesystem, or the default.
 func discoverBestProvider(ctx context.Context) *defaults.Provider {
 	// It's possible that the cluster is not up
 	provider, err := getProviderFromCluster(ctx)
 	if err == nil {
+		return provider
+	}
+
+	// There might be a runtime config file
+	runtimeConfig, err := configutils.ReadRuntimeConfig()
+	if err == nil {
+		provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 		return provider
 	}
 

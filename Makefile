@@ -234,12 +234,12 @@ embedded-cluster:
 unit-tests:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	go test -v ./pkg/... ./cmd/...
+	go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
 vet: static
-	go vet ./...
+	go vet -tags exclude_graphdriver_btrfs ./...
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
@@ -266,11 +266,11 @@ clean:
 
 .PHONY: lint
 lint:
-	golangci-lint run -c .golangci.yml ./...
+	golangci-lint run -c .golangci.yml ./... --build-tags exclude_graphdriver_btrfs
 
 .PHONY: lint-and-fix
 lint-and-fix:
-	golangci-lint run --fix -c .golangci.yml ./...
+	golangci-lint run --fix -c .golangci.yml ./... --build-tags exclude_graphdriver_btrfs
 
 .PHONY: scan
 scan:
@@ -285,7 +285,7 @@ scan:
 buildtools:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	go build -o ./output/bin/buildtools ./cmd/buildtools
+	go build -tags exclude_graphdriver_btrfs -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: list-distros
 list-distros:
