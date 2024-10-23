@@ -101,7 +101,7 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 	// those values depend on the sha256 of the compiled binary itself
 	embeddedclusteroperator.Metadata.Images = oi
 	embeddedclusteroperator.Metadata.Location = operatorLocation
-	embeddedclusteroperator.Metadata.Version = versions.Version
+	embeddedclusteroperator.Metadata.Version = strings.TrimPrefix(versions.Version, "v")
 	embeddedclusteroperator.Render()
 
 	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
