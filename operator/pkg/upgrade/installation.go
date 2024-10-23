@@ -3,10 +3,10 @@ package upgrade
 import (
 	"context"
 	"fmt"
-	"time"
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"k8s.io/client-go/util/retry"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -40,22 +40,24 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 
 // setInstallationState gets the installation object of the given name and sets the state to the given state.
 func setInstallationState(ctx context.Context, cli client.Client, name string, state string, reason string, pendingCharts ...string) error {
-	var err error
-	for i := 0; i < 5; i++ {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		existingInstallation := &clusterv1beta1.Installation{}
-		err = cli.Get(ctx, client.ObjectKey{Name: name}, existingInstallation)
+		err := cli.Get(ctx, client.ObjectKey{Name: name}, existingInstallation)
 		if err != nil {
 			return fmt.Errorf("get installation: %w", err)
 		}
 		existingInstallation.Status.SetState(state, reason, pendingCharts)
 		err = cli.Status().Update(ctx, existingInstallation)
 		if err != nil {
-			time.Sleep(time.Second)
-			continue
+			return err
 		}
 		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set installation state after 5 attempts %w", err)
 	}
-	return fmt.Errorf("failed to set installation state after 5 attempts %w", err)
+
+	return nil
 }
 
 // reApplyInstallation updates the installation spec to match what's in the configmap used by the upgrade job.
