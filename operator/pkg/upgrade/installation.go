@@ -54,7 +54,7 @@ func setInstallationState(ctx context.Context, cli client.Client, name string, s
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to set installation state after 5 attempts %w", err)
+		return fmt.Errorf("persistent conflict error, failed to update installation %s status: %w", name, err)
 	}
 
 	return nil
