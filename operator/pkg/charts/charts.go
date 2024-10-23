@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -96,8 +97,11 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 	if err != nil {
 		return nil, fmt.Errorf("unable to get operator images: %w", err)
 	}
+	// set the images, location, and version of the operator chart because the files compiled into the embedded-cluster-operator do not include the correct values
+	// those values depend on the sha256 of the compiled binary itself
 	embeddedclusteroperator.Metadata.Images = oi
 	embeddedclusteroperator.Metadata.Location = operatorLocation
+	embeddedclusteroperator.Metadata.Version = versions.Version
 	embeddedclusteroperator.Render()
 
 	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
