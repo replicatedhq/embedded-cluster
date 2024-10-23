@@ -7,7 +7,6 @@ import (
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"k8s.io/apimachinery/pkg/api/errors"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -50,11 +49,9 @@ func setInstallationState(ctx context.Context, cli client.Client, name string, s
 		}
 		existingInstallation.Status.SetState(state, reason, pendingCharts)
 		err = cli.Status().Update(ctx, existingInstallation)
-		if errors.IsConflict(err) {
+		if err != nil {
 			time.Sleep(time.Second)
 			continue
-		} else if err != nil {
-			return fmt.Errorf("update installation status: %w", err)
 		}
 		return nil
 	}
