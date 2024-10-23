@@ -45,7 +45,7 @@ func withSubnetCIDRFlags(flags []cli.Flag) []cli.Flag {
 // --pod-cidr and --service-cidr have been set, they are used. Otherwise,
 // the cidr flag is split into pod and service CIDRs.
 func DeterminePodAndServiceCIDRs(c *cli.Context) (string, string, error) {
-	if c.IsSet("pod-cidr") && c.IsSet("service-cidr") {
+	if c.IsSet("pod-cidr") || c.IsSet("service-cidr") {
 		return c.String("pod-cidr"), c.String("service-cidr"), nil
 	}
 	return netutils.SplitNetworkCIDR(c.String("cidr"))
@@ -53,7 +53,7 @@ func DeterminePodAndServiceCIDRs(c *cli.Context) (string, string, error) {
 
 // getCIDRs returns the CIDRs in use based on the provided cli flags.
 func getCIDRs(c *cli.Context) (string, string, string) {
-	if c.IsSet("pod-cidr") && c.IsSet("service-cidr") {
+	if c.IsSet("pod-cidr") || c.IsSet("service-cidr") {
 		return c.String("pod-cidr"), c.String("service-cidr"), ""
 	}
 	return "", "", c.String("cidr")
