@@ -127,6 +127,21 @@ spec:
         collectorName: 'wildcard-check'
         hostnames:
           - '*'
+    - subnetAvailable:
+        collectorName: Pod CIDR
+        exclude: '{{ eq .PodCIDR.CIDR "" }}'
+        CIDRRangeAlloc: '{{ .PodCIDR.CIDR }}'
+        desiredCIDR: {{.PodCIDR.Size}}
+    - subnetAvailable:
+        collectorName: Service CIDR
+        exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
+        CIDRRangeAlloc: '{{ .ServiceCIDR.CIDR }}'
+        desiredCIDR: {{.ServiceCIDR.Size}}
+    - subnetAvailable:
+        collectorName: CIDR
+        exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
+        CIDRRangeAlloc: '{{ .GlobalCIDR.CIDR }}'
+        desiredCIDR: {{.GlobalCIDR.Size}}
   analyzers:
     - cpu:
         checkName: CPU
@@ -763,10 +778,10 @@ spec:
         outcomes:
           - fail:
               when: 'true'
-              message: {{ .DataDir }} cannot be symlinked. Remove the symlink, or use the --data-dir flag to provide an alternate data directory.
+              message: "{{ .DataDir }} cannot be symlinked. Remove the symlink, or use the --data-dir flag to provide an alternate data directory."
           - pass:
               when: 'false'
-              message: {{ .DataDir }} is not a symlink.
+              message: "{{ .DataDir }} is not a symlink."
     - jsonCompare:
         checkName: Wildcard DNS
         fileName: host-collectors/dns/wildcard-check/result.json
@@ -780,3 +795,36 @@ spec:
           - pass:
               when: 'true'
               message: No wildcard DNS entry detected.
+    - subnetAvailable:
+        checkName: Pod CIDR Availability
+        collectorName: Pod CIDR
+        exclude: '{{ eq .PodCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "no-subnet-available"
+              message: "{{ .PodCIDR.CIDR }} is not available. Use --pod-cidr to specify an available CIDR block."
+          - pass:
+              when: "a-subnet-is-available"
+              message: Specified Pod CIDR is available.
+    - subnetAvailable:
+        checkName: Service CIDR Availability
+        collectorName: Service CIDR
+        exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "no-subnet-available"
+              message: "{{ .ServiceCIDR.CIDR }} is not available. Use --service-cidr to specify an available CIDR block."
+          - pass:
+              when: "a-subnet-is-available"
+              message: Specified Service CIDR is available.
+    - subnetAvailable:
+        checkName: CIDR Availability
+        collectorName: CIDR
+        exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "no-subnet-available"
+              message:  "{{ .GlobalCIDR.CIDR }} is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger)."
+          - pass:
+              when: "a-subnet-is-available"
+              message: Specified CIDR is available.

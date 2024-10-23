@@ -24,11 +24,6 @@ pipeline:
   - runs: |
       set -exuo pipefail
 
-      # remove a 'v' prefix from the version if it exists
-      if [[ ${VERSION:0:1} == "v" ]]; then
-        export VERSION=${VERSION:1}
-      fi
-
       make -C operator build
       cp operator/bin/manager "${{targets.contextdir}}/manager"
   - uses: strip
