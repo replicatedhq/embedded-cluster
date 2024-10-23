@@ -8,6 +8,5 @@ metadata:
 data:
   admin-console-version: "{{- .Values.kotsVersion }}"
   embedded-cluster-version: "{{- .Values.embeddedClusterVersion }}"
-  embedded-cluster-k0s-version: "{{- .Values.embeddedClusterK0sVersion }}"
   embedded-binary-name: "{{- .Values.embeddedBinaryName }}"
   embedded-cluster-id: "{{- .Values.embeddedClusterID }}"

@@ -61,7 +61,6 @@ zfs-localpv:
 
 const test_operatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterK0sVersion: 0.0.0
 embeddedClusterVersion: 1.2.3-operator
 global:
   labels:
@@ -76,7 +75,6 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 
 const test_proxyOperatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterK0sVersion: 0.0.0
 embeddedClusterVersion: 1.2.3-operator
 extraEnv:
 - name: HTTP_PROXY
@@ -98,7 +96,6 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 
 const test_overriddenOperatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterK0sVersion: 0.0.0
 embeddedClusterVersion: abctest
 global:
   labels:
