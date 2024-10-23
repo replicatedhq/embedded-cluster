@@ -16,3 +16,4 @@ go.work.sum
 .gomodcache
 /local-dev/
 *.tmp
+.envrc

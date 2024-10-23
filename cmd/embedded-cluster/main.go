@@ -37,6 +37,8 @@ func main() {
 			materializeCommand(),
 			updateCommand(),
 			restoreCommand(),
+			adminConsoleCommand(),
+			supportBundleCommand(),
 		},
 	}
 	if err := app.RunContext(ctx, os.Args); err != nil {

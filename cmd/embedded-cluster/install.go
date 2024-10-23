@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -427,7 +428,13 @@ func ensureK0sConfig(c *cli.Context, provider *defaults.Provider, applier *addon
 		airgap.RemapHelm(provider, cfg)
 		airgap.SetAirgapConfig(cfg)
 	}
-	data, err := k8syaml.Marshal(cfg)
+	// This is necessary to install the previous version of k0s in e2e tests
+	// TODO: remove this once the previous version is > 1.29
+	unstructured, err := helpers.K0sClusterConfigTo129Compat(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+	}
+	data, err := k8syaml.Marshal(unstructured)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal config: %w", err)
 	}
@@ -552,7 +559,7 @@ func installAndWaitForK0s(c *cli.Context, provider *defaults.Provider, applier *
 
 	logrus.Debugf("installing k0s")
 	if err := installK0s(c, provider); err != nil {
-		err := fmt.Errorf("unable update cluster: %w", err)
+		err := fmt.Errorf("unable to install cluster: %w", err)
 		metrics.ReportApplyFinished(c, err)
 		return nil, err
 	}
@@ -660,7 +667,7 @@ func installCommand() *cli.Command {
 					Name:  "airgap-bundle",
 					Usage: "Path to the air gap bundle. If set, the installation will complete without internet access.",
 				},
-				getDataDirFlag(runtimeConfig),
+				getDataDirFlagWithDefault(runtimeConfig),
 				&cli.StringFlag{
 					Name:    "license",
 					Aliases: []string{"l"},
@@ -701,6 +708,11 @@ func installCommand() *cli.Command {
 			defer tryRemoveTmpDirContents(provider)
 
 			var err error
+			err = configutils.WriteRuntimeConfig(runtimeConfig)
+			if err != nil {
+				return fmt.Errorf("unable to write runtime config: %w", err)
+			}
+
 			proxy, err := getProxySpecFromFlags(c)
 			if err != nil {
 				return fmt.Errorf("unable to get proxy spec from flags: %w", err)

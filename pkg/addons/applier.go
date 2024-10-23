@@ -11,7 +11,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -23,16 +22,20 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
+
+const SpecDataKey = "support-bundle-spec"
 
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
 	Version() (map[string]string, error)
 	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error)
+	GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error)
 	Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error
 	GetProtectedFields() map[string][]string
 	GetImages() []string
@@ -86,9 +89,16 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 	if err := spinForInstallation(ctx, kcli); err != nil {
 		return err
 	}
+
+	err = kotscli.CreateHostSupportBundle()
+	if err != nil {
+		logrus.Warnf("failed to create host support bundle: %v", err)
+	}
+
 	if err := printKotsadmLinkMessage(a.license, networkInterface, a.provider.AdminConsolePort()); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
+
 	return nil
 }
 
@@ -111,9 +121,9 @@ func (a *Applier) OutroForRestore(ctx context.Context, k0sCfg *k0sv1beta1.Cluste
 }
 
 // GenerateHelmConfigs generates the helm config for all the embedded charts.
-func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, additionalCharts []ecv1beta1.Chart, additionalRepositories []ecv1beta1.Repository) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, additionalCharts []ecv1beta1.Chart, additionalRepositories []k0sv1beta1.Repository) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	charts := []ecv1beta1.Chart{}
-	repositories := []ecv1beta1.Repository{}
+	repositories := []k0sv1beta1.Repository{}
 	addons, err := a.load()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)
@@ -137,9 +147,9 @@ func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, addition
 }
 
 // GenerateHelmConfigsForRestore generates the helm config for the embedded charts required for a restore operation.
-func (a *Applier) GenerateHelmConfigsForRestore(k0sCfg *k0sv1beta1.ClusterConfig) ([]ecv1beta1.Chart, []ecv1beta1.Repository, error) {
+func (a *Applier) GenerateHelmConfigsForRestore(k0sCfg *k0sv1beta1.ClusterConfig) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	charts := []ecv1beta1.Chart{}
-	repositories := []ecv1beta1.Repository{}
+	repositories := []k0sv1beta1.Repository{}
 	addons, err := a.loadForRestore()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to load addons: %w", err)

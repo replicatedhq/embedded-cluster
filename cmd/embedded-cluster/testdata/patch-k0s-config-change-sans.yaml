@@ -1,6 +1,6 @@
 original: |-
   apiVersion: k0s.k0sproject.io/v1beta1
-  kind: Cluster
+  kind: ClusterConfig
   metadata:
     name: k0s
   spec:
@@ -30,7 +30,7 @@ override: |-
               - 192.168.68.106
 expected: |-
   apiVersion: k0s.k0sproject.io/v1beta1
-  kind: Cluster
+  kind: ClusterConfig
   metadata:
     name: k0s
   spec:

@@ -16,7 +16,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,6 +80,11 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 	err = reApplyInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("unlock installation: %w", err)
+	}
+
+	err = kotscli.CreateHostSupportBundle()
+	if err != nil {
+		logrus.Warnf("Failed to upgrade host support bundle: %v", err)
 	}
 
 	return nil
@@ -199,7 +207,12 @@ func clusterConfigUpdate(ctx context.Context, cli client.Client, in *clusterv1be
 
 	currentCfg.Spec.Images = cfg.Spec.Images
 
-	err = cli.Update(ctx, &currentCfg)
+	unstructured, err := helpers.K0sClusterConfigTo129Compat(&currentCfg)
+	if err != nil {
+		return fmt.Errorf("convert cluster config to 1.29 compat: %w", err)
+	}
+
+	err = cli.Update(ctx, unstructured)
 	if err != nil {
 		return fmt.Errorf("update cluster config: %w", err)
 	}

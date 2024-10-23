@@ -18,7 +18,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -330,8 +329,6 @@ func maybePrintHAWarning(ctx context.Context, provider *defaults.Provider) error
 }
 
 func resetCommand() *cli.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
 	return &cli.Command{
 		Name: "reset",
 		Before: func(c *cli.Context) error {
@@ -342,7 +339,6 @@ func resetCommand() *cli.Command {
 		},
 		Args: false,
 		Flags: []cli.Flag{
-			getDataDirFlag(runtimeConfig),
 			&cli.BoolFlag{
 				Name:    "force",
 				Aliases: []string{"f"},
@@ -357,7 +353,7 @@ func resetCommand() *cli.Command {
 		},
 		Usage: fmt.Sprintf("Remove %s from the current node", binName),
 		Action: func(c *cli.Context) error {
-			provider := discoverBestProvider(c.Context, runtimeConfig)
+			provider := discoverBestProvider(c.Context)
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
@@ -495,6 +491,10 @@ func resetCommand() *cli.Command {
 
 			if err := helpers.RemoveAll("/usr/local/bin/k0s"); err != nil {
 				return fmt.Errorf("failed to remove k0s binary: %w", err)
+			}
+
+			if err := helpers.RemoveAll(defaults.PathToECConfig()); err != nil {
+				return fmt.Errorf("failed to remove embedded cluster data config: %w", err)
 			}
 
 			if _, err := exec.Command("reboot").Output(); err != nil {

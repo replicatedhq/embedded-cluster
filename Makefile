@@ -10,9 +10,10 @@ ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.29.9+k0s.0-ec.0
-K0S_GO_VERSION = v1.29.9+k0s.0
-PREVIOUS_K0S_VERSION ?= v1.28.14+k0s.0-ec.0
+K0S_VERSION = v1.30.5+k0s.0-ec.1
+K0S_GO_VERSION = v1.30.5+k0s.0
+PREVIOUS_K0S_VERSION ?= v1.29.9+k0s.0-ec.0
+PREVIOUS_K0S_GO_VERSION ?= v1.29.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.105.2
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
@@ -26,7 +27,9 @@ METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
 
-ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
+ifeq ($(K0S_VERSION),v1.30.5+k0s.0-ec.1)
+K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.30.5%2Bk0s.0-ec.1-$(ARCH)
+else ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)
 else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.28.14%2Bk0s.0-ec.0-$(ARCH)
@@ -231,12 +234,12 @@ embedded-cluster:
 unit-tests:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	go test -v ./pkg/... ./cmd/...
+	go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
 vet: static
-	go vet ./...
+	go vet -tags exclude_graphdriver_btrfs ./...
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
@@ -263,11 +266,11 @@ clean:
 
 .PHONY: lint
 lint:
-	golangci-lint run -c .golangci.yml ./...
+	golangci-lint run -c .golangci.yml ./... --build-tags exclude_graphdriver_btrfs
 
 .PHONY: lint-and-fix
 lint-and-fix:
-	golangci-lint run --fix -c .golangci.yml ./...
+	golangci-lint run --fix -c .golangci.yml ./... --build-tags exclude_graphdriver_btrfs
 
 .PHONY: scan
 scan:
@@ -282,7 +285,7 @@ scan:
 buildtools:
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	go build -o ./output/bin/buildtools ./cmd/buildtools
+	go build -tags exclude_graphdriver_btrfs -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: list-distros
 list-distros:

@@ -1,0 +1,66 @@
+From 9905f210161dae52cce4b26db560fbf120902945 Mon Sep 17 00:00:00 2001
+From: Ethan Mosbaugh <ethan@replicated.com>
+Date: Tue, 1 Oct 2024 21:20:00 -0700
+Subject: [PATCH] fix: chart crd forceUpgrade field should be nil by default
+
+Signed-off-by: Ethan Mosbaugh <ethan@replicated.com>
+(cherry picked from commit a82ada54919f6d96d83ba1d1cb6e8d369a420563)
+(cherry picked from commit c92cd3bd3096e6ed96e44ed8592d021145677461)
+---
+ pkg/apis/helm/v1beta1/chart_types.go                       | 1 -
+ pkg/apis/k0s/v1beta1/extensions.go                         | 1 -
+ static/_crds/helm/helm.k0sproject.io_charts.yaml           | 1 -
+ static/_crds/v1beta1/k0s.k0sproject.io_clusterconfigs.yaml | 1 -
+ 4 files changed, 4 deletions(-)
+
+diff --git a/pkg/apis/helm/v1beta1/chart_types.go b/pkg/apis/helm/v1beta1/chart_types.go
+index f6832fc19..93a03c750 100644
+--- a/pkg/apis/helm/v1beta1/chart_types.go
++++ b/pkg/apis/helm/v1beta1/chart_types.go
+@@ -34,7 +34,6 @@ type ChartSpec struct {
+ 	Namespace   string `json:"namespace,omitempty"`
+ 	Timeout     string `json:"timeout,omitempty"`
+ 	// ForceUpgrade when set to false, disables the use of the "--force" flag when upgrading the the chart (default: true).
+-	// +kubebuilder:default=true
+ 	// +optional
+ 	ForceUpgrade *bool `json:"forceUpgrade,omitempty"`
+ 	Order        int   `json:"order,omitempty"`
+diff --git a/pkg/apis/k0s/v1beta1/extensions.go b/pkg/apis/k0s/v1beta1/extensions.go
+index 6c44ec41a..4aaaadb24 100644
+--- a/pkg/apis/k0s/v1beta1/extensions.go
++++ b/pkg/apis/k0s/v1beta1/extensions.go
+@@ -102,7 +102,6 @@ type Chart struct {
+ 	// +kubebuilder:validation:XIntOrString
+ 	Timeout BackwardCompatibleDuration `json:"timeout,omitempty"`
+ 	// ForceUpgrade when set to false, disables the use of the "--force" flag when upgrading the the chart (default: true).
+-	// +kubebuilder:default=true
+ 	// +optional
+ 	ForceUpgrade *bool `json:"forceUpgrade,omitempty"`
+ 	Order        int   `json:"order"`
+diff --git a/static/_crds/helm/helm.k0sproject.io_charts.yaml b/static/_crds/helm/helm.k0sproject.io_charts.yaml
+index 86edc7c5c..df06c5067 100644
+--- a/static/_crds/helm/helm.k0sproject.io_charts.yaml
++++ b/static/_crds/helm/helm.k0sproject.io_charts.yaml
+@@ -42,7 +42,6 @@ spec:
+               chartName:
+                 type: string
+               forceUpgrade:
+-                default: true
+                 description: 'ForceUpgrade when set to false, disables the use of
+                   the "--force" flag when upgrading the the chart (default: true).'
+                 type: boolean
+diff --git a/static/_crds/v1beta1/k0s.k0sproject.io_clusterconfigs.yaml b/static/_crds/v1beta1/k0s.k0sproject.io_clusterconfigs.yaml
+index 66798aa3b..c81765a2f 100644
+--- a/static/_crds/v1beta1/k0s.k0sproject.io_clusterconfigs.yaml
++++ b/static/_crds/v1beta1/k0s.k0sproject.io_clusterconfigs.yaml
+@@ -101,7 +101,6 @@ spec:
+                             chartname:
+                               type: string
+                             forceUpgrade:
+-                              default: true
+                               description: 'ForceUpgrade when set to false, disables
+                                 the use of the "--force" flag when upgrading the the
+                                 chart (default: true).'
+-- 
+2.46.1
+

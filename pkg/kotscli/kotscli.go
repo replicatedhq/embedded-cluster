@@ -1,6 +1,8 @@
 package kotscli
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -9,14 +11,23 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	sb "github.com/replicatedhq/troubleshoot/pkg/supportbundle"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	serializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/kubectl/pkg/scheme"
 )
 
 var (
 	CounterRegex = regexp.MustCompile(`(\d+)/(\d+)`)
 )
+
+const SpecDataKey = "support-bundle-spec"
 
 type InstallOptions struct {
 	AppSlug      string
@@ -79,6 +90,27 @@ func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.Mess
 	}
 	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, installArgs...); err != nil {
 		return fmt.Errorf("unable to install the application: %w", err)
+	}
+
+	return nil
+}
+
+func ResetPassword(provider *defaults.Provider, password string) error {
+	materializer := goods.NewMaterializer(provider)
+	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	runCommandOptions := helpers.RunCommandOptions{
+		Env:   map[string]string{"KUBECONFIG": provider.PathToKubeConfig()},
+		Stdin: strings.NewReader(fmt.Sprintf("%s\n", password)),
+	}
+
+	resetArgs := []string{"reset-password", "kotsadm"}
+	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, resetArgs...); err != nil {
+		return fmt.Errorf("unable to reset admin console password: %w", err)
 	}
 
 	return nil
@@ -270,4 +302,64 @@ func KotsOutputLineBreaker() spinner.LineBreakerFn {
 		}
 		return false, ""
 	}
+}
+
+func CreateHostSupportBundle() error {
+	specFile, err := goods.GetSupportBundleSpec("host-support-bundle-remote")
+
+	if err != nil {
+		return fmt.Errorf("unable to get support bundle spec: %w", err)
+	}
+
+	var b bytes.Buffer
+	s := serializer.NewYAMLSerializer(serializer.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
+
+	hostSupportBundle, err := sb.ParseSupportBundleFromDoc(specFile)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal support bundle spec: %w", err)
+	}
+	fmt.Println(hostSupportBundle.APIVersion)
+
+	if err := s.Encode(hostSupportBundle, &b); err != nil {
+		return fmt.Errorf("unable to encode support bundle spec: %w", err)
+	}
+
+	renderedSpec := b.Bytes()
+
+	configMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "embedded-cluster-host-support-bundle",
+			Namespace: "kotsadm",
+			Labels: map[string]string{
+				"troubleshoot.sh/kind":             "support-bundle",
+				"replicated.com/disaster-recovery": "app",
+			},
+		},
+		Data: map[string]string{
+			SpecDataKey: string(renderedSpec),
+		},
+	}
+
+	ctx := context.Background()
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	err = kcli.Create(ctx, configMap)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("unable to create config map: %w", err)
+	}
+
+	if errors.IsAlreadyExists(err) {
+		if err := kcli.Update(ctx, configMap); err != nil {
+			return fmt.Errorf("unable to update config map: %w", err)
+		}
+	}
+
+	return nil
 }

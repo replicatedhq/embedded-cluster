@@ -113,6 +113,9 @@ spec:
   - copy:
       collectorName: installer-support-files
       path: {{ .DataDir }}/support/*
+  - copy:
+      collectorName: runtime-config
+      path: /etc/embedded-cluster/*
   - run:
       collectorName: network-manager-logs
       command: journalctl

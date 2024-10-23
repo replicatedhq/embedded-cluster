@@ -42,6 +42,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.60.3
+          args: --build-tags exclude_graphdriver_btrfs
 
   test:
     name: Unit tests
@@ -140,11 +141,14 @@ jobs:
           USE_CHAINGUARD: "1"
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
           export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}
+          # avoid rate limiting
+          export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
 
           ./scripts/build-and-release.sh
 
@@ -209,10 +213,14 @@ jobs:
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
+          export K0S_GO_VERSION=$(make print-PREVIOUS_K0S_GO_VERSION)
           export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-previous-k0s
+          # avoid rate limiting
+          export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
 
           ./scripts/build-and-release.sh
 
@@ -275,10 +283,13 @@ jobs:
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
           MANGLE_METADATA: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
           export EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-upgrade
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-upgrade
+          # avoid rate limiting
+          export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
 
           ./scripts/build-and-release.sh
 
@@ -365,12 +376,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install replicated CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          curl --retry 5 --retry-all-errors -fs https://api.github.com/repos/replicatedhq/replicated/releases/latest \
-          | grep "browser_download_url.*linux_amd64.tar.gz" \
-          | cut -d : -f 2,3 \
-          | tr -d \" \
-          | wget -O replicated.tar.gz -qi -
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
           tar xf replicated.tar.gz replicated && rm replicated.tar.gz
           mv replicated /usr/local/bin/replicated
       - name: Create CI releases
@@ -386,6 +395,11 @@ jobs:
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           export APP_VERSION="appver-${SHORT_SHA}-pre-minio-removal"
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
+
+          # re-promote a release containing an old version of embedded-cluster to test upgrades
+          export APP_VERSION="appver-${SHORT_SHA}-1.8.0-k8s-1.28"
+          replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
+          replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
 
           # install the previous k0s version to ensure an upgrade occurs
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
@@ -506,6 +520,7 @@ jobs:
           - TestMultiNodeReset
           - TestCollectSupportBundle
           - TestUnsupportedOverrides
+          - TestHostCollectSupportBundleInCluster
     steps:
       - name: Checkout
         uses: actions/checkout@v4

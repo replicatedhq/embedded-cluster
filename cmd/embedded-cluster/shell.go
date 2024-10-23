@@ -14,7 +14,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
 
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
@@ -37,14 +36,9 @@ func handleResize(ch chan os.Signal, tty *os.File) {
 }
 
 func shellCommand() *cli.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
 	return &cli.Command{
 		Name:  "shell",
 		Usage: "Start a shell with access to the cluster",
-		Flags: []cli.Flag{
-			getDataDirFlag(runtimeConfig),
-		},
 		Before: func(c *cli.Context) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("shell command must be run as root")
@@ -52,7 +46,7 @@ func shellCommand() *cli.Command {
 			return nil
 		},
 		Action: func(c *cli.Context) error {
-			provider := discoverBestProvider(c.Context, runtimeConfig)
+			provider := discoverBestProvider(c.Context)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			if _, err := os.Stat(provider.PathToKubeConfig()); err != nil {
