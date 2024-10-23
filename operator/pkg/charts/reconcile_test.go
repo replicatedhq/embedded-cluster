@@ -222,21 +222,21 @@ func TestReconcileHelmCharts(t *testing.T) {
 							Name: "openebs",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: "c0ea0af176f78196117571c1a50f6f679da08a2975e442fe39542cbe419b55c6"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "embedded-cluster-operator",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: "215c33c6a56953b6d6814251f6fa0e78d3884a4d15dbb515a3942baf40900893"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "admin-console",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: "88e04728e85bbbf8a7c676a28c6bc7809273c8a0aa21ed0a407c635855b6944e"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues}.HashValues()},
 					},
 					&k0sv1beta1.ClusterConfig{
 						ObjectMeta: metav1.ObjectMeta{
@@ -341,21 +341,21 @@ func TestReconcileHelmCharts(t *testing.T) {
 							Name: "openebs",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: "c0ea0af176f78196117571c1a50f6f679da08a2975e442fe39542cbe419b55c6"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "embedded-cluster-operator",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: "215c33c6a56953b6d6814251f6fa0e78d3884a4d15dbb515a3942baf40900893"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "admin-console",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: "88e04728e85bbbf8a7c676a28c6bc7809273c8a0aa21ed0a407c635855b6944e"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues}.HashValues()},
 					},
 					&k0sv1beta1.ClusterConfig{
 						ObjectMeta: metav1.ObjectMeta{
@@ -457,14 +457,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 							Name: "embedded-cluster-operator",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: "215c33c6a56953b6d6814251f6fa0e78d3884a4d15dbb515a3942baf40900893"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "admin-console",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: "88e04728e85bbbf8a7c676a28c6bc7809273c8a0aa21ed0a407c635855b6944e"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues}.HashValues()},
 					},
 					&k0sv1beta1.ClusterConfig{
 						ObjectMeta: metav1.ObjectMeta{
@@ -730,21 +730,21 @@ func TestReconcileHelmCharts(t *testing.T) {
 							Name: "openebs",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: "c0ea0af176f78196117571c1a50f6f679da08a2975e442fe39542cbe419b55c6"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "embedded-cluster-operator",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: "215c33c6a56953b6d6814251f6fa0e78d3884a4d15dbb515a3942baf40900893"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "admin-console",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: "88e04728e85bbbf8a7c676a28c6bc7809273c8a0aa21ed0a407c635855b6944e"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues}.HashValues()},
 					},
 					&k0sv1beta1.ClusterConfig{
 						ObjectMeta: metav1.ObjectMeta{
@@ -865,21 +865,21 @@ func TestReconcileHelmCharts(t *testing.T) {
 							Name: "openebs",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: "c0ea0af176f78196117571c1a50f6f679da08a2975e442fe39542cbe419b55c6"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "embedded-cluster-operator",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_overriddenOperatorValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: "b2ece3c59578e31d8a8d997923de5971dd04c3d417366af115464c79070ad3b3"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_overriddenOperatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "admin-console",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_overriddenOnlineAdminConsoleValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: "1a02a40c607e2addad17e289e6d6d155ab4e7b0b7dd7e153fb123032812c5227"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_overriddenOnlineAdminConsoleValues}.HashValues()},
 					},
 					&k0sv1beta1.ClusterConfig{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1169,14 +1169,14 @@ func TestReconcileHelmCharts(t *testing.T) {
 							Name: "embedded-cluster-operator",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: "215c33c6a56953b6d6814251f6fa0e78d3884a4d15dbb515a3942baf40900893"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "admin-console",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: "88e04728e85bbbf8a7c676a28c6bc7809273c8a0aa21ed0a407c635855b6944e"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_onlineAdminConsoleValues}.HashValues()},
 					},
 					&k0sv1beta1.ClusterConfig{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1281,35 +1281,35 @@ func TestReconcileHelmCharts(t *testing.T) {
 							Name: "openebs",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: "c0ea0af176f78196117571c1a50f6f679da08a2975e442fe39542cbe419b55c6"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-openebs", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "openebs", Values: test_openebsValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "docker-registry",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "docker-registry", Values: test_registryValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-registry", ValuesHash: "badd606a0c4c22e5fd4ca08740d7d1e7b11a9bc68073119de51b19788e42db35"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-registry", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "docker-registry", Values: test_registryValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "embedded-cluster-operator",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: "215c33c6a56953b6d6814251f6fa0e78d3884a4d15dbb515a3942baf40900893"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "admin-console",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_airgapAdminConsoleValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: "680c7e7d9650d2e9e5668ff495ba669bcc9bab188216e5854e07339ec0924068"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-admin-console", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "admin-console", Values: test_airgapAdminConsoleValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "velero",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "velero", Values: test_veleroValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-velero", ValuesHash: "050987f9133fd4377ea2811116896f285549b39b5dffafb1cb3b6a3f306c6dd7"},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-velero", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "velero", Values: test_veleroValues}.HashValues()},
 					},
 					&k0sv1beta1.ClusterConfig{
 						ObjectMeta: metav1.ObjectMeta{
