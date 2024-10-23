@@ -1060,6 +1060,12 @@ func restoreCommand() *cli.Command {
 				if err := configureNetworkManager(c, provider); err != nil {
 					return fmt.Errorf("unable to configure network manager: %w", err)
 				}
+
+				logrus.Debugf("configuring firewalld")
+				if err := configureFirewalld(c, provider); err != nil {
+					return fmt.Errorf("unable to configure firewalld: %w", err)
+				}
+
 				logrus.Debugf("materializing binaries")
 				if err := materializeFiles(c, provider); err != nil {
 					return fmt.Errorf("unable to materialize binaries: %w", err)

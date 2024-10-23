@@ -489,6 +489,10 @@ func resetCommand() *cli.Command {
 				return fmt.Errorf("failed to remove NetworkManager configuration: %w", err)
 			}
 
+			if err := helpers.RemoveAll("/usr/lib/firewalld/zones/embedded-cluster.xml"); err != nil {
+				return fmt.Errorf("failed to remove firewalld configuration: %w", err)
+			}
+
 			if err := helpers.RemoveAll("/usr/local/bin/k0s"); err != nil {
 				return fmt.Errorf("failed to remove k0s binary: %w", err)
 			}

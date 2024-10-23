@@ -254,6 +254,11 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to configure network manager: %w", err)
 		}
 
+		logrus.Debugf("configuring firewalld")
+		if err := configureFirewalld(c, provider); err != nil {
+			return fmt.Errorf("unable to configure firewalld: %w", err)
+		}
+
 		logrus.Debugf("saving token to disk")
 		if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 			err := fmt.Errorf("unable to save token to disk: %w", err)

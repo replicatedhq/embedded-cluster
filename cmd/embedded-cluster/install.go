@@ -740,6 +740,12 @@ func installCommand() *cli.Command {
 			if err := configureNetworkManager(c, provider); err != nil {
 				return fmt.Errorf("unable to configure network manager: %w", err)
 			}
+
+			logrus.Debugf("configuring firewalld")
+			if err := configureFirewalld(c, provider); err != nil {
+				return fmt.Errorf("unable to configure firewalld: %w", err)
+			}
+
 			logrus.Debugf("checking license matches")
 			license, err := getLicenseFromFilepath(c.String("license"))
 			if err != nil {
@@ -875,5 +881,40 @@ func checkChannelExistence(license *kotsv1beta1.License, rel *release.ChannelRel
 			rel.ChannelID, rel.ChannelSlug, strings.Join(allowedChannels, ", "))
 	}
 
+	return nil
+}
+
+// configureFirewalld creates a zo in the firewalld zones directory and reloads
+// firewalld configuration (firewall-cmd --reload). This function is a no-op if
+// firewalld isn't installed or is inactive.
+func configureFirewalld(c *cli.Context, provider *defaults.Provider) error {
+	if active, err := helpers.IsSystemdServiceActive(c.Context, "firewalld"); err != nil {
+		return fmt.Errorf("unable to check if firewalld is active: %w", err)
+	} else if !active {
+		logrus.Debugf("firewalld is not active, skipping configuration")
+		return nil
+	}
+
+	dir := "/usr/lib/firewalld/zones/"
+	if _, err := os.Stat(dir); err != nil {
+		logrus.Debugf("skiping firewalld config (%s): %v", dir, err)
+		return nil
+	}
+
+	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(c)
+	if err != nil {
+		return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+	}
+
+	logrus.Debugf("creating firewalld config file")
+	materializer := goods.NewMaterializer(provider)
+	if err := materializer.FirewalldConfig(podCIDR, serviceCIDR); err != nil {
+		return fmt.Errorf("unable to materialize firewalld configuration: %w", err)
+	}
+
+	logrus.Debugf("firewalld config created, reloading")
+	if _, err := helpers.RunCommand("firewall-cmd", "--reload"); err != nil {
+		return fmt.Errorf("unable to reload firewalld: %w", err)
+	}
 	return nil
 }
