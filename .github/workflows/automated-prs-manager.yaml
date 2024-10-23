@@ -74,7 +74,7 @@ jobs:
 
           # If all tests and required checks passed, approve and merge.
 
-          if gh run view "$run_id" --json jobs -q '.jobs[] | select(.name == "validate-success") | .conclusion' | grep -q "success"; then
+          if gh run view "$run_id" --json jobs -q '.jobs[] | select(.name == "Validate success") | .conclusion' | grep -q "success"; then
             if gh pr checks "${{ matrix.pr.url }}" --required; then
               echo "All tests and required checks passed. Approving and merging."
               echo -e "LGTM :thumbsup: \n\nThis PR was automatically approved and merged by the [automated-prs-manager](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/automated-prs-manager.yaml) GitHub action" > body.txt
