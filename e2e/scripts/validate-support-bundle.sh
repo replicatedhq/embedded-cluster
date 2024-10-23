@@ -19,7 +19,7 @@ main() {
     tar -zxvf support-bundle-*.tar.gz
     rm -rf support-bundle-*.tar.gz
 
-    if ! ls support-bundle-*/host-collectors/run-host/k0s-sysinfo.txt; then
+    if ! ls support-bundle-*/host-collectors/run-host/*/k0s-sysinfo.txt; then
         echo "Failed to find 'k0s sysinfo' inside the support bundle generated with the embedded cluster binary"
         return 1
     fi
