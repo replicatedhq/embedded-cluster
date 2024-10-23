@@ -59,7 +59,7 @@ func Render() {
 	helmValues = hv
 
 	helmValues["kotsVersion"] = adminconsole.Metadata.Version
-	helmValues["embeddedClusterVersion"] = Metadata.Version
+	helmValues["embeddedClusterVersion"] = versions.Version
 	helmValues["embeddedClusterK0sVersion"] = versions.K0sVersion
 }
 
