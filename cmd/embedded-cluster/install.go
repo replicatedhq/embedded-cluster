@@ -805,9 +805,6 @@ func installCommand() *cli.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 			}
 
-			privateCAs := getPrivateCAPath(c)
-			fmt.Printf("%+v", privateCAs)
-
 			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
 				metrics.ReportApplyFinished(c, err)
 				if err == ErrPreflightsHaveFail {
