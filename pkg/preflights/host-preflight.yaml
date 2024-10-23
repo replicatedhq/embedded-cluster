@@ -801,30 +801,30 @@ spec:
         exclude: '{{ eq .PodCIDR.CIDR "" }}'
         outcomes:
           - fail:
-            when: "no-subnet-available"
-            message: "{{ .PodCIDR.CIDR }} is not available. Use --pod-cidr to specify an available CIDR block."
+              when: "no-subnet-available"
+              message: "{{ .PodCIDR.CIDR }} is not available. Use --pod-cidr to specify an available CIDR block."
           - pass:
-            when: "a-subnet-is-available"
-            message: specified pod subnet is available
+              when: "a-subnet-is-available"
+              message: Specified Pod CIDR is available.
     - subnetAvailable:
         checkName: Service CIDR Availability
         collectorName: Service CIDR
         exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
         outcomes:
           - fail:
-            when: "no-subnet-available"
-            message: "{{ .ServiceCIDR.CIDR }} is not available. Use --service-cidr to specify an available CIDR block."
+              when: "no-subnet-available"
+              message: "{{ .ServiceCIDR.CIDR }} is not available. Use --service-cidr to specify an available CIDR block."
           - pass:
-            when: "a-subnet-is-available"
-            message: Specified Service CIDR is available.
+              when: "a-subnet-is-available"
+              message: Specified Service CIDR is available.
     - subnetAvailable:
         checkName: CIDR Availability
         collectorName: CIDR
         exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
         outcomes:
           - fail:
-            when: "no-subnet-available"
-            message:  "{{ .GlobalCIDR.CIDR }} is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger)."
+              when: "no-subnet-available"
+              message:  "{{ .GlobalCIDR.CIDR }} is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger)."
           - pass:
-            when: "a-subnet-is-available"
-            message: Specified CIDR is available.
+              when: "a-subnet-is-available"
+              message: Specified CIDR is available.

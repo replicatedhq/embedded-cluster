@@ -50,7 +50,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			expectCollectors: []v1beta2.SubnetAvailable{
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Pods Subnet",
+						CollectorName: "Pod CIDR",
 						Exclude:       multitype.FromString("false"),
 					},
 					CIDRRangeAlloc: "10.0.0.0/24",
@@ -58,7 +58,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Services Subnet",
+						CollectorName: "Service CIDR",
 						Exclude:       multitype.FromString("true"),
 					},
 					CIDRRangeAlloc: "",
@@ -66,7 +66,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Subnet",
+						CollectorName: "CIDR",
 						Exclude:       multitype.FromString("true"),
 					},
 					CIDRRangeAlloc: "",
@@ -75,19 +75,33 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			},
 			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
 				{
-					CollectorName: "Pods Subnet",
+					CollectorName: "Pod CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("false"),
 					},
+					Outcomes: []*v1beta2.Outcome{
+						{
+							Fail: &v1beta2.SingleOutcome{
+								When:    "no-subnet-available",
+								Message: "10.0.0.0/24 is not available. Use --pod-cidr to specify an available CIDR block.",
+							},
+						},
+						{
+							Pass: &v1beta2.SingleOutcome{
+								When:    "a-subnet-is-available",
+								Message: "Specified Pod CIDR is available.",
+							},
+						},
+					},
 				},
 				{
-					CollectorName: "Services Subnet",
+					CollectorName: "Service CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("true"),
 					},
 				},
 				{
-					CollectorName: "Subnet",
+					CollectorName: "CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("true"),
 					},
@@ -105,7 +119,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			expectCollectors: []v1beta2.SubnetAvailable{
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Pods Subnet",
+						CollectorName: "Pod CIDR",
 						Exclude:       multitype.FromString("true"),
 					},
 					CIDRRangeAlloc: "",
@@ -113,7 +127,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Services Subnet",
+						CollectorName: "Service CIDR",
 						Exclude:       multitype.FromString("false"),
 					},
 					CIDRRangeAlloc: "10.0.0.0/24",
@@ -121,7 +135,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Subnet",
+						CollectorName: "CIDR",
 						Exclude:       multitype.FromString("true"),
 					},
 					CIDRRangeAlloc: "",
@@ -130,19 +144,33 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			},
 			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
 				{
-					CollectorName: "Pods Subnet",
+					CollectorName: "Pod CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("true"),
 					},
 				},
 				{
-					CollectorName: "Services Subnet",
+					CollectorName: "Service CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("false"),
 					},
+					Outcomes: []*v1beta2.Outcome{
+						{
+							Fail: &v1beta2.SingleOutcome{
+								When:    "no-subnet-available",
+								Message: "10.0.0.0/24 is not available. Use --service-cidr to specify an available CIDR block.",
+							},
+						},
+						{
+							Pass: &v1beta2.SingleOutcome{
+								When:    "a-subnet-is-available",
+								Message: "Specified Service CIDR is available.",
+							},
+						},
+					},
 				},
 				{
-					CollectorName: "Subnet",
+					CollectorName: "CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("true"),
 					},
@@ -160,7 +188,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			expectCollectors: []v1beta2.SubnetAvailable{
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Pods Subnet",
+						CollectorName: "Pod CIDR",
 						Exclude:       multitype.FromString("true"),
 					},
 					CIDRRangeAlloc: "",
@@ -168,7 +196,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Services Subnet",
+						CollectorName: "Service CIDR",
 						Exclude:       multitype.FromString("true"),
 					},
 					CIDRRangeAlloc: "",
@@ -176,7 +204,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Subnet",
+						CollectorName: "CIDR",
 						Exclude:       multitype.FromString("false"),
 					},
 					CIDRRangeAlloc: "10.0.0.0/24",
@@ -185,21 +213,35 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			},
 			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
 				{
-					CollectorName: "Pods Subnet",
+					CollectorName: "Pod CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("true"),
 					},
 				},
 				{
-					CollectorName: "Services Subnet",
+					CollectorName: "Service CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("true"),
 					},
 				},
 				{
-					CollectorName: "Subnet",
+					CollectorName: "CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("false"),
+					},
+					Outcomes: []*v1beta2.Outcome{
+						{
+							Fail: &v1beta2.SingleOutcome{
+								When:    "no-subnet-available",
+								Message: "10.0.0.0/24 is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger).",
+							},
+						},
+						{
+							Pass: &v1beta2.SingleOutcome{
+								When:    "a-subnet-is-available",
+								Message: "Specified CIDR is available.",
+							},
+						},
 					},
 				},
 			},
@@ -217,7 +259,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			expectCollectors: []v1beta2.SubnetAvailable{
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Pods Subnet",
+						CollectorName: "Pod CIDR",
 						Exclude:       multitype.FromString("false"),
 					},
 					CIDRRangeAlloc: "10.1.0.0/24",
@@ -225,7 +267,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Services Subnet",
+						CollectorName: "Service CIDR",
 						Exclude:       multitype.FromString("false"),
 					},
 					CIDRRangeAlloc: "10.2.0.0/24",
@@ -233,7 +275,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
-						CollectorName: "Subnet",
+						CollectorName: "CIDR",
 						Exclude:       multitype.FromString("true"),
 					},
 					CIDRRangeAlloc: "",
@@ -242,19 +284,19 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			},
 			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
 				{
-					CollectorName: "Pods Subnet",
+					CollectorName: "Pod CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("false"),
 					},
 				},
 				{
-					CollectorName: "Services Subnet",
+					CollectorName: "Service CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("false"),
 					},
 				},
 				{
-					CollectorName: "Subnet",
+					CollectorName: "CIDR",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
 						Exclude: multitype.FromString("true"),
 					},
@@ -287,6 +329,9 @@ func TestTemplateWithCIDRData(t *testing.T) {
 				actual := getSubnetAnalyzerByName(analyzer.CollectorName, spec)
 				req.NotNil(actual)
 				req.Equal(analyzer.Exclude, actual.Exclude)
+				for _, out := range analyzer.Outcomes {
+					req.Contains(actual.Outcomes, out)
+				}
 			}
 		})
 	}
