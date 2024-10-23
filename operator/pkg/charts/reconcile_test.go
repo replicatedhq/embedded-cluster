@@ -1295,7 +1295,7 @@ func TestReconcileHelmCharts(t *testing.T) {
 							Name: "embedded-cluster-operator",
 						},
 						Spec:   k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_airgapOperatorValues},
-						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_operatorValues}.HashValues()},
+						Status: k0shelmv1beta1.ChartStatus{Version: "1.2.3-operator", ValuesHash: k0shelmv1beta1.ChartSpec{ReleaseName: "embedded-cluster-operator", Values: test_airgapOperatorValues}.HashValues()},
 					},
 					&k0shelmv1beta1.Chart{
 						ObjectMeta: metav1.ObjectMeta{
