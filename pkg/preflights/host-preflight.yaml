@@ -129,12 +129,12 @@ spec:
           - '*'
     - subnetAvailable:
         collectorName: Pods Subnet
-        exclude: '{{ or (ne .GlobalCIDR.CIDR "")  (eq .PodCIDR.CIDR "") }}'
+        exclude: '{{ eq .PodCIDR.CIDR "" }}'
         CIDRRangeAlloc: '{{ .PodCIDR.CIDR }}'
         desiredCIDR: {{.PodCIDR.Size}}
     - subnetAvailable:
         collectorName: Services Subnet
-        exclude: '{{ or (ne .GlobalCIDR.CIDR "")  (eq .ServiceCIDR.CIDR "") }}'
+        exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
         CIDRRangeAlloc: '{{ .ServiceCIDR.CIDR }}'
         desiredCIDR: {{.ServiceCIDR.Size}}
     - subnetAvailable:
@@ -798,7 +798,7 @@ spec:
     - subnetAvailable:
         checkName: Pods Subnet Availability
         collectorName: Pods Subnet
-        exclude: '{{ or (ne .GlobalCIDR.CIDR "")  (eq .PodCIDR.CIDR "") }}'
+        exclude: '{{ eq .PodCIDR.CIDR "" }}'
         outcomes:
           - fail:
             when: "no-subnet-available"
@@ -809,7 +809,7 @@ spec:
     - subnetAvailable:
         checkName: Services Subnet Availability
         collectorName: Services Subnet
-        exclude: '{{ or (ne .GlobalCIDR.CIDR "")  (eq .ServiceCIDR.CIDR "") }}'
+        exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
         outcomes:
           - fail:
             when: "no-subnet-available"

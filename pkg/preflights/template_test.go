@@ -210,53 +210,53 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name:        "valid podCIDR, serviceCIDR and CIDR are provided",
+			name:        "valid podCIDR and serviceCIDR are provided",
 			podCIDR:     "10.1.0.0/24",
 			serviceCIDR: "10.2.0.0/24",
-			globalCIDR:  "10.0.0.0/24",
+			globalCIDR:  "",
 			expectCollectors: []v1beta2.SubnetAvailable{
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
 						CollectorName: "Pods Subnet",
-						Exclude:       multitype.FromString("true"),
+						Exclude:       multitype.FromString("false"),
 					},
-					CIDRRangeAlloc: "",
-					DesiredCIDR:    0,
+					CIDRRangeAlloc: "10.1.0.0/24",
+					DesiredCIDR:    24,
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
 						CollectorName: "Services Subnet",
-						Exclude:       multitype.FromString("true"),
+						Exclude:       multitype.FromString("false"),
 					},
-					CIDRRangeAlloc: "",
-					DesiredCIDR:    0,
+					CIDRRangeAlloc: "10.2.0.0/24",
+					DesiredCIDR:    24,
 				},
 				{
 					HostCollectorMeta: v1beta2.HostCollectorMeta{
 						CollectorName: "Subnet",
-						Exclude:       multitype.FromString("false"),
+						Exclude:       multitype.FromString("true"),
 					},
-					CIDRRangeAlloc: "10.0.0.0/24",
-					DesiredCIDR:    24,
+					CIDRRangeAlloc: "",
+					DesiredCIDR:    0,
 				},
 			},
 			expectAnalyzers: []v1beta2.SubnetAvailableAnalyze{
 				{
 					CollectorName: "Pods Subnet",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
-						Exclude: multitype.FromString("true"),
+						Exclude: multitype.FromString("false"),
 					},
 				},
 				{
 					CollectorName: "Services Subnet",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
-						Exclude: multitype.FromString("true"),
+						Exclude: multitype.FromString("false"),
 					},
 				},
 				{
 					CollectorName: "Subnet",
 					AnalyzeMeta: v1beta2.AnalyzeMeta{
-						Exclude: multitype.FromString("false"),
+						Exclude: multitype.FromString("true"),
 					},
 				},
 			},
