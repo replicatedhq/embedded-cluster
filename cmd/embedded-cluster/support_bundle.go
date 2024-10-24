@@ -34,6 +34,9 @@ func supportBundleCommand() *cli.Command {
 
 			kubeConfig := provider.PathToKubeConfig()
 			hostSupportBundle := provider.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
+			if _, err := os.Stat(hostSupportBundle); err != nil {
+				return fmt.Errorf("unable to find host support bundle: %w", err)
+			}
 
 			spin := spinner.Start()
 			spin.Infof("Collecting support bundle (this may take a while)")
@@ -45,10 +48,10 @@ func supportBundleCommand() *cli.Command {
 					Writer:       stdout,
 					ErrWriter:    stderr,
 					LogOnSuccess: true,
+					Env:          map[string]string{"KUBECONFIG": kubeConfig},
 				},
 				supportBundle,
 				"--interactive=false",
-				fmt.Sprintf("--kubeconfig=%s", kubeConfig),
 				"--load-cluster-specs",
 				hostSupportBundle,
 			); err != nil {
