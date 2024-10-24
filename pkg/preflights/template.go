@@ -28,6 +28,11 @@ type TemplateData struct {
 	ServiceCIDR             CIDRData
 	PodCIDR                 CIDRData
 	GlobalCIDR              CIDRData
+	PrivateCA               string
+	HTTPProxy               string
+	HTTPSProxy              string
+	ProvidedNoProxy         string
+	NoProxy                 string
 }
 
 // WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings
@@ -82,5 +87,7 @@ func renderTemplate(spec string, data TemplateData) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("execute template: %w", err)
 	}
+
+	fmt.Printf("%+v\n", buf.String())
 	return buf.String(), nil
 }
