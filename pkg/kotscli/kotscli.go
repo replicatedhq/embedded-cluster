@@ -318,7 +318,6 @@ func CreateHostSupportBundle() error {
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal support bundle spec: %w", err)
 	}
-	fmt.Println(hostSupportBundle.APIVersion)
 
 	if err := s.Encode(hostSupportBundle, &b); err != nil {
 		return fmt.Errorf("unable to encode support bundle spec: %w", err)
