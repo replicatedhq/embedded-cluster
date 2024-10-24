@@ -74,7 +74,7 @@ jobs:
 
           # If all tests and required checks passed, approve and merge.
 
-          if gh run view "$run_id" --json jobs -q '.jobs[] | select(.name == "validate-success") | .conclusion' | grep -q "success"; then
+          if gh run view "$run_id" --json jobs -q '.jobs[] | select(.name == "Validate success") | .conclusion' | grep -q "success"; then
             if gh pr checks "${{ matrix.pr.url }}" --required; then
               echo "All tests and required checks passed. Approving and merging."
               echo -e "LGTM :thumbsup: \n\nThis PR was automatically approved and merged by the [automated-prs-manager](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/automated-prs-manager.yaml) GitHub action" > body.txt
@@ -90,8 +90,8 @@ jobs:
 
           # If more than half of the e2e jobs are successful, re-run the failed jobs.
 
-          num_of_jobs=$(gh run view "$run_id" --json jobs -q '.jobs[] | select(.name | startswith("e2e")) | .name' | wc -l)
-          num_of_successful_jobs=$(gh run view "$run_id" --json jobs -q '.jobs[] | select((.name | startswith("e2e")) and (.conclusion == "success")) | .name' | wc -l)
+          num_of_jobs=$(gh run view "$run_id" --json jobs -q '.jobs[] | select(.name | startswith("E2E")) | .name' | wc -l)
+          num_of_successful_jobs=$(gh run view "$run_id" --json jobs -q '.jobs[] | select((.name | startswith("E2E")) and (.conclusion == "success")) | .name' | wc -l)
 
           if [ "$num_of_successful_jobs" -gt $((num_of_jobs / 2)) ]; then
             echo "More than half of the e2e jobs are successful. Re-running failed jobs."

@@ -62,7 +62,7 @@ zfs-localpv:
 const test_operatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: 1.2.3-operator
+embeddedClusterVersion: v1.2.3-operator
 global:
   labels:
     replicated.com/disaster-recovery: infra
@@ -93,7 +93,7 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 const test_proxyOperatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: 1.2.3-operator
+embeddedClusterVersion: v1.2.3-operator
 extraEnv:
 - name: HTTP_PROXY
   value: http://proxy
@@ -128,7 +128,7 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 `
 
 const test_onlineAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
+embeddedClusterVersion: v1.2.3-operator
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -182,7 +182,7 @@ service:
 `
 
 const test_airgapAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
+embeddedClusterVersion: v1.2.3-operator
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -209,7 +209,7 @@ service:
 `
 
 const test_airgapHAAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
+embeddedClusterVersion: v1.2.3-operator
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -236,7 +236,7 @@ service:
 `
 
 const test_proxyAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
-embeddedClusterVersion: 1.2.3-operator
+embeddedClusterVersion: v1.2.3-operator
 extraEnv:
 - name: HTTP_PROXY
   value: http://proxy
@@ -473,7 +473,7 @@ func test_replaceAddonMeta() {
 	embeddedclusteroperator.Metadata = release.AddonMetadata{
 		Location: "oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator",
 	}
-	versions.Version = "1.2.3-operator" // This is not great, the operator addon uses this to determine what version to deploy
+	versions.Version = "v1.2.3-operator" // This is not great, we use this to override the version of the operator chart
 	// we can't use the version from the metadata because it won't be set in the operator binary
 	// TODO fix this
 

@@ -156,6 +156,9 @@ spec:
       collectorName: 'check-umount'
       command: 'sh'
       args: ['-c', 'command -v umount']
+  - copy:
+      collectorName: installer/lam-service-config
+      path: /etc/systemd/system/local-artifact-mirror.service.d/*
   hostAnalyzers:
   - ipv4Interfaces:
       outcomes:
