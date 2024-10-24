@@ -77,7 +77,7 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 const test_airgapOperatorValues = `embeddedBinaryName: test-binary-name
 embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterK0sVersion: 0.0.0
-embeddedClusterVersion: 1.2.3-operator
+embeddedClusterVersion: v1.2.3-operator
 global:
   labels:
     replicated.com/disaster-recovery: infra
