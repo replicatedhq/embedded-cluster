@@ -74,10 +74,6 @@ spec:
       command: top
       args: ['-b', '-n', '1']
   - run:
-      collectorName: uptime
-      command: uptime
-      args: []
-  - run:
       collectorName: uname
       command: uname
       args: ['-a']
@@ -300,19 +296,13 @@ spec:
       command: "sh"
       args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt' | grep -v grep"]
   - filesystemPerformance:
-      collectorName: filesystem-latency-two-minute-benchmark
-      timeout: 2m
-      directory: /var/lib/etcd
-      fileSize: 22Mi
-      operationSizeBytes: 2300
-      datasync: true
-      enableBackgroundIOPS: true
-      backgroundIOPSWarmupSeconds: 10
-      backgroundWriteIOPS: 300
-      backgroundWriteIOPSJobs: 6
-      backgroundReadIOPS: 50
-      backgroundReadIOPSJobs: 1
-      exclude: true
+        collectorName: filesystem-write-latency-etcd
+        timeout: 5m
+        directory: {{ .K0sDataDir }}/etcd
+        fileSize: 22Mi
+        operationSize: 2300
+        datasync: true
+        runTime: "0" # let it run to completion
   - run:
       collectorName: "localhost-ips"
       command: "sh"
@@ -613,7 +603,7 @@ spec:
       outcomes:
         - fail:
             when: "false"
-            message: "'localhost' does not resolve to 127.0.0.1 ip address"
+            message: "'localhost' does not resolve to 127.0.0.1 ip address.  Ensure your /etc/hosts file contains an entry for 'localhost' with a loopback address of 127.0.0.1"
         - pass:
             when: "true"
             message: "'localhost' resolves to 127.0.0.1 ip address"
@@ -625,7 +615,7 @@ spec:
       outcomes:
         - fail:
             when: "true"
-            message: "SELinux is enabled when it should be disabled for kubernetes to work properly"
+            message: "SELinux enforcement is not supported, disable it or set to permissive mode to proceed"
         - pass:
             when: "false"
             message: "SELinux is disabled as expected"
@@ -637,7 +627,16 @@ spec:
       outcomes:
         - fail:
             when: "true"
-            message: "Antivirus or Network Security tools detected. These tools can interfere with kubernetes operation."
+            message: "Antivirus or Network Security tools detected. These tools are known to interfere with Kubernetes operation in various ways.  If problems persist, disable these tools, or consult with your organization's system administrator to ensure that exceptions are made for Kubernetes operation."
         - pass:
             when: "false"
             message: "No Antivirus or Network Security tools detected."
+  - filesystemPerformance:
+      checkName: Filesystem Write Latency
+      collectorName: filesystem-write-latency-etcd
+      outcomes:
+        - pass:
+            when: "p99 < 10ms"
+            message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
+        - fail:
+            message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'
