@@ -74,6 +74,23 @@ spec:
       command: top
       args: ['-b', '-n', '1']
   - run:
+      collectorName: uptime
+      command: uptime
+      args: []
+  - run:
+      collectorName: uname
+      command: uname
+      args: ['-a']
+  - run:
+      collectorName: "hostnames"
+      command: "sh"
+      args:
+        - -c
+        - |
+          echo "hostname = $(hostname)"
+          echo "/proc/sys/kernel/hostname = $(cat /proc/sys/kernel/hostname)"
+          echo "uname -n = $(uname -n)"
+  - run:
       collectorName: df
       command: df
       args: ['-h']
@@ -88,6 +105,82 @@ spec:
   - run:
       collectorName: uptime
       command: uptime
+  - run:
+      collectorName: sestatus
+      command: sestatus
+      args: []
+  - run:
+      collectorName: apparmor-status
+      command: apparmor_status
+      args: []
+  - run:
+      collectorName: iptables
+      command: iptables
+      args: ["-L", "-v"]
+  - run:
+      collectorName: iptables-version
+      command: iptables
+      args: ["--version"]
+  - run:
+      collectorName: nftables-list
+      command: nft
+      args: ["list", "table", "filter"]
+  - run:
+        collectorName: "ipvsadm"
+        command: "ipvsadm"
+        args: ["-l", "-n"]
+  - run:
+      collectorName: "lsblk"
+      command: "lsblk"
+      args: ["--fs"]
+  - run:
+      collectorName: lvm
+      command: pvdisplay
+      args: []
+  - run:
+      collectorName: lvm
+      command: vgdisplay
+      args: []
+  - run:
+      collectorName: lvm
+      command: lvdisplay
+      args: []
+  - run:
+      collectorName: "netstat-ports"
+      command: "netstat"
+      args: ["-t", "-u", "-l", "-p", "-n"]
+  - run:
+      collectorName: "netstat-route-table"
+      command: "netstat"
+      args: ["-r", "-n"]
+  - run:
+      collectorName: "resolvectl-status"
+      command: "resolvectl"
+      args: ["status"]
+  - run:
+      collectorName: "resolv-conf"
+      command: "cat"
+      args: ["/etc/resolv.conf"]
+  - run:
+      collectorName: "systemd-resolved-conf"
+      command: "cat"
+      args: ["/etc/systemd/resolved.conf"]
+  - run:
+      collectorName: "nsswitch-conf"
+      command: "cat"
+      args: ["/etc/nsswitch.conf"]
+  - run:
+      collectorName: "hosts"
+      command: "cat"
+      args: ["/etc/hosts"]
+  - run:
+      collectorName: "ip-route-table"
+      command: "ip"
+      args: ["route"]
+  - run:
+      collectorName: "sysctl"
+      command: "sysctl"
+      args: ["-a"]
   - run:
       collectorName: k0s-version
       command: /usr/local/bin/k0s
@@ -116,6 +209,41 @@ spec:
   - copy:
       collectorName: runtime-config
       path: /etc/embedded-cluster/*
+  - run:
+        collectorName: "systemctl-firewalld-status"
+        command: "systemctl"
+        args: ["status", "firewalld"]
+  - run:
+      collectorName: "systemctl-resolved-status"
+      command: "systemctl"
+      args: ["status", "systemd-resolved"]
+  # Systemd Service Configurations for CRI, Kubelet
+  - run:
+      collectorName: "systemctl-cat-journald"
+      command: "systemctl"
+      args: ["cat", "systemd-journald"]
+  - run:
+      collectorName: "systemctl-cat-resolved"
+      command: "systemctl"
+      args: ["cat", "systemd-resolved"]
+  - run:
+      collectorName: "systemctl-cat-k0scontroller"
+      command: "systemctl"
+      args: ["cat", "k0scontroller.service"]
+  - run:
+      collectorName: "systemctl-cat-k0sworker"
+      command: "systemctl"
+      args: ["cat", "k0sworker.service"]
+  - run:
+      collectorName: "journalctl-dmesg"
+      command: "journalctl"
+      args: ["--dmesg", "--no-pager", "-S", "7 days ago"]
+  - copy:
+      collectorName: "syslog"
+      path: /var/log/syslog
+  - copy:
+      collectorName: "syslog" # Copy the previous syslog file as well in case the current one is rotated
+      path: /var/log/syslog.1
   - run:
       collectorName: network-manager-logs
       command: journalctl
@@ -156,9 +284,39 @@ spec:
       collectorName: 'check-umount'
       command: 'sh'
       args: ['-c', 'command -v umount']
+  - run:
+      collectorName: "mount"
+      command: "mount"
+      args: ["-l"]
   - copy:
       collectorName: installer/lam-service-config
       path: /etc/systemd/system/local-artifact-mirror.service.d/*
+  - run:
+      collectorName: "ps-high-load"
+      command: "sh"
+      args: ["-c", "ps -eo s,user,cmd | grep ^[RD] | sort | uniq -c | sort -nbr | head -20"]
+  - run:
+      collectorName: "ps-detect-antivirus-and-security-tools"
+      command: "sh"
+      args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt' | grep -v grep"]
+  - filesystemPerformance:
+      collectorName: filesystem-latency-two-minute-benchmark
+      timeout: 2m
+      directory: /var/lib/etcd
+      fileSize: 22Mi
+      operationSizeBytes: 2300
+      datasync: true
+      enableBackgroundIOPS: true
+      backgroundIOPSWarmupSeconds: 10
+      backgroundWriteIOPS: 300
+      backgroundWriteIOPSJobs: 6
+      backgroundReadIOPS: 50
+      backgroundReadIOPSJobs: 1
+      exclude: true
+  - run:
+      collectorName: "localhost-ips"
+      command: "sh"
+      args: ["-c", "host localhost"]
   hostAnalyzers:
   - ipv4Interfaces:
       outcomes:
@@ -448,3 +606,38 @@ spec:
         - pass:
             when: "false"
             message: "No signs of hostname changes found"
+  - textAnalyze:
+      checkName: Check if localhost resolves to 127.0.0.1
+      fileName: host-collectors/run-host/localhost-ips.txt
+      regex: 'localhost has address 127.0.0.1'
+      outcomes:
+        - fail:
+            when: "false"
+            message: "'localhost' does not resolve to 127.0.0.1 ip address"
+        - pass:
+            when: "true"
+            message: "'localhost' resolves to 127.0.0.1 ip address"
+  - textAnalyze:
+      checkName: Check if SELinux is enabled
+      fileName: host-collectors/run-host/sestatus.txt
+      regex: '(?m)^Current mode:\s+enforcing'
+      ignoreIfNoFiles: true
+      outcomes:
+        - fail:
+            when: "true"
+            message: "SELinux is enabled when it should be disabled for kubernetes to work properly"
+        - pass:
+            when: "false"
+            message: "SELinux is disabled as expected"
+  - textAnalyze:
+      checkName: "Detect Threat Management and Network Security Tools"
+      fileName: host-collectors/run-host/ps-detect-antivirus-and-security-tools.txt
+      regex: '\b(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt)\b'
+      ignoreIfNoFiles: true
+      outcomes:
+        - fail:
+            when: "true"
+            message: "Antivirus or Network Security tools detected. These tools can interfere with kubernetes operation."
+        - pass:
+            when: "false"
+            message: "No Antivirus or Network Security tools detected."
