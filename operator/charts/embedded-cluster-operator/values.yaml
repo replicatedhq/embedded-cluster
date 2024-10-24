@@ -7,6 +7,7 @@ embeddedClusterVersion: v0.0.0
 embeddedClusterK0sVersion: v0.0.0
 embeddedBinaryName: v0.0.0
 embeddedClusterID: 123456789
+isAirgap: false
 
 image:
   repository: replicated/embedded-cluster-operator-image-staging
