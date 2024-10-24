@@ -1,13 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -49,6 +48,14 @@ func supportBundleCommand() *cli.Command {
 				env = map[string]string{"KUBECONFIG": kubeConfig}
 			}
 
+			pwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("unable to get current working directory: %w", err)
+			}
+			now := time.Now().Format("2006-01-02T15_04_05")
+			fname := fmt.Sprintf("support-bundle-%s.tar.gz", now)
+			destination := filepath.Join(pwd, fname)
+
 			spin := spinner.Start()
 			spin.Infof("Collecting support bundle (this may take a while)")
 
@@ -64,6 +71,7 @@ func supportBundleCommand() *cli.Command {
 				supportBundle,
 				"--interactive=false",
 				"--load-cluster-specs",
+				fmt.Sprintf("--output=%s", destination),
 				hostSupportBundle,
 			); err != nil {
 				spin.Infof("Failed to collect support bundle")
@@ -73,47 +81,9 @@ func supportBundleCommand() *cli.Command {
 				return ErrNothingElseToAdd
 			}
 
-			spin.Infof("Support bundle collected!")
+			spin.Infof("Support bundle saved at %s", destination)
 			spin.Close()
-
-			printSupportBundlePath(stdout)
 			return nil
 		},
-	}
-}
-
-// printSupportBundlePath attempts to parse the support bundle command output
-// and find the location where the tgz was written. support bundle output isn't
-// always a json so we can't rely on unmarshaling it. depending on the kinds of
-// errors returned during the collection the output may differ quite a bunch.
-// in order to find where the support bundle was stored we look for a line
-// containing "archivePath", if we find it we attempt to parse it. if we can't
-// find a match or failed to parse it we simply don't print anything. XXX this
-// should be addressed upstream, we should be able to cleanly parse the output
-// as a json (i.e. errors should be printed into stderr).
-func printSupportBundlePath(stdout io.Reader) {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return
-	}
-
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.Contains(line, `"archivePath":`) {
-			continue
-		}
-
-		components := strings.Split(line, `"`)
-		if len(components) < 4 {
-			return
-		}
-
-		fname := components[3]
-		if !strings.HasPrefix(fname, "support-bundle-") {
-			return
-		}
-
-		logrus.Infof("Support bundle written to %s", filepath.Join(pwd, fname))
 	}
 }
