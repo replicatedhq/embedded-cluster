@@ -87,15 +87,16 @@ func Render() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
-	provider     *defaults.Provider
-	namespace    string
-	password     string
-	licenseFile  string
-	airgapBundle string
-	isAirgap     bool
-	isHA         bool
-	proxyEnv     map[string]string
-	privateCAs   map[string]string
+	provider         *defaults.Provider
+	namespace        string
+	password         string
+	licenseFile      string
+	airgapBundle     string
+	isAirgap         bool
+	isHA             bool
+	proxyEnv         map[string]string
+	privateCAs       map[string]string
+	configValuesFile string
 }
 
 // Version returns the embedded admin console version.
@@ -214,10 +215,11 @@ func (a *AdminConsole) Outro(ctx context.Context, provider *defaults.Provider, c
 			return fmt.Errorf("unable to parse license: %w", err)
 		}
 		installOpts := kotscli.InstallOptions{
-			AppSlug:      license.Spec.AppSlug,
-			LicenseFile:  a.licenseFile,
-			Namespace:    a.namespace,
-			AirgapBundle: a.airgapBundle,
+			AppSlug:          license.Spec.AppSlug,
+			LicenseFile:      a.licenseFile,
+			Namespace:        a.namespace,
+			AirgapBundle:     a.airgapBundle,
+			ConfigValuesFile: a.configValuesFile,
 		}
 		if err := kotscli.Install(provider, installOpts, loading); err != nil {
 			return err
@@ -240,17 +242,19 @@ func New(
 	isHA bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
+	configValuesFile string,
 ) (*AdminConsole, error) {
 	return &AdminConsole{
-		provider:     provider,
-		namespace:    namespace,
-		password:     password,
-		licenseFile:  licenseFile,
-		airgapBundle: airgapBundle,
-		isAirgap:     isAirgap,
-		isHA:         isHA,
-		proxyEnv:     proxyEnv,
-		privateCAs:   privateCAs,
+		provider:         provider,
+		namespace:        namespace,
+		password:         password,
+		licenseFile:      licenseFile,
+		airgapBundle:     airgapBundle,
+		isAirgap:         isAirgap,
+		isHA:             isHA,
+		proxyEnv:         proxyEnv,
+		privateCAs:       privateCAs,
+		configValuesFile: configValuesFile,
 	}, nil
 }
 

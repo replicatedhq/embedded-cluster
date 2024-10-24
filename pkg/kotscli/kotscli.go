@@ -30,10 +30,11 @@ var (
 const SpecDataKey = "support-bundle-spec"
 
 type InstallOptions struct {
-	AppSlug      string
-	LicenseFile  string
-	Namespace    string
-	AirgapBundle string
+	AppSlug          string
+	LicenseFile      string
+	Namespace        string
+	AirgapBundle     string
+	ConfigValuesFile string
 }
 
 func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.MessageWriter) error {
@@ -75,6 +76,9 @@ func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.Mess
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
 		maskfn = MaskKotsOutputForAirgap()
 		lbreakfn = KotsOutputLineBreaker()
+	}
+	if opts.ConfigValuesFile != "" {
+		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
 
 	msg.SetLineBreaker(lbreakfn)
