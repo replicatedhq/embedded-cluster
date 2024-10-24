@@ -3,27 +3,31 @@ package configutils
 import (
 	"fmt"
 	"os"
-
-	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/yaml"
 )
+
+type gvk struct {
+	ApiVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+}
 
 // ValidateKotsConfigValues checks if the file exists and has the 'kots.io/v1beta1 ConfigValues' GVK
 func ValidateKotsConfigValues(filename string) error {
 	contents, err := os.ReadFile(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return fmt.Errorf("config values file not found")
 		}
 		return fmt.Errorf("unable to read config values file: %w", err)
 	}
 
-	decode := scheme.Codecs.UniversalDeserializer().Decode
-	_, gvk, err := decode(contents, nil, nil)
-	if err != nil {
-		return fmt.Errorf("unable to decode config values file: %w", err)
-	}
+	var kind gvk
 
-	if gvk.Group != "kots.io" || gvk.Version != "v1beta1" || gvk.Kind != "ConfigValues" {
+	err = yaml.Unmarshal(contents, &kind)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal config values file: %w", err)
+	}
+	if kind.ApiVersion != "kots.io/v1beta1" || kind.Kind != "ConfigValues" {
 		return fmt.Errorf("config values file is not a valid kots config values file")
 	}
 
