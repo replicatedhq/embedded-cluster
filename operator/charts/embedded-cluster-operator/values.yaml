@@ -9,7 +9,7 @@ embeddedClusterID: 123456789
 
 image:
   repository: ttl.sh/ada/embedded-cluster-operator-image
-  tag: 1.15.0-k8s-1.29-51-g097b9760
+  tag: 1.16.0-k8s-1.30-18-g5ec4bf74
   pullPolicy: IfNotPresent
 
 utilsImage: busybox:latest
