@@ -34,17 +34,18 @@ func (s *Sender) Send(ctx context.Context, ev types.Event) {
 		return
 	}
 
-	if dryrun.IsDryRun() {
-		dryrun.RecordMetric(ev)
-		return
-	}
-
 	url := fmt.Sprintf("%s/embedded_cluster_metrics/%s", s.baseURL, ev.Title())
 	payload, err := s.payload(ev)
 	if err != nil {
 		logrus.Debugf("unable to get payload for event %s: %s", ev.Title(), err)
 		return
 	}
+
+	if dryrun.IsDryRun() {
+		dryrun.RecordMetric(ev.Title(), url, payload)
+		return
+	}
+
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(payload))
 	if err != nil {
 		logrus.Debugf("unable to create request for event %s: %s", ev.Title(), err)

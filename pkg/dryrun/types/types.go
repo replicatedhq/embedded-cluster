@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	metricstypes "github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,22 +21,28 @@ import (
 )
 
 type DryRun struct {
-	Flags             map[string]interface{}                 `json:"flags" yaml:"flags"`
-	Commands          []Command                              `json:"commands" yaml:"commands"`
-	Metrics           []metricstypes.Event                   `json:"metrics" yaml:"metrics"`
-	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec `json:"hostPreflightSpec" yaml:"hostPreflightSpec"`
+	Flags             map[string]interface{}                 `json:"flags"`
+	Commands          []Command                              `json:"commands"`
+	Metrics           []Metric                               `json:"metrics"`
+	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec `json:"hostPreflightSpec"`
 
 	// These fields are set on marshal
-	OSEnv      map[string]string `json:"osEnv" yaml:"osEnv"`
-	K8sObjects []string          `json:"k8sObjects" yaml:"k8sObjects"`
+	OSEnv      map[string]string `json:"osEnv"`
+	K8sObjects []string          `json:"k8sObjects"`
 
 	// These fields are used as mocks
 	kcli client.Client `json:"-"`
 }
 
+type Metric struct {
+	Title   string `json:"title"`
+	URL     string `json:"url"`
+	Payload string `json:"payload"`
+}
+
 type Command struct {
-	Cmd string            `json:"cmd" yaml:"cmd"`
-	Env map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
+	Cmd string            `json:"cmd"`
+	Env map[string]string `json:"env,omitempty"`
 }
 
 func (d *DryRun) MarshalJSON() ([]byte, error) {

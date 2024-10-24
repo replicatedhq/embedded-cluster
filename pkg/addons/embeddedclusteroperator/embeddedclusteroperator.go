@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -289,14 +290,17 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 		return fmt.Errorf("unable to create installation: %w", err)
 	}
 
-	// we wait for the installation to exist here because items do not show up in the apiserver instantaneously after being created
-	gotInstallation, err := waitForInstallationToExist(ctx, cli, installation.Name)
-	if err != nil {
-		return fmt.Errorf("unable to wait for installation to exist: %w", err)
-	}
-	gotInstallation.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
-	if err := cli.Status().Update(ctx, gotInstallation); err != nil {
-		return fmt.Errorf("unable to update installation status: %w", err)
+	// TODO: figure out why fake client doesn't work here
+	if !dryrun.IsDryRun() {
+		// we wait for the installation to exist here because items do not show up in the apiserver instantaneously after being created
+		gotInstallation, err := waitForInstallationToExist(ctx, cli, installation.Name)
+		if err != nil {
+			return fmt.Errorf("unable to wait for installation to exist: %w", err)
+		}
+		gotInstallation.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
+		if err := cli.Status().Update(ctx, gotInstallation); err != nil {
+			return fmt.Errorf("unable to update installation status: %w", err)
+		}
 	}
 
 	return nil

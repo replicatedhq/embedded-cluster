@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
-	metricstypes "github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/urfave/cli/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +29,7 @@ func init() {
 	dr = &types.DryRun{
 		Flags:             map[string]interface{}{},
 		Commands:          []types.Command{},
-		Metrics:           []metricstypes.Event{},
+		Metrics:           []types.Metric{},
 		HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
 	}
 }
@@ -55,7 +54,7 @@ func RecordFlags(c *cli.Context) {
 
 	for _, flag := range c.Command.Flags {
 		for _, name := range flag.Names() {
-			dr.Flags[name] = c.String(name)
+			dr.Flags[name] = c.Value(name)
 		}
 	}
 }
@@ -74,11 +73,15 @@ func RecordCommand(cmd string, args []string, env map[string]string) {
 	})
 }
 
-func RecordMetric(metric interface{}) {
+func RecordMetric(title string, url string, payload []byte) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	dr.Metrics = append(dr.Metrics, metric)
+	dr.Metrics = append(dr.Metrics, types.Metric{
+		Title:   title,
+		URL:     url,
+		Payload: string(payload),
+	})
 }
 
 func RecordHostPreflightSpec(hpf *troubleshootv1beta2.HostPreflightSpec) {

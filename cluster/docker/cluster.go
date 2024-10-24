@@ -84,7 +84,10 @@ func (c *Cluster) WaitForReady() {
 func (c *Cluster) Cleanup(envs ...map[string]string) {
 	c.generateSupportBundle(envs...)
 	c.copyPlaywrightReport()
+	c.Destroy()
+}
 
+func (c *Cluster) Destroy() {
 	for _, node := range c.Nodes {
 		node.Destroy()
 	}
