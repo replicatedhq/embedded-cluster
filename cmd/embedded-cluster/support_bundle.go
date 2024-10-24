@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
@@ -29,7 +30,8 @@ func supportBundleCommand() *cli.Command {
 
 			supportBundle := provider.PathToEmbeddedClusterBinary("kubectl-support_bundle")
 			if _, err := os.Stat(supportBundle); err != nil {
-				return fmt.Errorf("unable to find support bundle binary")
+				logrus.Errorf("Support bundle binary not found. The support-bundle command can only be run after an 'install' attempt.")
+				return ErrNothingElseToAdd
 			}
 
 			hostSupportBundle := provider.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
