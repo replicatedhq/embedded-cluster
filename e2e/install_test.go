@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
@@ -2252,6 +2253,99 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	require.NoErrorf(t, err, "unable to unmarshal output to configmap: %q", stdout)
 	require.Contains(t, cm.Data, "ca_0.crt", "index ca_0.crt not found in ca secret")
 	require.Equal(t, crtContent, cm.Data["ca_0.crt"], "content mismatch")
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallWithConfigValues(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "almalinux-8",
+		LicensePath:  "license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
+	line := []string{"yum-install-tar.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	hostname := uuid.New().String()
+	password := uuid.New().String()
+
+	// create a config values file on the node
+	configValuesFileContent := fmt.Sprintf(`
+apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  configValues:
+    - name: hostname
+      value: %s
+    - name: pw
+      value: %s
+`, hostname, password)
+	t.Logf("%s: creating config values file", time.Now().Format(time.RFC3339))
+	_, _, err := tc.RunCommandOnNode(0, []string{"mkdir", "-p", "/assets"})
+	if err != nil {
+		t.Fatalf("fail to create config values file directory: %v", err)
+	}
+	_, _, err = tc.RunCommandOnNode(0, []string{"echo", configValuesFileContent, ">", "/assets/config-values.yaml"})
+	if err != nil {
+		t.Fatalf("fail to create config values file: %v", err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-install.sh", "ui", "--config-values", "/assets/config-values.yaml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking config values", time.Now().Format(time.RFC3339))
+	line = []string{"check-config-values.sh", hostname, password}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
+	} else {
+		t.Logf("config values matched: \n%s\n\n%s", stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking config values after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-config-values.sh", hostname, password}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
+	} else {
+		t.Logf("config values matched: \n%s\n\n%s", stdout, stderr)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
