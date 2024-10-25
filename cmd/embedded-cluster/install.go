@@ -770,7 +770,7 @@ func installCommand() *cli.Command {
 				metrics.ReportApplyFinished(c, err)
 				return err
 			}
-			applier, err := getAddonsApplier(c, provider, adminConsolePwd, proxy)
+			applier, err := getAddonsApplier(c, provider, adminConsolePwd, proxy, true)
 			if err != nil {
 				metrics.ReportApplyFinished(c, err)
 				return err
@@ -805,7 +805,7 @@ func installCommand() *cli.Command {
 	}
 }
 
-func getAddonsApplier(c *cli.Context, provider *defaults.Provider, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
+func getAddonsApplier(c *cli.Context, provider *defaults.Provider, adminConsolePwd string, proxy *ecv1beta1.ProxySpec, withPrivateCAs bool) (*addons.Applier, error) {
 	opts := []addons.Option{}
 	opts = append(opts, addons.WithRuntimeConfig(provider.RuntimeConfig()))
 
@@ -834,23 +834,34 @@ func getAddonsApplier(c *cli.Context, provider *defaults.Provider, adminConsoleP
 		}
 		opts = append(opts, addons.WithEndUserConfig(eucfg))
 	}
-	if cas := provider.PrivateCAs(); len(provider.PrivateCAs()) > 0 {
-		privateCAs := map[string]string{}
-		for i, path := range cas {
-			data, err := os.ReadFile(path)
+
+	if withPrivateCAs {
+		if cas := provider.PrivateCAs(); len(cas) > 0 {
+			privateCAs, err := getPrivateCAsMap(cas)
 			if err != nil {
-				return nil, fmt.Errorf("unable to read private CA file %s: %w", path, err)
+				return nil, fmt.Errorf("unable to get private CAs: %w", err)
 			}
-			name := fmt.Sprintf("ca_%d.crt", i)
-			privateCAs[name] = string(data)
+			opts = append(opts, addons.WithPrivateCAs(privateCAs))
 		}
-		opts = append(opts, addons.WithPrivateCAs(privateCAs))
 	}
 
 	if adminConsolePwd != "" {
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}
 	return addons.NewApplier(opts...), nil
+}
+
+func getPrivateCAsMap(cas []string) (map[string]string, error) {
+	privateCAs := map[string]string{}
+	for i, path := range cas {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read private CA file %s: %w", path, err)
+		}
+		name := fmt.Sprintf("ca_%d.crt", i)
+		privateCAs[name] = string(data)
+	}
+	return privateCAs, nil
 }
 
 // checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly

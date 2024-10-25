@@ -232,7 +232,7 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, provider, "", jcmd.InstallationSpec.Proxy)
+		applier, err := getAddonsApplier(c, provider, "", jcmd.InstallationSpec.Proxy, false)
 		if err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err

@@ -80,7 +80,7 @@ func installRunPreflightsCommand() *cli.Command {
 				return err
 			}
 
-			applier, err := getAddonsApplier(c, provider, "", proxy)
+			applier, err := getAddonsApplier(c, provider, "", proxy, true)
 			if err != nil {
 				return err
 			}
@@ -171,7 +171,7 @@ var joinRunPreflightsCommand = &cli.Command{
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, provider, "", jcmd.InstallationSpec.Proxy)
+		applier, err := getAddonsApplier(c, provider, "", jcmd.InstallationSpec.Proxy, false)
 		if err != nil {
 			return err
 		}

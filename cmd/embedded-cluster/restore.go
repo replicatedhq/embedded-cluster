@@ -1028,7 +1028,7 @@ func restoreCommand() *cli.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
-			applier, err := getAddonsApplier(c, provider, "", proxy)
+			applier, err := getAddonsApplier(c, provider, "", proxy, true)
 			if err != nil {
 				return err
 			}
