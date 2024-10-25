@@ -321,9 +321,9 @@ spec:
       outcomes:
       - fail:
           when: "< 2G"
-          message: At least 2G of memory is recommended
+          message: At least 2GB of memory is required, but less is present
       - pass:
-          message: The system has at least 2G of memory
+          message: At least 2GB of memory is present
   - diskUsage:
       checkName: Root disk usage
       collectorName: root-disk-usage
@@ -391,10 +391,10 @@ spec:
       outcomes:
       - fail:
           when: "false"
-          message: Kubernetes API probing is reporting a failure
+          message: Kubernetes API probing reported a failure
       - pass:
           when: "true"
-          message: Kubernetes API probing is reporting success
+          message: Kubernetes API probing reported success
   - textAnalyze:
       checkName: NetworkManager managing calico interfaces
       fileName: host-collectors/run-host/network-manager-logs.txt
@@ -402,10 +402,10 @@ spec:
       outcomes:
       - fail:
           when: "true"
-          message: NetworkManager seems to be managing calico interfaces
+          message: NetworkManager is managing Calico interfaces
       - pass:
           when: "false"
-          message: NetworkManager isn't managing calico interfaces
+          message: NetworkManager isn't managing Calico interfaces
   - hostServices:
       checkName: "Local Artifact Mirror"
       outcomes:
@@ -420,13 +420,13 @@ spec:
       outcomes:
         - fail:
             when: 'ntp == unsynchronized+inactive'
-            message: 'System clock is not synchronized'
+            message: NTP is inactive and the system clock is not synchronized. Enable NTP and synchronize the system clock to continue.
         - fail:
             when: 'ntp == unsynchronized+active'
-            message: System clock is not yet synchronized
+            message: NTP is enabled but the system clock is not synchronized. Synchronize the system clock to continue.
         - pass:
             when: 'ntp == synchronized+active'
-            message: 'System clock is synchronized'
+            message: NTP is enabled and the system clock is synchronized
         - fail:
             message: 'Unable to determine system clock status'
   - jsonCompare:
@@ -543,7 +543,7 @@ spec:
             message: "/proc filesystem is mounted"
         - fail:
             when: "false"
-            message: "/proc filesystem is not mounted"
+            message: /proc filesystem must be mounted, but it currently is not
   - textAnalyze:
       checkName: Check if 'modprobe' command exists in PATH
       fileName: host-collectors/run-host/check-modprobe.txt
@@ -554,7 +554,7 @@ spec:
             message: "'modprobe' command exists in PATH"
         - fail:
             when: "false"
-            message: "'modprobe' command does not exist in PATH"
+            message: "'modprobe' command must exist in PATH"
   - textAnalyze:
       checkName: Check if 'mount' command exists in PATH
       fileName: host-collectors/run-host/check-mount.txt
@@ -565,7 +565,7 @@ spec:
             message: "'mount' command exists in PATH"
         - fail:
             when: "false"
-            message: "'mount' command does not exist in PATH"
+            message: "'mount' command must exist in PATH"
   - textAnalyze:
       checkName: Check if 'umount' command exists in PATH
       fileName: host-collectors/run-host/check-umount.txt
@@ -576,15 +576,15 @@ spec:
             message: "'umount' command exists in PATH"
         - fail:
             when: "false"
-            message: "'umount' command does not exist in PATH"
+            message: "'umount' command must exist in PATH"
   - hostOS:
       checkName: Check minimum kernel version
       outcomes:
         - pass:
             when: "kernelVersion >= 3.10"
-            message: "Minimum kernel version of 3.10 has been met"
+            message: Kernel version must be at least 3.10
         - fail:
-            message: "Minimum kernel version of 3.10 has not been met"
+            message: Kernel version is at least 3.10
   - textAnalyze:
       checkName: Hostname Mismatch
       fileName: host-collectors/run-host/k0scontroller-logs.txt
@@ -603,10 +603,10 @@ spec:
       outcomes:
         - fail:
             when: "false"
-            message: "'localhost' does not resolve to 127.0.0.1 ip address.  Ensure your /etc/hosts file contains an entry for 'localhost' with a loopback address of 127.0.0.1"
+            message: "'localhost' does not resolve to 127.0.0.1. Ensure your /etc/hosts file contains an entry for 'localhost' with a loopback address of 127.0.0.1."
         - pass:
             when: "true"
-            message: "'localhost' resolves to 127.0.0.1 ip address"
+            message: "'localhost' resolves to 127.0.0.1"
   - textAnalyze:
       checkName: Check if SELinux is enabled
       fileName: host-collectors/run-host/sestatus.txt
@@ -627,10 +627,10 @@ spec:
       outcomes:
         - fail:
             when: "true"
-            message: "Antivirus or Network Security tools detected. These tools are known to interfere with Kubernetes operation in various ways.  If problems persist, disable these tools, or consult with your organization's system administrator to ensure that exceptions are made for Kubernetes operation."
+            message: "Antivirus or network security tools detected. These tools are known to interfere with Kubernetes operation in various ways.  If problems persist, disable these tools, or consult with your organization's system administrator to ensure that exceptions are made for Kubernetes operation."
         - pass:
             when: "false"
-            message: "No Antivirus or Network Security tools detected."
+            message: "No antivirus or network security tools detected."
   - filesystemPerformance:
       checkName: Filesystem Write Latency
       collectorName: filesystem-write-latency-etcd
