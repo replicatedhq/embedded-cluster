@@ -41,13 +41,6 @@ func supportBundleCommand() *cli.Command {
 				return fmt.Errorf("unable to find host support bundle: %w", err)
 			}
 
-			kubeConfig := provider.PathToKubeConfig()
-			var env map[string]string
-			if _, err := os.Stat(kubeConfig); err == nil {
-				// if we have a kubeconfig, use it.
-				env = map[string]string{"KUBECONFIG": kubeConfig}
-			}
-
 			pwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("unable to get current working directory: %w", err)
@@ -55,6 +48,20 @@ func supportBundleCommand() *cli.Command {
 			now := time.Now().Format("2006-01-02T15_04_05")
 			fname := fmt.Sprintf("support-bundle-%s.tar.gz", now)
 			destination := filepath.Join(pwd, fname)
+
+			kubeConfig := provider.PathToKubeConfig()
+			arguments := []string{}
+			if _, err := os.Stat(kubeConfig); err == nil {
+				arguments = append(arguments, fmt.Sprintf("--kubeconfig=%s", kubeConfig))
+			}
+
+			arguments = append(
+				arguments,
+				"--interactive=false",
+				"--load-cluster-specs",
+				fmt.Sprintf("--output=%s", destination),
+				hostSupportBundle,
+			)
 
 			spin := spinner.Start()
 			spin.Infof("Collecting support bundle (this may take a while)")
@@ -66,13 +73,9 @@ func supportBundleCommand() *cli.Command {
 					Writer:       stdout,
 					ErrWriter:    stderr,
 					LogOnSuccess: true,
-					Env:          env,
 				},
 				supportBundle,
-				"--interactive=false",
-				"--load-cluster-specs",
-				fmt.Sprintf("--output=%s", destination),
-				hostSupportBundle,
+				arguments...,
 			); err != nil {
 				spin.Infof("Failed to collect support bundle")
 				spin.CloseWithError()
