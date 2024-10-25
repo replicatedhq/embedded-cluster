@@ -125,3 +125,9 @@ func WithBinaryNameOverride(name string) Option {
 		a.binaryNameOverride = name
 	}
 }
+
+func WithConfigValuesFile(filename string) Option {
+	return func(a *Applier) {
+		a.configValuesFile = filename
+	}
+}

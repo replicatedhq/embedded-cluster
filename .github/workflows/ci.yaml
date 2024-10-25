@@ -521,6 +521,7 @@ jobs:
           - TestCollectSupportBundle
           - TestUnsupportedOverrides
           - TestHostCollectSupportBundleInCluster
+          - TestInstallWithConfigValues
     steps:
       - name: Checkout
         uses: actions/checkout@v4
