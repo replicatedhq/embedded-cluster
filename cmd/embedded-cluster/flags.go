@@ -74,3 +74,17 @@ func getDataDirFlagWithDefault(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *cli.
 		},
 	}
 }
+
+func getPrivateCAsFlag(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *cli.StringSliceFlag {
+	return &cli.StringSliceFlag{
+		Name:  "private-ca",
+		Usage: "Path to a trusted private CA certificate file",
+		Action: func(c *cli.Context, s []string) error {
+			if s == nil {
+				return nil
+			}
+			runtimeConfig.PrivateCAs = s
+			return nil
+		},
+	}
+}

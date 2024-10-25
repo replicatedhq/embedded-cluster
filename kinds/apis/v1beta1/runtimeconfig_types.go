@@ -27,6 +27,9 @@ type RuntimeConfigSpec struct {
 	AdminConsole AdminConsoleSpec `json:"adminConsole,omitempty"`
 	// LocalArtifactMirrorPort holds the Local Artifact Mirror configuration.
 	LocalArtifactMirror LocalArtifactMirrorSpec `json:"localArtifactMirror,omitempty"`
+
+	// Private CAs holds a list of paths to trusted private CA certificate PEM files.
+	PrivateCAs []string `json:"privateCAs,omitempty"`
 }
 
 func (c *RuntimeConfigSpec) UnmarshalJSON(data []byte) error {

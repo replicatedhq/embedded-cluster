@@ -694,10 +694,7 @@ func installCommand() *cli.Command {
 					Usage:  "File with an EmbeddedClusterConfig object to override the default configuration",
 					Hidden: true,
 				},
-				&cli.StringSliceFlag{
-					Name:  "private-ca",
-					Usage: "Path to a trusted private CA certificate file",
-				},
+				getPrivateCAsFlag(runtimeConfig),
 				&cli.BoolFlag{
 					Name:  "skip-host-preflights",
 					Usage: "Skip host preflight checks. This is not recommended.",
@@ -773,7 +770,7 @@ func installCommand() *cli.Command {
 				metrics.ReportApplyFinished(c, err)
 				return err
 			}
-			applier, err := getAddonsApplier(c, runtimeConfig, adminConsolePwd, proxy)
+			applier, err := getAddonsApplier(c, provider, adminConsolePwd, proxy)
 			if err != nil {
 				metrics.ReportApplyFinished(c, err)
 				return err
@@ -808,9 +805,9 @@ func installCommand() *cli.Command {
 	}
 }
 
-func getAddonsApplier(c *cli.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
+func getAddonsApplier(c *cli.Context, provider *defaults.Provider, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
 	opts := []addons.Option{}
-	opts = append(opts, addons.WithRuntimeConfig(runtimeConfig))
+	opts = append(opts, addons.WithRuntimeConfig(provider.RuntimeConfig()))
 
 	if c.Bool("no-prompt") {
 		opts = append(opts, addons.WithoutPrompt())
@@ -837,9 +834,9 @@ func getAddonsApplier(c *cli.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec
 		}
 		opts = append(opts, addons.WithEndUserConfig(eucfg))
 	}
-	if len(c.StringSlice("private-ca")) > 0 {
+	if cas := provider.PrivateCAs(); len(provider.PrivateCAs()) > 0 {
 		privateCAs := map[string]string{}
-		for i, path := range c.StringSlice("private-ca") {
+		for i, path := range cas {
 			data, err := os.ReadFile(path)
 			if err != nil {
 				return nil, fmt.Errorf("unable to read private CA file %s: %w", path, err)

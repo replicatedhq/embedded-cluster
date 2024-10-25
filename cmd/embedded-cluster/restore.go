@@ -933,6 +933,7 @@ func restoreCommand() *cli.Command {
 					Usage: "Disable interactive prompts.",
 					Value: false,
 				},
+				getPrivateCAsFlag(runtimeConfig),
 				&cli.BoolFlag{
 					Name:  "skip-host-preflights",
 					Usage: "Skip host preflight checks. This is not recommended.",
@@ -1027,7 +1028,7 @@ func restoreCommand() *cli.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
-			applier, err := getAddonsApplier(c, runtimeConfig, "", proxy)
+			applier, err := getAddonsApplier(c, provider, "", proxy)
 			if err != nil {
 				return err
 			}

@@ -41,6 +41,7 @@ func installRunPreflightsCommand() *cli.Command {
 				getDataDirFlagWithDefault(runtimeConfig),
 				getAdminConsolePortFlag(runtimeConfig),
 				getLocalArtifactMirrorPortFlag(runtimeConfig),
+				getPrivateCAsFlag(runtimeConfig),
 			},
 		)),
 		Before: func(c *cli.Context) error {
@@ -79,7 +80,7 @@ func installRunPreflightsCommand() *cli.Command {
 				return err
 			}
 
-			applier, err := getAddonsApplier(c, runtimeConfig, "", proxy)
+			applier, err := getAddonsApplier(c, provider, "", proxy)
 			if err != nil {
 				return err
 			}
@@ -170,7 +171,7 @@ var joinRunPreflightsCommand = &cli.Command{
 			return err
 		}
 
-		applier, err := getAddonsApplier(c, jcmd.InstallationSpec.RuntimeConfig, "", jcmd.InstallationSpec.Proxy)
+		applier, err := getAddonsApplier(c, provider, "", jcmd.InstallationSpec.Proxy)
 		if err != nil {
 			return err
 		}

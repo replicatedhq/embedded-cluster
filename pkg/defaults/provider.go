@@ -75,6 +75,11 @@ type Provider struct {
 	runtimeConfig *ecv1beta1.RuntimeConfigSpec
 }
 
+// RuntimeConfig returns the runtime config.
+func (d *Provider) RuntimeConfig() *ecv1beta1.RuntimeConfigSpec {
+	return d.runtimeConfig
+}
+
 // EmbeddedClusterHomeDirectory returns the parent directory. Inside this parent directory we
 // store all the embedded-cluster related files.
 func (d *Provider) EmbeddedClusterHomeDirectory() string {
@@ -176,6 +181,7 @@ func (d *Provider) PathToEmbeddedClusterSupportFile(name string) string {
 	return filepath.Join(d.EmbeddedClusterSupportSubDir(), name)
 }
 
+// LocalArtifactMirrorPort returns the port on which the local artifact mirror will be served.
 func (d *Provider) LocalArtifactMirrorPort() int {
 	if d.runtimeConfig != nil && d.runtimeConfig.LocalArtifactMirror.Port > 0 {
 		return d.runtimeConfig.LocalArtifactMirror.Port
@@ -183,9 +189,18 @@ func (d *Provider) LocalArtifactMirrorPort() int {
 	return ecv1beta1.DefaultLocalArtifactMirrorPort
 }
 
+// AdminConsolePort returns the port on which the admin console will be served.
 func (d *Provider) AdminConsolePort() int {
 	if d.runtimeConfig != nil && d.runtimeConfig.AdminConsole.Port > 0 {
 		return d.runtimeConfig.AdminConsole.Port
 	}
 	return ecv1beta1.DefaultAdminConsolePort
+}
+
+// PrivateCAs returns a list of paths to trusted private CA certificate PEM files.
+func (d *Provider) PrivateCAs() []string {
+	if d.runtimeConfig != nil {
+		return d.runtimeConfig.PrivateCAs
+	}
+	return nil
 }
