@@ -40,6 +40,10 @@ function init_vars() {
     if [ -z "${APP_VERSION:-}" ]; then
         APP_VERSION="appver-dev-$(git rev-parse --short HEAD)"
     fi
+    # if the IMAGES_REGISTRY_SERVER environment variable is set, print a warning, ths can cause build failures
+    if [ -n "${IMAGES_REGISTRY_SERVER:-}" ]; then
+        echo "WARNING: IMAGES_REGISTRY_SERVER is set, this can cause build failures"
+    fi
 }
 
 function build() {
