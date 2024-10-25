@@ -17,6 +17,7 @@ spec:
       - seaweedfs
       - default
       - velero
+      - kotsadm
   - logs:
       name: podlogs/embedded-cluster-operator
       namespace: embedded-cluster
@@ -29,6 +30,13 @@ spec:
       namespace: embedded-cluster
       selector:
         - app.kubernetes.io/name=embedded-cluster-upgrade
+      limits:
+        maxAge: 720h
+  - logs:
+      name: podlogs/kotsadm
+      namespace: kotsadm
+      selector:
+        - app.kubernetes.io/name=kotsadm
       limits:
         maxAge: 720h
   - logs:
