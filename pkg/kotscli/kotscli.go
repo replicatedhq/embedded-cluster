@@ -218,10 +218,11 @@ func VeleroConfigureOtherS3(provider *defaults.Provider, opts VeleroConfigureOth
 // and then print "Finished!".
 func MaskKotsOutputForOnline() spinner.MaskFn {
 	return func(message string) string {
-		if strings.Contains(message, "Finished") {
-			return message
-		}
-		return "Finalizing Admin Console"
+		return message
+		//if strings.Contains(message, "Finished") {
+		//	return message
+		//}
+		//return "Finalizing Admin Console"
 	}
 }
 
