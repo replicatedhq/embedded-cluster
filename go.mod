@@ -17,7 +17,7 @@ require (
 	github.com/creack/pty v1.1.23
 	github.com/distribution/reference v0.6.0
 	github.com/evanphx/json-patch v5.9.0+incompatible
-	github.com/fatih/color v1.17.0
+	github.com/fatih/color v1.18.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-github/v62 v62.0.0
 	github.com/google/uuid v1.6.0
