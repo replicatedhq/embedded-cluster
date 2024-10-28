@@ -16,8 +16,8 @@ images:
     openebs-linux-utils:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-linux-utils
         tag:
-            amd64: 4.1.1-amd64@sha256:fd42a660698853241115e94d567520d32f756b9e1d2255721d795742f734378d
-            arm64: 4.1.1-arm64@sha256:426ddcdbc1059330eb3664f56043e616984c3181a862ed0b9387eaaec727852b
+            amd64: 4.1.1-amd64@sha256:7dec2f8ded167d1da932df44138e4ab09eae3c550c77e0ca38a20381c8f5d702
+            arm64: 4.1.1-arm64@sha256:e1daf71e98bb41b9f2ef4629969afa805881b0281e240729acc43fcdd3254e32
     openebs-provisioner-localpv:
         repo: proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv
         tag:
