@@ -1,3 +1,4 @@
+# DEVELOPMENT USE ONLY! THIE FILE IS NOT USED FOR DEPLOYS!
 global:
   labels: {}
 
@@ -9,8 +10,8 @@ embeddedClusterID: 123456789
 isAirgap: false
 
 image:
-  repository: ttl.sh/ada/embedded-cluster-operator-image
-  tag: 1.16.0-k8s-1.30-34-g1bac7259
+  repository: replicated/embedded-cluster-operator-image-staging
+  tag: 0.0.8
   pullPolicy: IfNotPresent
 
 utilsImage: busybox:latest
