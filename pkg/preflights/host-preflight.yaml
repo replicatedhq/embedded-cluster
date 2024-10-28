@@ -43,12 +43,18 @@ spec:
         get:
           url: '{{ .ReplicatedAPIURL }}'
           timeout: 5s
+          tls:
+            cacert: '{{ .PrivateCA }}'
+          proxy: '{{ .HTTPSProxy }}'
         exclude: '{{ or .IsAirgap (eq .ReplicatedAPIURL "") }}'
     - http:
         collectorName: http-proxy-replicated-com
         get:
           url: '{{ .ProxyRegistryURL }}/v2/'
           timeout: 5s
+          tls:
+            cacert: '{{ .PrivateCA }}'
+          proxy: '{{ .HTTPSProxy }}'
         exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
     - run:
         collectorName: resolv.conf
