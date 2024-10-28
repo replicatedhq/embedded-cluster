@@ -3,7 +3,6 @@ kind: SupportBundle
 metadata:
   name: embedded-cluster-host-support-bundle
 spec:
-  runHostCollectorsInPod: true  # default is false 
   hostCollectors:
   - hostOS: {}
   - cpu: {}

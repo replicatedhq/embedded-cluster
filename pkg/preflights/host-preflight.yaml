@@ -181,10 +181,10 @@ spec:
         outcomes:
           - fail:
               when: 'total < 40Gi'
-              message: The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or use the --data-dir flag to specify an alternative data directory.
+              message: The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
           - fail:
               when: 'used/total > 80%'
-              message: The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or use the --data-dir flag to specify an alternative data directory.
+              message: The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
           - pass:
               message: The filesystem at {{ .DataDir }} has sufficient space
     - textAnalyze:
@@ -384,8 +384,8 @@ spec:
               when: error
               message: >
                 Error connecting to {{ .ReplicatedAPIURL }}.
-                Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
-                and --no-proxy flags if there is a proxy server.
+                Ensure your firewall is properly configured, and use --http-proxy,
+                --https-proxy, and --no-proxy if there is a proxy server.
                 The static IP addresses for {{ .ReplicatedAPIURL }} are
                 162.159.133.41 and 162.159.134.41.
           - pass:
@@ -394,8 +394,8 @@ spec:
           - fail:
               message: >
                 Error connecting to {{ .ReplicatedAPIURL }}.
-                Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
-                and --no-proxy flags if there is a proxy server.
+                Ensure your firewall is properly configured, and use --http-proxy,
+                --https-proxy, and --no-proxy if there is a proxy server.
                 The static IP addresses for {{ .ReplicatedAPIURL }} are
                 162.159.133.41 and 162.159.134.41.
     - http:
@@ -407,8 +407,8 @@ spec:
               when: error
               message: >
                 Error connecting to {{ .ProxyRegistryURL }}.
-                Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
-                and --no-proxy flags if there is a proxy server.
+                Ensure your firewall is properly configured, and use --http-proxy,
+                --https-proxy, and --no-proxy if there is a proxy server.
                 The static IP addresses for {{ .ProxyRegistryURL }} are
                 162.159.137.43 and 162.159.138.43.
           - pass:
@@ -417,8 +417,8 @@ spec:
           - fail:
               message: >
                 Unexpected response from {{ .ProxyRegistryURL }}.
-                Ensure your firewall is properly configured, and use the --http-proxy, --https-proxy,
-                and --no-proxy flags if there is a proxy server.
+                Ensure your firewall is properly configured, and use --http-proxy,
+                --https-proxy, and --no-proxy if there is a proxy server.
                 The static IP addresses for {{ .ProxyRegistryURL }} are
                 162.159.137.43 and 162.159.138.43.
     - textAnalyze:
@@ -784,7 +784,7 @@ spec:
         outcomes:
           - fail:
               when: 'true'
-              message: "{{ .DataDir }} cannot be symlinked. Remove the symlink, or use the --data-dir flag to provide an alternate data directory."
+              message: "{{ .DataDir }} cannot be symlinked. Remove the symlink, or use --data-dir to specify an alternative data directory."
           - pass:
               when: 'false'
               message: "{{ .DataDir }} is not a symlink."

@@ -117,7 +117,7 @@ func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1b
 			return nil, fmt.Errorf("failed to clean subnet: %w", err)
 		}
 		if proxy.ProvidedNoProxy == "" {
-			logrus.Infof("--no-proxy was not set. Adding the default interface's subnet (%q) to the no-proxy list.", cleanIPNet)
+			logrus.Infof("--no-proxy was not set. Adding the network interface's subnet (%q) to the no-proxy list.", cleanIPNet)
 			proxy.ProvidedNoProxy = cleanIPNet
 			if err := combineNoProxySuppliedValuesAndDefaults(c, proxy); err != nil {
 				return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
@@ -128,7 +128,7 @@ func includeLocalIPInNoProxy(c *cli.Context, proxy *ecv1beta1.ProxySpec) (*ecv1b
 			if err != nil {
 				return nil, fmt.Errorf("failed to validate no-proxy: %w", err)
 			} else if !isValid {
-				logrus.Infof("The node IP (%q) is not included in the provided no-proxy list (%q). Adding the default interface's subnet (%q) to the no-proxy list.", ipnet.IP.String(), proxy.ProvidedNoProxy, cleanIPNet)
+				logrus.Infof("The node IP (%q) is not included in the provided no-proxy list (%q). Adding the network interface's subnet (%q) to the no-proxy list.", ipnet.IP.String(), proxy.ProvidedNoProxy, cleanIPNet)
 				proxy.ProvidedNoProxy = cleanIPNet
 				if err := combineNoProxySuppliedValuesAndDefaults(c, proxy); err != nil {
 					return nil, fmt.Errorf("unable to combine no-proxy supplied values and defaults: %w", err)
