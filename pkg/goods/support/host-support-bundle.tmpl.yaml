@@ -608,18 +608,6 @@ spec:
             when: "true"
             message: "'localhost' resolves to 127.0.0.1"
   - textAnalyze:
-      checkName: Check if SELinux is enabled
-      fileName: host-collectors/run-host/sestatus.txt
-      regex: '(?m)^Current mode:\s+enforcing'
-      ignoreIfNoFiles: true
-      outcomes:
-        - fail:
-            when: "true"
-            message: "SELinux enforcement is not supported, disable it or set to permissive mode to proceed"
-        - pass:
-            when: "false"
-            message: "SELinux is disabled as expected"
-  - textAnalyze:
       checkName: "Detect Threat Management and Network Security Tools"
       fileName: host-collectors/run-host/ps-detect-antivirus-and-security-tools.txt
       regex: '\b(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt)\b'
