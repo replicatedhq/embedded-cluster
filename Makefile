@@ -19,7 +19,7 @@ TROUBLESHOOT_VERSION = v0.107.3
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
-KOTS_BINARY_URL_OVERRIDE =
+KOTS_BINARY_URL_OVERRIDE = https://github.com/replicatedhq/kots/actions/runs/11582451791/artifacts/2120064417
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
 # These are used to override the binary urls in dev and e2e tests
