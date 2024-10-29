@@ -215,15 +215,15 @@ func (a *AdminConsole) Outro(ctx context.Context, provider *defaults.Provider, c
 			return fmt.Errorf("unable to parse license: %w", err)
 		}
 		installOpts := kotscli.InstallOptions{
-			AppSlug:          license.Spec.AppSlug,
-			LicenseFile:      a.licenseFile,
-			Namespace:        a.namespace,
-			AirgapBundle:     a.airgapBundle,
-			ConfigValuesFile: a.configValuesFile,
+			AppSlug:      license.Spec.AppSlug,
+			LicenseFile:  a.licenseFile,
+			Namespace:    a.namespace,
+			AirgapBundle: a.airgapBundle,
 		}
 		if err := kotscli.Install(provider, installOpts, loading); err != nil {
 			return err
 		}
+		// TODO: if config values file is provided, use it here
 	}
 
 	loading.Infof("Admin Console is ready!")

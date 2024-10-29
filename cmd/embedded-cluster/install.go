@@ -705,7 +705,7 @@ func installCommand() *cli.Command {
 				},
 				&cli.StringFlag{
 					Name:  "config-values",
-					Usage: "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)",
+					Usage: "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)",
 				},
 			},
 		)),

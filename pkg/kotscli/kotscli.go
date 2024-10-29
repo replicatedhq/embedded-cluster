@@ -30,11 +30,10 @@ var (
 const SpecDataKey = "support-bundle-spec"
 
 type InstallOptions struct {
-	AppSlug          string
-	LicenseFile      string
-	Namespace        string
-	AirgapBundle     string
-	ConfigValuesFile string
+	AppSlug      string
+	LicenseFile  string
+	Namespace    string
+	AirgapBundle string
 }
 
 func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.MessageWriter) error {
@@ -76,9 +75,6 @@ func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.Mess
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
 		maskfn = MaskKotsOutputForAirgap()
 		lbreakfn = KotsOutputLineBreaker()
-	}
-	if opts.ConfigValuesFile != "" {
-		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
 
 	msg.SetLineBreaker(lbreakfn)
@@ -218,11 +214,10 @@ func VeleroConfigureOtherS3(provider *defaults.Provider, opts VeleroConfigureOth
 // and then print "Finished!".
 func MaskKotsOutputForOnline() spinner.MaskFn {
 	return func(message string) string {
-		return message
-		//if strings.Contains(message, "Finished") {
-		//	return message
-		//}
-		//return "Finalizing Admin Console"
+		if strings.Contains(message, "Finished") {
+			return message
+		}
+		return "Finalizing Admin Console"
 	}
 }
 
