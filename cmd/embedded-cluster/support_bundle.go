@@ -19,7 +19,7 @@ import (
 func supportBundleCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "support-bundle",
-		Usage: fmt.Sprintf("Generate a %s support bundle", defaults.BinaryName()),
+		Usage: fmt.Sprintf("Generate a support bundle for %s", defaults.BinaryName()),
 		Before: func(c *cli.Context) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("support-bundle command must be run as root")
@@ -32,7 +32,7 @@ func supportBundleCommand() *cli.Command {
 
 			supportBundle := provider.PathToEmbeddedClusterBinary("kubectl-support_bundle")
 			if _, err := os.Stat(supportBundle); err != nil {
-				logrus.Errorf("Support bundle binary not found. The support-bundle command can only be run after an 'install' attempt.")
+				logrus.Errorf("support-bundle command can only be run after an install attempt")
 				return ErrNothingElseToAdd
 			}
 
@@ -64,7 +64,7 @@ func supportBundleCommand() *cli.Command {
 			)
 
 			spin := spinner.Start()
-			spin.Infof("Collecting support bundle (this may take a while)")
+			spin.Infof("Generating support bundle (this can take a while)")
 
 			stdout := bytes.NewBuffer(nil)
 			stderr := bytes.NewBuffer(nil)
@@ -77,7 +77,7 @@ func supportBundleCommand() *cli.Command {
 				supportBundle,
 				arguments...,
 			); err != nil {
-				spin.Infof("Failed to collect support bundle")
+				spin.Infof("Failed to generate support bundle")
 				spin.CloseWithError()
 				io.Copy(os.Stdout, stdout)
 				io.Copy(os.Stderr, stderr)
