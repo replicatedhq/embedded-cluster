@@ -864,7 +864,7 @@ func PullImage(in *ClusterInput, image string) {
 			in.T.Fatalf("Failed to connect to image server: %v", err)
 		}
 
-		alias, _, err := remote.GetImageAlias(image)
+		alias, _, err := remote.GetImageAliasType("container", image)
 		if err != nil {
 			in.T.Logf("Failed to get image alias %s on %s: %v", image, server, err)
 			continue
