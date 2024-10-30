@@ -257,6 +257,7 @@ func runHostPreflights(c *cli.Context, provider *defaults.Provider, hpf *v1beta2
 		if !prompts.New().Confirm("Do you want to continue ?", false) {
 			return fmt.Errorf("user aborted")
 		}
+		return nil
 	}
 
 	// No failures or warnings
