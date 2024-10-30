@@ -23,8 +23,9 @@ func adminConsoleCommand() *cli.Command {
 
 func adminConsoleResetPassswordCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "reset-password",
-		Usage: "Reset the Admin Console password",
+		Name:      "reset-password",
+		Usage:     "Reset the Admin Console password",
+		ArgsUsage: "<password>",
 		Before: func(c *cli.Context) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("reset-password command must be run as root")

@@ -6,9 +6,9 @@ require (
 	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/k0sproject/k0s v1.30.6-0.20240930094415-0fb1b4751cf8
 	github.com/stretchr/testify v1.9.0
-	k8s.io/api v0.31.1
-	k8s.io/apimachinery v0.31.1
-	sigs.k8s.io/controller-runtime v0.19.0
+	k8s.io/api v0.31.2
+	k8s.io/apimachinery v0.31.2
+	sigs.k8s.io/controller-runtime v0.19.1
 	sigs.k8s.io/yaml v1.4.0
 )
 
