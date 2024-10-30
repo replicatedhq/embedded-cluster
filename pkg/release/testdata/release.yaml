@@ -6,6 +6,7 @@ kots-app.yaml: |-
   spec:
     title: Embedded Cluster Smoke Test App
     icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.png
+    allowRollback: true
     statusInformers:
       - deployment/nginx
     ports:
