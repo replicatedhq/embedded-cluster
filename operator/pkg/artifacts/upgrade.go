@@ -82,8 +82,6 @@ var copyArtifactsJob = &batchv1.Job{
 								"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA\n" +
 								"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade\n" +
 								"rm /embedded-cluster/images/images-amd64-* || true\n" +
-								"cd /embedded-cluster/images/\n" +
-								"mv images-amd64.tar images-amd64-${INSTALLATION}.tar\n" +
 								"echo 'done'",
 						},
 					},
@@ -262,8 +260,8 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in
 	}
 
 	imageURL := fmt.Sprintf(
-		"http://127.0.0.1:%d/images/images-amd64-%s.tar",
-		provider.LocalArtifactMirrorPort(), in.Name,
+		"http://127.0.0.1:%d/images/images-amd64.tar",
+		provider.LocalArtifactMirrorPort(),
 	)
 
 	return &autopilotv1beta2.PlanCommand{
