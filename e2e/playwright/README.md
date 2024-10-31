@@ -3,8 +3,9 @@
 1. Install deps on your Mac
 
    ```bash
-   npm install
-   npx playwright install chromium
+   npm ci
+   npx playwright install --with-deps
+   code --install-extension ms-playwright.playwright
    ```
 
 1. Build the release and run the development environment
