@@ -57,7 +57,7 @@ func EnsureRegistrySecretInECNamespace(ctx context.Context, cli client.Client, i
 			}
 		}
 
-		obj.ObjectMeta.Labels = applyECOperatorLabels(obj.ObjectMeta.Labels, "upgrader")
+		obj.ObjectMeta.Labels = applyECOperatorLabels(obj.ObjectMeta.Labels, "upgrader-registry-secret")
 
 		obj.Type = corev1.SecretTypeDockerConfigJson
 		obj.Data = kotsadmSecret.Data

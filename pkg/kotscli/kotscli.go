@@ -30,10 +30,11 @@ var (
 const SpecDataKey = "support-bundle-spec"
 
 type InstallOptions struct {
-	AppSlug      string
-	LicenseFile  string
-	Namespace    string
-	AirgapBundle string
+	AppSlug          string
+	LicenseFile      string
+	Namespace        string
+	AirgapBundle     string
+	ConfigValuesFile string
 }
 
 func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.MessageWriter) error {
@@ -75,6 +76,9 @@ func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.Mess
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
 		maskfn = MaskKotsOutputForAirgap()
 		lbreakfn = KotsOutputLineBreaker()
+	}
+	if opts.ConfigValuesFile != "" {
+		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
 	}
 
 	msg.SetLineBreaker(lbreakfn)
@@ -365,74 +369,4 @@ func CreateHostSupportBundle() error {
 
 type ConfirmManagementOptions struct {
 	Namespace string
-}
-
-// ConfirmManagement sets the config values of the application
-func ConfirmManagement(provider *defaults.Provider, opts ConfirmManagementOptions, msg *spinner.MessageWriter) error {
-	materializer := goods.NewMaterializer(provider)
-	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
-	if err != nil {
-		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
-	}
-	defer os.Remove(kotsBinPath)
-
-	airgapUpdateArgs := []string{
-		"admin-console",
-		"confirm-management",
-		"--namespace",
-		opts.Namespace,
-	}
-
-	runCommandOptions := helpers.RunCommandOptions{
-		Writer: msg,
-		Env: map[string]string{
-			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
-		},
-	}
-	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {
-		return fmt.Errorf("unable to confirm cluster management: %w", err)
-	}
-
-	return nil
-}
-
-type SetConfigOptions struct {
-	AppSlug          string
-	Namespace        string
-	ConfigValuesFile string
-	Deploy           bool
-}
-
-// SetConfig sets the config values of the application
-func SetConfig(provider *defaults.Provider, opts SetConfigOptions, msg *spinner.MessageWriter) error {
-	materializer := goods.NewMaterializer(provider)
-	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
-	if err != nil {
-		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
-	}
-	defer os.Remove(kotsBinPath)
-
-	airgapUpdateArgs := []string{
-		"set", "config",
-		opts.AppSlug,
-		"--namespace",
-		opts.Namespace,
-		"--config-values",
-		opts.ConfigValuesFile,
-	}
-	if opts.Deploy {
-		airgapUpdateArgs = append(airgapUpdateArgs, "--deploy")
-	}
-
-	runCommandOptions := helpers.RunCommandOptions{
-		Writer: msg,
-		Env: map[string]string{
-			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
-		},
-	}
-	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {
-		return fmt.Errorf("unable to set config values: %w", err)
-	}
-
-	return nil
 }

@@ -215,30 +215,14 @@ func (a *AdminConsole) Outro(ctx context.Context, provider *defaults.Provider, c
 			return fmt.Errorf("unable to parse license: %w", err)
 		}
 		installOpts := kotscli.InstallOptions{
-			AppSlug:      license.Spec.AppSlug,
-			LicenseFile:  a.licenseFile,
-			Namespace:    a.namespace,
-			AirgapBundle: a.airgapBundle,
+			AppSlug:          license.Spec.AppSlug,
+			LicenseFile:      a.licenseFile,
+			Namespace:        a.namespace,
+			AirgapBundle:     a.airgapBundle,
+			ConfigValuesFile: a.configValuesFile,
 		}
 		if err := kotscli.Install(provider, installOpts, loading); err != nil {
 			return err
-		}
-
-		if a.configValuesFile != "" {
-			if err := kotscli.ConfirmManagement(provider, kotscli.ConfirmManagementOptions{
-				Namespace: a.namespace,
-			}, loading); err != nil {
-				return fmt.Errorf("unable to confirm cluster management: %w", err)
-			}
-
-			if err := kotscli.SetConfig(provider, kotscli.SetConfigOptions{
-				ConfigValuesFile: a.configValuesFile,
-				AppSlug:          license.Spec.AppSlug,
-				Namespace:        a.namespace,
-				Deploy:           true,
-			}, loading); err != nil {
-				return fmt.Errorf("unable to set config values: %w", err)
-			}
 		}
 	}
 
