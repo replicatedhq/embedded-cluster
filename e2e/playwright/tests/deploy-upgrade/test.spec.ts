@@ -15,7 +15,7 @@ test('deploy upgrade', async ({ page }) => {
   await iframe.locator('input[type="password"]').fill('updated password');
   await iframe.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(iframe.getByText('Preflight checks', { exact: true })).toBeVisible({ timeout: 10 * 1000 });
-  await expect(iframe.getByRole('button', { name: 'Re-run' })).toBeVisible({ timeout: 10 * 1000 });
+  await expect(iframe.getByRole('button', { name: 'Rerun' })).toBeVisible({ timeout: 10 * 1000 });
   await expect(iframe.locator('#app')).toContainText('Embedded Cluster Installation CRD exists');
   await expect(iframe.locator('#app')).toContainText('Embedded Cluster Config CRD exists');
   await expect(iframe.getByRole('button', { name: 'Back: Config' })).toBeVisible();
