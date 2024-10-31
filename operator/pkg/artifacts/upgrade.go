@@ -260,7 +260,7 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in
 	}
 
 	imageURL := fmt.Sprintf(
-		"http://127.0.0.1:%d/images/images-amd64.tar",
+		"http://127.0.0.1:%d/images/ec-images-amd64.tar",
 		provider.LocalArtifactMirrorPort(),
 	)
 

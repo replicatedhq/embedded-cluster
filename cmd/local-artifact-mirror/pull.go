@@ -24,7 +24,8 @@ import (
 // These constant define the expected names of the files in the registry.
 const (
 	EmbeddedClusterBinaryArtifactName = "embedded-cluster-amd64"
-	ImagesArtifactName                = "images-amd64.tar"
+	ImagesSrcArtifactName             = "images-amd64.tar"
+	ImagesDstArtifactName             = "ec-images-amd64.tar"
 	HelmChartsArtifactName            = "charts.tar.gz"
 )
 
@@ -86,8 +87,8 @@ var imagesCommand = &cli.Command{
 			os.RemoveAll(location)
 		}()
 
-		dst := filepath.Join(provider.EmbeddedClusterImagesSubDir(), ImagesArtifactName)
-		src := filepath.Join(location, ImagesArtifactName)
+		dst := filepath.Join(provider.EmbeddedClusterImagesSubDir(), ImagesDstArtifactName)
+		src := filepath.Join(location, ImagesSrcArtifactName)
 		logrus.Infof("%s > %s", src, dst)
 		if err := helpers.MoveFile(src, dst); err != nil {
 			return fmt.Errorf("unable to move images bundle: %w", err)
