@@ -152,6 +152,8 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
+	privateCAs := getPrivateCAPath(c)
+
 	data, err := preflights.TemplateData{
 		ReplicatedAPIURL:        replicatedAPIURL,
 		ProxyRegistryURL:        proxyRegistryURL,
@@ -161,12 +163,21 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 		DataDir:                 provider.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              provider.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          provider.EmbeddedClusterOpenEBSLocalSubDir(),
+		PrivateCA:               privateCAs,
 		SystemArchitecture:      runtime.GOARCH,
 	}.WithCIDRData(getCIDRs(c))
 
 	if err != nil {
 		return fmt.Errorf("unable to get host preflights data: %w", err)
 	}
+
+	if proxy != nil {
+		data.HTTPProxy = proxy.HTTPProxy
+		data.HTTPSProxy = proxy.HTTPSProxy
+		data.ProvidedNoProxy = proxy.ProvidedNoProxy
+		data.NoProxy = proxy.NoProxy
+	}
+
 	chpfs, err := preflights.GetClusterHostPreflights(c.Context, data)
 	if err != nil {
 		return fmt.Errorf("unable to get cluster host preflights: %w", err)
@@ -246,6 +257,7 @@ func runHostPreflights(c *cli.Context, provider *defaults.Provider, hpf *v1beta2
 		if !prompts.New().Confirm("Do you want to continue ?", false) {
 			return fmt.Errorf("user aborted")
 		}
+		return nil
 	}
 
 	// No failures or warnings
@@ -636,6 +648,15 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 		return false
 	}
 	return true
+}
+
+// return only the first private CA path for now - troubleshoot needs a refactor to support multiple CAs in the future
+func getPrivateCAPath(c *cli.Context) string {
+	privateCA := ""
+	if len(c.StringSlice("private-ca")) > 0 {
+		privateCA = c.StringSlice("private-ca")[0]
+	}
+	return privateCA
 }
 
 // installCommands executes the "install" command. This will ensure that a k0s.yaml file exists
