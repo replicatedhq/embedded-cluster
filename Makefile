@@ -306,6 +306,7 @@ create-node%:
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
+		$(if $(filter node0,node$*),-p 30003:30003) \
 		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*
