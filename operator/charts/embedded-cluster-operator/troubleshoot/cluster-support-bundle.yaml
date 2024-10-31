@@ -11,12 +11,15 @@ spec:
   - clusterResources:
       namespaces:
       - kube-system
+      - kube-node-lease
+      - kube-public
       - openebs
       - registry
       - embedded-cluster
       - seaweedfs
       - default
       - velero
+      - k0s-autopilot
   - logs:
       name: podlogs/embedded-cluster-operator
       namespace: embedded-cluster
