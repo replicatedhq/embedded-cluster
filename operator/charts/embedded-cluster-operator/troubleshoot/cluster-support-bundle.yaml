@@ -17,6 +17,7 @@ spec:
       - registry
       - embedded-cluster
       - seaweedfs
+      - kotsadm
       - default
       - velero
       - k0s-autopilot
