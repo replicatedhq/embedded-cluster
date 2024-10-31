@@ -74,6 +74,19 @@ spec:
       command: top
       args: ['-b', '-n', '1']
   - run:
+      collectorName: uname
+      command: uname
+      args: ['-a']
+  - run:
+      collectorName: "hostnames"
+      command: "sh"
+      args:
+        - -c
+        - |
+          echo "hostname = $(hostname)"
+          echo "/proc/sys/kernel/hostname = $(cat /proc/sys/kernel/hostname)"
+          echo "uname -n = $(uname -n)"
+  - run:
       collectorName: df
       command: df
       args: ['-h']
@@ -88,6 +101,82 @@ spec:
   - run:
       collectorName: uptime
       command: uptime
+  - run:
+      collectorName: sestatus
+      command: sestatus
+      args: []
+  - run:
+      collectorName: apparmor-status
+      command: apparmor_status
+      args: []
+  - run:
+      collectorName: iptables
+      command: iptables
+      args: ["-L", "-v"]
+  - run:
+      collectorName: iptables-version
+      command: iptables
+      args: ["--version"]
+  - run:
+      collectorName: nftables-list
+      command: nft
+      args: ["list", "table", "filter"]
+  - run:
+        collectorName: "ipvsadm"
+        command: "ipvsadm"
+        args: ["-l", "-n"]
+  - run:
+      collectorName: "lsblk"
+      command: "lsblk"
+      args: ["--fs"]
+  - run:
+      collectorName: lvm
+      command: pvdisplay
+      args: []
+  - run:
+      collectorName: lvm
+      command: vgdisplay
+      args: []
+  - run:
+      collectorName: lvm
+      command: lvdisplay
+      args: []
+  - run:
+      collectorName: "netstat-ports"
+      command: "netstat"
+      args: ["-t", "-u", "-l", "-p", "-n"]
+  - run:
+      collectorName: "netstat-route-table"
+      command: "netstat"
+      args: ["-r", "-n"]
+  - run:
+      collectorName: "resolvectl-status"
+      command: "resolvectl"
+      args: ["status"]
+  - run:
+      collectorName: "resolv-conf"
+      command: "cat"
+      args: ["/etc/resolv.conf"]
+  - run:
+      collectorName: "systemd-resolved-conf"
+      command: "cat"
+      args: ["/etc/systemd/resolved.conf"]
+  - run:
+      collectorName: "nsswitch-conf"
+      command: "cat"
+      args: ["/etc/nsswitch.conf"]
+  - run:
+      collectorName: "hosts"
+      command: "cat"
+      args: ["/etc/hosts"]
+  - run:
+      collectorName: "ip-route-table"
+      command: "ip"
+      args: ["route"]
+  - run:
+      collectorName: "sysctl"
+      command: "sysctl"
+      args: ["-a"]
   - run:
       collectorName: k0s-version
       command: /usr/local/bin/k0s
@@ -116,6 +205,41 @@ spec:
   - copy:
       collectorName: runtime-config
       path: /etc/embedded-cluster/*
+  - run:
+        collectorName: "systemctl-firewalld-status"
+        command: "systemctl"
+        args: ["status", "firewalld"]
+  - run:
+      collectorName: "systemctl-resolved-status"
+      command: "systemctl"
+      args: ["status", "systemd-resolved"]
+  # Systemd Service Configurations for CRI, Kubelet
+  - run:
+      collectorName: "systemctl-cat-journald"
+      command: "systemctl"
+      args: ["cat", "systemd-journald"]
+  - run:
+      collectorName: "systemctl-cat-resolved"
+      command: "systemctl"
+      args: ["cat", "systemd-resolved"]
+  - run:
+      collectorName: "systemctl-cat-k0scontroller"
+      command: "systemctl"
+      args: ["cat", "k0scontroller.service"]
+  - run:
+      collectorName: "systemctl-cat-k0sworker"
+      command: "systemctl"
+      args: ["cat", "k0sworker.service"]
+  - run:
+      collectorName: "journalctl-dmesg"
+      command: "journalctl"
+      args: ["--dmesg", "--no-pager", "-S", "7 days ago"]
+  - copy:
+      collectorName: "syslog"
+      path: /var/log/syslog
+  - copy:
+      collectorName: "syslog" # Copy the previous syslog file as well in case the current one is rotated
+      path: /var/log/syslog.1
   - run:
       collectorName: network-manager-logs
       command: journalctl
@@ -156,9 +280,33 @@ spec:
       collectorName: 'check-umount'
       command: 'sh'
       args: ['-c', 'command -v umount']
+  - run:
+      collectorName: "mount"
+      command: "mount"
+      args: ["-l"]
   - copy:
       collectorName: installer/lam-service-config
       path: /etc/systemd/system/local-artifact-mirror.service.d/*
+  - run:
+      collectorName: "ps-high-load"
+      command: "sh"
+      args: ["-c", "ps -eo s,user,cmd | grep ^[RD] | sort | uniq -c | sort -nbr | head -20"]
+  - run:
+      collectorName: "ps-detect-antivirus-and-security-tools"
+      command: "sh"
+      args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt' | grep -v grep"]
+  - filesystemPerformance:
+        collectorName: filesystem-write-latency-etcd
+        timeout: 5m
+        directory: {{ .K0sDataDir }}/etcd
+        fileSize: 22Mi
+        operationSize: 2300
+        datasync: true
+        runTime: "0" # let it run to completion
+  - run:
+      collectorName: "localhost-ips"
+      command: "sh"
+      args: ["-c", "host localhost"]
   hostAnalyzers:
   - ipv4Interfaces:
       outcomes:
@@ -173,9 +321,9 @@ spec:
       outcomes:
       - fail:
           when: "< 2G"
-          message: At least 2G of memory is recommended
+          message: At least 2GB of memory is required, but less is present
       - pass:
-          message: The system has at least 2G of memory
+          message: At least 2GB of memory is present
   - diskUsage:
       checkName: Root disk usage
       collectorName: root-disk-usage
@@ -243,10 +391,10 @@ spec:
       outcomes:
       - fail:
           when: "false"
-          message: Kubernetes API probing is reporting a failure
+          message: Kubernetes API probing reported a failure
       - pass:
           when: "true"
-          message: Kubernetes API probing is reporting success
+          message: Kubernetes API probing reported success
   - textAnalyze:
       checkName: NetworkManager managing calico interfaces
       fileName: host-collectors/run-host/network-manager-logs.txt
@@ -254,10 +402,10 @@ spec:
       outcomes:
       - fail:
           when: "true"
-          message: NetworkManager seems to be managing calico interfaces
+          message: NetworkManager is managing Calico interfaces
       - pass:
           when: "false"
-          message: NetworkManager isn't managing calico interfaces
+          message: NetworkManager isn't managing Calico interfaces
   - hostServices:
       checkName: "Local Artifact Mirror"
       outcomes:
@@ -272,13 +420,13 @@ spec:
       outcomes:
         - fail:
             when: 'ntp == unsynchronized+inactive'
-            message: 'System clock is not synchronized'
+            message: NTP is inactive and the system clock is not synchronized. Enable NTP and synchronize the system clock to continue.
         - fail:
             when: 'ntp == unsynchronized+active'
-            message: System clock is not yet synchronized
+            message: NTP is enabled but the system clock is not synchronized. Synchronize the system clock to continue.
         - pass:
             when: 'ntp == synchronized+active'
-            message: 'System clock is synchronized'
+            message: NTP is enabled and the system clock is synchronized
         - fail:
             message: 'Unable to determine system clock status'
   - jsonCompare:
@@ -395,7 +543,7 @@ spec:
             message: "/proc filesystem is mounted"
         - fail:
             when: "false"
-            message: "/proc filesystem is not mounted"
+            message: /proc filesystem must be mounted, but it currently is not
   - textAnalyze:
       checkName: Check if 'modprobe' command exists in PATH
       fileName: host-collectors/run-host/check-modprobe.txt
@@ -406,7 +554,7 @@ spec:
             message: "'modprobe' command exists in PATH"
         - fail:
             when: "false"
-            message: "'modprobe' command does not exist in PATH"
+            message: "'modprobe' command must exist in PATH"
   - textAnalyze:
       checkName: Check if 'mount' command exists in PATH
       fileName: host-collectors/run-host/check-mount.txt
@@ -417,7 +565,7 @@ spec:
             message: "'mount' command exists in PATH"
         - fail:
             when: "false"
-            message: "'mount' command does not exist in PATH"
+            message: "'mount' command must exist in PATH"
   - textAnalyze:
       checkName: Check if 'umount' command exists in PATH
       fileName: host-collectors/run-host/check-umount.txt
@@ -428,15 +576,15 @@ spec:
             message: "'umount' command exists in PATH"
         - fail:
             when: "false"
-            message: "'umount' command does not exist in PATH"
+            message: "'umount' command must exist in PATH"
   - hostOS:
       checkName: Check minimum kernel version
       outcomes:
         - pass:
             when: "kernelVersion >= 3.10"
-            message: "Minimum kernel version of 3.10 has been met"
+            message: Kernel version must be at least 3.10
         - fail:
-            message: "Minimum kernel version of 3.10 has not been met"
+            message: Kernel version is at least 3.10
   - textAnalyze:
       checkName: Hostname Mismatch
       fileName: host-collectors/run-host/k0scontroller-logs.txt
@@ -448,3 +596,35 @@ spec:
         - pass:
             when: "false"
             message: "No signs of hostname changes found"
+  - textAnalyze:
+      checkName: Check if localhost resolves to 127.0.0.1
+      fileName: host-collectors/run-host/localhost-ips.txt
+      regex: 'localhost has address 127.0.0.1'
+      outcomes:
+        - fail:
+            when: "false"
+            message: "'localhost' does not resolve to 127.0.0.1. Ensure your /etc/hosts file contains an entry for 'localhost' with a loopback address of 127.0.0.1."
+        - pass:
+            when: "true"
+            message: "'localhost' resolves to 127.0.0.1"
+  - textAnalyze:
+      checkName: "Detect Threat Management and Network Security Tools"
+      fileName: host-collectors/run-host/ps-detect-antivirus-and-security-tools.txt
+      regex: '\b(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt)\b'
+      ignoreIfNoFiles: true
+      outcomes:
+        - fail:
+            when: "true"
+            message: "Antivirus or network security tools detected. These tools are known to interfere with Kubernetes operation in various ways.  If problems persist, disable these tools, or consult with your organization's system administrator to ensure that exceptions are made for Kubernetes operation."
+        - pass:
+            when: "false"
+            message: "No antivirus or network security tools detected."
+  - filesystemPerformance:
+      checkName: Filesystem Write Latency
+      collectorName: filesystem-write-latency-etcd
+      outcomes:
+        - pass:
+            when: "p99 < 10ms"
+            message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
+        - fail:
+            message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'
