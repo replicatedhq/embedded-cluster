@@ -13,6 +13,7 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/urfave/cli/v2"
 	k8snet "k8s.io/utils/net"
@@ -53,7 +54,7 @@ var serveCommand = &cli.Command{
 			provider = defaults.NewProvider(c.String("data-dir"))
 		} else {
 			var err error
-			provider, err = defaults.NewProviderFromFilesystem()
+			provider, err = cmdutil.NewProviderFromFilesystem()
 			if err != nil {
 				panic(fmt.Errorf("unable to get provider from filesystem: %w", err))
 			}
