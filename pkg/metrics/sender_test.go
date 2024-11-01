@@ -11,17 +11,18 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSend(t *testing.T) {
 	for _, tt := range []struct {
 		name  string
-		event Event
+		event types.Event
 	}{
 		{
 			name: "InstallationStarted",
-			event: InstallationStarted{
+			event: types.InstallationStarted{
 				ClusterID:  uuid.New(),
 				Version:    "1.2.3",
 				Flags:      "foo",
@@ -32,34 +33,34 @@ func TestSend(t *testing.T) {
 		},
 		{
 			name: "InstallationSucceeded",
-			event: InstallationSucceeded{
+			event: types.InstallationSucceeded{
 				ClusterID: uuid.New(),
 			},
 		},
 		{
 			name: "InstallationFailed",
-			event: InstallationFailed{
+			event: types.InstallationFailed{
 				ClusterID: uuid.New(),
 				Reason:    "foo",
 			},
 		},
 		{
 			name: "JoinStarted",
-			event: JoinStarted{
+			event: types.JoinStarted{
 				ClusterID: uuid.New(),
 				NodeName:  "foo",
 			},
 		},
 		{
 			name: "JoinSucceeded",
-			event: JoinSucceeded{
+			event: types.JoinSucceeded{
 				ClusterID: uuid.New(),
 				NodeName:  "foo",
 			},
 		},
 		{
 			name: "JoinFailed",
-			event: JoinFailed{
+			event: types.JoinFailed{
 				ClusterID: uuid.New(),
 				NodeName:  "foo",
 				Reason:    "bar",
@@ -89,8 +90,7 @@ func TestSend(t *testing.T) {
 				),
 			)
 			defer server.Close()
-			sender := Sender{baseURL: server.URL}
-			sender.Send(context.Background(), tt.event)
+			Send(context.Background(), server.URL, tt.event)
 		})
 	}
 }

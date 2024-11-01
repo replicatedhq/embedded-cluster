@@ -1,0 +1,5 @@
+# channel release object
+channelID: "fake-channel-id"
+channelSlug: "fake-channel-slug"
+appSlug: "fake-app-slug"
+versionLabel: "fake-version-label"
