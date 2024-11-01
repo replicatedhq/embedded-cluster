@@ -38,12 +38,14 @@ func NewProviderFromCluster(ctx context.Context, cli client.Client) (*Provider, 
 		return nil, fmt.Errorf("get latest installation: %w", err)
 	}
 
-	if in.Spec.RuntimeConfig == nil {
+	if in.Spec.RuntimeConfig == nil || in.Spec.RuntimeConfig.DataDir == "" {
 		// If there is no runtime config, this is probably a prior version of EC so we will have to
 		// fall back to the filesystem.
 		return NewProviderFromFilesystem()
 	}
-	return NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig), nil
+	provider := NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
+	logrus.Debugf("Got runtime config from installation with k0s data dir %s", provider.EmbeddedClusterK0sSubDir())
+	return provider, nil
 }
 
 // NewProviderFromFilesystem returns a new provider from the filesystem. It supports older versions
@@ -53,6 +55,7 @@ func NewProviderFromFilesystem() (*Provider, error) {
 	// ca.crt is available on both control plane and worker nodes
 	_, err := os.Stat(filepath.Join(provider.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
 	if err == nil {
+		logrus.Debugf("Got runtime config from filesystem with k0s data dir %s", provider.EmbeddedClusterK0sSubDir())
 		return provider, nil
 	}
 	// Handle versions prior to consolidation of data dirs
@@ -64,6 +67,7 @@ func NewProviderFromFilesystem() (*Provider, error) {
 	// ca.crt is available on both control plane and worker nodes
 	_, err = os.Stat(filepath.Join(provider.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
 	if err == nil {
+		logrus.Debugf("Got runtime config from filesystem with k0s data dir %s", provider.EmbeddedClusterK0sSubDir())
 		return provider, nil
 	}
 	return nil, fmt.Errorf("unable to discover provider from filesystem")
