@@ -12,6 +12,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/cmd"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	dryruntypes "github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -32,12 +33,11 @@ func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 	}
 
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
-	defer os.Remove(drFile)
+	dryrun.Init(drFile, nil)
 
 	if err := runEmbeddedClusterCmd(
 		append([]string{
 			"install",
-			"--dry-run", drFile,
 			"--no-prompt",
 			"--license", "./assets/install-license.yaml",
 		}, args...)...,
@@ -45,16 +45,31 @@ func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 		t.Fatalf("fail to dryrun install embedded-cluster: %v", err)
 	}
 
-	stdout, err := exec.Command("cat", drFile).Output()
+	dr, err := dryrun.Load()
 	if err != nil {
-		t.Fatalf("fail to get dryrun output: %v", err)
-	}
-
-	dr := dryruntypes.DryRun{}
-	if err := yaml.Unmarshal([]byte(stdout), &dr); err != nil {
 		t.Fatalf("fail to unmarshal dryrun output: %v", err)
 	}
-	return dr
+	return *dr
+}
+
+func dryrunUpdate(t *testing.T, args ...string) dryruntypes.DryRun {
+	if err := embedReleaseData(); err != nil {
+		t.Fatalf("fail to embed release data: %v", err)
+	}
+
+	if err := runEmbeddedClusterCmd(
+		append([]string{
+			"update",
+		}, args...)...,
+	); err != nil {
+		t.Fatalf("fail to dryrun install embedded-cluster: %v", err)
+	}
+
+	dr, err := dryrun.Load()
+	if err != nil {
+		t.Fatalf("fail to unmarshal dryrun output: %v", err)
+	}
+	return *dr
 }
 
 func embedReleaseData() error {

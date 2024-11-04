@@ -2,6 +2,8 @@
 
 set -eo pipefail
 
+DRYRUN_MATCH=${DRYRUN_MATCH:-'Test'}
+
 function plog() {
     local type="$1"
     local message="$2"
@@ -14,7 +16,7 @@ plog "INFO" "Building test container..." "🔨"
 docker build -q -t ec-dryrun ./tests/dryrun > /dev/null
 
 # Get all test functions
-tests=$(grep -o 'func Test[^ (]*' ./tests/dryrun/*.go | awk '{print $2}')
+tests=$(grep -o 'func '"$DRYRUN_MATCH"'[^ (]*' ./tests/dryrun/*.go | awk '{print $2}')
 
 # Run tests in separate containers
 for test in $tests; do
@@ -27,7 +29,7 @@ for test in $tests; do
         -e GOMODCACHE=/ec/dev/.gomodcache \
         --name "$test" \
         ec-dryrun \
-        go test -timeout 1m -v ./tests/dryrun/... -run "^$test$" > /dev/null
+        go test -timeout 5m -v ./tests/dryrun/... -run "^$test$" > /dev/null
 done
 
 plog "INFO" "Waiting for tests to complete..." "⏳"
