@@ -2363,7 +2363,7 @@ func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   1,
-		Image:                   "almalinux-8",
+		Image:                   "debian/12",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
