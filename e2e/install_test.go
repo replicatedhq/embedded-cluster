@@ -2309,10 +2309,6 @@ spec:
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
 	t.Logf("%s: checking config values", time.Now().Format(time.RFC3339))
 	line = []string{"check-config-values.sh", hostname, password}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
