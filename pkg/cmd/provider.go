@@ -6,6 +6,7 @@ import (
 	"os"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -53,7 +54,7 @@ func discoverBestProvider(ctx context.Context) *defaults.Provider {
 	}
 
 	// Otherwise, fall back to the filesystem
-	provider, err = defaults.NewProviderFromFilesystem()
+	provider, err = cmdutil.NewProviderFromFilesystem()
 	if err == nil {
 		return provider
 	}
@@ -79,7 +80,7 @@ func getProviderFromCluster(ctx context.Context) (*defaults.Provider, error) {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	provider, err := defaults.NewProviderFromCluster(ctx, kcli)
+	provider, err := cmdutil.NewProviderFromCluster(ctx, kcli)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get config from cluster: %w", err)
 	}
