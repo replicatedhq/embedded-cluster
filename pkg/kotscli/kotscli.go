@@ -366,7 +366,3 @@ func CreateHostSupportBundle() error {
 
 	return nil
 }
-
-type ConfirmManagementOptions struct {
-	Namespace string
-}
