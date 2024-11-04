@@ -2363,12 +2363,18 @@ func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                       t,
 		Nodes:                   1,
-		Image:                   "debian/12",
+		Image:                   "almalinux-8",
 		WithProxy:               true,
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
 	defer tc.Cleanup()
+
+	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
+	line := []string{"yum-install-tar.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	}
 
 	// delete airgap bundles once they've been copied to the nodes
 	if err := os.Remove(airgapInstallBundlePath); err != nil {
@@ -2382,7 +2388,7 @@ func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
-	line := []string{"airgap-prepare.sh"}
+	line = []string{"airgap-prepare.sh"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
