@@ -4,13 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -68,14 +66,9 @@ func TestUpdateAirgapCurrent(t *testing.T) {
 	})
 
 	// --- validate commands --- //
-	found := false
-	for _, c := range dr.Commands {
-		if strings.Contains(c.Cmd, "airgap-update fake-app-slug") {
-			assert.Contains(t, c.Cmd, "airgap-update fake-app-slug --namespace kotsadm --airgap-bundle ./assets/bundle.airgap")
-			found = true
-		}
-	}
-	require.True(t, found, "unable to find kubectl-kots airgap-update command")
+	assertCommands(t, dr.Commands, []interface{}{
+		"airgap-update fake-app-slug --namespace kotsadm --airgap-bundle ./assets/bundle.airgap",
+	})
 }
 
 // TestUpdateAirgapPreFS tests the update command with a filesystem equivalent to a version before
@@ -128,14 +121,9 @@ func TestUpdateAirgapPreFS(t *testing.T) {
 	})
 
 	// --- validate commands --- //
-	found := false
-	for _, c := range dr.Commands {
-		if strings.Contains(c.Cmd, "airgap-update fake-app-slug") {
-			assert.Contains(t, c.Cmd, "airgap-update fake-app-slug --namespace kotsadm --airgap-bundle ./assets/bundle.airgap")
-			found = true
-		}
-	}
-	require.True(t, found, "unable to find kubectl-kots airgap-update command")
+	assertCommands(t, dr.Commands, []interface{}{
+		"airgap-update fake-app-slug --namespace kotsadm --airgap-bundle ./assets/bundle.airgap",
+	})
 }
 
 func updateCmdSetupFilesystem(t *testing.T, root, k0s string) {

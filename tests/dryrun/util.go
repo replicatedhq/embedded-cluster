@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -157,6 +159,38 @@ func assertEnv(t *testing.T, actual, expected map[string]string) {
 	for expectedKey, expectedValue := range expected {
 		assert.Equal(t, expectedValue, actual[expectedKey])
 	}
+}
+
+func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []interface{}) {
+	for _, exp := range expected {
+		found := false
+		for i, a := range actual {
+			switch c := exp.(type) {
+			case string:
+				if strings.Contains(a.Cmd, c) {
+					found = true
+					actual = append(actual[:i], actual[i+1:]...)
+					break
+				}
+			case *regexp.Regexp:
+				if c.MatchString(a.Cmd) {
+					found = true
+					actual = append(actual[:i], actual[i+1:]...)
+					break
+				}
+			default:
+				t.Fatalf("unexpected command type %T", c)
+			}
+		}
+		if !found {
+			t.Errorf("expected command %v not found", exp)
+		}
+	}
+
+	// TODO
+	// if len(actual) > 0 {
+	// 	t.Errorf("unexpected commands: %v", actual)
+	// }
 }
 
 func assertConfigMapExists(t *testing.T, kcli client.Client, name string, namespace string) {
