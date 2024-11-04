@@ -2413,9 +2413,12 @@ spec:
 	if err != nil {
 		t.Fatalf("fail to create config values file directory: %v", err)
 	}
-	_, _, err = tc.RunCommandOnNode(0, []string{"echo", "'" + configValuesFileB64 + "'", "|", "base64", "-d", ">", "/assets/config-values.yaml"})
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"echo", "'" + configValuesFileB64 + "'", "|", "base64", "-d", ">", "/assets/config-values.yaml"})
 	if err != nil {
 		t.Fatalf("fail to create config values file: %v", err)
+	} else {
+		t.Logf("%s: config values file created stdout: %s", time.Now().Format(time.RFC3339), stdout)
+		t.Logf("%s: config values file created stderr: %s", time.Now().Format(time.RFC3339), stderr)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
