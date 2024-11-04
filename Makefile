@@ -202,6 +202,16 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/fio \
 	pkg/goods/internal/bins/kubectl-kots
 
+.PHONY: static-dryrun
+static-dryrun:
+	@mkdir -p pkg/goods/bins pkg/goods/internal/bins
+	@touch pkg/goods/bins/k0s \
+		pkg/goods/bins/kubectl-preflight \
+		pkg/goods/bins/kubectl-support_bundle \
+		pkg/goods/bins/local-artifact-mirror \
+		pkg/goods/bins/fio \
+		pkg/goods/internal/bins/kubectl-kots
+
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: export OS = linux
 embedded-cluster-linux-amd64: export ARCH = amd64
@@ -249,6 +259,10 @@ e2e-tests: embedded-release
 .PHONY: e2e-test
 e2e-test:
 	go test -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
+
+.PHONY: dryrun-tests
+dryrun-tests: static-dryrun
+	@./scripts/dryrun-tests.sh
 
 .PHONY: build-ttl.sh
 build-ttl.sh:
@@ -306,6 +320,7 @@ create-node%:
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
+		$(if $(filter node0,node$*),-p 30003:30003) \
 		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*

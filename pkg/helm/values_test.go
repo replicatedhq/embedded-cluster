@@ -79,3 +79,111 @@ func TestSetValue(t *testing.T) {
 		})
 	}
 }
+
+func TestGetValue(t *testing.T) {
+	type args struct {
+		values map[string]interface{}
+		path   string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    interface{}
+		wantErr bool
+	}{
+		{
+			name: "get value",
+			args: args{
+				values: map[string]interface{}{
+					"foo": "bar",
+				},
+				path: "foo",
+			},
+			want: "bar",
+		},
+		{
+			name: "get value from array",
+			args: args{
+				values: map[string]interface{}{
+					"foo": []interface{}{"bar", "baz"},
+				},
+				path: "foo[0]",
+			},
+			want: "bar",
+		},
+		{
+			name: "get value from nested map",
+			args: args{
+				values: map[string]interface{}{
+					"foo": map[string]interface{}{
+						"bar": "baz",
+					},
+				},
+				path: "foo.bar",
+			},
+			want: "baz",
+		},
+		{
+			name: "get value from nested array",
+			args: args{
+				values: map[string]interface{}{
+					"foo": []interface{}{
+						map[string]interface{}{
+							"bar": []interface{}{
+								"baz",
+							},
+						},
+					},
+				},
+				path: "foo[0].bar[0]",
+			},
+			want: "baz",
+		},
+		{
+			name: "get value from missing map",
+			args: args{
+				values: map[string]interface{}{
+					"foo": map[string]interface{}{
+						"bar": "baz",
+					},
+				},
+				path: "foo.bar.baz",
+			},
+			wantErr: true,
+		},
+		{
+			name: "get value for key with hyphen",
+			args: args{
+				values: map[string]interface{}{
+					"foo-bar": "baz",
+				},
+				path: "['foo-bar']",
+			},
+			want: "baz",
+		},
+		{
+			name: "get value for nested key with hyphen",
+			args: args{
+				values: map[string]interface{}{
+					"foo": map[string]interface{}{
+						"bar-baz": "baz",
+					},
+				},
+				path: "foo['bar-baz']",
+			},
+			want: "baz",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetValue(tt.args.values, tt.args.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetValue() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetValue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

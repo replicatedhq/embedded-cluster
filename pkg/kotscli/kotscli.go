@@ -87,7 +87,7 @@ func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.Mess
 	defer msg.SetLineBreaker(nil)
 
 	runCommandOptions := helpers.RunCommandOptions{
-		Writer: msg,
+		Stdout: msg,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},
@@ -148,7 +148,7 @@ func AirgapUpdate(provider *defaults.Provider, opts AirgapUpdateOptions) error {
 
 	loading := spinner.Start(spinner.WithMask(maskfn), spinner.WithLineBreaker(lbreakfn))
 	runCommandOptions := helpers.RunCommandOptions{
-		Writer: loading,
+		Stdout: loading,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": metrics.ClusterID().String(),
 		},

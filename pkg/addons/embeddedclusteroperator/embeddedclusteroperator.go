@@ -6,7 +6,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -167,6 +166,10 @@ func (e *EmbeddedClusterOperator) createVersionMetadataConfigmap(ctx context.Con
 	// the result as a suffix for the config map name.
 	slugver := slug.Make(strings.TrimPrefix(versions.Version, "v"))
 	configmap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("version-metadata-%s", slugver),
 			Namespace: e.namespace,
@@ -256,6 +259,10 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 	}
 
 	installation := ecv1beta1.Installation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: ecv1beta1.GroupVersion.String(),
+			Kind:       "Installation",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: time.Now().Format("20060102150405"),
 			Labels: map[string]string{
@@ -282,13 +289,8 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 	}
 
 	// we wait for the installation to exist here because items do not show up in the apiserver instantaneously after being created
-	gotInstallation, err := waitForInstallationToExist(ctx, cli, installation.Name)
-	if err != nil {
-		return fmt.Errorf("unable to wait for installation to exist: %w", err)
-	}
-	gotInstallation.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
-	if err := cli.Status().Update(ctx, gotInstallation); err != nil {
-		return fmt.Errorf("unable to update installation status: %w", err)
+	if err := kubeutils.WaitAndMarkInstallation(ctx, cli, installation.Name, ecv1beta1.InstallationStateKubernetesInstalled); err != nil {
+		return fmt.Errorf("unable to wait and mark installation: %w", err)
 	}
 
 	return nil
@@ -342,19 +344,4 @@ func k0sConfigToNetworkSpec(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.Network
 	}
 
 	return network
-}
-
-func waitForInstallationToExist(ctx context.Context, cli client.Client, name string) (*ecv1beta1.Installation, error) {
-	for i := 0; i < 20; i++ {
-		in, err := kubeutils.GetInstallation(ctx, cli, name)
-		if err != nil {
-			if !errors.Is(err, kubeutils.ErrNoInstallations{}) {
-				return nil, fmt.Errorf("unable to get installation: %w", err)
-			}
-		} else {
-			return in, nil
-		}
-		time.Sleep(time.Second)
-	}
-	return nil, fmt.Errorf("installation %s not found after 20 seconds", name)
 }

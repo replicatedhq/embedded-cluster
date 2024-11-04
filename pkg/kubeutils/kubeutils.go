@@ -2,7 +2,9 @@ package kubeutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"sort"
 	"time"
@@ -19,7 +21,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
+
+type KubeUtils struct{}
+
+var _ KubeUtilsInterface = (*KubeUtils)(nil)
 
 type ErrNoInstallations struct{}
 
@@ -44,12 +53,12 @@ func BackOffToDuration(backoff wait.Backoff) time.Duration {
 	return total
 }
 
-func WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
+func (k *KubeUtils) WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := IsNamespaceReady(ctx, cli, ns)
+			ready, err := k.IsNamespaceReady(ctx, cli, ns)
 			if err != nil {
 				lasterr = fmt.Errorf("unable to get namespace %s status: %v", ns, err)
 				return false, nil
@@ -67,12 +76,12 @@ func WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
 }
 
 // WaitForDeployment waits for the provided deployment to be ready.
-func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) error {
+func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := IsDeploymentReady(ctx, cli, ns, name)
+			ready, err := k.IsDeploymentReady(ctx, cli, ns, name)
 			if err != nil {
 				lasterr = fmt.Errorf("unable to get deploy %s status: %v", name, err)
 				return false, nil
@@ -90,12 +99,12 @@ func WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) 
 }
 
 // WaitForDaemonset waits for the provided daemonset to be ready.
-func WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) error {
+func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := IsDaemonsetReady(ctx, cli, ns, name)
+			ready, err := k.IsDaemonsetReady(ctx, cli, ns, name)
 			if err != nil {
 				lasterr = fmt.Errorf("unable to get daemonset %s status: %v", name, err)
 				return false, nil
@@ -112,7 +121,7 @@ func WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) e
 	return nil
 }
 
-func WaitForService(ctx context.Context, cli client.Client, ns, name string) error {
+func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, name string) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -135,7 +144,7 @@ func WaitForService(ctx context.Context, cli client.Client, ns, name string) err
 	return nil
 }
 
-func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
+func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
 	backoff := wait.Backoff{Steps: 60 * 5, Duration: time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 
@@ -340,7 +349,7 @@ func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv
 	}
 }
 
-func WaitForHAInstallation(ctx context.Context, cli client.Client) error {
+func (k *KubeUtils) WaitForHAInstallation(ctx context.Context, cli client.Client) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -369,7 +378,7 @@ func CheckConditionStatus(inStat embeddedclusterv1beta1.InstallationStatus, cond
 	return ""
 }
 
-func WaitForNodes(ctx context.Context, cli client.Client) error {
+func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -400,7 +409,7 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 }
 
 // WaitForControllerNode waits for a specific controller node to be registered with the cluster.
-func WaitForControllerNode(ctx context.Context, kcli client.Client, name string) error {
+func (k *KubeUtils) WaitForControllerNode(ctx context.Context, kcli client.Client, name string) error {
 	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -433,12 +442,12 @@ func WaitForControllerNode(ctx context.Context, kcli client.Client, name string)
 }
 
 // WaitForJob waits for a job to have a certain number of completions.
-func WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxSteps int, completions int32) error {
+func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxSteps int, completions int32) error {
 	backoff := wait.Backoff{Steps: maxSteps, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := IsJobComplete(ctx, cli, ns, name, completions)
+			ready, err := k.IsJobComplete(ctx, cli, ns, name, completions)
 			if err != nil {
 				lasterr = fmt.Errorf("unable to get job status: %w", err)
 				return false, nil
@@ -455,7 +464,7 @@ func WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxStep
 	return nil
 }
 
-func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
+func (k *KubeUtils) IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
 	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {
 		return false, err
@@ -464,7 +473,7 @@ func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, 
 }
 
 // IsDeploymentReady returns true if the deployment is ready.
-func IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
+func (k *KubeUtils) IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var deploy appsv1.Deployment
 	nsn := types.NamespacedName{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &deploy); err != nil {
@@ -477,7 +486,7 @@ func IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) 
 }
 
 // IsStatefulSetReady returns true if the statefulset is ready.
-func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
+func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var statefulset appsv1.StatefulSet
 	nsn := types.NamespacedName{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &statefulset); err != nil {
@@ -490,7 +499,7 @@ func IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string)
 }
 
 // IsDaemonsetReady returns true if the daemonset is ready.
-func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
+func (k *KubeUtils) IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
 	var daemonset appsv1.DaemonSet
 	nsn := types.NamespacedName{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &daemonset); err != nil {
@@ -503,7 +512,7 @@ func IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (
 }
 
 // IsJobComplete returns true if the job has been completed successfully.
-func IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
+func (k *KubeUtils) IsJobComplete(ctx context.Context, cli client.Client, ns, name string, completions int32) (bool, error) {
 	var job batchv1.Job
 	nsn := types.NamespacedName{Namespace: ns, Name: name}
 	if err := cli.Get(ctx, nsn, &job); err != nil {
@@ -517,7 +526,7 @@ func IsJobComplete(ctx context.Context, cli client.Client, ns, name string, comp
 
 // WaitForKubernetes waits for all deployments to be ready in kube-system, and returns an error channel.
 // if either of them fails to become healthy, an error is returned via the channel.
-func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
+func (k *KubeUtils) WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
 	errch := make(chan error, 1)
 
 	// wait until there is at least one deployment in kube-system
@@ -538,7 +547,7 @@ func WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error {
 
 	for _, dep := range deps.Items {
 		go func(depName string) {
-			err := WaitForDeployment(ctx, cli, "kube-system", depName)
+			err := k.WaitForDeployment(ctx, cli, "kube-system", depName)
 			if err != nil {
 				errch <- fmt.Errorf("%s failed to become healthy: %w", depName, err)
 			}
@@ -559,4 +568,36 @@ func NumOfControlPlaneNodes(ctx context.Context, cli client.Client) (int, error)
 		return 0, err
 	}
 	return len(nodes.Items), nil
+}
+
+func (k *KubeUtils) WaitAndMarkInstallation(ctx context.Context, cli client.Client, name string, state string) error {
+	for i := 0; i < 20; i++ {
+		in, err := GetInstallation(ctx, cli, name)
+		if err != nil {
+			if !errors.Is(err, ErrNoInstallations{}) {
+				return fmt.Errorf("unable to get installation: %w", err)
+			}
+		} else {
+			in.Status.State = state
+			if err := cli.Status().Update(ctx, in); err != nil {
+				return fmt.Errorf("unable to update installation status: %w", err)
+			}
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("installation %s not found after 20 seconds", name)
+}
+
+// KubeClient returns a new kubernetes client.
+func (k *KubeUtils) KubeClient() (client.Client, error) {
+	k8slogger := zap.New(func(o *zap.Options) {
+		o.DestWriter = io.Discard
+	})
+	log.SetLogger(k8slogger)
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
+	}
+	return client.New(cfg, client.Options{})
 }

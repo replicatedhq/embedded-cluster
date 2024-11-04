@@ -9,7 +9,7 @@ import (
 )
 
 // IsSystemdServiceActive checks if a systemd service is active or not.
-func IsSystemdServiceActive(ctx context.Context, svcname string) (bool, error) {
+func (h *Helpers) IsSystemdServiceActive(ctx context.Context, svcname string) (bool, error) {
 	conn, err := dbus.NewSystemConnectionContext(ctx)
 	if err != nil {
 		return false, fmt.Errorf("unable to establish connection to systemd: %w", err)
