@@ -9,10 +9,10 @@ version: 1.120.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console
 images:
     kotsadm:
-        repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
+        repo: ttl.sh/automated-11614003868/kotsadm
         tag:
-            amd64: v1.120.0-amd64@sha256:4538a281a43f95f2b2dad534cfbf0b8493faa29c2959684ee7429eb04c7e79bb
-            arm64: v1.120.0-arm64@sha256:150ce42b94ad2720aecb07b2c890962ffe5875531111b8f18d083a280369f6ce
+            amd64: 24h
+            arm64: 24h
     kotsadm-migrations:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
         tag:
