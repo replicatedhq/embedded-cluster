@@ -2324,7 +2324,7 @@ spec:
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion, hostname}
+	testArgs := []string{appUpgradeVersion, "", hostname}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
@@ -2453,7 +2453,7 @@ spec:
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion, hostname}
+	testArgs := []string{appUpgradeVersion, "", hostname}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if _, _, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
