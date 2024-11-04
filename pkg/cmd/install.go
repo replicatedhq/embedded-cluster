@@ -899,13 +899,14 @@ func getAddonsApplier(c *cli.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}
 
-	if c.String("config-values") != "" {
-		err := configutils.ValidateKotsConfigValues(c.String("config-values"))
+	configValuesFile := c.String("config-values")
+	if configValuesFile != "" {
+		err := configutils.ValidateKotsConfigValues(configValuesFile)
 		if err != nil {
-			return nil, fmt.Errorf("unable to validate config values file: %w", err)
+			return nil, fmt.Errorf("unable to validate config values file %q: %w", configValuesFile, err)
 		}
 
-		opts = append(opts, addons.WithConfigValuesFile(c.String("config-values")))
+		opts = append(opts, addons.WithConfigValuesFile(configValuesFile))
 	}
 
 	return addons.NewApplier(opts...), nil
