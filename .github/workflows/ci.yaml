@@ -599,31 +599,31 @@ jobs:
       matrix:
         test:
           - TestVersion
-#          - TestCommandsRequireSudo
-#          - TestResetAndReinstallAirgap
+          - TestCommandsRequireSudo
+          - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeConfigValues
-#          - TestSingleNodeAirgapUpgradeCustomCIDR
-#          - TestSingleNodeDisasterRecoveryWithProxy
-#          - TestProxiedEnvironment
-#          - TestProxiedCustomCIDR
-#          - TestInstallWithPrivateCAs
-#          - TestInstallWithMITMProxy
-#        include:
-#          - test: TestMultiNodeAirgapUpgrade
-#            runner: embedded-cluster
-#          - test: TestMultiNodeAirgapUpgradeSameK0s
-#            runner: embedded-cluster
-#          - test: TestAirgapUpgradeFromEC18
-#            runner: embedded-cluster
-#          - test: TestSingleNodeAirgapDisasterRecovery
-#            runner: embedded-cluster
-#          - test: TestMultiNodeAirgapHAInstallation
-#            runner: embedded-cluster
-#          - test: TestMultiNodeAirgapHADisasterRecovery
-#            runner: embedded-cluster
-#          - test: TestFiveNodesAirgapUpgrade
-#            runner: embedded-cluster
+          - TestSingleNodeAirgapUpgradeCustomCIDR
+          - TestSingleNodeDisasterRecoveryWithProxy
+          - TestProxiedEnvironment
+          - TestProxiedCustomCIDR
+          - TestInstallWithPrivateCAs
+          - TestInstallWithMITMProxy
+        include:
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgradeSameK0s
+            runner: embedded-cluster
+          - test: TestAirgapUpgradeFromEC18
+            runner: embedded-cluster
+          - test: TestSingleNodeAirgapDisasterRecovery
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapHADisasterRecovery
+            runner: embedded-cluster
+          - test: TestFiveNodesAirgapUpgrade
+            runner: embedded-cluster
     steps:
       - name: Checkout
         uses: actions/checkout@v4
