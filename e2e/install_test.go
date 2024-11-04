@@ -2324,7 +2324,7 @@ spec:
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	testArgs := []string{appUpgradeVersion, hostname}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
@@ -2338,7 +2338,7 @@ spec:
 	}
 
 	t.Logf("%s: checking config values after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-config-values.sh", hostname, password}
+	line = []string{"check-config-values.sh", "updated-hostname.com", "updated password"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
 	} else {
