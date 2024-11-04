@@ -1,15 +1,11 @@
 package defaults
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/sirupsen/logrus"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NewProvider returns a new Provider using the provided data dir.
@@ -27,46 +23,6 @@ func NewProviderFromRuntimeConfig(runtimeConfig *ecv1beta1.RuntimeConfigSpec) *P
 		runtimeConfig: runtimeConfig,
 	}
 	return obj
-}
-
-// NewProviderFromCluster discovers the provider from the installation object. If there is no
-// runtime config, this is probably a prior version of EC so we will have to fall back to the
-// filesystem.
-func NewProviderFromCluster(ctx context.Context, cli client.Client) (*Provider, error) {
-	in, err := kubeutils.GetLatestInstallation(ctx, cli)
-	if err != nil {
-		return nil, fmt.Errorf("get latest installation: %w", err)
-	}
-
-	if in.Spec.RuntimeConfig == nil {
-		// If there is no runtime config, this is probably a prior version of EC so we will have to
-		// fall back to the filesystem.
-		return NewProviderFromFilesystem()
-	}
-	return NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig), nil
-}
-
-// NewProviderFromFilesystem returns a new provider from the filesystem. It supports older versions
-// of EC that used a different directory for k0s and openebs.
-func NewProviderFromFilesystem() (*Provider, error) {
-	provider := NewProvider(ecv1beta1.DefaultDataDir)
-	// ca.crt is available on both control plane and worker nodes
-	_, err := os.Stat(filepath.Join(provider.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
-	if err == nil {
-		return provider, nil
-	}
-	// Handle versions prior to consolidation of data dirs
-	provider = NewProviderFromRuntimeConfig(&ecv1beta1.RuntimeConfigSpec{
-		DataDir:                ecv1beta1.DefaultDataDir,
-		K0sDataDirOverride:     "/var/lib/k0s",
-		OpenEBSDataDirOverride: "/var/openebs",
-	})
-	// ca.crt is available on both control plane and worker nodes
-	_, err = os.Stat(filepath.Join(provider.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
-	if err == nil {
-		return provider, nil
-	}
-	return nil, fmt.Errorf("unable to discover provider from filesystem")
 }
 
 // Provider is an entity that provides default values used during

@@ -59,6 +59,21 @@ jobs:
         run: |
           make unit-tests
 
+  dryrun-tests:
+    name: Dryrun tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Dryrun tests
+        run: |
+          make dryrun-tests
+
   check-operator-crds:
     name: Check operator CRDs
     runs-on: ubuntu-latest
