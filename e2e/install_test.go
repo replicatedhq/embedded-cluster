@@ -2407,7 +2407,7 @@ spec:
 	if err != nil {
 		t.Fatalf("fail to create config values file directory: %v", err)
 	}
-	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"echo", "'" + configValuesFileB64 + "'", "|", "base64", "-d", ">", "/assets/config-values.yaml"})
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sh", "-c", "echo '" + configValuesFileB64 + "' | base64 -d > /assets/config-values.yaml"})
 	if err != nil {
 		t.Fatalf("fail to create config values file: %v", err)
 	} else {
