@@ -601,7 +601,8 @@ jobs:
           - TestVersion
 #          - TestCommandsRequireSudo
 #          - TestResetAndReinstallAirgap
-#          - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeConfigValues
 #          - TestSingleNodeAirgapUpgradeCustomCIDR
 #          - TestSingleNodeDisasterRecoveryWithProxy
 #          - TestProxiedEnvironment
