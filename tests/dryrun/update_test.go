@@ -16,7 +16,9 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestUpdateAirgapNewFS(t *testing.T) {
+// TestUpdateAirgapCurrent tests the update command with a filesystem equivalent to the current
+// version.
+func TestUpdateAirgapCurrent(t *testing.T) {
 	updateCmdSetupFilesystem(t, "/var/lib/embedded-cluster", "/var/lib/embedded-cluster/k0s")
 
 	k0sClient := &dryrun.K0sClient{}
@@ -76,6 +78,8 @@ func TestUpdateAirgapNewFS(t *testing.T) {
 	require.True(t, found, "unable to find kubectl-kots airgap-update command")
 }
 
+// TestUpdateAirgapPreFS tests the update command with a filesystem equivalent to a version before
+// the data directories were consolidated under /var/lib/embedded-cluster.
 func TestUpdateAirgapPreFS(t *testing.T) {
 	updateCmdSetupFilesystem(t, "/var/lib/embedded-cluster", "/var/lib/k0s")
 
