@@ -9,7 +9,7 @@ version: 1.120.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/admin-console
 images:
     kotsadm:
-        repo: ttl.sh/automated-11614003868/kotsadm
+        repo: ttl.sh/laverya/kotsadm
         tag:
             amd64: 24h
             arm64: 24h
