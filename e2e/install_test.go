@@ -2286,10 +2286,10 @@ func TestInstallWithConfigValues(t *testing.T) {
 apiVersion: kots.io/v1beta1
 kind: ConfigValues
 spec:
-  configValues:
-    - name: hostname
+  values:
+    hostname:
       value: %s
-    - name: pw
+    pw:
       value: %s
 `, hostname, password)
 	configValuesFileB64 := base64.StdEncoding.EncodeToString([]byte(configValuesFileContent))
