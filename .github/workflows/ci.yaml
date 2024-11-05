@@ -255,6 +255,22 @@ jobs:
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
+  build-previous-stable:
+    name: Build previous stable
+    runs-on: embedded-cluster
+    needs:
+      - git-sha
+    outputs:
+      k0s_version: ${{ steps.export.outputs.k0s_version }}
+    steps:
+      - name: Export k0s version
+        id: export
+        run: |
+          gh release download --pattern 'metadata.json'
+          K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
+          echo "K0S_VERSION=\"$K0S_VERSION\""
+          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+
   build-upgrade:
     name: Build upgrade
     runs-on: embedded-cluster
@@ -406,6 +422,7 @@ jobs:
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI
           USES_DEV_BUCKET: "0"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
 
@@ -417,6 +434,12 @@ jobs:
           export APP_VERSION="appver-${SHORT_SHA}-1.8.0-k8s-1.28"
           replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
           replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
+
+          # promote a release containing the previous stable version of embedded-cluster to test upgrades
+          export EC_VERSION="$(gh release list --json name,isLatest --jq '.[] | select(.isLatest)|.name')"
+          export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-stable
+          ./scripts/ci-release-app.sh
 
           # install the previous k0s version to ensure an upgrade occurs
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
@@ -505,6 +528,7 @@ jobs:
       - build-current
       - build-previous-k0s
       - build-upgrade
+      - build-previous-stable
       - release-app
     strategy:
       fail-fast: false
@@ -519,6 +543,7 @@ jobs:
           - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
+          - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
           - TestInstallWithoutEmbed
@@ -578,6 +603,7 @@ jobs:
           DR_AWS_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.build-previous-stable.outputs.k0s_version }}
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
@@ -593,6 +619,7 @@ jobs:
       - build-current
       - build-previous-k0s
       - build-upgrade
+      - build-previous-stable
       - release-app
       - export-version-specifier
     strategy:
@@ -613,6 +640,8 @@ jobs:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
           - test: TestMultiNodeAirgapUpgradeSameK0s
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgradePreviousStable
             runner: embedded-cluster
           - test: TestAirgapUpgradeFromEC18
             runner: embedded-cluster
@@ -647,6 +676,7 @@ jobs:
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-current.outputs.k0s_version }}
           k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          k0s-version-previous-stable: ${{ needs.build-previous-stable.outputs.k0s_version }}
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
 
   # this job will validate that all the tests passed
