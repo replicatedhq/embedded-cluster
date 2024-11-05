@@ -508,34 +508,34 @@ jobs:
       fail-fast: false
       matrix:
         test:
-#          - TestPreflights
-#          - TestMaterialize
-#          - TestHostPreflightCustomSpec
-#          - TestHostPreflightInBuiltSpec
+          - TestPreflights
+          - TestMaterialize
+          - TestHostPreflightCustomSpec
+          - TestHostPreflightInBuiltSpec
           - TestSingleNodeInstallation
-#          - TestSingleNodeInstallationAlmaLinux8
-#          - TestSingleNodeInstallationDebian11
-#          - TestSingleNodeInstallationDebian12
-#          - TestSingleNodeInstallationCentos9Stream
-#          - TestInstallFromReplicatedApp
-#          - TestUpgradeFromReplicatedApp
-#          - TestInstallWithoutEmbed
-#          - TestUpgradeEC18FromReplicatedApp
-#          - TestResetAndReinstall
-#          - TestOldVersionUpgrade
-#          - TestInstallSnapshotFromReplicatedApp
-#          - TestMultiNodeInstallation
-#          - TestMultiNodeHAInstallation
-#          - TestSingleNodeDisasterRecovery
-#          - TestSingleNodeResumeDisasterRecovery
-#          - TestMultiNodeHADisasterRecovery
-#          - TestSingleNodeInstallationNoopUpgrade
-#          - TestCustomCIDR
-#          - TestLocalArtifactMirror
-#          - TestMultiNodeReset
-#          - TestCollectSupportBundle
-#          - TestUnsupportedOverrides
-#          - TestHostCollectSupportBundleInCluster
+          - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos9Stream
+          - TestInstallFromReplicatedApp
+          - TestUpgradeFromReplicatedApp
+          - TestInstallWithoutEmbed
+          - TestUpgradeEC18FromReplicatedApp
+          - TestResetAndReinstall
+          - TestOldVersionUpgrade
+          - TestInstallSnapshotFromReplicatedApp
+          - TestMultiNodeInstallation
+          - TestMultiNodeHAInstallation
+          - TestSingleNodeDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
+          - TestMultiNodeHADisasterRecovery
+          - TestSingleNodeInstallationNoopUpgrade
+          - TestCustomCIDR
+          - TestLocalArtifactMirror
+          - TestMultiNodeReset
+          - TestCollectSupportBundle
+          - TestUnsupportedOverrides
+          - TestHostCollectSupportBundleInCluster
           - TestInstallWithConfigValues
     steps:
       - name: Checkout
