@@ -71,6 +71,15 @@ func k8sVersionPrevious() string {
 	return verParts[0]
 }
 
+func k8sVersionPreviousStable() string {
+	// split the version string (like 'v1.29.6+k0s.0') into the k8s version and the k0s revision
+	verParts := strings.Split(os.Getenv("EXPECT_K0S_VERSION_PREVIOUS_STABLE"), "+")
+	if len(verParts) < 2 {
+		panic(fmt.Sprintf("failed to parse previous stable k8s version %q", os.Getenv("EXPECT_K0S_VERSION_PREVIOUS_STABLE")))
+	}
+	return verParts[0]
+}
+
 func runInParallel(t *testing.T, fns ...func(t *testing.T) error) {
 	runInParallelOffset(t, time.Duration(0), fns...)
 }
