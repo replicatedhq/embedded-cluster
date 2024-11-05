@@ -104,11 +104,12 @@ func shouldUseMetadataService() bool {
 		logrus.Errorf("Unable to create metadata request: %v", err)
 		return false
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	resp.Body.Close()
 
 	return true
 }
