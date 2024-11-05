@@ -268,9 +268,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
+          k0s_majmin_version="$(make print-K0S_VERSION | sed 's/\+.*//' | sed 's/v//' | sed 's/\.[0-9]*$//')"
+          EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
+            --exclude-drafts --exclude-pre-releases --json name \
+            --jq '.[] | .name' \
+            | grep "k8s-${k0s_majmin_version}" \
+            | head -n1)"
+
+          gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
           K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
+
+          echo "EC_VERSION=\"$EC_VERSION\""
           echo "K0S_VERSION=\"$K0S_VERSION\""
+          echo "ec_version=$EC_VERSION" >> "$GITHUB_OUTPUT"
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
   build-upgrade:
@@ -405,6 +415,7 @@ jobs:
       - build-current
       - build-previous-k0s
       - build-upgrade
+      - build-previous-stable
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -438,7 +449,7 @@ jobs:
           replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
 
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
-          export EC_VERSION="$(gh release list --json name,isLatest --jq '.[] | select(.isLatest)|.name')"
+          export EC_VERSION="{{ needs.build-previous-stable.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
@@ -478,7 +489,7 @@ jobs:
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
 
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
-          export EC_VERSION="$(gh release list --json name,isLatest --jq '.[] | select(.isLatest)|.name')"
+          export EC_VERSION="{{ needs.build-previous-stable.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
