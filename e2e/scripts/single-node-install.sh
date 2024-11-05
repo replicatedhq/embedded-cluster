@@ -84,7 +84,6 @@ main() {
         echo "Failed to install embedded-cluster"
         kubectl get pods -A
         kubectl get storageclass -A
-        kubectl logs -n kotsadm -p -l app=kotsadm
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then

@@ -28,7 +28,6 @@ main() {
     if ! embedded-cluster install --no-prompt --skip-host-preflights $additional_args 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "Failed to install embedded-cluster"
-        kubectl logs -n kotsadm -p -l app=kotsadm
         exit 1
     fi
     if ! grep -q "Admin Console is ready!" /tmp/log; then
