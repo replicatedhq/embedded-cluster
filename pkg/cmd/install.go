@@ -680,17 +680,8 @@ func installCommand() *cli.Command {
 			if c.String("airgap-bundle") != "" {
 				metrics.DisableMetrics()
 			}
-			if drFile := c.String("dry-run"); drFile != "" {
-				dryrun.Init(drFile)
+			if dryrun.Enabled() {
 				dryrun.RecordFlags(c)
-			}
-			return nil
-		},
-		After: func(c *cli.Context) error {
-			if c.String("dry-run") != "" {
-				if err := dryrun.Dump(); err != nil {
-					return fmt.Errorf("unable to dump dry run info: %w", err)
-				}
 			}
 			return nil
 		},
@@ -707,12 +698,6 @@ func installCommand() *cli.Command {
 					Usage: "Path to the air gap bundle. If set, the installation will complete without internet access.",
 				},
 				getDataDirFlagWithDefault(runtimeConfig),
-				&cli.StringFlag{
-					Name:   "dry-run",
-					Usage:  "If set, dry run the installation and output the results to the provided file",
-					Value:  "",
-					Hidden: true,
-				},
 				&cli.StringFlag{
 					Name:    "license",
 					Aliases: []string{"l"},

@@ -8,6 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
@@ -27,6 +28,9 @@ func updateCommand() *cli.Command {
 		Before: func(c *cli.Context) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("update command must be run as root")
+			}
+			if dryrun.Enabled() {
+				dryrun.RecordFlags(c)
 			}
 			return nil
 		},

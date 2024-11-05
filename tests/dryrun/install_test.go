@@ -2,7 +2,7 @@ package dryrun
 
 import (
 	"context"
-	"strings"
+	"regexp"
 	"testing"
 	"time"
 
@@ -21,11 +21,12 @@ func TestDefaultInstallation(t *testing.T) {
 	})
 
 	// --- validate commands --- //
-	for _, c := range dr.Commands {
-		if strings.Contains(c.Cmd, "k0s install controller") {
-			assert.Contains(t, c.Cmd, "--data-dir /var/lib/embedded-cluster/k0s")
-		}
-	}
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile(`k0s install controller .* --data-dir /var/lib/embedded-cluster/k0s`),
+		},
+		false,
+	)
 
 	// --- validate host preflight spec --- //
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
@@ -126,11 +127,12 @@ func TestCustomDataDir(t *testing.T) {
 	})
 
 	// --- validate commands --- //
-	for _, c := range dr.Commands {
-		if strings.Contains(c.Cmd, "k0s install controller") {
-			assert.Contains(t, c.Cmd, "--data-dir /custom/data/dir/k0s")
-		}
-	}
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile(`k0s install controller .* --data-dir /custom/data/dir/k0s`),
+		},
+		false,
+	)
 
 	// --- validate host preflight spec --- //
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {

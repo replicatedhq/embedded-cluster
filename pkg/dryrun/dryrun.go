@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -22,7 +23,14 @@ var (
 	mu     sync.Mutex
 )
 
-func Init(outputFile string) {
+type Client struct {
+	KubeUtils *KubeUtils
+	Helpers   *Helpers
+	Metrics   *Sender
+	K0sClient *K0sClient
+}
+
+func Init(outputFile string, client *Client) {
 	dr = &types.DryRun{
 		Flags:             map[string]interface{}{},
 		Commands:          []types.Command{},
@@ -30,9 +38,25 @@ func Init(outputFile string) {
 		HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
 	}
 	drFile = outputFile
-	kubeutils.Set(&KubeUtils{})
-	helpers.Set(&Helpers{})
-	metrics.Set(&Sender{})
+	if client == nil {
+		client = &Client{}
+	}
+	if client.KubeUtils == nil {
+		client.KubeUtils = &KubeUtils{}
+	}
+	if client.Helpers == nil {
+		client.Helpers = &Helpers{}
+	}
+	if client.Metrics == nil {
+		client.Metrics = &Sender{}
+	}
+	if client.K0sClient == nil {
+		client.K0sClient = &K0sClient{}
+	}
+	kubeutils.Set(client.KubeUtils)
+	helpers.Set(client.Helpers)
+	metrics.Set(client.Metrics)
+	k0s.Set(client.K0sClient)
 }
 
 func Dump() error {
@@ -47,6 +71,19 @@ func Dump() error {
 		return fmt.Errorf("write dry run info to file: %w", err)
 	}
 	return nil
+}
+
+func Load() (*types.DryRun, error) {
+	data, err := os.ReadFile(drFile)
+	if err != nil {
+		return nil, fmt.Errorf("read dry run file: %w", err)
+	}
+
+	dr := &types.DryRun{}
+	if err := yaml.Unmarshal(data, dr); err != nil {
+		return nil, fmt.Errorf("unmarshal dry run file: %w", err)
+	}
+	return dr, nil
 }
 
 func RecordFlags(c *cli.Context) {
