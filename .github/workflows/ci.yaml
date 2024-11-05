@@ -263,6 +263,8 @@ jobs:
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Export k0s version
         id: export
         env:
