@@ -170,7 +170,7 @@ func assertEnv(t *testing.T, actual, expected map[string]string) {
 	}
 }
 
-func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []interface{}) {
+func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []interface{}, assertAll bool) {
 	for _, exp := range expected {
 		found := false
 		for i, a := range actual {
@@ -196,10 +196,9 @@ func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []inter
 		}
 	}
 
-	// TODO
-	// if len(actual) > 0 {
-	// 	t.Errorf("unexpected commands: %v", actual)
-	// }
+	if assertAll && len(actual) > 0 {
+		t.Errorf("unexpected commands: %v", actual)
+	}
 }
 
 func assertConfigMapExists(t *testing.T, kcli client.Client, name string, namespace string) {

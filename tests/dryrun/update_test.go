@@ -68,9 +68,12 @@ func TestUpdateAirgapCurrent(t *testing.T) {
 	})
 
 	// --- validate commands --- //
-	assertCommands(t, dr.Commands, []interface{}{
-		regexp.MustCompile("airgap-update fake-app-slug --namespace kotsadm --airgap-bundle .*/bundle.airgap"),
-	})
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile("airgap-update fake-app-slug --namespace kotsadm --airgap-bundle .*/bundle.airgap"),
+		},
+		true,
+	)
 }
 
 // TestUpdateAirgapPreFS tests the update command with a filesystem equivalent to a version before
@@ -123,9 +126,12 @@ func TestUpdateAirgapPreFS(t *testing.T) {
 	})
 
 	// --- validate commands --- //
-	assertCommands(t, dr.Commands, []interface{}{
-		regexp.MustCompile("airgap-update fake-app-slug --namespace kotsadm --airgap-bundle .*/bundle.airgap"),
-	})
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile("airgap-update fake-app-slug --namespace kotsadm --airgap-bundle .*/bundle.airgap"),
+		},
+		true,
+	)
 }
 
 func updateCmdSetupFilesystem(t *testing.T, root, k0s string) {
