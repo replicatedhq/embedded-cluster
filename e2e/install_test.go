@@ -514,7 +514,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersionPreviousStable()}
+	line = []string{"check-installation-state.sh", fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), k8sVersionPreviousStable()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}

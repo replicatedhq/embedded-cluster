@@ -477,6 +477,12 @@ jobs:
         run: |
           export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
 
+          # promote a release containing the previous stable version of embedded-cluster to test upgrades
+          export EC_VERSION="$(gh release list --json name,isLatest --jq '.[] | select(.isLatest)|.name')"
+          export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-stable
+          ./scripts/ci-release-app.sh
+
           # install the previous k0s version to ensure an upgrade occurs
           export EC_VERSION="$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
           export APP_VERSION="appver-${SHORT_SHA}-previous-k0s"
