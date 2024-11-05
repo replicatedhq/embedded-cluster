@@ -261,6 +261,7 @@ jobs:
     needs:
       - git-sha
     outputs:
+      ec_version: ${{ steps.export.outputs.ec_version }}
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
