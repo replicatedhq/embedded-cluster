@@ -9,6 +9,7 @@ import (
 	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 )
 
@@ -17,7 +18,7 @@ import (
 func discoverKubeconfigPath(ctx context.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec) (string, error) {
 	var kubeconfigPath string
 
-	status, err := getK0sStatus(ctx)
+	status, err := k0s.GetStatus(ctx)
 	if err == nil {
 		kubeconfigPath = status.Vars.AdminKubeConfigPath
 	} else {
@@ -66,7 +67,7 @@ func discoverBestProvider(ctx context.Context) *defaults.Provider {
 // getProviderFromCluster finds the kubeconfig and discovers the provider from the cluster. If this
 // is a prior version of EC, we will have to fall back to the filesystem.
 func getProviderFromCluster(ctx context.Context) (*defaults.Provider, error) {
-	status, err := getK0sStatus(ctx)
+	status, err := k0s.GetStatus(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get k0s status: %w", err)
 	}
