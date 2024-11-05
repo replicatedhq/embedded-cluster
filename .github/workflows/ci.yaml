@@ -268,7 +268,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download --pattern 'metadata.json'
+          gh release --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
           K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
