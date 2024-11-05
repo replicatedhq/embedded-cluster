@@ -20,14 +20,20 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
-//go:embed assets/install-release.yaml
-var releaseData string
+var (
+	//go:embed assets/install-release.yaml
+	releaseData string
+
+	//go:embed assets/install-license.yaml
+	licenseData string
+)
 
 func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 	if err := embedReleaseData(); err != nil {
@@ -37,11 +43,14 @@ func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
 	dryrun.Init(drFile, nil)
 
+	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
+	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
+
 	if err := runEmbeddedClusterCmd(
 		append([]string{
 			"install",
 			"--no-prompt",
-			"--license", "./assets/install-license.yaml",
+			"--license", licenseFile,
 		}, args...)...,
 	); err != nil {
 		t.Fatalf("fail to dryrun install embedded-cluster: %v", err)

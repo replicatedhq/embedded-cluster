@@ -15,6 +15,16 @@ function plog() {
 plog "INFO" "Building test container..." "🔨"
 docker build -q -t ec-dryrun ./tests/dryrun > /dev/null
 
+# Compiling the test binary
+plog "INFO" "Compiling test binary..." "🔨"
+docker run --rm \
+    -v "$(pwd)":/ec \
+    -w /ec \
+    -e GOCACHE=/ec/dev/.gocache \
+    -e GOMODCACHE=/ec/dev/.gomodcache \
+    ec-dryrun \
+    go test -c -o /ec/dev/dryrun.test ./tests/dryrun/...
+
 # Get all test functions
 tests=$(grep -o 'func '"$DRYRUN_MATCH"'[^ (]*' ./tests/dryrun/*.go | awk '{print $2}')
 
@@ -23,13 +33,10 @@ for test in $tests; do
     plog "INFO" "Starting test: $test" "🚀"
     docker rm -f --volumes "$test" > /dev/null 2>&1 || true
     docker run -d \
-        -v "$(pwd)":/ec \
-        -w /ec \
-        -e GOCACHE=/ec/dev/.gocache \
-        -e GOMODCACHE=/ec/dev/.gomodcache \
+        -v "$(pwd)"/dev:/ec/dev \
         --name "$test" \
         ec-dryrun \
-        go test -timeout 5m -v ./tests/dryrun/... -run "^$test$" > /dev/null
+        /ec/dev/dryrun.test -test.timeout 5m -test.v -test.run "^$test$" > /dev/null
 done
 
 plog "INFO" "Waiting for tests to complete..." "⏳"

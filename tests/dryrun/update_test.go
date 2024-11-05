@@ -2,8 +2,10 @@ package dryrun
 
 import (
 	"context"
+	_ "embed"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -56,7 +58,7 @@ func TestUpdateAirgapCurrent(t *testing.T) {
 	}, &ctrlclient.CreateOptions{})
 
 	dr := dryrunUpdate(t,
-		"--airgap-bundle", "./assets/bundle.airgap",
+		"--airgap-bundle", airgapBundleFile(t),
 	)
 
 	// --- validate os env --- //
@@ -67,7 +69,7 @@ func TestUpdateAirgapCurrent(t *testing.T) {
 
 	// --- validate commands --- //
 	assertCommands(t, dr.Commands, []interface{}{
-		"airgap-update fake-app-slug --namespace kotsadm --airgap-bundle ./assets/bundle.airgap",
+		regexp.MustCompile("airgap-update fake-app-slug --namespace kotsadm --airgap-bundle .*/bundle.airgap"),
 	})
 }
 
@@ -111,7 +113,7 @@ func TestUpdateAirgapPreFS(t *testing.T) {
 	}, &ctrlclient.CreateOptions{})
 
 	dr := dryrunUpdate(t,
-		"--airgap-bundle", "./assets/bundle.airgap",
+		"--airgap-bundle", airgapBundleFile(t),
 	)
 
 	// --- validate os env --- //
@@ -122,7 +124,7 @@ func TestUpdateAirgapPreFS(t *testing.T) {
 
 	// --- validate commands --- //
 	assertCommands(t, dr.Commands, []interface{}{
-		"airgap-update fake-app-slug --namespace kotsadm --airgap-bundle ./assets/bundle.airgap",
+		regexp.MustCompile("airgap-update fake-app-slug --namespace kotsadm --airgap-bundle .*/bundle.airgap"),
 	})
 }
 
@@ -135,4 +137,15 @@ func updateCmdSetupFilesystem(t *testing.T, root, k0s string) {
 	require.NoError(t, err)
 	err = os.WriteFile(filepath.Join(k0s, "pki/ca.crt"), []byte("fake-ca-cert"), 0644)
 	require.NoError(t, err)
+}
+
+var (
+	//go:embed assets/bundle.airgap
+	airgapBundle []byte
+)
+
+func airgapBundleFile(t *testing.T) string {
+	bundleAirgapFile := filepath.Join(t.TempDir(), "bundle.airgap")
+	require.NoError(t, os.WriteFile(bundleAirgapFile, airgapBundle, 0644))
+	return bundleAirgapFile
 }
