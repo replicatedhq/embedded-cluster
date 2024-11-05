@@ -66,6 +66,10 @@ func K0sBinaryPath() string {
 // string is returned.
 
 func TryDiscoverPublicIP() string {
+	if !shouldUseMetadataService() {
+		return ""
+	}
+
 	// List of providers and their respective metadata URLs
 	providers := []struct {
 		name string
@@ -75,7 +79,7 @@ func TryDiscoverPublicIP() string {
 			name: "gce",
 			fn: func() string {
 				return makeMetadataRequest(
-					"GET",
+					http.MethodGet,
 					"http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
 					map[string]string{"Metadata-Flavor": "Google"},
 				)
@@ -85,7 +89,7 @@ func TryDiscoverPublicIP() string {
 			name: "ec2",
 			fn: func() string {
 				return makeMetadataRequest(
-					"GET",
+					http.MethodGet,
 					"http://169.254.169.254/latest/meta-data/public-ipv4",
 					nil,
 				)
@@ -95,7 +99,7 @@ func TryDiscoverPublicIP() string {
 			name: "ec2",
 			fn: func() string {
 				token := makeMetadataRequest(
-					"PUT",
+					http.MethodPut,
 					"http://169.254.169.254/latest/api/token",
 					map[string]string{"X-aws-ec2-metadata-token-ttl-seconds": "60"},
 				)
@@ -103,7 +107,7 @@ func TryDiscoverPublicIP() string {
 					return ""
 				}
 				return makeMetadataRequest(
-					"GET",
+					http.MethodGet,
 					"http://169.254.169.254/latest/meta-data/public-ipv4",
 					map[string]string{"X-aws-ec2-metadata-token": token},
 				)
@@ -113,7 +117,7 @@ func TryDiscoverPublicIP() string {
 			name: "azure",
 			fn: func() string {
 				return makeMetadataRequest(
-					"GET",
+					http.MethodGet,
 					"http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text",
 					map[string]string{"Metadata": "true"},
 				)
@@ -130,15 +134,49 @@ func TryDiscoverPublicIP() string {
 	return ""
 }
 
-func makeMetadataRequest(method string, u string, headers map[string]string) string {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = nil // no proxy
+var (
+	noProxyTransport *http.Transport
+)
+
+func init() {
+	noProxyTransport = http.DefaultTransport.(*http.Transport).Clone()
+	noProxyTransport.Proxy = nil // no proxy
+}
+
+// shouldUseMetadataService returns true if the metadata service is available and responds with any
+// status code. This is needed to speed up a failure in an air gapped environment where the request
+// may timeout.
+func shouldUseMetadataService() bool {
 	client := &http.Client{
-		Timeout:   5 * time.Second,
-		Transport: transport,
+		Timeout:   2 * time.Second,
+		Transport: noProxyTransport,
 	}
 
-	req, _ := http.NewRequest(method, u, nil)
+	req, err := http.NewRequest(http.MethodGet, "http://169.254.169.254", nil)
+	if err != nil {
+		logrus.Errorf("Unable to create metadata request: %v", err)
+		return false
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	return true
+}
+
+func makeMetadataRequest(method string, u string, headers map[string]string) string {
+	client := &http.Client{
+		Timeout:   2 * time.Second,
+		Transport: noProxyTransport,
+	}
+
+	req, err := http.NewRequest(method, u, nil)
+	if err != nil {
+		logrus.Errorf("Unable to create metadata request: %v", err)
+		return ""
+	}
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
