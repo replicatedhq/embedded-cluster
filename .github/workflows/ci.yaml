@@ -274,6 +274,11 @@ jobs:
             --jq '.[] | .name' \
             | grep "k8s-${k0s_majmin_version}" \
             | head -n1)"
+          # If we have a new version of k0s in this branch, use the latest in the previous stable release
+          if [ -z "$EC_VERSION" ]; then
+            EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster --json name,isLatest \
+              --jq '.[] | select(.isLatest) | .name')"
+          fi
 
           gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
           K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
