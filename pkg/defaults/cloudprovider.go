@@ -26,68 +26,60 @@ func TryDiscoverPublicIP() string {
 		return ""
 	}
 
-	// List of providers and their respective metadata URLs
-	providers := []struct {
-		name string
-		fn   func() string
-	}{
-		{
-			name: "gce",
-			fn: func() string {
-				return makeMetadataRequest(
-					http.MethodGet,
-					"http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
-					map[string]string{"Metadata-Flavor": "Google"},
-				)
-			},
-		},
-		{
-			name: "ec2",
-			fn: func() string {
-				return makeMetadataRequest(
-					http.MethodGet,
-					"http://169.254.169.254/latest/meta-data/public-ipv4",
-					nil,
-				)
-			},
-		},
-		{
-			name: "ec2",
-			fn: func() string {
-				token := makeMetadataRequest(
-					http.MethodPut,
-					"http://169.254.169.254/latest/api/token",
-					map[string]string{"X-aws-ec2-metadata-token-ttl-seconds": "60"},
-				)
-				if token == "" {
-					return ""
-				}
-				return makeMetadataRequest(
-					http.MethodGet,
-					"http://169.254.169.254/latest/meta-data/public-ipv4",
-					map[string]string{"X-aws-ec2-metadata-token": token},
-				)
-			},
-		},
-		{
-			name: "azure",
-			fn: func() string {
-				return makeMetadataRequest(
-					http.MethodGet,
-					"http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text",
-					map[string]string{"Metadata": "true"},
-				)
-			},
-		},
-	}
-
-	for _, provider := range providers {
-		publicIP := provider.fn()
+	for _, provider := range []func() string{
+		tryDiscoverPublicIPAWSIMDSv2,
+		tryDiscoverPublicIPAWSIMDSv1,
+		tryDiscoverPublicIPGCE,
+		tryDiscoverPublicIPAzure,
+	} {
+		publicIP := provider()
 		if publicIP != "" {
 			return publicIP
 		}
 	}
+
+	// If we reach this point, we failed to discover the public IP.
 	return ""
+}
+
+func tryDiscoverPublicIPGCE() string {
+	return makeMetadataRequest(
+		http.MethodGet,
+		"http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
+		map[string]string{"Metadata-Flavor": "Google"},
+	)
+}
+
+func tryDiscoverPublicIPAWSIMDSv1() string {
+	return makeMetadataRequest(
+		http.MethodGet,
+		"http://169.254.169.254/latest/meta-data/public-ipv4",
+		nil,
+	)
+}
+
+func tryDiscoverPublicIPAWSIMDSv2() string {
+	token := makeMetadataRequest(
+		http.MethodPut,
+		"http://169.254.169.254/latest/api/token",
+		map[string]string{"X-aws-ec2-metadata-token-ttl-seconds": "60"},
+	)
+	if token == "" {
+		return ""
+	}
+	return makeMetadataRequest(
+		http.MethodGet,
+		"http://169.254.169.254/latest/meta-data/public-ipv4",
+		map[string]string{"X-aws-ec2-metadata-token": token},
+	)
+}
+
+func tryDiscoverPublicIPAzure() string {
+	return makeMetadataRequest(
+		http.MethodGet,
+		"http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text",
+		map[string]string{"Metadata": "true"},
+	)
 }
 
 // shouldUseMetadataService returns true if the metadata service is available and responds with any
@@ -114,13 +106,13 @@ func shouldUseMetadataService() bool {
 	return true
 }
 
-func makeMetadataRequest(method string, u string, headers map[string]string) string {
+func makeMetadataRequest(method string, url string, headers map[string]string) string {
 	client := &http.Client{
 		Timeout:   2 * time.Second,
 		Transport: noProxyTransport,
 	}
 
-	req, err := http.NewRequest(method, u, nil)
+	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		logrus.Errorf("Unable to create metadata request: %v", err)
 		return ""
