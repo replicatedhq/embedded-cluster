@@ -26,16 +26,24 @@ func TryDiscoverPublicIP() string {
 		return ""
 	}
 
-	for _, provider := range []func() string{
-		tryDiscoverPublicIPAWSIMDSv2,
-		tryDiscoverPublicIPAWSIMDSv1,
-		tryDiscoverPublicIPGCE,
-		tryDiscoverPublicIPAzure,
-	} {
-		publicIP := provider()
-		if publicIP != "" {
-			return publicIP
-		}
+	publicIP := tryDiscoverPublicIPAWSIMDSv2()
+	if publicIP != "" {
+		return publicIP
+	}
+
+	publicIP = tryDiscoverPublicIPAWSIMDSv1()
+	if publicIP != "" {
+		return publicIP
+	}
+
+	publicIP = tryDiscoverPublicIPGCE()
+	if publicIP != "" {
+		return publicIP
+	}
+
+	publicIP = tryDiscoverPublicIPAzure()
+	if publicIP != "" {
+		return publicIP
 	}
 
 	// If we reach this point, we failed to discover the public IP.
