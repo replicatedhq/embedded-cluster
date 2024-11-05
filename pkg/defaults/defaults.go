@@ -68,38 +68,95 @@ func K0sBinaryPath() string {
 func TryDiscoverPublicIP() string {
 	// List of providers and their respective metadata URLs
 	providers := []struct {
-		name    string
-		url     string
-		headers map[string]string
+		name string
+		fn   func() string
 	}{
-		{"gce", "http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip", map[string]string{"Metadata-Flavor": "Google"}},
-		{"ec2", "http://169.254.169.254/latest/meta-data/public-ipv4", nil},
-		{"azure", "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text", map[string]string{"Metadata": "true"}},
+		{
+			name: "gce",
+			fn: func() string {
+				return makeMetadataRequest(
+					"GET",
+					"http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
+					map[string]string{"Metadata-Flavor": "Google"},
+				)
+			},
+		},
+		{
+			name: "ec2",
+			fn: func() string {
+				return makeMetadataRequest(
+					"GET",
+					"http://169.254.169.254/latest/meta-data/public-ipv4",
+					nil,
+				)
+			},
+		},
+		{
+			name: "ec2",
+			fn: func() string {
+				token := makeMetadataRequest(
+					"PUT",
+					"http://169.254.169.254/latest/api/token",
+					map[string]string{"X-aws-ec2-metadata-token-ttl-seconds": "60"},
+				)
+				if token == "" {
+					return ""
+				}
+				return makeMetadataRequest(
+					"GET",
+					"http://169.254.169.254/latest/meta-data/public-ipv4",
+					map[string]string{"X-aws-ec2-metadata-token": token},
+				)
+			},
+		},
+		{
+			name: "azure",
+			fn: func() string {
+				return makeMetadataRequest(
+					"GET",
+					"http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text",
+					map[string]string{"Metadata": "true"},
+				)
+			},
+		},
 	}
 
 	for _, provider := range providers {
-		client := &http.Client{
-			Timeout: 5 * time.Second,
+		publicIP := provider.fn()
+		if publicIP != "" {
+			return publicIP
 		}
-		req, _ := http.NewRequest("GET", provider.url, nil)
-		for k, v := range provider.headers {
-			req.Header.Add(k, v)
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return ""
-		}
-		defer resp.Body.Close()
+	}
+	return ""
+}
 
-		if resp.StatusCode == http.StatusOK {
-			bodyBytes, _ := io.ReadAll(resp.Body)
-			publicIP := string(bodyBytes)
-			if net.ParseIP(publicIP).To4() != nil {
-				return publicIP
-			} else {
-				return ""
-			}
-		}
+func makeMetadataRequest(method string, u string, headers map[string]string) string {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil // no proxy
+	client := &http.Client{
+		Timeout:   5 * time.Second,
+		Transport: transport,
+	}
+
+	req, _ := http.NewRequest(method, u, nil)
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	publicIP := string(bodyBytes)
+	if net.ParseIP(publicIP).To4() != nil {
+		return publicIP
 	}
 	return ""
 }
