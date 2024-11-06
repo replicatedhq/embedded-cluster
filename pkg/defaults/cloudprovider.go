@@ -1,6 +1,7 @@
 package defaults
 
 import (
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -42,6 +43,11 @@ func TryDiscoverPublicIP() string {
 	}
 
 	publicIP = tryDiscoverPublicIPAzure()
+	if publicIP != "" {
+		return publicIP
+	}
+
+	publicIP = tryDiscoverPublicIPAzureStandardSKU()
 	if publicIP != "" {
 		return publicIP
 	}
@@ -88,6 +94,31 @@ func tryDiscoverPublicIPAzure() string {
 		"http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text",
 		map[string]string{"Metadata": "true"},
 	)
+}
+
+// https://learn.microsoft.com/en-us/azure/load-balancer/howto-load-balancer-imds?tabs=windows
+func tryDiscoverPublicIPAzureStandardSKU() string {
+	resp := makeMetadataRequest(
+		http.MethodGet,
+		"http://169.254.169.254/metadata/loadbalancer?api-version=2020-10-01&format=text",
+		map[string]string{"Metadata": "true"},
+	)
+	type loadBalancer struct {
+		LoadBalancer struct {
+			PublicIpAddresses []struct {
+				FrontendIpAddress string `json:"frontendIpAddress"`
+				PrivateIpAddress  string `json:"privateIpAddress"`
+			} `json:"publicIpAddresses"`
+		} `json:"loadbalancer"`
+	}
+	var lb loadBalancer
+	if err := json.Unmarshal([]byte(resp), &lb); err != nil {
+		return ""
+	}
+	if len(lb.LoadBalancer.PublicIpAddresses) == 0 {
+		return ""
+	}
+	return lb.LoadBalancer.PublicIpAddresses[0].FrontendIpAddress
 }
 
 // shouldUseMetadataService returns true if the metadata service is available and responds with any
