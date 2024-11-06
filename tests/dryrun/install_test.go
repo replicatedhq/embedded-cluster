@@ -290,7 +290,7 @@ spec:
 		[]interface{}{
 			regexp.MustCompile(fmt.Sprintf(`install fake-app-slug/fake-channel-slug .* --config-values %s`, tempfile)),
 		},
-		true,
+		false,
 	)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
