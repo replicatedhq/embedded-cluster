@@ -17,6 +17,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var (
+	insecureTransport *http.Transport
+)
+
+func init() {
+	insecureTransport = http.DefaultTransport.(*http.Transport).Clone()
+	insecureTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+}
+
 // Pull fetches an artifact from the registry pointed by 'from'. The artifact is stored in a temporary
 // directory and the path to this directory is returned. Callers are responsible for removing the temp
 // path when it is no longer needed. In case of error, the temporary directory is removed here.
@@ -49,15 +58,8 @@ func Pull(ctx context.Context, log logr.Logger, cli client.Client, from string) 
 	}
 	defer fs.Close()
 
-	transp, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return "", fmt.Errorf("unable to get default transport")
-	}
-
-	transp = transp.Clone()
-	transp.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	repo.Client = &auth.Client{
-		Client:     &http.Client{Transport: transp},
+		Client:     &http.Client{Transport: insecureTransport},
 		Credential: store.Get,
 	}
 
