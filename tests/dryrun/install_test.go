@@ -247,11 +247,7 @@ func TestCustomPortsInstallation(t *testing.T) {
 }
 
 func TestConfigValuesInstallation(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "embedded-cluster-test")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 	tempfile := filepath.Join(tmpdir, "values.yaml")
 	os.WriteFile(tempfile, []byte(`
 apiVersion: kots.io/v1beta1
