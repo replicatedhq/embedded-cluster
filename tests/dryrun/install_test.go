@@ -2,6 +2,9 @@ package dryrun
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
@@ -239,6 +242,56 @@ func TestCustomPortsInstallation(t *testing.T) {
 	assertHelmValues(t, k0sConfig, "admin-console", map[string]interface{}{
 		"kurlProxy.nodePort": float64(30002),
 	})
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestConfigValuesInstallation(t *testing.T) {
+	tmpdir, err := os.MkdirTemp("", "embedded-cluster-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	tempfile := filepath.Join(tmpdir, "values.yaml")
+	os.WriteFile(tempfile, []byte(`
+apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values:
+    ahostname:
+      value: abc123test
+    apw:
+      value: passwordtest
+`), 0644)
+
+	dr := dryrunInstall(t,
+		"--config-values", tempfile,
+	)
+
+	// --- validate metrics --- //
+	assertMetrics(t, dr.Metrics, []struct {
+		title    string
+		validate func(string)
+	}{
+		{
+			title: "InstallationStarted",
+			validate: func(payload string) {
+				assert.Contains(t, payload, fmt.Sprintf("--config-values %s", tempfile))
+			},
+		},
+		{
+			title:    "InstallationSucceeded",
+			validate: func(payload string) {},
+		},
+	})
+
+	// --- validate commands --- //
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile(fmt.Sprintf(`embedded-cluster install --no-prompt --config-values %s`, tempfile)),
+		},
+		true,
+	)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
