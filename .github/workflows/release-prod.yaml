@@ -227,12 +227,8 @@ jobs:
           fetch-depth: 0
       - name: Install replicated CLI
         run: |
-          curl --retry 5 --retry-all-errors -fs https://api.github.com/repos/replicatedhq/replicated/releases/latest \	
-          | grep "browser_download_url.*linux_amd64.tar.gz" \	
-          | cut -d : -f 2,3 \	
-          | tr -d \" \	
-          | wget -O replicated.tar.gz -qi -	
-          tar xf replicated.tar.gz replicated && rm replicated.tar.gz	
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
+          tar xf replicated.tar.gz replicated && rm replicated.tar.gz
           mv replicated /usr/local/bin/replicated
       - name: Create CI releases
         env:
