@@ -288,7 +288,7 @@ spec:
 	// --- validate commands --- //
 	assertCommands(t, dr.Commands,
 		[]interface{}{
-			regexp.MustCompile(fmt.Sprintf(`install fake-app-slug/fake-channel-slug --config-values %s`, tempfile)),
+			regexp.MustCompile(fmt.Sprintf(`install fake-app-slug/fake-channel-slug .* --config-values %s`, tempfile)),
 		},
 		true,
 	)
