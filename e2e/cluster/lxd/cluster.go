@@ -482,6 +482,10 @@ func CopyDirsToNode(in *ClusterInput, node string) {
 			SourcePath: "playwright",
 			DestPath:   "/automation/playwright",
 		},
+		{
+			SourcePath: "operator/charts/embedded-cluster-operator/troubleshoot",
+			DestPath:   "/automation/troubleshoot",
+		},
 	}
 	for _, dir := range dirs {
 		CopyDirToNode(in, node, dir)
@@ -1028,6 +1032,9 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(c.Nodes))
+
+	troubleshootDirEnv := map[string]string{"TROUBLESHOOT_DIR": "/automation/troubleshoot"}
+	envs = append(envs, troubleshootDirEnv)
 
 	for i := range c.Nodes {
 		go func(i int, wg *sync.WaitGroup) {

@@ -141,6 +141,9 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(c.Nodes))
 
+	troubleshootDirEnv := map[string]string{"TROUBLESHOOT_DIR": "./operator/charts/embedded-cluster-operator/troubleshoot"}
+	envs = append(envs, troubleshootDirEnv)
+
 	for i := range c.Nodes {
 		go func(i int, wg *sync.WaitGroup) {
 			defer wg.Done()
