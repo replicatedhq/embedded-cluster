@@ -127,18 +127,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
       - name: Cache embedded bins
         uses: actions/cache@v4
         with:
           path: |
             output/bins
           key: bins-cache
-
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
 
       - name: Install dagger
         run: |
@@ -198,18 +198,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
       - name: Cache embedded bins
         uses: actions/cache@v4
         with:
           path: |
             output/bins
           key: bins-cache
-
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
 
       - name: Install dagger
         run: |
@@ -257,7 +257,7 @@ jobs:
 
   build-previous-stable:
     name: Build previous stable
-    runs-on: embedded-cluster
+    runs-on: ubuntu-latest
     needs:
       - git-sha
     outputs:
@@ -299,18 +299,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
       - name: Cache embedded bins
         uses: actions/cache@v4
         with:
           path: |
             output/bins
           key: bins-cache
-
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
 
       - name: Install dagger
         run: |

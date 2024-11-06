@@ -135,18 +135,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
       - name: Cache embedded bins
         uses: actions/cache@v4
         with:
           path: |
             output/bins
           key: bins-cache
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
 
       - name: Download buildtools artifact
         uses: actions/download-artifact@v4
