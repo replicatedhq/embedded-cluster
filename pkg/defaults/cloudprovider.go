@@ -62,7 +62,7 @@ func TryDiscoverPublicIP() string {
 }
 
 func tryDiscoverPublicIPGCE() string {
-	return makeMetadataRequest(
+	return makeMetadataRequestForIPv4(
 		http.MethodGet,
 		"http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
 		map[string]string{"Metadata-Flavor": "Google"},
@@ -70,7 +70,7 @@ func tryDiscoverPublicIPGCE() string {
 }
 
 func tryDiscoverPublicIPAWSIMDSv1() string {
-	return makeMetadataRequest(
+	return makeMetadataRequestForIPv4(
 		http.MethodGet,
 		"http://169.254.169.254/latest/meta-data/public-ipv4",
 		nil,
@@ -86,7 +86,7 @@ func tryDiscoverPublicIPAWSIMDSv2() string {
 	if token == "" {
 		return ""
 	}
-	return makeMetadataRequest(
+	return makeMetadataRequestForIPv4(
 		http.MethodGet,
 		"http://169.254.169.254/latest/meta-data/public-ipv4",
 		map[string]string{"X-aws-ec2-metadata-token": token},
@@ -94,7 +94,7 @@ func tryDiscoverPublicIPAWSIMDSv2() string {
 }
 
 func tryDiscoverPublicIPAzure() string {
-	return makeMetadataRequest(
+	return makeMetadataRequestForIPv4(
 		http.MethodGet,
 		"http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text",
 		map[string]string{"Metadata": "true"},
@@ -155,6 +155,14 @@ func shouldUseMetadataService() bool {
 	return true
 }
 
+func makeMetadataRequestForIPv4(method string, url string, headers map[string]string) string {
+	body := makeMetadataRequest(method, url, headers)
+	if net.ParseIP(body).To4() != nil {
+		return body
+	}
+	return ""
+}
+
 func makeMetadataRequest(method string, url string, headers map[string]string) string {
 	client := &http.Client{
 		Timeout:   2 * time.Second,
@@ -181,9 +189,5 @@ func makeMetadataRequest(method string, url string, headers map[string]string) s
 	}
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
-	publicIP := string(bodyBytes)
-	if net.ParseIP(publicIP).To4() != nil {
-		return publicIP
-	}
-	return ""
+	return string(bodyBytes)
 }
