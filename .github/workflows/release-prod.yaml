@@ -226,6 +226,8 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install replicated CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
           tar xf replicated.tar.gz replicated && rm replicated.tar.gz
