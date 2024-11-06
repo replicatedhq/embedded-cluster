@@ -24,31 +24,37 @@ func init() {
 // string is returned.
 func TryDiscoverPublicIP() string {
 	if !shouldUseMetadataService() {
+		logrus.Debug("No cloud provider metadata service found, skipping public IP discovery")
 		return ""
 	}
 
 	publicIP := tryDiscoverPublicIPAWSIMDSv2()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using AWS IMDSv2", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPAWSIMDSv1()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using AWS IMDSv1", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPGCE()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using GCE", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPAzureStandardSKU()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using Azure Standard SKU", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPAzure()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using Azure", publicIP)
 		return publicIP
 	}
 
