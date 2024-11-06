@@ -8,7 +8,7 @@ test('deploy upgrade', async ({ page }) => {
   await page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION }).getByRole('button', { name: 'Deploy', exact: true }).click();
   const iframe = page.frameLocator('#upgrade-service-iframe');
   await expect(iframe.locator('h3')).toContainText('The First Config Group', { timeout: 60 * 1000 }); // can take time to download the kots binary
-  await expect(iframe.locator('input[type="text"]')).toHaveValue('initial-hostname.com');
+  await expect(iframe.locator('input[type="text"]')).toHaveValue( process.env.APP_INITIAL_HOSTNAME ? process.env.APP_INITIAL_HOSTNAME : 'initial-hostname.com');
   await iframe.locator('input[type="text"]').click();
   await iframe.locator('input[type="text"]').fill('updated-hostname.com');
   await iframe.locator('input[type="password"]').click();

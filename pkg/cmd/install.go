@@ -729,6 +729,10 @@ func installCommand() *cli.Command {
 					Usage: "Skip host preflight checks. This is not recommended.",
 					Value: false,
 				},
+				&cli.StringFlag{
+					Name:  "config-values",
+					Usage: "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)",
+				},
 			},
 		)),
 		Action: func(c *cli.Context) error {
@@ -879,6 +883,17 @@ func getAddonsApplier(c *cli.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec
 	if adminConsolePwd != "" {
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}
+
+	configValuesFile := c.String("config-values")
+	if configValuesFile != "" {
+		err := configutils.ValidateKotsConfigValues(configValuesFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to validate config values file %q: %w", configValuesFile, err)
+		}
+
+		opts = append(opts, addons.WithConfigValuesFile(configValuesFile))
+	}
+
 	return addons.NewApplier(opts...), nil
 }
 

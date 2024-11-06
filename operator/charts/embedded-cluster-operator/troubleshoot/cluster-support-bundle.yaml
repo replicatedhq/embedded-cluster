@@ -36,6 +36,13 @@ spec:
       limits:
         maxAge: 720h
   - logs:
+      name: podlogs/kotsadm
+      namespace: kotsadm
+      selector:
+        - app.kubernetes.io/name=kotsadm
+      limits:
+        maxAge: 720h
+  - logs:
       name: podlogs/calico-kube-controllers
       namespace: kube-system
       selector:
