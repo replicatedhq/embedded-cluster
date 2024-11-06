@@ -24,9 +24,26 @@ jobs:
       - uses: ./.github/actions/git-sha
         id: git_sha
 
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Unit tests
+        run: |
+          make unit-tests
+
   sanitize:
     name: Sanitize
     runs-on: ubuntu-latest
+    needs:
+      - unit-tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,21 +60,6 @@ jobs:
         with:
           version: v1.60.3
           args: --build-tags exclude_graphdriver_btrfs
-
-  test:
-    name: Unit tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-      - name: Unit tests
-        run: |
-          make unit-tests
 
   dryrun-tests:
     name: Dryrun tests
@@ -97,6 +99,8 @@ jobs:
   buildtools:
     name: Build buildtools
     runs-on: ubuntu-latest
+    needs:
+      - unit-tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -119,6 +123,7 @@ jobs:
     runs-on: embedded-cluster
     needs:
       - git-sha
+      - unit-tests
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -190,6 +195,7 @@ jobs:
     runs-on: embedded-cluster
     needs:
       - git-sha
+      - unit-tests
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -291,6 +297,7 @@ jobs:
     runs-on: embedded-cluster
     needs:
       - git-sha
+      - unit-tests
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
@@ -589,16 +596,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Download binary
-        uses: actions/download-artifact@v4
-        with:
-          name: current-release
-          path: output/bin
       - name: Setup go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: current-release
+          path: output/bin
       - name: Login to DockerHub to avoid rate limiting
         uses: docker/login-action@v3
         with:
