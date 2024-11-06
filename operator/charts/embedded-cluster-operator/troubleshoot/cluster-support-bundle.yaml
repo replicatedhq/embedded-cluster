@@ -81,7 +81,7 @@ spec:
       name: podlogs/registry
       namespace: registry
       selector:
-      - app=registry
+      - app=docker-registry
       limits:
         maxAge: 720h
   - logs:
