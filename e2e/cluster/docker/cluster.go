@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -41,14 +40,10 @@ func NewCluster(in *ClusterInput) *Cluster {
 }
 
 func NewNode(in *ClusterInput, name string) *Container {
-	troubleshootPath, err := filepath.Abs("../operator/charts/embedded-cluster-operator/troubleshoot")
-	if err != nil {
-		in.T.Fatalf("failed to get absolute path to troubleshoot dir: %v", err)
-	}
 	c := NewContainer(in.T, name).
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", in.Distro)).
-		WithVolume(fmt.Sprintf("%s:%s", troubleshootPath, "/automation/troubleshoot")).
-		WithScripts()
+		WithScripts().
+		WithTroubleshootDir()
 	if in.K0sDir != "" {
 		in.T.Logf("using k0s dir %s", in.K0sDir)
 		c = c.WithVolume(in.K0sDir)
