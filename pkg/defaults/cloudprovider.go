@@ -1,6 +1,7 @@
 package defaults
 
 import (
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -23,35 +24,45 @@ func init() {
 // string is returned.
 func TryDiscoverPublicIP() string {
 	if !shouldUseMetadataService() {
+		logrus.Debug("No cloud provider metadata service found, skipping public IP discovery")
 		return ""
 	}
 
 	publicIP := tryDiscoverPublicIPAWSIMDSv2()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using AWS IMDSv2", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPAWSIMDSv1()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using AWS IMDSv1", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPGCE()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using GCE", publicIP)
+		return publicIP
+	}
+
+	publicIP = tryDiscoverPublicIPAzureStandardSKU()
+	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using Azure Standard SKU", publicIP)
 		return publicIP
 	}
 
 	publicIP = tryDiscoverPublicIPAzure()
 	if publicIP != "" {
+		logrus.Debugf("Found public IP %s using Azure", publicIP)
 		return publicIP
 	}
 
-	// If we reach this point, we failed to discover the public IP.
 	return ""
 }
 
 func tryDiscoverPublicIPGCE() string {
-	return makeMetadataRequest(
+	return makeMetadataRequestForIPv4(
 		http.MethodGet,
 		"http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
 		map[string]string{"Metadata-Flavor": "Google"},
@@ -59,7 +70,7 @@ func tryDiscoverPublicIPGCE() string {
 }
 
 func tryDiscoverPublicIPAWSIMDSv1() string {
-	return makeMetadataRequest(
+	return makeMetadataRequestForIPv4(
 		http.MethodGet,
 		"http://169.254.169.254/latest/meta-data/public-ipv4",
 		nil,
@@ -75,7 +86,7 @@ func tryDiscoverPublicIPAWSIMDSv2() string {
 	if token == "" {
 		return ""
 	}
-	return makeMetadataRequest(
+	return makeMetadataRequestForIPv4(
 		http.MethodGet,
 		"http://169.254.169.254/latest/meta-data/public-ipv4",
 		map[string]string{"X-aws-ec2-metadata-token": token},
@@ -83,11 +94,41 @@ func tryDiscoverPublicIPAWSIMDSv2() string {
 }
 
 func tryDiscoverPublicIPAzure() string {
-	return makeMetadataRequest(
+	return makeMetadataRequestForIPv4(
 		http.MethodGet,
 		"http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-08-01&format=text",
 		map[string]string{"Metadata": "true"},
 	)
+}
+
+// https://learn.microsoft.com/en-us/azure/load-balancer/howto-load-balancer-imds?tabs=windows
+func tryDiscoverPublicIPAzureStandardSKU() string {
+	resp := makeMetadataRequest(
+		http.MethodGet,
+		"http://169.254.169.254/metadata/loadbalancer?api-version=2020-10-01&format=text",
+		map[string]string{"Metadata": "true"},
+	)
+	publicIP, _ := parseAzureLoadBalancerMetadataResponse(resp)
+	return publicIP
+}
+
+func parseAzureLoadBalancerMetadataResponse(resp string) (string, error) {
+	type loadBalancer struct {
+		LoadBalancer struct {
+			PublicIpAddresses []struct {
+				FrontendIpAddress string `json:"frontendIpAddress"`
+				PrivateIpAddress  string `json:"privateIpAddress"`
+			} `json:"publicIpAddresses"`
+		} `json:"loadbalancer"`
+	}
+	var lb loadBalancer
+	if err := json.Unmarshal([]byte(resp), &lb); err != nil {
+		return "", err
+	}
+	if len(lb.LoadBalancer.PublicIpAddresses) == 0 {
+		return "", nil
+	}
+	return lb.LoadBalancer.PublicIpAddresses[0].FrontendIpAddress, nil
 }
 
 // shouldUseMetadataService returns true if the metadata service is available and responds with any
@@ -112,6 +153,14 @@ func shouldUseMetadataService() bool {
 	resp.Body.Close()
 
 	return true
+}
+
+func makeMetadataRequestForIPv4(method string, url string, headers map[string]string) string {
+	body := makeMetadataRequest(method, url, headers)
+	if net.ParseIP(body).To4() != nil {
+		return body
+	}
+	return ""
 }
 
 func makeMetadataRequest(method string, url string, headers map[string]string) string {
@@ -140,9 +189,5 @@ func makeMetadataRequest(method string, url string, headers map[string]string) s
 	}
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
-	publicIP := string(bodyBytes)
-	if net.ParseIP(publicIP).To4() != nil {
-		return publicIP
-	}
-	return ""
+	return string(bodyBytes)
 }
