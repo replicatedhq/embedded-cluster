@@ -42,17 +42,16 @@ func TryDiscoverPublicIP() string {
 		return publicIP
 	}
 
-	publicIP = tryDiscoverPublicIPAzure()
-	if publicIP != "" {
-		return publicIP
-	}
-
 	publicIP = tryDiscoverPublicIPAzureStandardSKU()
 	if publicIP != "" {
 		return publicIP
 	}
 
-	// If we reach this point, we failed to discover the public IP.
+	publicIP = tryDiscoverPublicIPAzure()
+	if publicIP != "" {
+		return publicIP
+	}
+
 	return ""
 }
 
@@ -103,6 +102,11 @@ func tryDiscoverPublicIPAzureStandardSKU() string {
 		"http://169.254.169.254/metadata/loadbalancer?api-version=2020-10-01&format=text",
 		map[string]string{"Metadata": "true"},
 	)
+	publicIP, _ := parseAzureLoadBalancerMetadataResponse(resp)
+	return publicIP
+}
+
+func parseAzureLoadBalancerMetadataResponse(resp string) (string, error) {
 	type loadBalancer struct {
 		LoadBalancer struct {
 			PublicIpAddresses []struct {
@@ -113,12 +117,12 @@ func tryDiscoverPublicIPAzureStandardSKU() string {
 	}
 	var lb loadBalancer
 	if err := json.Unmarshal([]byte(resp), &lb); err != nil {
-		return ""
+		return "", err
 	}
 	if len(lb.LoadBalancer.PublicIpAddresses) == 0 {
-		return ""
+		return "", nil
 	}
-	return lb.LoadBalancer.PublicIpAddresses[0].FrontendIpAddress
+	return lb.LoadBalancer.PublicIpAddresses[0].FrontendIpAddress, nil
 }
 
 // shouldUseMetadataService returns true if the metadata service is available and responds with any
