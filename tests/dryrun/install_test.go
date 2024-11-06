@@ -2,7 +2,9 @@ package dryrun
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -246,22 +248,21 @@ func TestCustomPortsInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestConfigValuesInstallation(t *testing.T) {
-	tmpdir := t.TempDir()
-	tempfile := filepath.Join(tmpdir, "values.yaml")
-	os.WriteFile(tempfile, []byte(`
-apiVersion: kots.io/v1beta1
-kind: ConfigValues
-spec:
-  values:
-    ahostname:
-      value: abc123test
-    apw:
-      value: passwordtest
-`), 0644)
+var (
+	//go:embed assets/values.yaml
+	valuesYaml []byte
+)
 
+func valuesFile(t *testing.T) string {
+	valuesYamlFilename := filepath.Join(t.TempDir(), "values.yaml")
+	require.NoError(t, os.WriteFile(valuesYamlFilename, valuesYaml, 0644))
+	return valuesYamlFilename
+}
+
+func TestConfigValuesInstallation(t *testing.T) {
+	vf := valuesFile(t)
 	dr := dryrunInstall(t,
-		"--config-values", tempfile,
+		"--config-values", vf,
 	)
 
 	// --- validate metrics --- //
@@ -272,7 +273,7 @@ spec:
 		{
 			title: "InstallationStarted",
 			validate: func(payload string) {
-				assert.Contains(t, payload, fmt.Sprintf("--config-values %s", tempfile))
+				assert.Contains(t, payload, fmt.Sprintf("--config-values %s", vf))
 			},
 		},
 		{
@@ -284,7 +285,7 @@ spec:
 	// --- validate commands --- //
 	assertCommands(t, dr.Commands,
 		[]interface{}{
-			regexp.MustCompile(fmt.Sprintf(`install fake-app-slug/fake-channel-slug .* --config-values %s`, tempfile)),
+			regexp.MustCompile(fmt.Sprintf(`install fake-app-slug/fake-channel-slug .* --config-values %s`, vf)),
 		},
 		false,
 	)
