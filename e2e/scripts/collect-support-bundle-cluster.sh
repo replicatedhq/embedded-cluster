@@ -6,7 +6,7 @@ DIR=/usr/local/bin
 
 main() {
     if ! kubectl support-bundle --output cluster.tar.gz --interactive=false --load-cluster-specs ; then
-        if ! kubectl support-bundle --output cluster.tar.gz --interactive=false --load-cluster-specs "$TROUBLESHOOT_DIR/cluster-support-bundle.yaml" ; then
+        if ! kubectl support-bundle --output cluster.tar.gz --interactive=false --load-cluster-specs "/automation/troubleshoot/cluster-support-bundle.yaml" ; then
             echo "Failed to collect cluster support bundle"
             return 1
         fi

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -40,8 +41,13 @@ func NewCluster(in *ClusterInput) *Cluster {
 }
 
 func NewNode(in *ClusterInput, name string) *Container {
+	troubleshootPath, err := filepath.Abs("../operator/charts/embedded-cluster-operator/troubleshoot")
+	if err != nil {
+		in.T.Fatalf("failed to get absolute path to troubleshoot dir: %v", err)
+	}
 	c := NewContainer(in.T, name).
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", in.Distro)).
+		WithVolume(fmt.Sprintf("%s:%s", troubleshootPath, "/automation/troubleshoot")).
 		WithScripts()
 	if in.K0sDir != "" {
 		in.T.Logf("using k0s dir %s", in.K0sDir)
@@ -140,9 +146,6 @@ func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, st
 func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(c.Nodes))
-
-	troubleshootDirEnv := map[string]string{"TROUBLESHOOT_DIR": "./operator/charts/embedded-cluster-operator/troubleshoot"}
-	envs = append(envs, troubleshootDirEnv)
 
 	for i := range c.Nodes {
 		go func(i int, wg *sync.WaitGroup) {
