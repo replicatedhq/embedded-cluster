@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
   ipvsadm \
   kmod \
   iproute2 \
-  chrony \
+  systemd-timesyncd \
   expect \
   vim
 

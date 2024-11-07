@@ -200,7 +200,7 @@ func (c *Container) WaitForSystemd() {
 			c.t.Fatalf("timeout waiting for systemd to start: %v: %s: %s", err, stdout, stderr)
 		case <-tick:
 			status, _, _ := c.Exec([]string{"systemctl is-system-running"})
-			c.t.Logf("systemd stdout: %s", strings.TrimSpace(status))
+			c.t.Logf("systemd stdout: %s", status)
 			if strings.TrimSpace(status) == "running" {
 				return
 			}
@@ -214,12 +214,12 @@ func (c *Container) WaitForClockSync() {
 	for {
 		select {
 		case <-timeout:
-			stdout, stderr, err := c.Exec([]string{"chronyc tracking"})
-			c.t.Fatalf("timeout waiting for chronyd to start: %v: %s: %s", err, stdout, stderr)
+			stdout, stderr, err := c.Exec([]string{"timedatectl show -p NTP -p NTPSynchronized"})
+			c.t.Fatalf("timeout waiting for clock sync: %v: %s: %s", err, stdout, stderr)
 		case <-tick:
-			status, _, _ := c.Exec([]string{"chronyc tracking | grep 'Leap status'"})
-			c.t.Logf("chronyd stdout: %s", strings.TrimSpace(status))
-			if strings.Contains(status, "Normal") {
+			status, _, _ := c.Exec([]string{"timedatectl show -p NTP -p NTPSynchronized"})
+			c.t.Logf("timedatectl stdout: %s", status)
+			if strings.Contains(status, "NTP=yes") && strings.Contains(status, "NTPSynchronized=yes") {
 				return
 			}
 		}

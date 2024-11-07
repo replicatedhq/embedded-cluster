@@ -22,8 +22,12 @@ fi
 ln -sf /etc/machine-id.persistent /etc/machine-id
 ln -sf /etc/machine-id.persistent /var/lib/dbus/machine-id
 
-# Sync time
-chronyc -a makestep
+# Override timesyncd config to allow it to run in containers
+mkdir -p /etc/systemd/system/systemd-timesyncd.service.d/
+cat > /etc/systemd/system/systemd-timesyncd.service.d/override.conf << EOF
+[Unit]
+ConditionVirtualization=
+EOF
 
 # Launch the system
 exec /sbin/init
