@@ -1,10 +1,11 @@
 SHELL := /bin/bash
 
-export DEBUG ?= 1
+DEBUG ?=
+PARALLEL ?= 1
 
 .PHONY: test
 test: test-openebs
 
 .PHONY: test-openebs
 test-openebs:
-	go test -v --timeout 5m ./openebs
+	DEBUG=$(DEBUG) go test -v -timeout 5m -parallel $(PARALLEL) ./openebs/...
