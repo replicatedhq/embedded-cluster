@@ -43,6 +43,9 @@ inputs:
   version-specifier:
     description: 'the git sha or tag used to generate application version strings'
     required: true
+  upgrade-target-ec-version:
+    description: 'the embedded cluster version to expect after upgrades complete'
+    required: true
 
 runs:
   using: composite
@@ -110,6 +113,7 @@ runs:
       export EXPECT_K0S_VERSION=${{ inputs.k0s-version }}
       export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
+      export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Troubleshoot
     if: ${{ !cancelled() }}

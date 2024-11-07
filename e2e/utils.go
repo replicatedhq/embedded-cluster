@@ -80,6 +80,10 @@ func k8sVersionPreviousStable() string {
 	return verParts[0]
 }
 
+func ecUpgradeTargetVersion() string {
+	return os.Getenv("EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION")
+}
+
 func runInParallel(t *testing.T, fns ...func(t *testing.T) error) {
 	runInParallelOffset(t, time.Duration(0), fns...)
 }

@@ -13,6 +13,7 @@ function check_nginx_version {
 
 main() {
     local k8s_version="$1"
+    local ec_version="$2"
 
     echo "ensure that installation is installed"
     wait_for_installation
@@ -67,10 +68,10 @@ main() {
 
     # ensure that the embedded-cluster-operator has been updated
     kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator
-    kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator | grep "embeddedClusterVersion:" | grep -q -e "-upgrade"
+    kubectl describe chart -n kube-system k0s-addon-chart-embedded-cluster-operator | grep "embeddedClusterVersion:" | grep -q -e "$ec_version"
     kubectl describe pod -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator
     # ensure the new value made it into the pod
-    if ! kubectl describe pod -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator | grep "EMBEDDEDCLUSTER_VERSION" | grep -q -e "-upgrade" ; then
+    if ! kubectl describe pod -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator | grep "EMBEDDEDCLUSTER_VERSION" | grep -q -e "$ec_version" ; then
         echo "Upgrade version not present in embedded-cluster-operator environment variable"
         kubectl logs -n embedded-cluster -l app.kubernetes.io/name=embedded-cluster-operator --tail=100
         exit 1
