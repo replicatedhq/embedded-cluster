@@ -279,6 +279,7 @@ jobs:
     needs:
       - release
       - release-app
+      - get-tag
     strategy:
       fail-fast: false
       matrix:
