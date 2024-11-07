@@ -42,7 +42,8 @@ func NewCluster(in *ClusterInput) *Cluster {
 func NewNode(in *ClusterInput, name string) *Container {
 	c := NewContainer(in.T, name).
 		WithImage(fmt.Sprintf("replicated/ec-distro:%s", in.Distro)).
-		WithScripts()
+		WithScripts().
+		WithTroubleshootDir()
 	if in.K0sDir != "" {
 		in.T.Logf("using k0s dir %s", in.K0sDir)
 		c = c.WithVolume(in.K0sDir)

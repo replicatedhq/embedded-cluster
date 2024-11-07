@@ -111,6 +111,15 @@ func (c *Container) GetScriptPath(script string) string {
 	return fmt.Sprintf("/usr/local/bin/%s", script)
 }
 
+func (c *Container) WithTroubleshootDir() *Container {
+	troubleshootPath, err := filepath.Abs("../operator/charts/embedded-cluster-operator/troubleshoot")
+	if err != nil {
+		c.t.Fatalf("failed to get absolute path to troubleshoot dir: %v", err)
+	}
+	c = c.WithVolume(fmt.Sprintf("%s:%s", troubleshootPath, "/automation/troubleshoot"))
+	return c
+}
+
 func (c *Container) WithVolume(volume string) *Container {
 	c.Volumes = append(c.Volumes, volume)
 	return c

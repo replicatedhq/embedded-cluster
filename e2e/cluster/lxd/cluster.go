@@ -482,6 +482,10 @@ func CopyDirsToNode(in *ClusterInput, node string) {
 			SourcePath: "playwright",
 			DestPath:   "/automation/playwright",
 		},
+		{
+			SourcePath: "../operator/charts/embedded-cluster-operator/troubleshoot",
+			DestPath:   "/automation/troubleshoot",
+		},
 	}
 	for _, dir := range dirs {
 		CopyDirToNode(in, node, dir)
