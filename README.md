@@ -20,8 +20,9 @@ Additionally, it includes a Registry when deployed in air gap mode.
 - Replicated CLI
 - Helm CLI
 - AWS CLI
-- jq
 - Dagger
+- shasum
+- jq
 
 ### Running the Development Environment
 

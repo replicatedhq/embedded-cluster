@@ -21,6 +21,8 @@ KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/stat
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
 KOTS_BINARY_URL_OVERRIDE =
+# For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
+KOTS_BINARY_FILE_OVERRIDE =
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
 # These are used to override the binary urls in dev and e2e tests
@@ -34,6 +36,10 @@ else ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)
 else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
 K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.28.14%2Bk0s.0-ec.0-$(ARCH)
+endif
+
+ifneq ($(KOTS_BINARY_FILE_OVERRIDE),)
+KOTS_VERSION = kots-dev-$(shell shasum -a 256 $(KOTS_BINARY_FILE_OVERRIDE) | cut -c1-8)
 endif
 
 LD_FLAGS = \
@@ -59,6 +65,7 @@ export PATH := $(shell pwd)/bin:$(PATH)
 default: build-ttl.sh
 
 split-hyphen = $(word $2,$(subst -, ,$1))
+random-string = $(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
 
 .PHONY: pkg/goods/bins/k0s
 pkg/goods/bins/k0s:
@@ -139,6 +146,8 @@ pkg/goods/internal/bins/kubectl-kots:
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/kubectl-kots-override ; \
 		cp output/bins/kubectl-kots-override $@ ; \
+	elif [ "$(KOTS_BINARY_FILE_OVERRIDE)" != "" ]; then \
+		cp $(KOTS_BINARY_FILE_OVERRIDE) $@ ; \
 	else \
 		$(MAKE) output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) ; \
 		cp output/bins/kubectl-kots-$(KOTS_VERSION)-$(ARCH) $@ ; \
@@ -168,22 +177,22 @@ output/bin/embedded-cluster-release-builder:
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
 .PHONY: initial-release
-initial-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
-initial-release: APP_VERSION = appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
+initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
+initial-release: export APP_VERSION = appver-dev-$(call random-string)
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 		./scripts/build-and-release.sh
 
 .PHONY: rebuild-release
-rebuild-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
+rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 	SKIP_RELEASE=1 \
 		./scripts/build-and-release.sh
 
 .PHONY: upgrade-release
-upgrade-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade
-upgrade-release: APP_VERSION = appver-dev-$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)-upgrade
+upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade
+upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
 	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
