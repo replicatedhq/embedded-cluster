@@ -35,6 +35,7 @@ func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
 	util.HelmInstall(t, kubeconfig, namespace, chart.Name, chart.Version, chart.ChartName, helmValuesFile)
 
 	deploy := util.GetDeployment(t, kubeconfig, namespace, "openebs-localpv-provisioner")
-	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{Name: "OPENEBS_IO_ENABLE_ANALYTICS", Value: "false"},
+	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Env,
+		corev1.EnvVar{Name: "OPENEBS_IO_ENABLE_ANALYTICS", Value: "false"},
 		"openebs should not send analytics")
 }
