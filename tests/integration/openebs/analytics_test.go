@@ -3,9 +3,9 @@ package openebs
 import (
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/inttest/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"

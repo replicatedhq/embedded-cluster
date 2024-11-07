@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/inttest/util/kind"
+	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/util/wait"
 )

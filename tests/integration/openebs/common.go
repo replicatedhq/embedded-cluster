@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/inttest/openebs/static"
-	"github.com/replicatedhq/embedded-cluster/inttest/util"
+	"github.com/replicatedhq/embedded-cluster/tests/integration/openebs/static"
+	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 )
 
 func createPodAndPVC(t *testing.T, kubeconfig string) {

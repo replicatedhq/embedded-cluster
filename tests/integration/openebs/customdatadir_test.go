@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/inttest/util"
-	"github.com/replicatedhq/embedded-cluster/inttest/util/kind"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
+	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

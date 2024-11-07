@@ -77,7 +77,7 @@ jobs:
           sudo mv ./kind /usr/local/bin/kind
       - name: Run tests
         run: |
-          make -C inttest test
+          make -C tests/integration test
 
   dryrun-tests:
     name: Dryrun tests
