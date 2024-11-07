@@ -301,8 +301,8 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
           # promote a release with the current k0s version, but call it the previous version to test noop upgrades
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}-previous-k0s"	
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}"
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"	
+          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-previous-k0s"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
           # promote a release with the current k0s version
