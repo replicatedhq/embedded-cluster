@@ -156,6 +156,11 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 
 	privateCAs := getPrivateCAPath(c)
 
+	fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(c)
+	if err != nil {
+		return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+	}
+
 	data, err := preflights.TemplateData{
 		ReplicatedAPIURL:        replicatedAPIURL,
 		ProxyRegistryURL:        proxyRegistryURL,
@@ -167,6 +172,8 @@ func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *add
 		OpenEBSDataDir:          provider.EmbeddedClusterOpenEBSLocalSubDir(),
 		PrivateCA:               privateCAs,
 		SystemArchitecture:      runtime.GOARCH,
+		FromCIDR:                fromCIDR,
+		ToCIDR:                  toCIDR,
 	}.WithCIDRData(getCIDRs(c))
 
 	if err != nil {

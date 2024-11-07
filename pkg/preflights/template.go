@@ -33,6 +33,8 @@ type TemplateData struct {
 	HTTPSProxy              string
 	ProvidedNoProxy         string
 	NoProxy                 string
+	FromCIDR                string
+	ToCIDR                  string
 }
 
 // WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings

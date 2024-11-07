@@ -149,6 +149,10 @@ spec:
         CIDRRangeAlloc: '{{ .GlobalCIDR.CIDR }}'
         desiredCIDR: {{.GlobalCIDR.Size}}
     - sysctl: {}
+    - networkNamespaceConnectivity:
+        collectorName: check-network-namespace-connectivity
+        fromCIDR: '{{ .FromCIDR }}'
+        toCIDR: '{{ .ToCIDR }}'
   analyzers:
     - cpu:
         checkName: CPU
@@ -880,3 +884,10 @@ spec:
           - pass:
               when: 'net.ipv4.ip_forward > 0'
               message: "IP forwarding is enabled."
+    - networkNamespaceConnectivity:
+        collectorName: check-network-namespace-connectivity
+        outcomes:
+        - pass:
+            message: Communication between {{ "{{ .FromNamespace }}" }} and {{ "{{ .ToNamespace }}" }} is working
+        - fail:
+            message: Network communication between the pods network CIDR {{ "{{ .FromNamespace }}" }} and the services network CIDR {{ "{{ .ToNamespace }}" }} is currently disrupted on this node. This issue may prevent pods from properly interacting with services. To resolve this, please review and adjust the firewall configuration on this node to ensure it allows traffic between these network CIDRs.
