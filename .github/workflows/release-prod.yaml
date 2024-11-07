@@ -212,6 +212,37 @@ jobs:
             build/*.tgz
             build/metadata.json
 
+  build-previous-stable:
+    name: Build previous stable
+    runs-on: embedded-cluster
+    needs:
+      - get-tag
+    outputs:
+      ec_version: ${{ steps.export.outputs.ec_version }}
+      k0s_version: ${{ steps.export.outputs.k0s_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Export k0s version
+        id: export
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          k0s_majmin_version="$(make print-PREVIOUS_K0S_VERSION | sed 's/v\([0-9]*\.[0-9]*\).*/\1/')"
+          EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
+            --exclude-drafts --exclude-pre-releases --json name \
+            --jq '.[] | .name' \
+            | grep "k8s-${k0s_majmin_version}" \
+            | head -n1)"
+
+          gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
+          K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
+
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "K0S_VERSION=\"$K0S_VERSION\""
+          echo "ec_version=$EC_VERSION" >> "$GITHUB_OUTPUT"
+          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+
   release-app:
     name: Create app releases
     runs-on: ubuntu-latest
@@ -220,6 +251,7 @@ jobs:
     needs:
       - release
       - get-tag
+      - build-previous-stable
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -262,16 +294,26 @@ jobs:
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-1.8.0-k8s-1.28"
           replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
           replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
-
-          # install the current k0s version
+          
+          # promote a release containing the previous stable version of embedded-cluster to test upgrades
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}-previous-stable"
+          export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-stable
+          ./scripts/ci-release-app.sh
+          # promote a release with the current k0s version, but call it the previous version to test noop upgrades
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}-previous-k0s"	
+          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+          # promote a release with the current k0s version
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"	
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}"	
-          export RELEASE_YAML_DIR=e2e/kots-release-install	
-          ./scripts/ci-release-app.sh	
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
           # and finally an app upgrade	
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}-upgrade"	
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"	
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-upgrade"	
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade	
+          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
   e2e:
     name: E2E
@@ -290,6 +332,8 @@ jobs:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
           - test: TestAirgapUpgradeFromEC18
+            runner: embedded-cluster
+          - test: TestMultiNodeAirgapUpgradePreviousStable
             runner: embedded-cluster
     steps:
       - name: Checkout
@@ -311,7 +355,7 @@ jobs:
 
           k0s-version: ${{ needs.get-tag.outputs.k0s_version }}
           k0s-version-previous: ${{ needs.get-tag.outputs.k0s_version }} # we do not run k8s upgrade tests on release
-          k0s-version-previous-stable: ${{ needs.get-tag.outputs.k0s_version }} # we do not run k8s upgrade tests on release
+          k0s-version-previous-stable: ${{ needs.build-previous-stable.outputs.k0s_version }}
 
   # this job will validate that all the tests passed
   # it is used for the github branch protection rule
