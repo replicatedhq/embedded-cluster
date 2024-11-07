@@ -170,6 +170,8 @@ func assertEnv(t *testing.T, actual, expected map[string]string) {
 	}
 }
 
+// assertCommands asserts that the expected commands are present in the actual commands
+// if assertAll is true, it will fail the test if any command is present in the actual commands that was not expected
 func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []interface{}, assertAll bool) {
 	for _, exp := range expected {
 		found := false

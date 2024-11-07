@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
@@ -2449,6 +2451,217 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	require.NoErrorf(t, err, "unable to unmarshal output to configmap: %q", stdout)
 	require.Contains(t, cm.Data, "ca_0.crt", "index ca_0.crt not found in ca secret")
 	require.Equal(t, crtContent, cm.Data["ca_0.crt"], "content mismatch")
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallWithConfigValues(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "almalinux-8",
+		LicensePath:  "license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
+	line := []string{"yum-install-tar.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	hostname := uuid.New().String()
+	password := uuid.New().String()
+
+	// create a config values file on the node
+	configValuesFileContent := fmt.Sprintf(`
+apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values:
+    hostname:
+      value: %s
+    pw:
+      value: %s
+`, hostname, password)
+	configValuesFileB64 := base64.StdEncoding.EncodeToString([]byte(configValuesFileContent))
+	t.Logf("%s: creating config values file", time.Now().Format(time.RFC3339))
+	_, _, err := tc.RunCommandOnNode(0, []string{"mkdir", "-p", "/assets"})
+	if err != nil {
+		t.Fatalf("fail to create config values file directory: %v", err)
+	}
+	_, _, err = tc.RunCommandOnNode(0, []string{"echo", "'" + configValuesFileB64 + "'", "|", "base64", "-d", ">", "/assets/config-values.yaml"})
+	if err != nil {
+		t.Fatalf("fail to create config values file: %v", err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-install.sh", "ui", "--config-values", "/assets/config-values.yaml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking config values", time.Now().Format(time.RFC3339))
+	line = []string{"check-config-values.sh", hostname, password}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion, "", hostname}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking config values after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-config-values.sh", "updated-hostname.com", "updated password"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
+	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		}, func(t *testing.T) error {
+			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+		},
+	)
+
+	tc := lxd.NewCluster(&lxd.ClusterInput{
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "debian/12",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapInstallBundlePath,
+		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
+	})
+	defer tc.Cleanup()
+
+	// delete airgap bundles once they've been copied to the nodes
+	if err := os.Remove(airgapInstallBundlePath); err != nil {
+		t.Logf("failed to remove airgap install bundle: %v", err)
+	}
+	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
+		t.Logf("failed to remove airgap upgrade bundle: %v", err)
+	}
+
+	// install "curl" dependency on node 0 for app version checks.
+	tc.InstallTestDependenciesDebian(t, 0, true)
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	hostname := uuid.New().String()
+	password := uuid.New().String()
+
+	// create a config values file on the node
+	configValuesFileContent := fmt.Sprintf(`
+apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values:
+    hostname:
+      value: %s
+    pw:
+      value: %s
+`, hostname, password)
+	configValuesFileB64 := base64.StdEncoding.EncodeToString([]byte(configValuesFileContent))
+	t.Logf("%s: creating config values file", time.Now().Format(time.RFC3339))
+	_, _, err := tc.RunCommandOnNode(0, []string{"mkdir", "-p", "/assets"})
+	if err != nil {
+		t.Fatalf("fail to create config values file directory: %v", err)
+	}
+	_, _, err = tc.RunCommandOnNode(0, []string{"sh", "-c", "echo '" + configValuesFileB64 + "' | base64 -d > /assets/config-values.yaml"})
+	if err != nil {
+		t.Fatalf("fail to create config values file: %v", err)
+	}
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line = []string{"single-node-airgap-install.sh", "--local-artifact-mirror-port", "50001", "--config-values", "/assets/config-values.yaml"} // choose an alternate lam port
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
+	}
+	// remove the airgap bundle after installation
+	line = []string{"rm", "/assets/release.airgap"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: checking config values", time.Now().Format(time.RFC3339))
+	line = []string{"check-config-values.sh", hostname, password}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+	// remove the airgap bundle after upgrade
+	line = []string{"rm", "/assets/upgrade/release.airgap"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to remove airgap bundle on node %s: %v", tc.Nodes[0], err)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion, "", hostname}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-postupgrade-state.sh", k8sVersion()}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v", err)
+	}
+
+	t.Logf("%s: checking config values after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-config-values.sh", "updated-hostname.com", "updated password"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

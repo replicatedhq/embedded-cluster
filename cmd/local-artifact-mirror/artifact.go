@@ -21,6 +21,15 @@ import (
 	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
+var (
+	insecureTransport *http.Transport
+)
+
+func init() {
+	insecureTransport = http.DefaultTransport.(*http.Transport).Clone()
+	insecureTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+}
+
 // DockerConfig represents the content of the '.dockerconfigjson' secret.
 type DockerConfig struct {
 	Auths map[string]DockerConfigEntry `json:"auths"`
@@ -100,15 +109,8 @@ func pullArtifact(ctx context.Context, from string) (string, error) {
 	}
 	defer fs.Close()
 
-	transp, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return "", fmt.Errorf("unable to get default transport")
-	}
-
-	transp = transp.Clone()
-	transp.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	repo.Client = &auth.Client{
-		Client:     &http.Client{Transport: transp},
+		Client:     &http.Client{Transport: insecureTransport},
 		Credential: store.Get,
 	}
 

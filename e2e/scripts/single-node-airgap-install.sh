@@ -28,11 +28,13 @@ main() {
         echo "Running install with additional args: $additional_args"
     fi
 
+    echo "Running install without a license"
     if embedded-cluster install --no-prompt --airgap-bundle /assets/release.airgap $additional_args 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail without a license provided"
         exit 1
     fi
 
+    echo "Running install with a license"
     if ! embedded-cluster install --no-prompt --license /assets/license.yaml --airgap-bundle /assets/release.airgap $additional_args 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         kubectl get pods -A

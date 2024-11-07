@@ -96,8 +96,11 @@ function kotsbin() {
     local kots_version=
     kots_version=$(make print-KOTS_VERSION)
 
-    local kots_override=
-    kots_override=$(make print-KOTS_BINARY_URL_OVERRIDE)
+    local kots_url_override=
+    kots_url_override=$(make print-KOTS_BINARY_URL_OVERRIDE)
+
+    local kots_file_override=
+    kots_file_override=$(make print-KOTS_BINARY_FILE_OVERRIDE)
 
     # check if the binary already exists in the bucket
     local kots_binary_exists=
@@ -109,9 +112,12 @@ function kotsbin() {
         return 0
     fi
 
-    if [ -n "${kots_override}" ] && [ "${kots_override}" != '' ]; then
-        echo "KOTS_BINARY_URL_OVERRIDE is set to '${kots_override}', using that source"
-        curl --retry 5 --retry-all-errors -fL -o "build/kots_linux_${ARCH}.tar.gz" "${kots_override}"
+    if [ -n "${kots_url_override}" ]; then
+        echo "KOTS_BINARY_URL_OVERRIDE is set to '${kots_url_override}', using that source"
+        curl --retry 5 --retry-all-errors -fL -o "build/kots_linux_${ARCH}.tar.gz" "${kots_url_override}"
+    elif [ -n "${kots_file_override}" ]; then
+        echo "KOTS_BINARY_FILE_OVERRIDE is set to '${kots_file_override}', using that source"
+        tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C $(dirname "${kots_file_override}") $(basename "${kots_file_override}")
     else
         # download the kots binary from github
         echo "downloading kots binary from https://github.com/replicatedhq/kots/releases/download/${kots_version}/kots_linux_${ARCH}.tar.gz"

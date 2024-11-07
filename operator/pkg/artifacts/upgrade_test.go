@@ -30,7 +30,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 			}
 
 			list := &batchv1.JobList{}
-			err := cli.List(ctx, list, client.InNamespace(ecNamespace))
+			err := cli.List(context.Background(), list, client.InNamespace(ecNamespace))
 			if err != nil {
 				require.NoError(t, err)
 			}
@@ -39,7 +39,7 @@ func TestEnsureArtifactsJobForNodes(t *testing.T) {
 					// there is no job controller in envtest so the finalizer will not be
 					// removed and the job will not be deleted
 					item.SetFinalizers(nil)
-					err := cli.Update(ctx, &item)
+					err := cli.Update(context.Background(), &item)
 					require.NoError(t, err)
 				}
 			}

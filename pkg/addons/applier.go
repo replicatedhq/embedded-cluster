@@ -60,6 +60,7 @@ type Applier struct {
 	isHA                    bool
 	isHAMigrationInProgress bool
 	binaryNameOverride      string
+	configValuesFile        string
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -336,6 +337,7 @@ func (a *Applier) load() ([]AddOn, error) {
 		a.isHA,
 		a.proxyEnv,
 		a.privateCAs,
+		a.configValuesFile,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
