@@ -322,6 +322,7 @@ jobs:
       - release
       - release-app
       - get-tag
+      - build-previous-stable
     strategy:
       fail-fast: false
       matrix:
