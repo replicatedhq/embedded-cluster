@@ -1,24 +1,13 @@
 package util
 
 import (
-	"os"
+	"fmt"
 	"os/exec"
 	"testing"
 )
 
 func WriteHelmValuesFile(t *testing.T, name string, values string) string {
-	f, err := os.CreateTemp("", "values-*.yaml")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %s", err)
-	}
-	f.Close()
-
-	err = os.WriteFile(f.Name(), []byte(values), 0644)
-	if err != nil {
-		t.Fatalf("failed to write values to file: %s", err)
-	}
-
-	return f.Name()
+	return WriteTempFile(t, fmt.Sprintf("%s-values.yaml", name), []byte(values), 0644)
 }
 
 func AddHelmRepo(t *testing.T, name string, url string) {

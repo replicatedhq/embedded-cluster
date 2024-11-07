@@ -15,12 +15,7 @@ func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
 	t.Parallel()
 
 	clusterName := util.GenerateClusterName(t)
-
-	// cleanup previous test runs
-	util.DeleteKindCluster(t, clusterName)
-
-	kubeconfig := util.CreateKindCluster(t, clusterName, nil)
-	util.DeferCleanupKindCluster(t, clusterName)
+	kubeconfig := util.SetupKindCluster(t, clusterName, nil)
 
 	addon := openebs.OpenEBS{}
 	provider := defaults.NewProvider("/custom")

@@ -23,6 +23,20 @@ type KindClusterOptions struct {
 
 type KindExposedPorts map[string]string
 
+func SetupKindCluster(t *testing.T, name string, opts *KindClusterOptions) string {
+	config := NewKindClusterConfig(t, name, opts)
+	return SetupKindClusterFromConfig(t, config)
+}
+
+func SetupKindClusterFromConfig(t *testing.T, config kind.Cluster) string {
+	// cleanup previous test runs
+	DeleteKindCluster(t, config.Name)
+
+	kubeconfig := CreateKindClusterFromConfig(t, config)
+	DeferCleanupKindCluster(t, config.Name)
+	return kubeconfig
+}
+
 func CreateKindCluster(t *testing.T, name string, opts *KindClusterOptions) string {
 	config := NewKindClusterConfig(t, name, opts)
 	return CreateKindClusterFromConfig(t, config)

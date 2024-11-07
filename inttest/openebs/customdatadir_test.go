@@ -18,10 +18,6 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	t.Parallel()
 
 	clusterName := util.GenerateClusterName(t)
-
-	// cleanup previous test runs
-	util.DeleteKindCluster(t, clusterName)
-
 	kindConfig := util.NewKindClusterConfig(t, clusterName, nil)
 
 	dataDir := util.TmpNameForHostMount(t, "data-dir")
@@ -30,8 +26,7 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 		HostPath:      dataDir,
 		ContainerPath: "/custom",
 	})
-	kubeconfig := util.CreateKindClusterFromConfig(t, kindConfig)
-	util.DeferCleanupKindCluster(t, clusterName)
+	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
 	addon := openebs.OpenEBS{}
 	provider := defaults.NewProvider("/custom")
