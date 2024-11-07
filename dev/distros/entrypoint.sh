@@ -29,5 +29,9 @@ cat > /etc/systemd/system/systemd-timesyncd.service.d/override.conf << EOF
 ConditionVirtualization=
 EOF
 
+# Start timesyncd
+systemctl enable systemd-timesyncd
+systemctl start systemd-timesyncd
+
 # Launch the system
 exec /sbin/init
