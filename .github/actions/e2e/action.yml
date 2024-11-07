@@ -45,7 +45,7 @@ inputs:
     required: true
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
-    required: true
+    required: false # this is only set by post-release testing
 
 runs:
   using: composite
