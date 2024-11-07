@@ -67,6 +67,7 @@ type ClusterInput struct {
 	WithProxy                         bool
 	id                                string
 	AdditionalFiles                   []File
+	lxdClient                         lxd.InstanceServer
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -85,21 +86,18 @@ type Dir struct {
 // Cluster is returned when a cluster is created. Contain a list of all node
 // names and the cluster id.
 type Cluster struct {
-	Nodes   []string
-	IPs     []string
-	network string
-	id      string
-	T       *testing.T
-	Proxy   string
+	Nodes     []string
+	IPs       []string
+	network   string
+	id        string
+	T         *testing.T
+	Proxy     string
+	lxdClient lxd.InstanceServer
 }
 
 // Destroy destroys a cluster pointed by the id property.
 func (c *Cluster) Destroy() {
 	c.T.Logf("Destroying cluster %s", c.id)
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		c.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
 	nodes := c.Nodes
 	if c.Proxy != "" {
 		nodes = append(nodes, c.Proxy)
@@ -109,7 +107,7 @@ func (c *Cluster) Destroy() {
 			Action:  "stop",
 			Timeout: -1,
 		}
-		op, err := client.UpdateInstanceState(node, reqstate, "")
+		op, err := c.lxdClient.UpdateInstanceState(node, reqstate, "")
 		if err != nil {
 			c.T.Logf("Failed to stop node %s: %v", node, err)
 			continue
@@ -119,15 +117,15 @@ func (c *Cluster) Destroy() {
 		}
 	}
 	netname := fmt.Sprintf("internal-%s", c.id)
-	if err := client.DeleteNetwork(netname); err != nil {
+	if err := c.lxdClient.DeleteNetwork(netname); err != nil {
 		c.T.Logf("Failed to delete network %s: %v", netname, err)
 	}
 	netname = fmt.Sprintf("external-%s", c.id)
-	if err := client.DeleteNetwork(netname); err != nil {
+	if err := c.lxdClient.DeleteNetwork(netname); err != nil {
 		c.T.Logf("Failed to delete external network: %v", err)
 	}
 	profilename := fmt.Sprintf("profile-%s", c.id)
-	if err := client.DeleteProfile(profilename); err != nil {
+	if err := c.lxdClient.DeleteProfile(profilename); err != nil {
 		c.T.Logf("Failed to delete profile: %v", err)
 	}
 	networkaddr <- c.network
@@ -144,11 +142,7 @@ type Command struct {
 }
 
 // Run runs a command in a node.
-func Run(ctx context.Context, t *testing.T, cmd Command) error {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		t.Fatalf("Failed to connect to LXD: %v", err)
-	}
+func Run(ctx context.Context, t *testing.T, lxdClient lxd.InstanceServer, cmd Command) error {
 	env := map[string]string{}
 	var uid uint32
 	if cmd.RegularUser {
@@ -172,7 +166,7 @@ func Run(ctx context.Context, t *testing.T, cmd Command) error {
 		Stderr:   cmd.Stderr,
 		DataDone: done,
 	}
-	op, err := client.ExecInstance(cmd.Node, req, &args)
+	op, err := lxdClient.ExecInstance(cmd.Node, req, &args)
 	if err != nil {
 		return err
 	}
@@ -199,6 +193,12 @@ var imagesMap = map[string]string{
 // that can be used to get the created nodes and destroy the cluster when it
 // is no longer needed.
 func NewCluster(in *ClusterInput) *Cluster {
+	lxdClient, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		in.T.Fatalf("Failed to connect to LXD: %v", err)
+	}
+	in.lxdClient = lxdClient
+
 	if name, ok := imagesMap[in.Image]; ok {
 		in.Image = name
 	}
@@ -207,9 +207,10 @@ func NewCluster(in *ClusterInput) *Cluster {
 	in.network = <-networkaddr
 
 	out := &Cluster{
-		T:       in.T,
-		network: in.network,
-		id:      in.id,
+		T:         in.T,
+		network:   in.network,
+		id:        in.id,
+		lxdClient: in.lxdClient,
 	}
 	out.T.Cleanup(out.Destroy)
 
@@ -263,10 +264,6 @@ const (
 // won't work on them by design (exception made for DNS requests and http requests
 // using the proxy). Proxy is accessible from the cluster nodes on 10.0.0.254:3128.
 func CreateProxy(in *ClusterInput) string {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
 	name := fmt.Sprintf("node-%s-proxy", in.id)
 	profile := fmt.Sprintf("profile-%s", in.id)
 	innet := fmt.Sprintf("external-%s", in.id)
@@ -297,14 +294,14 @@ func CreateProxy(in *ClusterInput) string {
 		},
 	}
 	in.T.Logf("Creating proxy %s", name)
-	if op, err := client.CreateInstance(request); err != nil {
+	if op, err := in.lxdClient.CreateInstance(request); err != nil {
 		in.T.Fatalf("Failed to create proxy %s: %v", name, err)
 	} else if err := op.Wait(); err != nil {
 		in.T.Fatalf("Failed to wait for proxy %s: %v", name, err)
 	}
 	in.T.Logf("Starting proxy %s", name)
 	reqstate := api.InstanceStatePut{Action: "start", Timeout: -1}
-	if op, err := client.UpdateInstanceState(name, reqstate, ""); err != nil {
+	if op, err := in.lxdClient.UpdateInstanceState(name, reqstate, ""); err != nil {
 		in.T.Fatalf("Failed to start proxy %s: %v", name, err)
 	} else if err := op.Wait(); err != nil {
 		in.T.Fatalf("Failed to wait for proxy start %s: %v", name, err)
@@ -313,7 +310,8 @@ func CreateProxy(in *ClusterInput) string {
 	for state.Status != "Running" {
 		time.Sleep(5 * time.Second)
 		in.T.Logf("Waiting for proxy %s to start (running)", name)
-		if state, _, err = client.GetInstanceState(name); err != nil {
+		var err error
+		if state, _, err = in.lxdClient.GetInstanceState(name); err != nil {
 			in.T.Fatalf("Failed to get proxy state %s: %v", name, err)
 		}
 	}
@@ -347,7 +345,7 @@ func ConfigureProxy(in *ClusterInput) {
 	proxyName := fmt.Sprintf("node-%s-proxy", in.id)
 
 	RunCommand(in, []string{"/usr/local/bin/install-and-configure-squid.sh"}, proxyName)
-	if err := CopyFileFromNode(proxyName, "/tmp/ca.crt", "/tmp/ca.crt"); err != nil {
+	if err := CopyFileFromNode(in.lxdClient, proxyName, "/tmp/ca.crt", "/tmp/ca.crt"); err != nil {
 		in.T.Errorf("failed to copy proxy ca: %v", err)
 		return
 	}
@@ -391,7 +389,7 @@ func RunCommand(in *ClusterInput, cmdline []string, name string, envs ...map[str
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	err := Run(ctx, in.T, cmd)
+	err := Run(ctx, in.T, in.lxdClient, cmd)
 	in.T.Logf("stdout: %s", stdout.String())
 	in.T.Logf("stderr: %s", stderr.String())
 	if err != nil {
@@ -420,7 +418,7 @@ func CreateRegularUser(in *ClusterInput, node string) {
 			"user",
 		},
 	}
-	if err := Run(ctx, in.T, cmd); err != nil {
+	if err := Run(ctx, in.T, in.lxdClient, cmd); err != nil {
 		in.T.Logf("stdout: %s", stdout.String())
 		in.T.Logf("stderr: %s", stderr.String())
 		in.T.Fatalf("Unable to create regular user: %s", err)
@@ -430,12 +428,8 @@ func CreateRegularUser(in *ClusterInput, node string) {
 // CopyFilesToNode copies the files needed for the cluster to the node. Copies
 // the provided ssh key and the embedded-cluster release files.
 func CopyFilesToNode(in *ClusterInput, node string) {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
 	req := lxd.ContainerFileArgs{Mode: 0700, Type: "directory"}
-	if err = client.CreateContainerFile(node, "/root/.ssh", req); err != nil {
+	if err := in.lxdClient.CreateContainerFile(node, "/root/.ssh", req); err != nil {
 		in.T.Fatalf("Failed to create directory: %v", err)
 	}
 	files := []File{
@@ -526,10 +520,6 @@ func CopyFileToNode(in *ClusterInput, node string, file File) {
 		RunCommand(in, cmd, node)
 	}
 	in.T.Logf("Copying `%s` to `%s` on node %s", file.SourcePath, file.DestPath, node)
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
 	fp, err := os.Open(file.SourcePath)
 	if err != nil {
 		in.T.Fatalf("Failed to open file %s: %v", file.SourcePath, err)
@@ -540,18 +530,14 @@ func CopyFileToNode(in *ClusterInput, node string, file File) {
 		Mode:    file.Mode,
 		Type:    "file",
 	}
-	if err := client.CreateContainerFile(node, file.DestPath, req); err != nil {
+	if err := in.lxdClient.CreateContainerFile(node, file.DestPath, req); err != nil {
 		in.T.Fatalf("Failed to copy file `%s` to `%s` on node %s: %v", file.SourcePath, file.DestPath, node, err)
 	}
 }
 
 // CopyFileFromNode copies a file from a node to the host.
-func CopyFileFromNode(node, source, dest string) error {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		return fmt.Errorf("failed to connect to LXD: %v", err)
-	}
-	content, _, err := client.GetContainerFile(node, source)
+func CopyFileFromNode(lxdClient lxd.InstanceServer, node, source, dest string) error {
+	content, _, err := lxdClient.GetContainerFile(node, source)
 	if err != nil {
 		return fmt.Errorf("failed to get file %s: %v", source, err)
 	}
@@ -616,7 +602,7 @@ func NodeHasInternet(in *ClusterInput, node string) {
 	for i := 0; i < 60; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if err := Run(ctx, in.T, cmd); err != nil {
+		if err := Run(ctx, in.T, in.lxdClient, cmd); err != nil {
 			success = 0
 			lastErr = fmt.Errorf("failed to check internet: %v", err)
 			time.Sleep(2 * time.Second)
@@ -665,7 +651,7 @@ func NodeHasNoInternet(in *ClusterInput, node string) {
 	for i := 0; i < 60; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if err := Run(ctx, in.T, cmd); err == nil {
+		if err := Run(ctx, in.T, in.lxdClient, cmd); err == nil {
 			success = 0
 			time.Sleep(2 * time.Second)
 			continue
@@ -685,10 +671,6 @@ func NodeHasNoInternet(in *ClusterInput, node string) {
 // name for the node. Node is named as "node-<cluster id>-<i>". The node
 // name is returned.
 func CreateNode(in *ClusterInput, i int) (string, string) {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
 	name := fmt.Sprintf("node-%s-%02d", in.id, i)
 	profile := fmt.Sprintf("profile-%s", in.id)
 	net := fmt.Sprintf("internal-%s", in.id)
@@ -713,14 +695,14 @@ func CreateNode(in *ClusterInput, i int) (string, string) {
 		},
 	}
 	in.T.Logf("Creating node %s", name)
-	if op, err := client.CreateInstance(request); err != nil {
+	if op, err := in.lxdClient.CreateInstance(request); err != nil {
 		in.T.Fatalf("Failed to create node %s: %v", name, err)
 	} else if err := op.Wait(); err != nil {
 		in.T.Fatalf("Failed to wait for node %s: %v", name, err)
 	}
 	in.T.Logf("Starting node %s", name)
 	reqstate := api.InstanceStatePut{Action: "start", Timeout: -1}
-	if op, err := client.UpdateInstanceState(name, reqstate, ""); err != nil {
+	if op, err := in.lxdClient.UpdateInstanceState(name, reqstate, ""); err != nil {
 		in.T.Fatalf("Failed to start node %s: %v", name, err)
 	} else if err := op.Wait(); err != nil {
 		in.T.Fatalf("Failed to wait for node start %s: %v", name, err)
@@ -729,17 +711,19 @@ func CreateNode(in *ClusterInput, i int) (string, string) {
 	for state.Status != "Running" {
 		time.Sleep(5 * time.Second)
 		in.T.Logf("Waiting for node %s to start (running)", name)
-		if state, _, err = client.GetInstanceState(name); err != nil {
+		var err error
+		if state, _, err = in.lxdClient.GetInstanceState(name); err != nil {
 			in.T.Fatalf("Failed to get node state %s: %v", name, err)
 		}
 	}
 	ip := getInetIP(state)
 	for j := 0; ip == ""; j++ {
 		if j > 6 {
-			in.T.Fatalf("Failed to get node ip %s: %v", name, err)
+			in.T.Fatalf("Failed to get node ip %s", name)
 		}
 		time.Sleep(5 * time.Second)
-		if state, _, err = client.GetInstanceState(name); err != nil {
+		var err error
+		if state, _, err = in.lxdClient.GetInstanceState(name); err != nil {
 			in.T.Fatalf("Failed to get node state %s: %v", name, err)
 		}
 		ip = getInetIP(state)
@@ -764,10 +748,6 @@ func getInetIP(state *api.InstanceState) string {
 // type ovn, the latter is completely isolated from the host network and from the other
 // networks on the same server.
 func CreateNetworks(in *ClusterInput) {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
 	request := api.NetworksPost{
 		Name: fmt.Sprintf("external-%s", in.id),
 		Type: "bridge",
@@ -782,7 +762,7 @@ func CreateNetworks(in *ClusterInput) {
 			},
 		},
 	}
-	if err := client.CreateNetwork(request); err != nil {
+	if err := in.lxdClient.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create external network: %v", err)
 	}
 	open := "true"
@@ -801,7 +781,7 @@ func CreateNetworks(in *ClusterInput) {
 			},
 		},
 	}
-	if err := client.CreateNetwork(request); err != nil {
+	if err := in.lxdClient.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create internal network: %v", err)
 	}
 }
@@ -809,10 +789,6 @@ func CreateNetworks(in *ClusterInput) {
 // CreateProfile that restricts the hardware and provides privileged access to the
 // containers.
 func CreateProfile(in *ClusterInput) {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
 	request := api.ProfilesPost{
 		Name: fmt.Sprintf("profile-%s", in.id),
 		ProfilePut: api.ProfilePut{
@@ -842,18 +818,13 @@ func CreateProfile(in *ClusterInput) {
 			},
 		},
 	}
-	if err := client.CreateProfile(request); err != nil {
+	if err := in.lxdClient.CreateProfile(request); err != nil {
 		in.T.Fatalf("Failed to create profile: %v", err)
 	}
 }
 
 // PullImage pull the image used for the nodes.
 func PullImage(in *ClusterInput, image string) {
-	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
-	if err != nil {
-		in.T.Fatalf("Failed to connect to LXD: %v", err)
-	}
-
 	for _, server := range []string{
 		"https://images.lxd.canonical.com",
 		"https://cloud-images.ubuntu.com/minimal/releases",
@@ -876,7 +847,7 @@ func PullImage(in *ClusterInput, image string) {
 			continue
 		}
 
-		op, err := client.CopyImage(remote, *image, &lxd.ImageCopyArgs{CopyAliases: true})
+		op, err := in.lxdClient.CopyImage(remote, *image, &lxd.ImageCopyArgs{CopyAliases: true})
 		if err != nil {
 			in.T.Logf("Failed to copy image %s from %s: %v", alias.Target, server, err)
 			continue
@@ -918,7 +889,7 @@ func (c *Cluster) RunRegularUserCommandOnNode(t *testing.T, node int, line []str
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	if err := Run(ctx, t, *cmd); err != nil {
+	if err := Run(ctx, t, c.lxdClient, *cmd); err != nil {
 		t.Logf("stdout:\n%s\nstderr:%s\n", stdout.String(), stderr.String())
 		return stdout.String(), stderr.String(), err
 	}
@@ -938,7 +909,7 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	if err := Run(ctx, c.T, *cmd); err != nil {
+	if err := Run(ctx, c.T, c.lxdClient, *cmd); err != nil {
 		c.T.Logf("stdout:\n%s", stdout.String())
 		c.T.Logf("stderr:\n%s", stderr.String())
 		return stdout.String(), stderr.String(), err
@@ -963,7 +934,7 @@ func (c *Cluster) RunCommandOnProxyNode(t *testing.T, line []string, envs ...map
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	if err := Run(ctx, t, *cmd); err != nil {
+	if err := Run(ctx, t, c.lxdClient, *cmd); err != nil {
 		t.Logf("stdout:\n%s", stdout.String())
 		t.Logf("stderr:\n%s", stderr.String())
 		return stdout.String(), stderr.String(), err
@@ -1042,7 +1013,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 			}
 
 			c.T.Logf("%s: copying host support bundle from node %s to local machine", time.Now().Format(time.RFC3339), c.Nodes[i])
-			if err := CopyFileFromNode(c.Nodes[i], "/root/host.tar.gz", fmt.Sprintf("support-bundle-host-%s.tar.gz", c.Nodes[i])); err != nil {
+			if err := CopyFileFromNode(c.lxdClient, c.Nodes[i], "/root/host.tar.gz", fmt.Sprintf("support-bundle-host-%s.tar.gz", c.Nodes[i])); err != nil {
 				c.T.Logf("fail to copy host support bundle from node %s to local machine: %v", c.Nodes[i], err)
 			}
 		}(i, &wg)
@@ -1057,7 +1028,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 		c.T.Logf("fail to generate cluster support from node %s bundle: %v", node, err)
 	} else {
 		c.T.Logf("%s: copying cluster support bundle from node %s to local machine", time.Now().Format(time.RFC3339), node)
-		if err := CopyFileFromNode(node, "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
+		if err := CopyFileFromNode(c.lxdClient, node, "/root/cluster.tar.gz", "support-bundle-cluster.tar.gz"); err != nil {
 			c.T.Logf("fail to copy cluster support bundle from node %s to local machine: %v", node, err)
 		}
 	}
@@ -1073,7 +1044,7 @@ func (c *Cluster) copyPlaywrightReport() {
 		return
 	}
 	c.T.Logf("%s: copying playwright report to local machine", time.Now().Format(time.RFC3339))
-	if err := CopyFileFromNode(c.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
+	if err := CopyFileFromNode(c.lxdClient, c.Proxy, "/root/playwright-report.tar.gz", "playwright-report.tar.gz"); err != nil {
 		c.T.Logf("fail to copy playwright report to local machine: %v", err)
 	}
 }
