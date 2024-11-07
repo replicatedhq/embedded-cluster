@@ -1,6 +1,6 @@
 module github.com/replicatedhq/embedded-cluster/kinds
 
-go 1.23.0
+go 1.23.3
 
 require (
 	github.com/evanphx/json-patch v5.9.0+incompatible
