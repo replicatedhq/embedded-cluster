@@ -296,8 +296,8 @@ jobs:
           replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
           
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}-previous-stable"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
+          export EC_VERSION="${{ needs.build-previous-stable.outputs.ec_version }}"
+          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-previous-stable"
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
           # promote a release with the current k0s version, but call it the previous version to test noop upgrades
