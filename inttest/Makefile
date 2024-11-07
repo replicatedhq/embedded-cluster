@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 DEBUG ?=
-PARALLEL ?= 1
+PARALLEL ?= 2
 
 .PHONY: test
 test: test-openebs
