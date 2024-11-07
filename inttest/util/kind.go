@@ -57,6 +57,13 @@ func DeleteKindCluster(t *testing.T, name string) {
 	t.Logf("deleted kind cluster %s", name)
 }
 
+func DeferCleanupKindCluster(t *testing.T, name string) {
+	if os.Getenv("DEBUG") != "" {
+		return
+	}
+	t.Cleanup(func() { DeleteKindCluster(t, name) })
+}
+
 func KindGetExposedPort(t *testing.T, name string, containerPort string) string {
 	nodes := kindListNodes(t, name)
 	for _, node := range nodes {

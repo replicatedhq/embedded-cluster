@@ -7,7 +7,10 @@ import (
 )
 
 func GenerateClusterName(t *testing.T) string {
-	return fmt.Sprintf("int-test-%s",
-		strings.ReplaceAll(strings.ToLower(t.Name()), "_", "-"),
+	return fmt.Sprintf("inttest-%s",
+		strings.ReplaceAll(
+			strings.ToLower(t.Name()),
+			"_", "-",
+		),
 	)
 }

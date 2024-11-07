@@ -31,9 +31,7 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 		ContainerPath: "/custom",
 	})
 	kubeconfig := util.CreateKindClusterFromConfig(t, kindConfig)
-	if os.Getenv("DEBUG") == "" {
-		t.Cleanup(func() { util.DeleteKindCluster(t, clusterName) })
-	}
+	util.DeferCleanupKindCluster(t, clusterName)
 
 	addon := openebs.OpenEBS{}
 	provider := defaults.NewProvider("/custom")

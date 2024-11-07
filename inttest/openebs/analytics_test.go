@@ -1,7 +1,6 @@
 package openebs
 
 import (
-	"os"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/inttest/util"
@@ -12,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func TestOpenEBS_Analytics(t *testing.T) {
+func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
 	t.Parallel()
 
 	clusterName := util.GenerateClusterName(t)
@@ -21,9 +20,7 @@ func TestOpenEBS_Analytics(t *testing.T) {
 	util.DeleteKindCluster(t, clusterName)
 
 	kubeconfig := util.CreateKindCluster(t, clusterName, nil)
-	if os.Getenv("DEBUG") == "" {
-		t.Cleanup(func() { util.DeleteKindCluster(t, clusterName) })
-	}
+	util.DeferCleanupKindCluster(t, clusterName)
 
 	addon := openebs.OpenEBS{}
 	provider := defaults.NewProvider("/custom")
