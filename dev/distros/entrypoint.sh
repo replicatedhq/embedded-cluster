@@ -22,5 +22,8 @@ fi
 ln -sf /etc/machine-id.persistent /etc/machine-id
 ln -sf /etc/machine-id.persistent /var/lib/dbus/machine-id
 
+# Sync time
+chronyc -a makestep
+
 # Launch the system
 exec /sbin/init
