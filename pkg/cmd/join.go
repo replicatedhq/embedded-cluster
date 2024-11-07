@@ -257,10 +257,24 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("unable to configure sysctl: %w", err)
 		}
 
+		fromCIDR, toCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
+		if err != nil {
+			return fmt.Errorf("unable to split default network CIDR: %w", err)
+		}
+
+		if jcmd.InstallationSpec.Network != nil {
+			if jcmd.InstallationSpec.Network.PodCIDR != "" {
+				fromCIDR = jcmd.InstallationSpec.Network.PodCIDR
+			}
+			if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
+				toCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
+			}
+		}
+
 		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
+		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			if err == ErrPreflightsHaveFail {
 				return ErrNothingElseToAdd

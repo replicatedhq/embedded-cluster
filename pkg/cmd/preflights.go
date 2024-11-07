@@ -8,6 +8,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -95,7 +96,13 @@ func installRunPreflightsCommand() *cli.Command {
 				replicatedAPIURL = license.Spec.Endpoint
 				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 			}
-			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+
+			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(c)
+			if err != nil {
+				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+			}
+
+			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -184,10 +191,24 @@ var joinRunPreflightsCommand = &cli.Command{
 			return err
 		}
 
+		fromCIDR, toCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
+		if err != nil {
+			return fmt.Errorf("unable to split default network CIDR: %w", err)
+		}
+
+		if jcmd.InstallationSpec.Network != nil {
+			if jcmd.InstallationSpec.Network.PodCIDR != "" {
+				fromCIDR = jcmd.InstallationSpec.Network.PodCIDR
+			}
+			if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
+				toCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
+			}
+		}
+
 		logrus.Debugf("running host preflights")
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
+		if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
 			if err == ErrPreflightsHaveFail {
 				return ErrNothingElseToAdd
 			}

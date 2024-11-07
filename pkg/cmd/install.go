@@ -148,18 +148,13 @@ func configureNetworkManager(c *cli.Context, provider *defaults.Provider) error 
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
+func RunHostPreflights(c *cli.Context, provider *defaults.Provider, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, fromCIDR, toCIDR string) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
 	privateCAs := getPrivateCAPath(c)
-
-	fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(c)
-	if err != nil {
-		return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
-	}
 
 	data, err := preflights.TemplateData{
 		ReplicatedAPIURL:        replicatedAPIURL,
@@ -856,7 +851,12 @@ func installCommand() *cli.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 			}
 
-			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(c)
+			if err != nil {
+				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+			}
+
+			if err := RunHostPreflights(c, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
 				metrics.ReportApplyFinished(c, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
