@@ -775,7 +775,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 
 	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
 	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
-	err := downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+	err := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -812,7 +812,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -837,7 +837,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
