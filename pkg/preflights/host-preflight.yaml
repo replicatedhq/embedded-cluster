@@ -148,13 +148,7 @@ spec:
         exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
         CIDRRangeAlloc: '{{ .GlobalCIDR.CIDR }}'
         desiredCIDR: {{.GlobalCIDR.Size}}
-    - run:
-        collectorName: arp-conf
-        command: sysctl
-        args:
-          - '-a'
-          - '--pattern'
-          - '^net\.ipv4\.conf\.(all|default)\.arp'
+    - sysctl: {}
   analyzers:
     - cpu:
         checkName: CPU
@@ -841,47 +835,18 @@ spec:
           - pass:
               when: "a-subnet-is-available"
               message: Specified CIDR is available.
-    - textAnalyze:
-        checkName: ARP filtering is not enabled by default for new interfaces
-        fileName: host-collectors/run-host/arp-conf.txt
-        regex: 'net.ipv4.conf.default.arp_filter = 0'
+    - sysctl:
+        checkName: Sysctl Kernel Parameters
         outcomes:
           - fail:
-              when: 'false'
+              when: 'net.ipv4.conf.default.arp_filter > 0'
               message: "ARP filtering is enabled by default for newly created interfaces on the host. Disable it by running 'sysctl net.ipv4.conf.default.arp_filter=0'."
-          - pass:
-              when: 'true'
-              message: "ARP filtering is not enabled by default for newly created interfaces on the host."
-    - textAnalyze:
-        checkName: ARP ignore is not enabled by default for new interfaces
-        fileName: host-collectors/run-host/arp-conf.txt
-        regex: 'net.ipv4.conf.default.arp_ignore = 0'
-        outcomes:
           - fail:
-              when: 'false'
+              when: 'net.ipv4.conf.default.arp_ignore > 0'
               message: "ARP ignore is enabled by default for newly created interfaces on the host. Disable it by running 'sysctl net.ipv4.conf.default.arp_ignore=0'."
-          - pass:
-              when: 'true'
-              message: "ARP ignore is not enabled by default for newly created interfaces on the host."
-    - textAnalyze:
-        checkName: ARP filtering is not enabled for all interfaces
-        fileName: host-collectors/run-host/arp-conf.txt
-        regex: 'net.ipv4.conf.all.arp_filter = 0'
-        outcomes:
           - fail:
-              when: 'false'
+              when: 'net.ipv4.conf.all.arp_filter > 0'
               message: "ARP filtering is enabled for all interfaces on the host. Disable it by running 'sysctl net.ipv4.conf.all.arp_filter=0'."
-          - pass:
-              when: 'true'
-              message: "ARP filtering is not enabled for all interfaces on the host."
-    - textAnalyze:
-        checkName: ARP ignore is not enabled for all interfaces
-        fileName: host-collectors/run-host/arp-conf.txt
-        regex: 'net.ipv4.conf.all.arp_ignore = 0'
-        outcomes:
           - fail:
-              when: 'false'
+              when: 'net.ipv4.conf.all.arp_ignore > 0'
               message: "ARP ignore is enabled for all interfaces on the host. Disable it by running 'sysctl net.ipv4.conf.all.arp_ignore=0'."
-          - pass:
-              when: 'true'
-              message: "ARP ignore is not enabled for all interfaces interfaces on the host."
