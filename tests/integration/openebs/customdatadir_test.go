@@ -20,7 +20,7 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	clusterName := util.GenerateClusterName(t)
 	kindConfig := util.NewKindClusterConfig(t, clusterName, nil)
 
-	dataDir := t.TempDir()
+	dataDir := util.TempDirForHostMount(t, "data-dir-*")
 	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, kind.Mount{
 		HostPath:      dataDir,
 		ContainerPath: "/custom",
