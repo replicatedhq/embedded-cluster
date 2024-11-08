@@ -31,6 +31,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
@@ -183,6 +184,16 @@ var joinCommand = &cli.Command{
 
 		if c.Args().Len() != 2 {
 			return fmt.Errorf("usage: %s join <url> <token>", binName)
+		}
+
+		if channelRelease, err := release.GetChannelRelease(); err != nil {
+			return fmt.Errorf("unable to read channel release data: %w", err)
+		} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
+			logrus.Infof("You downloaded an air gap bundle but are performing an online join.")
+			logrus.Infof("To do an air gap join, pass the air gap bundle with --airgap-bundle.")
+			if !prompts.New().Confirm("Do you want to proceed with an online join ?", false) {
+				return ErrNothingElseToAdd
+			}
 		}
 
 		logrus.Debugf("fetching join token remotely")

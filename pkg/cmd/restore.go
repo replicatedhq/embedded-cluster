@@ -959,6 +959,16 @@ func restoreCommand() *cli.Command {
 				return fmt.Errorf("unable to write runtime config: %w", err)
 			}
 
+			if channelRelease, err := release.GetChannelRelease(); err != nil {
+				return fmt.Errorf("unable to read channel release data: %w", err)
+			} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
+				logrus.Infof("You downloaded an air gap bundle but are performing an online restore.")
+				logrus.Infof("To do an air gap restore, pass the air gap bundle with --airgap-bundle.")
+				if !prompts.New().Confirm("Do you want to proceed with an online restore ?", false) {
+					return ErrNothingElseToAdd
+				}
+			}
+
 			proxy, err := getProxySpecFromFlags(c)
 			if err != nil {
 				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
