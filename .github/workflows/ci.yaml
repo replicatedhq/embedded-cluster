@@ -59,7 +59,7 @@ jobs:
         run: |
           make unit-tests
 
-  int-test:
+  int-tests:
     name: Integration tests
     runs-on: ubuntu-latest
     steps:
@@ -733,6 +733,8 @@ jobs:
       - e2e-docker
       - sanitize
       - test
+      - int-tests
+      - dryrun-tests
       - check-images
       - check-operator-crds
     if: always()
