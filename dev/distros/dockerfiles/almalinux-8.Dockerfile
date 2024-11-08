@@ -1,5 +1,8 @@
 FROM almalinux:8
 
+# Only required for systemd-timesyncd
+RUN dnf install -y epel-release
+
 # Install necessary packages
 RUN dnf install -y \
   sudo \
@@ -13,7 +16,7 @@ RUN dnf install -y \
   ipvsadm \
   kmod \
   iproute \
-  chrony \
+  systemd-timesyncd \
   expect \
   vim \
   --allowerasing
