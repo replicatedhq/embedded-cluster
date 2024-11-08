@@ -25,7 +25,7 @@ func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
 	chart := charts[0]
 	namespace := chart.TargetNS
 
-	helmValuesFile := util.WriteHelmValuesFile(t, "openebs", chart.Values)
+	helmValuesFile := util.WriteHelmValuesFile(t, chart.Values)
 
 	util.HelmInstall(t, kubeconfig, namespace, chart.Name, chart.Version, chart.ChartName, helmValuesFile)
 

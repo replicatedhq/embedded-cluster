@@ -140,24 +140,18 @@ func NewKindClusterConfig(t *testing.T, name string, opts *KindClusterOptions) k
 	return config
 }
 
+// kindGetKubeconfigPath creates a temporary file to store the kubeconfig at known location so that
+// kind clusters can be deleted on subsequent runs.
 func kindGetKubeconfigPath(t *testing.T) string {
 	return filepath.Join("/tmp", t.Name(), "kubeconfig")
 }
 
 func writeKindClusterConfig(t *testing.T, config kind.Cluster) string {
-	f, err := os.CreateTemp("", "kind-config-*.yaml")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %s", err)
-	}
-	f.Close()
 	data, err := yaml.Marshal(config)
 	if err != nil {
 		t.Fatalf("failed to marshal kind cluster config: %s", err)
 	}
-	if err := os.WriteFile(f.Name(), data, 0644); err != nil {
-		t.Fatalf("failed to write kind cluster config: %s", err)
-	}
-	return f.Name()
+	return WriteTempFile(t, "kind-config-*.yaml", data, 0644)
 }
 
 func kindListNodes(t *testing.T, name string) []string {

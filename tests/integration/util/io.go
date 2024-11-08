@@ -2,21 +2,18 @@ package util
 
 import (
 	"os"
-	"path/filepath"
-	"strconv"
 	"testing"
-	"time"
 )
 
-func WriteTempFile(t *testing.T, name string, data []byte, perm os.FileMode) string {
-	filename := filepath.Join(t.TempDir(), name)
-	err := os.WriteFile(filename, data, perm)
+func WriteTempFile(t *testing.T, pattern string, data []byte, perm os.FileMode) string {
+	f, err := os.CreateTemp(t.TempDir(), pattern)
 	if err != nil {
-		t.Fatalf("failed to write temp file %s: %s", filename, err)
+		t.Fatalf("failed to create temp file: %s", err)
 	}
-	return filename
-}
-
-func TmpNameForHostMount(t *testing.T, name string) string {
-	return filepath.Join("/tmp", t.Name(), strconv.FormatInt(time.Now().UnixNano(), 10), name)
+	defer f.Close()
+	err = os.WriteFile(f.Name(), data, perm)
+	if err != nil {
+		t.Fatalf("failed to write temp file %s: %s", f.Name(), err)
+	}
+	return f.Name()
 }

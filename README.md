@@ -23,6 +23,8 @@ Additionally, it includes a Registry when deployed in air gap mode.
 - Dagger
 - shasum
 - jq
+- Kubectl (for integration tests)
+- Kind (for integration tests)
 
 ### Running the Development Environment
 

@@ -14,7 +14,7 @@ func createPodAndPVC(t *testing.T, kubeconfig string) {
 	if err != nil {
 		t.Fatalf("failed to read podandpvc.yaml: %s", err)
 	}
-	util.WriteTempFile(t, "podandpvc.yaml", b, 0644)
-	util.KubectlApply(t, kubeconfig, "default", "static/podandpvc.yaml")
+	filename := util.WriteTempFile(t, "podandpvc-*.yaml", b, 0644)
+	util.KubectlApply(t, kubeconfig, "default", filename)
 	util.WaitForPodComplete(t, kubeconfig, "default", "task-pv-pod", 2*time.Minute)
 }

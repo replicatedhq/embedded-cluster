@@ -20,8 +20,7 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	clusterName := util.GenerateClusterName(t)
 	kindConfig := util.NewKindClusterConfig(t, clusterName, nil)
 
-	dataDir := util.TmpNameForHostMount(t, "data-dir")
-	_ = os.RemoveAll(dataDir)
+	dataDir := t.TempDir()
 	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, kind.Mount{
 		HostPath:      dataDir,
 		ContainerPath: "/custom",
@@ -36,7 +35,7 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	chart := charts[0]
 	namespace := chart.TargetNS
 
-	helmValuesFile := util.WriteHelmValuesFile(t, "openebs", chart.Values)
+	helmValuesFile := util.WriteHelmValuesFile(t, chart.Values)
 
 	util.HelmInstall(t, kubeconfig, namespace, chart.Name, chart.Version, chart.ChartName, helmValuesFile)
 

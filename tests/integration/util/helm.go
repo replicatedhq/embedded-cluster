@@ -1,13 +1,12 @@
 package util
 
 import (
-	"fmt"
 	"os/exec"
 	"testing"
 )
 
-func WriteHelmValuesFile(t *testing.T, name string, values string) string {
-	return WriteTempFile(t, fmt.Sprintf("%s-values.yaml", name), []byte(values), 0644)
+func WriteHelmValuesFile(t *testing.T, values string) string {
+	return WriteTempFile(t, "values-*.yaml", []byte(values), 0644)
 }
 
 func AddHelmRepo(t *testing.T, name string, url string) {
@@ -37,7 +36,7 @@ func HelmInstall(t *testing.T, kubeconfig string, namespace string, name string,
 		name, chart,
 		"--version", version, "--values", values,
 		"--create-namespace",
-		// "--atomic", "--wait", "--wait-for-jobs",
+		"--atomic", "--wait", "--wait-for-jobs",
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
