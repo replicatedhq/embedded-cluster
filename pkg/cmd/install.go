@@ -781,6 +781,12 @@ func installCommand() *cli.Command {
 			}
 
 			metrics.ReportApplyStarted(c)
+
+			logrus.Debugf("configuring sysctl")
+			if err := configutils.ConfigureSysctl(provider); err != nil {
+				return fmt.Errorf("unable to configure sysctl: %w", err)
+			}
+
 			logrus.Debugf("configuring network manager")
 			if err := configureNetworkManager(c, provider); err != nil {
 				return fmt.Errorf("unable to configure network manager: %w", err)

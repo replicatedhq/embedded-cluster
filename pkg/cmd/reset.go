@@ -501,6 +501,10 @@ func resetCommand() *cli.Command {
 				return fmt.Errorf("failed to remove embedded cluster data config: %w", err)
 			}
 
+			if err := helpers.RemoveAll("/etc/sysctl.d/99-embedded-cluster.conf"); err != nil {
+				return fmt.Errorf("failed to remove embedded cluster sysctl config: %w", err)
+			}
+
 			if _, err := helpers.RunCommand("reboot"); err != nil {
 				return err
 			}

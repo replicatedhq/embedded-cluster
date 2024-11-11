@@ -969,6 +969,11 @@ func restoreCommand() *cli.Command {
 				}
 			}
 
+			logrus.Debugf("configuring sysctl")
+			if err := configutils.ConfigureSysctl(provider); err != nil {
+				return fmt.Errorf("unable to configure sysctl: %w", err)
+			}
+
 			proxy, err := getProxySpecFromFlags(c)
 			if err != nil {
 				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
