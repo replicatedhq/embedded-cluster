@@ -356,7 +356,11 @@ jobs:
         test:
           - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeDisasterRecoveryWithProxy
+          - TestProxiedEnvironment
           - TestProxiedCustomCIDR
+          - TestInstallWithPrivateCAs
+          - TestInstallWithMITMProxy
         include:
           - test: TestMultiNodeAirgapUpgrade
             runner: embedded-cluster
