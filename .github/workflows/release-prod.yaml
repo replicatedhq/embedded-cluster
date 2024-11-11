@@ -212,7 +212,7 @@ jobs:
             build/*.tgz
             build/metadata.json
 
-  build-previous-stable:
+  find-previous-stable:
     name: Determine previous stable version
     runs-on: ubuntu-latest
     needs:
@@ -251,7 +251,7 @@ jobs:
     needs:
       - release
       - get-tag
-      - build-previous-stable
+      - find-previous-stable
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -296,7 +296,7 @@ jobs:
           replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
           
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
-          export EC_VERSION="${{ needs.build-previous-stable.outputs.ec_version }}"
+          export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-previous-stable"
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
@@ -316,7 +316,7 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
-  build-current:
+  download-current:
     name: Download the current release binary
     runs-on: ubuntu-latest
     needs:
@@ -348,8 +348,8 @@ jobs:
       - release
       - release-app
       - get-tag
-      - build-current
-      - build-previous-stable
+      - download-current
+      - find-previous-stable
     strategy:
       fail-fast: false
       matrix:
@@ -389,7 +389,7 @@ jobs:
 
           k0s-version: ${{ needs.get-tag.outputs.k0s_version }}
           k0s-version-previous: ${{ needs.get-tag.outputs.k0s_version }} # we do not run k8s upgrade tests on release
-          k0s-version-previous-stable: ${{ needs.build-previous-stable.outputs.k0s_version }}
+          k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
           upgrade-target-ec-version: ${{ needs.get-tag.outputs.tag-name }}
 
   # this job will validate that all the tests passed
