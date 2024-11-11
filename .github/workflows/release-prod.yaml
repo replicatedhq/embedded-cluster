@@ -275,11 +275,17 @@ jobs:
           APP_CHANNEL: CI
           USES_DEV_BUCKET: "0"
         run: |
+          # re-promote a release containing an old version of embedded-cluster to test upgrades
+          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-1.8.0-k8s-1.28"
+          replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
+          replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
+
           # install the current k0s version	
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"	
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}"	
           export RELEASE_YAML_DIR=e2e/kots-release-install	
           ./scripts/ci-release-app.sh	
+
           # and finally an app upgrade	
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}-upgrade"	
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-upgrade"	
@@ -293,11 +299,6 @@ jobs:
           APP_CHANNEL: CI-airgap
           USES_DEV_BUCKET: "0"
         run: |
-          # re-promote a release containing an old version of embedded-cluster to test upgrades
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-1.8.0-k8s-1.28"
-          replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
-          replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
-          
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-previous-stable"
