@@ -191,7 +191,7 @@ var joinCommand = &cli.Command{
 		} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
 			logrus.Infof("You downloaded an air gap bundle but are performing an online join.")
 			logrus.Infof("To do an air gap join, pass the air gap bundle with --airgap-bundle.")
-			if !prompts.New().Confirm("Do you want to proceed with an online join ?", false) {
+			if !prompts.New().Confirm("Do you want to proceed with an online join?", false) {
 				return ErrNothingElseToAdd
 			}
 		}
