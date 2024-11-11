@@ -964,7 +964,7 @@ func restoreCommand() *cli.Command {
 			} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
 				logrus.Infof("You downloaded an air gap bundle but are performing an online restore.")
 				logrus.Infof("To do an air gap restore, pass the air gap bundle with --airgap-bundle.")
-				if !prompts.New().Confirm("Do you want to proceed with an online restore ?", false) {
+				if !prompts.New().Confirm("Do you want to proceed with an online restore?", false) {
 					return ErrNothingElseToAdd
 				}
 			}
