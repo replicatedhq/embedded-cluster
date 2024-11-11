@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -492,12 +493,25 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 
+	sv, err := semver.NewVersion(k8sVersionPreviousStable())
+	if err != nil {
+		t.Fatalf("failed to parse previous stable k8s version: %s", err)
+	}
+
+	withEnv := map[string]string{}
+
+	// if the version is less that 1.29 then it is using ec version 1.14.2 or less which does not
+	// use the new data directories
+	if sv.LessThan(semver.New(1, 29, 0, "", "")) {
+		withEnv = map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"}
+	}
+
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:      t,
 		Nodes:  1,
 		Distro: "debian-bookworm",
 	})
-	defer tc.Cleanup()
+	defer tc.Cleanup(withEnv)
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
@@ -507,17 +521,21 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-install.sh", "ui"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+	if err := tc.SetupPlaywright(withEnv); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), k8sVersionPreviousStable()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -531,7 +549,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1571,6 +1589,19 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	RequireEnvVars(t, []string{"SHORT_SHA", "AIRGAP_LICENSE_ID"})
 
+	sv, err := semver.NewVersion(k8sVersionPreviousStable())
+	if err != nil {
+		t.Fatalf("failed to parse previous stable k8s version: %s", err)
+	}
+
+	withEnv := map[string]string{}
+
+	// if the version is less that 1.29 then it is using ec version 1.14.2 or less which does not
+	// use the new data directories
+	if sv.LessThan(semver.New(1, 29, 0, "", "")) {
+		withEnv = map[string]string{"KUBECONFIG": "/var/lib/k0s/pki/admin.conf"}
+	}
+
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
@@ -1590,7 +1621,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		AirgapInstallBundlePath: airgapInstallBundlePath,
 		AirgapUpgradeBundlePath: airgapUpgradeBundlePath,
 	})
-	defer tc.Cleanup()
+	defer tc.Cleanup(withEnv)
 
 	// install "curl" dependency on node 0 for app version checks.
 	tc.InstallTestDependenciesDebian(t, 0, true)
@@ -1617,7 +1648,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line = []string{"single-node-airgap-install.sh", "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
 	// remove the airgap bundle and binary after installation
@@ -1630,8 +1661,12 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to remove embedded-cluster binary on node %s: %v", tc.Nodes[0], err)
 	}
 
-	if _, _, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	if err := tc.SetupPlaywright(withEnv); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// generate worker node join command.
@@ -1649,11 +1684,11 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	// join the worker node
 	t.Logf("%s: preparing embedded cluster airgap files on worker node", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(1, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
 		t.Fatalf("fail to prepare airgap files on worker node: %v", err)
 	}
 	t.Logf("%s: joining worker node to the cluster", time.Now().Format(time.RFC3339))
-	if _, _, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " ")); err != nil {
+	if _, _, err := tc.RunCommandOnNode(1, strings.Split(workerCommand, " "), withEnv); err != nil {
 		t.Fatalf("fail to join worker node to the cluster: %v", err)
 	}
 	// remove the airgap bundle and binary after joining
@@ -1668,7 +1703,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	// wait for the nodes to report as ready.
 	t.Logf("%s: all nodes joined, waiting for them to be ready", time.Now().Format(time.RFC3339))
-	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"})
+	stdout, _, err = tc.RunCommandOnNode(0, []string{"wait-for-ready-nodes.sh", "2"}, withEnv)
 	if err != nil {
 		t.Log(stdout)
 		t.Fatalf("fail to wait for ready nodes: %v", err)
@@ -1676,13 +1711,13 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), k8sVersionPreviousStable()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
 	}
 	// remove the airgap bundle and binary after upgrade
@@ -1705,7 +1740,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v", err)
 	}
 
