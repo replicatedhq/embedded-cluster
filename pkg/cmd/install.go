@@ -784,7 +784,8 @@ func installCommand() *cli.Command {
 
 			logrus.Debugf("configuring sysctl")
 			if err := configutils.ConfigureSysctl(provider); err != nil {
-				return fmt.Errorf("unable to configure sysctl: %w", err)
+				logrus.Debugf("failed to configure sysctl, moving on")
+				logrus.Debug(err)
 			}
 
 			logrus.Debugf("configuring network manager")
