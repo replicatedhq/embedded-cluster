@@ -276,7 +276,7 @@ jobs:
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
   build-previous-stable:
-    name: Build previous stable
+    name: Determine previous stable version
     runs-on: embedded-cluster
     needs:
       - git-sha

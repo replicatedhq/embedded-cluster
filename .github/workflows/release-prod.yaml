@@ -213,7 +213,7 @@ jobs:
             build/metadata.json
 
   build-previous-stable:
-    name: Build previous stable
+    name: Determine previous stable version
     runs-on: embedded-cluster
     needs:
       - get-tag
