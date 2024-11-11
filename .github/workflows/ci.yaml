@@ -292,6 +292,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           k0s_majmin_version="$(make print-PREVIOUS_K0S_VERSION | sed 's/v\([0-9]*\.[0-9]*\).*/\1/')"
+          if [ "$k0s_majmin_version" == "1.28" ]; then
+            k0s_majmin_version="1.29"
+          fi
           EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
             --exclude-drafts --exclude-pre-releases --json name \
             --jq '.[] | .name' \
