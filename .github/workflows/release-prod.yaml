@@ -328,9 +328,9 @@ jobs:
           LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
         run: |
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}"	
-          curl -L "https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${APP_VERSION}" -H "Authorization: $LICENSE_ID" -o embedded-cluster-smoke-test-staging-app-ci.tgz
+          curl -L "https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/${APP_VERSION}" -H "Authorization: $LICENSE_ID" -o embedded-cluster-smoke-test-staging-app-ci.tgz
           tar -xzf embedded-cluster-smoke-test-staging-app-ci.tgz
-          mv embedded-cluster-smoke-test-staging-app-ci embedded-cluster
+          mv embedded-cluster-smoke-test-staging-app embedded-cluster
           mkdir -p output/bin
           mv embedded-cluster output/bin
 
