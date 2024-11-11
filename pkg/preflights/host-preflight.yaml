@@ -836,17 +836,26 @@ spec:
               when: "a-subnet-is-available"
               message: Specified CIDR is available.
     - sysctl:
-        checkName: Sysctl Kernel Parameters
+        checkName: "ARP Filter default value for newly created interfaces"
         outcomes:
           - fail:
               when: 'net.ipv4.conf.default.arp_filter > 0'
-              message: "ARP filtering is enabled by default for newly created interfaces on the host. Disable it by running 'sysctl net.ipv4.conf.default.arp_filter=0'."
+              message: "ARP filtering is enabled by default for newly created interfaces on the host. Disable it by editing `/etc/sysctl.conf` and adding the line `net.ipv4.conf.default.arp_filter=0` followed by running `sudo sysctl -p`."
+    - sysctl:
+        checkName: "ARP Ignore default value for newly created interfaces"
+        outcomes:
           - fail:
               when: 'net.ipv4.conf.default.arp_ignore > 0'
-              message: "ARP ignore is enabled by default for newly created interfaces on the host. Disable it by running 'sysctl net.ipv4.conf.default.arp_ignore=0'."
+              message: "ARP ignore is enabled by default for newly created interfaces on the host. Disable it by editing `/etc/sysctl.conf` and adding the line `net.ipv4.conf.default.arp_ignore=0` followed by running `sudo sysctl -p`."
+    - sysctl:
+        checkName: "ARP Filter value for all interfaces"
+        outcomes:
           - fail:
               when: 'net.ipv4.conf.all.arp_filter > 0'
-              message: "ARP filtering is enabled for all interfaces on the host. Disable it by running 'sysctl net.ipv4.conf.all.arp_filter=0'."
+              message: "ARP filtering is enabled for all interfaces on the host. Disable it by editing `/etc/sysctl.conf` and adding the line `net.ipv4.conf.all.arp_filter=0` followed by running `sudo sysctl -p`."
+    - sysctl:
+        checkName: "ARP Ignore value for all interfaces"
+        outcomes:
           - fail:
               when: 'net.ipv4.conf.all.arp_ignore > 0'
-              message: "ARP ignore is enabled for all interfaces on the host. Disable it by running 'sysctl net.ipv4.conf.all.arp_ignore=0'."
+              message: "ARP ignore is enabled for all interfaces on the host. Disable it by editing `/etc/sysctl.conf` and adding the line `net.ipv4.conf.all.arp_ignore=0` followed by running `sudo sysctl -p`."
