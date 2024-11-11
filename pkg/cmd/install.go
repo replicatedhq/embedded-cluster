@@ -775,7 +775,7 @@ func installCommand() *cli.Command {
 			} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
 				logrus.Infof("You downloaded an air gap bundle but are performing an online installation.")
 				logrus.Infof("To do an air gap installation, pass the air gap bundle with --airgap-bundle.")
-				if !prompts.New().Confirm("Do you want to proceed with an online installation ?", false) {
+				if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
 					return ErrNothingElseToAdd
 				}
 			}
