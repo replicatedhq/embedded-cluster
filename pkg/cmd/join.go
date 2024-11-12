@@ -251,8 +251,7 @@ var joinCommand = &cli.Command{
 
 		logrus.Debugf("configuring sysctl")
 		if err := configutils.ConfigureSysctl(provider); err != nil {
-			logrus.Debugf("failed to configure sysctl, moving on")
-			logrus.Debug(err)
+			return fmt.Errorf("unable to configure sysctl: %w", err)
 		}
 
 		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
