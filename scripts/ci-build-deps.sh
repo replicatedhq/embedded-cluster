@@ -23,7 +23,8 @@ function local_artifact_mirror() {
 
 function operator() {
     make -C operator build-ttl.sh build-chart-ttl.sh \
-        PACKAGE_VERSION="$EC_VERSION"
+        PACKAGE_VERSION="$EC_VERSION" \
+        VERSION="$EC_VERSION"
     cp operator/build/image "operator/build/image-$EC_VERSION"
     cp operator/build/chart "operator/build/chart-$EC_VERSION"
 }
