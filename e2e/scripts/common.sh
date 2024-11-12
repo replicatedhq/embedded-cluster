@@ -9,6 +9,8 @@ export K0SCONFIG=/etc/k0s/k0s.yaml
 KUBECONFIG="${KUBECONFIG:-${EMBEDDED_CLUSTER_BASE_DIR}/k0s/pki/admin.conf}"
 export KUBECONFIG
 
+export SKIP_APP_UPDATE_PROMPT=true
+
 function retry() {
     local retries=$1
     shift

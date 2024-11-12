@@ -23,7 +23,7 @@ type Prompt interface {
 // New returns a new Prompt.
 func New() Prompt {
 	if os.Getenv("EMBEDDED_CLUSTER_PLAIN_PROMPTS") == "true" {
-		return plain.Plain{}
+		return plain.New(plain.WithIn(os.Stdin), plain.WithOut(os.Stdout))
 	}
-	return decorative.Decorative{}
+	return decorative.New(decorative.WithIn(os.Stdin), decorative.WithOut(os.Stdout))
 }
