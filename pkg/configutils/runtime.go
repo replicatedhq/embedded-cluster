@@ -14,6 +14,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// sysctlConfigPath is the path to the sysctl config file that is used to configure
+// the embedded cluster. This could have been a constant but we want to be able to
+// override it for testing purposes.
+var sysctlConfigPath = "/etc/sysctl.d/99-embedded-cluster.conf"
+
 func WriteRuntimeConfig(spec *v1beta1.RuntimeConfigSpec) error {
 	if spec == nil {
 		return nil
@@ -71,7 +76,7 @@ func ConfigureSysctl(provider *defaults.Provider) error {
 	}
 
 	materializer := goods.NewMaterializer(provider)
-	if err := materializer.SysctlConfig(); err != nil {
+	if err := materializer.SysctlConfig(sysctlConfigPath); err != nil {
 		logrus.Debugf("unable to materialize sysctl config: %v", err)
 		return nil
 	}

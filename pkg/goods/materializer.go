@@ -77,12 +77,11 @@ func (m *Materializer) CalicoNetworkManagerConfig() error {
 }
 
 // SysctlConfig writes the embedded sysctl config to the /etc/sysctl.d directory.
-func (m *Materializer) SysctlConfig() error {
+func (m *Materializer) SysctlConfig(dstpath string) error {
 	content, err := staticfs.ReadFile("static/99-embedded-cluster.conf")
 	if err != nil {
 		return fmt.Errorf("unable to open embedded sysctl config file: %w", err)
 	}
-	dstpath := "/etc/sysctl.d/99-embedded-cluster.conf"
 	if err := os.WriteFile(dstpath, content, 0644); err != nil {
 		return fmt.Errorf("unable to write file: %w", err)
 	}
