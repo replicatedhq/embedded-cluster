@@ -287,7 +287,7 @@ jobs:
           ./scripts/ci-release-app.sh	
 
           # and finally an app upgrade	
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}-upgrade"	
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-upgrade"	
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade	
           ./scripts/ci-release-app.sh
