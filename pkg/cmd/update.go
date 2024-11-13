@@ -44,19 +44,19 @@ func updateCommand() *cli.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
+			if c.String("airgap-bundle") != "" {
+				logrus.Debugf("checking airgap bundle matches binary")
+				if err := checkAirgapMatches(c); err != nil {
+					return err // we want the user to see the error message without a prefix
+				}
+			}
+
 			rel, err := release.GetChannelRelease()
 			if err != nil {
 				return fmt.Errorf("unable to get channel release: %w", err)
 			}
 			if rel == nil {
 				return fmt.Errorf("no channel release found")
-			}
-
-			if c.String("airgap-bundle") != "" {
-				logrus.Debugf("checking airgap bundle matches binary")
-				if err := checkAirgapMatches(c, rel); err != nil {
-					return err // we want the user to see the error message without a prefix
-				}
 			}
 
 			if err := kotscli.AirgapUpdate(provider, kotscli.AirgapUpdateOptions{

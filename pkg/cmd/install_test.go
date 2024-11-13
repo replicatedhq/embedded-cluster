@@ -176,20 +176,23 @@ spec:
 			_, err = licenseFile.Write([]byte(tt.licenseContents))
 			req.NoError(err)
 
-			var channelRelease *release.ChannelRelease
+			dataMap := map[string][]byte{}
 			if tt.useRelease {
-				channelRelease = &release.ChannelRelease{
-					ChannelID:    "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-					ChannelSlug:  "CI",
-					AppSlug:      "embedded-cluster-smoke-test-staging-app",
-					VersionLabel: "testversion",
-				}
+				dataMap["release.yaml"] = []byte(`
+# channel release object
+channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+channelSlug: "CI"
+appSlug: "embedded-cluster-smoke-test-staging-app"
+versionLabel: testversion
+`)
 			}
+			err = release.SetReleaseDataForTests(dataMap)
+			req.NoError(err)
 
 			if tt.licenseContents != "" {
-				_, err = getLicenseFromFilepath(filepath.Join(tmpdir, "license.yaml"), channelRelease)
+				_, err = getLicenseFromFilepath(filepath.Join(tmpdir, "license.yaml"))
 			} else {
-				_, err = getLicenseFromFilepath("", channelRelease)
+				_, err = getLicenseFromFilepath("")
 			}
 
 			if tt.wantErr != "" {
