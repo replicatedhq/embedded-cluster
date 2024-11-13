@@ -18,10 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	warnNewVersionPrompt = "A newer version %s is available. Run 'curl -f \"%s\" -H \"Authorization: %s\" -o %s-%s.tgz' to download it."
-)
-
 // maybePromptForAppUpdate warns the user if there are any pending app releases for the current
 // channel. If prompt is not nil, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
@@ -54,9 +50,9 @@ func maybePromptForAppUpdate(ctx context.Context, license *kotsv1beta1.License, 
 
 	apiURL := metrics.BaseURL(license)
 	releaseURL := fmt.Sprintf("%s/embedded/%s/%s", apiURL, channelRelease.AppSlug, channelRelease.ChannelSlug)
-	logrus.Warnf(
-		warnNewVersionPrompt,
-		currentRelease.VersionLabel,
+	logrus.Warnf("A newer version %s is available.", currentRelease.VersionLabel)
+	logrus.Infof(
+		"To download it run:\n  curl -f \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz",
 		releaseURL,
 		license.Spec.LicenseID,
 		channelRelease.AppSlug,
