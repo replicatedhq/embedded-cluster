@@ -249,6 +249,11 @@ var joinCommand = &cli.Command{
 			return err
 		}
 
+		logrus.Debugf("configuring sysctl")
+		if err := configutils.ConfigureSysctl(provider); err != nil {
+			return fmt.Errorf("unable to configure sysctl: %w", err)
+		}
+
 		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 		replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 		proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
