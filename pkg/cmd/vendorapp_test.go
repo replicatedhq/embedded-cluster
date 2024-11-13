@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 func Test_getCurrentAppChannelRelease(t *testing.T) {
@@ -239,7 +241,8 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			out := bytes.NewBuffer([]byte{})
 			prompt := plain.New(plain.WithIn(in), plain.WithOut(out))
 
-			err = maybePromptForAppUpdate(context.Background(), license, prompt)
+			flagset := flag.NewFlagSet("test", 0)
+			err = maybePromptForAppUpdate(cli.NewContext(nil, flagset, nil), prompt, license)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -247,7 +250,7 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			}
 
 			if tt.wantPrompt {
-				assert.NotEmpty(t, out.String(), "Prompt should have been printed")
+				assert.Contains(t, out.String(), "Do you want to continue installing", "Prompt should have been printed")
 			} else {
 				assert.Empty(t, out.String(), "Prompt should not have been printed")
 			}

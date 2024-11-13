@@ -224,10 +224,7 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
 		if !proxyOK {
-			logrus.Errorf("This node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
-			logrus.Infof(`The no-proxy list cannot easily be modified after initial installation.`)
-			logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
-			return ErrNothingElseToAdd
+			return fmt.Errorf("no-proxy config %q does not allow access to local IP %q", jcmd.InstallationSpec.Proxy.NoProxy, localIP)
 		}
 
 		isAirgap := c.String("airgap-bundle") != ""

@@ -801,20 +801,14 @@ func installCommand() *cli.Command {
 				}
 			}
 
-			if !isAirgap && license != nil {
-				var prompt prompts.Prompt
-				if !c.Bool("no-prompt") {
-					prompt = prompts.New()
+			if err := maybePromptForAppUpdate(c, prompts.New(), license); err != nil {
+				if errors.Is(err, ErrNothingElseToAdd) {
+					metrics.ReportApplyFinished(c, err)
+					return err
 				}
-				if err := maybePromptForAppUpdate(c.Context, license, prompt); err != nil {
-					if errors.Is(err, ErrNothingElseToAdd) {
-						metrics.ReportApplyFinished(c, err)
-						return err
-					}
-					// If we get an error other than ErrNothingElseToAdd, we warn and continue as
-					// this check is not critical.
-					logrus.Warnf("Failed to check for newer app versions: %v", err)
-				}
+				// If we get an error other than ErrNothingElseToAdd, we warn and continue as
+				// this check is not critical.
+				logrus.Warnf("Failed to check for newer app versions: %v", err)
 			}
 
 			if err := preflights.ValidateApp(); err != nil {

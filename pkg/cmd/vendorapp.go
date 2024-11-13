@@ -16,12 +16,18 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
 )
 
 // maybePromptForAppUpdate warns the user if there are any pending app releases for the current
 // channel. If prompt is not nil, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(ctx context.Context, license *kotsv1beta1.License, prompt prompts.Prompt) error {
+func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kotsv1beta1.License) error {
+	// It is not possible to check for app updates in airgap mode.
+	if isAirgap := c.String("airgap-bundle") != ""; isAirgap {
+		return nil
+	}
+
 	channelRelease, err := release.GetChannelRelease()
 	if err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
@@ -37,7 +43,7 @@ func maybePromptForAppUpdate(ctx context.Context, license *kotsv1beta1.License, 
 
 	logrus.Debugf("Checking for pending app releases")
 
-	currentRelease, err := getCurrentAppChannelRelease(ctx, license, channelRelease.ChannelID)
+	currentRelease, err := getCurrentAppChannelRelease(c.Context, license, channelRelease.ChannelID)
 	if err != nil {
 		return fmt.Errorf("get current app channel release: %w", err)
 	}
@@ -59,10 +65,10 @@ func maybePromptForAppUpdate(ctx context.Context, license *kotsv1beta1.License, 
 		channelRelease.ChannelSlug,
 	)
 
-	// if prompt is nil, we don't prompt the user and continue by default.
+	// if no-prompt is true, we don't prompt the user and continue by default.
 	// SKIP_APP_UPDATE_PROMPT is an escape hatch used by the CI to skip the prompt in case this
 	// release becomes out of date.
-	if prompt != nil && os.Getenv("SKIP_APP_UPDATE_PROMPT") != "true" {
+	if !c.Bool("no-prompt") && os.Getenv("SKIP_APP_UPDATE_PROMPT") != "true" {
 		text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
 		if !prompt.Confirm(text, false) {
 			return ErrNothingElseToAdd
