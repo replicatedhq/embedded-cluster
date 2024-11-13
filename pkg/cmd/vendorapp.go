@@ -63,7 +63,7 @@ func maybePromptForAppUpdate(ctx context.Context, license *kotsv1beta1.License, 
 	// SKIP_APP_UPDATE_PROMPT is an escape hatch used by the CI to skip the prompt in case this
 	// release becomes out of date.
 	if prompt != nil && os.Getenv("SKIP_APP_UPDATE_PROMPT") != "true" {
-		text := fmt.Sprintf("Do you want to continue installing %s?", channelRelease.VersionLabel)
+		text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
 		if !prompt.Confirm(text, false) {
 			return ErrNothingElseToAdd
 		}
