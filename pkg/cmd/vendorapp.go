@@ -25,7 +25,20 @@ const (
 // maybePromptForAppUpdate warns the user if there are any pending app releases for the current
 // channel. If prompt is not nil, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(ctx context.Context, license *kotsv1beta1.License, channelRelease *release.ChannelRelease, prompt prompts.Prompt) error {
+func maybePromptForAppUpdate(ctx context.Context, license *kotsv1beta1.License, prompt prompts.Prompt) error {
+	channelRelease, err := release.GetChannelRelease()
+	if err != nil {
+		return fmt.Errorf("unable to get channel release: %w", err)
+	} else if channelRelease == nil {
+		// It is possible to install without embedding the release data. In this case, we cannot
+		// check for app updates.
+		return nil
+	}
+
+	if license == nil {
+		return errors.New("license required")
+	}
+
 	logrus.Debugf("Checking for pending app releases")
 
 	currentRelease, err := getCurrentAppChannelRelease(ctx, license, channelRelease.ChannelID)

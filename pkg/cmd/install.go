@@ -288,7 +288,12 @@ func isAlreadyInstalled() (bool, error) {
 	}
 }
 
-func getLicenseFromFilepath(licenseFile string, rel *release.ChannelRelease) (*kotsv1beta1.License, error) {
+func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+	}
+
 	// handle the three cases that do not require parsing the license file
 	// 1. no release and no license, which is OK
 	// 2. no license and a release, which is not OK
@@ -338,7 +343,11 @@ func getLicenseFromFilepath(licenseFile string, rel *release.ChannelRelease) (*k
 	return license, nil
 }
 
-func checkAirgapMatches(c *cli.Context, rel *release.ChannelRelease) error {
+func checkAirgapMatches(c *cli.Context) error {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		return fmt.Errorf("failed to get release from binary: %w", err) // this should only be if the release is malformed
+	}
 	if rel == nil {
 		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
 	}
@@ -767,8 +776,7 @@ func installCommand() *cli.Command {
 				return ErrNothingElseToAdd
 			}
 
-			channelRelease, err := release.GetChannelRelease()
-			if err != nil {
+			if channelRelease, err := release.GetChannelRelease(); err != nil {
 				return fmt.Errorf("unable to read channel release data: %w", err)
 			} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
 				logrus.Infof("You downloaded an air gap bundle but are performing an online installation.")
@@ -784,7 +792,7 @@ func installCommand() *cli.Command {
 				return fmt.Errorf("unable to configure network manager: %w", err)
 			}
 			logrus.Debugf("checking license matches")
-			license, err := getLicenseFromFilepath(c.String("license"), channelRelease)
+			license, err := getLicenseFromFilepath(c.String("license"))
 			if err != nil {
 				metricErr := fmt.Errorf("unable to get license: %w", err)
 				metrics.ReportApplyFinished(c, metricErr)
@@ -793,14 +801,13 @@ func installCommand() *cli.Command {
 			isAirgap := c.String("airgap-bundle") != ""
 			if isAirgap {
 				logrus.Debugf("checking airgap bundle matches binary")
-				if err := checkAirgapMatches(c, channelRelease); err != nil {
+				if err := checkAirgapMatches(c); err != nil {
 					return err // we want the user to see the error message without a prefix
 				}
 			}
 
-			// it is possible to install without embedding the release data
-			if !isAirgap && channelRelease != nil {
-				if err := maybePromptForAppUpdate(c.Context, license, channelRelease, prompt); err != nil {
+			if !isAirgap && license != nil {
+				if err := maybePromptForAppUpdate(c.Context, license, prompt); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
 						metrics.ReportApplyFinished(c, err)
 						return err

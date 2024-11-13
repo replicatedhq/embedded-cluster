@@ -92,12 +92,9 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 }
 
 func Test_maybePromptForAppUpdate(t *testing.T) {
-	type args struct {
-		channelRelease *release.ChannelRelease
-	}
 	tests := []struct {
 		name                  string
-		args                  args
+		channelRelease        *release.ChannelRelease
 		apiHandler            func(http.ResponseWriter, *http.Request)
 		confirm               bool
 		wantPrompt            bool
@@ -106,13 +103,11 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 	}{
 		{
 			name: "current release should return false",
-			args: args{
-				channelRelease: &release.ChannelRelease{
-					ChannelID:    "channel-id",
-					ChannelSlug:  "channel-slug",
-					AppSlug:      "app-slug",
-					VersionLabel: "1.0.0",
-				},
+			channelRelease: &release.ChannelRelease{
+				ChannelID:    "channel-id",
+				ChannelSlug:  "channel-slug",
+				AppSlug:      "app-slug",
+				VersionLabel: "1.0.0",
 			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -133,13 +128,11 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 		},
 		{
 			name: "newer release and confirm should return true",
-			args: args{
-				channelRelease: &release.ChannelRelease{
-					ChannelID:    "channel-id",
-					ChannelSlug:  "channel-slug",
-					AppSlug:      "app-slug",
-					VersionLabel: "1.0.0",
-				},
+			channelRelease: &release.ChannelRelease{
+				ChannelID:    "channel-id",
+				ChannelSlug:  "channel-slug",
+				AppSlug:      "app-slug",
+				VersionLabel: "1.0.0",
 			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -160,13 +153,11 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 		},
 		{
 			name: "newer release and no confirm should return true and error",
-			args: args{
-				channelRelease: &release.ChannelRelease{
-					ChannelID:    "channel-id",
-					ChannelSlug:  "channel-slug",
-					AppSlug:      "app-slug",
-					VersionLabel: "1.0.0",
-				},
+			channelRelease: &release.ChannelRelease{
+				ChannelID:    "channel-id",
+				ChannelSlug:  "channel-slug",
+				AppSlug:      "app-slug",
+				VersionLabel: "1.0.0",
 			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -188,13 +179,11 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 		},
 		{
 			name: "unexpected status code should return error",
-			args: args{
-				channelRelease: &release.ChannelRelease{
-					ChannelID:    "channel-id",
-					ChannelSlug:  "channel-slug",
-					AppSlug:      "app-slug",
-					VersionLabel: "1.0.0",
-				},
+			channelRelease: &release.ChannelRelease{
+				ChannelID:    "channel-id",
+				ChannelSlug:  "channel-slug",
+				AppSlug:      "app-slug",
+				VersionLabel: "1.0.0",
 			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
@@ -203,18 +192,43 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			wantErr:               true,
 			isErrNothingElseToAdd: false,
 		},
+		{
+			name:                  "no release should return nil",
+			channelRelease:        nil,
+			apiHandler:            func(w http.ResponseWriter, r *http.Request) {},
+			wantPrompt:            false,
+			wantErr:               false,
+			isErrNothingElseToAdd: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := getReleasesHandler(t, tt.args.channelRelease.ChannelID, tt.apiHandler)
-			apiURL := startFakeServer(t, handler)
-			license := &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					LicenseID: "license-id",
-					AppSlug:   "app-slug",
-					Endpoint:  apiURL.String(),
-				},
+			var license *kotsv1beta1.License
+			releaseDataMap := map[string][]byte{}
+			if tt.channelRelease != nil {
+				handler := getReleasesHandler(t, tt.channelRelease.ChannelID, tt.apiHandler)
+				apiURL := startFakeServer(t, handler)
+				license = &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						LicenseID: "license-id",
+						AppSlug:   "app-slug",
+						Endpoint:  apiURL.String(),
+					},
+				}
+
+				embedStr := "# channel release object\nchannelID: \"%s\"\nchannelSlug: \"%s\"\nappSlug: \"%s\"\nversionLabel: \"%s\""
+				releaseDataMap["release.yaml"] = []byte(fmt.Sprintf(
+					embedStr,
+					tt.channelRelease.ChannelID,
+					tt.channelRelease.ChannelSlug,
+					tt.channelRelease.AppSlug,
+					tt.channelRelease.VersionLabel,
+				))
+				err := release.SetReleaseDataForTests(releaseDataMap)
+				require.NoError(t, err)
 			}
+			err := release.SetReleaseDataForTests(releaseDataMap)
+			require.NoError(t, err)
 
 			var in *bytes.Buffer
 			if tt.confirm {
@@ -225,7 +239,7 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			out := bytes.NewBuffer([]byte{})
 			prompt := plain.New(plain.WithIn(in), plain.WithOut(out))
 
-			err := maybePromptForAppUpdate(context.Background(), license, tt.args.channelRelease, prompt)
+			err = maybePromptForAppUpdate(context.Background(), license, prompt)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
