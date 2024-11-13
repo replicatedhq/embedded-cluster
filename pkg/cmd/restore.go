@@ -959,7 +959,8 @@ func restoreCommand() *cli.Command {
 				return fmt.Errorf("unable to write runtime config: %w", err)
 			}
 
-			if channelRelease, err := release.GetChannelRelease(); err != nil {
+			channelRelease, err := release.GetChannelRelease()
+			if err != nil {
 				return fmt.Errorf("unable to read channel release data: %w", err)
 			} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
 				logrus.Infof("You downloaded an air gap bundle but are performing an online restore.")
@@ -989,7 +990,7 @@ func restoreCommand() *cli.Command {
 			}
 			if c.String("airgap-bundle") != "" {
 				logrus.Debugf("checking airgap bundle matches binary")
-				if err := checkAirgapMatches(c); err != nil {
+				if err := checkAirgapMatches(c, channelRelease); err != nil {
 					return err // we want the user to see the error message without a prefix
 				}
 			}

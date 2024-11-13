@@ -186,7 +186,8 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("usage: %s join <url> <token>", binName)
 		}
 
-		if channelRelease, err := release.GetChannelRelease(); err != nil {
+		channelRelease, err := release.GetChannelRelease()
+		if err != nil {
 			return fmt.Errorf("unable to read channel release data: %w", err)
 		} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
 			logrus.Infof("You downloaded an air gap bundle but are performing an online join.")
@@ -231,7 +232,7 @@ var joinCommand = &cli.Command{
 
 		if isAirgap {
 			logrus.Debugf("checking airgap bundle matches binary")
-			if err := checkAirgapMatches(c); err != nil {
+			if err := checkAirgapMatches(c, channelRelease); err != nil {
 				return err // we want the user to see the error message without a prefix
 			}
 		}

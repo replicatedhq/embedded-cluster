@@ -7,6 +7,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -55,7 +56,14 @@ func installRunPreflightsCommand() *cli.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
-			var err error
+			rel, err := release.GetChannelRelease()
+			if err != nil {
+				return fmt.Errorf("unable to get channel release: %w", err)
+			}
+			if rel == nil {
+				return fmt.Errorf("no channel release found")
+			}
+
 			proxy, err := getProxySpecFromFlags(c)
 			if err != nil {
 				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
@@ -67,7 +75,7 @@ func installRunPreflightsCommand() *cli.Command {
 			}
 			setProxyEnv(proxy)
 
-			license, err := getLicenseFromFilepath(c.String("license"))
+			license, err := getLicenseFromFilepath(c.String("license"), rel)
 			if err != nil {
 				return err
 			}
