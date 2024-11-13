@@ -737,11 +737,6 @@ func installCommand() *cli.Command {
 			},
 		)),
 		Action: func(c *cli.Context) error {
-			var prompt prompts.Prompt
-			if !c.Bool("no-prompt") {
-				prompt = prompts.New()
-			}
-
 			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
@@ -807,6 +802,10 @@ func installCommand() *cli.Command {
 			}
 
 			if !isAirgap && license != nil {
+				var prompt prompts.Prompt
+				if !c.Bool("no-prompt") {
+					prompt = prompts.New()
+				}
 				if err := maybePromptForAppUpdate(c.Context, license, prompt); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
 						metrics.ReportApplyFinished(c, err)
