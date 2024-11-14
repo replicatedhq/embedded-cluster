@@ -5,11 +5,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
-	"net/url"
+	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -78,7 +76,7 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 				Spec: kotsv1beta1.LicenseSpec{
 					LicenseID: "license-id",
 					AppSlug:   "app-slug",
-					Endpoint:  apiURL.String(),
+					Endpoint:  apiURL,
 				},
 			}
 
@@ -214,7 +212,7 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 					Spec: kotsv1beta1.LicenseSpec{
 						LicenseID: "license-id",
 						AppSlug:   "app-slug",
-						Endpoint:  apiURL.String(),
+						Endpoint:  apiURL,
 					},
 				}
 
@@ -285,39 +283,15 @@ func getReleasesHandler(t *testing.T, channelID string, apiHandler http.HandlerF
 	}
 }
 
-func startFakeServer(t *testing.T, handler http.HandlerFunc) *url.URL {
-	listener, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = listener.Close()
-	})
-
-	addr := listener.Addr().(*net.TCPAddr)
-
-	server := &http.Server{
-		Addr: addr.String(),
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/_ping" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-			handler(w, r)
-		}),
-	}
-	go func() { _ = server.Serve(listener) }()
-	t.Cleanup(func() {
-		_ = server.Shutdown(context.Background())
-	})
-
-	u := &url.URL{Scheme: "http", Host: server.Addr}
-
-	// wait for the server to start
-	for i := 0; i < 10; i++ {
-		if _, err := http.Get(fmt.Sprintf("http://%s/_ping", u)); err == nil {
-			break
+func startFakeServer(t *testing.T, handler http.HandlerFunc) string {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/_ping" {
+			w.WriteHeader(http.StatusOK)
+			return
 		}
-		time.Sleep(100 * time.Millisecond)
-	}
+		handler(w, r)
+	}))
+	t.Cleanup(ts.Close)
 
-	return u
+	return ts.URL
 }
