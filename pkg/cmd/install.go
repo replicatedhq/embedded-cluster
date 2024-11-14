@@ -808,7 +808,7 @@ func installCommand() *cli.Command {
 				}
 				// If we get an error other than ErrNothingElseToAdd, we warn and continue as
 				// this check is not critical.
-				logrus.Infof("WARNING: Failed to check for newer app versions: %v", err)
+				logrus.Debugf("WARNING: Failed to check for newer app versions: %v", err)
 			}
 
 			if err := preflights.ValidateApp(); err != nil {
