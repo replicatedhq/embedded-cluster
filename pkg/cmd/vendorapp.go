@@ -19,8 +19,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// maybePromptForAppUpdate warns the user if there are any pending app releases for the current
-// channel. If prompt is not nil, it will prompt the user to continue installing the out-of-date
+// maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
+// channel. If prompts are enabled, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
 func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kotsv1beta1.License) error {
 	// It is not possible to check for app updates in airgap mode.
@@ -58,7 +58,7 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 	releaseURL := fmt.Sprintf("%s/embedded/%s/%s", apiURL, channelRelease.AppSlug, channelRelease.ChannelSlug)
 	logrus.Warnf("A newer version %s is available.", currentRelease.VersionLabel)
 	logrus.Infof(
-		"To download it, run:\n  curl -f \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz",
+		"To download it, run:\n  curl -fL \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz",
 		releaseURL,
 		license.Spec.LicenseID,
 		channelRelease.AppSlug,
