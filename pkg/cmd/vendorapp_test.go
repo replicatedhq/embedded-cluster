@@ -71,12 +71,14 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := getReleasesHandler(t, tt.args.channelID, tt.apiHandler)
-			apiURL := startFakeServer(t, handler)
+			ts := httptest.NewServer(handler)
+			t.Cleanup(ts.Close)
+
 			license := &kotsv1beta1.License{
 				Spec: kotsv1beta1.LicenseSpec{
 					LicenseID: "license-id",
 					AppSlug:   "app-slug",
-					Endpoint:  apiURL,
+					Endpoint:  ts.URL,
 				},
 			}
 
@@ -207,12 +209,14 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			releaseDataMap := map[string][]byte{}
 			if tt.channelRelease != nil {
 				handler := getReleasesHandler(t, tt.channelRelease.ChannelID, tt.apiHandler)
-				apiURL := startFakeServer(t, handler)
+				ts := httptest.NewServer(handler)
+				t.Cleanup(ts.Close)
+
 				license = &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						LicenseID: "license-id",
 						AppSlug:   "app-slug",
-						Endpoint:  apiURL,
+						Endpoint:  ts.URL,
 					},
 				}
 
@@ -281,17 +285,4 @@ func getReleasesHandler(t *testing.T, channelID string, apiHandler http.HandlerF
 
 		apiHandler(w, r)
 	}
-}
-
-func startFakeServer(t *testing.T, handler http.HandlerFunc) string {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/_ping" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		handler(w, r)
-	}))
-	t.Cleanup(ts.Close)
-
-	return ts.URL
 }
