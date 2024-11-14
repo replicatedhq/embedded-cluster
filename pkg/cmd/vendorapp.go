@@ -58,7 +58,7 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 	releaseURL := fmt.Sprintf("%s/embedded/%s/%s", apiURL, channelRelease.AppSlug, channelRelease.ChannelSlug)
 	logrus.Warnf("A newer version %s is available.", currentRelease.VersionLabel)
 	logrus.Infof(
-		"To download it run:\n  curl -f \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz",
+		"To download it, run:\n  curl -f \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz",
 		releaseURL,
 		license.Spec.LicenseID,
 		channelRelease.AppSlug,
