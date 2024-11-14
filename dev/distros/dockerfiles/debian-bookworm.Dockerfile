@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
   ca-certificates \
   bash \
   coreutils \
+  binutils \
   curl \
   inotify-tools \
   ipvsadm \
