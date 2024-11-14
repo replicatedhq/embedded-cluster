@@ -48,7 +48,8 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 		return fmt.Errorf("get current app channel release: %w", err)
 	}
 
-	if currentRelease.VersionLabel == channelRelease.VersionLabel {
+	// In the dev and test environments, the channelSequence is set to 0 for all releases.
+	if channelRelease.VersionLabel == currentRelease.VersionLabel {
 		logrus.Debugf("Current app release is up-to-date")
 		return nil
 	}
@@ -78,8 +79,8 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 }
 
 type apiChannelRelease struct {
-	ChannelSequence int    `json:"channelSequence"`
-	ReleaseSequence int    `json:"releaseSequence"`
+	ChannelSequence int64  `json:"channelSequence"`
+	ReleaseSequence int64  `json:"releaseSequence"`
 	VersionLabel    string `json:"versionLabel"`
 	IsRequired      bool   `json:"isRequired"`
 	CreatedAt       string `json:"createdAt"`
@@ -102,6 +103,7 @@ func getCurrentAppChannelRelease(ctx context.Context, license *kotsv1beta1.Licen
 	auth := fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", license.Spec.LicenseID, license.Spec.LicenseID))))
 	req.Header.Set("Authorization", auth)
 
+	// This will use the proxy from the environment if set by the cli command.
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
