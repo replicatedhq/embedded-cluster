@@ -276,19 +276,19 @@ jobs:
           USES_DEV_BUCKET: "0"
         run: |
           # re-promote a release containing an old version of embedded-cluster to test upgrades
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-1.8.0-k8s-1.28"
+          export APP_VERSION="appver-${{ github.ref_name }}-1.8.0-k8s-1.28"
           replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
           replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
 
           # install the current k0s version	
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"	
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}"	
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install	
           ./scripts/ci-release-app.sh	
 
           # and finally an app upgrade	
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-upgrade"	
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade	
           ./scripts/ci-release-app.sh
       - name: Create airgap releases
@@ -301,22 +301,22 @@ jobs:
         run: |
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-previous-stable"
+          export APP_VERSION="appver-${{ github.ref_name }}-previous-stable"
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
           # promote a release with the current k0s version, but call it the previous version to test noop upgrades
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"	
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-previous-k0s"
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}-previous-k0s"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
           # promote a release with the current k0s version
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"	
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}"	
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
           # and finally an app upgrade	
-          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"	
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}-upgrade"	
+          export EC_VERSION="${{ github.ref_name }}"
+          export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
@@ -331,7 +331,7 @@ jobs:
         env:
           LICENSE_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
         run: |
-          export APP_VERSION="appver-${{ needs.get-tag.outputs.tag-name }}"	
+          export APP_VERSION="appver-${{ github.ref_name }}"
           curl -L "https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/${APP_VERSION}" -H "Authorization: $LICENSE_ID" -o embedded-cluster-smoke-test-staging-app-ci.tgz
           tar -xzf embedded-cluster-smoke-test-staging-app-ci.tgz
           mv embedded-cluster-smoke-test-staging-app embedded-cluster
@@ -393,12 +393,12 @@ jobs:
           license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-          version-specifier: ${{ needs.get-tag.outputs.tag-name }}
+          version-specifier: ${{ github.ref_name }}
 
           k0s-version: ${{ needs.get-tag.outputs.k0s_version }}
           k0s-version-previous: ${{ needs.get-tag.outputs.k0s_version }} # we do not run k8s upgrade tests on release
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
-          upgrade-target-ec-version: ${{ needs.get-tag.outputs.tag-name }}
+          upgrade-target-ec-version: ${{ github.ref_name }}
 
   # this job will validate that all the tests passed
   validate-release-success:
