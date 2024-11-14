@@ -79,12 +79,16 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 }
 
 type apiChannelRelease struct {
-	ChannelSequence int64  `json:"channelSequence"`
-	ReleaseSequence int64  `json:"releaseSequence"`
-	VersionLabel    string `json:"versionLabel"`
-	IsRequired      bool   `json:"isRequired"`
-	CreatedAt       string `json:"createdAt"`
-	ReleaseNotes    string `json:"releaseNotes"`
+	ChannelID                string `json:"channelId"`
+	ChannelSequence          int64  `json:"channelSequence"`
+	ReleaseSequence          int64  `json:"releaseSequence"`
+	VersionLabel             string `json:"versionLabel"`
+	IsRequired               bool   `json:"isRequired"`
+	SemVer                   string `json:"semver,omitempty"`
+	CreatedAt                string `json:"createdAt"`
+	ReleaseNotes             string `json:"releaseNotes"`
+	ReplicatedRegistryDomain string `json:"replicatedRegistryDomain"`
+	ReplicatedProxyDomain    string `json:"replicatedProxyDomain"`
 }
 
 func getCurrentAppChannelRelease(ctx context.Context, license *kotsv1beta1.License, channelID string) (*apiChannelRelease, error) {
