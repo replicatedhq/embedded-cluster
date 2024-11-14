@@ -70,7 +70,7 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 	// release becomes out of date.
 	if !c.Bool("no-prompt") && os.Getenv("SKIP_APP_UPDATE_PROMPT") != "true" {
 		text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
-		if !prompt.Confirm(text, false) {
+		if !prompt.Confirm(text, true) {
 			return ErrNothingElseToAdd
 		}
 	}
