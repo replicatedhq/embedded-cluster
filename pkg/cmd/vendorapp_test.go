@@ -37,22 +37,30 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = w.Write([]byte(`{"channelReleases": [
 					{
+						"channelId": "channel-id",
 						"channelSequence": 2,
 						"releaseSequence": 2,
 						"versionLabel": "2.0.0",
 						"isRequired": true,
+						"semver": "2.0.0",
 						"createdAt": "2023-10-01T00:00:00Z",
-						"releaseNotes": "release notes"
+						"releaseNotes": "release notes",
+						"replicatedRegistryDomain": "replicated.app",
+						"replicatedProxyDomain": "replicated.app"
 					}
 				]}`))
 			},
 			want: &apiChannelRelease{
-				ChannelSequence: 2,
-				ReleaseSequence: 2,
-				VersionLabel:    "2.0.0",
-				IsRequired:      true,
-				CreatedAt:       "2023-10-01T00:00:00Z",
-				ReleaseNotes:    "release notes",
+				ChannelID:                "channel-id",
+				ChannelSequence:          2,
+				ReleaseSequence:          2,
+				VersionLabel:             "2.0.0",
+				IsRequired:               true,
+				SemVer:                   "2.0.0",
+				CreatedAt:                "2023-10-01T00:00:00Z",
+				ReleaseNotes:             "release notes",
+				ReplicatedRegistryDomain: "replicated.app",
+				ReplicatedProxyDomain:    "replicated.app",
 			},
 			wantErr: false,
 		},
@@ -115,12 +123,16 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = w.Write([]byte(`{"channelReleases": [
 					{
+						"channelId": "channel-id",
 						"channelSequence": 1,
 						"releaseSequence": 1,
 						"versionLabel": "1.0.0",
 						"isRequired": true,
+						"semver": "1.0.0",
 						"createdAt": "2023-10-01T00:00:00Z",
-						"releaseNotes": "release notes"
+						"releaseNotes": "release notes",
+						"replicatedRegistryDomain": "replicated.app",
+						"replicatedProxyDomain": "replicated.app"
 					}
 				]}`))
 			},
@@ -140,12 +152,16 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = w.Write([]byte(`{"channelReleases": [
 					{
+						"channelId": "channel-id",
 						"channelSequence": 2,
 						"releaseSequence": 2,
 						"versionLabel": "2.0.0",
 						"isRequired": true,
+						"semver": "2.0.0",
 						"createdAt": "2023-10-01T00:00:00Z",
-						"releaseNotes": "release notes"
+						"releaseNotes": "release notes",
+						"replicatedRegistryDomain": "replicated.app",
+						"replicatedProxyDomain": "replicated.app"
 					}
 				]}`))
 			},
@@ -165,12 +181,16 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = w.Write([]byte(`{"channelReleases": [
 					{
+						"channelId": "channel-id",
 						"channelSequence": 2,
 						"releaseSequence": 2,
 						"versionLabel": "2.0.0",
 						"isRequired": true,
+						"semver": "2.0.0",
 						"createdAt": "2023-10-01T00:00:00Z",
-						"releaseNotes": "release notes"
+						"releaseNotes": "release notes",
+						"replicatedRegistryDomain": "replicated.app",
+						"replicatedProxyDomain": "replicated.app"
 					}
 				]}`))
 			},
