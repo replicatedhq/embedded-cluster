@@ -11,6 +11,7 @@ RUN dnf install -y \
   ca-certificates \
   bash \
   coreutils \
+  binutils \
   curl \
   procps-ng \
   ipvsadm \
