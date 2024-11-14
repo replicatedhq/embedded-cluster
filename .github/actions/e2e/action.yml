@@ -37,9 +37,15 @@ inputs:
   k0s-version-previous:
     description: 'k0s previous version to expect in e2e tests'
     required: true
+  k0s-version-previous-stable:
+    description: 'k0s previous stable version to expect in e2e tests'
+    required: true
   version-specifier:
     description: 'the git sha or tag used to generate application version strings'
     required: true
+  upgrade-target-ec-version:
+    description: 'the embedded cluster version to expect after upgrades complete'
+    required: false # this is only set by post-release testing
 
 runs:
   using: composite
@@ -106,6 +112,8 @@ runs:
       export DR_AWS_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
       export EXPECT_K0S_VERSION=${{ inputs.k0s-version }}
       export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
+      export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
+      export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
       make e2e-test TEST_NAME=${{ inputs.test-name }}
   - name: Troubleshoot
     if: ${{ !cancelled() }}

@@ -155,6 +155,7 @@ type ChannelRelease struct {
 	ChannelID    string `yaml:"channelID"`
 	ChannelSlug  string `yaml:"channelSlug"`
 	AppSlug      string `yaml:"appSlug"`
+	Airgap       bool   `yaml:"airgap"`
 }
 
 // GetChannelRelease reads the embedded channel release object. If no channel release

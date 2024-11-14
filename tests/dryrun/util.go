@@ -7,24 +7,33 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/cmd"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	dryruntypes "github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
-//go:embed assets/install-release.yaml
-var releaseData string
+var (
+	//go:embed assets/install-release.yaml
+	releaseData string
+
+	//go:embed assets/install-license.yaml
+	licenseData string
+)
 
 func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 	if err := embedReleaseData(); err != nil {
@@ -32,29 +41,46 @@ func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 	}
 
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
-	defer os.Remove(drFile)
+	dryrun.Init(drFile, nil)
+
+	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
+	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
 
 	if err := runEmbeddedClusterCmd(
 		append([]string{
 			"install",
-			"--dry-run", drFile,
 			"--no-prompt",
-			"--license", "./assets/install-license.yaml",
+			"--license", licenseFile,
 		}, args...)...,
 	); err != nil {
 		t.Fatalf("fail to dryrun install embedded-cluster: %v", err)
 	}
 
-	stdout, err := exec.Command("cat", drFile).Output()
+	dr, err := dryrun.Load()
 	if err != nil {
-		t.Fatalf("fail to get dryrun output: %v", err)
-	}
-
-	dr := dryruntypes.DryRun{}
-	if err := yaml.Unmarshal([]byte(stdout), &dr); err != nil {
 		t.Fatalf("fail to unmarshal dryrun output: %v", err)
 	}
-	return dr
+	return *dr
+}
+
+func dryrunUpdate(t *testing.T, args ...string) dryruntypes.DryRun {
+	if err := embedReleaseData(); err != nil {
+		t.Fatalf("fail to embed release data: %v", err)
+	}
+
+	if err := runEmbeddedClusterCmd(
+		append([]string{
+			"update",
+		}, args...)...,
+	); err != nil {
+		t.Fatalf("fail to dryrun install embedded-cluster: %v", err)
+	}
+
+	dr, err := dryrun.Load()
+	if err != nil {
+		t.Fatalf("fail to unmarshal dryrun output: %v", err)
+	}
+	return *dr
 }
 
 func embedReleaseData() error {
@@ -141,6 +167,39 @@ func assertMetrics(t *testing.T, actual []dryruntypes.Metric, expected []struct 
 func assertEnv(t *testing.T, actual, expected map[string]string) {
 	for expectedKey, expectedValue := range expected {
 		assert.Equal(t, expectedValue, actual[expectedKey])
+	}
+}
+
+// assertCommands asserts that the expected commands are present in the actual commands
+// if assertAll is true, it will fail the test if any command is present in the actual commands that was not expected
+func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []interface{}, assertAll bool) {
+	for _, exp := range expected {
+		found := false
+		for i, a := range actual {
+			switch c := exp.(type) {
+			case string:
+				if strings.Contains(a.Cmd, c) {
+					found = true
+					actual = append(actual[:i], actual[i+1:]...)
+					break
+				}
+			case *regexp.Regexp:
+				if c.MatchString(a.Cmd) {
+					found = true
+					actual = append(actual[:i], actual[i+1:]...)
+					break
+				}
+			default:
+				t.Fatalf("unexpected command type %T", c)
+			}
+		}
+		if !found {
+			t.Errorf("expected command %v not found", exp)
+		}
+	}
+
+	if assertAll && len(actual) > 0 {
+		t.Errorf("unexpected commands: %v", actual)
 	}
 }
 

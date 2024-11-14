@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
@@ -76,6 +77,10 @@ func installRunPreflightsCommand() *cli.Command {
 
 			logrus.Debugf("materializing binaries")
 			if err := materializeFiles(c, provider); err != nil {
+				return err
+			}
+
+			if err := configutils.ConfigureSysctl(provider); err != nil {
 				return err
 			}
 
@@ -167,6 +172,10 @@ var joinRunPreflightsCommand = &cli.Command{
 
 		logrus.Debugf("materializing binaries")
 		if err := materializeFiles(c, provider); err != nil {
+			return err
+		}
+
+		if err := configutils.ConfigureSysctl(provider); err != nil {
 			return err
 		}
 

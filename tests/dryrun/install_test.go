@@ -2,7 +2,12 @@ package dryrun
 
 import (
 	"context"
-	"strings"
+	_ "embed"
+	"fmt"
+	"github.com/stretchr/testify/require"
+	"os"
+	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -21,11 +26,12 @@ func TestDefaultInstallation(t *testing.T) {
 	})
 
 	// --- validate commands --- //
-	for _, c := range dr.Commands {
-		if strings.Contains(c.Cmd, "k0s install controller") {
-			assert.Contains(t, c.Cmd, "--data-dir /var/lib/embedded-cluster/k0s")
-		}
-	}
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile(`k0s install controller .* --data-dir /var/lib/embedded-cluster/k0s`),
+		},
+		false,
+	)
 
 	// --- validate host preflight spec --- //
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
@@ -126,11 +132,12 @@ func TestCustomDataDir(t *testing.T) {
 	})
 
 	// --- validate commands --- //
-	for _, c := range dr.Commands {
-		if strings.Contains(c.Cmd, "k0s install controller") {
-			assert.Contains(t, c.Cmd, "--data-dir /custom/data/dir/k0s")
-		}
-	}
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile(`k0s install controller .* --data-dir /custom/data/dir/k0s`),
+		},
+		false,
+	)
 
 	// --- validate host preflight spec --- //
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
@@ -237,6 +244,51 @@ func TestCustomPortsInstallation(t *testing.T) {
 	assertHelmValues(t, k0sConfig, "admin-console", map[string]interface{}{
 		"kurlProxy.nodePort": float64(30002),
 	})
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+var (
+	//go:embed assets/values.yaml
+	valuesYaml []byte
+)
+
+func valuesFile(t *testing.T) string {
+	valuesYamlFilename := filepath.Join(t.TempDir(), "values.yaml")
+	require.NoError(t, os.WriteFile(valuesYamlFilename, valuesYaml, 0644))
+	return valuesYamlFilename
+}
+
+func TestConfigValuesInstallation(t *testing.T) {
+	vf := valuesFile(t)
+	dr := dryrunInstall(t,
+		"--config-values", vf,
+	)
+
+	// --- validate metrics --- //
+	assertMetrics(t, dr.Metrics, []struct {
+		title    string
+		validate func(string)
+	}{
+		{
+			title: "InstallationStarted",
+			validate: func(payload string) {
+				assert.Contains(t, payload, fmt.Sprintf("--config-values %s", vf))
+			},
+		},
+		{
+			title:    "InstallationSucceeded",
+			validate: func(payload string) {},
+		},
+	})
+
+	// --- validate commands --- //
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile(fmt.Sprintf(`install fake-app-slug/fake-channel-slug .* --config-values %s`, vf)),
+		},
+		false,
+	)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

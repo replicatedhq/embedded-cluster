@@ -31,6 +31,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
@@ -185,6 +186,16 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("usage: %s join <url> <token>", binName)
 		}
 
+		if channelRelease, err := release.GetChannelRelease(); err != nil {
+			return fmt.Errorf("unable to read channel release data: %w", err)
+		} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
+			logrus.Infof("You downloaded an air gap bundle but are performing an online join.")
+			logrus.Infof("To do an air gap join, pass the air gap bundle with --airgap-bundle.")
+			if !prompts.New().Confirm("Do you want to proceed with an online join?", false) {
+				return ErrNothingElseToAdd
+			}
+		}
+
 		logrus.Debugf("fetching join token remotely")
 		jcmd, err := getJoinToken(c.Context, c.Args().Get(0), c.Args().Get(1))
 		if err != nil {
@@ -213,7 +224,10 @@ var joinCommand = &cli.Command{
 			return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 		}
 		if !proxyOK {
-			return fmt.Errorf("no-proxy config %q does not allow access to local IP %q", jcmd.InstallationSpec.Proxy.NoProxy, localIP)
+			logrus.Errorf("This node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
+			logrus.Infof(`The no-proxy list cannot easily be modified after initial installation.`)
+			logrus.Infof(`Recreate the first node and pass all node IP addresses to --no-proxy.`)
+			return ErrNothingElseToAdd
 		}
 
 		isAirgap := c.String("airgap-bundle") != ""
@@ -236,6 +250,11 @@ var joinCommand = &cli.Command{
 		if err != nil {
 			metrics.ReportJoinFailed(c.Context, jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			return err
+		}
+
+		logrus.Debugf("configuring sysctl")
+		if err := configutils.ConfigureSysctl(provider); err != nil {
+			return fmt.Errorf("unable to configure sysctl: %w", err)
 		}
 
 		// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url

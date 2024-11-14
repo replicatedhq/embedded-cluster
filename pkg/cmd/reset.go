@@ -19,6 +19,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 )
@@ -35,9 +36,13 @@ type hostInfo struct {
 	NodeError        error
 	ControlNode      autopilot.ControlNode
 	ControlNodeError error
-	Status           k0sStatus
+	Status           k0s.K0sStatus
 	RoleName         string
 }
+
+const (
+	k0sBinPath = "/usr/local/bin/k0s"
+)
 
 var (
 	binName = defaults.BinaryName()
@@ -102,7 +107,7 @@ func (h *hostInfo) drainNode() error {
 		"--timeout", "60s",
 		h.Hostname,
 	}
-	out, err := helpers.RunCommand(k0s, drainArgList...)
+	out, err := helpers.RunCommand(k0sBinPath, drainArgList...)
 	if err != nil {
 		if notFoundRegex.Match([]byte(out + err.Error())) {
 			return nil
@@ -207,7 +212,7 @@ func (h *hostInfo) checkResetSafety(c *cli.Context) (bool, string, error) {
 func (h *hostInfo) leaveEtcdcluster() error {
 
 	// if we're the only etcd member we don't need to leave the cluster
-	out, err := helpers.RunCommand(k0s, "etcd", "member-list")
+	out, err := helpers.RunCommand(k0sBinPath, "etcd", "member-list")
 	if err != nil {
 		return err
 	}
@@ -220,7 +225,7 @@ func (h *hostInfo) leaveEtcdcluster() error {
 		return nil
 	}
 
-	out, err = helpers.RunCommand(k0s, "etcd", "leave")
+	out, err = helpers.RunCommand(k0sBinPath, "etcd", "leave")
 	if err != nil {
 		return fmt.Errorf("unable to leave etcd cluster: %w, %s", err, out)
 	}
@@ -229,11 +234,11 @@ func (h *hostInfo) leaveEtcdcluster() error {
 
 // stopK0s attempts to stop the k0s service
 func stopAndResetK0s(dataDir string) error {
-	out, err := helpers.RunCommand(k0s, "stop")
+	out, err := helpers.RunCommand(k0sBinPath, "stop")
 	if err != nil {
 		return fmt.Errorf("could not stop k0s service: %w, %s", err, out)
 	}
-	out, err = helpers.RunCommand(k0s, "reset", "--data-dir", dataDir)
+	out, err = helpers.RunCommand(k0sBinPath, "reset", "--data-dir", dataDir)
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w, %s", err, out)
 	}
@@ -251,7 +256,7 @@ func newHostInfo(ctx context.Context) (hostInfo, error) {
 		return currentHost, err
 	}
 	// get k0s status json
-	status, err := getK0sStatus(ctx)
+	status, err := k0s.GetStatus(ctx)
 	if err != nil {
 		err := fmt.Errorf("client not initialized")
 		currentHost.KclientError = err
@@ -494,6 +499,10 @@ func resetCommand() *cli.Command {
 
 			if err := helpers.RemoveAll(defaults.PathToECConfig()); err != nil {
 				return fmt.Errorf("failed to remove embedded cluster data config: %w", err)
+			}
+
+			if err := helpers.RemoveAll("/etc/sysctl.d/99-embedded-cluster.conf"); err != nil {
+				return fmt.Errorf("failed to remove embedded cluster sysctl config: %w", err)
 			}
 
 			if _, err := helpers.RunCommand("reboot"); err != nil {

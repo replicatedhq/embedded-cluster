@@ -680,17 +680,8 @@ func installCommand() *cli.Command {
 			if c.String("airgap-bundle") != "" {
 				metrics.DisableMetrics()
 			}
-			if drFile := c.String("dry-run"); drFile != "" {
-				dryrun.Init(drFile)
+			if dryrun.Enabled() {
 				dryrun.RecordFlags(c)
-			}
-			return nil
-		},
-		After: func(c *cli.Context) error {
-			if c.String("dry-run") != "" {
-				if err := dryrun.Dump(); err != nil {
-					return fmt.Errorf("unable to dump dry run info: %w", err)
-				}
 			}
 			return nil
 		},
@@ -707,12 +698,6 @@ func installCommand() *cli.Command {
 					Usage: "Path to the air gap bundle. If set, the installation will complete without internet access.",
 				},
 				getDataDirFlagWithDefault(runtimeConfig),
-				&cli.StringFlag{
-					Name:   "dry-run",
-					Usage:  "If set, dry run the installation and output the results to the provided file",
-					Value:  "",
-					Hidden: true,
-				},
 				&cli.StringFlag{
 					Name:    "license",
 					Aliases: []string{"l"},
@@ -743,6 +728,10 @@ func installCommand() *cli.Command {
 					Name:  "skip-host-preflights",
 					Usage: "Skip host preflight checks. This is not recommended.",
 					Value: false,
+				},
+				&cli.StringFlag{
+					Name:  "config-values",
+					Usage: "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)",
 				},
 			},
 		)),
@@ -780,7 +769,24 @@ func installCommand() *cli.Command {
 				logrus.Infof("\n  sudo ./%s reset\n", binName)
 				return ErrNothingElseToAdd
 			}
+
+			if channelRelease, err := release.GetChannelRelease(); err != nil {
+				return fmt.Errorf("unable to read channel release data: %w", err)
+			} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
+				logrus.Warnf("You downloaded an air gap bundle but are performing an online installation.")
+				logrus.Infof("To do an air gap installation, pass the air gap bundle with --airgap-bundle.")
+				if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
+					return ErrNothingElseToAdd
+				}
+			}
+
 			metrics.ReportApplyStarted(c)
+
+			logrus.Debugf("configuring sysctl")
+			if err := configutils.ConfigureSysctl(provider); err != nil {
+				return fmt.Errorf("unable to configure sysctl: %w", err)
+			}
+
 			logrus.Debugf("configuring network manager")
 			if err := configureNetworkManager(c, provider); err != nil {
 				return fmt.Errorf("unable to configure network manager: %w", err)
@@ -894,6 +900,17 @@ func getAddonsApplier(c *cli.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec
 	if adminConsolePwd != "" {
 		opts = append(opts, addons.WithAdminConsolePassword(adminConsolePwd))
 	}
+
+	configValuesFile := c.String("config-values")
+	if configValuesFile != "" {
+		err := configutils.ValidateKotsConfigValues(configValuesFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to validate config values file %q: %w", configValuesFile, err)
+		}
+
+		opts = append(opts, addons.WithConfigValuesFile(configValuesFile))
+	}
+
 	return addons.NewApplier(opts...), nil
 }
 
