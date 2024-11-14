@@ -291,7 +291,7 @@ func TestHostPreflightCustomSpec(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing test dependencies on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"yum", "install", "-y", "binutils", "fio"}
+	line := []string{"yum", "install", "-y", "fio"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install dependencies on node 0: %v: %s: %s", err, stdout, stderr)
 	}
