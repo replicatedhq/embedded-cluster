@@ -6,57 +6,26 @@ import (
 	"os"
 	"os/signal"
 	"path"
-	"strings"
 	"syscall"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
 	defer cancel()
-
 	name := path.Base(os.Args[0])
-
-	InitAndExecute(ctx, name)
-}
-
-func RootCmd(ctx context.Context, v *viper.Viper, name string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   name,
-		Short: "Run or pull data for the local artifact mirror",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			v.BindPFlags(cmd.Flags())
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			os.Exit(1)
-			return nil
-		},
+	var app = &cli.App{
+		Name:     name,
+		Usage:    "Run or pull data for the local artifact mirror",
+		Commands: []*cli.Command{serveCommand, pullCommand},
 	}
-
-	cobra.OnInitialize(func() {
-		initConfig(v)
-	})
-
-	cmd.AddCommand(ServeCmd(ctx, v))
-	cmd.AddCommand(PullCmd(ctx, v))
-
-	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-
-	return cmd
-}
-
-func InitAndExecute(ctx context.Context, name string) {
-	v := viper.GetViper()
-	if err := RootCmd(ctx, v, name).Execute(); err != nil {
+	if err := app.RunContext(ctx, os.Args); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-func initConfig(v *viper.Viper) {
-	v.SetEnvPrefix("REPLICATED")
-	v.AutomaticEnv()
 }

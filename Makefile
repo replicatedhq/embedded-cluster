@@ -350,7 +350,3 @@ delete-node%:
 .PHONY: %-down
 %-down:
 	@dev/scripts/down.sh $*
-
-.PHONY: test-lam-e2e
-test-lam-e2e: pkg/goods/bins/local-artifact-mirror
-	sudo go test ./cmd/local-artifact-mirror/e2e/... -v

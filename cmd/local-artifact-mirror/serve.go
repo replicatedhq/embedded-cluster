@@ -15,8 +15,8 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/urfave/cli/v2"
+	k8snet "k8s.io/utils/net"
 )
 
 var (
@@ -25,96 +25,81 @@ var (
 
 // serveCommand starts a http server that serves files from the data directory. This server listen
 // only on localhost and is used to serve files needed by the autopilot during an upgrade.
-func ServeCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
-	var (
-		dataDir string
-		port    int
-	)
-
-	cmd := &cobra.Command{
-		Use:   "serve",
-		Short: "Serve files from the data directory over HTTP",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			v.BindPFlag("data-dir", cmd.Flags().Lookup("data-dir"))
-			v.BindPFlag("port", cmd.Flags().Lookup("port"))
-
-			if os.Getuid() != 0 {
-				return fmt.Errorf("serve command must be run as root")
-			}
-			return nil
+var serveCommand = &cli.Command{
+	Name:  "serve",
+	Usage: "Serve files from the data directory over HTTP",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "data-dir",
+			Usage:   "Path to the data directory",
+			Value:   ecv1beta1.DefaultDataDir,
+			EnvVars: []string{"LOCAL_ARTIFACT_MIRROR_DATA_DIR"},
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			v := viper.GetViper()
-
-			// there are some env vars that we still support for backwards compatibility
-			if os.Getenv("LOCAL_ARTIFACT_MIRROR_PORT") != "" {
-				envvarPort, err := strconv.ParseInt(os.Getenv("LOCAL_ARTIFACT_MIRROR_PORT"), 10, 32)
-				if err != nil {
-					return fmt.Errorf("unable to parse LOCAL_ARTIFACT_MIRROR_PORT: %w", err)
-				}
-				port = int(envvarPort)
-			}
-			if os.Getenv("LOCAL_ARTIFACT_MIRROR_DATA_DIR") != "" {
-				dataDir = os.Getenv("LOCAL_ARTIFACT_MIRROR_DATA_DIR")
-			}
-
-			var provider *defaults.Provider
-			if v.Get("data-dir") != nil {
-				provider = defaults.NewProvider(v.GetString("data-dir"))
-			} else {
-				var err error
-				provider, err = cmdutil.NewProviderFromFilesystem()
-				if err != nil {
-					panic(fmt.Errorf("unable to get provider from filesystem: %w", err))
-				}
-			}
-
-			port := v.GetInt("port")
-			if port == 0 {
-				port = ecv1beta1.DefaultLocalArtifactMirrorPort
-			}
-
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			fileServer := http.FileServer(http.Dir(provider.EmbeddedClusterHomeDirectory()))
-			loggedFileServer := logAndFilterRequest(fileServer)
-			http.Handle("/", loggedFileServer)
-
-			stop := make(chan os.Signal, 1)
-			signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-			if err := startBinaryWatcher(provider, stop); err != nil {
-				panic(err)
-			}
-
-			addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
-			server := &http.Server{Addr: addr}
-			go func() {
-				fmt.Printf("Starting server on %s\n", addr)
-				if err := server.ListenAndServe(); err != nil {
-					if err != http.ErrServerClosed {
-						panic(err)
-					}
-				}
-			}()
-
-			<-stop
-			fmt.Println("Shutting down server...")
-
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			if err := server.Shutdown(ctx); err != nil {
-				panic(err)
-			}
-			fmt.Println("Server gracefully stopped")
-			return nil
+		&cli.StringFlag{
+			Name:    "port",
+			Usage:   "Port to listen on",
+			Value:   strconv.Itoa(ecv1beta1.DefaultLocalArtifactMirrorPort),
+			EnvVars: []string{"LOCAL_ARTIFACT_MIRROR_PORT"},
 		},
-	}
+	},
+	Before: func(c *cli.Context) error {
+		if os.Getuid() != 0 {
+			return fmt.Errorf("serve command must be run as root")
+		}
+		return nil
+	},
+	Action: func(c *cli.Context) error {
+		var provider *defaults.Provider
+		if c.IsSet("data-dir") {
+			provider = defaults.NewProvider(c.String("data-dir"))
+		} else {
+			var err error
+			provider, err = cmdutil.NewProviderFromFilesystem()
+			if err != nil {
+				panic(fmt.Errorf("unable to get provider from filesystem: %w", err))
+			}
+		}
 
-	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
-	cmd.Flags().IntVar(&port, "port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port to listen on")
+		port, err := k8snet.ParsePort(c.String("port"), false)
+		if err != nil {
+			panic(fmt.Errorf("unable to parse port from flag: %w", err))
+		}
 
-	return cmd
+		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+
+		fileServer := http.FileServer(http.Dir(provider.EmbeddedClusterHomeDirectory()))
+		loggedFileServer := logAndFilterRequest(fileServer)
+		http.Handle("/", loggedFileServer)
+
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+		if err := startBinaryWatcher(provider, stop); err != nil {
+			panic(err)
+		}
+
+		addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+		server := &http.Server{Addr: addr}
+		go func() {
+			fmt.Printf("Starting server on %s\n", addr)
+			if err := server.ListenAndServe(); err != nil {
+				if err != http.ErrServerClosed {
+					panic(err)
+				}
+			}
+		}()
+
+		<-stop
+		fmt.Println("Shutting down server...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			panic(err)
+		}
+		fmt.Println("Server gracefully stopped")
+		return nil
+	},
 }
 
 // startBinaryWatcher starts a loop that observes the binary until its modification
