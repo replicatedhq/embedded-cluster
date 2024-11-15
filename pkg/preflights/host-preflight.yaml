@@ -148,6 +148,10 @@ spec:
         exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
         CIDRRangeAlloc: '{{ .GlobalCIDR.CIDR }}'
         desiredCIDR: {{.GlobalCIDR.Size}}
+    - run:
+        collectorName: "kernel-parameters"
+        command: "sysctl"
+        args: ["-a"]
     - sysctl: {}
   analyzers:
     - cpu:
@@ -835,6 +839,17 @@ spec:
           - pass:
               when: "a-subnet-is-available"
               message: Specified CIDR is available.
+    - textAnalyze:
+        checkName: IP forwarding
+        fileName: host-collectors/run-host/kernel-parameters.txt
+        regex: 'net.ipv4.ip_forward = 1'
+        outcomes:
+          - pass:
+              when: "true"
+              message: IP forwarding is enabled.
+          - fail:
+              when: "false"
+              message: IP forwarding must be enabled. To enable it, edit /etc/sysctl.conf, add or uncomment the line 'net.ipv4.ip_forward=1', and run 'sudo sysctl -p'.
     - sysctl:
         checkName: "ARP Filter default value for newly created interfaces"
         outcomes:
