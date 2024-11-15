@@ -37,7 +37,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.5
-	github.com/vmware-tanzu/velero v1.14.1
+	github.com/vmware-tanzu/velero v1.15.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.29.0
 	golang.org/x/term v0.26.0
