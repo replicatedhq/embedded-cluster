@@ -1,21 +1,16 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,189 +27,31 @@ const (
 // kubecli holds a global reference to a Kubernetes client.
 var kubecli client.Client
 
-// pullCommand pulls artifacts from the registry running in the cluster and stores
-// them locally. This command is used during cluster upgrades when we want to fetch
-// the most up to date images, binaries and helm charts.
-var pullCommand = &cli.Command{
-	Name:  "pull",
-	Usage: "Pull artifacts for an airgap installation",
-	Before: func(c *cli.Context) (err error) {
-		if kubecli, err = kubeutils.KubeClient(); err != nil {
-			return fmt.Errorf("unable to create kube client: %w", err)
-		}
-		return nil
-	},
-	Subcommands: []*cli.Command{binariesCommand, imagesCommand, helmChartsCommand},
-}
+func PullCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pull",
+		Short: "Pull artifacts for an airgap installation",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			kc, err := kubeutils.KubeClient()
+			if err != nil {
+				return fmt.Errorf("unable to create kube client: %w", err)
+			}
+			kubecli = kc
 
-// imagesCommand pulls images from the registry running in the cluster and stores
-// them locally. This command is used during cluster upgrades when we want to fetch
-// the most up to date images. Images are stored in a tarball file in the default
-// location.
-var imagesCommand = &cli.Command{
-	Name:      "images",
-	Usage:     "Pull image artifacts for an airgap installation",
-	UsageText: `embedded-cluster-operator pull images <installation-name>`,
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("pull images command must be run as root")
-		}
-		if len(c.Args().Slice()) != 1 {
-			return fmt.Errorf("expected installation name as argument")
-		}
-		return nil
-	},
-	Flags: []cli.Flag{
-		getPullDataDirFlag(),
-	},
-	Action: func(c *cli.Context) error {
-		provider := defaults.NewProvider(c.String("data-dir"))
-		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.Help()
+			os.Exit(1)
+			return nil
+		},
+	}
 
-		in, err := fetchAndValidateInstallation(c.Context, c.Args().First())
-		if err != nil {
-			return err
-		}
+	cmd.AddCommand(PullBinariesCmd(ctx, v))
+	cmd.AddCommand(PullImagesCmd(ctx, v))
+	cmd.AddCommand(PullHelmChartsCmd(ctx, v))
 
-		from := in.Spec.Artifacts.Images
-		logrus.Infof("fetching images artifact from %s", from)
-		location, err := pullArtifact(c.Context, from)
-		if err != nil {
-			return fmt.Errorf("unable to fetch artifact: %w", err)
-		}
-		defer func() {
-			logrus.Infof("removing temporary directory %s", location)
-			os.RemoveAll(location)
-		}()
-
-		dst := filepath.Join(provider.EmbeddedClusterImagesSubDir(), ImagesDstArtifactName)
-		src := filepath.Join(location, ImagesSrcArtifactName)
-		logrus.Infof("%s > %s", src, dst)
-		if err := helpers.MoveFile(src, dst); err != nil {
-			return fmt.Errorf("unable to move images bundle: %w", err)
-		}
-
-		logrus.Infof("images materialized under %s", dst)
-		return nil
-	},
-}
-
-// helmChartsCommand pulls helm charts from the registry running in the cluster and
-// stores them locally. This command is used during cluster upgrades when we want to
-// fetch the most up to date helm charts. Helm charts are stored in a tarball file
-// in the default location.
-var helmChartsCommand = &cli.Command{
-	Name:      "helmcharts",
-	Usage:     "Pull Helm chart artifacts for an airgap installation",
-	UsageText: `embedded-cluster-operator pull helmcharts <installation-name>`,
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("pull helmcharts command must be run as root")
-		}
-		if len(c.Args().Slice()) != 1 {
-			return fmt.Errorf("expected installation name as argument")
-		}
-		return nil
-	},
-	Flags: []cli.Flag{
-		getPullDataDirFlag(),
-	},
-	Action: func(c *cli.Context) error {
-		provider := defaults.NewProvider(c.String("data-dir"))
-		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-		in, err := fetchAndValidateInstallation(c.Context, c.Args().First())
-		if err != nil {
-			return err
-		}
-
-		from := in.Spec.Artifacts.HelmCharts
-		logrus.Infof("fetching helm charts artifact from %s", from)
-		location, err := pullArtifact(c.Context, from)
-		if err != nil {
-			return fmt.Errorf("unable to fetch artifact: %w", err)
-		}
-		defer func() {
-			logrus.Infof("removing temporary directory %s", location)
-			os.RemoveAll(location)
-		}()
-
-		dst := provider.EmbeddedClusterChartsSubDir()
-		src := filepath.Join(location, HelmChartsArtifactName)
-		logrus.Infof("uncompressing %s", src)
-		if err := tgzutils.Decompress(src, dst); err != nil {
-			return fmt.Errorf("unable to uncompress helm charts: %w", err)
-		}
-
-		logrus.Infof("helm charts materialized under %s", dst)
-		return nil
-	},
-}
-
-// binariesCommands pulls the binary artifact from the registry running in the cluster and stores
-// it locally. This command is used during cluster upgrades when we want to fetch the most up to
-// date binaries. The binaries are stored in the /usr/local/bin directory and they overwrite the
-// existing binaries.
-var binariesCommand = &cli.Command{
-	Name:      "binaries",
-	Usage:     "Pull binaries artifacts for an airgap installation",
-	UsageText: `embedded-cluster-operator pull binaries <installation-name>`,
-	Before: func(c *cli.Context) error {
-		if os.Getuid() != 0 {
-			return fmt.Errorf("pull binaries command must be run as root")
-		}
-		if len(c.Args().Slice()) != 1 {
-			return fmt.Errorf("expected installation name as argument")
-		}
-		return nil
-	},
-	Flags: []cli.Flag{
-		getPullDataDirFlag(),
-	},
-	Action: func(c *cli.Context) error {
-		provider := defaults.NewProvider(c.String("data-dir"))
-		os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-		in, err := fetchAndValidateInstallation(c.Context, c.Args().First())
-		if err != nil {
-			return err
-		}
-
-		from := in.Spec.Artifacts.EmbeddedClusterBinary
-		logrus.Infof("fetching embedded cluster binary artifact from %s", from)
-		location, err := pullArtifact(c.Context, from)
-		if err != nil {
-			return fmt.Errorf("unable to fetch artifact: %w", err)
-		}
-		defer func() {
-			logrus.Infof("removing temporary directory %s", location)
-			os.RemoveAll(location)
-		}()
-		bin := filepath.Join(location, EmbeddedClusterBinaryArtifactName)
-		namedBin := filepath.Join(location, in.Spec.BinaryName)
-		if err := os.Rename(bin, namedBin); err != nil {
-			return fmt.Errorf("unable to rename binary: %w", err)
-		}
-
-		if err := os.Chmod(namedBin, 0755); err != nil {
-			return fmt.Errorf("unable to change permissions on %s: %w", bin, err)
-		}
-
-		out := bytes.NewBuffer(nil)
-		cmd := exec.Command(namedBin, "materialize", "--data-dir", provider.EmbeddedClusterHomeDirectory())
-		cmd.Stdout = out
-		cmd.Stderr = out
-
-		logrus.Infof("running command: %s materialize", bin)
-		if err := cmd.Run(); err != nil {
-			logrus.Error(out.String())
-			return err
-		}
-
-		logrus.Infof("embedded cluster binaries materialized")
-
-		return nil
-	},
+	return cmd
 }
 
 // fetchAndValidateInstallation fetches an Installation object from its name or directly decodes it
@@ -264,14 +101,4 @@ func decodeInstallation(ctx context.Context, data string) (*ecv1beta1.Installati
 	}
 
 	return in, nil
-}
-
-func getPullDataDirFlag() cli.Flag {
-	return &cli.StringFlag{
-		Name:     "data-dir",
-		Usage:    "Path to the data directory",
-		Value:    ecv1beta1.DefaultDataDir,
-		EnvVars:  []string{"LOCAL_ARTIFACT_MIRROR_DATA_DIR"},
-		Required: true,
-	}
 }
