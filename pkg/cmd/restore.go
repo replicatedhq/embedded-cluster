@@ -36,14 +36,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
-	veleroclientv1 "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned/typed/velero/v1"
+	velerov1api "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8snet "k8s.io/utils/net"
 	"k8s.io/utils/ptr"
-	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -222,15 +222,9 @@ func getBackupFromRestoreState(ctx context.Context, provider *defaults.Provider,
 	if !ok || backupName == "" {
 		return nil, nil
 	}
-	cfg, err := k8sconfig.GetConfig()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get kubernetes config: %w", err)
-	}
-	veleroClient, err := veleroclientv1.NewForConfig(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create velero client: %w", err)
-	}
-	backup, err := veleroClient.Backups(defaults.VeleroNamespace).Get(ctx, backupName, metav1.GetOptions{})
+
+	backup := velerov1api.Backup{}
+	err = kcli.Get(ctx, types.NamespacedName{Name: backupName, Namespace: defaults.VeleroNamespace}, &backup)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get backup: %w", err)
 	}
@@ -246,10 +240,10 @@ func getBackupFromRestoreState(ctx context.Context, provider *defaults.Provider,
 		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
-	if restorable, reason := isBackupRestorable(backup, provider, rel, isAirgap, k0sCfg); !restorable {
+	if restorable, reason := isBackupRestorable(&backup, provider, rel, isAirgap, k0sCfg); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
 	}
-	return backup, nil
+	return &backup, nil
 }
 
 // newS3BackupStore prompts the user for S3 backup store configuration.
@@ -456,14 +450,9 @@ func waitForBackups(ctx context.Context, provider *defaults.Provider, isAirgap b
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
 
-	cfg, err := k8sconfig.GetConfig()
+	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get kubernetes config: %w", err)
-	}
-
-	veleroClient, err := veleroclientv1.NewForConfig(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create velero client: %w", err)
+		return nil, fmt.Errorf("unable to create kube client: %w", err)
 	}
 
 	rel, err := release.GetChannelRelease()
@@ -482,7 +471,9 @@ func waitForBackups(ctx context.Context, provider *defaults.Provider, isAirgap b
 	for i := 0; i < 30; i++ {
 		time.Sleep(5 * time.Second)
 
-		backupList, err := veleroClient.Backups(defaults.VeleroNamespace).List(ctx, metav1.ListOptions{})
+		backupList := velerov1api.BackupList{}
+		err = kcli.List(ctx, &backupList, client.InNamespace(defaults.VeleroNamespace))
+
 		if err != nil {
 			return nil, fmt.Errorf("unable to list backups: %w", err)
 		}
@@ -556,29 +547,25 @@ func getK0sConfigFromDisk() (*k0sv1beta1.ClusterConfig, error) {
 
 // waitForVeleroRestoreCompleted waits for a Velero restore to complete.
 func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*velerov1.Restore, error) {
-	cfg, err := k8sconfig.GetConfig()
+	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get kubernetes config: %w", err)
-	}
-
-	veleroClient, err := veleroclientv1.NewForConfig(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create velero client: %w", err)
+		return nil, fmt.Errorf("unable to create kube client: %w", err)
 	}
 
 	for {
-		restore, err := veleroClient.Restores(defaults.VeleroNamespace).Get(ctx, restoreName, metav1.GetOptions{})
+		restore := velerov1api.Restore{}
+		err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: defaults.VeleroNamespace}, &restore)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get restore: %w", err)
 		}
 
 		switch restore.Status.Phase {
 		case velerov1.RestorePhaseCompleted:
-			return restore, nil
+			return &restore, nil
 		case velerov1.RestorePhaseFailed:
-			return restore, fmt.Errorf("restore failed")
+			return &restore, fmt.Errorf("restore failed")
 		case velerov1.RestorePhasePartiallyFailed:
-			return restore, fmt.Errorf("restore partially failed")
+			return &restore, fmt.Errorf("restore partially failed")
 		default:
 			// in progress
 		}
@@ -751,20 +738,16 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 
 // restoreFromBackup restores a disaster recovery component from a backup.
 func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
-	cfg, err := k8sconfig.GetConfig()
+	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		return fmt.Errorf("unable to get kubernetes config: %w", err)
-	}
-
-	veleroClient, err := veleroclientv1.NewForConfig(cfg)
-	if err != nil {
-		return fmt.Errorf("unable to create velero client: %w", err)
+		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
 	restoreName := fmt.Sprintf("%s.%s", backup.Name, string(drComponent))
 
 	// check if a restore object already exists
-	_, err = veleroClient.Restores(defaults.VeleroNamespace).Get(ctx, restoreName, metav1.GetOptions{})
+	rest := velerov1api.Restore{}
+	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: defaults.VeleroNamespace}, &rest)
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("unable to get restore: %w", err)
 	}
@@ -812,7 +795,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
 		}
 
-		_, err := veleroClient.Restores(defaults.VeleroNamespace).Create(ctx, restore, metav1.CreateOptions{})
+		err = kcli.Create(ctx, restore)
 		if err != nil {
 			return fmt.Errorf("unable to create restore: %w", err)
 		}
