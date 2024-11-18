@@ -728,8 +728,8 @@ github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHm
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
 github.com/jstemmer/go-junit-report v0.9.1/go.mod h1:Brl9GWCQeLvo8nXZwPNNblvFj/XSXhF0NWZEnDohbsk=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
-github.com/k0sproject/dig v0.2.0 h1:cNxEIl96g9kqSMfPSZLhpnZ0P8bWXKv08nxvsMHop5w=
-github.com/k0sproject/dig v0.2.0/go.mod h1:rBcqaQlJpcKdt2x/OE/lPvhGU50u/e95CSm5g/r4s78=
+github.com/k0sproject/dig v0.3.1 h1:/QK40lXQ/HEE3LMT3r/kST1ANhMVZiajNDXI+spbL9o=
+github.com/k0sproject/dig v0.3.1/go.mod h1:rlZ7N7ZEcB4Fi96TPXkZ4dqyAiDWOGLapyL9YpZ7Qz4=
 github.com/k0sproject/k0s v1.30.7-0.20241029184556-a942e759e13b h1:pE04QpLnpve7c+bOn4GmKu/j3IMhVBAAjvK6z7mW+FM=
 github.com/k0sproject/k0s v1.30.7-0.20241029184556-a942e759e13b/go.mod h1:j0xCfV9a+hwiOOr3HJmZb1enwXz8cdkSGDzDRqKSdG0=
 github.com/k0sproject/version v0.6.0 h1:Wi8wu9j+H36+okIQA47o/YHbzNpKeIYj8IjGdJOdqsI=
