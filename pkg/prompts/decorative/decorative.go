@@ -9,6 +9,10 @@ import (
 // Decorative is a decorative prompt.
 type Decorative struct{}
 
+func New() Decorative {
+	return Decorative{}
+}
+
 // Confirm asks for user for a "Yes" or "No" response. The default value
 // is used if the user presses enter without typing anything.
 func (d Decorative) Confirm(msg string, defvalue bool) bool {
@@ -23,7 +27,8 @@ func (d Decorative) Confirm(msg string, defvalue bool) bool {
 // PressEnter asks the user to press enter to continue.
 func (d Decorative) PressEnter(msg string) {
 	var i string
-	if err := survey.AskOne(&survey.Input{Message: msg}, &i); err != nil {
+	in := &survey.Input{Message: msg}
+	if err := survey.AskOne(in, &i); err != nil {
 		logrus.Fatalf("unable to ask for input: %v", err)
 	}
 }
