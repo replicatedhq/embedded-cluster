@@ -74,8 +74,11 @@ main() {
     fi
 
     # scale up the second deployment to ensure that images can still be pulled
-    kubectl scale deployment second --replicas=4
-    sleep 1
+    echo "scaling up the 'second' deployment to ensure that images can still be pulled"
+    kubectl scale deployment/second --replicas=4
+    sleep 5
+    echo "after 5 seconds, pods in the 'kotsadm' namespace:"
+    kubectl get pods -n kotsadm -o wide
     if ! wait_for_pods_running 60; then
         echo "Failed waiting for the second deployment's nginx pods"
         exit 1
