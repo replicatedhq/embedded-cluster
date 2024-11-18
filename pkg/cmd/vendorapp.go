@@ -15,18 +15,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 )
 
 // maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
-// channel. If prompts are enabled, it will prompt the user to continue installing the out-of-date
+// channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kotsv1beta1.License) error {
-	// It is not possible to check for app updates in airgap mode.
-	if isAirgap := c.String("airgap-bundle") != ""; isAirgap {
-		return nil
-	}
-
+func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License) error {
 	channelRelease, err := release.GetChannelRelease()
 	if err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
@@ -42,7 +36,7 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 
 	logrus.Debugf("Checking for pending app releases")
 
-	currentRelease, err := getCurrentAppChannelRelease(c.Context, license, channelRelease.ChannelID)
+	currentRelease, err := getCurrentAppChannelRelease(ctx, license, channelRelease.ChannelID)
 	if err != nil {
 		return fmt.Errorf("get current app channel release: %w", err)
 	}
@@ -65,13 +59,17 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 		channelRelease.ChannelSlug,
 	)
 
-	// if no-prompt is true, we don't prompt the user and continue by default.
-	if !c.Bool("no-prompt") {
-		text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
-		if !prompt.Confirm(text, true) {
-			return ErrNothingElseToAdd
-		}
+	// if there is no terminal, we don't prompt the user and continue by default.
+	if !prompts.IsTerminal() {
+		return nil
 	}
+
+	text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
+	if !prompt.Confirm(text, false) {
+		logrus.Debug("User denied prompt to continue installing out-of-date release")
+		return ErrNothingElseToAdd
+	}
+	logrus.Debug("User confirmed prompt to continue installing out-of-date release")
 	return nil
 }
 

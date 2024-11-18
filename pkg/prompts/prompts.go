@@ -11,6 +11,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 )
 
+var (
+	_isTerminal bool = false
+)
+
+func SetTerminal(isTerminal bool) {
+	_isTerminal = isTerminal
+}
+
 // Prompt is the interface implemented by 'decorative' and 'plain' prompts.
 type Prompt interface {
 	// Confirm asks for user for a "Yes" or "No" response. The default value is used if the user
@@ -32,4 +40,8 @@ func New() Prompt {
 		return plain.New()
 	}
 	return decorative.New()
+}
+
+func IsTerminal() bool {
+	return _isTerminal
 }

@@ -807,14 +807,17 @@ func installCommand() *cli.Command {
 				}
 			}
 
-			if err := maybePromptForAppUpdate(c, prompts.New(), license); err != nil {
-				if errors.Is(err, ErrNothingElseToAdd) {
-					metrics.ReportApplyFinished(c, err)
-					return err
+			// It is not possible to check for app updates in airgap mode.
+			if !isAirgap {
+				if err := maybePromptForAppUpdate(c.Context, prompts.New(), license); err != nil {
+					if errors.Is(err, ErrNothingElseToAdd) {
+						metrics.ReportApplyFinished(c, err)
+						return err
+					}
+					// If we get an error other than ErrNothingElseToAdd, we warn and continue as
+					// this check is not critical.
+					logrus.Debugf("WARNING: Failed to check for newer app versions: %v", err)
 				}
-				// If we get an error other than ErrNothingElseToAdd, we warn and continue as
-				// this check is not critical.
-				logrus.Debugf("WARNING: Failed to check for newer app versions: %v", err)
 			}
 
 			if err := preflights.ValidateApp(); err != nil {
