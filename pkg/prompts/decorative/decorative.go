@@ -2,45 +2,15 @@
 package decorative
 
 import (
-	"os"
-
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/sirupsen/logrus"
 )
 
 // Decorative is a decorative prompt.
-type Decorative struct {
-	in  terminal.FileReader
-	out terminal.FileWriter
-}
+type Decorative struct{}
 
-type Option func(p *Decorative)
-
-func New(opts ...Option) Decorative {
-	p := Decorative{}
-	for _, opt := range opts {
-		opt(&p)
-	}
-	if p.in == nil {
-		p.in = os.Stdin
-	}
-	if p.out == nil {
-		p.out = os.Stdout
-	}
-	return p
-}
-
-func WithIn(in terminal.FileReader) Option {
-	return func(p *Decorative) {
-		p.in = in
-	}
-}
-
-func WithOut(out terminal.FileWriter) Option {
-	return func(p *Decorative) {
-		p.out = out
-	}
+func New() Decorative {
+	return Decorative{}
 }
 
 // Confirm asks for user for a "Yes" or "No" response. The default value
@@ -48,7 +18,6 @@ func WithOut(out terminal.FileWriter) Option {
 func (d Decorative) Confirm(msg string, defvalue bool) bool {
 	var response bool
 	var confirm = &survey.Confirm{Message: msg, Default: defvalue}
-	confirm.WithStdio(d.stdio())
 	if err := survey.AskOne(confirm, &response); err != nil {
 		logrus.Fatalf("unable to confirm: %v", err)
 	}
@@ -59,7 +28,6 @@ func (d Decorative) Confirm(msg string, defvalue bool) bool {
 func (d Decorative) PressEnter(msg string) {
 	var i string
 	in := &survey.Input{Message: msg}
-	in.WithStdio(d.stdio())
 	if err := survey.AskOne(in, &i); err != nil {
 		logrus.Fatalf("unable to ask for input: %v", err)
 	}
@@ -70,7 +38,6 @@ func (d Decorative) Password(msg string) string {
 	var pass string
 	for pass == "" {
 		question := &survey.Password{Message: msg}
-		question.WithStdio(d.stdio())
 		if err := survey.AskOne(question, &pass); err != nil {
 			logrus.Fatalf("unable to ask for input: %v", err)
 		} else if pass == "" {
@@ -87,7 +54,6 @@ func (d Decorative) Select(msg string, options []string, defvalue string) string
 		Options: options,
 		Default: defvalue,
 	}
-	question.WithStdio(d.stdio())
 	var response string
 	if err := survey.AskOne(question, &response); err != nil {
 		logrus.Fatalf("unable to ask for input: %v", err)
@@ -101,7 +67,6 @@ func (d Decorative) Input(msg string, defvalue string, required bool) string {
 	var response string
 	for response == "" {
 		question := &survey.Input{Message: msg, Default: defvalue}
-		question.WithStdio(d.stdio())
 		if err := survey.AskOne(question, &response); err != nil {
 			logrus.Fatalf("unable to ask for input: %v", err)
 		} else if !required || response != "" {
@@ -110,11 +75,4 @@ func (d Decorative) Input(msg string, defvalue string, required bool) string {
 		logrus.Error("Input cannot be empty")
 	}
 	return response
-}
-
-func (d Decorative) stdio() terminal.Stdio {
-	return terminal.Stdio{
-		In:  d.in,
-		Out: d.out,
-	}
 }
