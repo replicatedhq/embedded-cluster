@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,12 +10,13 @@ import (
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	k8syaml "sigs.k8s.io/yaml"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -30,7 +32,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
-	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
 // Minimum character length for the Admin Console password
@@ -260,7 +261,7 @@ func runHostPreflights(c *cli.Context, provider *defaults.Provider, hpf *v1beta2
 		}
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
-		if !prompts.New().Confirm("Do you want to continue ?", false) {
+		if !prompts.New().Confirm("Do you want to continue?", false) {
 			return fmt.Errorf("user aborted")
 		}
 		return nil
@@ -805,10 +806,22 @@ func installCommand() *cli.Command {
 					return err // we want the user to see the error message without a prefix
 				}
 			}
+
+			if err := maybePromptForAppUpdate(c, prompts.New(), license); err != nil {
+				if errors.Is(err, ErrNothingElseToAdd) {
+					metrics.ReportApplyFinished(c, err)
+					return err
+				}
+				// If we get an error other than ErrNothingElseToAdd, we warn and continue as
+				// this check is not critical.
+				logrus.Debugf("WARNING: Failed to check for newer app versions: %v", err)
+			}
+
 			if err := preflights.ValidateApp(); err != nil {
 				metrics.ReportApplyFinished(c, err)
 				return err
 			}
+
 			adminConsolePwd, err := maybeAskAdminConsolePassword(c)
 			if err != nil {
 				metrics.ReportApplyFinished(c, err)
@@ -825,6 +838,7 @@ func installCommand() *cli.Command {
 				metrics.ReportApplyFinished(c, err)
 				return err
 			}
+
 			logrus.Debugf("running host preflights")
 			var replicatedAPIURL, proxyRegistryURL string
 			if license != nil {

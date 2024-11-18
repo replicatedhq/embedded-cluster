@@ -13,17 +13,23 @@ import (
 
 // Prompt is the interface implemented by 'decorative' and 'plain' prompts.
 type Prompt interface {
-	Confirm(string, bool) bool
-	PressEnter(string)
-	Password(string) string
-	Select(string, []string, string) string
-	Input(string, string, bool) string
+	// Confirm asks for user for a "Yes" or "No" response. The default value is used if the user
+	// presses enter without typing anything.
+	Confirm(msg string, defvalue bool) bool
+	// PressEnter asks the user to press enter to continue.
+	PressEnter(msg string)
+	// Password asks the user for a password. Password can't be empty.
+	Password(msg string) string
+	// Select asks the user to select one of the provided options.
+	Select(msg string, options []string, defvalue string) string
+	// Input asks the user for a string. If required is true then the string cannot be empty.
+	Input(msg string, defvalue string, required bool) string
 }
 
 // New returns a new Prompt.
 func New() Prompt {
 	if os.Getenv("EMBEDDED_CLUSTER_PLAIN_PROMPTS") == "true" {
-		return plain.Plain{}
+		return plain.New()
 	}
-	return decorative.Decorative{}
+	return decorative.New()
 }

@@ -41,7 +41,7 @@ function init_vars() {
 }
 
 function ensure_app_channel() {
-    if ! replicated app channels list | grep -q "${APP_CHANNEL}"; then
+    if ! replicated channel ls | grep -q "${APP_CHANNEL}"; then
         fail "app channel ${APP_CHANNEL} not found"
     fi
 }
