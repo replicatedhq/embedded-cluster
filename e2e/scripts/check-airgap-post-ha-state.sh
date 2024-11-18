@@ -73,6 +73,14 @@ main() {
         validate_data_dirs
     fi
 
+    # scale up the second deployment to ensure that images can still be pulled
+    kubectl scale deployment second --replicas=4
+    sleep 1
+    if ! wait_for_pods_running 60; then
+        echo "Failed waiting for the second deployment's nginx pods"
+        exit 1
+    fi
+
     validate_no_pods_in_crashloop
 }
 
