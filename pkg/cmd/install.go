@@ -697,6 +697,10 @@ func installCommand() *cli.Command {
 					Name:  "airgap-bundle",
 					Usage: "Path to the air gap bundle. If set, the installation will complete without internet access.",
 				},
+				&cli.StringFlag{
+					Name:  "config-values",
+					Usage: fmt.Sprintf("Path to a file containing the ConfigValues to use when installing %s", binName),
+				},
 				getDataDirFlagWithDefault(runtimeConfig),
 				&cli.StringFlag{
 					Name:    "license",
@@ -728,10 +732,6 @@ func installCommand() *cli.Command {
 					Name:  "skip-host-preflights",
 					Usage: "Skip host preflight checks. This is not recommended.",
 					Value: false,
-				},
-				&cli.StringFlag{
-					Name:  "config-values",
-					Usage: "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)",
 				},
 			},
 		)),
