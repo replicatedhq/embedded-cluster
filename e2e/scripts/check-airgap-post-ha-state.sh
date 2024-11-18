@@ -83,6 +83,8 @@ main() {
         echo "Failed waiting for the second deployment's nginx pods"
         exit 1
     fi
+    # scale the second deployment back down so that they aren't restored in the DR test
+    kubectl scale -n kotsadm deployment/second --replicas=0
 
     validate_no_pods_in_crashloop
 }
