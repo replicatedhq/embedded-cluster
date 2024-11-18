@@ -73,6 +73,19 @@ main() {
         validate_data_dirs
     fi
 
+    # scale up the second deployment to ensure that images can still be pulled
+    echo "scaling up the 'second' deployment to ensure that images can still be pulled"
+    kubectl scale -n kotsadm deployment/second --replicas=4
+    sleep 5
+    echo "after 5 seconds, pods in the 'kotsadm' namespace:"
+    kubectl get pods -n kotsadm -o wide
+    if ! wait_for_pods_running 60; then
+        echo "Failed waiting for the second deployment's nginx pods"
+        exit 1
+    fi
+    # scale the second deployment back down so that they aren't restored in the DR test
+    kubectl scale -n kotsadm deployment/second --replicas=0
+
     validate_no_pods_in_crashloop
 }
 

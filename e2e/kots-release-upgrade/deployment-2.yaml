@@ -6,7 +6,7 @@ metadata:
     app: second
     replicated.com/disaster-recovery: app
 spec:
-  replicas: 1
+  replicas: 4
   selector:
     matchLabels:
       app: second
@@ -15,6 +15,18 @@ spec:
       labels:
         app: second
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - second
+                topologyKey: "kubernetes.io/hostname"
       containers:
         - name: nginx
           image: proxy.replicated.com/anonymous/nginx:1.25-alpine
