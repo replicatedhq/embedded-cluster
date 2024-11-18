@@ -79,7 +79,6 @@ type apiChannelRelease struct {
 	ReleaseSequence          int64  `json:"releaseSequence"`
 	VersionLabel             string `json:"versionLabel"`
 	IsRequired               bool   `json:"isRequired"`
-	SemVer                   string `json:"semver,omitempty"`
 	CreatedAt                string `json:"createdAt"`
 	ReleaseNotes             string `json:"releaseNotes"`
 	ReplicatedRegistryDomain string `json:"replicatedRegistryDomain"`
