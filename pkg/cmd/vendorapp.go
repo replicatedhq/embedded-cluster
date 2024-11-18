@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -67,9 +66,7 @@ func maybePromptForAppUpdate(c *cli.Context, prompt prompts.Prompt, license *kot
 	)
 
 	// if no-prompt is true, we don't prompt the user and continue by default.
-	// SKIP_APP_UPDATE_PROMPT is an escape hatch used by the CI to skip the prompt in case this
-	// release becomes out of date.
-	if !c.Bool("no-prompt") && os.Getenv("SKIP_APP_UPDATE_PROMPT") != "true" {
+	if !c.Bool("no-prompt") {
 		text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
 		if !prompt.Confirm(text, true) {
 			return ErrNothingElseToAdd
