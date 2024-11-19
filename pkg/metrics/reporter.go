@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -42,8 +41,8 @@ func LicenseID(license *kotsv1beta1.License) string {
 }
 
 // License returns the parsed license. If something goes wrong, it returns nil.
-func License(c *cli.Context) *kotsv1beta1.License {
-	license, _ := helpers.ParseLicense(c.String("license"))
+func License(licenseFlag string) *kotsv1beta1.License {
+	license, _ := helpers.ParseLicense(licenseFlag)
 	return license
 }
 
@@ -144,19 +143,19 @@ func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, 
 }
 
 // ReportApplyStarted reports an InstallationStarted event.
-func ReportApplyStarted(c *cli.Context) {
-	ctx, cancel := context.WithTimeout(c.Context, 5*time.Second)
+func ReportApplyStarted(ctx context.Context, licenseFlag string) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	ReportInstallationStarted(ctx, License(c))
+	ReportInstallationStarted(ctx, License(licenseFlag))
 }
 
 // ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
-func ReportApplyFinished(c *cli.Context, err error) {
-	ctx, cancel := context.WithTimeout(c.Context, 5*time.Second)
+func ReportApplyFinished(ctx context.Context, licenseFlag string, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err != nil {
-		ReportInstallationFailed(ctx, License(c), err)
+		ReportInstallationFailed(ctx, License(licenseFlag), err)
 		return
 	}
-	ReportInstallationSucceeded(ctx, License(c))
+	ReportInstallationSucceeded(ctx, License(licenseFlag))
 }

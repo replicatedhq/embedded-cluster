@@ -248,7 +248,7 @@ embedded-cluster:
 		-tags osusergo,netgo \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
-		./cmd/embedded-cluster
+		./cmd/installer
 
 .PHONY: unit-tests
 unit-tests:
@@ -354,3 +354,8 @@ delete-node%:
 .PHONY: test-lam-e2e
 test-lam-e2e: pkg/goods/bins/local-artifact-mirror
 	sudo go test ./cmd/local-artifact-mirror/e2e/... -v
+
+.PHONY: bin/installer
+bin/installer:
+	@mkdir -p bin
+	go build -o bin/installer ./cmd/installer

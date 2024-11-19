@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/cmd"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	dryruntypes "github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
@@ -46,7 +46,7 @@ func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
 	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
 
-	if err := runEmbeddedClusterCmd(
+	if err := runInstallerCmd(
 		append([]string{
 			"install",
 			"--no-prompt",
@@ -68,7 +68,7 @@ func dryrunUpdate(t *testing.T, args ...string) dryruntypes.DryRun {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
-	if err := runEmbeddedClusterCmd(
+	if err := runInstallerCmd(
 		append([]string{
 			"update",
 		}, args...)...,
@@ -92,10 +92,13 @@ func embedReleaseData() error {
 	return nil
 }
 
-func runEmbeddedClusterCmd(args ...string) error {
-	fullArgs := append([]string{"embedded-cluster"}, args...)
+func runInstallerCmd(args ...string) error {
+	fullArgs := append([]string{"dryrun"}, args...)
 	os.Args = fullArgs // for reporting
-	return cmd.NewApp("embedded-cluster").Run(fullArgs)
+
+	installerCmd := cli.RootCmd(context.Background(), "dryrun")
+	installerCmd.SetArgs(args)
+	return installerCmd.Execute()
 }
 
 func readK0sConfig(t *testing.T) k0sv1beta1.ClusterConfig {

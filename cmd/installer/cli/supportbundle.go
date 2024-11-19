@@ -1,33 +1,32 @@
-package cmd
+package cli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
-func supportBundleCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "support-bundle",
-		Usage: fmt.Sprintf("Generate a support bundle for %s", defaults.BinaryName()),
-		Before: func(c *cli.Context) error {
+func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "support-bundle",
+		Short: "Generate a support bundle for the embedded-cluster",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("support-bundle command must be run as root")
 			}
 			return nil
 		},
-		Action: func(c *cli.Context) error {
-			provider := discoverBestProvider(c.Context)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			provider := discoverBestProvider(cmd.Context())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			supportBundle := provider.PathToEmbeddedClusterBinary("kubectl-support_bundle")
@@ -89,4 +88,6 @@ func supportBundleCommand() *cli.Command {
 			return nil
 		},
 	}
+
+	return cmd
 }
