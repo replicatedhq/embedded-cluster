@@ -36,9 +36,6 @@ func (hook *StdoutLogger) Levels() []logrus.Level {
 func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
 	message := fmt.Sprintf("%s\n", entry.Message)
 	output := os.Stdout
-	if entry.Level != logrus.InfoLevel {
-		output = os.Stderr
-	}
 	var writer *color.Color
 	switch entry.Level {
 	case logrus.WarnLevel:
