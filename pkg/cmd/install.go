@@ -774,9 +774,9 @@ func installCommand() *cli.Command {
 			if channelRelease, err := release.GetChannelRelease(); err != nil {
 				return fmt.Errorf("unable to read channel release data: %w", err)
 			} else if channelRelease != nil && channelRelease.Airgap && c.String("airgap-bundle") == "" && !c.Bool("no-prompt") {
-				logrus.Warnf("You downloaded an air gap bundle but are performing an online installation.")
-				logrus.Infof("To do an air gap installation, pass the air gap bundle with --airgap-bundle.")
-				if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
+				logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
+				logrus.Warnf("If you continue, the installation will not use an air gap bundle and will connect to the internet.")
+				if !prompts.New().Confirm("Are you sure you want to install without an air gap bundle?", false) {
 					return ErrNothingElseToAdd
 				}
 			}
