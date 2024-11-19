@@ -3,18 +3,17 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli/v2"
 )
 
 func Test_getCurrentAppChannelRelease(t *testing.T) {
@@ -42,7 +41,6 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 						"releaseSequence": 2,
 						"versionLabel": "2.0.0",
 						"isRequired": true,
-						"semver": "2.0.0",
 						"createdAt": "2023-10-01T00:00:00Z",
 						"releaseNotes": "release notes",
 						"replicatedRegistryDomain": "replicated.app",
@@ -56,7 +54,6 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 				ReleaseSequence:          2,
 				VersionLabel:             "2.0.0",
 				IsRequired:               true,
-				SemVer:                   "2.0.0",
 				CreatedAt:                "2023-10-01T00:00:00Z",
 				ReleaseNotes:             "release notes",
 				ReplicatedRegistryDomain: "replicated.app",
@@ -128,7 +125,6 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 						"releaseSequence": 1,
 						"versionLabel": "1.0.0",
 						"isRequired": true,
-						"semver": "1.0.0",
 						"createdAt": "2023-10-01T00:00:00Z",
 						"releaseNotes": "release notes",
 						"replicatedRegistryDomain": "replicated.app",
@@ -157,7 +153,6 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 						"releaseSequence": 2,
 						"versionLabel": "2.0.0",
 						"isRequired": true,
-						"semver": "2.0.0",
 						"createdAt": "2023-10-01T00:00:00Z",
 						"releaseNotes": "release notes",
 						"replicatedRegistryDomain": "replicated.app",
@@ -186,7 +181,6 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 						"releaseSequence": 2,
 						"versionLabel": "2.0.0",
 						"isRequired": true,
-						"semver": "2.0.0",
 						"createdAt": "2023-10-01T00:00:00Z",
 						"releaseNotes": "release notes",
 						"replicatedRegistryDomain": "replicated.app",
@@ -263,8 +257,10 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			out := bytes.NewBuffer([]byte{})
 			prompt := plain.New(plain.WithIn(in), plain.WithOut(out))
 
-			flagset := flag.NewFlagSet("test", 0)
-			err = maybePromptForAppUpdate(cli.NewContext(nil, flagset, nil), prompt, license)
+			prompts.SetTerminal(true)
+			t.Cleanup(func() { prompts.SetTerminal(false) })
+
+			err = maybePromptForAppUpdate(context.Background(), prompt, license)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
