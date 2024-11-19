@@ -11,15 +11,15 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/sirupsen/logrus"
-
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/sirupsen/logrus"
 )
 
 // MaxLogFiles is the maximum number of log files we keep.
 const MaxLogFiles = 100
 
-// StdoutLogger is a Logrus hook for routing Info, Error, and Fatal logs to the screen.
+// StdoutLogger is a Logrus hook for routing Info, Warn and Error logs to stdout and Fatal logs to
+// stderr.
 type StdoutLogger struct{}
 
 // Levels defines on which log levels this hook would trigger.
@@ -36,7 +36,7 @@ func (hook *StdoutLogger) Levels() []logrus.Level {
 func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
 	message := fmt.Sprintf("%s\n", entry.Message)
 	output := os.Stdout
-	if entry.Level != logrus.InfoLevel {
+	if entry.Level == logrus.FatalLevel {
 		output = os.Stderr
 	}
 	var writer *color.Color
