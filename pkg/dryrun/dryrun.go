@@ -12,7 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/pflag"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -86,15 +86,14 @@ func Load() (*types.DryRun, error) {
 	return dr, nil
 }
 
-func RecordFlags(c *cli.Context) {
+func RecordFlags(flagSet *pflag.FlagSet) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	for _, flag := range c.Command.Flags {
-		for _, name := range flag.Names() {
-			dr.Flags[name] = c.Value(name)
-		}
-	}
+	flagSet.VisitAll(func(flag *pflag.Flag) {
+		// Store the flag name and its value
+		dr.Flags[flag.Name] = flag.Value.String()
+	})
 }
 
 func RecordCommand(cmd string, args []string, env map[string]string) {
