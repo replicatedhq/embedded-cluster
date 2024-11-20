@@ -42,13 +42,11 @@ func UpgradeJobCmd() *cobra.Command {
 			fmt.Printf("Upgrading to installation %s (version %s)\n", in.Name, in.Spec.Config.Version)
 
 			i := 0
-			allErrors := []string{}
 			sleepDuration := time.Second * 5
 			for {
 				err = upgrade.Upgrade(cmd.Context(), cli, in)
 				if err != nil {
 					fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
-					allErrors = append(allErrors, err.Error())
 					if i >= 10 {
 						return fmt.Errorf("failed to upgrade after %s", (sleepDuration * time.Duration(i)).String())
 					}
