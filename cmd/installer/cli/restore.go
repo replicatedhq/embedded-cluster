@@ -26,6 +26,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -1271,7 +1272,11 @@ func installAndWaitForRestoredK0sNode(cmd *cobra.Command, name string, provider 
 		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 	logrus.Debugf("installing k0s")
-	if err := installK0s(cmd, provider); err != nil {
+	networkInterface, err := cmd.Flags().GetString("network-interface")
+	if err != nil {
+		return nil, fmt.Errorf("unable to get network-interface flag: %w", err)
+	}
+	if err := k0s.Install(networkInterface, provider); err != nil {
 		return nil, fmt.Errorf("unable to install cluster: %w", err)
 	}
 	loading.Infof("Waiting for %s node to be ready", name)
