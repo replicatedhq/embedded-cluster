@@ -33,20 +33,6 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 
 			runtimeConfig.DataDir = dd
 
-			lap, err := cmd.Flags().GetInt("local-artifact-mirror-port")
-			if err != nil {
-				return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
-			}
-
-			runtimeConfig.LocalArtifactMirror.Port = lap
-
-			ap, err := cmd.Flags().GetInt("admin-console-port")
-			if err != nil {
-				return fmt.Errorf("unable to get admin-console-port flag: %w", err)
-			}
-
-			runtimeConfig.AdminConsole.Port = ap
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
