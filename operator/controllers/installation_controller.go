@@ -248,47 +248,6 @@ func (r *InstallationReconciler) ReportNodesChanges(ctx context.Context, in *v1b
 	}
 }
 
-// ReportInstallationChanges reports back to the metrics server if the installation status has changed.
-func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, before, after *v1beta1.Installation) {
-	if len(before.Status.State) == 0 || before.Status.State == after.Status.State {
-		return
-	}
-	var err error
-	var beforeVer, afterVer string
-	if before.Spec.Config != nil {
-		beforeVer = before.Spec.Config.Version
-	}
-	if after.Spec.Config != nil {
-		afterVer = after.Spec.Config.Version
-	}
-	switch after.Status.State {
-	case v1beta1.InstallationStateInstalling:
-		if beforeVer != "" {
-			err = metrics.NotifyUpgradeStarted(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
-				ClusterID:      after.Spec.ClusterID,
-				TargetVersion:  afterVer,
-				InitialVersion: beforeVer,
-			})
-		}
-	case v1beta1.InstallationStateInstalled:
-		err = metrics.NotifyUpgradeSucceeded(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeSucceededEvent{
-			ClusterID:      after.Spec.ClusterID,
-			TargetVersion:  afterVer,
-			InitialVersion: beforeVer,
-		})
-	case v1beta1.InstallationStateFailed:
-		err = metrics.NotifyUpgradeFailed(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeFailedEvent{
-			ClusterID:      after.Spec.ClusterID,
-			Reason:         after.Status.Reason,
-			TargetVersion:  afterVer,
-			InitialVersion: beforeVer,
-		})
-	}
-	if err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "failed to notify cluster installation status")
-	}
-}
-
 func (r *InstallationReconciler) ReconcileOpenebs(ctx context.Context, in *v1beta1.Installation) error {
 	log := ctrl.LoggerFrom(ctx)
 
@@ -641,11 +600,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
 	}
 
-	// we create a copy of the installation so we can compare if it
-	// changed its status after the reconcile (this is mostly for
-	// calling back to us with events).
-	before := in.DeepCopy()
-
 	// verify if a new node has been added, removed or changed.
 	events, err := r.ReconcileNodeStatuses(ctx, in)
 	if err != nil {
@@ -697,7 +651,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// if we are not in an airgap environment this is the time to call back to
 	// replicated and inform the status of this installation.
 	if !in.Spec.AirGap {
-		r.ReportInstallationChanges(ctx, before, in)
 		r.ReportNodesChanges(ctx, in, events)
 	}
 
