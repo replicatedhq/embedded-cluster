@@ -76,7 +76,7 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 	Send(ctx, BaseURL(license), types.InstallationStarted{
 		ClusterID:    ClusterID(),
 		Version:      versions.Version,
-		Flags:        strings.Join(os.Args[1:], " "),
+		Flags:        strings.Join(redactFlags(os.Args[1:]), " "),
 		BinaryName:   defaults.BinaryName(),
 		Type:         "centralized",
 		LicenseID:    LicenseID(license),
