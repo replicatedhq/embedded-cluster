@@ -25,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -519,7 +520,11 @@ func installAndWaitForK0s(cmd *cobra.Command, provider *defaults.Provider, appli
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := installK0s(cmd, provider); err != nil {
+	networkInterface, err := cmd.Flags().GetString("network-interface")
+	if err != nil {
+		return nil, fmt.Errorf("unable to get network-interface flag: %w", err)
+	}
+	if err := k0s.Install(networkInterface, provider); err != nil {
 		err := fmt.Errorf("unable to install cluster: %w", err)
 		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
 		return nil, err
@@ -915,32 +920,6 @@ func writeLocalArtifactMirrorDropInFile(provider *defaults.Provider) error {
 	err = os.WriteFile(localArtifactMirrorSystemdConfFile, []byte(contents), 0644)
 	if err != nil {
 		return fmt.Errorf("write file: %w", err)
-	}
-	return nil
-}
-
-// installK0s runs the k0s install command and waits for it to finish. If no configuration
-// is found one is generated.
-func installK0s(cmd *cobra.Command, provider *defaults.Provider) error {
-	ourbin := provider.PathToEmbeddedClusterBinary("k0s")
-	hstbin := defaults.K0sBinaryPath()
-	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
-		return fmt.Errorf("unable to move k0s binary: %w", err)
-	}
-
-	networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
-	if err != nil {
-		return fmt.Errorf("unable to get network-interface flag: %w", err)
-	}
-	nodeIP, err := netutils.FirstValidAddress(networkInterfaceFlag)
-	if err != nil {
-		return fmt.Errorf("unable to find first valid address: %w", err)
-	}
-	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(provider, nodeIP)...); err != nil {
-		return fmt.Errorf("unable to install: %w", err)
-	}
-	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
-		return fmt.Errorf("unable to start: %w", err)
 	}
 	return nil
 }
