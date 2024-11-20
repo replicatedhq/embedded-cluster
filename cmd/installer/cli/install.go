@@ -70,7 +70,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				metrics.DisableMetrics()
 			}
 
-			proxy, err := getProxySpecFromFlags(cmd)
+			var err error
+			proxy, err = getProxySpecFromFlags(cmd)
 			if err != nil {
 				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
 			}
