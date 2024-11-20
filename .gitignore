@@ -18,3 +18,6 @@ go.work.sum
 /local-dev/
 *.tmp
 .envrc
+
+# Ignore preflight bundles generated during local dev
+preflightbundle*
