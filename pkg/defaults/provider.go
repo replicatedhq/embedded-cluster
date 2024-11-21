@@ -145,3 +145,21 @@ func (d *Provider) AdminConsolePort() int {
 	}
 	return ecv1beta1.DefaultAdminConsolePort
 }
+
+func (d *Provider) SetAdminConsllePort(port int) {
+	if d.runtimeConfig != nil {
+		d.runtimeConfig.AdminConsole.Port = port
+	}
+}
+
+func (d *Provider) SetLocalArtifactMirrorPort(port int) {
+	if d.runtimeConfig != nil {
+		d.runtimeConfig.LocalArtifactMirror.Port = port
+	}
+}
+
+func (d *Provider) SetDataDir(dataDir string) {
+	if d.runtimeConfig != nil {
+		d.runtimeConfig.DataDir = dataDir
+	}
+}

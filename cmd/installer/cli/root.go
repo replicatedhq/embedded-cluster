@@ -13,8 +13,7 @@ import (
 )
 
 var (
-	runtimeConfig *ecv1beta1.RuntimeConfigSpec
-	provider      *defaults.Provider
+	provider *defaults.Provider
 )
 
 func RootCmd(ctx context.Context, name string) *cobra.Command {
@@ -40,25 +39,26 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if os.Getuid() == 0 {
+				var runtimeConfig *ecv1beta1.RuntimeConfigSpec
+
+				// if there is a data-dir, local-artifact-mirror-port, or admin-console-port flag, we need to set the runtime config
+				if cmd.Flags().Lookup("data-dir") != nil ||
+					cmd.Flags().Lookup("local-artifact-mirror-port") != nil ||
+					cmd.Flags().Lookup("admin-console-port") != nil {
+					runtimeConfig = ecv1beta1.GetDefaultRuntimeConfig()
+				}
+
 				provider = discoverBestProvider(cmd.Context(), runtimeConfig)
 
 				if runtimeConfig != nil {
-					// if there is a data-dir, local-artifact-mirror-port, or admin-console-port flag, we need to set the runtime config
-					if cmd.Flags().Lookup("data-dir") != nil ||
-						cmd.Flags().Lookup("local-artifact-mirror-port") != nil ||
-						cmd.Flags().Lookup("admin-console-port") != nil {
-						runtimeConfig = ecv1beta1.GetDefaultRuntimeConfig()
-					}
-
 					// apply data-dir, if it's a valid flag
 					if cmd.Flags().Lookup("data-dir") != nil {
 						v, err := cmd.Flags().GetString("data-dir")
 						if err != nil {
 							return fmt.Errorf("unable to get data-dir flag: %w", err)
 						}
-						fmt.Printf("data dir: %s\n", v)
 
-						runtimeConfig.DataDir = v
+						provider.SetDataDir(v)
 					}
 
 					// apply local artifact mirror port, if it's a valid flag
@@ -67,7 +67,8 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 						if err != nil {
 							return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
 						}
-						runtimeConfig.LocalArtifactMirror.Port = v
+
+						provider.SetLocalArtifactMirrorPort(v)
 					}
 
 					// apply admin console port, if it's a valid flag
@@ -76,10 +77,10 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 						if err != nil {
 							return fmt.Errorf("unable to get admin-console-port flag: %w", err)
 						}
-						runtimeConfig.AdminConsole.Port = v
+
+						provider.SetAdminConsllePort(v)
 					}
 				}
-
 				os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 				os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 
