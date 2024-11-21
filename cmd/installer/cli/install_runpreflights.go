@@ -201,7 +201,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.Flags().StringVar(&podCIDR, "pod-cidr", "", "IP address range for Pods")
 	cmd.Flags().StringVar(&serviceCIDR, "service-cidr", "", "IP address range for Service CIDR")
-	cmd.Flags().StringVar(&cidr, "cidr", "", "IP address range for the cluster")
+	cmd.Flags().StringVar(&cidr, "cidr", ecv1beta1.DefaultNetworkCIDR, "IP address range for the cluster")
 
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
 
