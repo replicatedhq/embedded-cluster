@@ -128,12 +128,7 @@ func handleResize(ch chan os.Signal, tty *os.File) {
 
 // discoverBestProvider discovers the provider from the cluster (if it's up) and will fall back to
 // the /etc/embedded-cluster/ec.yaml file, the filesystem, or the default.
-func discoverBestProvider(ctx context.Context, runtimeConfig *ecv1beta1.RuntimeConfigSpec) *defaults.Provider {
-	if runtimeConfig != nil {
-		provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-		return provider
-	}
-
+func discoverBestProvider(ctx context.Context) *defaults.Provider {
 	// It's possible that the cluster is not up
 	provider, err := getProviderFromCluster(ctx)
 	if err == nil {
