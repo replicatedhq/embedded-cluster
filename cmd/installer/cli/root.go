@@ -21,7 +21,14 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 
 			// for any command that has an "airgap-bundle" flag, disable metrics
 			if cmd.Flags().Lookup("airgap-bundle") != nil {
-				metrics.DisableMetrics()
+				v, err := cmd.Flags().GetString("airgap-bundle")
+				if err != nil {
+					return fmt.Errorf("unable to get airgap-bundle flag: %w", err)
+				}
+
+				if v != "" {
+					metrics.DisableMetrics()
+				}
 			}
 
 			return nil
