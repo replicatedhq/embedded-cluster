@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	runtimeConfig = ecv1beta1.GetDefaultRuntimeConfig()
+	runtimeConfig *ecv1beta1.RuntimeConfigSpec
 	provider      *defaults.Provider
 )
 
@@ -39,56 +39,53 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				}
 			}
 
-			// apply data-dir, if it's a valid flag
-			if cmd.Flags().Lookup("data-dir") != nil {
-				v, err := cmd.Flags().GetString("data-dir")
-				if err != nil {
-					return fmt.Errorf("unable to get data-dir flag: %w", err)
+			if os.Getuid() == 0 {
+				provider = discoverBestProvider(cmd.Context(), runtimeConfig)
+
+				if runtimeConfig != nil {
+					// if there is a data-dir, local-artifact-mirror-port, or admin-console-port flag, we need to set the runtime config
+					if cmd.Flags().Lookup("data-dir") != nil ||
+						cmd.Flags().Lookup("local-artifact-mirror-port") != nil ||
+						cmd.Flags().Lookup("admin-console-port") != nil {
+						runtimeConfig = ecv1beta1.GetDefaultRuntimeConfig()
+					}
+
+					// apply data-dir, if it's a valid flag
+					if cmd.Flags().Lookup("data-dir") != nil {
+						v, err := cmd.Flags().GetString("data-dir")
+						if err != nil {
+							return fmt.Errorf("unable to get data-dir flag: %w", err)
+						}
+						fmt.Printf("data dir: %s\n", v)
+
+						runtimeConfig.DataDir = v
+					}
+
+					// apply local artifact mirror port, if it's a valid flag
+					if cmd.Flags().Lookup("local-artifact-mirror-port") != nil {
+						v, err := cmd.Flags().GetInt("local-artifact-mirror-port")
+						if err != nil {
+							return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
+						}
+						runtimeConfig.LocalArtifactMirror.Port = v
+					}
+
+					// apply admin console port, if it's a valid flag
+					if cmd.Flags().Lookup("admin-console-port") != nil {
+						v, err := cmd.Flags().GetInt("admin-console-port")
+						if err != nil {
+							return fmt.Errorf("unable to get admin-console-port flag: %w", err)
+						}
+						runtimeConfig.AdminConsole.Port = v
+					}
 				}
-				fmt.Printf("data dir: %s\n", v)
 
-				runtimeConfig.DataDir = v
-			}
+				os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+				os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 
-			// apply local artifact mirror port, if it's a valid flag
-			if cmd.Flags().Lookup("local-artifact-mirror-port") != nil {
-				v, err := cmd.Flags().GetInt("local-artifact-mirror-port")
-				if err != nil {
-					return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
-				}
-				runtimeConfig.LocalArtifactMirror.Port = v
-			}
-
-			// apply admin console port, if it's a valid flag
-			if cmd.Flags().Lookup("admin-console-port") != nil {
-				v, err := cmd.Flags().GetInt("admin-console-port")
-				if err != nil {
-					return fmt.Errorf("unable to get admin-console-port flag: %w", err)
-				}
-				runtimeConfig.AdminConsole.Port = v
-			}
-
-			// some commands don't use the provider, so setting it
-			// here would require that we have root permissions
-			dontSetProviderCommandNames := []string{
-				"metadata",
-				"embedded-data",
-				"list-images",
-				"version",
-				"join",
-			}
-
-			if !contains(dontSetProviderCommandNames, cmd.Name()) {
-				if os.Getuid() == 0 {
-					provider = discoverBestProvider(cmd.Context(), runtimeConfig)
-
-					os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-					os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-
-					cobra.OnFinalize(func() {
-						tryRemoveTmpDirContents(provider)
-					})
-				}
+				cobra.OnFinalize(func() {
+					tryRemoveTmpDirContents(provider)
+				})
 			}
 
 			return nil
