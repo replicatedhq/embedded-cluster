@@ -66,11 +66,20 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				runtimeConfig.AdminConsole.Port = v
 			}
 
-			provider = discoverBestProvider(cmd.Context(), runtimeConfig)
+			dontSetProviderCommandNames := []string{
+				"metadata",
+				"embedded-data",
+				"list-images",
+				"version",
+			}
 
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-			defer tryRemoveTmpDirContents(provider)
+			if !contains(dontSetProviderCommandNames, cmd.Name()) {
+				provider = discoverBestProvider(cmd.Context(), runtimeConfig)
+
+				os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+				os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+				defer tryRemoveTmpDirContents(provider)
+			}
 
 			return nil
 		},
@@ -102,4 +111,13 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.AddCommand(SupportBundleCmd(ctx, name))
 
 	return cmd
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
