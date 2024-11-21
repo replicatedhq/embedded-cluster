@@ -101,38 +101,17 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("restore command must be run as root")
 			}
 
-			// bind proxy flags
-			proxy = &ecv1beta1.ProxySpec{}
-
-			proxyFlag, err := cmd.Flags().GetBool("proxy")
+			var err error
+			proxy, err = getProxySpecFromFlags(cmd)
 			if err != nil {
-				return fmt.Errorf("unable to get proxy flag: %w", err)
-			}
-			if proxyFlag {
-				proxy.HTTPProxy = os.Getenv("HTTP_PROXY")
-				proxy.HTTPSProxy = os.Getenv("HTTPS_PROXY")
-				if os.Getenv("NO_PROXY") != "" {
-					proxy.ProvidedNoProxy = os.Getenv("NO_PROXY")
-				}
+				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
 			}
 
-			httpProxyFlag, err := cmd.Flags().GetString("http-proxy")
+			proxy, err = includeLocalIPInNoProxy(cmd, proxy)
 			if err != nil {
-				return fmt.Errorf("unable to get http-proxy flag: %w", err)
+				return err
 			}
-			proxy.HTTPProxy = httpProxyFlag
-
-			httpsProxyFlag, err := cmd.Flags().GetString("https-proxy")
-			if err != nil {
-				return fmt.Errorf("unable to get https-proxy flag: %w", err)
-			}
-			proxy.HTTPSProxy = httpsProxyFlag
-
-			noProxyFlag, err := cmd.Flags().GetString("no-proxy")
-			if err != nil {
-				return fmt.Errorf("unable to get no-proxy flag: %w", err)
-			}
-			proxy.ProvidedNoProxy = noProxyFlag
+			setProxyEnv(proxy)
 
 			if cmd.Flags().Changed("cidr") && (cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr")) {
 				return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
@@ -181,13 +160,6 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			if err := configutils.ConfigureSysctl(provider); err != nil {
 				return fmt.Errorf("unable to configure sysctl: %w", err)
 			}
-
-			proxy, err := getProxySpecFromFlags(cmd)
-			if err != nil {
-				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
-			}
-
-			setProxyEnv(proxy)
 
 			logrus.Debugf("getting restore state")
 			state := getECRestoreState(cmd.Context())
@@ -493,11 +465,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().BoolVar(&skipStoreValidation, "skip-store-validation", false, "Skip validation of the backup storage location")
 	cmd.Flags().String("overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 
-	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation")
-	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation")
-	cmd.Flags().String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy")
-	cmd.Flags().Bool("proxy", false, "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.")
-	cmd.Flags().MarkHidden("proxy")
+	addProxyFlags(cmd)
 
 	cmd.Flags().String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
 	cmd.Flags().MarkHidden("pod-cidr")

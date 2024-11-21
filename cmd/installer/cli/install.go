@@ -290,11 +290,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
-	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation")
-	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation")
-	cmd.Flags().String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy")
-	cmd.Flags().Bool("proxy", false, "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.")
-	cmd.Flags().MarkHidden("proxy")
+	addProxyFlags(cmd)
 
 	cmd.Flags().String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
 	cmd.Flags().MarkHidden("pod-cidr")
