@@ -83,26 +83,18 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
-			licenseFile, err := cmd.Flags().GetString("license")
-			if err != nil {
-				return fmt.Errorf("unable to get license flag: %w", err)
-			}
 			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {
 				return err
 			}
 
-			airgapBundle, err := cmd.Flags().GetString("airgap-bundle")
-			if err != nil {
-				return fmt.Errorf("unable to get airgap-bundle flag: %w", err)
-			}
 			isAirgap := false
 			if airgapBundle != "" {
 				isAirgap = true
 			}
 
 			logrus.Debugf("materializing binaries")
-			if err := materializeFiles(cmd, provider); err != nil {
+			if err := materializeFiles(airgapBundle, provider); err != nil {
 				return err
 			}
 
@@ -233,7 +225,7 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 	return license, nil
 }
 
-func materializeFiles(cmd *cobra.Command, provider *defaults.Provider) error {
+func materializeFiles(airgapBundle string, provider *defaults.Provider) error {
 	mat := spinner.Start()
 	defer mat.Close()
 	mat.Infof("Materializing files")
@@ -246,16 +238,11 @@ func materializeFiles(cmd *cobra.Command, provider *defaults.Provider) error {
 		return fmt.Errorf("unable to materialize support bundle spec: %w", err)
 	}
 
-	airgapBundleFlag, err := cmd.Flags().GetString("airgap-bundle")
-	if err != nil {
-		return fmt.Errorf("unable to get airgap-bundle flag: %w", err)
-	}
-
-	if airgapBundleFlag != "" {
+	if airgapBundle != "" {
 		mat.Infof("Materializing airgap installation files")
 
 		// read file from path
-		rawfile, err := os.Open(airgapBundleFlag)
+		rawfile, err := os.Open(airgapBundle)
 		if err != nil {
 			return fmt.Errorf("failed to open airgap file: %w", err)
 		}
