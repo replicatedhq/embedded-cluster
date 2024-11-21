@@ -66,10 +66,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("install command must be run as root")
 			}
 
-			if airgapBundle != "" {
-				metrics.DisableMetrics()
-			}
-
 			var err error
 			proxy, err = getProxySpecFromFlags(cmd)
 			if err != nil {
@@ -100,32 +96,26 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("invalid cidr %q: %w", cidr, err)
 			}
 
-			if cmd.Flags().Changed("data-dir") {
-				dd, err := cmd.Flags().GetString("data-dir")
-				if err != nil {
-					return fmt.Errorf("unable to get data-dir flag: %w", err)
-				}
-
-				runtimeConfig.DataDir = dd
+			dd, err := cmd.Flags().GetString("data-dir")
+			if err != nil {
+				return fmt.Errorf("unable to get data-dir flag: %w", err)
 			}
 
-			if cmd.Flags().Changed("local-artifact-mirror-port") {
-				lap, err := cmd.Flags().GetInt("local-artifact-mirror-port")
-				if err != nil {
-					return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
-				}
+			runtimeConfig.DataDir = dd
 
-				runtimeConfig.LocalArtifactMirror.Port = lap
+			lap, err := cmd.Flags().GetInt("local-artifact-mirror-port")
+			if err != nil {
+				return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
 			}
 
-			if cmd.Flags().Changed("admin-console-port") {
-				ap, err := cmd.Flags().GetInt("admin-console-port")
-				if err != nil {
-					return fmt.Errorf("unable to get admin-console-port flag: %w", err)
-				}
+			runtimeConfig.LocalArtifactMirror.Port = lap
 
-				runtimeConfig.AdminConsole.Port = ap
+			ap, err := cmd.Flags().GetInt("admin-console-port")
+			if err != nil {
+				return fmt.Errorf("unable to get admin-console-port flag: %w", err)
 			}
+
+			runtimeConfig.AdminConsole.Port = ap
 
 			return nil
 		},

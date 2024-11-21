@@ -46,10 +46,6 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("join command must be run as root")
 			}
 
-			if airgapBundle != "" {
-				metrics.DisableMetrics()
-			}
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
