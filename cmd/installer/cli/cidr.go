@@ -4,9 +4,19 @@ import (
 	"fmt"
 	"net"
 
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/spf13/cobra"
 )
+
+func addCIDRFlags(cmd *cobra.Command) {
+	cmd.Flags().String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
+	cmd.Flags().MarkHidden("pod-cidr")
+	cmd.Flags().String("service-cidr", k0sv1beta1.DefaultNetwork().ServiceCIDR, "IP address range for Services")
+	cmd.Flags().MarkHidden("service-cidr")
+	cmd.Flags().String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
+}
 
 // DeterminePodAndServiceCIDRS determines, based on the command line flags,
 // what are the pod and service CIDRs to be used for the cluster. If both

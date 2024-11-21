@@ -48,9 +48,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		overrides            string
 		privateCAs           []string
 		configValues         string
-		podCIDR              string
-		serviceCIDR          string
-		cidr                 string
 		skipHostPreflights   bool
 
 		proxy *ecv1beta1.ProxySpec
@@ -166,13 +163,10 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
-	cmd.Flags().StringVar(&podCIDR, "pod-cidr", "", "IP address range for Pods")
-	cmd.Flags().StringVar(&serviceCIDR, "service-cidr", "", "IP address range for Service CIDR")
-	cmd.Flags().StringVar(&cidr, "cidr", ecv1beta1.DefaultNetworkCIDR, "IP address range for the cluster")
-
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
 
 	addProxyFlags(cmd)
+	addCIDRFlags(cmd)
 
 	return cmd
 }
