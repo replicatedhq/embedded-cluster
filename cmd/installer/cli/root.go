@@ -45,6 +45,8 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("unable to get data-dir flag: %w", err)
 				}
+				fmt.Printf("data dir: %s\n", v)
+
 				runtimeConfig.DataDir = v
 			}
 
@@ -82,7 +84,10 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 
 					os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 					os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-					defer tryRemoveTmpDirContents(provider)
+
+					cobra.OnFinalize(func() {
+						tryRemoveTmpDirContents(provider)
+					})
 				}
 			}
 
@@ -94,6 +99,7 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 					return fmt.Errorf("unable to dump dry run info: %w", err)
 				}
 			}
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
