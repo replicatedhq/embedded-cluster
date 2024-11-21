@@ -6,17 +6,32 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/spf13/cobra"
 )
 
 func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   name,
-		Short: name,
+		Use:          name,
+		Short:        name,
+		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if dryrun.Enabled() {
 				dryrun.RecordFlags(cmd.Flags())
 			}
+
+			// for any command that has an "airgap-bundle" flag, disable metrics
+			if cmd.Flags().Lookup("airgap-bundle") != nil {
+				v, err := cmd.Flags().GetString("airgap-bundle")
+				if err != nil {
+					return fmt.Errorf("unable to get airgap-bundle flag: %w", err)
+				}
+
+				if v != "" {
+					metrics.DisableMetrics()
+				}
+			}
+
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {

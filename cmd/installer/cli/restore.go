@@ -101,38 +101,17 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("restore command must be run as root")
 			}
 
-			// bind proxy flags
-			proxy = &ecv1beta1.ProxySpec{}
-
-			proxyFlag, err := cmd.Flags().GetBool("proxy")
+			var err error
+			proxy, err = getProxySpecFromFlags(cmd)
 			if err != nil {
-				return fmt.Errorf("unable to get proxy flag: %w", err)
-			}
-			if proxyFlag {
-				proxy.HTTPProxy = os.Getenv("HTTP_PROXY")
-				proxy.HTTPSProxy = os.Getenv("HTTPS_PROXY")
-				if os.Getenv("NO_PROXY") != "" {
-					proxy.ProvidedNoProxy = os.Getenv("NO_PROXY")
-				}
+				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
 			}
 
-			httpProxyFlag, err := cmd.Flags().GetString("http-proxy")
+			proxy, err = includeLocalIPInNoProxy(cmd, proxy)
 			if err != nil {
-				return fmt.Errorf("unable to get http-proxy flag: %w", err)
+				return err
 			}
-			proxy.HTTPProxy = httpProxyFlag
-
-			httpsProxyFlag, err := cmd.Flags().GetString("https-proxy")
-			if err != nil {
-				return fmt.Errorf("unable to get https-proxy flag: %w", err)
-			}
-			proxy.HTTPSProxy = httpsProxyFlag
-
-			noProxyFlag, err := cmd.Flags().GetString("no-proxy")
-			if err != nil {
-				return fmt.Errorf("unable to get no-proxy flag: %w", err)
-			}
-			proxy.ProvidedNoProxy = noProxyFlag
+			setProxyEnv(proxy)
 
 			if cmd.Flags().Changed("cidr") && (cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr")) {
 				return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
@@ -181,13 +160,6 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			if err := configutils.ConfigureSysctl(provider); err != nil {
 				return fmt.Errorf("unable to configure sysctl: %w", err)
 			}
-
-			proxy, err := getProxySpecFromFlags(cmd)
-			if err != nil {
-				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
-			}
-
-			setProxyEnv(proxy)
 
 			logrus.Debugf("getting restore state")
 			state := getECRestoreState(cmd.Context())
@@ -262,24 +234,24 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			switch state {
 			case ecRestoreStateNew:
 				logrus.Debugf("checking if %s is already installed", name)
-				if installed, err := isAlreadyInstalled(); err != nil {
+				installed, err := k0s.IsInstalled(name)
+				if err != nil {
 					return err
-				} else if installed {
-					logrus.Errorf("An installation has been detected on this machine.")
-					logrus.Infof("If you want to restore you need to remove the existing installation")
-					logrus.Infof("first. You can do this by running the following command:")
-					logrus.Infof("\n  sudo ./%s reset\n", name)
+				}
+				if installed {
 					return ErrNothingElseToAdd
 				}
 
 				logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
 				logrus.Info("Enter information to configure access to your backup storage location.\n")
+
 				s3Store := newS3BackupStore()
 
 				skipStoreValidationFlag, err := cmd.Flags().GetBool("skip-store-validation")
 				if err != nil {
 					return fmt.Errorf("unable to get skip-store-validation flag: %w", err)
 				}
+
 				if !skipStoreValidationFlag {
 					logrus.Debugf("validating backup store configuration")
 					if err := validateS3BackupStore(s3Store); err != nil {
@@ -288,13 +260,15 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				}
 
 				logrus.Debugf("configuring network manager")
-				if err := configureNetworkManager(cmd, provider); err != nil {
+				if err := configureNetworkManager(cmd.Context(), provider); err != nil {
 					return fmt.Errorf("unable to configure network manager: %w", err)
 				}
+
 				logrus.Debugf("materializing binaries")
-				if err := materializeFiles(cmd, provider); err != nil {
+				if err := materializeFiles(airgapBundle, provider); err != nil {
 					return fmt.Errorf("unable to materialize binaries: %w", err)
 				}
+
 				logrus.Debugf("running host preflights")
 				if err := RunHostPreflightsForRestore(cmd, provider, applier, proxy); err != nil {
 					return fmt.Errorf("unable to finish preflight checks: %w", err)
@@ -366,18 +340,22 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
+
 				logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
 				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentECInstall); err != nil {
 					return fmt.Errorf("unable to restore from backup: %w", err)
 				}
+
 				logrus.Debugf("updating installation from backup %q", backupToRestore.Name)
 				if err := restoreReconcileInstallationFromRuntimeConfig(cmd.Context(), runtimeConfig); err != nil {
 					return fmt.Errorf("unable to update installation from backup: %w", err)
 				}
+
 				logrus.Debugf("updating local artifact mirror service from backup %q", backupToRestore.Name)
 				if err := updateLocalArtifactMirrorService(provider); err != nil {
 					return fmt.Errorf("unable to update local artifact mirror service from backup: %w", err)
 				}
+
 				fallthrough
 
 			case ecRestoreStateRestoreAdminConsole:
@@ -385,10 +363,12 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreAdminConsole, backupToRestore.Name); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
+
 				logrus.Debugf("restoring admin console from backup %q", backupToRestore.Name)
 				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
 					return err
 				}
+
 				fallthrough
 
 			case ecRestoreStateWaitForNodes:
@@ -396,20 +376,24 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				if err := setECRestoreState(cmd.Context(), ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
+
 				logrus.Debugf("checking if backup is high availability")
 				highAvailability, err := isHighAvailabilityBackup(backupToRestore)
 				if err != nil {
 					return err
 				}
+
 				logrus.Debugf("waiting for additional nodes to be added")
 
 				networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
 				if err != nil {
 					return fmt.Errorf("unable to get network-interface flag: %w", err)
 				}
+
 				if err := waitForAdditionalNodes(cmd.Context(), provider, highAvailability, networkInterfaceFlag); err != nil {
 					return err
 				}
+
 				fallthrough
 
 			case ecRestoreStateRestoreSeaweedFS:
@@ -418,6 +402,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				if err != nil {
 					return err
 				}
+
 				if highAvailability && airgapBundle != "" {
 					logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
 					if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreSeaweedFS, backupToRestore.Name); err != nil {
@@ -428,6 +413,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 						return err
 					}
 				}
+
 				fallthrough
 
 			case ecRestoreStateRestoreRegistry:
@@ -437,14 +423,17 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
 						return fmt.Errorf("unable to set restore state: %w", err)
 					}
+
 					logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
 					if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentRegistry); err != nil {
 						return err
 					}
+
 					registryAddress, ok := backupToRestore.Annotations["kots.io/embedded-registry"]
 					if !ok {
 						return fmt.Errorf("unable to read registry address from backup")
 					}
+
 					if err := airgap.AddInsecureRegistry(registryAddress); err != nil {
 						return fmt.Errorf("failed to add insecure registry: %w", err)
 					}
@@ -456,10 +445,12 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreECO, backupToRestore.Name); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
+
 				logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.Name)
 				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentECO); err != nil {
 					return err
 				}
+
 				fallthrough
 
 			case ecRestoreStateRestoreApp:
@@ -467,10 +458,12 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreApp, backupToRestore.Name); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
+
 				logrus.Debugf("restoring app from backup %q", backupToRestore.Name)
 				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentApp); err != nil {
 					return err
 				}
+
 				logrus.Debugf("resetting restore state")
 				if err := resetECRestoreState(cmd.Context()); err != nil {
 					return fmt.Errorf("unable to reset restore state: %w", err)
@@ -493,11 +486,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().BoolVar(&skipStoreValidation, "skip-store-validation", false, "Skip validation of the backup storage location")
 	cmd.Flags().String("overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 
-	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation")
-	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation")
-	cmd.Flags().String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy")
-	cmd.Flags().Bool("proxy", false, "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.")
-	cmd.Flags().MarkHidden("proxy")
+	addProxyFlags(cmd)
 
 	cmd.Flags().String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
 	cmd.Flags().MarkHidden("pod-cidr")
@@ -514,24 +503,29 @@ func getECRestoreState(ctx context.Context) ecRestoreState {
 	if err != nil {
 		return ecRestoreStateNew
 	}
+
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
+
 	if err := kcli.Get(ctx, types.NamespacedName{Namespace: cm.Namespace, Name: cm.Name}, cm); err != nil {
 		return ecRestoreStateNew
 	}
+
 	state, ok := cm.Data["state"]
 	if !ok {
 		return ecRestoreStateNew
 	}
+
 	for _, s := range ecRestoreStates {
 		if s == ecRestoreState(state) {
 			return s
 		}
 	}
+
 	return ecRestoreStateNew
 }
 
@@ -541,14 +535,17 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
+
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "embedded-cluster",
 		},
 	}
+
 	if err := kcli.Create(ctx, ns); err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("unable to create namespace: %w", err)
 	}
+
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
@@ -558,18 +555,22 @@ func setECRestoreState(ctx context.Context, state ecRestoreState, backupName str
 			"state": string(state),
 		},
 	}
+
 	if backupName != "" {
 		cm.Data["backup-name"] = backupName
 	}
+
 	err = kcli.Create(ctx, cm)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("unable to create config map: %w", err)
 	}
+
 	if errors.IsAlreadyExists(err) {
 		if err := kcli.Update(ctx, cm); err != nil {
 			return fmt.Errorf("unable to update config map: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -579,15 +580,18 @@ func resetECRestoreState(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
+
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
+
 	if err := kcli.Delete(ctx, cm); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("unable to delete config map: %w", err)
 	}
+
 	return nil
 }
 
@@ -601,15 +605,18 @@ func getBackupFromRestoreState(ctx context.Context, provider *defaults.Provider,
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
 	}
+
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "embedded-cluster",
 			Name:      constants.EcRestoreStateCMName,
 		},
 	}
+
 	if err := kcli.Get(ctx, types.NamespacedName{Namespace: cm.Namespace, Name: cm.Name}, cm); err != nil {
 		return nil, fmt.Errorf("unable to get restore state: %w", err)
 	}
+
 	backupName, ok := cm.Data["backup-name"]
 	if !ok || backupName == "" {
 		return nil, nil
@@ -620,13 +627,16 @@ func getBackupFromRestoreState(ctx context.Context, provider *defaults.Provider,
 	if err != nil {
 		return nil, fmt.Errorf("unable to get backup: %w", err)
 	}
+
 	rel, err := release.GetChannelRelease()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get release from binary: %w", err)
 	}
+
 	if rel == nil {
 		return nil, fmt.Errorf("no release found in binary")
 	}
+
 	k0sCfg, err := getK0sConfigFromDisk()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
@@ -635,12 +645,14 @@ func getBackupFromRestoreState(ctx context.Context, provider *defaults.Provider,
 	if restorable, reason := isBackupRestorable(&backup, provider, rel, isAirgap, k0sCfg); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
 	}
+
 	return &backup, nil
 }
 
 // newS3BackupStore prompts the user for S3 backup store configuration.
 func newS3BackupStore() *s3BackupStore {
 	store := &s3BackupStore{}
+
 	for {
 		store.endpoint = prompts.New().Input("S3 endpoint:", "", true)
 		if strings.HasPrefix(store.endpoint, "http://") || strings.HasPrefix(store.endpoint, "https://") {
@@ -648,12 +660,14 @@ func newS3BackupStore() *s3BackupStore {
 		}
 		logrus.Info("Endpoint must start with http:// or https://")
 	}
+
 	store.region = prompts.New().Input("Region:", "", true)
 	store.bucket = prompts.New().Input("Bucket:", "", true)
 	store.prefix = strings.TrimPrefix(prompts.New().Input("Prefix (press Enter to skip):", "", false), "/")
 	store.accessKeyID = prompts.New().Input("Access key ID:", "", true)
 	store.secretAccessKey = prompts.New().Password("Secret access key:")
 	logrus.Info("")
+
 	return store
 }
 
@@ -664,6 +678,7 @@ func validateS3BackupStore(s *s3BackupStore) error {
 	if err != nil {
 		return fmt.Errorf("parse endpoint: %v", err)
 	}
+
 	isAWS := strings.HasSuffix(u.Hostname(), ".amazonaws.com")
 	sess, err := session.NewSession(&aws.Config{
 		Region:           aws.String(s.region),
@@ -674,6 +689,7 @@ func validateS3BackupStore(s *s3BackupStore) error {
 	if err != nil {
 		return fmt.Errorf("create s3 session: %v", err)
 	}
+
 	input := &s3.ListObjectsV2Input{
 		Bucket:    aws.String(s.bucket),
 		Delimiter: aws.String("/"),
@@ -684,9 +700,11 @@ func validateS3BackupStore(s *s3BackupStore) error {
 	if err != nil {
 		return fmt.Errorf("list objects: %v", err)
 	}
+
 	if len(result.CommonPrefixes) == 0 {
 		return fmt.Errorf("no backups found in %s", filepath.Join(s.bucket, s.prefix))
 	}
+
 	return nil
 }
 
@@ -698,6 +716,7 @@ func RunHostPreflightsForRestore(cmd *cobra.Command, provider *defaults.Provider
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
+
 	return runHostPreflights(cmd, provider, hpf, proxy)
 }
 
@@ -709,19 +728,23 @@ func ensureK0sConfigForRestore(cmd *cobra.Command, provider *defaults.Provider, 
 	if _, err := os.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
 	}
+
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
+
 	cfg := config.RenderK0sConfig()
 
 	networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get network-interface flag: %w", err)
 	}
+
 	address, err := netutils.FirstValidAddress(networkInterfaceFlag)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find first valid address: %w", err)
 	}
+
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
@@ -729,12 +752,14 @@ func ensureK0sConfigForRestore(cmd *cobra.Command, provider *defaults.Provider, 
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
+
 	cfg.Spec.Network.PodCIDR = podCIDR
 	cfg.Spec.Network.ServiceCIDR = serviceCIDR
 
 	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
+
 	cfg, err = applyUnsupportedOverrides(cmd, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
@@ -744,21 +769,25 @@ func ensureK0sConfigForRestore(cmd *cobra.Command, provider *defaults.Provider, 
 	if err != nil {
 		return nil, fmt.Errorf("unable to get airgap-bundle flag: %w", err)
 	}
+
 	if airgapBundleFlag != "" {
 		// update the k0s config to install with airgap
 		airgap.RemapHelm(provider, cfg)
 		airgap.SetAirgapConfig(cfg)
 	}
+
 	// This is necessary to install the previous version of k0s in e2e tests
 	// TODO: remove this once the previous version is > 1.29
 	unstructured, err := helpers.K0sClusterConfigTo129Compat(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
 	}
+
 	data, err := k8syaml.Marshal(unstructured)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal config: %w", err)
 	}
+
 	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
 		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
@@ -774,34 +803,44 @@ func isBackupRestorable(backup *velerov1.Backup, provider *defaults.Provider, re
 	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
+
 	if v := strings.TrimPrefix(backup.Annotations["kots.io/embedded-cluster-version"], "v"); v != strings.TrimPrefix(versions.Version, "v") {
 		return false, fmt.Sprintf("has a different embedded cluster version (%q) than the current version (%q)", v, versions.Version)
 	}
+
 	if backup.Status.Phase != velerov1.BackupPhaseCompleted {
 		return false, fmt.Sprintf("has a status of %q", backup.Status.Phase)
 	}
+
 	if _, ok := backup.Annotations["kots.io/apps-versions"]; !ok {
 		return false, "is missing the kots.io/apps-versions annotation"
 	}
+
 	appsVersions := map[string]string{}
 	if err := json.Unmarshal([]byte(backup.Annotations["kots.io/apps-versions"]), &appsVersions); err != nil {
 		return false, "unable to json parse kots.io/apps-versions annotation"
 	}
+
 	if len(appsVersions) == 0 {
 		return false, "has no applications"
 	}
+
 	if len(appsVersions) > 1 {
 		return false, "has more than one application"
 	}
+
 	if _, ok := appsVersions[rel.AppSlug]; !ok {
 		return false, fmt.Sprintf("does not contain the %q application", rel.AppSlug)
 	}
+
 	if versionLabel := appsVersions[rel.AppSlug]; versionLabel != rel.VersionLabel {
 		return false, fmt.Sprintf("has a different app version (%q) than the current version (%q)", versionLabel, rel.VersionLabel)
 	}
+
 	if _, ok := backup.Annotations["kots.io/is-airgap"]; !ok {
 		return false, "is missing the kots.io/is-airgap annotation"
 	}
+
 	airgapLabelValue := backup.Annotations["kots.io/is-airgap"]
 	if isAirgap {
 		if airgapLabelValue != "true" {
@@ -842,6 +881,7 @@ func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("high availability annotation not found in backup")
 	}
+
 	return ha == "true", nil
 }
 
@@ -861,6 +901,7 @@ func waitForBackups(ctx context.Context, provider *defaults.Provider, isAirgap b
 	if err != nil {
 		return nil, fmt.Errorf("unable to get release from binary: %w", err)
 	}
+
 	if rel == nil {
 		return nil, fmt.Errorf("no release found in binary")
 	}
@@ -983,13 +1024,16 @@ func getRegistryIPFromBackup(backup *velerov1.Backup) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("unable to get airgap status from backup")
 	}
+
 	if isAirgap != "true" {
 		return "", nil
 	}
+
 	registryServiceHost, ok := backup.Annotations["kots.io/embedded-registry"]
 	if !ok {
 		return "", fmt.Errorf("embedded registry service IP annotation not found in backup")
 	}
+
 	return strings.Split(registryServiceHost, ":")[0], nil
 }
 
@@ -1000,20 +1044,25 @@ func getSeaweedFSS3ServiceIPFromBackup(backup *velerov1.Backup) (string, error) 
 	if !ok {
 		return "", fmt.Errorf("unable to get airgap status from backup")
 	}
+
 	if isAirgap != "true" {
 		return "", nil
 	}
+
 	highAvailability, err := isHighAvailabilityBackup(backup)
 	if err != nil {
 		return "", fmt.Errorf("unable to check high availability status: %w", err)
 	}
+
 	if !highAvailability {
 		return "", nil
 	}
+
 	swIP, ok := backup.Annotations["kots.io/embedded-cluster-seaweedfs-s3-ip"]
 	if !ok {
 		return "", fmt.Errorf("unable to get seaweedfs s3 service IP from backup")
 	}
+
 	return swIP, nil
 }
 
@@ -1026,6 +1075,7 @@ func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup
 	if err != nil {
 		return fmt.Errorf("unable to get registry service IP from backup: %w", err)
 	}
+
 	seaweedFSS3ServiceIP, err := getSeaweedFSS3ServiceIPFromBackup(backup)
 	if err != nil {
 		return fmt.Errorf("unable to get seaweedfs s3 service IP from backup: %w", err)
@@ -1047,9 +1097,11 @@ func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
+
 	if err := kcli.Create(ctx, cm); err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("unable to create config map: %w", err)
 	}
+
 	return nil
 }
 
@@ -1079,6 +1131,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if restore != nil {
 			return fmt.Errorf("restore failed with %d errors and %d warnings: %w", restore.Status.Errors, restore.Status.Warnings, err)
 		}
+
 		return fmt.Errorf("unable to wait for velero restore to complete: %w", err)
 	}
 
@@ -1088,6 +1141,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
+
 		if err := adminconsole.WaitForReady(ctx, kcli, defaults.KotsadmNamespace, loading); err != nil {
 			return fmt.Errorf("unable to wait for admin console: %w", err)
 		}
@@ -1097,6 +1151,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
+
 		if err := seaweedfs.WaitForReady(ctx, kcli, defaults.SeaweedFSNamespace, nil); err != nil {
 			return fmt.Errorf("unable to wait for seaweedfs to be ready: %w", err)
 		}
@@ -1106,6 +1161,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
+
 		if err := kubeutils.WaitForDeployment(ctx, kcli, defaults.RegistryNamespace, "registry"); err != nil {
 			return fmt.Errorf("unable to wait for registry to be ready: %w", err)
 		}
@@ -1115,6 +1171,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err != nil {
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
+
 		if err := kubeutils.WaitForInstallation(ctx, kcli, loading); err != nil {
 			return fmt.Errorf("unable to wait for installation to be ready: %w", err)
 		}
@@ -1232,6 +1289,7 @@ func waitForAdditionalNodes(ctx context.Context, provider *defaults.Provider, hi
 			if err != nil {
 				return fmt.Errorf("unable to check control plane nodes: %w", err)
 			}
+
 			if ncps < 3 {
 				logrus.Infof("You are restoring a high-availability cluster, which requires at least 3 controller nodes. You currently have %d. Please add more controller nodes.", ncps)
 				continue
@@ -1246,6 +1304,7 @@ func waitForAdditionalNodes(ctx context.Context, provider *defaults.Provider, hi
 		loading.Close()
 		return fmt.Errorf("unable to wait for nodes: %w", err)
 	}
+
 	loading.Closef("All nodes are ready!")
 
 	return nil
@@ -1254,6 +1313,7 @@ func waitForAdditionalNodes(ctx context.Context, provider *defaults.Provider, hi
 func installAndWaitForRestoredK0sNode(cmd *cobra.Command, name string, provider *defaults.Provider, applier *addons.Applier) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
+
 	loading.Infof("Installing %s node", name)
 	logrus.Debugf("creating k0s configuration file")
 
@@ -1271,20 +1331,25 @@ func installAndWaitForRestoredK0sNode(cmd *cobra.Command, name string, provider 
 	if err := createSystemdUnitFiles(provider, false, proxy); err != nil {
 		return nil, fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
+
 	logrus.Debugf("installing k0s")
 	networkInterface, err := cmd.Flags().GetString("network-interface")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get network-interface flag: %w", err)
 	}
+
 	if err := k0s.Install(networkInterface, provider); err != nil {
 		return nil, fmt.Errorf("unable to install cluster: %w", err)
 	}
+
 	loading.Infof("Waiting for %s node to be ready", name)
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		return nil, fmt.Errorf("unable to wait for node: %w", err)
 	}
+
 	loading.Infof("Node installation finished!")
+
 	return cfg, nil
 }
 
@@ -1295,6 +1360,7 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context, runtimeC
 	if err != nil {
 		return fmt.Errorf("create kube client: %w", err)
 	}
+
 	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("get latest installation: %w", err)
@@ -1310,7 +1376,9 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context, runtimeC
 	if err := kcli.Update(ctx, in); err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
+
 	in.Status.State = ecv1beta1.InstallationStateKubernetesInstalled
+
 	if err := kcli.Status().Update(ctx, in); err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
@@ -1342,10 +1410,12 @@ func getRuntimeConfigFromInstallation(cmd *cobra.Command) (*ecv1beta1.RuntimeCon
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
 	}
+
 	in, err := kubeutils.GetLatestInstallation(cmd.Context(), kcli)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get latest installation: %w", err)
 	}
+
 	return in.Spec.RuntimeConfig, nil
 }
 
@@ -1382,9 +1452,11 @@ func (e *invalidBackupsError) Error() string {
 	for i, backup := range e.invalidBackups {
 		reasons = append(reasons, fmt.Sprintf("%q %s", backup.Name, e.invalidReasons[i]))
 	}
+
 	if len(e.invalidBackups) == 1 {
 		return fmt.Sprintf("\nFound 1 backup, but it is not restorable:\n%s\n", strings.Join(reasons, "\n"))
 	}
+
 	return fmt.Sprintf("\nFound %d backups, but none are restorable:\n%s\n", len(e.invalidBackups), strings.Join(reasons, "\n"))
 }
 
@@ -1393,11 +1465,14 @@ func updateLocalArtifactMirrorService(provider *defaults.Provider) error {
 	if err := writeLocalArtifactMirrorDropInFile(provider); err != nil {
 		return fmt.Errorf("failed to write local artifact mirror environment file: %w", err)
 	}
+
 	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
 		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
 	}
+
 	if _, err := helpers.RunCommand("systemctl", "restart", "local-artifact-mirror"); err != nil {
 		return fmt.Errorf("unable to restart the local artifact mirror service: %w", err)
 	}
+
 	return nil
 }
