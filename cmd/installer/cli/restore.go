@@ -127,7 +127,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := configutils.WriteRuntimeConfig(runtimeConfig)
+			err := configutils.WriteRuntimeConfig(provider.GetRuntimeConfig())
 			if err != nil {
 				return fmt.Errorf("unable to write runtime config: %w", err)
 			}
@@ -179,10 +179,11 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
 					logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.Name, completionTimestamp)
 
-					runtimeConfig, err = overrideRuntimeConfigFromBackup(localArtifactMirrorPort, runtimeConfig, backupToRestore)
+					rc, err := overrideRuntimeConfigFromBackup(localArtifactMirrorPort, provider.GetRuntimeConfig(), backupToRestore)
 					if err != nil {
 						return fmt.Errorf("unable to override runtime config from backup: %w", err)
 					}
+					provider.SetRuntimeConfig(rc)
 				}
 			}
 
@@ -195,7 +196,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					state, err,
 				)
 			} else {
-				runtimeConfig = rc
+				provider.SetRuntimeConfig(rc)
 			}
 
 			opts := addonsApplierOpts{
@@ -206,7 +207,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				privateCAs:   nil,
 				configValues: "",
 			}
-			applier, err := getAddonsApplier(cmd, opts, runtimeConfig, "", proxy)
+			applier, err := getAddonsApplier(cmd, opts, provider.GetRuntimeConfig(), "", proxy)
 			if err != nil {
 				return err
 			}
@@ -327,7 +328,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				}
 
 				logrus.Debugf("updating installation from backup %q", backupToRestore.Name)
-				if err := restoreReconcileInstallationFromRuntimeConfig(cmd.Context(), runtimeConfig); err != nil {
+				if err := restoreReconcileInstallationFromRuntimeConfig(cmd.Context(), provider.GetRuntimeConfig()); err != nil {
 					return fmt.Errorf("unable to update installation from backup: %w", err)
 				}
 

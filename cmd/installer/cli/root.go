@@ -78,7 +78,7 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 							return fmt.Errorf("unable to get admin-console-port flag: %w", err)
 						}
 
-						provider.SetAdminConsllePort(v)
+						provider.SetAdminConsolePort(v)
 					}
 				}
 				os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())

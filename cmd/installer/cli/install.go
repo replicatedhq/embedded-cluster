@@ -99,7 +99,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
-			err = configutils.WriteRuntimeConfig(runtimeConfig)
+			err = configutils.WriteRuntimeConfig(provider.GetRuntimeConfig())
 			if err != nil {
 				return fmt.Errorf("unable to write runtime config: %w", err)
 			}
@@ -193,7 +193,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				privateCAs:   privateCAs,
 				configValues: configValues,
 			}
-			applier, err := getAddonsApplier(cmd, opts, runtimeConfig, adminConsolePwd, proxy)
+			applier, err := getAddonsApplier(cmd, opts, provider.GetRuntimeConfig(), adminConsolePwd, proxy)
 			if err != nil {
 				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err

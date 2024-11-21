@@ -103,7 +103,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				privateCAs:   privateCAs,
 				configValues: configValues,
 			}
-			applier, err := getAddonsApplier(cmd, opts, runtimeConfig, "", proxy)
+			applier, err := getAddonsApplier(cmd, opts, provider.GetRuntimeConfig(), "", proxy)
 			if err != nil {
 				return err
 			}
