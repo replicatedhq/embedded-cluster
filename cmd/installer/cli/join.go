@@ -133,7 +133,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 			metrics.ReportJoinStarted(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 			logrus.Debugf("materializing %s binaries", name)
-			if err := materializeFiles(cmd, provider); err != nil {
+			if err := materializeFiles(airgapBundle, provider); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}

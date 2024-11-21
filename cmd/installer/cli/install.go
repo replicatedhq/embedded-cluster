@@ -212,7 +212,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("materializing binaries")
-			if err := materializeFiles(cmd, provider); err != nil {
+			if err := materializeFiles(airgapBundle, provider); err != nil {
 				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
 				return err
 			}

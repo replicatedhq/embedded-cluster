@@ -264,7 +264,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					return fmt.Errorf("unable to configure network manager: %w", err)
 				}
 				logrus.Debugf("materializing binaries")
-				if err := materializeFiles(cmd, provider); err != nil {
+				if err := materializeFiles(airgapBundle, provider); err != nil {
 					return fmt.Errorf("unable to materialize binaries: %w", err)
 				}
 				logrus.Debugf("running host preflights")
