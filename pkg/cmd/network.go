@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -17,24 +16,12 @@ func withSubnetCIDRFlags(flags []cli.Flag) []cli.Flag {
 			Usage:  "IP address range for Pods",
 			Value:  k0sv1beta1.DefaultNetwork().PodCIDR,
 			Hidden: true,
-			Action: func(c *cli.Context, addr string) error {
-				if _, _, err := net.ParseCIDR(addr); err != nil {
-					return fmt.Errorf("unable to parse pod cidr: %w", err)
-				}
-				return nil
-			},
 		},
 		&cli.StringFlag{
 			Name:   "service-cidr",
 			Usage:  "IP address range for Services",
 			Value:  k0sv1beta1.DefaultNetwork().ServiceCIDR,
 			Hidden: true,
-			Action: func(c *cli.Context, addr string) error {
-				if _, _, err := net.ParseCIDR(addr); err != nil {
-					return fmt.Errorf("unable to parse service cidr: %w", err)
-				}
-				return nil
-			},
 		},
 		&cli.StringFlag{
 			Name:  "cidr",
