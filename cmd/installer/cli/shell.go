@@ -1,6 +1,7 @@
-package cmd
+package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,11 +11,13 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
-	"golang.org/x/term"
-
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 const welcome = `
@@ -26,27 +29,18 @@ const welcome = `
  ~~~~~~~~~~~
 `
 
-// handleResize is a helper function to handle pty resizes.
-func handleResize(ch chan os.Signal, tty *os.File) {
-	for range ch {
-		if err := pty.InheritSize(os.Stdin, tty); err != nil {
-			logrus.Errorf("unable to resize pty: %v", err)
-		}
-	}
-}
-
-func shellCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "shell",
-		Usage: "Start a shell with access to the cluster",
-		Before: func(c *cli.Context) error {
+func ShellCmd(ctx context.Context, name string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "shell",
+		Short: "Start a shell with access to the cluster",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("shell command must be run as root")
 			}
 			return nil
 		},
-		Action: func(c *cli.Context) error {
-			provider := discoverBestProvider(c.Context)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			provider := discoverBestProvider(cmd.Context())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			if _, err := os.Stat(provider.PathToKubeConfig()); err != nil {
@@ -122,4 +116,41 @@ func shellCommand() *cli.Command {
 			return nil
 		},
 	}
+
+	return cmd
+}
+
+// handleResize is a helper function to handle pty resizes.
+func handleResize(ch chan os.Signal, tty *os.File) {
+	for range ch {
+		if err := pty.InheritSize(os.Stdin, tty); err != nil {
+			logrus.Errorf("unable to resize pty: %v", err)
+		}
+	}
+}
+
+// discoverBestProvider discovers the provider from the cluster (if it's up) and will fall back to
+// the /etc/embedded-cluster/ec.yaml file, the filesystem, or the default.
+func discoverBestProvider(ctx context.Context) *defaults.Provider {
+	// It's possible that the cluster is not up
+	provider, err := getProviderFromCluster(ctx)
+	if err == nil {
+		return provider
+	}
+
+	// There might be a runtime config file
+	runtimeConfig, err := configutils.ReadRuntimeConfig()
+	if err == nil {
+		provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
+		return provider
+	}
+
+	// Otherwise, fall back to the filesystem
+	provider, err = cmdutil.NewProviderFromFilesystem()
+	if err == nil {
+		return provider
+	}
+
+	// If we can't find a provider, use the default
+	return defaults.NewProvider(ecv1beta1.DefaultDataDir)
 }

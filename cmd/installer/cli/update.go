@@ -1,41 +1,34 @@
-package cmd
+package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
-
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
-func updateCommand() *cli.Command {
-	return &cli.Command{
-		Name:   "update",
-		Usage:  fmt.Sprintf("Update %s", binName),
-		Hidden: true,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     "airgap-bundle",
-				Usage:    "Path to the airgap bundle",
-				Required: true,
-			},
-		},
-		Before: func(c *cli.Context) error {
+func UpdateCmd(ctx context.Context, name string) *cobra.Command {
+	var (
+		airgapBundle string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "update",
+		Short: fmt.Sprintf("Update %s", name),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("update command must be run as root")
 			}
-			if dryrun.Enabled() {
-				dryrun.RecordFlags(c)
-			}
+
 			return nil
 		},
-		Action: func(c *cli.Context) error {
-			provider, err := getProviderFromCluster(c.Context)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			provider, err := getProviderFromCluster(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -44,9 +37,9 @@ func updateCommand() *cli.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
-			if c.String("airgap-bundle") != "" {
+			if airgapBundle != "" {
 				logrus.Debugf("checking airgap bundle matches binary")
-				if err := checkAirgapMatches(c); err != nil {
+				if err := checkAirgapMatches(airgapBundle); err != nil {
 					return err // we want the user to see the error message without a prefix
 				}
 			}
@@ -62,7 +55,7 @@ func updateCommand() *cli.Command {
 			if err := kotscli.AirgapUpdate(provider, kotscli.AirgapUpdateOptions{
 				AppSlug:      rel.AppSlug,
 				Namespace:    defaults.KotsadmNamespace,
-				AirgapBundle: c.String("airgap-bundle"),
+				AirgapBundle: airgapBundle,
 			}); err != nil {
 				return err
 			}
@@ -70,4 +63,9 @@ func updateCommand() *cli.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
+	cmd.MarkFlagRequired("airgap-bundle")
+
+	return cmd
 }
