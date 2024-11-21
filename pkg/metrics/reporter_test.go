@@ -22,7 +22,7 @@ func TestReportInstallationStarted(t *testing.T) {
 	}{
 		{
 			name:   "redact secret flags",
-			OSArgs: []string{"secret-command", "--license", "./path", "--admin-console-password", "123", "--some-key", "some-value", "--another-secret", "secret"},
+			OSArgs: []string{"secret-command", "--license", "./path", "--admin-console-password", "123", "--some-key", "some-value", "--another-secret", "secret", "--admin-console-password=123", "--also-a-secret", "-password123notaflag"},
 			validateRequest: func(t *testing.T, r *http.Request) {
 				req := require.New(t)
 				body, err := io.ReadAll(r.Body)
@@ -33,7 +33,7 @@ func TestReportInstallationStarted(t *testing.T) {
 				req.NoError(err)
 				err = json.Unmarshal(decoded["event"], &event)
 				req.NoError(err)
-				req.Equal("secret-command --license ./path --admin-console-password ***** --some-key ***** --another-secret *****", event.Flags)
+				req.Equal("secret-command --license ./path --admin-console-password ***** --some-key ***** --another-secret ***** --admin-console-password=***** --also-a-secret *****", event.Flags)
 			},
 		},
 	} {
