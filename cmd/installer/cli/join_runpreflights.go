@@ -133,10 +133,15 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			if err != nil {
+				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+			}
+
 			logrus.Debugf("running host preflights")
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 			proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
+			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}

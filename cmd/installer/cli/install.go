@@ -249,7 +249,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 			}
 
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			if err != nil {
+				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+			}
+
+			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
 				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd

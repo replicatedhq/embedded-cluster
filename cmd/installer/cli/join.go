@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -154,10 +155,24 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to configure sysctl: %w", err)
 			}
 
+			fromCIDR, toCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
+			if err != nil {
+				return fmt.Errorf("unable to split default network CIDR: %w", err)
+			}
+
+			if jcmd.InstallationSpec.Network != nil {
+				if jcmd.InstallationSpec.Network.PodCIDR != "" {
+					fromCIDR = jcmd.InstallationSpec.Network.PodCIDR
+				}
+				if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
+					toCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
+				}
+			}
+
 			// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 			proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy); err != nil {
+			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd

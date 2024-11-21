@@ -165,7 +165,13 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				replicatedAPIURL = license.Spec.Endpoint
 				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
 			}
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy); err != nil {
+
+			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			if err != nil {
+				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+			}
+
+			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -195,7 +201,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.Flags().StringVar(&podCIDR, "pod-cidr", "", "IP address range for Pods")
 	cmd.Flags().StringVar(&serviceCIDR, "service-cidr", "", "IP address range for Service CIDR")
-	cmd.Flags().StringVar(&cidr, "cidr", "", "IP address range for the cluster")
+	cmd.Flags().StringVar(&cidr, "cidr", ecv1beta1.DefaultNetworkCIDR, "IP address range for the cluster")
 
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
 
@@ -384,7 +390,7 @@ func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, runtimeConfig 
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(cmd *cobra.Command, provider *defaults.Provider, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec) error {
+func RunHostPreflights(cmd *cobra.Command, provider *defaults.Provider, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, fromCIDR, toCIDR string) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
@@ -403,6 +409,8 @@ func RunHostPreflights(cmd *cobra.Command, provider *defaults.Provider, applier 
 		OpenEBSDataDir:          provider.EmbeddedClusterOpenEBSLocalSubDir(),
 		PrivateCA:               privateCAs,
 		SystemArchitecture:      runtime.GOARCH,
+		FromCIDR:                fromCIDR,
+		ToCIDR:                  toCIDR,
 	}.WithCIDRData(getCIDRs(cmd))
 
 	if err != nil {
