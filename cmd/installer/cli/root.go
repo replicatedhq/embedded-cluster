@@ -66,19 +66,24 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				runtimeConfig.AdminConsole.Port = v
 			}
 
+			// some commands don't use the provider, so setting it
+			// here would require that we have root permissions
 			dontSetProviderCommandNames := []string{
 				"metadata",
 				"embedded-data",
 				"list-images",
 				"version",
+				"join",
 			}
 
 			if !contains(dontSetProviderCommandNames, cmd.Name()) {
-				provider = discoverBestProvider(cmd.Context(), runtimeConfig)
+				if os.Getuid() == 0 {
+					provider = discoverBestProvider(cmd.Context(), runtimeConfig)
 
-				os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-				os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-				defer tryRemoveTmpDirContents(provider)
+					os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+					os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+					defer tryRemoveTmpDirContents(provider)
+				}
 			}
 
 			return nil
