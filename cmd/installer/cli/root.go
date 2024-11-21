@@ -12,8 +12,9 @@ import (
 
 func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   name,
-		Short: name,
+		Use:          name,
+		Short:        name,
+		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if dryrun.Enabled() {
 				dryrun.RecordFlags(cmd.Flags())

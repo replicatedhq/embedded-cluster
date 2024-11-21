@@ -140,9 +140,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return ErrNothingElseToAdd
 			}
 
-			if channelRelease, err := release.GetChannelRelease(); err != nil {
+			channelRelease, err := release.GetChannelRelease()
+			if err != nil {
 				return fmt.Errorf("unable to read channel release data: %w", err)
-			} else if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
+			}
+
+			if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
 				logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
 				logrus.Warnf("If you continue, the installation will not use an air gap bundle and will connect to the internet.")
 				if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
@@ -150,11 +153,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				}
 			}
 
-			licenseFlag, err := cmd.Flags().GetString("license")
-			if err != nil {
-				return fmt.Errorf("unable to get license flag: %w", err)
-			}
-			metrics.ReportApplyStarted(cmd.Context(), licenseFlag)
+			metrics.ReportApplyStarted(cmd.Context(), licenseFile)
 
 			logrus.Debugf("configuring sysctl")
 			if err := configutils.ConfigureSysctl(provider); err != nil {
@@ -167,10 +166,10 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("checking license matches")
-			license, err := getLicenseFromFilepath(licenseFlag)
+			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {
 				metricErr := fmt.Errorf("unable to get license: %w", err)
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, metricErr)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, metricErr)
 				return err // do not return the metricErr, as we want the user to see the error message without a prefix
 			}
 			isAirgap := false
@@ -187,7 +186,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if !isAirgap {
 				if err := maybePromptForAppUpdate(cmd.Context(), prompts.New(), license); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
-						metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+						metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 						return err
 					}
 					// If we get an error other than ErrNothingElseToAdd, we warn and continue as
@@ -197,25 +196,25 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := preflights.ValidateApp(); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
 
 			adminConsolePwd, err := maybeAskAdminConsolePassword(cmd)
 			if err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
 
 			logrus.Debugf("materializing binaries")
 			if err := materializeFiles(airgapBundle, provider); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
 
 			opts := addonsApplierOpts{
 				noPrompt:     noPrompt,
-				license:      licenseFlag,
+				license:      licenseFile,
 				airgapBundle: airgapBundle,
 				overrides:    overrides,
 				privateCAs:   privateCAs,
@@ -223,7 +222,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			applier, err := getAddonsApplier(cmd, opts, runtimeConfig, adminConsolePwd, proxy)
 			if err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
 
@@ -240,7 +239,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -253,10 +252,10 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			logrus.Debugf("running outro")
 			if err := runOutro(cmd, provider, applier, cfg); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
-			metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil)
+			metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil)
 			return nil
 		},
 	}
