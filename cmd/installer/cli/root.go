@@ -66,6 +66,11 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				runtimeConfig.AdminConsole.Port = v
 			}
 
+			provider = discoverBestProvider(cmd.Context())
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+			defer tryRemoveTmpDirContents(provider)
+
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
