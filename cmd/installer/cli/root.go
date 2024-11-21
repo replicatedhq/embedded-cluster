@@ -8,7 +8,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
-	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/spf13/cobra"
 )
@@ -67,16 +66,7 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				runtimeConfig.AdminConsole.Port = v
 			}
 
-			isInstalled, err := k0s.IsInstalled(name)
-			if err != nil {
-				return fmt.Errorf("unable to check if installed: %w", err)
-			}
-
-			if isInstalled {
-				provider = discoverBestProvider(cmd.Context())
-			} else {
-				provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			}
+			provider = discoverBestProvider(cmd.Context(), runtimeConfig)
 
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())

@@ -59,6 +59,10 @@ func getProviderFromCluster(ctx context.Context) (*defaults.Provider, error) {
 		return nil, fmt.Errorf("unable to get k0s status: %w", err)
 	}
 
+	if status == nil {
+		return nil, fmt.Errorf("unable to get k0s status")
+	}
+
 	kubeconfigPath := status.Vars.AdminKubeConfigPath
 
 	os.Setenv("KUBECONFIG", kubeconfigPath)

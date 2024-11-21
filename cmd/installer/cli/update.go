@@ -25,6 +25,15 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("update command must be run as root")
 			}
 
+			p, err := getProviderFromCluster(cmd.Context())
+			if err != nil {
+				return err
+			}
+			provider = p
+
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
