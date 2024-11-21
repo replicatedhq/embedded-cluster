@@ -178,7 +178,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("configuring network manager")
-			if err := configureNetworkManager(cmd, provider); err != nil {
+			if err := configureNetworkManager(cmd.Context(), provider); err != nil {
 				return fmt.Errorf("unable to configure network manager: %w", err)
 			}
 

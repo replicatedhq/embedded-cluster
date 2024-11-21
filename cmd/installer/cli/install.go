@@ -161,7 +161,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("configuring network manager")
-			if err := configureNetworkManager(cmd, provider); err != nil {
+			if err := configureNetworkManager(cmd.Context(), provider); err != nil {
 				return fmt.Errorf("unable to configure network manager: %w", err)
 			}
 
@@ -285,8 +285,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 // configureNetworkManager configures the network manager (if the host is using it) to ignore
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
-func configureNetworkManager(cmd *cobra.Command, provider *defaults.Provider) error {
-	if active, err := helpers.IsSystemdServiceActive(cmd.Context(), "NetworkManager"); err != nil {
+func configureNetworkManager(ctx context.Context, provider *defaults.Provider) error {
+	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
 	} else if !active {
 		logrus.Debugf("NetworkManager is not active, skipping configuration")
