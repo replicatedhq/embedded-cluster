@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -19,6 +20,11 @@ func VersionCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: fmt.Sprintf("Show the %s component versions", name),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			os.Unsetenv("TMPDIR")
+			os.Unsetenv("KUBECONFIG")
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			applierVersions, err := addons.NewApplier(addons.WithoutPrompt(), addons.OnlyDefaults(), addons.Quiet()).Versions(config.AdditionalCharts())
 			if err != nil {
