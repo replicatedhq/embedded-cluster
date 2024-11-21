@@ -132,15 +132,11 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("checking if %s is already installed", name)
-			installed, err := isAlreadyInstalled()
+			installed, err := k0s.IsInstalled(name)
 			if err != nil {
 				return err
 			}
 			if installed {
-				logrus.Errorf("An installation has been detected on this machine.")
-				logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
-				logrus.Infof("You can do this by running the following command:")
-				logrus.Infof("\n  sudo ./%s reset\n", name)
 				return ErrNothingElseToAdd
 			}
 
@@ -285,21 +281,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
 
 	return cmd
-}
-
-// isAlreadyInstalled checks if the embedded cluster is already installed by looking for
-// the k0s configuration file existence.
-func isAlreadyInstalled() (bool, error) {
-	cfgpath := defaults.PathToK0sConfig()
-	_, err := os.Stat(cfgpath)
-	switch {
-	case err == nil:
-		return true, nil
-	case os.IsNotExist(err):
-		return false, nil
-	default:
-		return false, fmt.Errorf("unable to check if already installed: %w", err)
-	}
 }
 
 // configureNetworkManager configures the network manager (if the host is using it) to ignore

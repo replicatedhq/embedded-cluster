@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
+	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -51,17 +52,11 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("checking if %s is already installed", name)
-			installed, err := isAlreadyInstalled()
-
+			installed, err := k0s.IsInstalled(name)
 			if err != nil {
 				return err
 			}
-
 			if installed {
-				logrus.Errorf("An installation has been detected on this machine.")
-				logrus.Infof("If you want to reinstall you need to remove the existing installation")
-				logrus.Infof("first. You can do this by running the following command:")
-				logrus.Infof("\n  sudo ./%s reset\n", name)
 				return ErrNothingElseToAdd
 			}
 

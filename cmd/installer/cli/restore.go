@@ -234,16 +234,11 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			switch state {
 			case ecRestoreStateNew:
 				logrus.Debugf("checking if %s is already installed", name)
-				installed, err := isAlreadyInstalled()
+				installed, err := k0s.IsInstalled(name)
 				if err != nil {
 					return err
 				}
-
 				if installed {
-					logrus.Errorf("An installation has been detected on this machine.")
-					logrus.Infof("If you want to restore you need to remove the existing installation")
-					logrus.Infof("first. You can do this by running the following command:")
-					logrus.Infof("\n  sudo ./%s reset\n", name)
 					return ErrNothingElseToAdd
 				}
 
