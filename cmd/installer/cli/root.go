@@ -5,9 +5,16 @@ import (
 	"fmt"
 	"os"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/spf13/cobra"
+)
+
+var (
+	runtimeConfig = ecv1beta1.GetDefaultRuntimeConfig()
+	provider      *defaults.Provider
 )
 
 func RootCmd(ctx context.Context, name string) *cobra.Command {
@@ -30,6 +37,33 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 				if v != "" {
 					metrics.DisableMetrics()
 				}
+			}
+
+			// apply data-dir, if it's a valid flag
+			if cmd.Flags().Lookup("data-dir") != nil {
+				v, err := cmd.Flags().GetString("data-dir")
+				if err != nil {
+					return fmt.Errorf("unable to get data-dir flag: %w", err)
+				}
+				runtimeConfig.DataDir = v
+			}
+
+			// apply local artifact mirror port, if it's a valid flag
+			if cmd.Flags().Lookup("local-artifact-mirror-port") != nil {
+				v, err := cmd.Flags().GetInt("local-artifact-mirror-port")
+				if err != nil {
+					return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
+				}
+				runtimeConfig.LocalArtifactMirror.Port = v
+			}
+
+			// apply admin console port, if it's a valid flag
+			if cmd.Flags().Lookup("admin-console-port") != nil {
+				v, err := cmd.Flags().GetInt("admin-console-port")
+				if err != nil {
+					return fmt.Errorf("unable to get admin-console-port flag: %w", err)
+				}
+				runtimeConfig.AdminConsole.Port = v
 			}
 
 			return nil

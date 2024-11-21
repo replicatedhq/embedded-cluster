@@ -26,9 +26,6 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider := discoverBestProvider(cmd.Context())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
 			supportBundle := provider.PathToEmbeddedClusterBinary("kubectl-support_bundle")
 			if _, err := os.Stat(supportBundle); err != nil {
 				logrus.Errorf("support-bundle command can only be run after an install attempt")

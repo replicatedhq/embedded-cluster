@@ -76,13 +76,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
-			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
-
 			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {
 				return err

@@ -79,8 +79,6 @@ const (
 )
 
 func RestoreCmd(ctx context.Context, name string) *cobra.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
 	var (
 		airgapBundle            string
 		dataDir                 string
@@ -126,21 +124,9 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("invalid cidr %q: %w", cidr, err)
 			}
 
-			dataDirFlag, err := cmd.Flags().GetString("data-dir")
-			if err != nil {
-				return fmt.Errorf("unable to get data-dir flag: %w", err)
-			}
-			runtimeConfig.DataDir = dataDirFlag
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
-
 			err := configutils.WriteRuntimeConfig(runtimeConfig)
 			if err != nil {
 				return fmt.Errorf("unable to write runtime config: %w", err)
@@ -211,12 +197,6 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			} else {
 				runtimeConfig = rc
 			}
-
-			provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
 
 			opts := addonsApplierOpts{
 				noPrompt:     noPrompt,

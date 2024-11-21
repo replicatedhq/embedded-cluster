@@ -6,14 +6,11 @@ import (
 	"os"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/spf13/cobra"
 )
 
 func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
 	var (
 		dataDir string
 	)
@@ -26,21 +23,9 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("materialize command must be run as root")
 			}
 
-			dd, err := cmd.Flags().GetString("data-dir")
-			if err != nil {
-				return fmt.Errorf("unable to get data-dir flag: %w", err)
-			}
-
-			runtimeConfig.DataDir = dd
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
-
 			materializer := goods.NewMaterializer(provider)
 			if err := materializer.Materialize(); err != nil {
 				return fmt.Errorf("unable to materialize: %v", err)

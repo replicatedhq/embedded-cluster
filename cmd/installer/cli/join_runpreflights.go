@@ -22,8 +22,6 @@ import (
 )
 
 func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
 	var (
 		airgapBundle            string
 		license                 string
@@ -40,36 +38,12 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("run-preflights command must be run as root")
 			}
 
-			dataDirFlag, err := cmd.Flags().GetString("data-dir")
-			if err != nil {
-				return fmt.Errorf("unable to get data-dir flag: %w", err)
-			}
-			if dataDirFlag != "" {
-				runtimeConfig.DataDir = dataDirFlag
-			}
-
-			adminConsolePortFlag, err := cmd.Flags().GetInt("admin-console-port")
-			if err != nil {
-				return fmt.Errorf("unable to get admin-console-port flag: %w", err)
-			}
-			if adminConsolePortFlag != 0 {
-				runtimeConfig.AdminConsole.Port = adminConsolePortFlag
-			}
-
-			localArtifactMirrorPortFlag, err := cmd.Flags().GetInt("local-artifact-mirror-port")
-			if err != nil {
-				return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
-			}
-
-			if localArtifactMirrorPortFlag != 0 && adminConsolePortFlag != 0 {
-				if localArtifactMirrorPortFlag == adminConsolePortFlag {
+			if localArtifactMirrorPort != 0 && adminConsolePort != 0 {
+				if localArtifactMirrorPort == adminConsolePort {
 					return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
 				}
 			}
 
-			if localArtifactMirrorPortFlag != 0 {
-				runtimeConfig.LocalArtifactMirror.Port = localArtifactMirrorPortFlag
-			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,11 +56,6 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-
-			provider := defaults.NewProviderFromRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
 
 			// check to make sure the version returned by the join token is the same as the one we are running
 			if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {

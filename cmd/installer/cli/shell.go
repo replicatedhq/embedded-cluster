@@ -40,9 +40,6 @@ func ShellCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider := discoverBestProvider(cmd.Context())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
 			if _, err := os.Stat(provider.PathToKubeConfig()); err != nil {
 				return fmt.Errorf("kubeconfig not found at %s", provider.PathToKubeConfig())
 			}

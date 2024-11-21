@@ -28,15 +28,6 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider, err := getProviderFromCluster(cmd.Context())
-			if err != nil {
-				return err
-			}
-			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
-
 			if airgapBundle != "" {
 				logrus.Debugf("checking airgap bundle matches binary")
 				if err := checkAirgapMatches(airgapBundle); err != nil {

@@ -39,7 +39,6 @@ import (
 )
 
 func InstallCmd(ctx context.Context, name string) *cobra.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
 
 	var (
 		adminConsolePassword    string
@@ -96,35 +95,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("invalid cidr %q: %w", cidr, err)
 			}
 
-			dd, err := cmd.Flags().GetString("data-dir")
-			if err != nil {
-				return fmt.Errorf("unable to get data-dir flag: %w", err)
-			}
-
-			runtimeConfig.DataDir = dd
-
-			lap, err := cmd.Flags().GetInt("local-artifact-mirror-port")
-			if err != nil {
-				return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
-			}
-
-			runtimeConfig.LocalArtifactMirror.Port = lap
-
-			ap, err := cmd.Flags().GetInt("admin-console-port")
-			if err != nil {
-				return fmt.Errorf("unable to get admin-console-port flag: %w", err)
-			}
-
-			runtimeConfig.AdminConsole.Port = ap
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
-
 			var err error
 			err = configutils.WriteRuntimeConfig(runtimeConfig)
 			if err != nil {
