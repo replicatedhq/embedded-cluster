@@ -513,6 +513,12 @@ func runHostPreflights(cmd *cobra.Command, provider *defaults.Provider, hpf *v1b
 			}
 		}
 
+		if len(output.Fail)+len(output.Warn) > 1 {
+			logrus.Info("Please address these issues and try again.")
+		} else {
+			logrus.Info("Please address this issue and try again.")
+		}
+
 		return ErrPreflightsHaveFail
 	}
 

@@ -97,13 +97,6 @@ func (o Output) printTable() {
 		tb.AppendRow(table.Row{"•", o.wrapText(rec.Message, maxwidth-5)})
 	}
 	logrus.Infof("\n%s\n", tb.Render())
-
-	if len(o.Fail) > 1 {
-		logrus.Info("Please address these issues and try again.")
-		return
-	}
-
-	logrus.Info("Please address this issue and try again.")
 }
 
 func (o Output) SaveToDisk(path string) error {
