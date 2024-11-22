@@ -101,6 +101,9 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("restore command must be run as root")
 			}
+			if skipHostPreflights {
+				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
+			}
 
 			// bind proxy flags
 			proxy = &ecv1beta1.ProxySpec{}
