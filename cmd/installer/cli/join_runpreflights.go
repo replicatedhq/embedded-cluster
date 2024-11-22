@@ -112,7 +112,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				isAirgap = true
 			}
 			logrus.Debugf("materializing binaries")
-			if err := materializeFiles(cmd, provider); err != nil {
+			if err := materializeFiles(airgapBundle, provider); err != nil {
 				return err
 			}
 

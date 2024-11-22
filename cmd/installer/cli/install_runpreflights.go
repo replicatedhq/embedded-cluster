@@ -48,9 +48,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		overrides            string
 		privateCAs           []string
 		configValues         string
-		podCIDR              string
-		serviceCIDR          string
-		cidr                 string
 		skipHostPreflights   bool
 		ignoreHostPreflights bool
 
@@ -65,38 +62,17 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("run-preflights command must be run as root")
 			}
 
-			// bind proxy flags
-			proxy = &ecv1beta1.ProxySpec{}
-
-			proxyFlag, err := cmd.Flags().GetBool("proxy")
+			var err error
+			proxy, err = getProxySpecFromFlags(cmd)
 			if err != nil {
-				return fmt.Errorf("unable to get proxy flag: %w", err)
-			}
-			if proxyFlag {
-				proxy.HTTPProxy = os.Getenv("HTTP_PROXY")
-				proxy.HTTPSProxy = os.Getenv("HTTPS_PROXY")
-				if os.Getenv("NO_PROXY") != "" {
-					proxy.ProvidedNoProxy = os.Getenv("NO_PROXY")
-				}
+				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
 			}
 
-			httpProxyFlag, err := cmd.Flags().GetString("http-proxy")
+			proxy, err = includeLocalIPInNoProxy(cmd, proxy)
 			if err != nil {
-				return fmt.Errorf("unable to get http-proxy flag: %w", err)
+				return err
 			}
-			proxy.HTTPProxy = httpProxyFlag
-
-			httpsProxyFlag, err := cmd.Flags().GetString("https-proxy")
-			if err != nil {
-				return fmt.Errorf("unable to get https-proxy flag: %w", err)
-			}
-			proxy.HTTPSProxy = httpsProxyFlag
-
-			noProxyFlag, err := cmd.Flags().GetString("no-proxy")
-			if err != nil {
-				return fmt.Errorf("unable to get no-proxy flag: %w", err)
-			}
-			proxy.ProvidedNoProxy = noProxyFlag
+			setProxyEnv(proxy)
 
 			return nil
 		},
@@ -108,38 +84,18 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
-			var err error
-			proxy, err := getProxySpecFromFlags(cmd)
-			if err != nil {
-				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
-			}
-
-			proxy, err = includeLocalIPInNoProxy(cmd, proxy)
-			if err != nil {
-				return err
-			}
-			setProxyEnv(proxy)
-
-			licenseFile, err := cmd.Flags().GetString("license")
-			if err != nil {
-				return fmt.Errorf("unable to get license flag: %w", err)
-			}
 			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {
 				return err
 			}
 
-			airgapBundle, err := cmd.Flags().GetString("airgap-bundle")
-			if err != nil {
-				return fmt.Errorf("unable to get airgap-bundle flag: %w", err)
-			}
 			isAirgap := false
 			if airgapBundle != "" {
 				isAirgap = true
 			}
 
 			logrus.Debugf("materializing binaries")
-			if err := materializeFiles(cmd, provider); err != nil {
+			if err := materializeFiles(airgapBundle, provider); err != nil {
 				return err
 			}
 
@@ -200,19 +156,12 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
-	cmd.Flags().StringVar(&podCIDR, "pod-cidr", "", "IP address range for Pods")
-	cmd.Flags().StringVar(&serviceCIDR, "service-cidr", "", "IP address range for Service CIDR")
-	cmd.Flags().StringVar(&cidr, "cidr", ecv1beta1.DefaultNetworkCIDR, "IP address range for the cluster")
-
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
 	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 
-	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation")
-	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation")
-	cmd.Flags().String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy")
-	cmd.Flags().Bool("proxy", false, "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.")
-	cmd.Flags().MarkHidden("proxy")
+	addProxyFlags(cmd)
+	addCIDRFlags(cmd)
 
 	return cmd
 }
@@ -279,7 +228,7 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 	return license, nil
 }
 
-func materializeFiles(cmd *cobra.Command, provider *defaults.Provider) error {
+func materializeFiles(airgapBundle string, provider *defaults.Provider) error {
 	mat := spinner.Start()
 	defer mat.Close()
 	mat.Infof("Materializing files")
@@ -292,16 +241,11 @@ func materializeFiles(cmd *cobra.Command, provider *defaults.Provider) error {
 		return fmt.Errorf("unable to materialize support bundle spec: %w", err)
 	}
 
-	airgapBundleFlag, err := cmd.Flags().GetString("airgap-bundle")
-	if err != nil {
-		return fmt.Errorf("unable to get airgap-bundle flag: %w", err)
-	}
-
-	if airgapBundleFlag != "" {
+	if airgapBundle != "" {
 		mat.Infof("Materializing airgap installation files")
 
 		// read file from path
-		rawfile, err := os.Open(airgapBundleFlag)
+		rawfile, err := os.Open(airgapBundle)
 		if err != nil {
 			return fmt.Errorf("failed to open airgap file: %w", err)
 		}

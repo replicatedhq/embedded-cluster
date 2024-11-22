@@ -11,7 +11,6 @@ import (
 	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	eckinds "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
@@ -71,10 +70,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
 			}
 
-			if airgapBundle != "" {
-				metrics.DisableMetrics()
-			}
-
 			var err error
 			proxy, err = getProxySpecFromFlags(cmd)
 			if err != nil {
@@ -105,32 +100,26 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("invalid cidr %q: %w", cidr, err)
 			}
 
-			if cmd.Flags().Changed("data-dir") {
-				dd, err := cmd.Flags().GetString("data-dir")
-				if err != nil {
-					return fmt.Errorf("unable to get data-dir flag: %w", err)
-				}
-
-				runtimeConfig.DataDir = dd
+			dd, err := cmd.Flags().GetString("data-dir")
+			if err != nil {
+				return fmt.Errorf("unable to get data-dir flag: %w", err)
 			}
 
-			if cmd.Flags().Changed("local-artifact-mirror-port") {
-				lap, err := cmd.Flags().GetInt("local-artifact-mirror-port")
-				if err != nil {
-					return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
-				}
+			runtimeConfig.DataDir = dd
 
-				runtimeConfig.LocalArtifactMirror.Port = lap
+			lap, err := cmd.Flags().GetInt("local-artifact-mirror-port")
+			if err != nil {
+				return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
 			}
 
-			if cmd.Flags().Changed("admin-console-port") {
-				ap, err := cmd.Flags().GetInt("admin-console-port")
-				if err != nil {
-					return fmt.Errorf("unable to get admin-console-port flag: %w", err)
-				}
+			runtimeConfig.LocalArtifactMirror.Port = lap
 
-				runtimeConfig.AdminConsole.Port = ap
+			ap, err := cmd.Flags().GetInt("admin-console-port")
+			if err != nil {
+				return fmt.Errorf("unable to get admin-console-port flag: %w", err)
 			}
+
+			runtimeConfig.AdminConsole.Port = ap
 
 			return nil
 		},
@@ -147,21 +136,20 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("checking if %s is already installed", name)
-			installed, err := isAlreadyInstalled()
+			installed, err := k0s.IsInstalled(name)
 			if err != nil {
 				return err
 			}
 			if installed {
-				logrus.Errorf("An installation has been detected on this machine.")
-				logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
-				logrus.Infof("You can do this by running the following command:")
-				logrus.Infof("\n  sudo ./%s reset\n", name)
 				return ErrNothingElseToAdd
 			}
 
-			if channelRelease, err := release.GetChannelRelease(); err != nil {
+			channelRelease, err := release.GetChannelRelease()
+			if err != nil {
 				return fmt.Errorf("unable to read channel release data: %w", err)
-			} else if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
+			}
+
+			if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
 				logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
 				logrus.Warnf("If you continue, the installation will not use an air gap bundle and will connect to the internet.")
 				if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
@@ -169,11 +157,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				}
 			}
 
-			licenseFlag, err := cmd.Flags().GetString("license")
-			if err != nil {
-				return fmt.Errorf("unable to get license flag: %w", err)
-			}
-			metrics.ReportApplyStarted(cmd.Context(), licenseFlag)
+			metrics.ReportApplyStarted(cmd.Context(), licenseFile)
 
 			logrus.Debugf("configuring sysctl")
 			if err := configutils.ConfigureSysctl(provider); err != nil {
@@ -181,15 +165,15 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("configuring network manager")
-			if err := configureNetworkManager(cmd, provider); err != nil {
+			if err := configureNetworkManager(cmd.Context(), provider); err != nil {
 				return fmt.Errorf("unable to configure network manager: %w", err)
 			}
 
 			logrus.Debugf("checking license matches")
-			license, err := getLicenseFromFilepath(licenseFlag)
+			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {
 				metricErr := fmt.Errorf("unable to get license: %w", err)
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, metricErr)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, metricErr)
 				return err // do not return the metricErr, as we want the user to see the error message without a prefix
 			}
 			isAirgap := false
@@ -206,7 +190,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if !isAirgap {
 				if err := maybePromptForAppUpdate(cmd.Context(), prompts.New(), license); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
-						metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+						metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 						return err
 					}
 					// If we get an error other than ErrNothingElseToAdd, we warn and continue as
@@ -216,25 +200,25 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := preflights.ValidateApp(); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
 
 			adminConsolePwd, err := maybeAskAdminConsolePassword(cmd)
 			if err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
 
 			logrus.Debugf("materializing binaries")
-			if err := materializeFiles(cmd, provider); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+			if err := materializeFiles(airgapBundle, provider); err != nil {
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
 
 			opts := addonsApplierOpts{
 				noPrompt:     noPrompt,
-				license:      licenseFlag,
+				license:      licenseFile,
 				airgapBundle: airgapBundle,
 				overrides:    overrides,
 				privateCAs:   privateCAs,
@@ -242,7 +226,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			applier, err := getAddonsApplier(cmd, opts, runtimeConfig, adminConsolePwd, proxy)
 			if err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
 
@@ -259,7 +243,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -272,10 +256,10 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			logrus.Debugf("running outro")
 			if err := runOutro(cmd, provider, applier, cfg); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
 			}
-			metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil)
+			metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil)
 			return nil
 		},
 	}
@@ -296,43 +280,19 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
-	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation")
-	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation")
-	cmd.Flags().String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy")
-	cmd.Flags().Bool("proxy", false, "Use the system proxy settings for the install operation. These variables are currently only passed through to Velero and the Admin Console.")
-	cmd.Flags().MarkHidden("proxy")
-
-	cmd.Flags().String("pod-cidr", k0sv1beta1.DefaultNetwork().PodCIDR, "IP address range for Pods")
-	cmd.Flags().MarkHidden("pod-cidr")
-	cmd.Flags().String("service-cidr", k0sv1beta1.DefaultNetwork().ServiceCIDR, "IP address range for Services")
-	cmd.Flags().MarkHidden("service-cidr")
-	cmd.Flags().String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
+	addProxyFlags(cmd)
+	addCIDRFlags(cmd)
 
 	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
 
 	return cmd
 }
 
-// isAlreadyInstalled checks if the embedded cluster is already installed by looking for
-// the k0s configuration file existence.
-func isAlreadyInstalled() (bool, error) {
-	cfgpath := defaults.PathToK0sConfig()
-	_, err := os.Stat(cfgpath)
-	switch {
-	case err == nil:
-		return true, nil
-	case os.IsNotExist(err):
-		return false, nil
-	default:
-		return false, fmt.Errorf("unable to check if already installed: %w", err)
-	}
-}
-
 // configureNetworkManager configures the network manager (if the host is using it) to ignore
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
-func configureNetworkManager(cmd *cobra.Command, provider *defaults.Provider) error {
-	if active, err := helpers.IsSystemdServiceActive(cmd.Context(), "NetworkManager"); err != nil {
+func configureNetworkManager(ctx context.Context, provider *defaults.Provider) error {
+	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
 		return fmt.Errorf("unable to check if NetworkManager is active: %w", err)
 	} else if !active {
 		logrus.Debugf("NetworkManager is not active, skipping configuration")
