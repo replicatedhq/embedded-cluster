@@ -79,14 +79,14 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
 
-			provider = defaults.NewProviderFromRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
-			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
 			err = configutils.WriteRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
 			if err != nil {
 				return fmt.Errorf("unable to write runtime config: %w", err)
 			}
+
+			provider = defaults.NewProviderFromRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
+			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
+			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			// check to make sure the version returned by the join token is the same as the one we are running
 			if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
