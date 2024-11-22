@@ -123,6 +123,6 @@ func TryRemoveTmpDirContents() {
 		return
 	}
 	if err := helpers.RemoveAll(provider.EmbeddedClusterTmpSubDir()); err != nil {
-		logrus.Debugf("failed to remove tmp dir contents: %v", err)
+		logrus.Errorf("failed to remove tmp dir contents: %v", err)
 	}
 }
