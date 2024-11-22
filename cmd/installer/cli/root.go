@@ -126,12 +126,3 @@ func TryRemoveTmpDirContents() {
 		logrus.Debugf("failed to remove tmp dir contents: %v", err)
 	}
 }
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
