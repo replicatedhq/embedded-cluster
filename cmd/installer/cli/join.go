@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
+	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -40,38 +41,32 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "join",
+		Use:   "join <url> <token>",
 		Short: fmt.Sprintf("Join %s", name),
+		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("join command must be run as root")
-			}
-
-			if airgapBundle != "" {
-				metrics.DisableMetrics()
 			}
 
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("checking if %s is already installed", name)
-			if installed, err := isAlreadyInstalled(); err != nil {
+			installed, err := k0s.IsInstalled(name)
+			if err != nil {
 				return err
-			} else if installed {
-				logrus.Errorf("An installation has been detected on this machine.")
-				logrus.Infof("If you want to reinstall you need to remove the existing installation")
-				logrus.Infof("first. You can do this by running the following command:")
-				logrus.Infof("\n  sudo ./%s reset\n", name)
+			}
+			if installed {
 				return ErrNothingElseToAdd
 			}
 
-			if len(args) != 2 {
-				return fmt.Errorf("usage: %s join <url> <token>", name)
+			channelRelease, err := release.GetChannelRelease()
+			if err != nil {
+				return fmt.Errorf("unable to read channel release data: %w", err)
 			}
 
-			if channelRelease, err := release.GetChannelRelease(); err != nil {
-				return fmt.Errorf("unable to read channel release data: %w", err)
-			} else if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
+			if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
 				logrus.Infof("You downloaded an air gap bundle but are performing an online join.")
 				logrus.Infof("To do an air gap join, pass the air gap bundle with --airgap-bundle.")
 				if !prompts.New().Confirm("Do you want to proceed with an online join?", false) {
@@ -107,10 +102,12 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get network-interface flag: %w", err)
 			}
+
 			proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterfaceFlag)
 			if err != nil {
 				return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 			}
+
 			if !proxyOK {
 				logrus.Errorf("This node's IP address %s is not included in the no-proxy list (%s).", localIP, jcmd.InstallationSpec.Proxy.NoProxy)
 				logrus.Infof(`The no-proxy list cannot easily be modified after initial installation.`)
@@ -132,7 +129,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 			metrics.ReportJoinStarted(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 			logrus.Debugf("materializing %s binaries", name)
-			if err := materializeFiles(cmd, provider); err != nil {
+			if err := materializeFiles(airgapBundle, provider); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
@@ -182,7 +179,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("configuring network manager")
-			if err := configureNetworkManager(cmd, provider); err != nil {
+			if err := configureNetworkManager(cmd.Context(), provider); err != nil {
 				return fmt.Errorf("unable to configure network manager: %w", err)
 			}
 
@@ -252,12 +249,14 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
+
 			hostname, err := os.Hostname()
 			if err != nil {
 				err := fmt.Errorf("unable to get hostname: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
+
 			if err := waitForNode(cmd.Context(), kcli, hostname); err != nil {
 				err := fmt.Errorf("unable to wait for node: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
@@ -268,6 +267,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get enable-ha flag: %w", err)
 			}
+
 			if enabledHighAvailabilityFlag {
 				if err := maybeEnableHA(cmd.Context(), kcli); err != nil {
 					err := fmt.Errorf("unable to enable high availability: %w", err)
