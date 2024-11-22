@@ -52,6 +52,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		serviceCIDR          string
 		cidr                 string
 		skipHostPreflights   bool
+		ignoreHostPreflights bool
 
 		proxy *ecv1beta1.ProxySpec
 	)
@@ -203,7 +204,9 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringVar(&serviceCIDR, "service-cidr", "", "IP address range for Service CIDR")
 	cmd.Flags().StringVar(&cidr, "cidr", ecv1beta1.DefaultNetworkCIDR, "IP address range for the cluster")
 
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
+	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().MarkHidden("skip-host-preflights")
+	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 
 	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation")
 	cmd.Flags().String("https-proxy", "", "HTTPS proxy to use for the installation")

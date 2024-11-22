@@ -36,6 +36,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		networkInterface        string
 		noPrompt                bool
 		skipHostPreflights      bool
+		ignoreHostPreflights    bool
 	)
 
 	cmd := &cobra.Command{
@@ -287,7 +288,9 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts.")
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
+	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().MarkHidden("skip-host-preflights")
+	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 
 	cmd.AddCommand(JoinRunPreflightsCmd(ctx, name))
 

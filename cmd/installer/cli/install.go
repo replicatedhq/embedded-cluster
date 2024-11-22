@@ -54,6 +54,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		overrides               string
 		privateCAs              []string
 		skipHostPreflights      bool
+		ignoreHostPreflights    bool
 		configValues            string
 
 		proxy *ecv1beta1.ProxySpec
@@ -287,7 +288,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringVar(&overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	cmd.Flags().MarkHidden("overrides")
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
+	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().MarkHidden("skip-host-preflights")
+	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
 	cmd.Flags().String("http-proxy", "", "HTTP proxy to use for the installation")
