@@ -26,6 +26,7 @@ func main() {
 }
 
 func InitAndExecute(ctx context.Context, name string) {
+	defer cli.TryRemoveTmpDirContents()
 	if err := cli.RootCmd(ctx, name).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

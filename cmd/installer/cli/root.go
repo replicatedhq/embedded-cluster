@@ -8,7 +8,9 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -83,10 +85,6 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 
-			cobra.OnFinalize(func() {
-				tryRemoveTmpDirContents(provider)
-			})
-
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
@@ -118,6 +116,15 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.AddCommand(SupportBundleCmd(ctx, name))
 
 	return cmd
+}
+
+func TryRemoveTmpDirContents() {
+	if provider == nil {
+		return
+	}
+	if err := helpers.RemoveAll(provider.EmbeddedClusterTmpSubDir()); err != nil {
+		logrus.Debugf("failed to remove tmp dir contents: %v", err)
+	}
 }
 
 func contains(s []string, e string) bool {

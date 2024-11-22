@@ -156,13 +156,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-func tryRemoveTmpDirContents(provider *defaults.Provider) {
-	err := helpers.RemoveAll(provider.EmbeddedClusterTmpSubDir())
-	if err != nil {
-		logrus.Debugf("failed to remove tmp dir contents: %v", err)
-	}
-}
-
 func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 	rel, err := release.GetChannelRelease()
 	if err != nil {
