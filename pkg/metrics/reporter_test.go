@@ -22,7 +22,7 @@ func TestReportInstallationStarted(t *testing.T) {
 	}{
 		{
 			name:   "redact secret flags",
-			OSArgs: []string{"secret-command", "--license", "./path", "--admin-console-password", "123", "--some-key", "some-value", "--another-secret", "secret", "--admin-console-password=123", "--also-a-secret", "-password123notaflag"},
+			OSArgs: []string{"install", "-l", "./license.yaml", "--admin-console-password", "some-password", "--skip-host-preflights", "--http-proxy", "http://user:password@my-proxy.test", "--https-proxy=https://user:password@my-https-proxy.test", "--admin-console-port", "8080"},
 			validateRequest: func(t *testing.T, r *http.Request) {
 				req := require.New(t)
 				body, err := io.ReadAll(r.Body)
@@ -33,7 +33,7 @@ func TestReportInstallationStarted(t *testing.T) {
 				req.NoError(err)
 				err = json.Unmarshal(decoded["event"], &event)
 				req.NoError(err)
-				req.Equal("secret-command --license ./path --admin-console-password ***** --some-key ***** --another-secret ***** --admin-console-password=***** --also-a-secret *****", event.Flags)
+				req.Equal("install -l ./license.yaml --admin-console-password ***** --skip-host-preflights --http-proxy ***** --https-proxy=***** --admin-console-port 8080", event.Flags)
 			},
 		},
 	} {
