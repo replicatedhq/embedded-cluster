@@ -714,22 +714,28 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		func(t *testing.T) error {
 			t.Logf("%s: resetting the installation on node 2", time.Now().Format(time.RFC3339))
 			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
+			if stdout, stderr, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
 				return fmt.Errorf("fail to reset the installation on node 2: %v", err)
+			} else {
+				t.Logf(stdout, stderr)
 			}
 			return nil
 		}, func(t *testing.T) error {
 			t.Logf("%s: resetting the installation on node 1", time.Now().Format(time.RFC3339))
 			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
+			if stdout, stderr, err := tc.RunCommandOnNode(1, line, withEnv); err != nil {
 				return fmt.Errorf("fail to reset the installation on node 1: %v", err)
+			} else {
+				t.Logf(stdout, stderr)
 			}
 			return nil
 		}, func(t *testing.T) error {
 			t.Logf("%s: resetting the installation on node 0", time.Now().Format(time.RFC3339))
 			line = []string{"reset-installation.sh", "--force"}
-			if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+			if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 				return fmt.Errorf("fail to reset the installation on node 0: %v", err)
+			} else {
+				t.Logf(stdout, stderr)
 			}
 			return nil
 		},

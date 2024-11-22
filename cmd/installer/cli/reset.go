@@ -163,11 +163,13 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to remove proxy worker config directory: %w", err)
 			}
 
+			fmt.Println("+++ EC home dir", provider.EmbeddedClusterHomeDirectory())
+
 			// Now that k0s is nested under the data directory, we see the following error in the
 			// dev environment because k0s is mounted in the docker container:
 			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
 			if err := helpers.RemoveAll(provider.EmbeddedClusterHomeDirectory()); err != nil {
-				logrus.Debugf("Failed to remove embedded cluster directory: %v", err)
+				logrus.Errorf("Failed to remove embedded cluster directory: %v", err)
 			}
 
 			if err := helpers.RemoveAll(defaults.EmbeddedClusterLogsSubDir()); err != nil {
