@@ -5,7 +5,7 @@ DIR=/usr/local/bin
 . $DIR/common.sh
 
 function check_nginx_version {
-    if ! kubectl describe pod -n ingress-nginx | grep -q "4.9.1"; then
+    if ! kubectl describe pod -n ingress-nginx | grep -q "4.12.0-beta.0"; then
         return 1
     fi
     return 0
@@ -55,13 +55,13 @@ main() {
         exit 1
     fi
     # ensure new version is present
-    if ! kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "4.9.1"; then
-        echo "4.9.1 not found in ingress-nginx chart"
+    if ! kubectl describe chart -n kube-system k0s-addon-chart-ingress-nginx | grep -q "4.12.0-beta.0"; then
+        echo "4.12.0-beta.0 not found in ingress-nginx chart"
         exit 1
     fi
     # ensure the new version made it into the pod
     if ! retry 5 check_nginx_version ; then
-        echo "4.9.1 not found in ingress-nginx pod"
+        echo "4.12.0-beta.0 not found in ingress-nginx pod"
         kubectl describe pod -n ingress-nginx
         exit 1
     fi
