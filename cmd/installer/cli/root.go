@@ -8,7 +8,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -122,7 +121,7 @@ func TryRemoveTmpDirContents() {
 	if provider == nil {
 		return
 	}
-	if err := helpers.RemoveAll(provider.EmbeddedClusterTmpSubDir()); err != nil {
+	if err := os.RemoveAll(provider.EmbeddedClusterTmpSubDir()); err != nil {
 		logrus.Errorf("failed to remove tmp dir contents: %v", err)
 	}
 }
