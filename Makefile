@@ -15,7 +15,7 @@ K0S_GO_VERSION = v1.30.6+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.29.9+k0s.0-ec.0
 PREVIOUS_K0S_GO_VERSION ?= v1.29.9+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.112.0
+TROUBLESHOOT_VERSION = v0.109.0
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
@@ -359,3 +359,49 @@ test-lam-e2e: pkg/goods/bins/local-artifact-mirror
 bin/installer:
 	@mkdir -p bin
 	go build -o bin/installer ./cmd/installer
+
+# make test-embed channel=Unstable app=slackernews
+.PHONY: test-embed
+test-emded: export OS=linux
+test-embed: export ARCH=amd64
+test-embed: static embedded-cluster
+	@echo "Cleaning up previous release directory..."
+	rm -rf ./hack/release
+	@echo "Creating release directory..."
+	mkdir -p ./hack/release
+
+	@echo "Fetching channel JSON for channel: $(channel)"
+	$(eval CHANNEL_JSON := $(shell replicated channel inspect $(channel) --output json))
+	@echo "CHANNEL_JSON: $(CHANNEL_JSON)"
+
+	@echo "Extracting release label, sequence, and channel slug..."
+	$(eval RELEASE_LABEL := $(shell echo '$(CHANNEL_JSON)' | jq -r '.releaseLabel'))
+	$(eval RELEASE_SEQUENCE := $(shell echo '$(CHANNEL_JSON)' | jq -r '.releaseSequence'))
+	$(eval CHANNEL_SLUG := $(shell echo '$(CHANNEL_JSON)' | jq -r '.channelSlug'))
+	$(eval CHANNEL_ID := $(shell echo '$(CHANNEL_JSON)' | jq -r '.id'))
+
+	@echo "Extracted values:"
+	@echo "  RELEASE_LABEL: $(RELEASE_LABEL)"
+	@echo "  RELEASE_SEQUENCE: $(RELEASE_SEQUENCE)"
+	@echo "  CHANNEL_SLUG: $(CHANNEL_SLUG)"
+
+	@echo "Downloading release sequence $(RELEASE_SEQUENCE) for app $(app)..."
+	replicated release download $(RELEASE_SEQUENCE) --app=$(app) -d ./hack/release || { echo "Error: Failed to download release. Check RELEASE_SEQUENCE or app name."; exit 1; }
+
+	@echo "Writing release.yaml..."
+	@mkdir -p ./hack/release  # Ensure directory exists
+	@echo '# channel release object' > ./hack/release/release.yaml
+	@echo 'channelID: "${CHANNEL_ID}"' >> ./hack/release/release.yaml
+	@echo 'channelSlug: "${CHANNEL_SLUG}"' >> ./hack/release/release.yaml
+	@echo 'appSlug: "$(app)"' >> ./hack/release/release.yaml
+	@echo 'versionLabel: "${RELEASE_LABEL}"' >> ./hack/release/release.yaml
+
+	@echo "Creating tarball of the release directory..."
+	tar czvf ./hack/release.tgz -C ./hack/release .
+
+	@echo "Embedding release into binary..."
+	go run ./hack/dev-embed.go --binary ./build/embedded-cluster-linux-amd64  --release ./hack/release.tgz --output ./build/$(app) \
+		--label $(RELEASE_LABEL) --sequence $(RELEASE_SEQUENCE) --channel $(CHANNEL_SLUG)
+
+	chmod +x ./build/$(app)
+	@echo "Test embed completed successfully."
