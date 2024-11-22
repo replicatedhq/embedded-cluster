@@ -14,7 +14,7 @@ proc send_interrupt {} {
     expect eof
 }
 
-spawn embedded-cluster restore --skip-host-preflights
+spawn embedded-cluster restore --ignore-host-preflights
 
 expect {
     "Enter information to configure access to your backup storage location." {}
@@ -134,7 +134,7 @@ expect {
     }
 }
 
-spawn embedded-cluster restore --skip-host-preflights
+spawn embedded-cluster restore --ignore-host-preflights
 
 expect {
     "A previous restore operation was detected. Would you like to resume?" {
@@ -174,7 +174,7 @@ expect {
 }
 
 send_interrupt
-spawn embedded-cluster restore --skip-host-preflights
+spawn embedded-cluster restore --ignore-host-preflights
 
 expect {
     "A previous restore operation was detected. Would you like to resume?" {
@@ -219,7 +219,7 @@ expect {
 }
 
 send_interrupt
-spawn embedded-cluster restore --skip-host-preflights
+spawn embedded-cluster restore --ignore-host-preflights
 
 expect {
     "A previous restore operation was detected. Would you like to resume?" {
@@ -274,7 +274,7 @@ expect {
 }
 
 send_interrupt
-spawn embedded-cluster restore --skip-host-preflights
+spawn embedded-cluster restore --ignore-host-preflights
 
 expect {
     "A previous restore operation was detected. Would you like to resume?" {
@@ -339,7 +339,7 @@ expect {
 }
 
 send_interrupt
-spawn embedded-cluster restore --skip-host-preflights
+spawn embedded-cluster restore --ignore-host-preflights
 
 expect {
     "A previous restore operation was detected. Would you like to resume?" {
@@ -384,7 +384,7 @@ expect {
 }
 
 send_interrupt
-spawn embedded-cluster restore --skip-host-preflights
+spawn embedded-cluster restore --ignore-host-preflights
 
 expect {
     "A previous restore operation was detected. Would you like to resume?" {

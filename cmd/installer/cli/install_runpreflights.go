@@ -495,6 +495,24 @@ func runHostPreflights(cmd *cobra.Command, provider *defaults.Provider, hpf *v1b
 
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
+		ignoreHostPreflightsFlag, err := cmd.Flags().GetBool("ignore-host-preflights")
+		if err != nil {
+			return fmt.Errorf("unable to get ignore-host-preflights flag: %w", err)
+		}
+		if ignoreHostPreflightsFlag {
+			noPromptFlag, err := cmd.Flags().GetBool("no-prompt")
+			if err != nil {
+				return fmt.Errorf("unable to get no-prompt flag: %w", err)
+			}
+			if noPromptFlag {
+				logrus.Infof("Host preflights failed and were ignored, but the installation will continue.")
+				return nil
+			}
+			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
+				return fmt.Errorf("user aborted after host preflights failed")
+			}
+		}
+
 		return ErrPreflightsHaveFail
 	}
 
