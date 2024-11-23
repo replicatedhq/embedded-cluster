@@ -5,7 +5,7 @@ go 1.23.2
 require (
 	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/k0sproject/k0s v1.30.7-0.20241029184556-a942e759e13b
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	k8s.io/api v0.31.2
 	k8s.io/apimachinery v0.31.2
 	sigs.k8s.io/controller-runtime v0.19.1
