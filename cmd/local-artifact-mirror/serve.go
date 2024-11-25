@@ -13,8 +13,8 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -61,7 +61,7 @@ func ServeCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 			if v.Get("data-dir") != nil {
 				runtimeconfig.SetDataDir(v.GetString("data-dir"))
 			} else {
-				if err := cmdutil.InitRuntimeConfigFromFilesystem(); err != nil {
+				if err := rcutil.InitRuntimeConfigFromFilesystem(); err != nil {
 					panic(fmt.Errorf("unable to get runtime config from filesystem: %w", err))
 				}
 			}

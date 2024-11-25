@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
-	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,7 +26,7 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("support-bundle command must be run as root")
 			}
 
-			cmdutil.InitBestRuntimeConfig(cmd.Context())
+			rcutil.InitBestRuntimeConfig(cmd.Context())
 			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
 			return nil

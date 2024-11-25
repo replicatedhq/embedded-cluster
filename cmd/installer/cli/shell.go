@@ -11,8 +11,8 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
-	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -36,7 +36,7 @@ func ShellCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("shell command must be run as root")
 			}
 
-			cmdutil.InitBestRuntimeConfig(cmd.Context())
+			rcutil.InitBestRuntimeConfig(cmd.Context())
 			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
 			if _, err := os.Stat(runtimeconfig.PathToKubeConfig()); err != nil {

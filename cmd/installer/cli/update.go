@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +26,7 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("update command must be run as root")
 			}
 
-			if err := cmdutil.InitRuntimeConfigFromCluster(ctx); err != nil {
+			if err := rcutil.InitRuntimeConfigFromCluster(ctx); err != nil {
 				return fmt.Errorf("failed to init runtime config from cluster: %w", err)
 			}
 

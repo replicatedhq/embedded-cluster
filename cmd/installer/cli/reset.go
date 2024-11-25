@@ -11,12 +11,12 @@ import (
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/etcd"
-	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -56,7 +56,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("reset command must be run as root")
 			}
 
-			cmdutil.InitBestRuntimeConfig(cmd.Context())
+			rcutil.InitBestRuntimeConfig(cmd.Context())
 
 			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())

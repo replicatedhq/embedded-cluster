@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +26,7 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cmdutil.InitRuntimeConfigFromCluster(ctx); err != nil {
+			if err := rcutil.InitRuntimeConfigFromCluster(ctx); err != nil {
 				return fmt.Errorf("failed to init runtime config from cluster: %w", err)
 			}
 
