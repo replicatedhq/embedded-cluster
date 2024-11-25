@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
 
@@ -40,6 +41,7 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 					return fmt.Errorf("unable to dump dry run info: %w", err)
 				}
 			}
+			runtimeconfig.Cleanup()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {

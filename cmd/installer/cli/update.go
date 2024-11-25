@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -25,18 +26,16 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("update command must be run as root")
 			}
 
+			if err := cmdutil.InitRuntimeConfigFromCluster(ctx); err != nil {
+				return fmt.Errorf("failed to init runtime config from cluster: %w", err)
+			}
+
+			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider, err := getProviderFromCluster(cmd.Context())
-			if err != nil {
-				return err
-			}
-			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
-
 			if airgapBundle != "" {
 				logrus.Debugf("checking airgap bundle matches binary")
 				if err := checkAirgapMatches(airgapBundle); err != nil {
@@ -52,9 +51,9 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("no channel release found")
 			}
 
-			if err := kotscli.AirgapUpdate(provider, kotscli.AirgapUpdateOptions{
+			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
 				AppSlug:      rel.AppSlug,
-				Namespace:    defaults.KotsadmNamespace,
+				Namespace:    runtimeconfig.KotsadmNamespace,
 				AirgapBundle: airgapBundle,
 			}); err != nil {
 				return err

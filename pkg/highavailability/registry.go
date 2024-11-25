@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +24,7 @@ func createRegistryResources(ctx context.Context, kcli client.Client, config *se
 		return fmt.Errorf("unable to create registry namespace: %w", err)
 	}
 
-	err = kubeutils.WaitForNamespace(ctx, kcli, defaults.RegistryNamespace)
+	err = kubeutils.WaitForNamespace(ctx, kcli, runtimeconfig.RegistryNamespace)
 	if err != nil {
 		return fmt.Errorf("wait for registry namespace: %w", err)
 	}
@@ -39,7 +39,7 @@ func createRegistryResources(ctx context.Context, kcli client.Client, config *se
 
 func ensureRegistryNamespace(ctx context.Context, cli client.Client) error {
 	obj := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.RegistryNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: runtimeconfig.RegistryNamespace},
 	}
 
 	err := cli.Create(ctx, obj)
@@ -58,7 +58,7 @@ func ensureRegistryS3Secret(ctx context.Context, cli client.Client, config *seaw
 	}
 
 	obj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: registryS3SecretName, Namespace: defaults.RegistryNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: registryS3SecretName, Namespace: runtimeconfig.RegistryNamespace},
 		Data: map[string][]byte{
 			"s3AccessKey": []byte(sfsCreds.AccessKey),
 			"s3SecretKey": []byte(sfsCreds.SecretKey),

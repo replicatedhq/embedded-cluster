@@ -5,17 +5,17 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
 
 // Install runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
-func Install(networkInterface string, provider *defaults.Provider) error {
-	ourbin := provider.PathToEmbeddedClusterBinary("k0s")
-	hstbin := defaults.K0sBinaryPath()
+func Install(networkInterface string) error {
+	ourbin := runtimeconfig.PathToEmbeddedClusterBinary("k0s")
+	hstbin := runtimeconfig.K0sBinaryPath()
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
@@ -24,7 +24,7 @@ func Install(networkInterface string, provider *defaults.Provider) error {
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(provider, nodeIP)...); err != nil {
+	if _, err := helpers.RunCommand(hstbin, config.InstallFlags(nodeIP)...); err != nil {
 		return fmt.Errorf("unable to install: %w", err)
 	}
 	if _, err := helpers.RunCommand(hstbin, "start"); err != nil {
@@ -36,7 +36,7 @@ func Install(networkInterface string, provider *defaults.Provider) error {
 // IsInstalled checks if the embedded cluster is already installed by looking for
 // the k0s configuration file existence.
 func IsInstalled(name string) (bool, error) {
-	cfgpath := defaults.PathToK0sConfig()
+	cfgpath := runtimeconfig.PathToK0sConfig()
 	_, err := os.Stat(cfgpath)
 	switch {
 	case err == nil:

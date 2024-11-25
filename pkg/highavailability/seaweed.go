@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
@@ -15,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 )
 
@@ -66,7 +66,7 @@ func createSeaweedfsResources(ctx context.Context, kcli client.Client, in *embed
 		return nil, fmt.Errorf("unable to create seaweedfs namespace: %w", err)
 	}
 
-	err = kubeutils.WaitForNamespace(ctx, kcli, defaults.SeaweedFSNamespace)
+	err = kubeutils.WaitForNamespace(ctx, kcli, runtimeconfig.SeaweedFSNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("wait for seaweedfs namespace: %w", err)
 	}
@@ -86,7 +86,7 @@ func createSeaweedfsResources(ctx context.Context, kcli client.Client, in *embed
 
 func ensureSeaweedfsNamespace(ctx context.Context, cli client.Client) error {
 	obj := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.SeaweedFSNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: runtimeconfig.SeaweedFSNamespace},
 	}
 
 	err := cli.Create(ctx, obj)
@@ -114,7 +114,7 @@ func ensureSeaweedfsS3Service(ctx context.Context, in *embeddedclusterv1beta1.In
 	}
 
 	obj := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SVCName, Namespace: defaults.SeaweedFSNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SVCName, Namespace: runtimeconfig.SeaweedFSNamespace},
 		Spec: corev1.ServiceSpec{
 			ClusterIP: clusterIP,
 			Ports: []corev1.ServicePort{
@@ -166,7 +166,7 @@ func ensureSeaweedFSS3Secret(ctx context.Context, cli client.Client) (*seaweedfs
 	}
 
 	obj := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SecretName, Namespace: defaults.SeaweedFSNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: seaweedfsS3SecretName, Namespace: runtimeconfig.SeaweedFSNamespace},
 		Data: map[string][]byte{
 			"seaweedfs_s3_config": configData,
 		},

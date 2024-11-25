@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -80,7 +80,7 @@ func combineNoProxySuppliedValuesAndDefaults(cmd *cobra.Command, proxy *ecv1beta
 	}
 	noProxy := strings.Split(proxy.ProvidedNoProxy, ",")
 	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
-		noProxy = append(defaults.DefaultNoProxy, noProxy...)
+		noProxy = append(runtimeconfig.DefaultNoProxy, noProxy...)
 		podnet, svcnet, err := determinePodAndServiceCIDRs(cmd)
 		if err != nil {
 			return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)

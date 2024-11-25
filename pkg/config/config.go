@@ -15,8 +15,8 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 const (
@@ -40,7 +40,7 @@ func ReadConfigFile(cfgPath string) (dig.Mapping, error) {
 func RenderK0sConfig() *k0sconfig.ClusterConfig {
 	cfg := k0sconfig.DefaultClusterConfig()
 	// Customize the default k0s configuration to our taste.
-	cfg.Name = defaults.BinaryName()
+	cfg.Name = runtimeconfig.BinaryName()
 	cfg.Spec.Konnectivity = nil
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
@@ -170,24 +170,24 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string) (*k0sconfig.C
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(provider *defaults.Provider, nodeIP string) []string {
+func InstallFlags(nodeIP string) []string {
 	flags := []string{
 		"install",
 		"controller",
 		"--labels", strings.Join(nodeLabels(), ","),
 		"--enable-worker",
 		"--no-taints",
-		"-c", defaults.PathToK0sConfig(),
+		"-c", runtimeconfig.PathToK0sConfig(),
 	}
-	flags = append(flags, AdditionalInstallFlags(provider, nodeIP)...)
+	flags = append(flags, AdditionalInstallFlags(nodeIP)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags
 }
 
-func AdditionalInstallFlags(provider *defaults.Provider, nodeIP string) []string {
+func AdditionalInstallFlags(nodeIP string) []string {
 	return []string{
 		"--kubelet-extra-args", fmt.Sprintf(`"--node-ip=%s"`, nodeIP),
-		"--data-dir", provider.EmbeddedClusterK0sSubDir(),
+		"--data-dir", runtimeconfig.EmbeddedClusterK0sSubDir(),
 	}
 }
 

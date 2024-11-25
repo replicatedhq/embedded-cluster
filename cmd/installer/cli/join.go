@@ -11,7 +11,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
@@ -20,6 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
@@ -79,16 +79,13 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
 
-			err = configutils.WriteRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
-			if err != nil {
+			runtimeconfig.Set(jcmd.InstallationSpec.RuntimeConfig)
+			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
+			if err := runtimeconfig.WriteToDisk(); err != nil {
 				return fmt.Errorf("unable to write runtime config: %w", err)
 			}
-
-			provider := defaults.NewProviderFromRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
-			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
 
 			// check to make sure the version returned by the join token is the same as the one we are running
 			if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
@@ -128,7 +125,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 			metrics.ReportJoinStarted(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID)
 			logrus.Debugf("materializing %s binaries", name)
-			if err := materializeFiles(airgapBundle, provider); err != nil {
+			if err := materializeFiles(airgapBundle); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
@@ -141,14 +138,14 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				privateCAs:   nil,
 				configValues: "",
 			}
-			applier, err := getAddonsApplier(cmd, opts, jcmd.InstallationSpec.RuntimeConfig, "", jcmd.InstallationSpec.Proxy)
+			applier, err := getAddonsApplier(cmd, opts, "", jcmd.InstallationSpec.Proxy)
 			if err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
 
 			logrus.Debugf("configuring sysctl")
-			if err := configutils.ConfigureSysctl(provider); err != nil {
+			if err := configutils.ConfigureSysctl(); err != nil {
 				return fmt.Errorf("unable to configure sysctl: %w", err)
 			}
 
@@ -168,8 +165,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 			// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
-			proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
+			proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
@@ -178,7 +175,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("configuring network manager")
-			if err := configureNetworkManager(cmd.Context(), provider); err != nil {
+			if err := configureNetworkManager(cmd.Context()); err != nil {
 				return fmt.Errorf("unable to configure network manager: %w", err)
 			}
 
@@ -190,7 +187,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("installing %s binaries", name)
-			if err := installK0sBinary(provider); err != nil {
+			if err := installK0sBinary(); err != nil {
 				err := fmt.Errorf("unable to install k0s binary: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
@@ -206,7 +203,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 			logrus.Debugf("creating systemd unit files")
 			// both controller and worker nodes will have 'worker' in the join command
-			if err := createSystemdUnitFiles(provider, !strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.InstallationSpec.Proxy); err != nil {
+			if err := createSystemdUnitFiles(!strings.Contains(jcmd.K0sJoinCommand, "controller"), jcmd.InstallationSpec.Proxy); err != nil {
 				err := fmt.Errorf("unable to create systemd unit files: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
@@ -226,7 +223,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("joining node to cluster")
-			if err := runK0sInstallCommand(cmd, provider, jcmd.K0sJoinCommand); err != nil {
+			if err := runK0sInstallCommand(cmd, jcmd.K0sJoinCommand); err != nil {
 				err := fmt.Errorf("unable to join node to cluster: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
@@ -307,9 +304,9 @@ func saveTokenToDisk(token string) error {
 }
 
 // installK0sBinary moves the embedded k0s binary to its destination.
-func installK0sBinary(provider *defaults.Provider) error {
-	ourbin := provider.PathToEmbeddedClusterBinary("k0s")
-	hstbin := defaults.K0sBinaryPath()
+func installK0sBinary() error {
+	ourbin := runtimeconfig.PathToEmbeddedClusterBinary("k0s")
+	hstbin := runtimeconfig.K0sBinaryPath()
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
 		return fmt.Errorf("unable to move k0s binary: %w", err)
 	}
@@ -318,7 +315,7 @@ func installK0sBinary(provider *defaults.Provider) error {
 
 // startK0sService starts the k0s service.
 func startK0sService() error {
-	if _, err := helpers.RunCommand(defaults.K0sBinaryPath(), "start"); err != nil {
+	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
 		return fmt.Errorf("unable to start: %w", err)
 	}
 	return nil
@@ -353,7 +350,7 @@ func applyNetworkConfiguration(cmd *cobra.Command, jcmd *JoinCommandResponse) er
 		if err != nil {
 			return fmt.Errorf("unable to marshal cluster spec: %w", err)
 		}
-		err = os.WriteFile(defaults.PathToK0sConfig(), clusterSpecYaml, 0644)
+		err = os.WriteFile(runtimeconfig.PathToK0sConfig(), clusterSpecYaml, 0644)
 		if err != nil {
 			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
 		}
@@ -396,7 +393,7 @@ func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
 		if data, err := yaml.Marshal(patch); err != nil {
 			return fmt.Errorf("unable to marshal embedded overrides: %w", err)
 		} else if err := patchK0sConfig(
-			defaults.PathToK0sConfig(), string(data),
+			runtimeconfig.PathToK0sConfig(), string(data),
 		); err != nil {
 			return fmt.Errorf("unable to patch config with embedded data: %w", err)
 		}
@@ -409,7 +406,7 @@ func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
 	if data, err := yaml.Marshal(patch); err != nil {
 		return fmt.Errorf("unable to marshal embedded overrides: %w", err)
 	} else if err := patchK0sConfig(
-		defaults.PathToK0sConfig(), string(data),
+		runtimeconfig.PathToK0sConfig(), string(data),
 	); err != nil {
 		return fmt.Errorf("unable to patch config with embedded data: %w", err)
 	}
@@ -422,7 +419,7 @@ func patchK0sConfig(path string, patch string) error {
 		return nil
 	}
 	finalcfg := k0sconfig.ClusterConfig{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.BinaryName()},
+		ObjectMeta: metav1.ObjectMeta{Name: runtimeconfig.BinaryName()},
 	}
 	if _, err := os.Stat(path); err == nil {
 		data, err := os.ReadFile(path)
@@ -468,7 +465,7 @@ func patchK0sConfig(path string, patch string) error {
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
 // adm api.
-func runK0sInstallCommand(cmd *cobra.Command, provider *defaults.Provider, fullcmd string) error {
+func runK0sInstallCommand(cmd *cobra.Command, fullcmd string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 
@@ -481,7 +478,7 @@ func runK0sInstallCommand(cmd *cobra.Command, provider *defaults.Provider, fullc
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
-	args = append(args, config.AdditionalInstallFlags(provider, nodeIP)...)
+	args = append(args, config.AdditionalInstallFlags(nodeIP)...)
 
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, config.AdditionalInstallFlagsController()...)

@@ -14,7 +14,7 @@ import (
 	"github.com/k0sproject/dig"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -22,15 +22,10 @@ import (
 )
 
 func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
-	runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
 	var (
-		airgapBundle            string
-		license                 string
-		noPrompt                bool
-		dataDir                 string
-		adminConsolePort        int
-		localArtifactMirrorPort int
+		airgapBundle string
+		license      string
+		noPrompt     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "run-preflights",
@@ -40,36 +35,6 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("run-preflights command must be run as root")
 			}
 
-			dataDirFlag, err := cmd.Flags().GetString("data-dir")
-			if err != nil {
-				return fmt.Errorf("unable to get data-dir flag: %w", err)
-			}
-			if dataDirFlag != "" {
-				runtimeConfig.DataDir = dataDirFlag
-			}
-
-			adminConsolePortFlag, err := cmd.Flags().GetInt("admin-console-port")
-			if err != nil {
-				return fmt.Errorf("unable to get admin-console-port flag: %w", err)
-			}
-			if adminConsolePortFlag != 0 {
-				runtimeConfig.AdminConsole.Port = adminConsolePortFlag
-			}
-
-			localArtifactMirrorPortFlag, err := cmd.Flags().GetInt("local-artifact-mirror-port")
-			if err != nil {
-				return fmt.Errorf("unable to get local-artifact-mirror-port flag: %w", err)
-			}
-
-			if localArtifactMirrorPortFlag != 0 && adminConsolePortFlag != 0 {
-				if localArtifactMirrorPortFlag == adminConsolePortFlag {
-					return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
-				}
-			}
-
-			if localArtifactMirrorPortFlag != 0 {
-				runtimeConfig.LocalArtifactMirror.Port = localArtifactMirrorPortFlag
-			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -83,10 +48,8 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
 
-			provider := defaults.NewProviderFromRuntimeConfig(jcmd.InstallationSpec.RuntimeConfig)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
+			runtimeconfig.Set(jcmd.InstallationSpec.RuntimeConfig)
+			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
 			// check to make sure the version returned by the join token is the same as the one we are running
 			if strings.TrimPrefix(jcmd.EmbeddedClusterVersion, "v") != strings.TrimPrefix(versions.Version, "v") {
@@ -112,11 +75,11 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				isAirgap = true
 			}
 			logrus.Debugf("materializing binaries")
-			if err := materializeFiles(airgapBundle, provider); err != nil {
+			if err := materializeFiles(airgapBundle); err != nil {
 				return err
 			}
 
-			if err := configutils.ConfigureSysctl(provider); err != nil {
+			if err := configutils.ConfigureSysctl(); err != nil {
 				return err
 			}
 
@@ -128,7 +91,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				privateCAs:   nil,
 				configValues: "",
 			}
-			applier, err := getAddonsApplier(cmd, opts, jcmd.InstallationSpec.RuntimeConfig, "", jcmd.InstallationSpec.Proxy)
+			applier, err := getAddonsApplier(cmd, opts, "", jcmd.InstallationSpec.Proxy)
 			if err != nil {
 				return err
 			}
@@ -140,8 +103,8 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 			logrus.Debugf("running host preflights")
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
-			proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
+			proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -159,10 +122,6 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.Flags().StringVarP(&license, "license", "l", "", "Path to the license file")
 	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts.")
-
-	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
-	cmd.Flags().IntVar(&adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
-	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 
 	return cmd
 }
