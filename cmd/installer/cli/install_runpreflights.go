@@ -453,7 +453,7 @@ func runHostPreflights(cmd *cobra.Command, provider *defaults.Provider, hpf *v1b
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
-				return fmt.Errorf("user aborted after host preflights failed")
+				return nil // user continued after host preflights failed
 			}
 		}
 
