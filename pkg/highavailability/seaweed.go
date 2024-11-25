@@ -9,7 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -202,7 +201,7 @@ func GetSeaweedfsS3Endpoint(serviceCIDR string) (string, error) {
 }
 
 func getSeaweedfsS3ServiceIP(serviceCIDR string) (string, error) {
-	ip, err := util.GetLowerBandIP(serviceCIDR, seaweedfsLowerBandIPIndex)
+	ip, err := helpers.GetLowerBandIP(serviceCIDR, seaweedfsLowerBandIPIndex)
 	if err != nil {
 		return "", fmt.Errorf("get lower band ip at index %d: %w", seaweedfsLowerBandIPIndex, err)
 	}

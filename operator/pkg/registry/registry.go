@@ -3,7 +3,7 @@ package registry
 import (
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 const (
@@ -21,7 +21,7 @@ func RegistryNamespace() string {
 }
 
 func GetRegistryServiceIP(serviceCIDR string) (string, error) {
-	ip, err := util.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
+	ip, err := helpers.GetLowerBandIP(serviceCIDR, registryLowerBandIPIndex)
 	if err != nil {
 		return "", fmt.Errorf("get lower band ip at index %d: %w", registryLowerBandIPIndex, err)
 	}
