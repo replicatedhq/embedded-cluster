@@ -188,7 +188,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if !isAirgap {
-				if err := maybePromptForAppUpdate(cmd.Context(), prompts.New(), license); err != nil {
+				if err := maybePromptForAppUpdate(cmd, prompts.New(), license); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
 						metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 						return err
@@ -359,7 +359,7 @@ func checkAirgapMatches(airgapBundle string) error {
 // maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
 // channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License) error {
+func maybePromptForAppUpdate(cmd *cobra.Command, prompt prompts.Prompt, license *kotsv1beta1.License) error {
 	channelRelease, err := release.GetChannelRelease()
 	if err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
@@ -375,7 +375,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 
 	logrus.Debugf("Checking for pending app releases")
 
-	currentRelease, err := getCurrentAppChannelRelease(ctx, license, channelRelease.ChannelID)
+	currentRelease, err := getCurrentAppChannelRelease(cmd.Context(), license, channelRelease.ChannelID)
 	if err != nil {
 		return fmt.Errorf("get current app channel release: %w", err)
 	}
@@ -398,8 +398,13 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 		channelRelease.ChannelSlug,
 	)
 
-	// if there is no terminal, we don't prompt the user and continue by default.
-	if !prompts.IsTerminal() {
+	noPromptFlag, err := cmd.Flags().GetBool("no-prompt")
+	if err != nil {
+		return fmt.Errorf("unable to get no-prompt flag: %w", err)
+	}
+
+	// if the no prompt flag is set, we don't prompt the user and continue by default.
+	if noPromptFlag {
 		return nil
 	}
 

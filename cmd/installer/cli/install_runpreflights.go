@@ -449,7 +449,6 @@ func runHostPreflights(cmd *cobra.Command, provider *defaults.Provider, hpf *v1b
 				return fmt.Errorf("unable to get no-prompt flag: %w", err)
 			}
 			if noPromptFlag {
-				logrus.Infof("Host preflights failed and were ignored, but the installation will continue.")
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
