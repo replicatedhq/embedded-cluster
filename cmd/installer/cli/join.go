@@ -176,7 +176,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 			proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
+			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR, assumeYes); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
