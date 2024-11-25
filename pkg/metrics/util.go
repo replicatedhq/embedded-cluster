@@ -46,7 +46,7 @@ func redactFlags(flags []string) []string {
 		if isFlagKey && strings.Contains(flag, "=") {
 
 			// Split the flag into key and value
-			flagParts := strings.Split(flag, "=")
+			flagParts := strings.SplitN(flag, "=", 2)
 			key := flagParts[0]
 			value := flagParts[1]
 
