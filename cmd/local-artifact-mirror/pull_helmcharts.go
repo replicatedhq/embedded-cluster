@@ -31,9 +31,6 @@ func PullHelmChartsCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 			}
 			return nil
 		},
-		PostRun: func(cmd *cobra.Command, args []string) {
-			runtimeconfig.Cleanup()
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			v := viper.GetViper()
 
