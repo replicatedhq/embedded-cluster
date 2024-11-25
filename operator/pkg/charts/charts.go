@@ -15,16 +15,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	DefaultVendorChartOrder = 10
 )
 
 // K0sHelmExtensionsFromInstallation returns the HelmExtensions object for the given installation,
@@ -78,7 +75,7 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 		combinedConfigs.Charts = append(combinedConfigs.Charts, in.Spec.Config.Extensions.Helm.Charts...)
 		for k := range combinedConfigs.Charts {
 			if combinedConfigs.Charts[k].Order == 0 {
-				combinedConfigs.Charts[k].Order = DefaultVendorChartOrder
+				combinedConfigs.Charts[k].Order = config.DefaultVendorChartOrder
 			}
 		}
 
