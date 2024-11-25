@@ -37,6 +37,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		networkInterface        string
 		noPrompt                bool
 		skipHostPreflights      bool
+		ignoreHostPreflights    bool
 	)
 
 	cmd := &cobra.Command{
@@ -46,6 +47,9 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("join command must be run as root")
+			}
+			if skipHostPreflights {
+				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
 			}
 
 			return nil
@@ -287,7 +291,9 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts.")
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
+	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().MarkHidden("skip-host-preflights")
+	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 
 	cmd.AddCommand(JoinRunPreflightsCmd(ctx, name))
 

@@ -49,6 +49,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		privateCAs           []string
 		configValues         string
 		skipHostPreflights   bool
+		ignoreHostPreflights bool
 
 		proxy *ecv1beta1.ProxySpec
 	)
@@ -155,7 +156,9 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
+	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().MarkHidden("skip-host-preflights")
+	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 
 	addProxyFlags(cmd)
 	addCIDRFlags(cmd)
@@ -436,6 +439,30 @@ func runHostPreflights(cmd *cobra.Command, provider *defaults.Provider, hpf *v1b
 
 		pb.CloseWithError()
 		output.PrintTableWithoutInfo()
+		ignoreHostPreflightsFlag, err := cmd.Flags().GetBool("ignore-host-preflights")
+		if err != nil {
+			return fmt.Errorf("unable to get ignore-host-preflights flag: %w", err)
+		}
+		if ignoreHostPreflightsFlag {
+			noPromptFlag, err := cmd.Flags().GetBool("no-prompt")
+			if err != nil {
+				return fmt.Errorf("unable to get no-prompt flag: %w", err)
+			}
+			if noPromptFlag {
+				logrus.Infof("Host preflights failed and were ignored, but the installation will continue.")
+				return nil
+			}
+			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
+				return nil // user continued after host preflights failed
+			}
+		}
+
+		if len(output.Fail)+len(output.Warn) > 1 {
+			logrus.Info("Please address these issues and try again.")
+		} else {
+			logrus.Info("Please address this issue and try again.")
+		}
+
 		return ErrPreflightsHaveFail
 	}
 

@@ -88,6 +88,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		networkInterface        string
 		noPrompt                bool
 		skipHostPreflights      bool
+		ignoreHostPreflights    bool
 		skipStoreValidation     bool
 
 		proxy *ecv1beta1.ProxySpec
@@ -99,6 +100,9 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("restore command must be run as root")
+			}
+			if skipHostPreflights {
+				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
 			}
 
 			var err error
@@ -482,7 +486,9 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Local artifact mirror port")
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts. The Admin Console password will be set to password.")
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended.")
+	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().MarkHidden("skip-host-preflights")
+	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 	cmd.Flags().BoolVar(&skipStoreValidation, "skip-store-validation", false, "Skip validation of the backup storage location")
 	cmd.Flags().String("overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 
