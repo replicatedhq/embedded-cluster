@@ -35,7 +35,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		airgapBundle            string
 		enabledHighAvailability bool
 		networkInterface        string
-		noPrompt                bool
+		assumeYes               bool
+		noPrompt                bool // deprecated
 		skipHostPreflights      bool
 		ignoreHostPreflights    bool
 	)
@@ -64,12 +65,14 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return ErrNothingElseToAdd
 			}
 
+			assumeYes = assumeYes || noPrompt
+
 			channelRelease, err := release.GetChannelRelease()
 			if err != nil {
 				return fmt.Errorf("unable to read channel release data: %w", err)
 			}
 
-			if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
+			if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !assumeYes {
 				logrus.Infof("You downloaded an air gap bundle but are performing an online join.")
 				logrus.Infof("To do an air gap join, pass the air gap bundle with --airgap-bundle.")
 				if !prompts.New().Confirm("Do you want to proceed with an online join?", false) {
@@ -138,7 +141,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			opts := addonsApplierOpts{
-				noPrompt:     noPrompt,
+				assumeYes:    assumeYes,
 				license:      "",
 				airgapBundle: airgapBundle,
 				overrides:    "",
@@ -290,7 +293,9 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().MarkHidden("enable-ha")
 
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts.")
+	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
+	cmd.Flags().MarkHidden("no-prompt")
+	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
 	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")

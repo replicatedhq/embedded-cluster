@@ -27,7 +27,8 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var (
 		airgapBundle            string
 		license                 string
-		noPrompt                bool
+		noPrompt                bool // deprecated
+		assumeYes               bool
 		dataDir                 string
 		adminConsolePort        int
 		localArtifactMirrorPort int
@@ -77,6 +78,8 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("usage: %s join preflights <url> <token>", name)
 			}
 
+			assumeYes = assumeYes || noPrompt
+
 			logrus.Debugf("fetching join token remotely")
 			jcmd, err := getJoinToken(cmd.Context(), args[0], args[1])
 			if err != nil {
@@ -121,7 +124,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			opts := addonsApplierOpts{
-				noPrompt:     noPrompt,
+				assumeYes:    assumeYes,
 				license:      "",
 				airgapBundle: airgapBundle,
 				overrides:    "",
@@ -141,7 +144,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			logrus.Debugf("running host preflights")
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 			proxyRegistryURL := fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
+			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR, assumeYes); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -158,7 +161,9 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().MarkHidden("airgap-bundle")
 
 	cmd.Flags().StringVarP(&license, "license", "l", "", "Path to the license file")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts.")
+	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
+	cmd.Flags().MarkHidden("no-prompt")
+	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 
 	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")

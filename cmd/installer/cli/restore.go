@@ -86,7 +86,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		dataDir                 string
 		localArtifactMirrorPort int
 		networkInterface        string
-		noPrompt                bool
+		noPrompt                bool // deprecated
+		assumeYes               bool
 		skipHostPreflights      bool
 		ignoreHostPreflights    bool
 		skipStoreValidation     bool
@@ -145,6 +146,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
+			assumeYes = assumeYes || noPrompt
+
 			err := configutils.WriteRuntimeConfig(runtimeConfig)
 			if err != nil {
 				return fmt.Errorf("unable to write runtime config: %w", err)
@@ -152,7 +155,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 			if channelRelease, err := release.GetChannelRelease(); err != nil {
 				return fmt.Errorf("unable to read channel release data: %w", err)
-			} else if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
+			} else if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !assumeYes {
 				logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
 				logrus.Warnf("If you continue, the restore will not use an air gap bundle and will connect to the internet.")
 				if !prompts.New().Confirm("Are you sure you want to restore without an air gap bundle?", false) {
@@ -223,7 +226,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			defer tryRemoveTmpDirContents(provider)
 
 			opts := addonsApplierOpts{
-				noPrompt:     noPrompt,
+				assumeYes:    assumeYes,
 				license:      "",
 				airgapBundle: airgapBundle,
 				overrides:    "",
@@ -274,7 +277,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				}
 
 				logrus.Debugf("running host preflights")
-				if err := RunHostPreflightsForRestore(cmd, provider, applier, proxy); err != nil {
+				if err := RunHostPreflightsForRestore(cmd, provider, applier, proxy, assumeYes); err != nil {
 					return fmt.Errorf("unable to finish preflight checks: %w", err)
 				}
 
@@ -485,7 +488,9 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Local artifact mirror port")
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts. The Admin Console password will be set to password.")
+	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
+	cmd.Flags().MarkHidden("no-prompt")
+	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
 	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
@@ -717,13 +722,13 @@ func validateS3BackupStore(s *s3BackupStore) error {
 // RunHostPreflightsForRestore runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts for restore operations.
-func RunHostPreflightsForRestore(cmd *cobra.Command, provider *defaults.Provider, applier *addons.Applier, proxy *ecv1beta1.ProxySpec) error {
+func RunHostPreflightsForRestore(cmd *cobra.Command, provider *defaults.Provider, applier *addons.Applier, proxy *ecv1beta1.ProxySpec, assumeYes bool) error {
 	hpf, err := applier.HostPreflightsForRestore()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
-	return runHostPreflights(cmd, provider, hpf, proxy)
+	return runHostPreflights(cmd, provider, hpf, proxy, assumeYes)
 }
 
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.

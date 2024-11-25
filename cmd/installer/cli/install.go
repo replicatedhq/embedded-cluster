@@ -49,7 +49,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		licenseFile             string
 		localArtifactMirrorPort int
 		networkInterface        string
-		noPrompt                bool
+		noPrompt                bool // deprecated
+		assumeYes               bool
 		overrides               string
 		privateCAs              []string
 		skipHostPreflights      bool
@@ -129,6 +130,8 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 			defer tryRemoveTmpDirContents(provider)
 
+			assumeYes = assumeYes || noPrompt
+
 			var err error
 			err = configutils.WriteRuntimeConfig(runtimeConfig)
 			if err != nil {
@@ -149,7 +152,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to read channel release data: %w", err)
 			}
 
-			if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !noPrompt {
+			if channelRelease != nil && channelRelease.Airgap && airgapBundle == "" && !assumeYes {
 				logrus.Warnf("You downloaded an air gap bundle but didn't provide it with --airgap-bundle.")
 				logrus.Warnf("If you continue, the installation will not use an air gap bundle and will connect to the internet.")
 				if !prompts.New().Confirm("Do you want to proceed with an online installation?", false) {
@@ -188,7 +191,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if !isAirgap {
-				if err := maybePromptForAppUpdate(cmd, prompts.New(), license); err != nil {
+				if err := maybePromptForAppUpdate(cmd, prompts.New(), license, assumeYes); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
 						metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 						return err
@@ -204,7 +207,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			adminConsolePwd, err := maybeAskAdminConsolePassword(cmd)
+			adminConsolePwd, err := maybeAskAdminConsolePassword(cmd, assumeYes)
 			if err != nil {
 				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 				return err
@@ -217,7 +220,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			opts := addonsApplierOpts{
-				noPrompt:     noPrompt,
+				assumeYes:    assumeYes,
 				license:      licenseFile,
 				airgapBundle: airgapBundle,
 				overrides:    overrides,
@@ -271,7 +274,9 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringVar(&licenseFile, "license", "", "Path to the license file")
 	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts.")
+	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
+	cmd.Flags().MarkHidden("no-prompt")
+	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().StringVar(&overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	cmd.Flags().MarkHidden("overrides")
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
@@ -359,7 +364,7 @@ func checkAirgapMatches(airgapBundle string) error {
 // maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
 // channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(cmd *cobra.Command, prompt prompts.Prompt, license *kotsv1beta1.License) error {
+func maybePromptForAppUpdate(cmd *cobra.Command, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool) error {
 	channelRelease, err := release.GetChannelRelease()
 	if err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
@@ -398,13 +403,8 @@ func maybePromptForAppUpdate(cmd *cobra.Command, prompt prompts.Prompt, license 
 		channelRelease.ChannelSlug,
 	)
 
-	noPromptFlag, err := cmd.Flags().GetBool("no-prompt")
-	if err != nil {
-		return fmt.Errorf("unable to get no-prompt flag: %w", err)
-	}
-
-	// if the no prompt flag is set, we don't prompt the user and continue by default.
-	if noPromptFlag {
+	// if the assumeYes flag is set, we don't prompt the user and continue by default.
+	if assumeYes {
 		return nil
 	}
 
@@ -418,7 +418,7 @@ func maybePromptForAppUpdate(cmd *cobra.Command, prompt prompts.Prompt, license 
 	return nil
 }
 
-func maybeAskAdminConsolePassword(cmd *cobra.Command) (string, error) {
+func maybeAskAdminConsolePassword(cmd *cobra.Command, assumeYes bool) (string, error) {
 	defaultPassword := "password"
 
 	adminConsolePasswordFlag, err := cmd.Flags().GetString("admin-console-password")
@@ -434,13 +434,8 @@ func maybeAskAdminConsolePassword(cmd *cobra.Command) (string, error) {
 		}
 		return userProvidedPassword, nil
 	}
-	// No user provided password but prompt is disabled so we set our default password
-
-	noPromptFlag, err := cmd.Flags().GetBool("no-prompt")
-	if err != nil {
-		return "", fmt.Errorf("unable to get no-prompt flag: %w", err)
-	}
-	if noPromptFlag {
+	if assumeYes {
+		// No user provided password but prompt is disabled so we set our default password
 		logrus.Infof("The Admin Console password is set to %s", defaultPassword)
 		return defaultPassword, nil
 	}

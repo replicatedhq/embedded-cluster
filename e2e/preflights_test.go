@@ -37,7 +37,7 @@ func TestPreflights(t *testing.T) {
 		t.Fatalf("failed to start netcat: err=%v, stderr=%s", err, stderr)
 	}
 
-	runCmd := []string{"embedded-cluster install run-preflights --no-prompt --license /assets/license.yaml"}
+	runCmd := []string{"embedded-cluster install run-preflights --yes --license /assets/license.yaml"}
 
 	// we are more interested in the results
 	runStdout, runStderr, runErr := tc.RunCommandOnNode(0, runCmd)
