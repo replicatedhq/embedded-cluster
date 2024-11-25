@@ -33,7 +33,6 @@ func InitBestRuntimeConfig(ctx context.Context) {
 	}
 
 	// If we can't find a runtime config, keep the default
-	return
 }
 
 // InitRuntimeConfigFromCluster discovers the runtime config from the installation object. If there is no
