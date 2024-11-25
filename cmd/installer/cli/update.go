@@ -35,6 +35,9 @@ func UpdateCmd(ctx context.Context, name string) *cobra.Command {
 
 			return nil
 		},
+		PostRun: func(cmd *cobra.Command, args []string) {
+			runtimeconfig.Cleanup()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if airgapBundle != "" {
 				logrus.Debugf("checking airgap bundle matches binary")

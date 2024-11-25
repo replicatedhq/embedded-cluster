@@ -16,6 +16,9 @@ var (
 )
 
 func Set(rc *ecv1beta1.RuntimeConfigSpec) {
+	if rc == nil {
+		return
+	}
 	runtimeConfig = rc
 }
 

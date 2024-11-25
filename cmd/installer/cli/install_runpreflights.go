@@ -77,6 +77,9 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 			return nil
 		},
+		PostRun: func(cmd *cobra.Command, args []string) {
+			runtimeconfig.Cleanup()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {

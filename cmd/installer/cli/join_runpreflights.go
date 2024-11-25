@@ -37,6 +37,9 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 			return nil
 		},
+		PostRun: func(cmd *cobra.Command, args []string) {
+			runtimeconfig.Cleanup()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 2 {
 				return fmt.Errorf("usage: %s join preflights <url> <token>", name)

@@ -31,6 +31,9 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 
 			return nil
 		},
+		PostRun: func(cmd *cobra.Command, args []string) {
+			runtimeconfig.Cleanup()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			supportBundle := runtimeconfig.PathToEmbeddedClusterBinary("kubectl-support_bundle")
 			if _, err := os.Stat(supportBundle); err != nil {

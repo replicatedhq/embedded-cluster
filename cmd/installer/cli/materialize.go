@@ -29,6 +29,9 @@ func MaterializeCmd(ctx context.Context, name string) *cobra.Command {
 
 			return nil
 		},
+		PostRun: func(cmd *cobra.Command, args []string) {
+			runtimeconfig.Cleanup()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			materializer := goods.NewMaterializer()
 			if err := materializer.Materialize(); err != nil {
