@@ -31,7 +31,7 @@ func StartSocketServer(ctx context.Context) error {
 }
 
 func GetSocketPath() (string, error) {
-	// use tmp as it's only needed if the service is running
+	// use tmp (in the EC data dir) as it's only needed if the service is running
 	tmpDir := os.TempDir()
 	socketPath := filepath.Join(tmpDir, "ec.sock")
 
