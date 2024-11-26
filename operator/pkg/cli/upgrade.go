@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -42,6 +43,9 @@ func UpgradeCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
+
+			// set the runtime config from the installation spec
+			runtimeconfig.Set(in.Spec.RuntimeConfig)
 
 			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
 

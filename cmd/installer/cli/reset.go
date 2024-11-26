@@ -11,11 +11,12 @@ import (
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	"github.com/k0sproject/k0s/pkg/etcd"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -55,14 +56,15 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("reset command must be run as root")
 			}
 
+			rcutil.InitBestRuntimeConfig(cmd.Context())
+
+			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider := discoverBestProvider(cmd.Context())
-			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			if err := maybePrintHAWarning(cmd.Context(), provider); err != nil && !force {
+			if err := maybePrintHAWarning(cmd.Context()); err != nil && !force {
 				return err
 			}
 
@@ -133,12 +135,12 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 
 			// reset
 			logrus.Infof("Resetting node...")
-			err = stopAndResetK0s(provider.EmbeddedClusterK0sSubDir())
+			err = stopAndResetK0s(runtimeconfig.EmbeddedClusterK0sSubDir())
 			if !checkErrPrompt(assumeYes, force, err) {
 				return err
 			}
 
-			if err := helpers.RemoveAll(defaults.PathToK0sConfig()); err != nil {
+			if err := helpers.RemoveAll(runtimeconfig.PathToK0sConfig()); err != nil {
 				return fmt.Errorf("failed to remove k0s config: %w", err)
 			}
 
@@ -170,15 +172,15 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// Now that k0s is nested under the data directory, we see the following error in the
 			// dev environment because k0s is mounted in the docker container:
 			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
-			if err := helpers.RemoveAll(provider.EmbeddedClusterHomeDirectory()); err != nil {
+			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterHomeDirectory()); err != nil {
 				logrus.Debugf("Failed to remove embedded cluster directory: %v", err)
 			}
 
-			if err := helpers.RemoveAll(defaults.EmbeddedClusterLogsSubDir()); err != nil {
+			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterLogsSubDir()); err != nil {
 				return fmt.Errorf("failed to remove logs directory: %w", err)
 			}
 
-			if err := helpers.RemoveAll(defaults.PathToK0sContainerdConfig()); err != nil {
+			if err := helpers.RemoveAll(runtimeconfig.PathToK0sContainerdConfig()); err != nil {
 				return fmt.Errorf("failed to remove containerd config: %w", err)
 			}
 
@@ -186,7 +188,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to remove systemd unit file: %w", err)
 			}
 
-			if err := helpers.RemoveAll(provider.EmbeddedClusterOpenEBSLocalSubDir()); err != nil {
+			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir()); err != nil {
 				return fmt.Errorf("failed to remove openebs storage: %w", err)
 			}
 
@@ -198,7 +200,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to remove k0s binary: %w", err)
 			}
 
-			if err := helpers.RemoveAll(defaults.PathToECConfig()); err != nil {
+			if err := helpers.RemoveAll(runtimeconfig.PathToECConfig()); err != nil {
 				return fmt.Errorf("failed to remove embedded cluster data config: %w", err)
 			}
 
@@ -242,8 +244,8 @@ func checkErrPrompt(noPrompt bool, force bool, err error) bool {
 
 // maybePrintHAWarning prints a warning message when the user is running a reset a node
 // in a high availability cluster and there are only 3 control nodes.
-func maybePrintHAWarning(ctx context.Context, provider *defaults.Provider) error {
-	kubeconfig := provider.PathToKubeConfig()
+func maybePrintHAWarning(ctx context.Context) error {
+	kubeconfig := runtimeconfig.PathToKubeConfig()
 	if _, err := os.Stat(kubeconfig); err != nil {
 		return nil
 	}

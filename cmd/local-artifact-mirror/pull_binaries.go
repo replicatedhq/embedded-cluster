@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -45,8 +45,8 @@ func PullBinariesCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 				}
 			}
 
-			provider := defaults.NewProvider(dataDir)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+			runtimeconfig.SetDataDir(dataDir)
+			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
 			in, err := fetchAndValidateInstallation(ctx, args[0])
 			if err != nil {
@@ -75,7 +75,7 @@ func PullBinariesCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 
 			out := bytes.NewBuffer(nil)
 
-			materializeCmdArgs := []string{"materialize", "--data-dir", provider.EmbeddedClusterHomeDirectory()}
+			materializeCmdArgs := []string{"materialize", "--data-dir", runtimeconfig.EmbeddedClusterHomeDirectory()}
 			materializeCmd := exec.Command(namedBin, materializeCmdArgs...)
 			materializeCmd.Stdout = out
 			materializeCmd.Stderr = out

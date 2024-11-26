@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 const (
@@ -25,7 +25,7 @@ type Client struct {
 // kubeconfig and similar.
 func (k *Client) GetStatus(ctx context.Context) (*K0sStatus, error) {
 	if _, err := os.Stat(k0sBinPath); err != nil {
-		return nil, fmt.Errorf("%s does not seem to be installed on this node", defaults.BinaryName())
+		return nil, fmt.Errorf("%s does not seem to be installed on this node", runtimeconfig.BinaryName())
 	}
 
 	// get k0s status json

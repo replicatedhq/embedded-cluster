@@ -9,8 +9,8 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +28,7 @@ func VersionCmd(ctx context.Context, name string) *cobra.Command {
 			writer.AppendHeader(table.Row{"component", "version"})
 			channelRelease, err := release.GetChannelRelease()
 			if err == nil && channelRelease != nil {
-				writer.AppendRow(table.Row{defaults.BinaryName(), channelRelease.VersionLabel})
+				writer.AppendRow(table.Row{runtimeconfig.BinaryName(), channelRelease.VersionLabel})
 			}
 			writer.AppendRow(table.Row{"Installer", versions.Version})
 			writer.AppendRow(table.Row{"Kubernetes", versions.K0sVersion})

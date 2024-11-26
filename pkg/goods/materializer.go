@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 // PlaceHolder is a filename we use in some of the directories here so we can
@@ -14,14 +14,12 @@ import (
 const PlaceHolder = ".placeholder"
 
 // Materializer is an entity capable of materialize (write to disk) embedded assets.
-type Materializer struct {
-	def *defaults.Provider
-}
+type Materializer struct{}
 
 // NewMaterializer returns a new entity capable of materialize (write to disk) embedded
 // assets. Other operations on embedded assets are also available.
-func NewMaterializer(provider *defaults.Provider) *Materializer {
-	return &Materializer{def: provider}
+func NewMaterializer() *Materializer {
+	return &Materializer{}
 }
 
 // InternalBinary materializes an internal binary from inside internal/bins directory
@@ -114,7 +112,7 @@ func (m *Materializer) SupportFiles() error {
 		if err != nil {
 			return fmt.Errorf("unable to read asset: %w", err)
 		}
-		dstpath := m.def.PathToEmbeddedClusterSupportFile(entry.Name())
+		dstpath := runtimeconfig.PathToEmbeddedClusterSupportFile(entry.Name())
 		if err := os.WriteFile(dstpath, srcfile, 0644); err != nil {
 			return fmt.Errorf("unable to write file: %w", err)
 		}
@@ -154,7 +152,7 @@ func (m *Materializer) Binaries() error {
 			return fmt.Errorf("unable to read asset: %w", err)
 		}
 
-		dstpath := m.def.PathToEmbeddedClusterBinary(entry.Name())
+		dstpath := runtimeconfig.PathToEmbeddedClusterBinary(entry.Name())
 		if _, err := os.Stat(dstpath); err == nil {
 			tmp := fmt.Sprintf("%s.bkp", dstpath)
 			if err := os.Rename(dstpath, tmp); err != nil {
@@ -179,15 +177,15 @@ func (m *Materializer) Kubectl() error {
 	// k0s supports symlinking kubectl, which would be ideal, but it cannot be a symlink because
 	// local-artifact-mirror needs to serve the kubectl binary.
 	// https://github.com/k0sproject/k0s/blob/5d48d20767851fe8e299aacd3d5aae6fcfbeab37/main.go#L40
-	dstpath := m.def.PathToEmbeddedClusterBinary("kubectl")
+	dstpath := runtimeconfig.PathToEmbeddedClusterBinary("kubectl")
 	_ = os.RemoveAll(dstpath)
-	k0spath := defaults.K0sBinaryPath()
+	k0spath := runtimeconfig.K0sBinaryPath()
 	content := fmt.Sprintf(kubectlScript, k0spath)
 	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
 		return fmt.Errorf("write kubectl completion: %w", err)
 	}
 
-	dstpath = m.def.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
+	dstpath = runtimeconfig.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
 	_ = os.RemoveAll(dstpath)
 	contentBytes, err := completionAliasBash("kubectl", "k0s kubectl")
 	if err != nil {
@@ -209,7 +207,7 @@ func (m *Materializer) Ourselves() error {
 		return fmt.Errorf("unable to get our own executable path: %w", err)
 	}
 
-	dstpath := m.def.PathToEmbeddedClusterBinary(defaults.BinaryName())
+	dstpath := runtimeconfig.PathToEmbeddedClusterBinary(runtimeconfig.BinaryName())
 	if srcpath == dstpath {
 		return nil
 	}

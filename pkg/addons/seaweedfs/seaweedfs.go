@@ -16,10 +16,10 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
@@ -81,7 +81,7 @@ func (o *SeaweedFS) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the SeaweedFS chart.
-func (o *SeaweedFS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+func (o *SeaweedFS) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	if !o.isAirgap || !o.isHA {
 		return nil, nil, nil
 	}
@@ -97,12 +97,12 @@ func (o *SeaweedFS) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv
 
 	if !onlyDefaults {
 		var err error
-		dataPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "ssd")
+		dataPath := filepath.Join(runtimeconfig.EmbeddedClusterSeaweedfsSubDir(), "ssd")
 		helmValues, err = helm.SetValue(helmValues, "master.data.hostPathPrefix", dataPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values global.data.hostPathPrefix: %w", err)
 		}
-		logsPath := filepath.Join(provider.EmbeddedClusterSeaweedfsSubDir(), "storage")
+		logsPath := filepath.Join(runtimeconfig.EmbeddedClusterSeaweedfsSubDir(), "storage")
 		helmValues, err = helm.SetValue(helmValues, "master.logs.hostPathPrefix", logsPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values global.logs.hostPathPrefix: %w", err)
@@ -131,7 +131,7 @@ func (o *SeaweedFS) GetAdditionalImages() []string {
 }
 
 // Outro is executed after the cluster deployment.
-func (o *SeaweedFS) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (o *SeaweedFS) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	// SeaweedFS is applied by the operator
 	return nil
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func TestMaterializer_SysctlConfig(t *testing.T) {
-	m := NewMaterializer(nil)
+	m := NewMaterializer()
 
 	// happy path.
 	dstdir, err := os.MkdirTemp("", "embedded-cluster-test")

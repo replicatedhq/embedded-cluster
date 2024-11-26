@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +19,7 @@ func TestConfigureSysctl(t *testing.T) {
 		sysctlConfigPath = orig
 	}()
 
-	provider := defaults.NewProvider(basedir)
+	runtimeconfig.SetDataDir(basedir)
 
 	// happy path.
 	dstdir, err := os.MkdirTemp("", "embedded-cluster-test")
@@ -27,7 +27,7 @@ func TestConfigureSysctl(t *testing.T) {
 	defer os.RemoveAll(dstdir)
 
 	sysctlConfigPath = filepath.Join(dstdir, "sysctl.conf")
-	err = ConfigureSysctl(provider)
+	err = ConfigureSysctl()
 	assert.NoError(t, err)
 
 	// check that the file exists.

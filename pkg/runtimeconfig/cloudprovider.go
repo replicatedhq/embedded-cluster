@@ -1,4 +1,4 @@
-package defaults
+package runtimeconfig
 
 import (
 	"encoding/json"

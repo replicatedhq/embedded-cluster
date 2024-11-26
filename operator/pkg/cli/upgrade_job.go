@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +41,9 @@ func UpgradeJobCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
+
+			// set the runtime config from the installation spec
+			runtimeconfig.Set(in.Spec.RuntimeConfig)
 
 			fmt.Printf("Upgrading to installation %s (version %s)\n", in.Name, in.Spec.Config.Version)
 

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
 	"github.com/stretchr/testify/assert"
@@ -28,8 +28,8 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
 	addon := openebs.OpenEBS{}
-	provider := defaults.NewProvider("/custom")
-	charts, _, err := addon.GenerateHelmConfig(provider, nil, false)
+	runtimeconfig.SetDataDir("/custom")
+	charts, _, err := addon.GenerateHelmConfig(nil, false)
 	require.NoError(t, err, "failed to generate helm config")
 
 	chart := charts[0]
