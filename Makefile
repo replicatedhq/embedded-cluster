@@ -250,11 +250,14 @@ embedded-cluster:
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
 		./cmd/installer
 
+.PHONY: envtest
+envtest:
+	$(MAKE) -C operator manifests envtest
+
 .PHONY: unit-tests
-unit-tests:
+unit-tests: envtest
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	$(MAKE) -C operator manifests envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir ./operator/bin/ -p path)" \
 		go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
