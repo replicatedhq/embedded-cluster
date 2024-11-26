@@ -86,7 +86,6 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		dataDir                 string
 		localArtifactMirrorPort int
 		networkInterface        string
-		noPrompt                bool // deprecated
 		assumeYes               bool
 		skipHostPreflights      bool
 		ignoreHostPreflights    bool
@@ -145,8 +144,6 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			defer tryRemoveTmpDirContents(provider)
-
-			assumeYes = assumeYes || noPrompt
 
 			err := configutils.WriteRuntimeConfig(runtimeConfig)
 			if err != nil {
@@ -488,8 +485,6 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Local artifact mirror port")
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
-	cmd.Flags().MarkHidden("no-prompt")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
@@ -504,6 +499,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().String("service-cidr", k0sv1beta1.DefaultNetwork().ServiceCIDR, "IP address range for Services")
 	cmd.Flags().MarkHidden("service-cidr")
 	cmd.Flags().String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
 }

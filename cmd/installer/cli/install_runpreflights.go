@@ -42,7 +42,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var (
 		airgapBundle         string
 		licenseFile          string
-		noPrompt             bool // deprecated
 		assumeYes            bool
 		networkInterface     string
 		adminConsolePassword string
@@ -82,8 +81,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			assumeYes = assumeYes || noPrompt
 
 			defer tryRemoveTmpDirContents(provider)
 
@@ -149,8 +146,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.Flags().StringVarP(&licenseFile, "license", "l", "", "Path to the license file")
 
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
-	cmd.Flags().MarkHidden("no-prompt")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
@@ -168,6 +163,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 	addProxyFlags(cmd)
 	addCIDRFlags(cmd)
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
 }

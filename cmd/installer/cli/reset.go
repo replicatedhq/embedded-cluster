@@ -44,7 +44,6 @@ type hostInfo struct {
 func ResetCmd(ctx context.Context, name string) *cobra.Command {
 	var (
 		force     bool
-		noPrompt  bool // deprecated
 		assumeYes bool
 	)
 
@@ -62,8 +61,6 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			provider := discoverBestProvider(cmd.Context())
 			os.Setenv("KUBECONFIG", provider.PathToKubeConfig())
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			assumeYes = assumeYes || noPrompt
 
 			if err := maybePrintHAWarning(cmd.Context(), provider); err != nil && !force {
 				return err
@@ -218,9 +215,8 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&force, "force", false, "Ignore errors encountered when resetting the node (implies ---yes)")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
-	cmd.Flags().MarkHidden("no-prompt")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
 }

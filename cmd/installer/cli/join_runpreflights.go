@@ -27,7 +27,6 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var (
 		airgapBundle            string
 		license                 string
-		noPrompt                bool // deprecated
 		assumeYes               bool
 		dataDir                 string
 		adminConsolePort        int
@@ -77,8 +76,6 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			if len(args) != 2 {
 				return fmt.Errorf("usage: %s join preflights <url> <token>", name)
 			}
-
-			assumeYes = assumeYes || noPrompt
 
 			logrus.Debugf("fetching join token remotely")
 			jcmd, err := getJoinToken(cmd.Context(), args[0], args[1])
@@ -161,13 +158,12 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().MarkHidden("airgap-bundle")
 
 	cmd.Flags().StringVarP(&license, "license", "l", "", "Path to the license file")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
-	cmd.Flags().MarkHidden("no-prompt")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 
 	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
 }

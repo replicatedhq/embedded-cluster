@@ -35,6 +35,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -49,7 +50,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		licenseFile             string
 		localArtifactMirrorPort int
 		networkInterface        string
-		noPrompt                bool // deprecated
 		assumeYes               bool
 		overrides               string
 		privateCAs              []string
@@ -129,8 +129,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
 
 			defer tryRemoveTmpDirContents(provider)
-
-			assumeYes = assumeYes || noPrompt
 
 			var err error
 			err = configutils.WriteRuntimeConfig(runtimeConfig)
@@ -274,8 +272,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringVar(&licenseFile, "license", "", "Path to the license file")
 	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
-	cmd.Flags().MarkHidden("no-prompt")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().StringVar(&overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	cmd.Flags().MarkHidden("overrides")
@@ -287,6 +283,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 	addProxyFlags(cmd)
 	addCIDRFlags(cmd)
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	cmd.AddCommand(InstallRunPreflightsCmd(ctx, name))
 
@@ -923,4 +920,13 @@ func waitForK0s() error {
 		}
 		time.Sleep(2 * time.Second)
 	}
+}
+
+func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	switch name {
+	case "no-prompt":
+		name = "yes"
+		break
+	}
+	return pflag.NormalizedName(name)
 }

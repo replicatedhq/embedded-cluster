@@ -36,7 +36,6 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		enabledHighAvailability bool
 		networkInterface        string
 		assumeYes               bool
-		noPrompt                bool // deprecated
 		skipHostPreflights      bool
 		ignoreHostPreflights    bool
 	)
@@ -64,8 +63,6 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			if installed {
 				return ErrNothingElseToAdd
 			}
-
-			assumeYes = assumeYes || noPrompt
 
 			channelRelease, err := release.GetChannelRelease()
 			if err != nil {
@@ -293,12 +290,11 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().MarkHidden("enable-ha")
 
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Deprecated. Use --yes instead.")
-	cmd.Flags().MarkHidden("no-prompt")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
 	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	cmd.AddCommand(JoinRunPreflightsCmd(ctx, name))
 
