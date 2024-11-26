@@ -10,8 +10,8 @@ import (
 
 	gwebsocket "github.com/gorilla/websocket"
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,7 +33,7 @@ func attemptConnection(ctx context.Context) error {
 		return errors.Wrap(err, "create kube client")
 	}
 	var svc corev1.Service
-	if err := kcli.Get(ctx, types.NamespacedName{Name: "kotsadm", Namespace: defaults.KotsadmNamespace}, &svc); err != nil {
+	if err := kcli.Get(ctx, types.NamespacedName{Name: "kotsadm", Namespace: runtimeconfig.KotsadmNamespace}, &svc); err != nil {
 		return errors.Wrap(err, "get kotsadm service")
 	}
 	clusterIP := svc.Spec.ClusterIP
