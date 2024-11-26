@@ -43,6 +43,7 @@ require (
 	golang.org/x/term v0.26.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
+	gotest.tools v2.2.0+incompatible
 	helm.sh/helm/v3 v3.16.3
 	k8s.io/api v0.31.3
 	k8s.io/apimachinery v0.31.3
