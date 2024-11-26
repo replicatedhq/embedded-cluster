@@ -365,6 +365,10 @@ bin/installer:
 	@mkdir -p bin
 	go build -o bin/installer ./cmd/installer
 
+.PHONY: bin/manager
+bin/manager:
+	go build -o bin/manager ./cmd/manager
+
 # make test-embed channel=Unstable app=slackernews
 .PHONY: test-embed
 test-emded: export OS=linux
