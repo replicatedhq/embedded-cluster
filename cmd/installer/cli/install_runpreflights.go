@@ -12,13 +12,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -62,6 +62,8 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("run-preflights command must be run as root")
 			}
 
+			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
 			var err error
 			proxy, err = getProxySpecFromFlags(cmd)
 			if err != nil {
@@ -76,14 +78,10 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 			return nil
 		},
+		PostRun: func(cmd *cobra.Command, args []string) {
+			runtimeconfig.Cleanup()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runtimeConfig := ecv1beta1.GetDefaultRuntimeConfig()
-
-			provider := defaults.NewProviderFromRuntimeConfig(runtimeConfig)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
-
-			defer tryRemoveTmpDirContents(provider)
-
 			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {
 				return err
@@ -95,11 +93,11 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("materializing binaries")
-			if err := materializeFiles(airgapBundle, provider); err != nil {
+			if err := materializeFiles(airgapBundle); err != nil {
 				return err
 			}
 
-			if err := configutils.ConfigureSysctl(provider); err != nil {
+			if err := configutils.ConfigureSysctl(); err != nil {
 				return err
 			}
 
@@ -111,7 +109,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				privateCAs:   privateCAs,
 				configValues: configValues,
 			}
-			applier, err := getAddonsApplier(cmd, opts, runtimeConfig, "", proxy)
+			applier, err := getAddonsApplier(cmd, opts, "", proxy)
 			if err != nil {
 				return err
 			}
@@ -120,7 +118,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			var replicatedAPIURL, proxyRegistryURL string
 			if license != nil {
 				replicatedAPIURL = license.Spec.Endpoint
-				proxyRegistryURL = fmt.Sprintf("https://%s", defaults.ProxyRegistryAddress)
+				proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			}
 
 			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
@@ -128,7 +126,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
 
-			if err := RunHostPreflights(cmd, provider, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -164,13 +162,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	addCIDRFlags(cmd)
 
 	return cmd
-}
-
-func tryRemoveTmpDirContents(provider *defaults.Provider) {
-	err := helpers.RemoveAll(provider.EmbeddedClusterTmpSubDir())
-	if err != nil {
-		logrus.Debugf("failed to remove tmp dir contents: %v", err)
-	}
 }
 
 func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
@@ -228,16 +219,16 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 	return license, nil
 }
 
-func materializeFiles(airgapBundle string, provider *defaults.Provider) error {
+func materializeFiles(airgapBundle string) error {
 	mat := spinner.Start()
 	defer mat.Close()
 	mat.Infof("Materializing files")
 
-	materializer := goods.NewMaterializer(provider)
+	materializer := goods.NewMaterializer()
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("unable to materialize binaries: %w", err)
 	}
-	if err := support.MaterializeSupportBundleSpec(provider); err != nil {
+	if err := support.MaterializeSupportBundleSpec(); err != nil {
 		return fmt.Errorf("unable to materialize support bundle spec: %w", err)
 	}
 
@@ -251,7 +242,7 @@ func materializeFiles(airgapBundle string, provider *defaults.Provider) error {
 		}
 		defer rawfile.Close()
 
-		if err := airgap.MaterializeAirgap(provider, rawfile); err != nil {
+		if err := airgap.MaterializeAirgap(rawfile); err != nil {
 			err = fmt.Errorf("unable to materialize airgap files: %w", err)
 			return err
 		}
@@ -271,9 +262,8 @@ type addonsApplierOpts struct {
 	configValues string
 }
 
-func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, runtimeConfig *ecv1beta1.RuntimeConfigSpec, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
+func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
 	addonOpts := []addons.Option{}
-	addonOpts = append(addonOpts, addons.WithRuntimeConfig(runtimeConfig))
 
 	if opts.noPrompt {
 		addonOpts = append(addonOpts, addons.WithoutPrompt())
@@ -337,7 +327,7 @@ func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, runtimeConfig 
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(cmd *cobra.Command, provider *defaults.Provider, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, fromCIDR, toCIDR string) error {
+func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, fromCIDR, toCIDR string) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
@@ -349,11 +339,11 @@ func RunHostPreflights(cmd *cobra.Command, provider *defaults.Provider, applier 
 		ReplicatedAPIURL:        replicatedAPIURL,
 		ProxyRegistryURL:        proxyRegistryURL,
 		IsAirgap:                isAirgap,
-		AdminConsolePort:        provider.AdminConsolePort(),
-		LocalArtifactMirrorPort: provider.LocalArtifactMirrorPort(),
-		DataDir:                 provider.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              provider.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          provider.EmbeddedClusterOpenEBSLocalSubDir(),
+		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
+		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
+		DataDir:                 runtimeconfig.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:              runtimeconfig.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
 		PrivateCA:               privateCAs,
 		SystemArchitecture:      runtime.GOARCH,
 		FromCIDR:                fromCIDR,
@@ -386,10 +376,10 @@ func RunHostPreflights(cmd *cobra.Command, provider *defaults.Provider, applier 
 		return nil
 	}
 
-	return runHostPreflights(cmd, provider, hpf, proxy)
+	return runHostPreflights(cmd, hpf, proxy)
 }
 
-func runHostPreflights(cmd *cobra.Command, provider *defaults.Provider, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) error {
+func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -406,7 +396,7 @@ func runHostPreflights(cmd *cobra.Command, provider *defaults.Provider, hpf *v1b
 		return nil
 	}
 	pb.Infof("Running host preflights")
-	output, stderr, err := preflights.Run(cmd.Context(), provider, hpf, proxy)
+	output, stderr, err := preflights.Run(cmd.Context(), hpf, proxy)
 	if err != nil {
 		pb.CloseWithError()
 		return fmt.Errorf("host preflights failed to run: %w", err)
@@ -415,12 +405,12 @@ func runHostPreflights(cmd *cobra.Command, provider *defaults.Provider, hpf *v1b
 		logrus.Debugf("preflight stderr: %s", stderr)
 	}
 
-	err = output.SaveToDisk(provider.PathToEmbeddedClusterSupportFile("host-preflight-results.json"))
+	err = output.SaveToDisk(runtimeconfig.PathToEmbeddedClusterSupportFile("host-preflight-results.json"))
 	if err != nil {
 		logrus.Warnf("unable to save preflights output: %v", err)
 	}
 
-	err = preflights.CopyBundleToECSupportDir(provider)
+	err = preflights.CopyBundleToECSupportDir()
 	if err != nil {
 		logrus.Warnf("unable to copy preflight bundle to embedded-cluster support dir: %v", err)
 	}

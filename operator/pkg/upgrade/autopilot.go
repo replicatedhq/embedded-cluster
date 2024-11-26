@@ -11,7 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,8 +48,6 @@ func DetermineUpgradeTargets(ctx context.Context, cli client.Client) (apv1b2.Pla
 
 // StartAutopilotUpgrade creates an autopilot plan to upgrade to version specified in spec.config.version.
 func StartAutopilotUpgrade(ctx context.Context, cli client.Client, in *v1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
-	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
-
 	targets, err := DetermineUpgradeTargets(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("failed to determine upgrade targets: %w", err)
@@ -60,7 +58,7 @@ func StartAutopilotUpgrade(ctx context.Context, cli client.Client, in *v1beta1.I
 		// if we are running in an airgap environment all assets are already present in the
 		// node and are served by the local-artifact-mirror binary listening on localhost
 		// port 50000. we just need to get autopilot to fetch the k0s binary from there.
-		k0surl = fmt.Sprintf("http://127.0.0.1:%d/bin/k0s-upgrade", provider.LocalArtifactMirrorPort())
+		k0surl = fmt.Sprintf("http://127.0.0.1:%d/bin/k0s-upgrade", runtimeconfig.LocalArtifactMirrorPort())
 	} else {
 		artifact := meta.Artifacts["k0s"]
 		if strings.HasPrefix(artifact, "https://") || strings.HasPrefix(artifact, "http://") {

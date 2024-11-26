@@ -13,8 +13,8 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -58,14 +58,11 @@ func ServeCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 				dataDir = os.Getenv("LOCAL_ARTIFACT_MIRROR_DATA_DIR")
 			}
 
-			var provider *defaults.Provider
 			if v.Get("data-dir") != nil {
-				provider = defaults.NewProvider(v.GetString("data-dir"))
+				runtimeconfig.SetDataDir(v.GetString("data-dir"))
 			} else {
-				var err error
-				provider, err = cmdutil.NewProviderFromFilesystem()
-				if err != nil {
-					panic(fmt.Errorf("unable to get provider from filesystem: %w", err))
+				if err := rcutil.InitRuntimeConfigFromFilesystem(); err != nil {
+					panic(fmt.Errorf("unable to get runtime config from filesystem: %w", err))
 				}
 			}
 
@@ -74,16 +71,16 @@ func ServeCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 				port = ecv1beta1.DefaultLocalArtifactMirrorPort
 			}
 
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
-			fileServer := http.FileServer(http.Dir(provider.EmbeddedClusterHomeDirectory()))
+			fileServer := http.FileServer(http.Dir(runtimeconfig.EmbeddedClusterHomeDirectory()))
 			loggedFileServer := logAndFilterRequest(fileServer)
 			http.Handle("/", loggedFileServer)
 
 			stop := make(chan os.Signal, 1)
 			signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-			if err := startBinaryWatcher(provider, stop); err != nil {
+			if err := startBinaryWatcher(stop); err != nil {
 				panic(err)
 			}
 
@@ -120,8 +117,8 @@ func ServeCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 // startBinaryWatcher starts a loop that observes the binary until its modification
 // time changes. When the modification time changes a SIGTERM is send in the provided
 // channel.
-func startBinaryWatcher(provider *defaults.Provider, stop chan os.Signal) error {
-	fpath := provider.PathToEmbeddedClusterBinary("local-artifact-mirror")
+func startBinaryWatcher(stop chan os.Signal) error {
+	fpath := runtimeconfig.PathToEmbeddedClusterBinary("local-artifact-mirror")
 	stat, err := os.Stat(fpath)
 	if err != nil {
 		return fmt.Errorf("unable to stat %s: %s", fpath, err)

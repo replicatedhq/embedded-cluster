@@ -7,8 +7,10 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"time"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -24,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
@@ -87,7 +88,6 @@ func Render() {
 
 // AdminConsole manages the admin console helm chart installation.
 type AdminConsole struct {
-	provider         *defaults.Provider
 	namespace        string
 	password         string
 	licenseFile      string
@@ -121,7 +121,7 @@ func (a *AdminConsole) HostPreflights() (*v1beta2.HostPreflightSpec, error) {
 
 // GenerateHelmConfig generates the helm config for the adminconsole and writes the charts to
 // the disk.
-func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	if !onlyDefaults {
 		helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 		if a.airgapBundle != "" || a.isAirgap {
@@ -144,7 +144,7 @@ func (a *AdminConsole) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k
 		}
 
 		var err error
-		helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", a.provider.AdminConsolePort())
+		helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", runtimeconfig.AdminConsolePort())
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
 		}
@@ -185,7 +185,7 @@ func (a *AdminConsole) GetAdditionalImages() []string {
 }
 
 // Outro waits for the adminconsole to be ready.
-func (a *AdminConsole) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for the Admin Console to deploy")
 	defer loading.Close()
@@ -221,7 +221,7 @@ func (a *AdminConsole) Outro(ctx context.Context, provider *defaults.Provider, c
 			AirgapBundle:     a.airgapBundle,
 			ConfigValuesFile: a.configValuesFile,
 		}
-		if err := kotscli.Install(provider, installOpts, loading); err != nil {
+		if err := kotscli.Install(installOpts, loading); err != nil {
 			return err
 		}
 	}
@@ -233,7 +233,6 @@ func (a *AdminConsole) Outro(ctx context.Context, provider *defaults.Provider, c
 
 // New creates a new AdminConsole object.
 func New(
-	provider *defaults.Provider,
 	namespace string,
 	password string,
 	licenseFile string,
@@ -245,7 +244,6 @@ func New(
 	configValuesFile string,
 ) (*AdminConsole, error) {
 	return &AdminConsole{
-		provider:         provider,
 		namespace:        namespace,
 		password:         password,
 		licenseFile:      licenseFile,
@@ -295,7 +293,7 @@ func WaitForReady(ctx context.Context, cli client.Client, ns string, writer *spi
 
 // GetURL returns the URL to the admin console.
 func GetURL(networkInterface string, port int) string {
-	ipaddr := defaults.TryDiscoverPublicIP()
+	ipaddr := runtimeconfig.TryDiscoverPublicIP()
 	if ipaddr == "" {
 		var err error
 		ipaddr, err = netutils.FirstValidAddress(networkInterface)

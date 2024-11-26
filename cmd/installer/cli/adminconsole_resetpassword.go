@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	cmdutil "github.com/replicatedhq/embedded-cluster/pkg/cmd/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
-	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -29,9 +26,8 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			provider, err := getProviderFromCluster(cmd.Context())
-			if err != nil {
-				return err
+			if err := rcutil.InitRuntimeConfigFromCluster(ctx); err != nil {
+				return fmt.Errorf("failed to init runtime config from cluster: %w", err)
 			}
 
 			password := args[0]
@@ -39,7 +35,7 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 				return ErrNothingElseToAdd
 			}
 
-			if err := kotscli.ResetPassword(provider, password); err != nil {
+			if err := kotscli.ResetPassword(password); err != nil {
 				return err
 			}
 
@@ -49,28 +45,4 @@ func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Comma
 	}
 
 	return cmd
-}
-
-// getProviderFromCluster finds the kubeconfig and discovers the provider from the cluster. If this
-// is a prior version of EC, we will have to fall back to the filesystem.
-func getProviderFromCluster(ctx context.Context) (*defaults.Provider, error) {
-	status, err := k0s.GetStatus(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get k0s status: %w", err)
-	}
-	kubeconfigPath := status.Vars.AdminKubeConfigPath
-
-	os.Setenv("KUBECONFIG", kubeconfigPath)
-
-	// Discover the provider from the cluster
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("unable to create kube client: %w", err)
-	}
-
-	provider, err := cmdutil.NewProviderFromCluster(ctx, kcli)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get config from cluster: %w", err)
-	}
-	return provider, nil
 }

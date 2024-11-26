@@ -28,8 +28,8 @@ import (
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -558,8 +558,6 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 }
 
 func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string) *batchv1.Job {
-	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
-
 	labels := map[string]string{
 		"embedded-cluster/node-name":    nodeName,
 		"embedded-cluster/installation": in.Name,
@@ -570,7 +568,7 @@ func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string)
 
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = nodeName
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = provider.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "EC_NODE_NAME", Value: nodeName},
@@ -614,6 +612,9 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 	in := r.CoalesceInstallations(ctx, items)
+
+	// set the runtime config from the installation spec
+	runtimeconfig.Set(in.Spec.RuntimeConfig)
 
 	// if the embedded cluster version has changed we should not reconcile with the old version
 	versionChanged, err := r.needsUpgrade(ctx, in)

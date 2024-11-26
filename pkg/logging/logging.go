@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
 
@@ -74,7 +74,7 @@ func needsFileLogging() bool {
 
 // trimLogDir removes the oldest log files if we have more than MaxLogFiles.
 func trimLogDir() {
-	dir := defaults.EmbeddedClusterLogsSubDir()
+	dir := runtimeconfig.EmbeddedClusterLogsSubDir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -95,7 +95,7 @@ func trimLogDir() {
 		oldest = info.ModTime()
 		fname = file.Name()
 	}
-	os.Remove(defaults.PathToLog(fname))
+	os.Remove(runtimeconfig.PathToLog(fname))
 }
 
 // SetupLogging sets up the logging for the application. If the debug flag is set we print
@@ -107,8 +107,8 @@ func SetupLogging() {
 		return
 	}
 	logrus.SetLevel(logrus.DebugLevel)
-	fname := fmt.Sprintf("%s-%s.log", defaults.BinaryName(), time.Now().Format("20060102150405.000"))
-	logpath := defaults.PathToLog(fname)
+	fname := fmt.Sprintf("%s-%s.log", runtimeconfig.BinaryName(), time.Now().Format("20060102150405.000"))
+	logpath := runtimeconfig.PathToLog(fname)
 	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
 	if err != nil {
 		logrus.Warnf("unable to setup logging: %v", err)

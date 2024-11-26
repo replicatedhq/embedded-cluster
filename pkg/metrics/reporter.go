@@ -10,10 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -77,7 +77,7 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 		ClusterID:    ClusterID(),
 		Version:      versions.Version,
 		Flags:        strings.Join(redactFlags(os.Args[1:]), " "),
-		BinaryName:   defaults.BinaryName(),
+		BinaryName:   runtimeconfig.BinaryName(),
 		Type:         "centralized",
 		LicenseID:    LicenseID(license),
 		AppChannelID: appChannel,

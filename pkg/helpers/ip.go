@@ -6,6 +6,7 @@ import (
 	"net"
 )
 
+// https://kubernetes.io/docs/concepts/services-networking/cluster-ip-allocation/#avoid-ClusterIP-conflict
 func GetLowerBandIP(cidr string, index int) (net.IP, error) {
 	_, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
