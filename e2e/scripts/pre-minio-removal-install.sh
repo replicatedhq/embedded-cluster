@@ -65,12 +65,12 @@ check_openebs_storage_class() {
 main() {
     local app_deploy_method="$1"
 
-    if embedded-cluster install --yes 2>&1 | tee /tmp/log ; then
+    if embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail without a license provided"
         exit 1
     fi
 
-    if ! embedded-cluster install --yes --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --no-prompt --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         exit 1
     fi
