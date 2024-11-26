@@ -24,8 +24,8 @@ import (
 func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var (
 		airgapBundle string
+		assumeYes    bool
 		license      string
-		noPrompt     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "run-preflights",
@@ -87,7 +87,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			opts := addonsApplierOpts{
-				noPrompt:     noPrompt,
+				assumeYes:    assumeYes,
 				license:      "",
 				airgapBundle: airgapBundle,
 				overrides:    "",
@@ -107,7 +107,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			logrus.Debugf("running host preflights")
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 			proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR, assumeYes); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -124,7 +124,8 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().MarkHidden("airgap-bundle")
 
 	cmd.Flags().StringVarP(&license, "license", "l", "", "Path to the license file")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts.")
+	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
 }

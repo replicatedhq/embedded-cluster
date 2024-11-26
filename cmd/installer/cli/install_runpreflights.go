@@ -42,7 +42,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var (
 		airgapBundle         string
 		licenseFile          string
-		noPrompt             bool
+		assumeYes            bool
 		networkInterface     string
 		adminConsolePassword string
 		overrides            string
@@ -102,7 +102,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			opts := addonsApplierOpts{
-				noPrompt:     noPrompt,
+				assumeYes:    assumeYes,
 				license:      "",
 				airgapBundle: airgapBundle,
 				overrides:    overrides,
@@ -126,7 +126,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
 
-			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR, assumeYes); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -144,7 +144,8 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.Flags().StringVarP(&licenseFile, "license", "l", "", "Path to the license file")
 
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts.")
+	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
+
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
 	cmd.Flags().StringVar(&adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
 
@@ -160,6 +161,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 	addProxyFlags(cmd)
 	addCIDRFlags(cmd)
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
 }
@@ -254,7 +256,7 @@ func materializeFiles(airgapBundle string) error {
 }
 
 type addonsApplierOpts struct {
-	noPrompt     bool
+	assumeYes    bool
 	license      string
 	airgapBundle string
 	overrides    string
@@ -265,7 +267,7 @@ type addonsApplierOpts struct {
 func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, adminConsolePwd string, proxy *ecv1beta1.ProxySpec) (*addons.Applier, error) {
 	addonOpts := []addons.Option{}
 
-	if opts.noPrompt {
+	if opts.assumeYes {
 		addonOpts = append(addonOpts, addons.WithoutPrompt())
 	}
 
@@ -327,7 +329,7 @@ func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, adminConsolePw
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, fromCIDR, toCIDR string) error {
+func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, fromCIDR, toCIDR string, assumeYes bool) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
@@ -376,10 +378,10 @@ func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAP
 		return nil
 	}
 
-	return runHostPreflights(cmd, hpf, proxy)
+	return runHostPreflights(cmd, hpf, proxy, assumeYes)
 }
 
-func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) error {
+func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, assumeYes bool) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -434,12 +436,7 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			return fmt.Errorf("unable to get ignore-host-preflights flag: %w", err)
 		}
 		if ignoreHostPreflightsFlag {
-			noPromptFlag, err := cmd.Flags().GetBool("no-prompt")
-			if err != nil {
-				return fmt.Errorf("unable to get no-prompt flag: %w", err)
-			}
-			if noPromptFlag {
-				logrus.Infof("Host preflights failed and were ignored, but the installation will continue.")
+			if assumeYes {
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
@@ -463,12 +460,7 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			s = "preflight"
 		}
 		pb.Warnf("%d host %s warned", len(output.Warn), s)
-
-		noPromptFlag, err := cmd.Flags().GetBool("no-prompt")
-		if err != nil {
-			return fmt.Errorf("unable to get no-prompt flag: %w", err)
-		}
-		if noPromptFlag {
+		if assumeYes {
 			// We have warnings but we are not in interactive mode
 			// so we just print the warnings and continue
 			pb.Close()

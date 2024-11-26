@@ -49,7 +49,7 @@ func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 	if err := runInstallerCmd(
 		append([]string{
 			"install",
-			"--no-prompt",
+			"--yes",
 			"--license", licenseFile,
 		}, args...)...,
 	); err != nil {

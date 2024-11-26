@@ -44,8 +44,8 @@ type hostInfo struct {
 
 func ResetCmd(ctx context.Context, name string) *cobra.Command {
 	var (
-		force    bool
-		noPrompt bool
+		force     bool
+		assumeYes bool
 	)
 
 	cmd := &cobra.Command{
@@ -70,20 +70,20 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 
 			logrus.Info("This will remove this node from the cluster and completely reset it, removing all data stored on the node.")
 			logrus.Info("This node will also reboot. Do not reset another node until this is complete.")
-			if !force && !noPrompt && !prompts.New().Confirm("Do you want to continue?", false) {
+			if !force && !assumeYes && !prompts.New().Confirm("Do you want to continue?", false) {
 				return fmt.Errorf("Aborting")
 			}
 
 			// populate options struct with host information
 			currentHost, err := newHostInfo(cmd.Context())
-			if !checkErrPrompt(noPrompt, force, err) {
+			if !checkErrPrompt(assumeYes, force, err) {
 				return err
 			}
 
 			// basic check to see if it's safe to remove this node from the cluster
 			if currentHost.Status.Role == "controller" {
 				safeToRemove, reason, err := currentHost.checkResetSafety(cmd)
-				if !checkErrPrompt(noPrompt, force, err) {
+				if !checkErrPrompt(assumeYes, force, err) {
 					return err
 				}
 				if !safeToRemove {
@@ -100,7 +100,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			if currentHost.Status.Role != "controller" || numControllerNodes != 1 {
 				logrus.Info("Draining node...")
 				err = currentHost.drainNode()
-				if !checkErrPrompt(noPrompt, force, err) {
+				if !checkErrPrompt(assumeYes, force, err) {
 					return err
 				}
 
@@ -109,7 +109,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				removeCtx, removeCancel := context.WithTimeout(cmd.Context(), time.Minute)
 				defer removeCancel()
 				err = currentHost.deleteNode(removeCtx)
-				if !checkErrPrompt(noPrompt, force, err) {
+				if !checkErrPrompt(assumeYes, force, err) {
 					return err
 				}
 
@@ -120,13 +120,13 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 					deleteControlCtx, deleteCancel := context.WithTimeout(cmd.Context(), time.Minute)
 					defer deleteCancel()
 					err := currentHost.deleteControlNode(deleteControlCtx)
-					if !checkErrPrompt(noPrompt, force, err) {
+					if !checkErrPrompt(assumeYes, force, err) {
 						return err
 					}
 
 					// try and leave etcd cluster
 					err = currentHost.leaveEtcdcluster()
-					if !checkErrPrompt(noPrompt, force, err) {
+					if !checkErrPrompt(assumeYes, force, err) {
 						return err
 					}
 
@@ -136,7 +136,7 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 			// reset
 			logrus.Infof("Resetting node...")
 			err = stopAndResetK0s(runtimeconfig.EmbeddedClusterK0sSubDir())
-			if !checkErrPrompt(noPrompt, force, err) {
+			if !checkErrPrompt(assumeYes, force, err) {
 				return err
 			}
 
@@ -216,8 +216,9 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&force, "force", false, "Ignore errors encountered when resetting the node (implies --no-prompt)")
-	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Disable interactive prompts. The Admin Console password will be set to password.")
+	cmd.Flags().BoolVar(&force, "force", false, "Ignore errors encountered when resetting the node (implies ---yes)")
+	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
+	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
 }

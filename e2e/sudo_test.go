@@ -29,7 +29,7 @@ func TestCommandsRequireSudo(t *testing.T) {
 		{"embedded-cluster", "reset", "--force"},
 		{"embedded-cluster", "node", "reset", "--force"},
 		{"embedded-cluster", "shell"},
-		{"embedded-cluster", "install", "--no-prompt"},
+		{"embedded-cluster", "install", "--yes"},
 		{"embedded-cluster", "restore"},
 	} {
 		t.Logf("%s: running %q as regular user", time.Now().Format(time.RFC3339), strings.Join(cmd, "_"))

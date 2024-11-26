@@ -94,7 +94,7 @@ func TestMultiNodeReset(t *testing.T) {
 	bin := strings.Split(command, " ")[0]
 	// reset worker node
 	t.Logf("%s: resetting worker node", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(3, []string{bin, "reset", "--no-prompt"})
+	stdout, stderr, err = tc.RunCommandOnNode(3, []string{bin, "reset", "--yes"})
 	if err != nil {
 		t.Fatalf("fail to reset worker node 3: %v: %s: %s", err, stdout, stderr)
 	}
@@ -102,7 +102,7 @@ func TestMultiNodeReset(t *testing.T) {
 	// reset a controller node
 	// this should fail with a prompt to override
 	t.Logf("%s: resetting controller node", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--no-prompt"})
+	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--yes"})
 	if err != nil {
 		t.Fatalf("fail to remove controller node 2: %v: %s: %s", err, stdout, stderr)
 	}
