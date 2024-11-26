@@ -191,7 +191,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if !isAirgap {
-				if err := maybePromptForAppUpdate(cmd, prompts.New(), license, assumeYes); err != nil {
+				if err := maybePromptForAppUpdate(cmd.Context(), prompts.New(), license, assumeYes); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
 						metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
 						return err
@@ -364,7 +364,7 @@ func checkAirgapMatches(airgapBundle string) error {
 // maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
 // channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(cmd *cobra.Command, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool) error {
+func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool) error {
 	channelRelease, err := release.GetChannelRelease()
 	if err != nil {
 		return fmt.Errorf("unable to get channel release: %w", err)
@@ -380,7 +380,7 @@ func maybePromptForAppUpdate(cmd *cobra.Command, prompt prompts.Prompt, license 
 
 	logrus.Debugf("Checking for pending app releases")
 
-	currentRelease, err := getCurrentAppChannelRelease(cmd.Context(), license, channelRelease.ChannelID)
+	currentRelease, err := getCurrentAppChannelRelease(ctx, license, channelRelease.ChannelID)
 	if err != nil {
 		return fmt.Errorf("get current app channel release: %w", err)
 	}
