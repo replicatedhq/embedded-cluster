@@ -902,7 +902,6 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	switch name {
 	case "no-prompt":
 		name = "yes"
-		break
 	}
 	return pflag.NormalizedName(name)
 }
