@@ -17,6 +17,7 @@ var (
 
 func Set(rc *ecv1beta1.RuntimeConfigSpec) {
 	if rc == nil {
+		// runtime config is nil in old installation objects so this keeps the default.
 		return
 	}
 	runtimeConfig = rc
