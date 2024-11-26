@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -378,10 +379,10 @@ func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAP
 		return nil
 	}
 
-	return runHostPreflights(cmd, hpf, proxy, assumeYes)
+	return runHostPreflights(cmd, hpf, proxy, assumeYes, replicatedAPIURL)
 }
 
-func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, assumeYes bool) error {
+func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, assumeYes bool, replicatedAPIURL string) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -437,9 +438,11 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		}
 		if ignoreHostPreflightsFlag {
 			if assumeYes {
+				metrics.ReportPreflightsBypassed(cmd.Context(), replicatedAPIURL, *output)
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
+				metrics.ReportPreflightsBypassed(cmd.Context(), replicatedAPIURL, *output)
 				return nil // user continued after host preflights failed
 			}
 		}
@@ -465,12 +468,14 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			// so we just print the warnings and continue
 			pb.Close()
 			output.PrintTableWithoutInfo()
+			metrics.ReportPreflightsBypassed(cmd.Context(), replicatedAPIURL, *output)
 			return nil
 		}
 		pb.Close()
 		output.PrintTableWithoutInfo()
 		if !prompts.New().Confirm("Do you want to continue?", false) {
 			pb.Close()
+			metrics.ReportPreflightsBypassed(cmd.Context(), replicatedAPIURL, *output)
 			return fmt.Errorf("user aborted")
 		}
 		return nil

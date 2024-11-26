@@ -711,7 +711,7 @@ func RunHostPreflightsForRestore(cmd *cobra.Command, applier *addons.Applier, pr
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
-	return runHostPreflights(cmd, hpf, proxy, assumeYes)
+	return runHostPreflights(cmd, hpf, proxy, assumeYes, "")
 }
 
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.

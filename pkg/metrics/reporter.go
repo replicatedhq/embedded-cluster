@@ -12,6 +12,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -158,4 +159,26 @@ func ReportApplyFinished(ctx context.Context, licenseFlag string, err error) {
 		return
 	}
 	ReportInstallationSucceeded(ctx, License(licenseFlag))
+}
+
+// ReportPreflightsBypassed reports that the preflights failed but were bypassed.
+func ReportPreflightsBypassed(ctx context.Context, url string, output preflights.Output) {
+	if url == "" {
+		// no metrics endpoint, so we can't report that preflights were bypassed
+		// this is expected on 'restore' operations
+		return
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("unable to get hostname: %s", err)
+		hostname = "unknown"
+	}
+
+	go Send(ctx, url, types.PreflightsBypassed{
+		ClusterID:       ClusterID(),
+		Version:         versions.Version,
+		NodeName:        hostname,
+		PreflightOutput: output,
+	})
 }
