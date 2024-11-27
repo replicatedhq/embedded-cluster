@@ -5,6 +5,8 @@ include ../common.mk
 OS ?= linux
 ARCH ?= $(shell go env GOARCH)
 
+ADMIN_CONSOLE_IMAGE_OVERRIDE =
+
 # VERSION defines the project version for the bundle.
 # Update this value when you upgrade the version of your project.
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
@@ -27,7 +29,8 @@ export PATH := $(shell pwd)/bin:$(PATH)
 
 LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
-	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION)
+	-X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$(VERSION) \
+	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.AdminConsoleImageOverride=$(ADMIN_CONSOLE_IMAGE_OVERRIDE)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
