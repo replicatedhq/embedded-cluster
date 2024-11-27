@@ -140,6 +140,13 @@ ifneq ($(DISABLE_FIO_BUILD),1)
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
 endif
 
+.PHONY: pkg/goods/bins/manager
+pkg/goods/bins/manager:
+	mkdir -p pkg/goods/bins
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o output/bins/manager ./cmd/manager
+	cp output/bins/manager $@
+	touch $@
+
 .PHONY: pkg/goods/internal/bins/kubectl-kots
 pkg/goods/internal/bins/kubectl-kots:
 	mkdir -p pkg/goods/internal/bins
@@ -210,6 +217,7 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-support_bundle \
 	pkg/goods/bins/local-artifact-mirror \
 	pkg/goods/bins/fio \
+	pkg/goods/bins/manager \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: static-dryrun
@@ -220,6 +228,7 @@ static-dryrun:
 		pkg/goods/bins/kubectl-support_bundle \
 		pkg/goods/bins/local-artifact-mirror \
 		pkg/goods/bins/fio \
+		pkg/goods/bins/manager \
 		pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64

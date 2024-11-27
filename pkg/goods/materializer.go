@@ -59,6 +59,19 @@ func (m *Materializer) LocalArtifactMirrorUnitFile() error {
 	return nil
 }
 
+// ManagerUnitFile writes to disk the manager systemd unit file.
+func (m *Materializer) ManagerUnitFile() error {
+	content, err := systemdfs.ReadFile("systemd/manager.service")
+	if err != nil {
+		return fmt.Errorf("open unit file: %w", err)
+	}
+	dstpath := fmt.Sprintf("/etc/systemd/system/%s.service", runtimeconfig.ManagerServiceName)
+	if err := os.WriteFile(dstpath, content, 0644); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+	return nil
+}
+
 // CalicoNetworkManagerConfig materializes a configuration file for the network manager. This
 // configuration file instructs the network manager to ignore any interface being managed by
 // the calico network cni.

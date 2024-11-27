@@ -266,6 +266,13 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			logrus.Debugf("installing manager")
+			if err := installAndEnableManager(); err != nil {
+				err := fmt.Errorf("unable to install and enable manager: %w", err)
+				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
+				return err
+			}
+
 			enabledHighAvailabilityFlag, err := cmd.Flags().GetBool("enable-ha")
 			if err != nil {
 				return fmt.Errorf("unable to get enable-ha flag: %w", err)
