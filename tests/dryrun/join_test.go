@@ -7,6 +7,6 @@ import (
 )
 
 func TestJoin(t *testing.T) {
-	dryrunJoin(t, "192.168.10.1:30000", "some-token")
+	dryrunJoin(t, "10.0.0.1", "some-token")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

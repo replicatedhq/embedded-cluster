@@ -35,7 +35,7 @@ var (
 	licenseData string
 )
 
-func dryrunJoin(t *testing.T, host, token string, args ...string) dryruntypes.DryRun {
+func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
 	if err := embedReleaseData(); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
