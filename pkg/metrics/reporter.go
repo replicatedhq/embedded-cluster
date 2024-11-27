@@ -161,8 +161,8 @@ func ReportApplyFinished(ctx context.Context, licenseFlag string, err error) {
 	ReportInstallationSucceeded(ctx, License(licenseFlag))
 }
 
-// ReportPreflightsBypassed reports that the preflights failed but were bypassed.
-func ReportPreflightsBypassed(ctx context.Context, url string, output preflights.Output) {
+// ReportPreflightsFailed reports that the preflights failed but were bypassed.
+func ReportPreflightsFailed(ctx context.Context, url string, output preflights.Output, bypassed bool) {
 	if url == "" {
 		// no metrics endpoint, so we can't report that preflights were bypassed
 		// this is expected on 'restore' operations
@@ -175,10 +175,16 @@ func ReportPreflightsBypassed(ctx context.Context, url string, output preflights
 		hostname = "unknown"
 	}
 
-	go Send(ctx, url, types.PreflightsBypassed{
+	eventType := "PreflightsFailed"
+	if bypassed {
+		eventType = "PreflightsBypassed"
+	}
+
+	go Send(ctx, url, types.PreflightsFailed{
 		ClusterID:       ClusterID(),
 		Version:         versions.Version,
 		NodeName:        hostname,
 		PreflightOutput: output,
+		EventType:       eventType,
 	})
 }

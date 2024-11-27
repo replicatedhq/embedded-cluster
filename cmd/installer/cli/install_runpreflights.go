@@ -438,11 +438,11 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		}
 		if ignoreHostPreflightsFlag {
 			if assumeYes {
-				metrics.ReportPreflightsBypassed(cmd.Context(), replicatedAPIURL, *output)
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true)
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
-				metrics.ReportPreflightsBypassed(cmd.Context(), replicatedAPIURL, *output)
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true)
 				return nil // user continued after host preflights failed
 			}
 		}
@@ -452,7 +452,7 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		} else {
 			logrus.Info("Please address this issue and try again.")
 		}
-
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false)
 		return ErrPreflightsHaveFail
 	}
 
@@ -468,17 +468,17 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			// so we just print the warnings and continue
 			pb.Close()
 			output.PrintTableWithoutInfo()
-			metrics.ReportPreflightsBypassed(cmd.Context(), replicatedAPIURL, *output)
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true)
 			return nil
 		}
 		pb.Close()
 		output.PrintTableWithoutInfo()
-		if !prompts.New().Confirm("Do you want to continue?", false) {
-			pb.Close()
-			metrics.ReportPreflightsBypassed(cmd.Context(), replicatedAPIURL, *output)
-			return fmt.Errorf("user aborted")
+		if prompts.New().Confirm("Do you want to continue?", false) {
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true)
+			return nil
 		}
-		return nil
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false)
+		return fmt.Errorf("user aborted")
 	}
 
 	// No failures or warnings

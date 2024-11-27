@@ -84,16 +84,17 @@ func (e JoinFailed) Title() string {
 	return "JoinFailed"
 }
 
-// PreflightsBypassed event is send back home when the preflights failed but were bypassed.
-type PreflightsBypassed struct {
+// PreflightsFailed event is send back home when the preflights failed but were bypassed.
+type PreflightsFailed struct {
 	ClusterID       uuid.UUID         `json:"clusterID"`
 	Version         string            `json:"version"`
 	NodeName        string            `json:"nodeName"`
 	PreflightOutput preflights.Output `json:"preflightOutput"`
+	EventType       string            `json:"eventType"`
 }
 
 // Title returns the name of the event.
-func (e PreflightsBypassed) Title() string {
+func (e PreflightsFailed) Title() string {
 	// GenericEvents are added to the events table, but do not update the cluster status
 	return "GenericEvent"
 }
