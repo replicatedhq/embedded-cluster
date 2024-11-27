@@ -343,7 +343,8 @@ func TestTemplateWithCIDRData(t *testing.T) {
 func TestTemplateNoTCPConnectionsRequired(t *testing.T) {
 
 	req := require.New(t)
-	tl := TemplateData{TCPConnectionsRequired: []string{"192.10.11.1:9090"}}
+	// No TCP connections are provided
+	tl := TemplateData{}
 	hpfc, err := GetClusterHostPreflights(context.Background(), tl)
 	req.NoError(err)
 
