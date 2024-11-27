@@ -40,7 +40,7 @@ check-env-%:
 
 melange: $(MELANGE)
 $(MELANGE): $(LOCALBIN)
-	go install chainguard.dev/melange@latest && \
+	go install chainguard.dev/melange@v0.15.14 && \
 		test -s $(GOBIN)/melange && \
 		ln -sf $(GOBIN)/melange $(LOCALBIN)/melange
 
