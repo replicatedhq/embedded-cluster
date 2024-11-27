@@ -157,6 +157,7 @@ type JoinCommandResponse struct {
 	ClusterID              uuid.UUID                  `json:"clusterID"`
 	EmbeddedClusterVersion string                     `json:"embeddedClusterVersion"`
 	AirgapRegistryAddress  string                     `json:"airgapRegistryAddress"`
+	TCPConnectionsRequired []string                   `json:"tcpConnectionsRequired"`
 	InstallationSpec       ecv1beta1.InstallationSpec `json:"installationSpec,omitempty"`
 }
 

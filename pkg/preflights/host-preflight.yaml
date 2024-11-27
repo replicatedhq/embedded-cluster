@@ -153,6 +153,12 @@ spec:
         collectorName: check-network-namespace-connectivity
         fromCIDR: '{{ .FromCIDR }}'
         toCIDR: '{{ .ToCIDR }}'
+{{- range $index, $element := .TCPConnectionsRequired}}
+    - tcpConnect:
+        collectorName: 'tcp-connect-{{$index}}'
+        address: '{{ $element }}'
+        timeout: 30s
+{{- end}}
   analyzers:
     - cpu:
         checkName: CPU
@@ -891,3 +897,15 @@ spec:
             message: Communication between {{ "{{ .FromCIDR }}" }} and {{ "{{ .ToCIDR }}" }} is working
         - fail:
             message: Network communication between the pods network CIDR {{ "{{ .FromCIDR }}" }} and the services network CIDR {{ "{{ .ToCIDR }}" }} is currently disrupted on this node. This issue may prevent pods from properly interacting with services. To resolve this, please review and adjust the firewall configuration on this node to ensure it allows traffic between these network CIDRs.
+{{- range $index, $element := .TCPConnectionsRequired}}
+    - tcpConnect:
+        checkName: "TCP Connection to {{ $element }}"
+        collectorName: "tcp-connect-{{$index}}"
+        outcomes:
+          - fail:
+              when: "error"
+              message: "Error connecting to {{ $element }}. Ensure that the host can connect to {{ $element }}."
+          - pass:
+              when: "connected"
+              message: "Successfully connected to {{ $element }}."
+{{- end}}
