@@ -8,7 +8,6 @@ import (
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -62,16 +61,6 @@ func UpgradeCmd() *cobra.Command {
 			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, in, localArtifactMirrorImage, previousInstallation.Spec.Config.Version)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
-			}
-			if !in.Spec.AirGap {
-				err = metrics.NotifyUpgradeStarted(cmd.Context(), in.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
-					ClusterID:      in.Spec.ClusterID,
-					TargetVersion:  in.Spec.Config.Version,
-					InitialVersion: previousInstallation.Spec.Config.Version,
-				})
-				if err != nil {
-					fmt.Printf("failed to report that the upgrade was started: %v\n", err)
-				}
 			}
 
 			fmt.Println("Upgrade job created successfully")

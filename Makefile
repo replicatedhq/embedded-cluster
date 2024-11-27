@@ -191,8 +191,9 @@ rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 		./scripts/build-and-release.sh
 
 .PHONY: upgrade-release
-upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade
-upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade
+upgrade-release: RANDOM_STRING = $(call random-string)
+upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
+upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
 	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
