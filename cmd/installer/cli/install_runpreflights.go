@@ -126,7 +126,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
 
-			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, assumeYes); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, nil, assumeYes); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -330,7 +330,7 @@ func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, adminConsolePw
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, assumeYes bool) error {
+func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, tcpConnectionsRequired []string, assumeYes bool) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
@@ -351,6 +351,7 @@ func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAP
 		SystemArchitecture:      runtime.GOARCH,
 		FromCIDR:                cidrCfg.PodCIDR,
 		ToCIDR:                  cidrCfg.ServiceCIDR,
+		TCPConnectionsRequired:  tcpConnectionsRequired,
 	}.WithCIDRData(cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, cidrCfg.GlobalCIDR)
 
 	if err != nil {
