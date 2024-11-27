@@ -23,6 +23,21 @@ func addProxyFlags(cmd *cobra.Command) {
 	cmd.Flags().MarkHidden("proxy")
 }
 
+func parseProxyFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
+	p, err := getProxySpecFromFlags(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get proxy spec from flags: %w", err)
+	}
+
+	p, err = includeLocalIPInNoProxy(cmd, p)
+	if err != nil {
+		return nil, fmt.Errorf("unable to include local IP in no proxy: %w", err)
+	}
+	setProxyEnv(p)
+
+	return p, nil
+}
+
 func getProxySpecFromFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 	proxy := &ecv1beta1.ProxySpec{}
 	var providedNoProxy []string
@@ -81,7 +96,7 @@ func combineNoProxySuppliedValuesAndDefaults(cmd *cobra.Command, proxy *ecv1beta
 	noProxy := strings.Split(proxy.ProvidedNoProxy, ",")
 	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
 		noProxy = append(runtimeconfig.DefaultNoProxy, noProxy...)
-		podnet, svcnet, err := determinePodAndServiceCIDRs(cmd)
+		podnet, svcnet, err := getPODAndServiceCIDR(cmd)
 		if err != nil {
 			return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 		}

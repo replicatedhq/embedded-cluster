@@ -21,6 +21,10 @@ import (
 var clusterIDMut sync.Mutex
 var clusterID *uuid.UUID
 
+func metricsEnabled() bool {
+	return os.Getenv("DISABLE_TELEMETRY") != ""
+}
+
 // BaseURL determines the base url to be used when sending metrics over.
 func BaseURL(license *kotsv1beta1.License) string {
 	if os.Getenv("EMBEDDED_CLUSTER_METRICS_BASEURL") != "" {
@@ -66,6 +70,10 @@ func SetClusterID(id uuid.UUID) {
 
 // ReportInstallationStarted reports that the installation has started.
 func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License) {
+	if !metricsEnabled() {
+		return
+	}
+
 	rel, _ := release.GetChannelRelease()
 	appChannel, appVersion := "", ""
 	if rel != nil {
@@ -87,11 +95,19 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 
 // ReportInstallationSucceeded reports that the installation has succeeded.
 func ReportInstallationSucceeded(ctx context.Context, license *kotsv1beta1.License) {
+	if !metricsEnabled() {
+		return
+	}
+
 	Send(ctx, BaseURL(license), types.InstallationSucceeded{ClusterID: ClusterID(), Version: versions.Version})
 }
 
 // ReportInstallationFailed reports that the installation has failed.
 func ReportInstallationFailed(ctx context.Context, license *kotsv1beta1.License, err error) {
+	if !metricsEnabled() {
+		return
+	}
+
 	Send(ctx, BaseURL(license), types.InstallationFailed{
 		ClusterID: ClusterID(),
 		Version:   versions.Version,
@@ -101,6 +117,10 @@ func ReportInstallationFailed(ctx context.Context, license *kotsv1beta1.License,
 
 // ReportJoinStarted reports that a join has started.
 func ReportJoinStarted(ctx context.Context, baseURL string, clusterID uuid.UUID) {
+	if !metricsEnabled() {
+		return
+	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		logrus.Warnf("unable to get hostname: %s", err)
@@ -115,6 +135,10 @@ func ReportJoinStarted(ctx context.Context, baseURL string, clusterID uuid.UUID)
 
 // ReportJoinSucceeded reports that a join has finished successfully.
 func ReportJoinSucceeded(ctx context.Context, baseURL string, clusterID uuid.UUID) {
+	if !metricsEnabled() {
+		return
+	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		logrus.Warnf("unable to get hostname: %s", err)
@@ -129,6 +153,10 @@ func ReportJoinSucceeded(ctx context.Context, baseURL string, clusterID uuid.UUI
 
 // ReportJoinFailed reports that a join has failed.
 func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, exterr error) {
+	if !metricsEnabled() {
+		return
+	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		logrus.Warnf("unable to get hostname: %s", err)
@@ -144,6 +172,10 @@ func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, 
 
 // ReportApplyStarted reports an InstallationStarted event.
 func ReportApplyStarted(ctx context.Context, licenseFlag string) {
+	if !metricsEnabled() {
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	ReportInstallationStarted(ctx, License(licenseFlag))
@@ -151,6 +183,10 @@ func ReportApplyStarted(ctx context.Context, licenseFlag string) {
 
 // ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
 func ReportApplyFinished(ctx context.Context, licenseFlag string, err error) {
+	if !metricsEnabled() {
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err != nil {
