@@ -40,9 +40,6 @@ func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
 		t.Fatalf("fail to embed release data: %v", err)
 	}
 
-	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
-	dryrun.Init(drFile, nil)
-
 	if err := runInstallerCmd(
 		append([]string{
 			"join",

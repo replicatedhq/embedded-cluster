@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -85,7 +86,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("fetching join token remotely")
-			jcmd, err := getJoinToken(cmd.Context(), args[0], args[1])
+			jcmd, err := kotsadm.GetJoinToken(cmd.Context(), args[0], args[1])
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
@@ -347,7 +348,7 @@ func startK0sService() error {
 	return nil
 }
 
-func applyNetworkConfiguration(cmd *cobra.Command, jcmd *JoinCommandResponse) error {
+func applyNetworkConfiguration(cmd *cobra.Command, jcmd *kotsadm.JoinCommandResponse) error {
 	if jcmd.InstallationSpec.Network != nil {
 		clusterSpec := config.RenderK0sConfig()
 
@@ -385,7 +386,7 @@ func applyNetworkConfiguration(cmd *cobra.Command, jcmd *JoinCommandResponse) er
 }
 
 // startAndWaitForK0s starts the k0s service and waits for the node to be ready.
-func startAndWaitForK0s(cmd *cobra.Command, name string, jcmd *JoinCommandResponse) error {
+func startAndWaitForK0s(cmd *cobra.Command, name string, jcmd *kotsadm.JoinCommandResponse) error {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", name)
@@ -410,7 +411,7 @@ func startAndWaitForK0s(cmd *cobra.Command, name string, jcmd *JoinCommandRespon
 
 // applyJoinConfigurationOverrides applies both config overrides received from the kots api.
 // Applies first the EmbeddedOverrides and then the EndUserOverrides.
-func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
+func applyJoinConfigurationOverrides(jcmd *kotsadm.JoinCommandResponse) error {
 	patch, err := jcmd.EmbeddedOverrides()
 	if err != nil {
 		return fmt.Errorf("unable to get embedded overrides: %w", err)
