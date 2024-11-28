@@ -16,10 +16,12 @@ type response struct {
 	err  error
 }
 
+// Kotsadm is a mockable implementation of the kotsadm.ClientInterface.
 type Kotsadm struct {
 	mockHandlers map[string]response
 }
 
+// NewKotsadm returns a new Kotsadm API client, to be used with the dryrun package.
 func NewKotsadm() *Kotsadm {
 	return &Kotsadm{
 		mockHandlers: map[string]response{},
@@ -42,6 +44,7 @@ func (c *Kotsadm) setResponse(resp interface{}, err error, methodName string, ar
 	return nil
 }
 
+// SetGetJoinTokenResponse sets the response for the GetJoinToken method, based on the provided baseURL and shortToken.
 func (c *Kotsadm) SetGetJoinTokenResponse(baseURL, shortToken string, resp *kotsadm.JoinCommandResponse, err error) {
 	mockErr := c.setResponse(resp, err, "GetJoinToken", baseURL, shortToken)
 	if mockErr != nil {
