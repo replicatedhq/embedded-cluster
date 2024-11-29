@@ -8,7 +8,7 @@ import (
 
 const (
 	APKOImageVersion    = "latest"
-	MelangeImageVersion = "0.15.14"
+	MelangeImageVersion = "latest"
 )
 
 type EmbeddedCluster struct {

@@ -16,7 +16,7 @@ MELANGE ?= $(LOCALBIN)/melange
 APKO ?= $(LOCALBIN)/apko
 
 ## Version to use for building
-VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
+VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=5)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
