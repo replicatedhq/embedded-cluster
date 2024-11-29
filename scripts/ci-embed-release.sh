@@ -23,7 +23,7 @@ fi
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
-        EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=5)
+        EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)
     fi
     if [ -z "${APP_VERSION:-}" ]; then
         local short_sha=
