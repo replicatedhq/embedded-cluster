@@ -254,7 +254,7 @@ jobs:
         run: |
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
           export K0S_GO_VERSION=$(make print-PREVIOUS_K0S_GO_VERSION)
-          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-pk
+          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-previous-k0s
           # avoid rate limiting
           export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
@@ -357,7 +357,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
-          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-up
+          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-upgrade
           # avoid rate limiting
           export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
@@ -481,7 +481,7 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # install the previous k0s version to ensure an upgrade occurs
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-pk"
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
           export APP_VERSION="appver-${SHORT_SHA}-previous-k0s"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
@@ -499,7 +499,7 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # and finally an app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-up"
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
           export APP_VERSION="appver-${SHORT_SHA}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
@@ -521,7 +521,7 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # install the previous k0s version to ensure an upgrade occurs
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-pk"
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
           export APP_VERSION="appver-${SHORT_SHA}-previous-k0s"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
@@ -533,7 +533,7 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # and finally an app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-up"
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
           export APP_VERSION="appver-${SHORT_SHA}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
