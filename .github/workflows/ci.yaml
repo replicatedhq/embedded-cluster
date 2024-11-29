@@ -255,7 +255,7 @@ jobs:
           export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
           export K0S_GO_VERSION=$(make print-PREVIOUS_K0S_GO_VERSION)
           export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-pk
-          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-prevk0s
+          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-previous-k0s
           # avoid rate limiting
           export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
 
