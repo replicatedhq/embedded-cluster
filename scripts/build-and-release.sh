@@ -35,7 +35,7 @@ export REPLICATED_API_ORIGIN REPLICATED_APP REPLICATED_API_TOKEN AWS_ACCESS_KEY_
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
-        EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
+        EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)
     fi
     if [ -z "${APP_VERSION:-}" ]; then
         APP_VERSION="appver-dev-$(git rev-parse --short HEAD)"
