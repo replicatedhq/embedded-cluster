@@ -23,7 +23,7 @@ require (
 	github.com/google/go-github/v62 v62.0.0
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.14.0
-	github.com/jedib0t/go-pretty/v6 v6.6.2
+	github.com/jedib0t/go-pretty/v6 v6.6.3
 	github.com/k0sproject/dig v0.3.1
 	github.com/k0sproject/k0s v1.30.7-0.20241029184556-a942e759e13b
 	github.com/ohler55/ojg v1.25.0
@@ -323,7 +323,7 @@ require (
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
