@@ -165,9 +165,7 @@ func ReportApplyFinished(ctx context.Context, licenseFlag string, err error) {
 // ReportPreflightsFailed reports that the preflights failed but were bypassed.
 func ReportPreflightsFailed(ctx context.Context, url string, output preflights.Output, bypassed bool) {
 	if url == "" {
-		// no metrics endpoint, so we can't report that preflights were bypassed
-		// this is expected on 'restore' operations
-		return
+		url = BaseURL(nil)
 	}
 
 	hostname, err := os.Hostname()
