@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"sync"
@@ -180,11 +181,18 @@ func ReportPreflightsFailed(ctx context.Context, url string, output preflights.O
 		eventType = "PreflightsBypassed"
 	}
 
-	go Send(ctx, url, types.PreflightsFailed{
+	outputJSON, err := json.Marshal(output)
+	if err != nil {
+		logrus.Warnf("unable to marshal preflight output: %s", err)
+		return
+	}
+
+	ev := types.PreflightsFailed{
 		ClusterID:       ClusterID(),
 		Version:         versions.Version,
 		NodeName:        hostname,
-		PreflightOutput: output,
+		PreflightOutput: string(outputJSON),
 		EventType:       eventType,
-	})
+	}
+	go Send(ctx, url, ev)
 }

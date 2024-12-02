@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/google/uuid"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 )
 
 // Event is implemented by all events. Title returns a string that identifies the
@@ -86,11 +85,11 @@ func (e JoinFailed) Title() string {
 
 // PreflightsFailed event is send back home when the preflights failed but were bypassed.
 type PreflightsFailed struct {
-	ClusterID       uuid.UUID         `json:"clusterID"`
-	Version         string            `json:"version"`
-	NodeName        string            `json:"nodeName"`
-	PreflightOutput preflights.Output `json:"preflightOutput"`
-	EventType       string            `json:"eventType"`
+	ClusterID       uuid.UUID `json:"clusterID"`
+	Version         string    `json:"version"`
+	NodeName        string    `json:"nodeName"`
+	PreflightOutput string    `json:"preflightOutput"`
+	EventType       string    `json:"eventType"`
 }
 
 // Title returns the name of the event.
