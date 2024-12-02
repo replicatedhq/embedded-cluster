@@ -360,6 +360,11 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					return err
 				}
 
+				logrus.Debugf("installing manager")
+				if err := installAndEnableManager(); err != nil {
+					return fmt.Errorf("unable to install manager: %w", err)
+				}
+
 				fallthrough
 
 			case ecRestoreStateWaitForNodes:

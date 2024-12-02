@@ -1,6 +1,7 @@
 package runtimeconfig
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -10,9 +11,9 @@ import (
 
 // Holds the default no proxy values.
 var DefaultNoProxy = []string{"localhost", "127.0.0.1", ".cluster.local", ".svc"}
+var ManagerServiceName = fmt.Sprintf("%s-manager", BinaryName())
 
 const ProxyRegistryAddress = "proxy.replicated.com"
-
 const KotsadmNamespace = "kotsadm"
 const SeaweedFSNamespace = "seaweedfs"
 const RegistryNamespace = "registry"
