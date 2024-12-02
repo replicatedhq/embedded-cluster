@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// wsDialer is the default dialer but with a shorter timeout.
 var wsDialer = &gwebsocket.Dialer{
 	HandshakeTimeout: 10 * time.Second,
 }
