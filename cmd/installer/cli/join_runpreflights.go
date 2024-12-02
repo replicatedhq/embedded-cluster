@@ -14,6 +14,7 @@ import (
 	"github.com/k0sproject/dig"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
@@ -99,9 +100,18 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			fromCIDR, toCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
 			if err != nil {
-				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+				return fmt.Errorf("unable to split default network CIDR: %w", err)
+			}
+
+			if jcmd.InstallationSpec.Network != nil {
+				if jcmd.InstallationSpec.Network.PodCIDR != "" {
+					fromCIDR = jcmd.InstallationSpec.Network.PodCIDR
+				}
+				if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
+					toCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
+				}
 			}
 
 			logrus.Debugf("running host preflights")
