@@ -9,12 +9,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -24,16 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
-	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
 const (

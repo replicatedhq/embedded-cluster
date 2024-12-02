@@ -1,5 +1,5 @@
 package:
-  name: embedded-cluster-operator
+  name: ec-operator
   version: ${PACKAGE_VERSION}
   epoch: 0
   description: Embedded Cluster Operator
