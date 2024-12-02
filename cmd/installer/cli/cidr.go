@@ -18,7 +18,7 @@ func addCIDRFlags(cmd *cobra.Command) {
 	cmd.Flags().String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
 }
 
-func parseCIDRFlags(cmd *cobra.Command) error {
+func validateCIDRFlags(cmd *cobra.Command) error {
 	if cmd.Flags().Changed("cidr") && (cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr")) {
 		return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
 	}

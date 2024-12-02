@@ -84,8 +84,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			proxy = p
 
-			if err := parseCIDRFlags(cmd); err != nil {
+			if err := validateCIDRFlags(cmd); err != nil {
 				return fmt.Errorf("unable to parse cidr flags: %w", err)
+			}
+
+			if os.Getenv("DISABLE_TELEMETRY") != "" {
+				metrics.DisableMetrics()
 			}
 
 			return nil

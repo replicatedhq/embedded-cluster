@@ -62,7 +62,7 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			}
 			proxy = p
 
-			if err := parseCIDRFlags(cmd); err != nil {
+			if err := validateCIDRFlags(cmd); err != nil {
 				return err
 			}
 
@@ -81,6 +81,10 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 
 			if err := runtimeconfig.WriteToDisk(); err != nil {
 				return fmt.Errorf("unable to write runtime config to disk: %w", err)
+			}
+
+			if os.Getenv("DISABLE_TELEMETRY") != "" {
+				metrics.DisableMetrics()
 			}
 
 			return nil
