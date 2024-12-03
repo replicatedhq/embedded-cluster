@@ -10,16 +10,18 @@ import (
 )
 
 type TemplateData struct {
-	DataDir        string
-	K0sDataDir     string
-	OpenEBSDataDir string
+	DataDir            string
+	K0sDataDir         string
+	OpenEBSDataDir     string
+	ManagerServiceName string
 }
 
 func MaterializeSupportBundleSpec() error {
 	data := TemplateData{
-		DataDir:        runtimeconfig.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:     runtimeconfig.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir: runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		DataDir:            runtimeconfig.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         runtimeconfig.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:     runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
+		ManagerServiceName: runtimeconfig.ManagerServiceName,
 	}
 	path := runtimeconfig.PathToEmbeddedClusterSupportFile("host-support-bundle.tmpl.yaml")
 	tmpl, err := os.ReadFile(path)
