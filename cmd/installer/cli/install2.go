@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -15,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -156,7 +158,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 
 	logrus.Debugf("materializing binaries")
 	if err := materializeFiles(flags.airgapBundle); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), flags.licenseFile, err)
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}
 
@@ -175,13 +177,17 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	if err := k0s.Install(flags.networkInterface); err != nil {
-		return fmt.Errorf("unable to install cluster: %w", err)
+	clusterConfig, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.podCIDR, flags.serviceCIDR, flags.overrides)
+	if err != nil {
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		return err
 	}
+
+	fmt.Printf("%#v\n", clusterConfig)
 
 	logrus.Debugf("installing manager")
 	if err := installAndEnableManager(); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), flags.licenseFile, err)
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}
 
@@ -221,7 +227,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	license, err := getLicenseFromFilepath(flags.licenseFile)
 	if err != nil {
 		metricErr := fmt.Errorf("unable to get license: %w", err)
-		metrics.ReportApplyFinished(ctx, flags.licenseFile, metricErr)
+		metrics.ReportApplyFinished(ctx, "", flags.license, metricErr)
 		return err // do not return the metricErr, as we want the user to see the error message without a prefix
 	}
 	isAirgap := false
@@ -238,7 +244,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	if !isAirgap {
 		if err := maybePromptForAppUpdate(ctx, prompts.New(), license, flags.assumeYes); err != nil {
 			if errors.Is(err, ErrNothingElseToAdd) {
-				metrics.ReportApplyFinished(ctx, flags.licenseFile, err)
+				metrics.ReportApplyFinished(ctx, "", flags.license, err)
 				return err
 			}
 			// If we get an error other than ErrNothingElseToAdd, we warn and continue as
@@ -248,7 +254,7 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	}
 
 	if err := preflights.ValidateApp(); err != nil {
-		metrics.ReportApplyFinished(ctx, flags.licenseFile, err)
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -269,13 +275,14 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 
 				if validateAdminConsolePassword(promptA, promptB) {
 					flags.adminConsolePassword = promptA
+					break
 				}
 			}
 		}
 	}
 	if flags.adminConsolePassword == "" {
 		err := fmt.Errorf("no admin console password")
-		metrics.ReportApplyFinished(ctx, flags.licenseFile, err)
+		metrics.ReportApplyFinished(ctx, "", flags.license, err)
 		return err
 	}
 
@@ -294,4 +301,41 @@ func runInstallPreflights(ctx context.Context, license *kotsv1beta1.License, pro
 	}
 
 	return nil
+}
+
+func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, license *kotsv1beta1.License, proxy *ecv1beta1.ProxySpec, podCIDR string, serviceCIDR string, overrides string) (*k0sconfig.ClusterConfig, error) {
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Installing %s node", runtimeconfig.BinaryName())
+	logrus.Debugf("creating k0s configuration file")
+
+	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, podCIDR, serviceCIDR, overrides)
+	if err != nil {
+		err := fmt.Errorf("unable to create config file: %w", err)
+		metrics.ReportApplyFinished(ctx, "", license, err)
+		return nil, err
+	}
+	logrus.Debugf("creating systemd unit files")
+	if err := createSystemdUnitFiles(false, proxy); err != nil {
+		err := fmt.Errorf("unable to create systemd unit files: %w", err)
+		metrics.ReportApplyFinished(ctx, "", license, err)
+		return nil, err
+	}
+
+	logrus.Debugf("installing k0s")
+	if err := k0s.Install(networkInterface); err != nil {
+		err := fmt.Errorf("unable to install cluster: %w", err)
+		metrics.ReportApplyFinished(ctx, "", license, err)
+		return nil, err
+	}
+	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
+	logrus.Debugf("waiting for k0s to be ready")
+	if err := waitForK0s(); err != nil {
+		err := fmt.Errorf("unable to wait for node: %w", err)
+		metrics.ReportApplyFinished(ctx, "", license, err)
+		return nil, err
+	}
+
+	loading.Infof("Node installation finished!")
+	return cfg, nil
 }
