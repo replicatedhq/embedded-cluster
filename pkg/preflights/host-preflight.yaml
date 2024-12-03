@@ -903,8 +903,14 @@ spec:
         collectorName: "tcp-connect-{{$index}}"
         outcomes:
           - fail:
+              when: "connection-refused"
+              message: "Error connecting to {{ $element }}. Connection refused. Ensure that the host can connect to {{ $element }}."
+          - fail:
+              when: "connection-timeout"
+              message: "Error connecting to {{ $element }}. Connection timed out. Ensure that the host can connect to {{ $element }}."
+          - fail:
               when: "error"
-              message: "Error connecting to {{ $element }}. Ensure that the host can connect to {{ $element }}."
+              message: "Error connecting to {{ $element }}. Unexpected Error. Ensure that the host can connect to {{ $element }}."
           - pass:
               when: "connected"
               message: "Successfully connected to {{ $element }}."
