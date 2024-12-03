@@ -140,7 +140,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {
 				metricErr := fmt.Errorf("unable to get license: %w", err)
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, metricErr)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, metricErr)
 				return err // do not return the metricErr, as we want the user to see the error message without a prefix
 			}
 			isAirgap := false
@@ -157,7 +157,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if !isAirgap {
 				if err := maybePromptForAppUpdate(cmd.Context(), prompts.New(), license, assumeYes); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
-						metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+						metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 						return err
 					}
 					// If we get an error other than ErrNothingElseToAdd, we warn and continue as
@@ -167,19 +167,19 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := preflights.ValidateApp(); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
 			adminConsolePwd, err := maybeAskAdminConsolePassword(cmd, assumeYes)
 			if err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
 			logrus.Debugf("materializing binaries")
 			if err := materializeFiles(airgapBundle); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
@@ -193,7 +193,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			applier, err := getAddonsApplier(cmd, opts, adminConsolePwd, proxy)
 			if err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
@@ -210,7 +210,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR, assumeYes); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -224,11 +224,11 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 			logrus.Debugf("running outro")
 			if err := runOutro(cmd, applier, cfg); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
-			metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil)
+			metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, nil)
 			return nil
 		},
 	}
@@ -445,13 +445,13 @@ func installAndWaitForK0s(cmd *cobra.Command, applier *addons.Applier, proxy *ec
 	cfg, err := ensureK0sConfig(cmd, applier)
 	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
-		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil, err)
 		return nil, err
 	}
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
-		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil, err)
 		return nil, err
 	}
 
@@ -462,14 +462,14 @@ func installAndWaitForK0s(cmd *cobra.Command, applier *addons.Applier, proxy *ec
 	}
 	if err := k0s.Install(networkInterface); err != nil {
 		err := fmt.Errorf("unable to install cluster: %w", err)
-		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil, err)
 		return nil, err
 	}
 	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		err := fmt.Errorf("unable to wait for node: %w", err)
-		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil, err)
 		return nil, err
 	}
 
