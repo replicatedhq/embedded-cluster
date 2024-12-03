@@ -228,12 +228,6 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			logrus.Debugf("installing manager")
-			if err := installAndEnableManager(); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
-				return err
-			}
-
 			metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil)
 			return nil
 		},
