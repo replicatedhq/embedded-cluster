@@ -18,7 +18,11 @@ type PrepareAndRunOptions struct {
 
 func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 	replicatedAPIURL := opts.License.Spec.Endpoint
-	proxyRegistryURL := fmt.Sprintf("https://%s", opts.Proxy.HTTPSProxy)
+
+	proxyRegistryURL := ""
+	if opts.Proxy != nil {
+		proxyRegistryURL = fmt.Sprintf("https://%s", opts.Proxy.HTTPSProxy)
+	}
 
 	fmt.Printf("Running host preflights: %s, %s\n", replicatedAPIURL, proxyRegistryURL)
 	return nil
