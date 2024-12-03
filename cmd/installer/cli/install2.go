@@ -41,7 +41,7 @@ type Install2CmdFlags struct {
 	// cidr flags are deprecated, but these values are still
 	// used.  if the --cidr flag is passed, the values will be
 	// calculated
-	pidCIDR     string
+	podCIDR     string
 	serviceCIDR string
 }
 
@@ -81,7 +81,7 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
-			flags.pidCIDR = pod
+			flags.podCIDR = pod
 			flags.serviceCIDR = svc
 
 			// validate the the license is indeed a license file
@@ -161,7 +161,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	logrus.Debugf("running host preflights")
-	if err := runInstallPreflights(cmd.Context(), flags.license, flags.proxy, flags.pidCIDR, flags.serviceCIDR); err != nil {
+	if err := runInstallPreflights(cmd.Context(), flags.license, flags.proxy, flags.podCIDR, flags.serviceCIDR); err != nil {
 		return err
 	}
 
