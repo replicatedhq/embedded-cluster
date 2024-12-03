@@ -18,6 +18,7 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/pusher"
 	"helm.sh/helm/v3/pkg/registry"
+	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/uploader"
@@ -224,7 +225,38 @@ func (h *Helm) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
 	return chartRequested.Metadata, nil
 }
 
-func (h *Helm) Render(chartName string, chartPath string, vals map[string]interface{}, namespace string) ([][]byte, error) {
+func (h *Helm) Install(chartName string, chartPath string, values map[string]interface{}, namespace string) (*release.Release, error) {
+	cfg := &action.Configuration{}
+
+	client := action.NewInstall(cfg)
+	client.ReleaseName = chartName
+	client.Replace = true
+	client.IncludeCRDs = true
+	client.Namespace = namespace
+
+	chartRequested, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %w", err)
+	}
+
+	if req := chartRequested.Metadata.Dependencies; req != nil {
+		if err := action.CheckDependencies(chartRequested, req); err != nil {
+			return nil, fmt.Errorf("failed dependency check: %w", err)
+		}
+	}
+
+	cleanVals := cleanUpGenericMap(values)
+
+	release, err := client.Run(chartRequested, cleanVals)
+	if err != nil {
+		return nil, fmt.Errorf("run render: %w", err)
+	}
+
+	return release, nil
+
+}
+
+func (h *Helm) Render(chartName string, chartPath string, values map[string]interface{}, namespace string) ([][]byte, error) {
 	cfg := &action.Configuration{}
 
 	client := action.NewInstall(cfg)
@@ -255,16 +287,16 @@ func (h *Helm) Render(chartName string, chartPath string, vals map[string]interf
 		}
 	}
 
-	cleanVals := cleanUpGenericMap(vals)
+	cleanVals := cleanUpGenericMap(values)
 
-	rel, err := client.Run(chartRequested, cleanVals)
+	release, err := client.Run(chartRequested, cleanVals)
 	if err != nil {
 		return nil, fmt.Errorf("run render: %w", err)
 	}
 
 	var manifests bytes.Buffer
-	fmt.Fprintln(&manifests, strings.TrimSpace(rel.Manifest))
-	for _, m := range rel.Hooks {
+	fmt.Fprintln(&manifests, strings.TrimSpace(release.Manifest))
+	for _, m := range release.Hooks {
 		fmt.Fprintf(&manifests, "---\n# Source: %s\n%s\n", m.Path, m.Manifest)
 	}
 

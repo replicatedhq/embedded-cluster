@@ -8,6 +8,7 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
@@ -183,7 +184,10 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return err
 	}
 
-	fmt.Printf("%#v\n", clusterConfig)
+	if err := addons2.InstallDefaultAddons(cmd.Context(), clusterConfig); err != nil {
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		return err
+	}
 
 	logrus.Debugf("installing manager")
 	if err := installAndEnableManager(); err != nil {
