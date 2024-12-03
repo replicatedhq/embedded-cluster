@@ -379,10 +379,11 @@ bin/installer:
 bin/manager:
 	go build -o bin/manager ./cmd/manager
 
-# make test-embed channel=Unstable app=slackernews
+# make test-embed channel=<channelid> app=<appslug>
 .PHONY: test-embed
 test-emded: export OS=linux
 test-embed: export ARCH=amd64
+test-embed: VERSION=1.19.0+k8s-1.30
 test-embed: static embedded-cluster
 	@echo "Cleaning up previous release directory..."
 	rm -rf ./hack/release

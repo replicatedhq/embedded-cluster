@@ -225,12 +225,16 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			switch state {
 			case ecRestoreStateNew:
 				logrus.Debugf("checking if %s is already installed", name)
-				installed, err := k0s.IsInstalled(name)
+				installed, err := k0s.IsInstalled()
 				if err != nil {
 					return err
 				}
 				if installed {
-					return ErrNothingElseToAdd
+					logrus.Errorf("An installation has been detected on this machine.")
+					logrus.Infof("Before you can restore, you must remove the existing installation.")
+					logrus.Infof("You can do this by running the following command:")
+					logrus.Infof("\n  sudo ./%s reset\n", name)
+					os.Exit(1)
 				}
 
 				logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
@@ -747,7 +751,7 @@ func ensureK0sConfigForRestore(cmd *cobra.Command, applier *addons.Applier) (*k0
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
-	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+	podCIDR, serviceCIDR, err := getPODAndServiceCIDR(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}

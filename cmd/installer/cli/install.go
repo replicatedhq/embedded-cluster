@@ -65,10 +65,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("install command must be run as root")
 			}
+
 			if skipHostPreflights {
 				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
 			}
 
+			// TODO move this to pass params, not flags.  flags don't leave the cmd/ package
 			runtimeconfig.ApplyFlags(cmd.Flags())
 			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
@@ -76,34 +78,18 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to write runtime config to disk: %w", err)
 			}
 
-			var err error
-			proxy, err = getProxySpecFromFlags(cmd)
+			p, err := parseProxyFlags(cmd)
 			if err != nil {
-				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
+				return fmt.Errorf("unable to parse proxy flags: %w", err)
+			}
+			proxy = p
+
+			if err := validateCIDRFlags(cmd); err != nil {
+				return fmt.Errorf("unable to parse cidr flags: %w", err)
 			}
 
-			proxy, err = includeLocalIPInNoProxy(cmd, proxy)
-			if err != nil {
-				licenseFlag, err := cmd.Flags().GetString("license")
-				if err != nil {
-					return fmt.Errorf("unable to get license flag: %w", err)
-				}
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
-				return err
-			}
-			setProxyEnv(proxy)
-
-			if cmd.Flags().Changed("cidr") && (cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr")) {
-				return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
-			}
-
-			cidr, err := cmd.Flags().GetString("cidr")
-			if err != nil {
-				return fmt.Errorf("unable to get cidr flag: %w", err)
-			}
-
-			if err := netutils.ValidateCIDR(cidr, 16, true); err != nil {
-				return fmt.Errorf("invalid cidr %q: %w", cidr, err)
+			if os.Getenv("DISABLE_TELEMETRY") != "" {
+				metrics.DisableMetrics()
 			}
 
 			return nil
@@ -113,12 +99,16 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("checking if %s is already installed", name)
-			installed, err := k0s.IsInstalled(name)
+			installed, err := k0s.IsInstalled()
 			if err != nil {
 				return err
 			}
 			if installed {
-				return ErrNothingElseToAdd
+				logrus.Errorf("An installation has been detected on this machine.")
+				logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
+				logrus.Infof("You can do this by running the following command:")
+				logrus.Infof("\n  sudo ./%s reset\n", name)
+				os.Exit(1)
 			}
 
 			channelRelease, err := release.GetChannelRelease()
@@ -214,7 +204,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			}
 
-			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			fromCIDR, toCIDR, err := getPODAndServiceCIDR(cmd)
 			if err != nil {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
@@ -659,7 +649,7 @@ func ensureK0sConfig(cmd *cobra.Command, applier *addons.Applier) (*k0sconfig.Cl
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
-	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+	podCIDR, serviceCIDR, err := getPODAndServiceCIDR(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
@@ -739,30 +729,6 @@ func applyUnsupportedOverrides(cmd *cobra.Command, cfg *k0sconfig.ClusterConfig)
 	}
 
 	return cfg, nil
-}
-
-// DeterminePodAndServiceCIDRS determines, based on the command line flags,
-// what are the pod and service CIDRs to be used for the cluster. If both
-// --pod-cidr and --service-cidr have been set, they are used. Otherwise,
-// the cidr flag is split into pod and service CIDRs.
-func DeterminePodAndServiceCIDRs(cmd *cobra.Command) (string, string, error) {
-	if cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr") {
-		podCIDRFlag, err := cmd.Flags().GetString("pod-cidr")
-		if err != nil {
-			return "", "", fmt.Errorf("unable to get pod-cidr flag: %w", err)
-		}
-		serviceCIDRFlag, err := cmd.Flags().GetString("service-cidr")
-		if err != nil {
-			return "", "", fmt.Errorf("unable to get service-cidr flag: %w", err)
-		}
-		return podCIDRFlag, serviceCIDRFlag, nil
-	}
-
-	cidrFlag, err := cmd.Flags().GetString("cidr")
-	if err != nil {
-		return "", "", fmt.Errorf("unable to get cidr flag: %w", err)
-	}
-	return netutils.SplitNetworkCIDR(cidrFlag)
 }
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new

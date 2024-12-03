@@ -121,7 +121,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			}
 
-			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			fromCIDR, toCIDR, err := getPODAndServiceCIDR(cmd)
 			if err != nil {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
