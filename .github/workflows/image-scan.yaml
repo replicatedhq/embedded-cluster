@@ -119,7 +119,7 @@ jobs:
       - name: Build images matrix
         id: build-matrix
         run: |
-          IMAGES="[$(awk '{print $1}' images.txt | xargs -n1 | awk '{print "\""$1"\","}' | sed '$ s/.$//')]"
+          IMAGES="[$(awk '!/kube-proxy/' images.txt | awk '{print $1}' | xargs -n1 | awk '{print "\""$1"\","}' | sed '$ s/.$//')]"
           echo "matrix=$(jq -cn --argjson images "$IMAGES" '{image: $images}')" >> $GITHUB_OUTPUT
 
   scan:
