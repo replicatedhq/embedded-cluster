@@ -412,8 +412,20 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 				Outcomes: []*v1beta2.Outcome{
 					{
 						Fail: &v1beta2.SingleOutcome{
+							When:    "connection-refused",
+							Message: "Error connecting to 192.168.10.1:6443. Connection refused. Ensure that the host can connect to 192.168.10.1:6443.",
+						},
+					},
+					{
+						Fail: &v1beta2.SingleOutcome{
+							When:    "connection-timeout",
+							Message: "Error connecting to 192.168.10.1:6443. Connection timed out. Ensure that the host can connect to 192.168.10.1:6443.",
+						},
+					},
+					{
+						Fail: &v1beta2.SingleOutcome{
 							When:    "error",
-							Message: "Error connecting to 192.168.10.1:6443. Ensure that the host can connect to 192.168.10.1:6443.",
+							Message: "Error connecting to 192.168.10.1:6443. Unexpected error. Ensure that the host can connect to 192.168.10.1:6443.",
 						},
 					},
 					{
@@ -464,8 +476,20 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 					Outcomes: []*v1beta2.Outcome{
 						{
 							Fail: &v1beta2.SingleOutcome{
+								When:    "connection-refused",
+								Message: "Error connecting to 192.168.10.1:6443. Connection refused. Ensure that the host can connect to 192.168.10.1:6443.",
+							},
+						},
+						{
+							Fail: &v1beta2.SingleOutcome{
+								When:    "connection-timeout",
+								Message: "Error connecting to 192.168.10.1:6443. Connection timed out. Ensure that the host can connect to 192.168.10.1:6443.",
+							},
+						},
+						{
+							Fail: &v1beta2.SingleOutcome{
 								When:    "error",
-								Message: "Error connecting to 192.168.10.1:6443. Ensure that the host can connect to 192.168.10.1:6443.",
+								Message: "Error connecting to 192.168.10.1:6443. Unexpected error. Ensure that the host can connect to 192.168.10.1:6443.",
 							},
 						},
 						{
@@ -481,8 +505,20 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 					Outcomes: []*v1beta2.Outcome{
 						{
 							Fail: &v1beta2.SingleOutcome{
+								When:    "connection-refused",
+								Message: "Error connecting to 192.168.10.1:9443. Connection refused. Ensure that the host can connect to 192.168.10.1:9443.",
+							},
+						},
+						{
+							Fail: &v1beta2.SingleOutcome{
+								When:    "connection-timeout",
+								Message: "Error connecting to 192.168.10.1:9443. Connection timed out. Ensure that the host can connect to 192.168.10.1:9443.",
+							},
+						},
+						{
+							Fail: &v1beta2.SingleOutcome{
 								When:    "error",
-								Message: "Error connecting to 192.168.10.1:9443. Ensure that the host can connect to 192.168.10.1:9443.",
+								Message: "Error connecting to 192.168.10.1:9443. Unexpected error. Ensure that the host can connect to 192.168.10.1:9443.",
 							},
 						},
 						{
@@ -498,8 +534,20 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 					Outcomes: []*v1beta2.Outcome{
 						{
 							Fail: &v1beta2.SingleOutcome{
+								When:    "connection-refused",
+								Message: "Error connecting to 192.168.10.1:2380. Connection refused. Ensure that the host can connect to 192.168.10.1:2380.",
+							},
+						},
+						{
+							Fail: &v1beta2.SingleOutcome{
+								When:    "connection-timeout",
+								Message: "Error connecting to 192.168.10.1:2380. Connection timed out. Ensure that the host can connect to 192.168.10.1:2380.",
+							},
+						},
+						{
+							Fail: &v1beta2.SingleOutcome{
 								When:    "error",
-								Message: "Error connecting to 192.168.10.1:2380. Ensure that the host can connect to 192.168.10.1:2380.",
+								Message: "Error connecting to 192.168.10.1:2380. Unexpected error. Ensure that the host can connect to 192.168.10.1:2380.",
 							},
 						},
 						{
@@ -515,8 +563,20 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 					Outcomes: []*v1beta2.Outcome{
 						{
 							Fail: &v1beta2.SingleOutcome{
+								When:    "connection-refused",
+								Message: "Error connecting to 192.168.10.1:10250. Connection refused. Ensure that the host can connect to 192.168.10.1:10250.",
+							},
+						},
+						{
+							Fail: &v1beta2.SingleOutcome{
+								When:    "connection-timeout",
+								Message: "Error connecting to 192.168.10.1:10250. Connection timed out. Ensure that the host can connect to 192.168.10.1:10250.",
+							},
+						},
+						{
+							Fail: &v1beta2.SingleOutcome{
 								When:    "error",
-								Message: "Error connecting to 192.168.10.1:10250. Ensure that the host can connect to 192.168.10.1:10250.",
+								Message: "Error connecting to 192.168.10.1:10250. Unexpected error. Ensure that the host can connect to 192.168.10.1:10250.",
 							},
 						},
 						{

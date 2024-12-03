@@ -72,8 +72,20 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 			validate: func(hc *troubleshootv1beta2.HostAnalyze) {
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
 					Fail: &v1beta2.SingleOutcome{
+						When:    "connection-refused",
+						Message: "Error connecting to 10.0.0.1:6443. Connection refused. Ensure that the host can connect to 10.0.0.1:6443.",
+					},
+				})
+				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
+					Fail: &v1beta2.SingleOutcome{
+						When:    "connection-timeout",
+						Message: "Error connecting to 10.0.0.1:6443. Connection timed out. Ensure that the host can connect to 10.0.0.1:6443.",
+					},
+				})
+				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
+					Fail: &v1beta2.SingleOutcome{
 						When:    "error",
-						Message: "Error connecting to 10.0.0.1:6443. Ensure that the host can connect to 10.0.0.1:6443.",
+						Message: "Error connecting to 10.0.0.1:6443. Unexpected error. Ensure that the host can connect to 10.0.0.1:6443.",
 					},
 				})
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
@@ -91,8 +103,20 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 			validate: func(hc *troubleshootv1beta2.HostAnalyze) {
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
 					Fail: &v1beta2.SingleOutcome{
+						When:    "connection-refused",
+						Message: "Error connecting to 10.0.0.1:9443. Connection refused. Ensure that the host can connect to 10.0.0.1:9443.",
+					},
+				})
+				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
+					Fail: &v1beta2.SingleOutcome{
+						When:    "connection-timeout",
+						Message: "Error connecting to 10.0.0.1:9443. Connection timed out. Ensure that the host can connect to 10.0.0.1:9443.",
+					},
+				})
+				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
+					Fail: &v1beta2.SingleOutcome{
 						When:    "error",
-						Message: "Error connecting to 10.0.0.1:9443. Ensure that the host can connect to 10.0.0.1:9443.",
+						Message: "Error connecting to 10.0.0.1:9443. Unexpected error. Ensure that the host can connect to 10.0.0.1:9443.",
 					},
 				})
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{

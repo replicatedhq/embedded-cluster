@@ -910,7 +910,7 @@ spec:
               message: "Error connecting to {{ $element }}. Connection timed out. Ensure that the host can connect to {{ $element }}."
           - fail:
               when: "error"
-              message: "Error connecting to {{ $element }}. Unexpected Error. Ensure that the host can connect to {{ $element }}."
+              message: "Error connecting to {{ $element }}. Unexpected error. Ensure that the host can connect to {{ $element }}."
           - pass:
               when: "connected"
               message: "Successfully connected to {{ $element }}."
