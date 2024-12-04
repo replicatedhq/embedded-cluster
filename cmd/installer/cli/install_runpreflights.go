@@ -49,8 +49,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		overrides            string
 		privateCAs           []string
 		configValues         string
-		skipHostPreflights   bool
-		ignoreHostPreflights bool
 
 		proxy *ecv1beta1.ProxySpec
 	)
@@ -156,9 +154,10 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().Bool("skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
-	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
+	cmd.Flags().Bool("ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
+	cmd.Flags().MarkHidden("ignore-host-preflights")
 
 	addProxyFlags(cmd)
 	addCIDRFlags(cmd)

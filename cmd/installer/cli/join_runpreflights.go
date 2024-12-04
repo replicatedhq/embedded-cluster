@@ -123,6 +123,11 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().MarkHidden("airgap-bundle")
 
+	cmd.Flags().Bool("skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().MarkHidden("skip-host-preflights")
+	cmd.Flags().Bool("ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
+	cmd.Flags().MarkHidden("ignore-host-preflights")
+
 	cmd.Flags().StringVarP(&license, "license", "l", "", "Path to the license file")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
