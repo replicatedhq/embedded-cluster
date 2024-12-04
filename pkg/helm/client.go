@@ -239,6 +239,7 @@ func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
 	kubeConfig := runtimeconfig.PathToKubeConfig()
 	cfgFlags := &genericclioptions.ConfigFlags{
 		KubeConfig: &kubeConfig,
+		Namespace:  &namespace,
 	}
 	cfg := &action.Configuration{}
 	if err := cfg.Init(cfgFlags, namespace, "secret", logFn); err != nil {
