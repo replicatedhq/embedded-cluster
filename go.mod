@@ -48,6 +48,7 @@ require (
 	helm.sh/helm/v3 v3.16.3
 	k8s.io/api v0.31.3
 	k8s.io/apimachinery v0.31.3
+	k8s.io/cli-runtime v0.31.3
 	k8s.io/client-go v0.31.3
 	k8s.io/kubectl v0.31.3
 	k8s.io/utils v0.0.0-20240921022957-49e7df575cb6
@@ -296,7 +297,6 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	k8s.io/apiserver v0.31.3 // indirect
-	k8s.io/cli-runtime v0.31.3 // indirect
 	k8s.io/component-base v0.31.3 // indirect
 	k8s.io/kubelet v0.31.2 // indirect
 	k8s.io/metrics v0.31.3 // indirect

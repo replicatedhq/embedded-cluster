@@ -37,3 +37,7 @@ func init() {
 	}
 	helmValues = hv
 }
+
+func (a *OpenEBS) Name() string {
+	return "Storage"
+}
