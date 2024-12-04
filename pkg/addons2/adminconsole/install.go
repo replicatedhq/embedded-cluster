@@ -21,24 +21,10 @@ import (
 
 func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
 	// some resources are not part of the helm chart and need to be created before the chart is installed
+	// TODO: move this to the helm chart
 
-	if err := createNamespace(ctx, kcli, namespace); err != nil {
-		return errors.Wrap(err, "create namespace")
-	}
-
-	if err := createKotsPasswordSecret(ctx, kcli, namespace, a.Password); err != nil {
-		return errors.Wrap(err, "create kots password secret")
-	}
-
-	if err := createKotsCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
-		return errors.Wrap(err, "create kots CA configmap")
-	}
-
-	if a.AirgapBundle != "" {
-		err := createRegistrySecret(ctx, kcli, namespace)
-		if err != nil {
-			return errors.Wrap(err, "create registry secret")
-		}
+	if err := a.createPreRequisites(ctx, kcli); err != nil {
+		return errors.Wrap(err, "create prerequisites")
 	}
 
 	// install the helm chart
@@ -67,6 +53,29 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, writer *
 		}
 		if err := kotscli.Install(installOpts, writer); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Client) error {
+	if err := createNamespace(ctx, kcli, namespace); err != nil {
+		return errors.Wrap(err, "create namespace")
+	}
+
+	if err := createKotsPasswordSecret(ctx, kcli, namespace, a.Password); err != nil {
+		return errors.Wrap(err, "create kots password secret")
+	}
+
+	if err := createKotsCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
+		return errors.Wrap(err, "create kots CA configmap")
+	}
+
+	if a.AirgapBundle != "" {
+		err := createRegistrySecret(ctx, kcli, namespace)
+		if err != nil {
+			return errors.Wrap(err, "create registry secret")
 		}
 	}
 
