@@ -163,7 +163,7 @@ func ReportApplyFinished(ctx context.Context, licenseFlag string, err error) {
 }
 
 // ReportPreflightsFailed reports that the preflights failed but were bypassed.
-func ReportPreflightsFailed(ctx context.Context, url string, output preflights.Output, bypassed bool) {
+func ReportPreflightsFailed(ctx context.Context, url string, output preflights.Output, bypassed bool, entryCommand string) {
 	if url == "" {
 		url = BaseURL(nil)
 	}
@@ -191,6 +191,7 @@ func ReportPreflightsFailed(ctx context.Context, url string, output preflights.O
 		NodeName:        hostname,
 		PreflightOutput: string(outputJSON),
 		EventType:       eventType,
+		EntryCommand:    entryCommand,
 	}
 	go Send(ctx, url, ev)
 }

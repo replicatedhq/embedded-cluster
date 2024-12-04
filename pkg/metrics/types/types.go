@@ -90,6 +90,7 @@ type PreflightsFailed struct {
 	NodeName        string    `json:"nodeName"`
 	PreflightOutput string    `json:"preflightOutput"`
 	EventType       string    `json:"eventType"`
+	EntryCommand    string    `json:"entryCommand"`
 }
 
 // Title returns the name of the event.

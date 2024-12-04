@@ -438,11 +438,11 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		}
 		if ignoreHostPreflightsFlag {
 			if assumeYes {
-				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true)
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
-				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true)
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 				return nil // user continued after host preflights failed
 			}
 		}
@@ -452,7 +452,7 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		} else {
 			logrus.Info("Please address this issue and try again.")
 		}
-		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false)
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
 		return ErrPreflightsHaveFail
 	}
 
@@ -468,16 +468,16 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			// so we just print the warnings and continue
 			pb.Close()
 			output.PrintTableWithoutInfo()
-			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true)
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 			return nil
 		}
 		pb.Close()
 		output.PrintTableWithoutInfo()
 		if prompts.New().Confirm("Do you want to continue?", false) {
-			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true)
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 			return nil
 		}
-		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false)
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
 		return fmt.Errorf("user aborted")
 	}
 
