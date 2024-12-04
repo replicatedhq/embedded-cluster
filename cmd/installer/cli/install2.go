@@ -8,10 +8,12 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -183,10 +185,29 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return err
 	}
 
-	fmt.Printf("%#v\n", clusterConfig)
+	logrus.Debugf("installing addons")
+	if err := addons2.InstallAddons(cmd.Context(), addons2.InstallOptions{
+		ClusterConfig:    clusterConfig,
+		AdminConsolePwd:  flags.adminConsolePassword,
+		License:          flags.license,
+		LicenseFile:      flags.licenseFile,
+		AirgapBundle:     flags.airgapBundle,
+		Proxy:            flags.proxy,
+		PrivateCAs:       flags.privateCAs,
+		ConfigValuesFile: flags.configValues,
+		NetworkInterface: flags.networkInterface,
+	}); err != nil {
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		return err
+	}
 
 	logrus.Debugf("installing manager")
 	if err := installAndEnableManager(); err != nil {
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		return err
+	}
+
+	if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}
@@ -336,6 +357,42 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 		return nil, err
 	}
 
+	// init the kubeconfig
+	os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+
 	loading.Infof("Node installation finished!")
 	return cfg, nil
+}
+
+func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {
+	adminConsoleURL := getAdminConsoleURL(networkInterface, runtimeconfig.AdminConsolePort())
+
+	successColor := "\033[32m"
+	colorReset := "\033[0m"
+	var successMessage string
+	if license != nil {
+		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install %s: %s%s%s",
+			license.Spec.AppSlug, successColor, adminConsoleURL, colorReset,
+		)
+	} else {
+		successMessage = fmt.Sprintf("Visit the Admin Console to configure and install your application: %s%s%s",
+			successColor, adminConsoleURL, colorReset,
+		)
+	}
+	logrus.Info(successMessage)
+
+	return nil
+}
+
+func getAdminConsoleURL(networkInterface string, port int) string {
+	ipaddr := runtimeconfig.TryDiscoverPublicIP()
+	if ipaddr == "" {
+		var err error
+		ipaddr, err = netutils.FirstValidAddress(networkInterface)
+		if err != nil {
+			logrus.Errorf("unable to determine node IP address: %v", err)
+			ipaddr = "NODE-IP-ADDRESS"
+		}
+	}
+	return fmt.Sprintf("http://%s:%v", ipaddr, port)
 }

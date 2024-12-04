@@ -2,13 +2,17 @@ package helm
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -18,9 +22,11 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/pusher"
 	"helm.sh/helm/v3/pkg/registry"
+	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/uploader"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 var (
@@ -163,7 +169,7 @@ func (h *Helm) Latest(reponame, chart string) (string, error) {
 	return "", fmt.Errorf("repository %s not found", reponame)
 }
 
-func (h *Helm) PullOCI(url, version string) (string, error) {
+func (h *Helm) PullOCI(url string, version string) (string, error) {
 	if err := h.prepare(); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
 	}
@@ -175,14 +181,16 @@ func (h *Helm) PullOCI(url, version string) (string, error) {
 		RepositoryCache:  h.tmpdir,
 		Getters:          getters,
 	}
+
 	path, _, err := dl.DownloadTo(url, version, h.tmpdir)
 	if err != nil {
 		return "", fmt.Errorf("download chart %s: %w", url, err)
 	}
+
 	return path, nil
 }
 
-func (h *Helm) Pull(repo, chart, version string) (string, error) {
+func (h *Helm) Pull(repo string, chart string, version string) (string, error) {
 	if err := h.prepare(); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
 	}
@@ -194,11 +202,13 @@ func (h *Helm) Pull(repo, chart, version string) (string, error) {
 		RepositoryCache:  h.tmpdir,
 		Getters:          getters,
 	}
+
 	ref := fmt.Sprintf("%s/%s", repo, chart)
 	dst, _, err := dl.DownloadTo(ref, version, os.TempDir())
 	if err != nil {
 		return "", fmt.Errorf("download chart %s: %w", ref, err)
 	}
+
 	return dst, nil
 }
 
@@ -212,6 +222,7 @@ func (h *Helm) Push(path, dst string) error {
 		Pushers: pushers,
 		Options: []pusher.Option{pusher.WithRegistryClient(h.regcli)},
 	}
+
 	return up.UploadTo(path, dst)
 }
 
@@ -224,12 +235,68 @@ func (h *Helm) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
 	return chartRequested.Metadata, nil
 }
 
-func (h *Helm) Render(chartName string, chartPath string, vals map[string]interface{}, namespace string) ([][]byte, error) {
+func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
+	kubeConfig := runtimeconfig.PathToKubeConfig()
+	cfgFlags := &genericclioptions.ConfigFlags{
+		KubeConfig: &kubeConfig,
+		Namespace:  &namespace,
+	}
+	cfg := &action.Configuration{}
+	if err := cfg.Init(cfgFlags, namespace, "secret", logFn); err != nil {
+		return nil, fmt.Errorf("init helm configuration: %w", err)
+	}
+	return cfg, nil
+}
+
+func (h *Helm) Install(ctx context.Context, releaseName string, chartPath string, chartVersion string, values map[string]interface{}, namespace string) (*release.Release, error) {
+	cfg, err := h.getActionCfg(namespace)
+	if err != nil {
+		return nil, fmt.Errorf("get action configuration: %w", err)
+	}
+
+	client := action.NewInstall(cfg)
+	client.ReleaseName = releaseName
+	client.Namespace = namespace
+	client.Replace = true
+	client.IncludeCRDs = true
+	client.CreateNamespace = true
+	client.WaitForJobs = true
+	client.Wait = true
+	client.Timeout = 5 * time.Minute
+
+	localPath, err := h.PullOCI(chartPath, chartVersion)
+	if err != nil {
+		return nil, fmt.Errorf("pull oci: %w", err)
+	}
+	defer os.RemoveAll(localPath)
+
+	chartRequested, err := loader.Load(localPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %w", err)
+	}
+
+	if req := chartRequested.Metadata.Dependencies; req != nil {
+		if err := action.CheckDependencies(chartRequested, req); err != nil {
+			return nil, fmt.Errorf("failed dependency check: %w", err)
+		}
+	}
+
+	cleanVals := cleanUpGenericMap(values)
+
+	release, err := client.RunWithContext(ctx, chartRequested, cleanVals)
+	if err != nil {
+		return nil, fmt.Errorf("run install: %w", err)
+	}
+
+	return release, nil
+}
+
+func (h *Helm) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string) ([][]byte, error) {
 	cfg := &action.Configuration{}
 
 	client := action.NewInstall(cfg)
 	client.DryRun = true
-	client.ReleaseName = chartName
+	client.ReleaseName = releaseName
 	client.Replace = true
 	client.ClientOnly = true
 	client.IncludeCRDs = true
@@ -255,16 +322,16 @@ func (h *Helm) Render(chartName string, chartPath string, vals map[string]interf
 		}
 	}
 
-	cleanVals := cleanUpGenericMap(vals)
+	cleanVals := cleanUpGenericMap(values)
 
-	rel, err := client.Run(chartRequested, cleanVals)
+	release, err := client.Run(chartRequested, cleanVals)
 	if err != nil {
 		return nil, fmt.Errorf("run render: %w", err)
 	}
 
 	var manifests bytes.Buffer
-	fmt.Fprintln(&manifests, strings.TrimSpace(rel.Manifest))
-	for _, m := range rel.Hooks {
+	fmt.Fprintln(&manifests, strings.TrimSpace(release.Manifest))
+	for _, m := range release.Hooks {
 		fmt.Fprintf(&manifests, "---\n# Source: %s\n%s\n", m.Path, m.Manifest)
 	}
 
@@ -328,4 +395,9 @@ func cleanUpInterfaceMap(in map[string]interface{}) map[string]interface{} {
 		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
 	}
 	return result
+}
+
+func logFn(format string, args ...interface{}) {
+	log := logrus.WithField("component", "helm")
+	log.Debugf(format, args...)
 }

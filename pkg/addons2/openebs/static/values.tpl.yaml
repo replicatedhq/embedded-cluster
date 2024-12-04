@@ -1,0 +1,43 @@
+engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+localpv-provisioner:
+  analytics:
+    enabled: false
+{{- if .ReplaceImages }}
+  helperPod:
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "openebs-linux-utils").Repo }}'
+      tag: '{{ index (index .Images "openebs-linux-utils").Tag .GOARCH }}'
+{{- end }}
+  hostpathClass:
+    enabled: true
+    isDefaultClass: true
+  localpv:
+{{- if .ReplaceImages }}
+    image:
+      registry: proxy.replicated.com/anonymous/
+      repository: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "openebs-provisioner-localpv").Repo }}'
+      tag: '{{ index (index .Images "openebs-provisioner-localpv").Tag .GOARCH }}'
+{{- end }}
+    basePath: "/var/lib/embedded-cluster/openebs-local"
+lvm-localpv:
+  enabled: false
+mayastor:
+  enabled: false
+{{- if .ReplaceImages }}
+preUpgradeHook:
+  image:
+    registry: proxy.replicated.com/anonymous
+    repo: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "kubectl").Repo }}'
+    tag: '{{ index (index .Images "kubectl").Tag .GOARCH }}'
+{{- end }}
+zfs-localpv:
+  enabled: false
