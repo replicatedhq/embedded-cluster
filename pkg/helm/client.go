@@ -164,7 +164,7 @@ func (h *Helm) Latest(reponame, chart string) (string, error) {
 	return "", fmt.Errorf("repository %s not found", reponame)
 }
 
-func (h *Helm) PullOCI(url, version string) (string, error) {
+func (h *Helm) PullOCI(url string, version string) (string, error) {
 	if err := h.prepare(); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
 	}
@@ -176,14 +176,16 @@ func (h *Helm) PullOCI(url, version string) (string, error) {
 		RepositoryCache:  h.tmpdir,
 		Getters:          getters,
 	}
+
 	path, _, err := dl.DownloadTo(url, version, h.tmpdir)
 	if err != nil {
 		return "", fmt.Errorf("download chart %s: %w", url, err)
 	}
+
 	return path, nil
 }
 
-func (h *Helm) Pull(repo, chart, version string) (string, error) {
+func (h *Helm) Pull(repo string, chart string, version string) (string, error) {
 	if err := h.prepare(); err != nil {
 		return "", fmt.Errorf("prepare: %w", err)
 	}
@@ -195,11 +197,13 @@ func (h *Helm) Pull(repo, chart, version string) (string, error) {
 		RepositoryCache:  h.tmpdir,
 		Getters:          getters,
 	}
+
 	ref := fmt.Sprintf("%s/%s", repo, chart)
 	dst, _, err := dl.DownloadTo(ref, version, os.TempDir())
 	if err != nil {
 		return "", fmt.Errorf("download chart %s: %w", ref, err)
 	}
+
 	return dst, nil
 }
 
@@ -213,6 +217,7 @@ func (h *Helm) Push(path, dst string) error {
 		Pushers: pushers,
 		Options: []pusher.Option{pusher.WithRegistryClient(h.regcli)},
 	}
+
 	return up.UploadTo(path, dst)
 }
 
