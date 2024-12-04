@@ -96,11 +96,11 @@ func combineNoProxySuppliedValuesAndDefaults(cmd *cobra.Command, proxy *ecv1beta
 	noProxy := strings.Split(proxy.ProvidedNoProxy, ",")
 	if len(noProxy) > 0 || proxy.HTTPProxy != "" || proxy.HTTPSProxy != "" {
 		noProxy = append(runtimeconfig.DefaultNoProxy, noProxy...)
-		podnet, svcnet, err := getPODAndServiceCIDR(cmd)
+		cidrCfg, err := getCIDRConfig(cmd)
 		if err != nil {
 			return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 		}
-		noProxy = append(noProxy, podnet, svcnet)
+		noProxy = append(noProxy, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR)
 		proxy.NoProxy = strings.Join(noProxy, ",")
 	}
 	return nil

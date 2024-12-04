@@ -37,6 +37,7 @@ jobs:
           cache-dependency-path: "**/*.sum"
       - name: Go vet
         run: |
+          go mod graph
           make vet
       - name: Lint
         uses: golangci/golangci-lint-action@v6

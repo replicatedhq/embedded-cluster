@@ -41,12 +41,7 @@ type Install2CmdFlags struct {
 
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
-
-	// cidr flags are deprecated, but these values are still
-	// used.  if the --cidr flag is passed, the values will be
-	// calculated
-	podCIDR     string
-	serviceCIDR string
+	cidrCfg *CIDRConfig
 }
 
 // Install2Cmd returns a cobra command for installing the embedded cluster.
@@ -81,12 +76,11 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			// parse the various cidr flags to make sure we have exactly what we want
-			pod, svc, err := getPODAndServiceCIDR(cmd)
+			cidrCfg, err := getCIDRConfig(cmd)
 			if err != nil {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
-			flags.podCIDR = pod
-			flags.serviceCIDR = svc
+			flags.cidrCfg = cidrCfg
 
 			// validate the the license is indeed a license file
 			l, err := helpers.ParseLicense(flags.licenseFile)
@@ -165,8 +159,19 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	logrus.Debugf("running host preflights")
-	if err := runInstallPreflights(cmd.Context(), flags.license, flags.proxy, flags.podCIDR, flags.serviceCIDR); err != nil {
-		return err
+	if err := preflights.PrepareAndRun(cmd.Context(), preflights.PrepareAndRunOptions{
+		License:              flags.license,
+		Proxy:                flags.proxy,
+		PodCIDR:              flags.cidrCfg.PodCIDR,
+		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
+		GlobalCIDR:           flags.cidrCfg.GlobalCIDR,
+		PrivateCAs:           flags.privateCAs,
+		IsAirgap:             flags.airgapBundle != "",
+		SkipHostPreflights:   flags.skipHostPreflights,
+		IgnoreHostPreflights: flags.ignoreHostPreflights,
+		AssumeYes:            flags.assumeYes,
+	}); err != nil {
+		return fmt.Errorf("unable to prepare and run preflights: %w", err)
 	}
 
 	logrus.Debugf("configuring sysctl")
@@ -179,7 +184,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
-	clusterConfig, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.podCIDR, flags.serviceCIDR, flags.overrides)
+	clusterConfig, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.cidrCfg, flags.overrides)
 	if err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
@@ -310,27 +315,13 @@ func runInstallVerifyAndPrompt(ctx context.Context, name string, flags *Install2
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, license *kotsv1beta1.License, proxy *ecv1beta1.ProxySpec, podCIDR string, serviceCIDR string) error {
-	preflightOptions := preflights.PrepareAndRunOptions{
-		License:              license,
-		Proxy:                proxy,
-		ConnectivityFromCIDR: podCIDR,
-		ConnectivityToCIDR:   serviceCIDR,
-	}
-	if err := preflights.PrepareAndRun(ctx, preflightOptions); err != nil {
-		return fmt.Errorf("unable to prepare and run preflights: %w", err)
-	}
-
-	return nil
-}
-
-func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, license *kotsv1beta1.License, proxy *ecv1beta1.ProxySpec, podCIDR string, serviceCIDR string, overrides string) (*k0sconfig.ClusterConfig, error) {
+func installAndStartCluster(ctx context.Context, networkInterface string, airgapBundle string, license *kotsv1beta1.License, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, overrides string) (*k0sconfig.ClusterConfig, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Installing %s node", runtimeconfig.BinaryName())
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, podCIDR, serviceCIDR, overrides)
+	cfg, err := k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, overrides)
 	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
 		metrics.ReportApplyFinished(ctx, "", license, err)
