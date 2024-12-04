@@ -26,6 +26,7 @@ runs:
         ignore-unfixed: true
         severity: CRITICAL,HIGH,MEDIUM
         exit-code: 1
+        trivyignores: .trivyignore
 
     - name: Output sarif
       uses: aquasecurity/trivy-action@0.24.0
