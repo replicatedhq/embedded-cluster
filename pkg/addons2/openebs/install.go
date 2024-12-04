@@ -2,8 +2,8 @@ package openebs
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -15,12 +15,12 @@ func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, writer *spinn
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
-		return fmt.Errorf("create helm client: %w", err)
+		return errors.Wrap(err, "create helm client")
 	}
 
 	_, err = helm.Install(ctx, releaseName, Metadata.Location, Metadata.Version, helmValues, namespace)
 	if err != nil {
-		return fmt.Errorf("install openebs: %w", err)
+		return errors.Wrap(err, "install openebs")
 	}
 
 	return nil
