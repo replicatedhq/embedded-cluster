@@ -17,7 +17,7 @@ func (o *OpenEBS) Install(ctx context.Context, clusterConfig *k0sconfig.ClusterC
 		return fmt.Errorf("unable to create helm client: %w", err)
 	}
 
-	release, err := helm.Install("openebs", "oci://registry.replicated.com/library/openebs", map[string]interface{}{}, "openebs")
+	release, err := helm.Install(ctx, releaseName, Metadata.Location, Metadata.Version, helmValues, namespace)
 	if err != nil {
 		return fmt.Errorf("unable to install openebs: %w", err)
 	}
