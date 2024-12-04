@@ -1,0 +1,15 @@
+vulnerabilities:
+  - id: CVE-2024-45310
+    paths:
+      - usr/local/bin/kube-proxy
+    statement: Accept the risk
+  - id: CVE-2023-47108
+    paths:
+      - usr/local/bin/kube-proxy
+    statement: Accept the risk
+  - id: CVE-2024-5535
+    paths:
+      - proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy:*
+    purls:
+      - pkg:deb/debian/libssl3
+    statement: Accept the risk
