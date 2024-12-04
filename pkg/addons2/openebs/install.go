@@ -2,27 +2,26 @@ package openebs
 
 import (
 	"context"
-	"fmt"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *OpenEBS) Install(ctx context.Context, clusterConfig *k0sconfig.ClusterConfig) error {
+func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
 	helm, err := helm.NewHelm(helm.HelmOptions{
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
-		return fmt.Errorf("unable to create helm client: %w", err)
+		return errors.Wrap(err, "create helm client")
 	}
 
-	release, err := helm.Install(ctx, releaseName, Metadata.Location, Metadata.Version, helmValues, namespace)
+	_, err = helm.Install(ctx, releaseName, Metadata.Location, Metadata.Version, helmValues, namespace)
 	if err != nil {
-		return fmt.Errorf("unable to install openebs: %w", err)
+		return errors.Wrap(err, "install openebs")
 	}
-
-	fmt.Printf("OpenEBS installed successfully: %s\n", release.Manifest)
 
 	return nil
 }
