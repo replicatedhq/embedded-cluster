@@ -102,24 +102,29 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			fromCIDR, toCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
+			podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
 			if err != nil {
 				return fmt.Errorf("unable to split default network CIDR: %w", err)
 			}
 
 			if jcmd.InstallationSpec.Network != nil {
 				if jcmd.InstallationSpec.Network.PodCIDR != "" {
-					fromCIDR = jcmd.InstallationSpec.Network.PodCIDR
+					podCIDR = jcmd.InstallationSpec.Network.PodCIDR
 				}
 				if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
-					toCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
+					serviceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
 				}
+			}
+
+			cidrCfg := &CIDRConfig{
+				PodCIDR:     podCIDR,
+				ServiceCIDR: serviceCIDR,
 			}
 
 			logrus.Debugf("running host preflights")
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 			proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, fromCIDR, toCIDR, assumeYes); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, cidrCfg, assumeYes); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}

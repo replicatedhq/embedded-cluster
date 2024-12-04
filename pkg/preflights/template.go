@@ -38,9 +38,9 @@ type TemplateData struct {
 }
 
 // WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings
-func (t TemplateData) WithCIDRData(podCIDR, serviceCIDR, globalCIDR string) (TemplateData, error) {
-	if globalCIDR != "" {
-		_, cidr, err := net.ParseCIDR(globalCIDR)
+func (t TemplateData) WithCIDRData(podCIDR string, serviceCIDR string, globalCIDR *string) (TemplateData, error) {
+	if globalCIDR != nil && *globalCIDR != "" {
+		_, cidr, err := net.ParseCIDR(*globalCIDR)
 		if err != nil {
 			return t, fmt.Errorf("invalid cidr: %w", err)
 		}

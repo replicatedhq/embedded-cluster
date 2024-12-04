@@ -751,13 +751,13 @@ func ensureK0sConfigForRestore(cmd *cobra.Command, applier *addons.Applier) (*k0
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
-	podCIDR, serviceCIDR, err := getPODAndServiceCIDR(cmd)
+	cidrCfg, err := getCIDRConfig(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
 
-	cfg.Spec.Network.PodCIDR = podCIDR
-	cfg.Spec.Network.ServiceCIDR = serviceCIDR
+	cfg.Spec.Network.PodCIDR = cidrCfg.PodCIDR
+	cfg.Spec.Network.ServiceCIDR = cidrCfg.ServiceCIDR
 
 	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)

@@ -11,6 +11,14 @@ import (
 )
 
 func (a *AdminConsole) Prepare() error {
+	if err := a.generateHelmValues(); err != nil {
+		return errors.Wrap(err, "generate helm values")
+	}
+
+	return nil
+}
+
+func (a *AdminConsole) generateHelmValues() error {
 	helmValues["embeddedClusterVersion"] = versions.Version
 	helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 	helmValues["isHA"] = a.IsHA

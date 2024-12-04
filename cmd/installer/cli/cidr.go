@@ -35,29 +35,45 @@ func validateCIDRFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// getPODAndServiceCIDR determines, based on the command line flags,
-// what are the pod and service CIDRs to be used for the cluster. If both
-// --pod-cidr and --service-cidr have been set, they are used. Otherwise,
+type CIDRConfig struct {
+	PodCIDR     string
+	ServiceCIDR string
+	GlobalCIDR  *string
+}
+
+// getCIDRConfig determines, based on the command line flags,
+// what are the pod and service CIDRs to be used for the cluster. If either
+// of --pod-cidr or --service-cidr have been set, they are used. Otherwise,
 // the cidr flag is split into pod and service CIDRs.
-func getPODAndServiceCIDR(cmd *cobra.Command) (string, string, error) {
+func getCIDRConfig(cmd *cobra.Command) (*CIDRConfig, error) {
 	if cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr") {
-		podCIDRFlag, err := cmd.Flags().GetString("pod-cidr")
+		podCIDR, err := cmd.Flags().GetString("pod-cidr")
 		if err != nil {
-			return "", "", fmt.Errorf("unable to get pod-cidr flag: %w", err)
+			return nil, fmt.Errorf("unable to get pod-cidr flag: %w", err)
 		}
-		serviceCIDRFlag, err := cmd.Flags().GetString("service-cidr")
+		serviceCIDR, err := cmd.Flags().GetString("service-cidr")
 		if err != nil {
-			return "", "", fmt.Errorf("unable to get service-cidr flag: %w", err)
+			return nil, fmt.Errorf("unable to get service-cidr flag: %w", err)
 		}
-		return podCIDRFlag, serviceCIDRFlag, nil
+		return &CIDRConfig{
+			PodCIDR:     podCIDR,
+			ServiceCIDR: serviceCIDR,
+		}, nil
 	}
 
-	cidrFlag, err := cmd.Flags().GetString("cidr")
+	globalCIDR, err := cmd.Flags().GetString("cidr")
 	if err != nil {
-		return "", "", fmt.Errorf("unable to get cidr flag: %w", err)
+		return nil, fmt.Errorf("unable to get cidr flag: %w", err)
 	}
-
-	return netutils.SplitNetworkCIDR(cidrFlag)
+	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(globalCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("unable to split cidr flag: %w", err)
+	}
+	return &CIDRConfig{
+		PodCIDR:     podCIDR,
+		ServiceCIDR: serviceCIDR,
+		GlobalCIDR:  &globalCIDR,
+	}, nil
 }
 
 // cleanCIDR returns a `.0/x` subnet instead of a `.2/x` etc subnet
