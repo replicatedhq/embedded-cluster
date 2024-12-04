@@ -152,14 +152,18 @@ func ReportApplyStarted(ctx context.Context, licenseFlag string) {
 }
 
 // ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
-func ReportApplyFinished(ctx context.Context, licenseFlag string, err error) {
+func ReportApplyFinished(ctx context.Context, licenseFlag string, license *kotsv1beta1.License, err error) {
+	if licenseFlag != "" {
+		license = License(licenseFlag)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err != nil {
-		ReportInstallationFailed(ctx, License(licenseFlag), err)
+		ReportInstallationFailed(ctx, license, err)
 		return
 	}
-	ReportInstallationSucceeded(ctx, License(licenseFlag))
+	ReportInstallationSucceeded(ctx, license)
 }
 
 // ReportPreflightsFailed reports that the preflights failed but were bypassed.

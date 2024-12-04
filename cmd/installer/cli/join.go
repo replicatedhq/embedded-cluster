@@ -59,12 +59,16 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("checking if %s is already installed", name)
-			installed, err := k0s.IsInstalled(name)
+			installed, err := k0s.IsInstalled()
 			if err != nil {
 				return err
 			}
 			if installed {
-				return ErrNothingElseToAdd
+				logrus.Errorf("An installation has been detected on this machine.")
+				logrus.Infof("If you want to join a node to an existing installation, you need to remove the existing installation first.")
+				logrus.Infof("You can do this by running the following command:")
+				logrus.Infof("\n  sudo ./%s reset\n", name)
+				os.Exit(1)
 			}
 
 			channelRelease, err := release.GetChannelRelease()
@@ -262,6 +266,13 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 			if err := waitForNode(cmd.Context(), kcli, hostname); err != nil {
 				err := fmt.Errorf("unable to wait for node: %w", err)
+				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
+				return err
+			}
+
+			logrus.Debugf("installing manager")
+			if err := installAndEnableManager(); err != nil {
+				err := fmt.Errorf("unable to install and enable manager: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}

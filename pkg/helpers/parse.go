@@ -1,12 +1,17 @@
 package helpers
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kyaml "sigs.k8s.io/yaml"
+)
+
+var (
+	ErrNotALicenseFile = errors.New("not a license file")
 )
 
 // ParseEndUserConfig parses the end user configuration from the given file.
@@ -33,7 +38,7 @@ func ParseLicense(fpath string) (*kotsv1beta1.License, error) {
 	}
 	var license kotsv1beta1.License
 	if err := kyaml.Unmarshal(data, &license); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal license file: %w", err)
+		return nil, ErrNotALicenseFile
 	}
 	return &license, nil
 }

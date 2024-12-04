@@ -14,6 +14,7 @@ import (
 	"github.com/k0sproject/dig"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
@@ -23,9 +24,9 @@ import (
 
 func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var (
-		airgapBundle string
-		assumeYes    bool
-		license      string
+		airgapBundle     string
+		networkInterface string
+		assumeYes        bool
 	)
 	cmd := &cobra.Command{
 		Use:   "run-preflights",
@@ -99,9 +100,18 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			fromCIDR, toCIDR, err := netutils.SplitNetworkCIDR(ecv1beta1.DefaultNetworkCIDR)
 			if err != nil {
-				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+				return fmt.Errorf("unable to split default network CIDR: %w", err)
+			}
+
+			if jcmd.InstallationSpec.Network != nil {
+				if jcmd.InstallationSpec.Network.PodCIDR != "" {
+					fromCIDR = jcmd.InstallationSpec.Network.PodCIDR
+				}
+				if jcmd.InstallationSpec.Network.ServiceCIDR != "" {
+					toCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
+				}
 			}
 
 			logrus.Debugf("running host preflights")
@@ -122,13 +132,13 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 
 	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().MarkHidden("airgap-bundle")
+	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
 
 	cmd.Flags().Bool("skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
 	cmd.Flags().Bool("ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 	cmd.Flags().MarkHidden("ignore-host-preflights")
 
-	cmd.Flags().StringVarP(&license, "license", "l", "", "Path to the license file")
 	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 

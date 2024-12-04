@@ -65,10 +65,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("install command must be run as root")
 			}
+
 			if skipHostPreflights {
 				logrus.Warnf("Warning: --skip-host-preflights is deprecated and will be removed in a later version. Use --ignore-host-preflights instead.")
 			}
 
+			// TODO move this to pass params, not flags.  flags don't leave the cmd/ package
 			runtimeconfig.ApplyFlags(cmd.Flags())
 			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
@@ -76,34 +78,18 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to write runtime config to disk: %w", err)
 			}
 
-			var err error
-			proxy, err = getProxySpecFromFlags(cmd)
+			p, err := parseProxyFlags(cmd)
 			if err != nil {
-				return fmt.Errorf("unable to get proxy spec from flags: %w", err)
+				return fmt.Errorf("unable to parse proxy flags: %w", err)
+			}
+			proxy = p
+
+			if err := validateCIDRFlags(cmd); err != nil {
+				return fmt.Errorf("unable to parse cidr flags: %w", err)
 			}
 
-			proxy, err = includeLocalIPInNoProxy(cmd, proxy)
-			if err != nil {
-				licenseFlag, err := cmd.Flags().GetString("license")
-				if err != nil {
-					return fmt.Errorf("unable to get license flag: %w", err)
-				}
-				metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
-				return err
-			}
-			setProxyEnv(proxy)
-
-			if cmd.Flags().Changed("cidr") && (cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr")) {
-				return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
-			}
-
-			cidr, err := cmd.Flags().GetString("cidr")
-			if err != nil {
-				return fmt.Errorf("unable to get cidr flag: %w", err)
-			}
-
-			if err := netutils.ValidateCIDR(cidr, 16, true); err != nil {
-				return fmt.Errorf("invalid cidr %q: %w", cidr, err)
+			if os.Getenv("DISABLE_TELEMETRY") != "" {
+				metrics.DisableMetrics()
 			}
 
 			return nil
@@ -113,12 +99,16 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("checking if %s is already installed", name)
-			installed, err := k0s.IsInstalled(name)
+			installed, err := k0s.IsInstalled()
 			if err != nil {
 				return err
 			}
 			if installed {
-				return ErrNothingElseToAdd
+				logrus.Errorf("An installation has been detected on this machine.")
+				logrus.Infof("If you want to reinstall, you need to remove the existing installation first.")
+				logrus.Infof("You can do this by running the following command:")
+				logrus.Infof("\n  sudo ./%s reset\n", name)
+				os.Exit(1)
 			}
 
 			channelRelease, err := release.GetChannelRelease()
@@ -150,7 +140,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			license, err := getLicenseFromFilepath(licenseFile)
 			if err != nil {
 				metricErr := fmt.Errorf("unable to get license: %w", err)
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, metricErr)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, metricErr)
 				return err // do not return the metricErr, as we want the user to see the error message without a prefix
 			}
 			isAirgap := false
@@ -167,7 +157,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if !isAirgap {
 				if err := maybePromptForAppUpdate(cmd.Context(), prompts.New(), license, assumeYes); err != nil {
 					if errors.Is(err, ErrNothingElseToAdd) {
-						metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+						metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 						return err
 					}
 					// If we get an error other than ErrNothingElseToAdd, we warn and continue as
@@ -177,19 +167,19 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := preflights.ValidateApp(); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
 			adminConsolePwd, err := maybeAskAdminConsolePassword(cmd, assumeYes)
 			if err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
 			logrus.Debugf("materializing binaries")
 			if err := materializeFiles(airgapBundle); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
@@ -203,7 +193,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			}
 			applier, err := getAddonsApplier(cmd, opts, adminConsolePwd, proxy)
 			if err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
 
@@ -214,13 +204,13 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			}
 
-			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			fromCIDR, toCIDR, err := getPODAndServiceCIDR(cmd)
 			if err != nil {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
 
 			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR, assumeYes); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -231,12 +221,14 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			logrus.Debugf("running outro")
 			if err := runOutro(cmd, applier, cfg); err != nil {
-				metrics.ReportApplyFinished(cmd.Context(), licenseFile, err)
+				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				return err
 			}
-			metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil)
+
+			metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, nil)
 			return nil
 		},
 	}
@@ -453,13 +445,13 @@ func installAndWaitForK0s(cmd *cobra.Command, applier *addons.Applier, proxy *ec
 	cfg, err := ensureK0sConfig(cmd, applier)
 	if err != nil {
 		err := fmt.Errorf("unable to create config file: %w", err)
-		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil, err)
 		return nil, err
 	}
 	logrus.Debugf("creating systemd unit files")
 	if err := createSystemdUnitFiles(false, proxy); err != nil {
 		err := fmt.Errorf("unable to create systemd unit files: %w", err)
-		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil, err)
 		return nil, err
 	}
 
@@ -470,14 +462,14 @@ func installAndWaitForK0s(cmd *cobra.Command, applier *addons.Applier, proxy *ec
 	}
 	if err := k0s.Install(networkInterface); err != nil {
 		err := fmt.Errorf("unable to install cluster: %w", err)
-		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil, err)
 		return nil, err
 	}
 	loading.Infof("Waiting for %s node to be ready", runtimeconfig.BinaryName())
 	logrus.Debugf("waiting for k0s to be ready")
 	if err := waitForK0s(); err != nil {
 		err := fmt.Errorf("unable to wait for node: %w", err)
-		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, err)
+		metrics.ReportApplyFinished(cmd.Context(), licenseFlag, nil, err)
 		return nil, err
 	}
 
@@ -651,7 +643,7 @@ func ensureK0sConfig(cmd *cobra.Command, applier *addons.Applier) (*k0sconfig.Cl
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
-	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+	podCIDR, serviceCIDR, err := getPODAndServiceCIDR(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
@@ -731,30 +723,6 @@ func applyUnsupportedOverrides(cmd *cobra.Command, cfg *k0sconfig.ClusterConfig)
 	}
 
 	return cfg, nil
-}
-
-// DeterminePodAndServiceCIDRS determines, based on the command line flags,
-// what are the pod and service CIDRs to be used for the cluster. If both
-// --pod-cidr and --service-cidr have been set, they are used. Otherwise,
-// the cidr flag is split into pod and service CIDRs.
-func DeterminePodAndServiceCIDRs(cmd *cobra.Command) (string, string, error) {
-	if cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr") {
-		podCIDRFlag, err := cmd.Flags().GetString("pod-cidr")
-		if err != nil {
-			return "", "", fmt.Errorf("unable to get pod-cidr flag: %w", err)
-		}
-		serviceCIDRFlag, err := cmd.Flags().GetString("service-cidr")
-		if err != nil {
-			return "", "", fmt.Errorf("unable to get service-cidr flag: %w", err)
-		}
-		return podCIDRFlag, serviceCIDRFlag, nil
-	}
-
-	cidrFlag, err := cmd.Flags().GetString("cidr")
-	if err != nil {
-		return "", "", fmt.Errorf("unable to get cidr flag: %w", err)
-	}
-	return netutils.SplitNetworkCIDR(cidrFlag)
 }
 
 // createSystemdUnitFiles links the k0s systemd unit file. this also creates a new
@@ -838,6 +806,28 @@ func installAndEnableLocalArtifactMirror() error {
 	return nil
 }
 
+// installAndEnableManager installs and enables the manager. This service is
+// responsible for managing the embedded cluster after the initial installation.
+func installAndEnableManager() error {
+	materializer := goods.NewMaterializer()
+	if err := materializer.ManagerUnitFile(); err != nil {
+		return fmt.Errorf("unable to materialize manager unit: %w", err)
+	}
+	if err := writeManagerDropInFile(); err != nil {
+		return fmt.Errorf("unable to write manager environment file: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
+		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "start", runtimeconfig.ManagerServiceName); err != nil {
+		return fmt.Errorf("unable to start the manager: %w", err)
+	}
+	if _, err := helpers.RunCommand("systemctl", "enable", runtimeconfig.ManagerServiceName); err != nil {
+		return fmt.Errorf("unable to start the manager service: %w", err)
+	}
+	return nil
+}
+
 const (
 	localArtifactMirrorSystemdConfFile    = "/etc/systemd/system/local-artifact-mirror.service.d/embedded-cluster.conf"
 	localArtifactMirrorDropInFileContents = `[Service]
@@ -846,6 +836,15 @@ Environment="LOCAL_ARTIFACT_MIRROR_DATA_DIR=%s"
 # Empty ExecStart= will clear out the previous ExecStart value
 ExecStart=
 ExecStart=%s serve
+`
+)
+
+var (
+	managerSystemdConfFile    = fmt.Sprintf("/etc/systemd/system/%s.service.d/embedded-cluster.conf", runtimeconfig.ManagerServiceName)
+	managerDropInFileContents = `[Service]
+# Empty ExecStart= will clear out the previous ExecStart value
+ExecStart=
+ExecStart=%s start
 `
 )
 
@@ -862,6 +861,23 @@ func writeLocalArtifactMirrorDropInFile() error {
 		runtimeconfig.PathToEmbeddedClusterBinary("local-artifact-mirror"),
 	)
 	err = os.WriteFile(localArtifactMirrorSystemdConfFile, []byte(contents), 0644)
+	if err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+	return nil
+}
+
+func writeManagerDropInFile() error {
+	dir := filepath.Dir(managerSystemdConfFile)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+	contents := fmt.Sprintf(
+		managerDropInFileContents,
+		runtimeconfig.PathToEmbeddedClusterBinary("manager"),
+	)
+	err = os.WriteFile(managerSystemdConfFile, []byte(contents), 0644)
 	if err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
