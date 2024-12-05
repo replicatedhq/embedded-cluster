@@ -15,7 +15,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -48,8 +50,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		overrides            string
 		privateCAs           []string
 		configValues         string
-		skipHostPreflights   bool
-		ignoreHostPreflights bool
 
 		proxy *ecv1beta1.ProxySpec
 	)
@@ -121,12 +121,12 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			}
 
-			fromCIDR, toCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+			cidrCfg, err := getCIDRConfig(cmd)
 			if err != nil {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
 
-			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR, assumeYes); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, assumeYes); err != nil {
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
 				}
@@ -155,9 +155,10 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().Bool("skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
-	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
+	cmd.Flags().Bool("ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
+	cmd.Flags().MarkHidden("ignore-host-preflights")
 
 	addProxyFlags(cmd)
 	addCIDRFlags(cmd)
@@ -329,7 +330,7 @@ func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, adminConsolePw
 // RunHostPreflights runs the host preflights we found embedded in the binary
 // on all configured hosts. We attempt to read HostPreflights from all the
 // embedded Helm Charts and from the Kots Application Release files.
-func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, fromCIDR, toCIDR string, assumeYes bool) error {
+func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAPIURL, proxyRegistryURL string, isAirgap bool, proxy *ecv1beta1.ProxySpec, cidrCfg *CIDRConfig, assumeYes bool) error {
 	hpf, err := applier.HostPreflights()
 	if err != nil {
 		return fmt.Errorf("unable to read host preflights: %w", err)
@@ -337,7 +338,7 @@ func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAP
 
 	privateCAs := getPrivateCAPath(cmd)
 
-	data, err := preflights.TemplateData{
+	data, err := preflightstypes.TemplateData{
 		ReplicatedAPIURL:        replicatedAPIURL,
 		ProxyRegistryURL:        proxyRegistryURL,
 		IsAirgap:                isAirgap,
@@ -348,9 +349,9 @@ func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAP
 		OpenEBSDataDir:          runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
 		PrivateCA:               privateCAs,
 		SystemArchitecture:      runtime.GOARCH,
-		FromCIDR:                fromCIDR,
-		ToCIDR:                  toCIDR,
-	}.WithCIDRData(getCIDRs(cmd))
+		FromCIDR:                cidrCfg.PodCIDR,
+		ToCIDR:                  cidrCfg.ServiceCIDR,
+	}.WithCIDRData(cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, cidrCfg.GlobalCIDR)
 
 	if err != nil {
 		return fmt.Errorf("unable to get host preflights data: %w", err)
@@ -378,10 +379,10 @@ func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAP
 		return nil
 	}
 
-	return runHostPreflights(cmd, hpf, proxy, assumeYes)
+	return runHostPreflights(cmd, hpf, proxy, assumeYes, replicatedAPIURL)
 }
 
-func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, assumeYes bool) error {
+func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, assumeYes bool, replicatedAPIURL string) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -437,9 +438,11 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		}
 		if ignoreHostPreflightsFlag {
 			if assumeYes {
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 				return nil // user continued after host preflights failed
 			}
 		}
@@ -449,7 +452,7 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		} else {
 			logrus.Info("Please address this issue and try again.")
 		}
-
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
 		return ErrPreflightsHaveFail
 	}
 
@@ -465,15 +468,17 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			// so we just print the warnings and continue
 			pb.Close()
 			output.PrintTableWithoutInfo()
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 			return nil
 		}
 		pb.Close()
 		output.PrintTableWithoutInfo()
-		if !prompts.New().Confirm("Do you want to continue?", false) {
-			pb.Close()
-			return fmt.Errorf("user aborted")
+		if prompts.New().Confirm("Do you want to continue?", false) {
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+			return nil
 		}
-		return nil
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
+		return fmt.Errorf("user aborted")
 	}
 
 	// No failures or warnings
@@ -520,27 +525,4 @@ func getPrivateCAPath(cmd *cobra.Command) string {
 		privateCA = privateCAsFlag[0]
 	}
 	return privateCA
-}
-
-// getCIDRs returns the CIDRs in use based on the provided cli flags.
-func getCIDRs(cmd *cobra.Command) (string, string, string) {
-	podCIDRFlag, err := cmd.Flags().GetString("pod-cidr")
-	if err != nil {
-		return "", "", ""
-	}
-
-	serviceCIDRFlag, err := cmd.Flags().GetString("service-cidr")
-	if err != nil {
-		return "", "", ""
-	}
-
-	cidrFlag, err := cmd.Flags().GetString("cidr")
-	if err != nil {
-		return "", "", ""
-	}
-
-	if podCIDRFlag != "" || serviceCIDRFlag != "" {
-		return podCIDRFlag, serviceCIDRFlag, ""
-	}
-	return "", "", cidrFlag
 }

@@ -18,30 +18,62 @@ func addCIDRFlags(cmd *cobra.Command) {
 	cmd.Flags().String("cidr", ecv1beta1.DefaultNetworkCIDR, "CIDR block of available private IP addresses (/16 or larger)")
 }
 
-// DeterminePodAndServiceCIDRS determines, based on the command line flags,
-// what are the pod and service CIDRs to be used for the cluster. If both
-// --pod-cidr and --service-cidr have been set, they are used. Otherwise,
+func validateCIDRFlags(cmd *cobra.Command) error {
+	if cmd.Flags().Changed("cidr") && (cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr")) {
+		return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
+	}
+
+	cidr, err := cmd.Flags().GetString("cidr")
+	if err != nil {
+		return fmt.Errorf("unable to get cidr flag: %w", err)
+	}
+
+	if err := netutils.ValidateCIDR(cidr, 16, true); err != nil {
+		return fmt.Errorf("invalid cidr %q: %w", cidr, err)
+	}
+
+	return nil
+}
+
+type CIDRConfig struct {
+	PodCIDR     string
+	ServiceCIDR string
+	GlobalCIDR  *string
+}
+
+// getCIDRConfig determines, based on the command line flags,
+// what are the pod and service CIDRs to be used for the cluster. If either
+// of --pod-cidr or --service-cidr have been set, they are used. Otherwise,
 // the cidr flag is split into pod and service CIDRs.
-func determinePodAndServiceCIDRs(cmd *cobra.Command) (string, string, error) {
-	podCIDRFlag, err := cmd.Flags().GetString("pod-cidr")
-	if err != nil {
-		return "", "", fmt.Errorf("unable to get pod-cidr flag: %w", err)
-	}
-	serviceCIDRFlag, err := cmd.Flags().GetString("service-cidr")
-	if err != nil {
-		return "", "", fmt.Errorf("unable to get service-cidr flag: %w", err)
-	}
-
-	if podCIDRFlag != "" || serviceCIDRFlag != "" {
-		return podCIDRFlag, serviceCIDRFlag, nil
-	}
-
-	cidrFlag, err := cmd.Flags().GetString("cidr")
-	if err != nil {
-		return "", "", fmt.Errorf("unable to get cidr flag: %w", err)
+func getCIDRConfig(cmd *cobra.Command) (*CIDRConfig, error) {
+	if cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr") {
+		podCIDR, err := cmd.Flags().GetString("pod-cidr")
+		if err != nil {
+			return nil, fmt.Errorf("unable to get pod-cidr flag: %w", err)
+		}
+		serviceCIDR, err := cmd.Flags().GetString("service-cidr")
+		if err != nil {
+			return nil, fmt.Errorf("unable to get service-cidr flag: %w", err)
+		}
+		return &CIDRConfig{
+			PodCIDR:     podCIDR,
+			ServiceCIDR: serviceCIDR,
+		}, nil
 	}
 
-	return netutils.SplitNetworkCIDR(cidrFlag)
+	globalCIDR, err := cmd.Flags().GetString("cidr")
+	if err != nil {
+		return nil, fmt.Errorf("unable to get cidr flag: %w", err)
+	}
+	podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(globalCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("unable to split cidr flag: %w", err)
+	}
+	return &CIDRConfig{
+		PodCIDR:     podCIDR,
+		ServiceCIDR: serviceCIDR,
+		GlobalCIDR:  &globalCIDR,
+	}, nil
 }
 
 // cleanCIDR returns a `.0/x` subnet instead of a `.2/x` etc subnet

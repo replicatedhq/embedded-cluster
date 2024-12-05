@@ -225,12 +225,16 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			switch state {
 			case ecRestoreStateNew:
 				logrus.Debugf("checking if %s is already installed", name)
-				installed, err := k0s.IsInstalled(name)
+				installed, err := k0s.IsInstalled()
 				if err != nil {
 					return err
 				}
 				if installed {
-					return ErrNothingElseToAdd
+					logrus.Errorf("An installation has been detected on this machine.")
+					logrus.Infof("Before you can restore, you must remove the existing installation.")
+					logrus.Infof("You can do this by running the following command:")
+					logrus.Infof("\n  sudo ./%s reset\n", name)
+					os.Exit(1)
 				}
 
 				logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
@@ -358,6 +362,11 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				logrus.Debugf("restoring admin console from backup %q", backupToRestore.Name)
 				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
 					return err
+				}
+
+				logrus.Debugf("installing manager")
+				if err := installAndEnableManager(); err != nil {
+					return fmt.Errorf("unable to install manager: %w", err)
 				}
 
 				fallthrough
@@ -711,7 +720,7 @@ func RunHostPreflightsForRestore(cmd *cobra.Command, applier *addons.Applier, pr
 		return fmt.Errorf("unable to read host preflights: %w", err)
 	}
 
-	return runHostPreflights(cmd, hpf, proxy, assumeYes)
+	return runHostPreflights(cmd, hpf, proxy, assumeYes, "")
 }
 
 // ensureK0sConfigForRestore creates a new k0s.yaml configuration file for restore operations.
@@ -742,13 +751,13 @@ func ensureK0sConfigForRestore(cmd *cobra.Command, applier *addons.Applier) (*k0
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
-	podCIDR, serviceCIDR, err := DeterminePodAndServiceCIDRs(cmd)
+	cidrCfg, err := getCIDRConfig(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
 
-	cfg.Spec.Network.PodCIDR = podCIDR
-	cfg.Spec.Network.ServiceCIDR = serviceCIDR
+	cfg.Spec.Network.PodCIDR = cidrCfg.PodCIDR
+	cfg.Spec.Network.ServiceCIDR = cidrCfg.ServiceCIDR
 
 	if err := config.UpdateHelmConfigsForRestore(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)

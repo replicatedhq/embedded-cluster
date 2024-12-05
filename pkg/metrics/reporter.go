@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"sync"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
+	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -150,12 +152,50 @@ func ReportApplyStarted(ctx context.Context, licenseFlag string) {
 }
 
 // ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
-func ReportApplyFinished(ctx context.Context, licenseFlag string, err error) {
+func ReportApplyFinished(ctx context.Context, licenseFlag string, license *kotsv1beta1.License, err error) {
+	if licenseFlag != "" {
+		license = License(licenseFlag)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err != nil {
-		ReportInstallationFailed(ctx, License(licenseFlag), err)
+		ReportInstallationFailed(ctx, license, err)
 		return
 	}
-	ReportInstallationSucceeded(ctx, License(licenseFlag))
+	ReportInstallationSucceeded(ctx, license)
+}
+
+// ReportPreflightsFailed reports that the preflights failed but were bypassed.
+func ReportPreflightsFailed(ctx context.Context, url string, output preflightstypes.Output, bypassed bool, entryCommand string) {
+	if url == "" {
+		url = BaseURL(nil)
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("unable to get hostname: %s", err)
+		hostname = "unknown"
+	}
+
+	eventType := "PreflightsFailed"
+	if bypassed {
+		eventType = "PreflightsBypassed"
+	}
+
+	outputJSON, err := json.Marshal(output)
+	if err != nil {
+		logrus.Warnf("unable to marshal preflight output: %s", err)
+		return
+	}
+
+	ev := types.PreflightsFailed{
+		ClusterID:       ClusterID(),
+		Version:         versions.Version,
+		NodeName:        hostname,
+		PreflightOutput: string(outputJSON),
+		EventType:       eventType,
+		EntryCommand:    entryCommand,
+	}
+	go Send(ctx, url, ev)
 }

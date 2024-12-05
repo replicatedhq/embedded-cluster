@@ -17,6 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+var wsDialer = &gwebsocket.Dialer{
+	HandshakeTimeout: 10 * time.Second,
+}
+
 func ConnectToKOTSWebSocket(ctx context.Context) {
 	for {
 		if err := attemptConnection(ctx); err != nil {
@@ -57,8 +61,7 @@ func attemptConnection(ctx context.Context) error {
 		return fmt.Errorf("parse websocket url: %w", err)
 	}
 
-	dialer := gwebsocket.DefaultDialer
-	conn, _, err := dialer.Dial(u.String(), nil)
+	conn, _, err := wsDialer.Dial(u.String(), nil)
 	if err != nil {
 		return fmt.Errorf("connect to websocket server: %w", err)
 	}
