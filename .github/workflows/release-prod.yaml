@@ -371,7 +371,7 @@ jobs:
           cache-dependency-path: "**/*.sum"
       - name: Compile embedded-cluster-release-builder
         run: |
-          make embedded-cluster-release-builder
+          make output/bin/embedded-cluster-release-builder
       - name: Upload embedded-cluster-release-builder artifact
         uses: actions/upload-artifact@v4
         with:
