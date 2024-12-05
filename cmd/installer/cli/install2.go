@@ -31,13 +31,16 @@ type Install2CmdFlags struct {
 	dataDir                 string
 	licenseFile             string
 	localArtifactMirrorPort int
-	networkInterface        string
 	assumeYes               bool
 	overrides               string
 	privateCAs              []string
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
 	configValues            string
+
+	networkInterface               string
+	isAutoSelectedNetworkInterface bool
+	autoSelectNetworkInterfaceErr  error
 
 	license *kotsv1beta1.License
 	proxy   *ecv1beta1.ProxySpec
@@ -87,6 +90,17 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 			}
 			flags.podCIDR = pod
 			flags.serviceCIDR = svc
+
+			// if a network interface flag was not provided, attempt to discover it
+			if flags.networkInterface == "" {
+				autoInterface, err := determineBestNetworkInterface()
+				if err != nil {
+					flags.autoSelectNetworkInterfaceErr = err
+				} else {
+					flags.isAutoSelectedNetworkInterface = true
+					flags.networkInterface = autoInterface
+				}
+			}
 
 			// validate the the license is indeed a license file
 			l, err := helpers.ParseLicense(flags.licenseFile)
