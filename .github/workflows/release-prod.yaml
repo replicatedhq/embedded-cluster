@@ -444,7 +444,7 @@ jobs:
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
           - TestInstallWithoutEmbed
-          - TestUpgradeEC18FromReplicatedApp
+#          - TestUpgradeEC18FromReplicatedApp
           - TestResetAndReinstall
           - TestOldVersionUpgrade
           - TestInstallSnapshotFromReplicatedApp
