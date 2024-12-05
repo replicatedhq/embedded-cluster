@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
+          # cache-dependency-path: "**/*.sum"
       - name: Go vet
         run: |
           make vet
