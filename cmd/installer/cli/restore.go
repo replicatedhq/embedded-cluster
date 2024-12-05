@@ -1248,7 +1248,7 @@ func restoreFromReplicatedBackup(ctx context.Context, backup replicatedBackup, d
 	return restoreFromBackup(ctx, b, drComponent)
 }
 
-func restoreFromBackup(ctx context.Context, backupName string, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
+func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
