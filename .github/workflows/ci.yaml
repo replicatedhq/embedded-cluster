@@ -34,9 +34,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          # cache-dependency-path: "**/*.sum"
+          cache-dependency-path: "**/*.sum"
       - name: Go vet
         run: |
+          go mod graph
           make vet
       - name: Lint
         uses: golangci/golangci-lint-action@v6
