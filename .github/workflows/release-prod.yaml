@@ -373,6 +373,11 @@ jobs:
           mv embedded-cluster-smoke-test-staging-app embedded-cluster
           mkdir -p output/bin
           mv embedded-cluster output/bin
+          
+          # download the embedded-cluster binary from the github release
+          curl -L "https://github.com/replicatedhq/embedded-cluster/releases/download/${{ github.ref_name }}/embedded-cluster-linux-amd64.tgz" -o embedded-cluster-github.tgz
+          tar -xzf embedded-cluster-github.tgz
+          mv embedded-cluster output/bin/embedded-cluster-original
 
       - name: Upload release
         uses: actions/upload-artifact@v4
@@ -466,6 +471,7 @@ jobs:
           EXPECT_K0S_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.get-tag.outputs.k0s_version }}
           EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION: ${{ github.ref_name }}
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
