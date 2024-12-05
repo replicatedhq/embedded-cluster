@@ -35,6 +35,27 @@ var (
 	licenseData string
 )
 
+func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
+	if err := embedReleaseData(); err != nil {
+		t.Fatalf("fail to embed release data: %v", err)
+	}
+
+	if err := runInstallerCmd(
+		append([]string{
+			"join",
+			"--yes",
+		}, args...)...,
+	); err != nil {
+		t.Fatalf("fail to dryrun join embedded-cluster: %v", err)
+	}
+
+	dr, err := dryrun.Load()
+	if err != nil {
+		t.Fatalf("fail to unmarshal dryrun output: %v", err)
+	}
+	return *dr
+}
+
 func dryrunInstall(t *testing.T, args ...string) dryruntypes.DryRun {
 	if err := embedReleaseData(); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)

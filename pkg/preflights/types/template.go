@@ -32,6 +32,7 @@ type TemplateData struct {
 	NoProxy                 string
 	FromCIDR                string
 	ToCIDR                  string
+	TCPConnectionsRequired  []string
 }
 
 // WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings
