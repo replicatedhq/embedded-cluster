@@ -904,14 +904,14 @@ spec:
         outcomes:
           - fail:
               when: "connection-refused"
-              message: "Error connecting to {{ $element }}. Connection refused. Ensure that the host can connect to {{ $element }}."
+              message: "A TCP connection to {{ $element }} is required, but the connection was refused. This can occur if IP routing is not possible between this host and {{ $element }}, if your firewall doesn’t allow traffic between this host and {{ $element }}, etc."
           - fail:
               when: "connection-timeout"
-              message: "Error connecting to {{ $element }}. Connection timed out. Ensure that the host can connect to {{ $element }}."
+              message: "A TCP connection to {{ $element }} is required, but the connection timed out. This can occur if IP routing is not possible between this host and {{ $element }}, if your firewall doesn’t allow traffic between this host and {{ $element }}, etc."
           - fail:
               when: "error"
-              message: "Error connecting to {{ $element }}. Unexpected error. Ensure that the host can connect to {{ $element }}."
+              message: "A TCP connection to {{ $element }} is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and {{ $element }}, if your firewall doesn’t allow traffic between this host and {{ $element }}, etc."
           - pass:
               when: "connected"
-              message: "Successfully connected to {{ $element }}."
+              message: "Successful TCP connection to {{ $element }}."
 {{- end}}

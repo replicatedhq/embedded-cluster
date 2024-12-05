@@ -56,7 +56,6 @@ func (c *Kotsadm) SetGetJoinTokenResponse(baseURL, shortToken string, resp *kots
 // based on the short token provided by the user.
 func (c *Kotsadm) GetJoinToken(ctx context.Context, baseURL, shortToken string) (*kotsadm.JoinCommandResponse, error) {
 	key := strings.Join([]string{"GetJoinToken", baseURL, shortToken}, ":")
-	fmt.Println(c.mockHandlers)
 	if handler, ok := c.mockHandlers[key]; ok {
 		return handler.resp.(*kotsadm.JoinCommandResponse), handler.err
 	} else {
