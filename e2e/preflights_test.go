@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 )
 
@@ -55,7 +54,7 @@ func TestPreflights(t *testing.T) {
 		t.Fatalf("failed to list preflight bundle: err=%v, stderr=%s", err, stderr)
 	}
 
-	results, err := preflights.OutputFromReader(strings.NewReader(stdout))
+	results, err := types.OutputFromReader(strings.NewReader(stdout))
 	if err != nil {
 		t.Fatalf("failed to parse preflight results: %v", err)
 	}

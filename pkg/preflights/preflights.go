@@ -55,7 +55,7 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	cmd.Env = cmdEnv
 	cmd.Stdout, cmd.Stderr = stdout, stderr
 	if err = cmd.Run(); err == nil {
-		out, err := OutputFromReader(stdout)
+		out, err := types.OutputFromReader(stdout)
 		return out, stderr.String(), err
 	}
 
@@ -63,7 +63,7 @@ func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy
 	if !errors.As(err, &exit) || exit.ExitCode() < 2 {
 		return nil, stderr.String(), fmt.Errorf("error running host preflight: %w, stderr=%q", err, stderr.String())
 	}
-	out, err := OutputFromReader(stdout)
+	out, err := types.OutputFromReader(stdout)
 	return out, stderr.String(), err
 }
 
