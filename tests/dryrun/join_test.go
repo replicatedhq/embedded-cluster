@@ -73,19 +73,19 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
 					Fail: &v1beta2.SingleOutcome{
 						When:    "connection-refused",
-						Message: "A TCP connection to 10.0.0.1:6443 is required, but the connection was refused. This can occur if IP routing is not possible between this host and 10.0.0.1:6443, if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443, etc.",
+						Message: "A TCP connection to 10.0.0.1:6443 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:6443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443.",
 					},
 				})
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
 					Fail: &v1beta2.SingleOutcome{
 						When:    "connection-timeout",
-						Message: "A TCP connection to 10.0.0.1:6443 is required, but the connection timed out. This can occur if IP routing is not possible between this host and 10.0.0.1:6443, if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443, etc.",
+						Message: "A TCP connection to 10.0.0.1:6443 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:6443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443.",
 					},
 				})
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
 					Fail: &v1beta2.SingleOutcome{
 						When:    "error",
-						Message: "A TCP connection to 10.0.0.1:6443 is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and 10.0.0.1:6443, if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443, etc.",
+						Message: "A TCP connection to 10.0.0.1:6443 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:6443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:6443.",
 					},
 				})
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
@@ -104,19 +104,19 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
 					Fail: &v1beta2.SingleOutcome{
 						When:    "connection-refused",
-						Message: "A TCP connection to 10.0.0.1:9443 is required, but the connection was refused. This can occur if IP routing is not possible between this host and 10.0.0.1:9443, if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443, etc.",
+						Message: "A TCP connection to 10.0.0.1:9443 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:9443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443.",
 					},
 				})
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
 					Fail: &v1beta2.SingleOutcome{
 						When:    "connection-timeout",
-						Message: "A TCP connection to 10.0.0.1:9443 is required, but the connection timed out. This can occur if IP routing is not possible between this host and 10.0.0.1:9443, if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443, etc.",
+						Message: "A TCP connection to 10.0.0.1:9443 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:9443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443.",
 					},
 				})
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
 					Fail: &v1beta2.SingleOutcome{
 						When:    "error",
-						Message: "A TCP connection to 10.0.0.1:9443 is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and 10.0.0.1:9443, if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443, etc.",
+						Message: "A TCP connection to 10.0.0.1:9443 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 10.0.0.1:9443, or if your firewall doesn’t allow traffic between this host and 10.0.0.1:9443.",
 					},
 				})
 				assert.Contains(t, hc.TCPConnect.Outcomes, &v1beta2.Outcome{
