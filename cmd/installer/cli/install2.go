@@ -172,6 +172,16 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return err
 	}
 
+	logrus.Debugf("configuring sysctl")
+	if err := configutils.ConfigureSysctl(); err != nil {
+		return fmt.Errorf("unable to configure sysctl: %w", err)
+	}
+
+	logrus.Debugf("configuring network manager")
+	if err := configureNetworkManager(cmd.Context()); err != nil {
+		return fmt.Errorf("unable to configure network manager: %w", err)
+	}
+
 	logrus.Debugf("running host preflights")
 	if err := preflights.PrepareAndRun(cmd.Context(), preflights.PrepareAndRunOptions{
 		License:              flags.license,
@@ -186,16 +196,6 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		AssumeYes:            flags.assumeYes,
 	}); err != nil {
 		return fmt.Errorf("unable to prepare and run preflights: %w", err)
-	}
-
-	logrus.Debugf("configuring sysctl")
-	if err := configutils.ConfigureSysctl(); err != nil {
-		return fmt.Errorf("unable to configure sysctl: %w", err)
-	}
-
-	logrus.Debugf("configuring network manager")
-	if err := configureNetworkManager(cmd.Context()); err != nil {
-		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
 	clusterConfig, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.cidrCfg, flags.overrides)
