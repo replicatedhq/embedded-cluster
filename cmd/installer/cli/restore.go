@@ -1248,7 +1248,7 @@ func restoreFromReplicatedBackup(ctx context.Context, backup replicatedBackup, d
 	return restoreFromBackup(ctx, b, drComponent)
 }
 
-func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
+func restoreFromBackup(ctx context.Context, backupName string, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
@@ -1286,6 +1286,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				Annotations: map[string]string{
 					"kots.io/embedded-cluster": "true",
 				},
+				Labels: map[string]string{},
 			},
 			Spec: velerov1.RestoreSpec{
 				BackupName: backup.Name,
@@ -1301,6 +1302,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			},
 		}
 
+		ensureImprovedDrMetadata(restore, backup)
+
 		// ensure restore resource modifiers first
 		if err := ensureRestoreResourceModifiers(ctx, backup); err != nil {
 			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
@@ -1314,6 +1317,24 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 
 	// wait for restore to complete
 	return waitForDRComponent(ctx, drComponent, restoreName)
+}
+
+func ensureImprovedDrMetadata(restore *velerov1.Restore, backup *velerov1.Backup) {
+	if restore.Labels == nil {
+		restore.Labels = map[string]string{}
+	}
+	if restore.Annotations == nil {
+		restore.Annotations = map[string]string{}
+	}
+	if val, ok := backup.Labels[instanceBackupNameLabel]; ok {
+		restore.Labels[instanceBackupNameLabel] = val
+	}
+	if val, ok := backup.Labels[instanceBackupTypeAnnotation]; ok {
+		restore.Labels[instanceBackupTypeAnnotation] = val
+	}
+	if val, ok := backup.Labels[instanceBackupCountAnnotation]; ok {
+		restore.Labels[instanceBackupCountAnnotation] = val
+	}
 }
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
