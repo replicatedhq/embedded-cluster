@@ -14,6 +14,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
@@ -33,7 +34,7 @@ func SerializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) 
 
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*Output, string, error) {
+func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*types.Output, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)

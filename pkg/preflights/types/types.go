@@ -1,4 +1,4 @@
-package preflights
+package types
 
 import (
 	"encoding/json"

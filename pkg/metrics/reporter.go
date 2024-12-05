@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"sync"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
+	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -162,4 +164,38 @@ func ReportApplyFinished(ctx context.Context, licenseFlag string, license *kotsv
 		return
 	}
 	ReportInstallationSucceeded(ctx, license)
+}
+
+// ReportPreflightsFailed reports that the preflights failed but were bypassed.
+func ReportPreflightsFailed(ctx context.Context, url string, output preflightstypes.Output, bypassed bool, entryCommand string) {
+	if url == "" {
+		url = BaseURL(nil)
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("unable to get hostname: %s", err)
+		hostname = "unknown"
+	}
+
+	eventType := "PreflightsFailed"
+	if bypassed {
+		eventType = "PreflightsBypassed"
+	}
+
+	outputJSON, err := json.Marshal(output)
+	if err != nil {
+		logrus.Warnf("unable to marshal preflight output: %s", err)
+		return
+	}
+
+	ev := types.PreflightsFailed{
+		ClusterID:       ClusterID(),
+		Version:         versions.Version,
+		NodeName:        hostname,
+		PreflightOutput: string(outputJSON),
+		EventType:       eventType,
+		EntryCommand:    entryCommand,
+	}
+	go Send(ctx, url, ev)
 }

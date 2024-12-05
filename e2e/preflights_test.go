@@ -6,6 +6,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 )
 
 func TestPreflights(t *testing.T) {
@@ -61,11 +62,11 @@ func TestPreflights(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		assert func(t *testing.T, results *preflights.Output)
+		assert func(t *testing.T, results *types.Output)
 	}{
 		{
 			name: "Should contain fio results",
-			assert: func(t *testing.T, results *preflights.Output) {
+			assert: func(t *testing.T, results *types.Output) {
 				for _, res := range results.Pass {
 					if res.Title == "Filesystem Write Latency" {
 						t.Logf("fio test passed: %s", res.Message)
@@ -85,7 +86,7 @@ func TestPreflights(t *testing.T) {
 		},
 		{
 			name: "Should not contain unexpected failures",
-			assert: func(t *testing.T, results *preflights.Output) {
+			assert: func(t *testing.T, results *types.Output) {
 				expected := map[string]bool{
 					// TODO: work to remove these
 					"System Clock":                            true,
@@ -109,7 +110,7 @@ func TestPreflights(t *testing.T) {
 		},
 		{
 			name: "Should not contain unexpected warnings",
-			assert: func(t *testing.T, results *preflights.Output) {
+			assert: func(t *testing.T, results *types.Output) {
 				expected := map[string]bool{
 					"Default Route": true,
 				}
@@ -124,7 +125,7 @@ func TestPreflights(t *testing.T) {
 		},
 		{
 			name: "Should contain port failures",
-			assert: func(t *testing.T, results *preflights.Output) {
+			assert: func(t *testing.T, results *types.Output) {
 				expected := map[string]bool{
 					"Kubelet Port Availability":               false,
 					"Calico Communication Port Availability":  false,
