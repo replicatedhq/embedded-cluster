@@ -904,13 +904,13 @@ spec:
         outcomes:
           - fail:
               when: "connection-refused"
-              message: "A TCP connection to {{ $element }} is required, but the connection was refused. This can occur if IP routing is not possible between this host and {{ $element }}, if your firewall doesn’t allow traffic between this host and {{ $element }}, etc."
+              message: "A TCP connection to {{ $element }} is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn’t allow traffic between this host and {{ $element }}."
           - fail:
               when: "connection-timeout"
-              message: "A TCP connection to {{ $element }} is required, but the connection timed out. This can occur if IP routing is not possible between this host and {{ $element }}, if your firewall doesn’t allow traffic between this host and {{ $element }}, etc."
+              message: "A TCP connection to {{ $element }} is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn’t allow traffic between this host and {{ $element }}."
           - fail:
               when: "error"
-              message: "A TCP connection to {{ $element }} is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and {{ $element }}, if your firewall doesn’t allow traffic between this host and {{ $element }}, etc."
+              message: "A TCP connection to {{ $element }} is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and {{ $element }}, or if your firewall doesn’t allow traffic between this host and {{ $element }}."
           - pass:
               when: "connected"
               message: "Successful TCP connection to {{ $element }}."
