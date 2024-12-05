@@ -17,8 +17,10 @@ import (
 
 func VersionCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "version",
-		Short: fmt.Sprintf("Show the %s component versions", name),
+		Use:           "version",
+		Short:         fmt.Sprintf("Show the %s component versions", name),
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			applierVersions, err := addons.NewApplier(addons.WithoutPrompt(), addons.OnlyDefaults(), addons.Quiet()).Versions(config.AdditionalCharts())
 			if err != nil {

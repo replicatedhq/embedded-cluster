@@ -55,10 +55,11 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Install2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:          "install2",
-		Short:        fmt.Sprintf("Experimental installer for %s", name),
-		Hidden:       true,
-		SilenceUsage: true,
+		Use:           "install2",
+		Short:         fmt.Sprintf("Experimental installer for %s", name),
+		Hidden:        true,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("install command must be run as root")
@@ -185,6 +186,12 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		IgnoreHostPreflights: flags.ignoreHostPreflights,
 		AssumeYes:            flags.assumeYes,
 	}); err != nil {
+		if err == preflights.ErrPreflightsHaveFail {
+			// we exit and not return an error to prevent the error from being printed to stderr
+			// we already handled the output
+			os.Exit(1)
+			return nil
+		}
 		return fmt.Errorf("unable to prepare and run preflights: %w", err)
 	}
 

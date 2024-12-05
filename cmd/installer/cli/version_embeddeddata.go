@@ -11,8 +11,10 @@ import (
 
 func VersionEmbeddedDataCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "embedded-data",
-		Short: "Read the application data embedded in the cluster",
+		Use:           "embedded-data",
+		Short:         "Read the application data embedded in the cluster",
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Application
 			app, err := release.GetApplication()

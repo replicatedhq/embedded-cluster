@@ -19,8 +19,10 @@ import (
 
 func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "support-bundle",
-		Short: "Generate a support bundle for the embedded-cluster",
+		Use:           "support-bundle",
+		Short:         "Generate a support bundle for the embedded-cluster",
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("support-bundle command must be run as root")

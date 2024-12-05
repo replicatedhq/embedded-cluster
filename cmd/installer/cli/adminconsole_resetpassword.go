@@ -13,8 +13,10 @@ import (
 
 func AdminConsoleResetPasswordCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reset-password",
-		Short: fmt.Sprintf("Reset the %s Admin Console password", name),
+		Use:           "reset-password",
+		Short:         fmt.Sprintf("Reset the %s Admin Console password", name),
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("reset-password command must be run as root")

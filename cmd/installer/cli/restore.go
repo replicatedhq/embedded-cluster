@@ -93,8 +93,10 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "restore",
-		Short: fmt.Sprintf("Restore a %s cluster", name),
+		Use:           "restore",
+		Short:         fmt.Sprintf("Restore a %s cluster", name),
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("restore command must be run as root")
