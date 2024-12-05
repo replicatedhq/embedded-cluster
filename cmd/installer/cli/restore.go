@@ -430,7 +430,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 						return err
 					}
 
-					registryAddress, ok := backupToRestore.GetAnnotation("kots.io/embedded-registry")
+					registryAddress, ok := backupToRestore.GetECAnnotation("kots.io/embedded-registry")
 					if !ok {
 						return fmt.Errorf("unable to read registry address from backup")
 					}
@@ -894,7 +894,7 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 }
 
 func isHighAvailabilityReplicatedBackup(backup replicatedBackup) (bool, error) {
-	ha, ok := backup.GetAnnotation("kots.io/embedded-cluster-is-ha")
+	ha, ok := backup.GetECAnnotation("kots.io/embedded-cluster-is-ha")
 	if !ok {
 		return false, fmt.Errorf("high availability annotation not found in backup")
 	}
@@ -1443,7 +1443,7 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 // restoreReconcileInstallationFromRuntimeConfig function.
 func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup replicatedBackup) error {
 	if localArtifactMirrorPort != 0 {
-		if val, _ := backup.GetAnnotation("kots.io/embedded-cluster-local-artifact-mirror-port"); val != "" {
+		if val, _ := backup.GetECAnnotation("kots.io/embedded-cluster-local-artifact-mirror-port"); val != "" {
 			port, err := k8snet.ParsePort(val, false)
 			if err != nil {
 				return fmt.Errorf("parse local artifact mirror port: %w", err)
@@ -1569,13 +1569,12 @@ func (b replicatedBackup) GetExpectedBackupCount() int {
 	return 1
 }
 
-func (b replicatedBackup) GetAnnotation(key string) (string, bool) {
-	for _, a := range b {
-		if val, ok := a.Annotations[key]; ok {
-			return val, true
-		}
+func (b replicatedBackup) GetECAnnotation(key string) (string, bool) {
+	backup := b.GetInfraBackup()
+	if !backup {
+		return "", false
 	}
-	return "", false
+	return backup.Annotations[key]
 }
 
 func (b replicatedBackup) GetCreationTimestamp() metav1.Time {
