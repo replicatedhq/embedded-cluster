@@ -344,7 +344,7 @@ func TestTemplateNoTCPConnectionsRequired(t *testing.T) {
 
 	req := require.New(t)
 	// No TCP connections are provided
-	tl := TemplateData{}
+	tl := types.TemplateData{}
 	hpfc, err := GetClusterHostPreflights(context.Background(), tl)
 	req.NoError(err)
 
@@ -413,19 +413,19 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 					{
 						Fail: &v1beta2.SingleOutcome{
 							When:    "connection-refused",
-							Message: "A TCP connection to 192.168.10.1:6443 is required, but the connection was refused. This can occur if IP routing is not possible between this host and 192.168.10.1:6443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443, etc.",
+							Message: "A TCP connection to 192.168.10.1:6443 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:6443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443.",
 						},
 					},
 					{
 						Fail: &v1beta2.SingleOutcome{
 							When:    "connection-timeout",
-							Message: "A TCP connection to 192.168.10.1:6443 is required, but the connection timed out. This can occur if IP routing is not possible between this host and 192.168.10.1:6443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443, etc.",
+							Message: "A TCP connection to 192.168.10.1:6443 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:6443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443.",
 						},
 					},
 					{
 						Fail: &v1beta2.SingleOutcome{
 							When:    "error",
-							Message: "A TCP connection to 192.168.10.1:6443 is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and 192.168.10.1:6443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443, etc.",
+							Message: "A TCP connection to 192.168.10.1:6443 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:6443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443.",
 						},
 					},
 					{
@@ -477,19 +477,19 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "connection-refused",
-								Message: "A TCP connection to 192.168.10.1:6443 is required, but the connection was refused. This can occur if IP routing is not possible between this host and 192.168.10.1:6443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443, etc.",
+								Message: "A TCP connection to 192.168.10.1:6443 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:6443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443.",
 							},
 						},
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "connection-timeout",
-								Message: "A TCP connection to 192.168.10.1:6443 is required, but the connection timed out. This can occur if IP routing is not possible between this host and 192.168.10.1:6443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443, etc.",
+								Message: "A TCP connection to 192.168.10.1:6443 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:6443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443.",
 							},
 						},
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "error",
-								Message: "A TCP connection to 192.168.10.1:6443 is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and 192.168.10.1:6443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443, etc.",
+								Message: "A TCP connection to 192.168.10.1:6443 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:6443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:6443.",
 							},
 						},
 						{
@@ -506,19 +506,19 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "connection-refused",
-								Message: "A TCP connection to 192.168.10.1:9443 is required, but the connection was refused. This can occur if IP routing is not possible between this host and 192.168.10.1:9443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:9443, etc.",
+								Message: "A TCP connection to 192.168.10.1:9443 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:9443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:9443.",
 							},
 						},
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "connection-timeout",
-								Message: "A TCP connection to 192.168.10.1:9443 is required, but the connection timed out. This can occur if IP routing is not possible between this host and 192.168.10.1:9443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:9443, etc.",
+								Message: "A TCP connection to 192.168.10.1:9443 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:9443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:9443.",
 							},
 						},
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "error",
-								Message: "A TCP connection to 192.168.10.1:9443 is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and 192.168.10.1:9443, if your firewall doesn’t allow traffic between this host and 192.168.10.1:9443, etc.",
+								Message: "A TCP connection to 192.168.10.1:9443 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:9443, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:9443.",
 							},
 						},
 						{
@@ -535,19 +535,19 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "connection-refused",
-								Message: "A TCP connection to 192.168.10.1:2380 is required, but the connection was refused. This can occur if IP routing is not possible between this host and 192.168.10.1:2380, if your firewall doesn’t allow traffic between this host and 192.168.10.1:2380, etc.",
+								Message: "A TCP connection to 192.168.10.1:2380 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:2380, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:2380.",
 							},
 						},
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "connection-timeout",
-								Message: "A TCP connection to 192.168.10.1:2380 is required, but the connection timed out. This can occur if IP routing is not possible between this host and 192.168.10.1:2380, if your firewall doesn’t allow traffic between this host and 192.168.10.1:2380, etc.",
+								Message: "A TCP connection to 192.168.10.1:2380 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:2380, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:2380.",
 							},
 						},
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "error",
-								Message: "A TCP connection to 192.168.10.1:2380 is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and 192.168.10.1:2380, if your firewall doesn’t allow traffic between this host and 192.168.10.1:2380, etc.",
+								Message: "A TCP connection to 192.168.10.1:2380 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:2380, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:2380.",
 							},
 						},
 						{
@@ -564,19 +564,19 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "connection-refused",
-								Message: "A TCP connection to 192.168.10.1:10250 is required, but the connection was refused. This can occur if IP routing is not possible between this host and 192.168.10.1:10250, if your firewall doesn’t allow traffic between this host and 192.168.10.1:10250, etc.",
+								Message: "A TCP connection to 192.168.10.1:10250 is required, but the connection was refused. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:10250, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:10250.",
 							},
 						},
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "connection-timeout",
-								Message: "A TCP connection to 192.168.10.1:10250 is required, but the connection timed out. This can occur if IP routing is not possible between this host and 192.168.10.1:10250, if your firewall doesn’t allow traffic between this host and 192.168.10.1:10250, etc.",
+								Message: "A TCP connection to 192.168.10.1:10250 is required, but the connection timed out. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:10250, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:10250.",
 							},
 						},
 						{
 							Fail: &v1beta2.SingleOutcome{
 								When:    "error",
-								Message: "A TCP connection to 192.168.10.1:10250 is required, but an unexpected error occurred. This can occur if IP routing is not possible between this host and 192.168.10.1:10250, if your firewall doesn’t allow traffic between this host and 192.168.10.1:10250, etc.",
+								Message: "A TCP connection to 192.168.10.1:10250 is required, but an unexpected error occurred. This can occur, for example, if IP routing is not possible between this host and 192.168.10.1:10250, or if your firewall doesn’t allow traffic between this host and 192.168.10.1:10250.",
 							},
 						},
 						{
@@ -594,7 +594,7 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req := require.New(t)
-			tl := TemplateData{TCPConnectionsRequired: test.tcpConnections}
+			tl := types.TemplateData{TCPConnectionsRequired: test.tcpConnections}
 			hpfc, err := GetClusterHostPreflights(context.Background(), tl)
 			req.NoError(err)
 
