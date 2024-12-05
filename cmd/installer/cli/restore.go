@@ -1571,10 +1571,11 @@ func (b replicatedBackup) GetExpectedBackupCount() int {
 
 func (b replicatedBackup) GetECAnnotation(key string) (string, bool) {
 	backup := b.GetInfraBackup()
-	if !backup {
+	if backup == nil {
 		return "", false
 	}
-	return backup.Annotations[key]
+	val, ok := backup.Annotations[key]
+	return val, ok
 }
 
 func (b replicatedBackup) GetCreationTimestamp() metav1.Time {
