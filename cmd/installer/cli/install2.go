@@ -137,10 +137,10 @@ func Install2Cmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 	cmd.Flags().StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
-	cmd.Flags().StringVar(&flags.licenseFile, "license", "", "Path to the license file")
+	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
 	cmd.Flags().IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVar(&flags.assumeYes, "yes", false, "Assume yes to all prompts.")
+	cmd.Flags().BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 
 	cmd.Flags().StringVar(&flags.overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	cmd.Flags().MarkHidden("overrides")
