@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -48,8 +49,6 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		overrides            string
 		privateCAs           []string
 		configValues         string
-		skipHostPreflights   bool
-		ignoreHostPreflights bool
 
 		proxy *ecv1beta1.ProxySpec
 	)
@@ -155,9 +154,10 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
 
-	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
+	cmd.Flags().Bool("skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
-	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
+	cmd.Flags().Bool("ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
+	cmd.Flags().MarkHidden("ignore-host-preflights")
 
 	addProxyFlags(cmd)
 	addCIDRFlags(cmd)
@@ -378,10 +378,10 @@ func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAP
 		return nil
 	}
 
-	return runHostPreflights(cmd, hpf, proxy, assumeYes)
+	return runHostPreflights(cmd, hpf, proxy, assumeYes, replicatedAPIURL)
 }
 
-func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, assumeYes bool) error {
+func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec, assumeYes bool, replicatedAPIURL string) error {
 	if len(hpf.Collectors) == 0 && len(hpf.Analyzers) == 0 {
 		return nil
 	}
@@ -437,9 +437,11 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		}
 		if ignoreHostPreflightsFlag {
 			if assumeYes {
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 				return nil
 			}
 			if prompts.New().Confirm("Are you sure you want to ignore these failures and continue installing?", false) {
+				metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 				return nil // user continued after host preflights failed
 			}
 		}
@@ -449,7 +451,7 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 		} else {
 			logrus.Info("Please address this issue and try again.")
 		}
-
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
 		return ErrPreflightsHaveFail
 	}
 
@@ -465,15 +467,17 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			// so we just print the warnings and continue
 			pb.Close()
 			output.PrintTableWithoutInfo()
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
 			return nil
 		}
 		pb.Close()
 		output.PrintTableWithoutInfo()
-		if !prompts.New().Confirm("Do you want to continue?", false) {
-			pb.Close()
-			return fmt.Errorf("user aborted")
+		if prompts.New().Confirm("Do you want to continue?", false) {
+			metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, true, cmd.CalledAs())
+			return nil
 		}
-		return nil
+		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
+		return fmt.Errorf("user aborted")
 	}
 
 	// No failures or warnings
