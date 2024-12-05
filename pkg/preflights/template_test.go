@@ -5,6 +5,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/replicatedhq/troubleshoot/pkg/multitype"
 	"github.com/stretchr/testify/require"
@@ -309,7 +310,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req := require.New(t)
-			tl, err := TemplateData{}.WithCIDRData(test.podCIDR, test.serviceCIDR, test.globalCIDR)
+			tl, err := types.TemplateData{}.WithCIDRData(test.podCIDR, test.serviceCIDR, test.globalCIDR)
 			if test.wantErr {
 				req.Error(err)
 			} else {

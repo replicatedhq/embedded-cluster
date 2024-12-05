@@ -7,6 +7,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -51,7 +52,7 @@ func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 		privateCA = opts.PrivateCAs[0]
 	}
 
-	data, err := TemplateData{
+	data, err := types.TemplateData{
 		ReplicatedAPIURL:        replicatedAPIURL,
 		ProxyRegistryURL:        proxyRegistryURL,
 		IsAirgap:                opts.IsAirgap,

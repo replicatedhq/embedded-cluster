@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -337,7 +338,7 @@ func RunHostPreflights(cmd *cobra.Command, applier *addons.Applier, replicatedAP
 
 	privateCAs := getPrivateCAPath(cmd)
 
-	data, err := preflights.TemplateData{
+	data, err := preflightstypes.TemplateData{
 		ReplicatedAPIURL:        replicatedAPIURL,
 		ProxyRegistryURL:        proxyRegistryURL,
 		IsAirgap:                isAirgap,
