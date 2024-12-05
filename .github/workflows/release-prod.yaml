@@ -385,6 +385,7 @@ jobs:
           name: current-release
           path: |
             output/bin/embedded-cluster
+            output/bin/embedded-cluster-original
 
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
