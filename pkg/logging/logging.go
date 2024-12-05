@@ -11,15 +11,15 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 )
 
 // MaxLogFiles is the maximum number of log files we keep.
 const MaxLogFiles = 100
 
-// StdoutLogger is a Logrus hook for routing Info, Error, and Fatal logs to the screen.
+// StdoutLogger is a Logrus hook for routing Info, Warn and Error logs to stdout and Fatal logs to
+// stderr.
 type StdoutLogger struct{}
 
 // Levels defines on which log levels this hook would trigger.
@@ -36,7 +36,7 @@ func (hook *StdoutLogger) Levels() []logrus.Level {
 func (hook *StdoutLogger) Fire(entry *logrus.Entry) error {
 	message := fmt.Sprintf("%s\n", entry.Message)
 	output := os.Stdout
-	if entry.Level != logrus.InfoLevel {
+	if entry.Level == logrus.FatalLevel {
 		output = os.Stderr
 	}
 	var writer *color.Color
@@ -74,7 +74,7 @@ func needsFileLogging() bool {
 
 // trimLogDir removes the oldest log files if we have more than MaxLogFiles.
 func trimLogDir() {
-	dir := defaults.EmbeddedClusterLogsSubDir()
+	dir := runtimeconfig.EmbeddedClusterLogsSubDir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -95,7 +95,7 @@ func trimLogDir() {
 		oldest = info.ModTime()
 		fname = file.Name()
 	}
-	os.Remove(defaults.PathToLog(fname))
+	os.Remove(runtimeconfig.PathToLog(fname))
 }
 
 // SetupLogging sets up the logging for the application. If the debug flag is set we print
@@ -107,8 +107,8 @@ func SetupLogging() {
 		return
 	}
 	logrus.SetLevel(logrus.DebugLevel)
-	fname := fmt.Sprintf("%s-%s.log", defaults.BinaryName(), time.Now().Format("20060102150405.000"))
-	logpath := defaults.PathToLog(fname)
+	fname := fmt.Sprintf("%s-%s.log", runtimeconfig.BinaryName(), time.Now().Format("20060102150405.000"))
+	logpath := runtimeconfig.PathToLog(fname)
 	logfile, err := os.OpenFile(logpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0400)
 	if err != nil {
 		logrus.Warnf("unable to setup logging: %v", err)

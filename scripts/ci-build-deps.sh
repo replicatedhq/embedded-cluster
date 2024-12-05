@@ -10,7 +10,7 @@ USE_CHAINGUARD=${USE_CHAINGUARD:-1}
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
-        EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
+      EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)
     fi
 
     require EC_VERSION "${EC_VERSION:-}"

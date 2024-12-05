@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
+# validate that there is not internet access - the goal of these tests is to ensure that the installation works without
+# internet access, so if we can connect to google obviously the test isn't valid
+function check_internet_access() {
+    if ping -c 1 google.com &>/dev/null; then
+        echo "Internet access is available"
+        exit 1
+    fi
+    echo "Internet access is not available"
+}
+
 main() {
+    check_internet_access
+
     tar xzf /assets/ec-release.tgz
 
     mv embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster

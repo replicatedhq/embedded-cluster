@@ -20,10 +20,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -35,8 +35,8 @@ type AddOn interface {
 	Version() (map[string]string, error)
 	Name() string
 	HostPreflights() (*v1beta2.HostPreflightSpec, error)
-	GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error)
-	Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error
+	GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error)
+	Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error
 	GetProtectedFields() map[string][]string
 	GetImages() []string
 	GetAdditionalImages() []string
@@ -55,8 +55,6 @@ type Applier struct {
 	isAirgap                bool
 	proxyEnv                map[string]string
 	privateCAs              map[string]string
-	provider                *defaults.Provider
-	runtimeConfig           *ecv1beta1.RuntimeConfigSpec
 	isHA                    bool
 	isHAMigrationInProgress bool
 	binaryNameOverride      string
@@ -83,7 +81,7 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 	}()
 
 	for _, addon := range addons {
-		if err := addon.Outro(ctx, a.provider, kcli, k0sCfg, releaseMetadata); err != nil {
+		if err := addon.Outro(ctx, kcli, k0sCfg, releaseMetadata); err != nil {
 			return err
 		}
 	}
@@ -96,7 +94,7 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 		logrus.Warnf("failed to create host support bundle: %v", err)
 	}
 
-	if err := printKotsadmLinkMessage(a.license, networkInterface, a.provider.AdminConsolePort()); err != nil {
+	if err := printKotsadmLinkMessage(a.license, networkInterface, runtimeconfig.AdminConsolePort()); err != nil {
 		return fmt.Errorf("unable to print success message: %w", err)
 	}
 
@@ -114,7 +112,7 @@ func (a *Applier) OutroForRestore(ctx context.Context, k0sCfg *k0sv1beta1.Cluste
 		return fmt.Errorf("unable to load addons: %w", err)
 	}
 	for _, addon := range addons {
-		if err := addon.Outro(ctx, a.provider, kcli, k0sCfg, nil); err != nil {
+		if err := addon.Outro(ctx, kcli, k0sCfg, nil); err != nil {
 			return err
 		}
 	}
@@ -132,7 +130,7 @@ func (a *Applier) GenerateHelmConfigs(k0sCfg *k0sv1beta1.ClusterConfig, addition
 
 	// charts required by embedded-cluster
 	for _, addon := range addons {
-		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.provider, k0sCfg, a.onlyDefaults)
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(k0sCfg, a.onlyDefaults)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
@@ -158,7 +156,7 @@ func (a *Applier) GenerateHelmConfigsForRestore(k0sCfg *k0sv1beta1.ClusterConfig
 
 	// charts required for restore
 	for _, addon := range addons {
-		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(a.provider, k0sCfg, a.onlyDefaults)
+		addonChartConfig, addonRepositoryConfig, err := addon.GenerateHelmConfig(k0sCfg, a.onlyDefaults)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to generate helm config for %s: %w", addon, err)
 		}
@@ -180,7 +178,7 @@ func (a *Applier) GetBuiltinCharts(k0sCfg *k0sv1beta1.ClusterConfig) (map[string
 	}
 
 	for name, addon := range addons {
-		chart, repo, err := addon.GenerateHelmConfig(a.provider, k0sCfg, true)
+		chart, repo, err := addon.GenerateHelmConfig(k0sCfg, true)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate helm config for %s: %w", name, err)
 		}
@@ -292,12 +290,12 @@ func (a *Applier) load() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	reg, err := registry.New(defaults.RegistryNamespace, a.airgapBundle != "" || a.isAirgap, a.isHA, a.isHAMigrationInProgress)
+	reg, err := registry.New(runtimeconfig.RegistryNamespace, a.airgapBundle != "" || a.isAirgap, a.isHA, a.isHAMigrationInProgress)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons = append(addons, reg)
-	sea, err := seaweedfs.New(defaults.SeaweedFSNamespace, a.airgapBundle != "" || a.isAirgap, a.isHA)
+	sea, err := seaweedfs.New(runtimeconfig.SeaweedFSNamespace, a.airgapBundle != "" || a.isAirgap, a.isHA)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
 	}
@@ -309,7 +307,6 @@ func (a *Applier) load() ([]AddOn, error) {
 		a.airgapBundle != "" || a.isAirgap,
 		a.proxyEnv,
 		a.privateCAs,
-		a.runtimeConfig,
 		a.binaryNameOverride,
 	)
 	if err != nil {
@@ -321,15 +318,14 @@ func (a *Applier) load() ([]AddOn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
 	}
-	vel, err := velero.New(defaults.VeleroNamespace, disasterRecoveryEnabled, a.proxyEnv)
+	vel, err := velero.New(runtimeconfig.VeleroNamespace, disasterRecoveryEnabled, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
 	addons = append(addons, vel)
 
 	aconsole, err := adminconsole.New(
-		a.provider,
-		defaults.KotsadmNamespace,
+		runtimeconfig.KotsadmNamespace,
 		a.adminConsolePwd,
 		a.licenseFile,
 		a.airgapBundle,
@@ -350,25 +346,25 @@ func (a *Applier) load() ([]AddOn, error) {
 func (a *Applier) loadBuiltIn() (map[string]AddOn, error) {
 	addons := map[string]AddOn{}
 
-	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
+	vel, err := velero.New(runtimeconfig.VeleroNamespace, true, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}
 	addons["velero"] = vel
 
-	reg, err := registry.New(defaults.RegistryNamespace, true, false, false)
+	reg, err := registry.New(runtimeconfig.RegistryNamespace, true, false, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons["registry"] = reg
 
-	regHA, err := registry.New(defaults.RegistryNamespace, true, true, false)
+	regHA, err := registry.New(runtimeconfig.RegistryNamespace, true, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create registry addon: %w", err)
 	}
 	addons["registry-ha"] = regHA
 
-	seaweed, err := seaweedfs.New(defaults.SeaweedFSNamespace, true, true)
+	seaweed, err := seaweedfs.New(runtimeconfig.SeaweedFSNamespace, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create seaweedfs addon: %w", err)
 	}
@@ -386,7 +382,7 @@ func (a *Applier) loadForRestore() ([]AddOn, error) {
 	}
 	addons = append(addons, obs)
 
-	vel, err := velero.New(defaults.VeleroNamespace, true, a.proxyEnv)
+	vel, err := velero.New(runtimeconfig.VeleroNamespace, true, a.proxyEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create velero addon: %w", err)
 	}

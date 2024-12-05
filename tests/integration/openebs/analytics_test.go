@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,14 +12,12 @@ import (
 )
 
 func TestOpenEBS_AnalyticsDisabled(t *testing.T) {
-	t.Parallel()
-
 	clusterName := util.GenerateClusterName(t)
 	kubeconfig := util.SetupKindCluster(t, clusterName, nil)
 
 	addon := openebs.OpenEBS{}
-	provider := defaults.NewProvider("/custom")
-	charts, _, err := addon.GenerateHelmConfig(provider, nil, false)
+	runtimeconfig.SetDataDir("/custom")
+	charts, _, err := addon.GenerateHelmConfig(nil, false)
 	require.NoError(t, err, "failed to generate helm config")
 
 	chart := charts[0]

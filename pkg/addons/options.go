@@ -2,7 +2,6 @@ package addons
 
 import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -34,8 +33,6 @@ func Quiet() Option {
 func OnlyDefaults() Option {
 	return func(a *Applier) {
 		a.onlyDefaults = true
-		a.runtimeConfig = ecv1beta1.GetDefaultRuntimeConfig()
-		a.provider = defaults.NewProviderFromRuntimeConfig(a.runtimeConfig)
 	}
 }
 
@@ -45,15 +42,6 @@ func OnlyDefaults() Option {
 func WithEndUserConfig(config *ecv1beta1.Config) Option {
 	return func(a *Applier) {
 		a.endUserConfig = config
-	}
-}
-
-// WithRuntimeConfig sets the runtime config passed in by the customer
-// at install time.
-func WithRuntimeConfig(runtimeConfig *ecv1beta1.RuntimeConfigSpec) Option {
-	return func(a *Applier) {
-		a.runtimeConfig = runtimeConfig
-		a.provider = defaults.NewProviderFromRuntimeConfig(runtimeConfig)
 	}
 }
 

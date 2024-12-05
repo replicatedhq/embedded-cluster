@@ -13,8 +13,9 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
 )
@@ -33,7 +34,7 @@ func SerializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) 
 
 // Run runs the provided host preflight spec locally. This function is meant to be
 // used when upgrading a local node.
-func Run(ctx context.Context, provider *defaults.Provider, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*Output, string, error) {
+func Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, proxy *ecv1beta1.ProxySpec) (*types.Output, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
@@ -44,17 +45,17 @@ func Run(ctx context.Context, provider *defaults.Provider, spec *troubleshootv1b
 	}
 	defer os.Remove(fpath)
 
-	binpath := provider.PathToEmbeddedClusterBinary("kubectl-preflight")
+	binpath := runtimeconfig.PathToEmbeddedClusterBinary("kubectl-preflight")
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
 	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
 	cmdEnv := cmd.Environ()
 	cmdEnv = proxyEnv(cmdEnv, proxy)
-	cmdEnv = pathEnv(cmdEnv, provider)
+	cmdEnv = pathEnv(cmdEnv)
 	cmd.Env = cmdEnv
 	cmd.Stdout, cmd.Stderr = stdout, stderr
 	if err = cmd.Run(); err == nil {
-		out, err := OutputFromReader(stdout)
+		out, err := types.OutputFromReader(stdout)
 		return out, stderr.String(), err
 	}
 
@@ -62,11 +63,11 @@ func Run(ctx context.Context, provider *defaults.Provider, spec *troubleshootv1b
 	if !errors.As(err, &exit) || exit.ExitCode() < 2 {
 		return nil, stderr.String(), fmt.Errorf("error running host preflight: %w, stderr=%q", err, stderr.String())
 	}
-	out, err := OutputFromReader(stdout)
+	out, err := types.OutputFromReader(stdout)
 	return out, stderr.String(), err
 }
 
-func CopyBundleToECSupportDir(provider *defaults.Provider) error {
+func CopyBundleToECSupportDir() error {
 	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
 	if err != nil {
 		return fmt.Errorf("find preflight bundle: %w", err)
@@ -81,7 +82,7 @@ func CopyBundleToECSupportDir(provider *defaults.Provider) error {
 			src = match
 		}
 	}
-	dst := provider.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")
+	dst := runtimeconfig.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")
 	if err := helpers.MoveFile(src, dst); err != nil {
 		return fmt.Errorf("move preflight bundle to %s: %w", dst, err)
 	}
@@ -146,7 +147,7 @@ func proxyEnv(env []string, proxy *ecv1beta1.ProxySpec) []string {
 	return next
 }
 
-func pathEnv(env []string, provider *defaults.Provider) []string {
+func pathEnv(env []string) []string {
 	path := ""
 	next := []string{}
 	for _, e := range env {
@@ -159,9 +160,9 @@ func pathEnv(env []string, provider *defaults.Provider) []string {
 		}
 	}
 	if path != "" {
-		next = append(next, fmt.Sprintf("PATH=%s:%s", path, provider.EmbeddedClusterBinsSubDir()))
+		next = append(next, fmt.Sprintf("PATH=%s:%s", path, runtimeconfig.EmbeddedClusterBinsSubDir()))
 	} else {
-		next = append(next, fmt.Sprintf("PATH=%s", provider.EmbeddedClusterBinsSubDir()))
+		next = append(next, fmt.Sprintf("PATH=%s", runtimeconfig.EmbeddedClusterBinsSubDir()))
 	}
 	return next
 }

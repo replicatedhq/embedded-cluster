@@ -16,10 +16,10 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 )
 
@@ -84,7 +84,7 @@ func (o *Velero) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the Velero chart.
-func (o *Velero) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+func (o *Velero) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	if !o.isEnabled {
 		return nil, nil, nil
 	}
@@ -110,7 +110,7 @@ func (o *Velero) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1be
 		}
 
 		var err error
-		podVolumePath := filepath.Join(provider.EmbeddedClusterK0sSubDir(), "kubelet/pods")
+		podVolumePath := filepath.Join(runtimeconfig.EmbeddedClusterK0sSubDir(), "kubelet/pods")
 		helmValues, err = helm.SetValue(helmValues, "nodeAgent.podVolumePath", podVolumePath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values nodeAgent.podVolumePath: %w", err)
@@ -146,7 +146,7 @@ func (o *Velero) GetAdditionalImages() []string {
 }
 
 // Outro is executed after the cluster deployment.
-func (o *Velero) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (o *Velero) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	if !o.isEnabled {
 		return nil
 	}

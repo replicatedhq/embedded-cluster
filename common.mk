@@ -8,12 +8,15 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.26.0
+
 ## Tool Binaries
 MELANGE ?= $(LOCALBIN)/melange
 APKO ?= $(LOCALBIN)/apko
 
 ## Version to use for building
-VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*')
+VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

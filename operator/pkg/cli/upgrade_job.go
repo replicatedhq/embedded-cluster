@@ -2,12 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
 )
@@ -41,28 +40,18 @@ func UpgradeJobCmd() *cobra.Command {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
 
+			// set the runtime config from the installation spec
+			runtimeconfig.Set(in.Spec.RuntimeConfig)
+
 			fmt.Printf("Upgrading to installation %s (version %s)\n", in.Name, in.Spec.Config.Version)
 
 			i := 0
-			allErrors := []string{}
 			sleepDuration := time.Second * 5
 			for {
 				err = upgrade.Upgrade(cmd.Context(), cli, in)
 				if err != nil {
 					fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
-					allErrors = append(allErrors, err.Error())
 					if i >= 10 {
-						if !in.Spec.AirGap {
-							err = metrics.NotifyUpgradeFailed(cmd.Context(), in.Spec.MetricsBaseURL, metrics.UpgradeFailedEvent{
-								ClusterID:      in.Spec.ClusterID,
-								TargetVersion:  in.Spec.Config.Version,
-								InitialVersion: previousInstallationVersion,
-								Reason:         strings.Join(allErrors, ", "),
-							})
-							if err != nil {
-								fmt.Printf("failed to report that the upgrade was started: %v\n", err)
-							}
-						}
 						return fmt.Errorf("failed to upgrade after %s", (sleepDuration * time.Duration(i)).String())
 					}
 

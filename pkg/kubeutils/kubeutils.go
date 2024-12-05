@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -192,7 +193,10 @@ func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, 
 func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedclusterv1beta1.Installation, error) {
 	var list embeddedclusterv1beta1.InstallationList
 	err := cli.List(ctx, &list)
-	if err != nil {
+	if meta.IsNoMatchError(err) {
+		// this will happen if the CRD is not yet installed
+		return nil, ErrNoInstallations{}
+	} else if err != nil {
 		return nil, err
 	}
 	installs := list.Items

@@ -28,8 +28,8 @@ import (
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -245,47 +245,6 @@ func (r *InstallationReconciler) ReportNodesChanges(ctx context.Context, in *v1b
 		if err := metrics.NotifyNodeRemoved(ctx, in.Spec.MetricsBaseURL, ev); err != nil {
 			ctrl.LoggerFrom(ctx).Error(err, "failed to notify node removed")
 		}
-	}
-}
-
-// ReportInstallationChanges reports back to the metrics server if the installation status has changed.
-func (r *InstallationReconciler) ReportInstallationChanges(ctx context.Context, before, after *v1beta1.Installation) {
-	if len(before.Status.State) == 0 || before.Status.State == after.Status.State {
-		return
-	}
-	var err error
-	var beforeVer, afterVer string
-	if before.Spec.Config != nil {
-		beforeVer = before.Spec.Config.Version
-	}
-	if after.Spec.Config != nil {
-		afterVer = after.Spec.Config.Version
-	}
-	switch after.Status.State {
-	case v1beta1.InstallationStateInstalling:
-		if beforeVer != "" {
-			err = metrics.NotifyUpgradeStarted(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
-				ClusterID:      after.Spec.ClusterID,
-				TargetVersion:  afterVer,
-				InitialVersion: beforeVer,
-			})
-		}
-	case v1beta1.InstallationStateInstalled:
-		err = metrics.NotifyUpgradeSucceeded(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeSucceededEvent{
-			ClusterID:      after.Spec.ClusterID,
-			TargetVersion:  afterVer,
-			InitialVersion: beforeVer,
-		})
-	case v1beta1.InstallationStateFailed:
-		err = metrics.NotifyUpgradeFailed(ctx, after.Spec.MetricsBaseURL, metrics.UpgradeFailedEvent{
-			ClusterID:      after.Spec.ClusterID,
-			Reason:         after.Status.Reason,
-			TargetVersion:  afterVer,
-			InitialVersion: beforeVer,
-		})
-	}
-	if err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "failed to notify cluster installation status")
 	}
 }
 
@@ -558,8 +517,6 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 }
 
 func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string) *batchv1.Job {
-	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
-
 	labels := map[string]string{
 		"embedded-cluster/node-name":    nodeName,
 		"embedded-cluster/installation": in.Name,
@@ -570,7 +527,7 @@ func constructHostPreflightResultsJob(in *v1beta1.Installation, nodeName string)
 
 	job.Spec.Template.Labels, job.Labels = labels, labels
 	job.Spec.Template.Spec.NodeName = nodeName
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = provider.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "EC_NODE_NAME", Value: nodeName},
@@ -615,6 +572,9 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	in := r.CoalesceInstallations(ctx, items)
 
+	// set the runtime config from the installation spec
+	runtimeconfig.Set(in.Spec.RuntimeConfig)
+
 	// if the embedded cluster version has changed we should not reconcile with the old version
 	versionChanged, err := r.needsUpgrade(ctx, in)
 	if versionChanged {
@@ -640,11 +600,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		r.DisableOldInstallations(ctx, items)
 		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
 	}
-
-	// we create a copy of the installation so we can compare if it
-	// changed its status after the reconcile (this is mostly for
-	// calling back to us with events).
-	before := in.DeepCopy()
 
 	// verify if a new node has been added, removed or changed.
 	events, err := r.ReconcileNodeStatuses(ctx, in)
@@ -697,7 +652,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// if we are not in an airgap environment this is the time to call back to
 	// replicated and inform the status of this installation.
 	if !in.Spec.AirGap {
-		r.ReportInstallationChanges(ctx, before, in)
 		r.ReportNodesChanges(ctx, in, events)
 	}
 

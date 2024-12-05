@@ -20,12 +20,12 @@ main() {
         echo "Running install with additional args: $additional_args"
     fi
 
-    if embedded-cluster install --no-prompt --skip-host-preflights --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
+    if embedded-cluster install --yes --ignore-host-preflights --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail with a license provided"
         exit 1
     fi
 
-    if ! embedded-cluster install --no-prompt --skip-host-preflights $additional_args 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --yes --ignore-host-preflights $additional_args 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "Failed to install embedded-cluster"
         exit 1

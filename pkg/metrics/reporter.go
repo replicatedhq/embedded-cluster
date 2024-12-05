@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"sync"
@@ -9,12 +10,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
+	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -42,8 +43,8 @@ func LicenseID(license *kotsv1beta1.License) string {
 }
 
 // License returns the parsed license. If something goes wrong, it returns nil.
-func License(c *cli.Context) *kotsv1beta1.License {
-	license, _ := helpers.ParseLicense(c.String("license"))
+func License(licenseFlag string) *kotsv1beta1.License {
+	license, _ := helpers.ParseLicense(licenseFlag)
 	return license
 }
 
@@ -77,8 +78,8 @@ func ReportInstallationStarted(ctx context.Context, license *kotsv1beta1.License
 	Send(ctx, BaseURL(license), types.InstallationStarted{
 		ClusterID:    ClusterID(),
 		Version:      versions.Version,
-		Flags:        strings.Join(os.Args[1:], " "),
-		BinaryName:   defaults.BinaryName(),
+		Flags:        strings.Join(redactFlags(os.Args[1:]), " "),
+		BinaryName:   runtimeconfig.BinaryName(),
 		Type:         "centralized",
 		LicenseID:    LicenseID(license),
 		AppChannelID: appChannel,
@@ -144,19 +145,57 @@ func ReportJoinFailed(ctx context.Context, baseURL string, clusterID uuid.UUID, 
 }
 
 // ReportApplyStarted reports an InstallationStarted event.
-func ReportApplyStarted(c *cli.Context) {
-	ctx, cancel := context.WithTimeout(c.Context, 5*time.Second)
+func ReportApplyStarted(ctx context.Context, licenseFlag string) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	ReportInstallationStarted(ctx, License(c))
+	ReportInstallationStarted(ctx, License(licenseFlag))
 }
 
 // ReportApplyFinished reports an InstallationSucceeded or an InstallationFailed.
-func ReportApplyFinished(c *cli.Context, err error) {
-	ctx, cancel := context.WithTimeout(c.Context, 5*time.Second)
+func ReportApplyFinished(ctx context.Context, licenseFlag string, license *kotsv1beta1.License, err error) {
+	if licenseFlag != "" {
+		license = License(licenseFlag)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err != nil {
-		ReportInstallationFailed(ctx, License(c), err)
+		ReportInstallationFailed(ctx, license, err)
 		return
 	}
-	ReportInstallationSucceeded(ctx, License(c))
+	ReportInstallationSucceeded(ctx, license)
+}
+
+// ReportPreflightsFailed reports that the preflights failed but were bypassed.
+func ReportPreflightsFailed(ctx context.Context, url string, output preflightstypes.Output, bypassed bool, entryCommand string) {
+	if url == "" {
+		url = BaseURL(nil)
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("unable to get hostname: %s", err)
+		hostname = "unknown"
+	}
+
+	eventType := "PreflightsFailed"
+	if bypassed {
+		eventType = "PreflightsBypassed"
+	}
+
+	outputJSON, err := json.Marshal(output)
+	if err != nil {
+		logrus.Warnf("unable to marshal preflight output: %s", err)
+		return
+	}
+
+	ev := types.PreflightsFailed{
+		ClusterID:       ClusterID(),
+		Version:         versions.Version,
+		NodeName:        hostname,
+		PreflightOutput: string(outputJSON),
+		EventType:       eventType,
+		EntryCommand:    entryCommand,
+	}
+	go Send(ctx, url, ev)
 }

@@ -108,7 +108,7 @@ override_applied() {
 
 main() {
     embed_cluster_config "$embedded_cluster_config"
-    if ! embedded-cluster install --no-prompt 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --yes 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         cat /tmp/log
         exit 1

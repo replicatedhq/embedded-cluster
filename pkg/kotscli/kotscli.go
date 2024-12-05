@@ -8,12 +8,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	sb "github.com/replicatedhq/troubleshoot/pkg/supportbundle"
 	corev1 "k8s.io/api/core/v1"
@@ -37,8 +37,8 @@ type InstallOptions struct {
 	ConfigValuesFile string
 }
 
-func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.MessageWriter) error {
-	materializer := goods.NewMaterializer(provider)
+func Install(opts InstallOptions, msg *spinner.MessageWriter) error {
+	materializer := goods.NewMaterializer()
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -99,8 +99,8 @@ func Install(provider *defaults.Provider, opts InstallOptions, msg *spinner.Mess
 	return nil
 }
 
-func ResetPassword(provider *defaults.Provider, password string) error {
-	materializer := goods.NewMaterializer(provider)
+func ResetPassword(password string) error {
+	materializer := goods.NewMaterializer()
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -108,7 +108,7 @@ func ResetPassword(provider *defaults.Provider, password string) error {
 	defer os.Remove(kotsBinPath)
 
 	runCommandOptions := helpers.RunCommandOptions{
-		Env:   map[string]string{"KUBECONFIG": provider.PathToKubeConfig()},
+		Env:   map[string]string{"KUBECONFIG": runtimeconfig.PathToKubeConfig()},
 		Stdin: strings.NewReader(fmt.Sprintf("%s\n", password)),
 	}
 
@@ -126,8 +126,8 @@ type AirgapUpdateOptions struct {
 	AirgapBundle string
 }
 
-func AirgapUpdate(provider *defaults.Provider, opts AirgapUpdateOptions) error {
-	materializer := goods.NewMaterializer(provider)
+func AirgapUpdate(opts AirgapUpdateOptions) error {
+	materializer := goods.NewMaterializer()
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -172,8 +172,8 @@ type VeleroConfigureOtherS3Options struct {
 	Namespace       string
 }
 
-func VeleroConfigureOtherS3(provider *defaults.Provider, opts VeleroConfigureOtherS3Options) error {
-	materializer := goods.NewMaterializer(provider)
+func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
+	materializer := goods.NewMaterializer()
 	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)

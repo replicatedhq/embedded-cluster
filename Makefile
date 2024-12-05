@@ -15,7 +15,7 @@ K0S_GO_VERSION = v1.29.10+k0s.0
 PREVIOUS_K0S_VERSION ?= v1.28.14+k0s.0-ec.0
 PREVIOUS_K0S_GO_VERSION ?= v1.28.14+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.109.0
+TROUBLESHOOT_VERSION = v0.112.1
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
@@ -140,6 +140,13 @@ ifneq ($(DISABLE_FIO_BUILD),1)
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
 endif
 
+.PHONY: pkg/goods/bins/manager
+pkg/goods/bins/manager:
+	mkdir -p pkg/goods/bins
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o output/bins/manager ./cmd/manager
+	cp output/bins/manager $@
+	touch $@
+
 .PHONY: pkg/goods/internal/bins/kubectl-kots
 pkg/goods/internal/bins/kubectl-kots:
 	mkdir -p pkg/goods/internal/bins
@@ -191,8 +198,9 @@ rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 		./scripts/build-and-release.sh
 
 .PHONY: upgrade-release
-upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade
-upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade
+upgrade-release: RANDOM_STRING = $(call random-string)
+upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
+upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
 	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
@@ -209,6 +217,7 @@ static: pkg/goods/bins/k0s \
 	pkg/goods/bins/kubectl-support_bundle \
 	pkg/goods/bins/local-artifact-mirror \
 	pkg/goods/bins/fio \
+	pkg/goods/bins/manager \
 	pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: static-dryrun
@@ -219,6 +228,7 @@ static-dryrun:
 		pkg/goods/bins/kubectl-support_bundle \
 		pkg/goods/bins/local-artifact-mirror \
 		pkg/goods/bins/fio \
+		pkg/goods/bins/manager \
 		pkg/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64
@@ -248,13 +258,18 @@ embedded-cluster:
 		-tags osusergo,netgo \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
-		./cmd/embedded-cluster
+		./cmd/installer
+
+.PHONY: envtest
+envtest:
+	$(MAKE) -C operator manifests envtest
 
 .PHONY: unit-tests
-unit-tests:
+unit-tests: envtest
 	mkdir -p pkg/goods/bins pkg/goods/internal/bins
 	touch pkg/goods/bins/BUILD pkg/goods/internal/bins/BUILD # compilation will fail if no files are present
-	go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
+	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
+		go test -tags exclude_graphdriver_btrfs -v ./pkg/... ./cmd/...
 	$(MAKE) -C operator test
 
 .PHONY: vet
@@ -263,11 +278,11 @@ vet: static
 
 .PHONY: e2e-tests
 e2e-tests: embedded-release
-	go test -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
+	go test -tags exclude_graphdriver_btrfs -timeout 60m -ldflags="$(LD_FLAGS)" -parallel 1 -failfast -v ./e2e
 
 .PHONY: e2e-test
 e2e-test:
-	go test -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
+	go test -tags exclude_graphdriver_btrfs -timeout 60m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
 
 .PHONY: dryrun-tests
 dryrun-tests: export DRYRUN_MATCH = Test
@@ -354,3 +369,59 @@ delete-node%:
 .PHONY: test-lam-e2e
 test-lam-e2e: pkg/goods/bins/local-artifact-mirror
 	sudo go test ./cmd/local-artifact-mirror/e2e/... -v
+
+.PHONY: bin/installer
+bin/installer:
+	@mkdir -p bin
+	go build -o bin/installer ./cmd/installer
+
+.PHONY: bin/manager
+bin/manager:
+	go build -o bin/manager ./cmd/manager
+
+# make test-embed channel=<channelid> app=<appslug>
+.PHONY: test-embed
+test-emded: export OS=linux
+test-embed: export ARCH=amd64
+test-embed: VERSION=1.19.0+k8s-1.30
+test-embed: static embedded-cluster
+	@echo "Cleaning up previous release directory..."
+	rm -rf ./hack/release
+	@echo "Creating release directory..."
+	mkdir -p ./hack/release
+
+	@echo "Fetching channel JSON for channel: $(channel)"
+	$(eval CHANNEL_JSON := $(shell replicated channel inspect $(channel) --output json))
+	@echo "CHANNEL_JSON: $(CHANNEL_JSON)"
+
+	@echo "Extracting release label, sequence, and channel slug..."
+	$(eval RELEASE_LABEL := $(shell echo '$(CHANNEL_JSON)' | jq -r '.releaseLabel'))
+	$(eval RELEASE_SEQUENCE := $(shell echo '$(CHANNEL_JSON)' | jq -r '.releaseSequence'))
+	$(eval CHANNEL_SLUG := $(shell echo '$(CHANNEL_JSON)' | jq -r '.channelSlug'))
+	$(eval CHANNEL_ID := $(shell echo '$(CHANNEL_JSON)' | jq -r '.id'))
+
+	@echo "Extracted values:"
+	@echo "  RELEASE_LABEL: $(RELEASE_LABEL)"
+	@echo "  RELEASE_SEQUENCE: $(RELEASE_SEQUENCE)"
+	@echo "  CHANNEL_SLUG: $(CHANNEL_SLUG)"
+
+	@echo "Downloading release sequence $(RELEASE_SEQUENCE) for app $(app)..."
+	replicated release download $(RELEASE_SEQUENCE) --app=$(app) -d ./hack/release || { echo "Error: Failed to download release. Check RELEASE_SEQUENCE or app name."; exit 1; }
+
+	@echo "Writing release.yaml..."
+	@mkdir -p ./hack/release  # Ensure directory exists
+	@echo '# channel release object' > ./hack/release/release.yaml
+	@echo 'channelID: "${CHANNEL_ID}"' >> ./hack/release/release.yaml
+	@echo 'channelSlug: "${CHANNEL_SLUG}"' >> ./hack/release/release.yaml
+	@echo 'appSlug: "$(app)"' >> ./hack/release/release.yaml
+	@echo 'versionLabel: "${RELEASE_LABEL}"' >> ./hack/release/release.yaml
+
+	@echo "Creating tarball of the release directory..."
+	tar czvf ./hack/release.tgz -C ./hack/release .
+
+	@echo "Embedding release into binary..."
+	go run ./hack/dev-embed.go --binary ./build/embedded-cluster-linux-amd64  --release ./hack/release.tgz --output ./build/$(app) \
+		--label $(RELEASE_LABEL) --sequence $(RELEASE_SEQUENCE) --channel $(CHANNEL_SLUG)
+
+	chmod +x ./build/$(app)
+	@echo "Test embed completed successfully."

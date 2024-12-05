@@ -13,7 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -201,8 +201,6 @@ func ensureArtifactsJobForNode(ctx context.Context, cli client.Client, in *clust
 }
 
 func getArtifactJobForNode(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, node corev1.Node, localArtifactMirrorImage string) (*batchv1.Job, error) {
-	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
-
 	hash, err := HashForAirgapConfig(in)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash airgap config: %w", err)
@@ -219,7 +217,7 @@ func getArtifactJobForNode(ctx context.Context, cli client.Client, in *clusterv1
 	job.ObjectMeta.Labels = applyECOperatorLabels(job.ObjectMeta.Labels, "upgrader")
 	job.ObjectMeta.Annotations = applyArtifactsJobAnnotations(job.GetAnnotations(), in, hash)
 	job.Spec.Template.Spec.NodeName = node.Name
-	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = provider.EmbeddedClusterHomeDirectory()
+	job.Spec.Template.Spec.Volumes[0].VolumeSource.HostPath.Path = runtimeconfig.EmbeddedClusterHomeDirectory()
 	job.Spec.Template.Spec.Containers[0].Env = append(
 		job.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{Name: "INSTALLATION", Value: in.Name},
@@ -242,8 +240,6 @@ func getArtifactJobForNode(ctx context.Context, cli client.Client, in *clusterv1
 // CreateAutopilotAirgapPlanCommand creates the plan to execute an aigrap upgrade in all nodes. The
 // return of this function is meant to be used as part of an autopilot plan.
 func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*autopilotv1beta2.PlanCommand, error) {
-	provider := defaults.NewProviderFromRuntimeConfig(in.Spec.RuntimeConfig)
-
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release metadata: %w", err)
@@ -261,7 +257,7 @@ func CreateAutopilotAirgapPlanCommand(ctx context.Context, cli client.Client, in
 
 	imageURL := fmt.Sprintf(
 		"http://127.0.0.1:%d/images/ec-images-amd64.tar",
-		provider.LocalArtifactMirrorPort(),
+		runtimeconfig.LocalArtifactMirrorPort(),
 	)
 
 	return &autopilotv1beta2.PlanCommand{

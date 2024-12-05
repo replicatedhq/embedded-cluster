@@ -1810,11 +1810,11 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 
 	bin := strings.Split(command, " ")[0]
 	t.Logf("%s: resetting controller node 2", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--no-prompt"})
+	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--yes"})
 	if err != nil {
 		t.Fatalf("fail to remove controller node 2: %v: %s: %s", err, stdout, stderr)
 	}
-	if !strings.Contains(stderr, "High-availability clusters must maintain at least three controller nodes") {
+	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
 		t.Errorf("reset output does not contain the ha warning")
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -2030,12 +2030,12 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 
 	bin := strings.Split(command, " ")[0]
 	t.Logf("%s: resetting controller node 2 with bin %q", time.Now().Format(time.RFC3339), bin)
-	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--no-prompt"})
+	stdout, stderr, err = tc.RunCommandOnNode(2, []string{bin, "reset", "--yes"})
 	if err != nil {
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 		t.Fatalf("fail to remove controller node %s:", err)
 	}
-	if !strings.Contains(stderr, "High-availability clusters must maintain at least three controller nodes") {
+	if !strings.Contains(stdout, "High-availability clusters must maintain at least three controller nodes") {
 		t.Errorf("reset output does not contain the ha warning")
 		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}

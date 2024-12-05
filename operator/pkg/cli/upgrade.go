@@ -8,9 +8,9 @@ import (
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -43,6 +43,9 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
 
+			// set the runtime config from the installation spec
+			runtimeconfig.Set(in.Spec.RuntimeConfig)
+
 			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
 
 			// create the installation object so that kotsadm can immediately find it and watch it for the upgrade process
@@ -58,16 +61,6 @@ func UpgradeCmd() *cobra.Command {
 			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, in, localArtifactMirrorImage, previousInstallation.Spec.Config.Version)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
-			}
-			if !in.Spec.AirGap {
-				err = metrics.NotifyUpgradeStarted(cmd.Context(), in.Spec.MetricsBaseURL, metrics.UpgradeStartedEvent{
-					ClusterID:      in.Spec.ClusterID,
-					TargetVersion:  in.Spec.Config.Version,
-					InitialVersion: previousInstallation.Spec.Config.Version,
-				})
-				if err != nil {
-					fmt.Printf("failed to report that the upgrade was started: %v\n", err)
-				}
 			}
 
 			fmt.Println("Upgrade job created successfully")

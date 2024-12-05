@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -127,8 +127,8 @@ func Test_proxyEnv(t *testing.T) {
 }
 
 func Test_pathEnv(t *testing.T) {
-	provider := defaults.NewProvider(t.TempDir())
-	binDir := provider.EmbeddedClusterBinsSubDir()
+	runtimeconfig.SetDataDir(t.TempDir())
+	binDir := runtimeconfig.EmbeddedClusterBinsSubDir()
 
 	type args struct {
 		env []string
@@ -166,7 +166,7 @@ func Test_pathEnv(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := pathEnv(tt.args.env, provider)
+			got := pathEnv(tt.args.env)
 			gotMap := make(map[string]string)
 			for _, e := range got {
 				parts := strings.SplitN(e, "=", 2)

@@ -5,12 +5,12 @@ DIR=/usr/local/bin
 . $DIR/common.sh
 
 main() {
-    if ! embedded-cluster install run-preflights --no-prompt --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install run-preflights --yes --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "Failed to install embedded-cluster"
         exit 1
     fi
-    if ! embedded-cluster install --no-prompt --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --yes --license /assets/license.yaml 2>&1 | tee /tmp/log ; then
         cat /etc/os-release
         echo "Failed to install embedded-cluster"
         exit 1

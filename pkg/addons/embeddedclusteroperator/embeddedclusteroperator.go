@@ -15,10 +15,10 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -68,7 +68,6 @@ type EmbeddedClusterOperator struct {
 	namespace     string
 	deployName    string
 	endUserConfig *ecv1beta1.Config
-	runtimeConfig *ecv1beta1.RuntimeConfigSpec
 	license       *kotsv1beta1.License
 	airgap        bool
 	proxyEnv      map[string]string
@@ -101,7 +100,7 @@ func (e *EmbeddedClusterOperator) GetProtectedFields() map[string][]string {
 }
 
 // GenerateHelmConfig generates the helm config for the embedded cluster operator chart.
-func (e *EmbeddedClusterOperator) GenerateHelmConfig(provider *defaults.Provider, k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+func (e *EmbeddedClusterOperator) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, onlyDefaults bool) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	chartConfig := ecv1beta1.Chart{
 		Name:         releaseName,
 		ChartName:    Metadata.Location,
@@ -213,7 +212,7 @@ func createCAConfigmap(ctx context.Context, cli client.Client, namespace string,
 // Outro is executed after the cluster deployment. Waits for the embedded cluster operator
 // to finish its deployment, creates the version metadata configmap (if in airgap) and
 // the installation object.
-func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.Provider, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
+func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
 
@@ -276,7 +275,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, provider *defaults.
 			Proxy:                     proxySpec,
 			Network:                   k0sConfigToNetworkSpec(k0sCfg),
 			Config:                    cfgspec,
-			RuntimeConfig:             e.runtimeConfig,
+			RuntimeConfig:             runtimeconfig.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                e.binaryName,
 			LicenseInfo: &ecv1beta1.LicenseInfo{
@@ -303,11 +302,10 @@ func New(
 	airgapEnabled bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
-	runtimeConfig *ecv1beta1.RuntimeConfigSpec,
 	binaryNameOverride string,
 ) (*EmbeddedClusterOperator, error) {
 	if binaryNameOverride == "" {
-		binaryNameOverride = defaults.BinaryName()
+		binaryNameOverride = runtimeconfig.BinaryName()
 	}
 	return &EmbeddedClusterOperator{
 		namespace:     "embedded-cluster",
@@ -317,7 +315,6 @@ func New(
 		airgap:        airgapEnabled,
 		proxyEnv:      proxyEnv,
 		privateCAs:    privateCAs,
-		runtimeConfig: runtimeConfig,
 		binaryName:    binaryNameOverride,
 	}, nil
 }

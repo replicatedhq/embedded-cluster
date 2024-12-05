@@ -6,7 +6,7 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
     - ./melange.rsa.pub
   packages:
-    - embedded-cluster-operator  # This is expected to be built locally by `melange`.
+    - ec-operator  # This is expected to be built locally by `melange`.
     - ca-certificates-bundle
 
 accounts:

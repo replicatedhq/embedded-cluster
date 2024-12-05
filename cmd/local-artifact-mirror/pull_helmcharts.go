@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/defaults"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -44,8 +44,8 @@ func PullHelmChartsCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 				}
 			}
 
-			provider := defaults.NewProvider(dataDir)
-			os.Setenv("TMPDIR", provider.EmbeddedClusterTmpSubDir())
+			runtimeconfig.SetDataDir(dataDir)
+			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
 			in, err := fetchAndValidateInstallation(ctx, args[0])
 			if err != nil {
@@ -63,7 +63,7 @@ func PullHelmChartsCmd(ctx context.Context, v *viper.Viper) *cobra.Command {
 				os.RemoveAll(location)
 			}()
 
-			dst := provider.EmbeddedClusterChartsSubDir()
+			dst := runtimeconfig.EmbeddedClusterChartsSubDir()
 			src := filepath.Join(location, HelmChartsArtifactName)
 			logrus.Infof("uncompressing %s", src)
 			if err := tgzutils.Decompress(src, dst); err != nil {
