@@ -186,12 +186,14 @@ output/bin/embedded-cluster-release-builder:
 .PHONY: initial-release
 initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: export APP_VERSION = appver-dev-$(call random-string)
+initial-release: export RELEASE_YAML_DIR = e2e/kots-release-install
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 		./scripts/build-and-release.sh
 
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
+rebuild-release: export RELEASE_YAML_DIR = e2e/kots-release-install
 rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 	SKIP_RELEASE=1 \
