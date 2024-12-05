@@ -13,7 +13,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
+	preflightstypes "github.com/replicatedhq/embedded-cluster/pkg/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -167,7 +167,7 @@ func ReportApplyFinished(ctx context.Context, licenseFlag string, license *kotsv
 }
 
 // ReportPreflightsFailed reports that the preflights failed but were bypassed.
-func ReportPreflightsFailed(ctx context.Context, url string, output preflights.Output, bypassed bool, entryCommand string) {
+func ReportPreflightsFailed(ctx context.Context, url string, output preflightstypes.Output, bypassed bool, entryCommand string) {
 	if url == "" {
 		url = BaseURL(nil)
 	}

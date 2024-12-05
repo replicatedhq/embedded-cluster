@@ -204,12 +204,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			}
 
-			fromCIDR, toCIDR, err := getPODAndServiceCIDR(cmd)
+			cidrCfg, err := getCIDRConfig(cmd)
 			if err != nil {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
 
-			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, fromCIDR, toCIDR, assumeYes); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, assumeYes); err != nil {
 				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
@@ -643,12 +643,12 @@ func ensureK0sConfig(cmd *cobra.Command, applier *addons.Applier) (*k0sconfig.Cl
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
-	podCIDR, serviceCIDR, err := getPODAndServiceCIDR(cmd)
+	cidrCfg, err := getCIDRConfig(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
-	cfg.Spec.Network.PodCIDR = podCIDR
-	cfg.Spec.Network.ServiceCIDR = serviceCIDR
+	cfg.Spec.Network.PodCIDR = cidrCfg.PodCIDR
+	cfg.Spec.Network.ServiceCIDR = cidrCfg.ServiceCIDR
 	if err := config.UpdateHelmConfigs(applier, cfg); err != nil {
 		return nil, fmt.Errorf("unable to update helm configs: %w", err)
 	}
