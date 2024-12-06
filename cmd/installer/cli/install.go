@@ -59,8 +59,10 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "install",
-		Short: fmt.Sprintf("Install %s", name),
+		Use:           "install",
+		Short:         fmt.Sprintf("Install %s", name),
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("install command must be run as root")

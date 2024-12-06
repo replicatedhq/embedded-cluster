@@ -23,8 +23,10 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 		assumeYes        bool
 	)
 	cmd := &cobra.Command{
-		Use:   "run-preflights",
-		Short: fmt.Sprintf("Run join host preflights for %s", name),
+		Use:           "run-preflights",
+		Short:         fmt.Sprintf("Run join host preflights for %s", name),
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("run-preflights command must be run as root")
