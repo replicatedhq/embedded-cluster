@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +32,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/snapshots"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
@@ -178,7 +178,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			// if the user wants to resume, check if a backup has already been picked.
-			var backupToRestore *replicatedBackup
+			var backupToRestore *snapshots.ReplicatedBackup
 			if state != ecRestoreStateNew {
 				logrus.Debugf("getting backup from restore state")
 				var err error
@@ -430,7 +430,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 						return err
 					}
 
-					registryAddress, ok := backupToRestore.GetECAnnotation("kots.io/embedded-registry")
+					registryAddress, ok := backupToRestore.GetAnnotation("kots.io/embedded-registry")
 					if !ok {
 						return fmt.Errorf("unable to read registry address from backup")
 					}
@@ -604,7 +604,7 @@ func resetECRestoreState(ctx context.Context) error {
 // It returns an error if a backup is defined in the restore state but:
 //   - is not found by Velero anymore.
 //   - is not restorable by the current binary.
-func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*replicatedBackup, error) {
+func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*snapshots.ReplicatedBackup, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
@@ -626,7 +626,7 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*replicatedB
 		return nil, nil
 	}
 
-	backup, err := getReplicatedBackupFromName(ctx, kcli, runtimeconfig.VeleroNamespace, backupName)
+	backup, err := snapshots.GetReplicatedBackup(ctx, kcli, runtimeconfig.VeleroNamespace, backupName)
 	if err != nil {
 		return nil, err
 	}
@@ -645,11 +645,11 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*replicatedB
 		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
-	if restorable, reason := isReplicatedBackupRestorable(*backup, rel, isAirgap, k0sCfg); !restorable {
+	if restorable, reason := isReplicatedBackupRestorable(backup, rel, isAirgap, k0sCfg); !restorable {
 		return nil, fmt.Errorf("backup %q %s", backup.GetName(), reason)
 	}
 
-	return backup, nil
+	return &backup, nil
 }
 
 // newS3BackupStore prompts the user for S3 backup store configuration.
@@ -802,7 +802,7 @@ func runOutroForRestore(cmd *cobra.Command, applier *addons.Applier, cfg *k0sv1b
 	return applier.OutroForRestore(cmd.Context(), cfg)
 }
 
-func isReplicatedBackupRestorable(backup replicatedBackup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
+func isReplicatedBackupRestorable(backup snapshots.ReplicatedBackup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
 	if backup.GetExpectedBackupCount() != len(backup) {
 		return false, fmt.Sprintf("has a different number of backups (%d) than the expected number (%d)", len(backup), backup.GetExpectedBackupCount())
 	}
@@ -816,9 +816,9 @@ func isReplicatedBackupRestorable(backup replicatedBackup, rel *release.ChannelR
 	if appBackup == nil {
 		return false, "missing app backup"
 	}
-	if getInstanceBackupType(*appBackup) == instanceBackupTypeApp && !improvedDR {
+	if snapshots.GetInstanceBackupType(*appBackup) == snapshots.InstanceBackupTypeApp && !improvedDR {
 		return false, "app backup found but improved dr is not enabled"
-	} else if getInstanceBackupType(*appBackup) == instanceBackupTypeLegacy && improvedDR {
+	} else if snapshots.GetInstanceBackupType(*appBackup) == snapshots.InstanceBackupTypeLegacy && improvedDR {
 		return false, "legacy backup found but improved dr is enabled"
 	}
 
@@ -908,8 +908,8 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	return true, ""
 }
 
-func isHighAvailabilityReplicatedBackup(backup replicatedBackup) (bool, error) {
-	ha, ok := backup.GetECAnnotation("kots.io/embedded-cluster-is-ha")
+func isHighAvailabilityReplicatedBackup(backup snapshots.ReplicatedBackup) (bool, error) {
+	ha, ok := backup.GetAnnotation("kots.io/embedded-cluster-is-ha")
 	if !ok {
 		return false, fmt.Errorf("high availability annotation not found in backup")
 	}
@@ -919,7 +919,7 @@ func isHighAvailabilityReplicatedBackup(backup replicatedBackup) (bool, error) {
 
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
-func waitForBackups(ctx context.Context, isAirgap bool) ([]replicatedBackup, error) {
+func waitForBackups(ctx context.Context, isAirgap bool) ([]snapshots.ReplicatedBackup, error) {
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
@@ -943,15 +943,13 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]replicatedBackup, err
 		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
-	backups, err := listBackupsWithTimeout(ctx, kcli)
+	replicatedBackups, err := listBackupsWithTimeout(ctx, kcli)
 	if err != nil {
 		return nil, err
 	}
 
-	replicatedBackups := groupBackupsByName(backups)
-
-	validBackups := []replicatedBackup{}
-	invalidBackups := []replicatedBackup{}
+	validBackups := []snapshots.ReplicatedBackup{}
+	invalidBackups := []snapshots.ReplicatedBackup{}
 	invalidReasons := []string{}
 
 	for _, backup := range replicatedBackups {
@@ -979,22 +977,20 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]replicatedBackup, err
 	return validBackups, nil
 }
 
-func listBackupsWithTimeout(ctx context.Context, kcli client.Client) ([]velerov1.Backup, error) {
-	backupList := velerov1api.BackupList{}
-
+func listBackupsWithTimeout(ctx context.Context, kcli client.Client) ([]snapshots.ReplicatedBackup, error) {
 	for i := 0; i < 30; i++ {
 		time.Sleep(5 * time.Second)
 
-		err := kcli.List(ctx, &backupList, client.InNamespace(runtimeconfig.VeleroNamespace))
+		backups, err := snapshots.ListReplicatedBackups(ctx, kcli)
 		if err != nil {
 			return nil, fmt.Errorf("unable to list backups: %w", err)
 		}
-		if len(backupList.Items) == 0 {
+		if len(backups) == 0 {
 			logrus.Debugf("No backups found yet...")
 			continue
 		}
 
-		return backupList.Items, nil
+		return backups, nil
 	}
 
 	return nil, fmt.Errorf("timed out waiting for backups to become available")
@@ -1002,8 +998,8 @@ func listBackupsWithTimeout(ctx context.Context, kcli client.Client) ([]velerov1
 
 // pickBackupToRestore picks a backup to restore from a list of backups.
 // Currently, it picks the latest backup.
-func pickBackupToRestore(backups []replicatedBackup) *replicatedBackup {
-	var latestBackup *replicatedBackup
+func pickBackupToRestore(backups []snapshots.ReplicatedBackup) *snapshots.ReplicatedBackup {
+	var latestBackup *snapshots.ReplicatedBackup
 	for _, b := range backups {
 		if latestBackup == nil {
 			latestBackup = &b
@@ -1248,7 +1244,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 }
 
 // restoreFromReplicatedBackup restores a disaster recovery component from a backup.
-func restoreFromReplicatedBackup(ctx context.Context, backup replicatedBackup, drComponent disasterRecoveryComponent) error {
+func restoreFromReplicatedBackup(ctx context.Context, backup snapshots.ReplicatedBackup, drComponent disasterRecoveryComponent) error {
 	if drComponent == disasterRecoveryComponentApp {
 		b := backup.GetAppBackup()
 		if b == nil {
@@ -1343,6 +1339,8 @@ func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup) error {
 	return waitForDRComponent(ctx, drComponent, restoreName)
 }
 
+// restoreFromBackup will use the "replicated.com/disaster-recovery" label value provided to create
+// a velero restore object which will restore one set of resources to the cluster.
 func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
@@ -1373,8 +1371,6 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		default:
 			return fmt.Errorf("unknown disaster recovery component: %q", drComponent)
 		}
-
-		// TODO(improveddr): load restore
 
 		restore := &velerov1.Restore{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1423,14 +1419,14 @@ func ensureImprovedDrMetadata(restore *velerov1.Restore, backup *velerov1.Backup
 	if restore.Annotations == nil {
 		restore.Annotations = map[string]string{}
 	}
-	if val, ok := backup.Labels[instanceBackupNameLabel]; ok {
-		restore.Labels[instanceBackupNameLabel] = val
+	if val, ok := backup.Labels[snapshots.InstanceBackupNameLabel]; ok {
+		restore.Labels[snapshots.InstanceBackupNameLabel] = val
 	}
-	if val, ok := backup.Labels[instanceBackupTypeAnnotation]; ok {
-		restore.Labels[instanceBackupTypeAnnotation] = val
+	if val, ok := backup.Labels[snapshots.InstanceBackupTypeAnnotation]; ok {
+		restore.Labels[snapshots.InstanceBackupTypeAnnotation] = val
 	}
-	if val, ok := backup.Labels[instanceBackupCountAnnotation]; ok {
-		restore.Labels[instanceBackupCountAnnotation] = val
+	if val, ok := backup.Labels[snapshots.InstanceBackupCountAnnotation]; ok {
+		restore.Labels[snapshots.InstanceBackupCountAnnotation] = val
 	}
 }
 
@@ -1559,9 +1555,9 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 // overrideRuntimeConfigFromBackup will update the runtime config from the backup. These values may
 // be used during the install and set in the Installation object via the
 // restoreReconcileInstallationFromRuntimeConfig function.
-func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup replicatedBackup) error {
+func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup snapshots.ReplicatedBackup) error {
 	if localArtifactMirrorPort != 0 {
-		if val, _ := backup.GetECAnnotation("kots.io/embedded-cluster-local-artifact-mirror-port"); val != "" {
+		if val, _ := backup.GetAnnotation("kots.io/embedded-cluster-local-artifact-mirror-port"); val != "" {
 			port, err := k8snet.ParsePort(val, false)
 			if err != nil {
 				return fmt.Errorf("parse local artifact mirror port: %w", err)
@@ -1613,7 +1609,7 @@ const (
 )
 
 type invalidBackupsError struct {
-	invalidBackups []replicatedBackup
+	invalidBackups []snapshots.ReplicatedBackup
 	invalidReasons []string
 }
 
@@ -1645,148 +1641,4 @@ func updateLocalArtifactMirrorService() error {
 	}
 
 	return nil
-}
-
-const (
-	// instanceBackupNameLabel is the label used to store the name of the backup for an instance
-	// backup.
-	instanceBackupNameLabel = "replicated.com/backup-name"
-	// instanceBackupTypeAnnotation is the annotation used to store the type of backup for an
-	// instance backup.
-	instanceBackupTypeAnnotation = "replicated.com/backup-type"
-	// instanceBackupCountAnnotation is the annotation used to store the expected number of backups
-	// for an instance backup.
-	instanceBackupCountAnnotation = "replicated.com/backup-count"
-
-	// instanceBackupTypeInfra indicates that the backup is of type infrastructure.
-	instanceBackupTypeInfra = "infra"
-	// instanceBackupTypeApp indicates that the backup is of type application.
-	instanceBackupTypeApp = "app"
-	// instanceBackupTypeLegacy indicates that the backup is of type legacy (infra + app).
-	instanceBackupTypeLegacy = "legacy"
-)
-
-// replicatedBackup
-type replicatedBackup []velerov1.Backup
-
-func (b replicatedBackup) GetName() string {
-	var name string
-	for _, a := range b {
-		name = a.Name
-		if val := a.Annotations[instanceBackupNameLabel]; val != "" {
-			return val
-		}
-	}
-	return name
-}
-
-func (b replicatedBackup) GetExpectedBackupCount() int {
-	for _, a := range b {
-		return getInstanceBackupCount(a)
-	}
-	return 1
-}
-
-func (b replicatedBackup) GetECAnnotation(key string) (string, bool) {
-	backup := b.GetInfraBackup()
-	if backup == nil {
-		return "", false
-	}
-	val, ok := backup.Annotations[key]
-	return val, ok
-}
-
-func (b replicatedBackup) GetCreationTimestamp() metav1.Time {
-	for _, a := range b {
-		return a.CreationTimestamp
-	}
-	return metav1.Time{}
-}
-
-func (b replicatedBackup) GetInfraBackup() *velerov1.Backup {
-	for _, a := range b {
-		if getInstanceBackupType(a) == instanceBackupTypeInfra || getInstanceBackupType(a) == instanceBackupTypeLegacy {
-			return &a
-		}
-	}
-	return nil
-}
-
-func (b replicatedBackup) GetAppBackup() *velerov1.Backup {
-	for _, a := range b {
-		if getInstanceBackupType(a) == instanceBackupTypeApp || getInstanceBackupType(a) == instanceBackupTypeLegacy {
-			return &a
-		}
-	}
-	return nil
-}
-
-// getBackupName returns the name of the backup from the velero backup object label.
-func getBackupName(backup velerov1.Backup) string {
-	if val, ok := backup.GetLabels()[instanceBackupNameLabel]; ok {
-		return val
-	}
-	return backup.GetName()
-}
-
-// getInstanceBackupType returns the type of the backup from the velero backup object annotation.
-func getInstanceBackupType(backup velerov1.Backup) string {
-	if val, ok := backup.GetAnnotations()[instanceBackupTypeAnnotation]; ok {
-		return val
-	}
-	return instanceBackupTypeLegacy
-}
-
-// getInstanceBackupCount returns the expected number of backups from the velero backup object
-// annotation.
-func getInstanceBackupCount(backup velerov1.Backup) int {
-	if val, ok := backup.GetAnnotations()[instanceBackupCountAnnotation]; ok {
-		num, _ := strconv.Atoi(val)
-		if num > 0 {
-			return num
-		}
-	}
-	return 1
-}
-
-func getReplicatedBackupFromName(ctx context.Context, kcli client.Client, veleroNamespace string, backupName string) (*replicatedBackup, error) {
-	backups, err := getBackupsFromName(ctx, kcli, veleroNamespace, backupName)
-	if err != nil {
-		return nil, err
-	}
-
-	replicatedBackups := groupBackupsByName(backups)
-	backup := replicatedBackups[backupName]
-	return &backup, nil
-}
-
-func groupBackupsByName(backups []velerov1.Backup) map[string]replicatedBackup {
-	groupedBackups := map[string]replicatedBackup{}
-	for _, backup := range backups {
-		backupName := getBackupName(backup)
-		if _, ok := groupedBackups[backupName]; !ok {
-			groupedBackups[backupName] = replicatedBackup{}
-		}
-		groupedBackups[backupName] = append(groupedBackups[backupName], backup)
-	}
-	return groupedBackups
-}
-
-func getBackupsFromName(ctx context.Context, kcli client.Client, veleroNamespace string, backupName string) ([]velerov1.Backup, error) {
-	// try to get the restore from the backup name label
-	backups := &velerov1api.BackupList{}
-	err := kcli.List(ctx, backups, client.InNamespace(veleroNamespace))
-	if err != nil {
-		return nil, fmt.Errorf("unable to list backups: %w", err)
-	}
-	if len(backups.Items) > 0 {
-		return backups.Items, nil
-	}
-	backup := &velerov1api.Backup{}
-	err = kcli.Get(ctx, types.NamespacedName{Name: backupName, Namespace: veleroNamespace}, backup)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get backup: %w", err)
-	}
-
-	return []velerov1.Backup{*backup}, nil
 }
