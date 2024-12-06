@@ -807,6 +807,21 @@ func isReplicatedBackupRestorable(backup replicatedBackup, rel *release.ChannelR
 		return false, fmt.Sprintf("has a different number of backups (%d) than the expected number (%d)", len(backup), backup.GetExpectedBackupCount())
 	}
 
+	improvedDR, err := usesImprovedDR()
+	if err != nil {
+		return false, fmt.Sprintf("failed to check if improved dr is enabled: %v", err)
+	}
+
+	appBackup := backup.GetAppBackup()
+	if appBackup == nil {
+		return false, "missing app backup"
+	}
+	if getInstanceBackupType(*appBackup) == instanceBackupTypeApp && !improvedDR {
+		return false, "app backup found but improved dr is not enabled"
+	} else if getInstanceBackupType(*appBackup) == instanceBackupTypeLegacy && improvedDR {
+		return false, "legacy backup found but improved dr is enabled"
+	}
+
 	for _, b := range backup {
 		restorable, reason := isBackupRestorable(&b, rel, isAirgap, k0sCfg)
 		if !restorable {
@@ -1239,13 +1254,87 @@ func restoreFromReplicatedBackup(ctx context.Context, backup replicatedBackup, d
 		if b == nil {
 			return fmt.Errorf("unable to find app backup")
 		}
-		return restoreFromBackup(ctx, b, drComponent)
+		ok, err := usesImprovedDR()
+		if err != nil {
+			return fmt.Errorf("failed to check if improved dr is enabled: %w", err)
+		}
+		if ok {
+			err := restoreAppFromBackup(ctx, b)
+			if err != nil {
+				return fmt.Errorf("failed to restore app from backup using improved dr: %w", err)
+			}
+		}
+		err = restoreFromBackup(ctx, b, drComponent)
+		if err != nil {
+			return fmt.Errorf("failed to restore app from backup: %w", err)
+		}
 	}
 	b := backup.GetInfraBackup()
 	if b == nil {
 		return fmt.Errorf("unable to find infra backup")
 	}
-	return restoreFromBackup(ctx, b, drComponent)
+	err := restoreFromBackup(ctx, b, drComponent)
+	if err != nil {
+		return fmt.Errorf("failed to restore infra from backup: %w", err)
+	}
+	return nil
+}
+
+func usesImprovedDR() (bool, error) {
+	backup, err := release.GetVeleroBackup()
+	if err != nil {
+		return false, fmt.Errorf("failed to get velero backup: %w", err)
+	}
+	restore, err := release.GetVeleroRestore()
+	if err != nil {
+		return false, fmt.Errorf("failed to get velero restore: %w", err)
+	}
+	return backup != nil && restore != nil, nil
+}
+
+func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup) error {
+	drComponent := disasterRecoveryComponentApp
+
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	restoreName := fmt.Sprintf("%s.%s", backup.Name, string(drComponent))
+
+	// check if a restore object already exists
+	rest := velerov1api.Restore{}
+	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &rest)
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("unable to get restore: %w", err)
+	}
+
+	// create a new restore object if it doesn't exist
+	if errors.IsNotFound(err) {
+		restore, err := release.GetVeleroRestore()
+		if err != nil {
+			return fmt.Errorf("failed to get velero restore: %w", err)
+		}
+
+		restore.Namespace = runtimeconfig.VeleroNamespace
+		restore.Name = restoreName
+		if restore.Annotations == nil {
+			restore.Annotations = map[string]string{}
+		}
+		restore.Annotations["kots.io/embedded-cluster"] = "true"
+
+		ensureImprovedDrMetadata(restore, backup)
+
+		restore.Spec.BackupName = backup.Name
+
+		err = kcli.Create(ctx, restore)
+		if err != nil {
+			return fmt.Errorf("unable to create restore: %w", err)
+		}
+	}
+
+	// wait for restore to complete
+	return waitForDRComponent(ctx, drComponent, restoreName)
 }
 
 func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
@@ -1278,6 +1367,8 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 		default:
 			return fmt.Errorf("unknown disaster recovery component: %q", drComponent)
 		}
+
+		// TODO(improveddr): load restore
 
 		restore := &velerov1.Restore{
 			ObjectMeta: metav1.ObjectMeta{
