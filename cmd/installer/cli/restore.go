@@ -1254,19 +1254,23 @@ func restoreFromReplicatedBackup(ctx context.Context, backup replicatedBackup, d
 		if b == nil {
 			return fmt.Errorf("unable to find app backup")
 		}
-		ok, err := usesImprovedDR()
+		isImprovedDR, err := usesImprovedDR()
 		if err != nil {
 			return fmt.Errorf("failed to check if improved dr is enabled: %w", err)
 		}
-		if ok {
+		// If the app is using improved dr, we need to restore the app using the spec provided by
+		// the vendor. Otherwise, we use the "replicated.com/disaster-recovery" label to discover
+		// the application resources in the cluster.
+		if isImprovedDR {
 			err := restoreAppFromBackup(ctx, b)
 			if err != nil {
 				return fmt.Errorf("failed to restore app from backup using improved dr: %w", err)
 			}
-		}
-		err = restoreFromBackup(ctx, b, drComponent)
-		if err != nil {
-			return fmt.Errorf("failed to restore app from backup: %w", err)
+		} else {
+			err = restoreFromBackup(ctx, b, drComponent)
+			if err != nil {
+				return fmt.Errorf("failed to restore app from backup: %w", err)
+			}
 		}
 	}
 	b := backup.GetInfraBackup()
@@ -1292,6 +1296,8 @@ func usesImprovedDR() (bool, error) {
 	return backup != nil && restore != nil, nil
 }
 
+// restoreAppFromBackup will either restore using the spec provided by the vendor as part of the
+// improved dr support.
 func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup) error {
 	drComponent := disasterRecoveryComponentApp
 
