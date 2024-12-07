@@ -339,7 +339,7 @@ func CreateHostSupportBundle() error {
 			Namespace: "kotsadm",
 			Labels: map[string]string{
 				"troubleshoot.sh/kind":             "support-bundle",
-				"replicated.com/disaster-recovery": "app",
+				"replicated.com/disaster-recovery": "infra",
 			},
 		},
 		Data: map[string]string{
