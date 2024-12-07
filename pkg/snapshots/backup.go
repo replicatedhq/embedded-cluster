@@ -3,12 +3,15 @@ package snapshots
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	velerov1api "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -32,18 +35,41 @@ const (
 	InstanceBackupTypeLegacy = "legacy"
 )
 
+// ReplicatedBackups implements sort.Interface for []ReplicatedBackup based on the
+// CreationTimestamp of the infrastructure backup.
+type ReplicatedBackups []ReplicatedBackup
+
+func (a ReplicatedBackups) Len() int      { return len(a) }
+func (a ReplicatedBackups) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ReplicatedBackups) Less(i, j int) bool {
+	var iTime, jTime time.Time
+	if a[i].GetInfraBackup() != nil {
+		iTime = a[i].GetInfraBackup().GetCreationTimestamp().Time
+	} else if len(a[i]) > 0 {
+		iTime = a[i][0].GetCreationTimestamp().Time
+	}
+	if a[j].GetInfraBackup() != nil {
+		jTime = a[j].GetInfraBackup().GetCreationTimestamp().Time
+	} else if len(a[j]) > 0 {
+		jTime = a[j][0].GetCreationTimestamp().Time
+	}
+	return iTime.Before(jTime)
+}
+
 // ReplicatedBackup represents one or more velero backups that make up a single instance backup.
 // Legacy backups will be represented as a single, combined backup. New backups will contain both a
 // infrastructure backup as well as an application backup.
 type ReplicatedBackup []velerov1.Backup
 
-// ListReplicatedBackups returns a list of ReplicatedBackup backups.
+// ListReplicatedBackups returns a sorted list of ReplicatedBackup backups by creation timestamp.
 func ListReplicatedBackups(ctx context.Context, kcli client.Client) ([]ReplicatedBackup, error) {
-	backups, err := listBackups(ctx, kcli, runtimeconfig.VeleroNamespace, "")
+	backups, err := listBackups(ctx, kcli, runtimeconfig.VeleroNamespace)
 	if err != nil {
 		return nil, err
 	}
-	return groupBackupsByName(backups), nil
+	replicatedBackups := groupBackupsByName(backups)
+	sort.Sort(ReplicatedBackups(replicatedBackups))
+	return replicatedBackups, nil
 }
 
 // GetReplicatedBackup returns a ReplicatedBackup object for the specified backup name.
@@ -175,8 +201,7 @@ func groupBackupsByName(backups []velerov1.Backup) []ReplicatedBackup {
 	return groupedBackups
 }
 
-func listBackups(ctx context.Context, cli client.Client, veleroNamespace string, backupName string) ([]velerov1.Backup, error) {
-	// try to get the restore from the backup name label
+func listBackups(ctx context.Context, cli client.Client, veleroNamespace string) ([]velerov1.Backup, error) {
 	backups := &velerov1api.BackupList{}
 	err := cli.List(ctx, backups, client.InNamespace(veleroNamespace))
 	if err != nil {
@@ -187,9 +212,11 @@ func listBackups(ctx context.Context, cli client.Client, veleroNamespace string,
 }
 
 func getBackupsFromName(ctx context.Context, cli client.Client, veleroNamespace string, backupName string) ([]velerov1.Backup, error) {
-	// try to get the restore from the backup name label
+	// first try to get the backup from the backup-name label
 	backups := &velerov1api.BackupList{}
-	err := cli.List(ctx, backups, client.InNamespace(veleroNamespace))
+	err := cli.List(ctx, backups, client.InNamespace(veleroNamespace), &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{InstanceBackupNameLabel: backupName}),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to list backups: %w", err)
 	}
