@@ -206,9 +206,13 @@ spec:
       collectorName: runtime-config
       path: /etc/embedded-cluster/*
   - run:
-        collectorName: "systemctl-firewalld-status"
-        command: "systemctl"
-        args: ["status", "firewalld"]
+      collectorName: "systemctl-firewalld-status"
+      command: "systemctl"
+      args: ["status", "firewalld"]
+  - run:
+      collectorName: "firewalld-cmd-list-all"
+      command: "firewalld-cmd"
+      args: ["--list-all"]
   - run:
       collectorName: "systemctl-resolved-status"
       command: "systemctl"
