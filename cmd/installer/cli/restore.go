@@ -90,7 +90,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		ignoreHostPreflights    bool
 		skipStoreValidation     bool
 
-		s3Store *s3BackupStore
+		s3Store = &s3BackupStore{}
 
 		proxy *ecv1beta1.ProxySpec
 	)
@@ -670,36 +670,25 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*snapshots.R
 // s3BackupStoreHasData checks if the store already has data from flags.
 func s3BackupStoreHasData(store *s3BackupStore) bool {
 	// store.prefix not required
-	return store.endpoint != "" && store.region != "" && store.bucket != "" && store.prefix != "" && store.accessKeyID != "" && store.secretAccessKey != ""
+	return store.endpoint != "" && store.region != "" && store.bucket != "" && store.accessKeyID != "" && store.secretAccessKey != ""
 }
 
 // promptForS3BackupStore prompts the user for S3 backup store configuration.
 func promptForS3BackupStore(store *s3BackupStore) {
-	if store.endpoint == "" {
-		for {
-			store.endpoint = prompts.New().Input("S3 endpoint:", "", true)
-			if strings.HasPrefix(store.endpoint, "http://") || strings.HasPrefix(store.endpoint, "https://") {
-				break
-			}
-			logrus.Info("Endpoint must start with http:// or https://")
+	for {
+		store.endpoint = strings.TrimSpace(prompts.New().Input("S3 endpoint:", store.endpoint, true))
+		if strings.HasPrefix(store.endpoint, "http://") || strings.HasPrefix(store.endpoint, "https://") {
+			break
 		}
+		logrus.Info("Endpoint must start with http:// or https://")
 	}
 
-	if store.region == "" {
-		store.region = prompts.New().Input("Region:", "", true)
-	}
-	if store.bucket == "" {
-		store.bucket = prompts.New().Input("Bucket:", "", true)
-	}
-	if store.prefix == "" {
-		store.prefix = strings.TrimPrefix(prompts.New().Input("Prefix (press Enter to skip):", "", false), "/")
-	}
-	if store.accessKeyID == "" {
-		store.accessKeyID = prompts.New().Input("Access key ID:", "", true)
-	}
-	if store.secretAccessKey == "" {
-		store.secretAccessKey = prompts.New().Password("Secret access key:")
-	}
+	store.region = strings.TrimSpace(prompts.New().Input("Region:", store.region, true))
+	store.bucket = strings.TrimSpace(prompts.New().Input("Bucket:", store.bucket, true))
+	store.prefix = strings.TrimSpace(strings.TrimPrefix(prompts.New().Input("Prefix (press Enter to skip):", store.prefix, false), "/"))
+	store.accessKeyID = strings.TrimSpace(prompts.New().Input("Access key ID:", store.accessKeyID, true))
+	store.secretAccessKey = strings.TrimSpace(prompts.New().Password("Secret access key:"))
+
 	logrus.Info("")
 }
 
