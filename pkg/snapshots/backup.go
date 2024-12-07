@@ -90,7 +90,7 @@ func (b ReplicatedBackup) GetName() string {
 	var name string
 	for _, a := range b {
 		name = a.Name
-		if val := a.Annotations[InstanceBackupNameLabel]; val != "" {
+		if val := a.Labels[InstanceBackupNameLabel]; val != "" {
 			return val
 		}
 	}

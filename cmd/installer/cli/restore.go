@@ -90,6 +90,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		ignoreHostPreflights    bool
 		skipStoreValidation     bool
 
+		s3Store *s3BackupStore
+
 		proxy *ecv1beta1.ProxySpec
 	)
 
@@ -238,10 +240,12 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					os.Exit(1)
 				}
 
-				logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
-				logrus.Info("Enter information to configure access to your backup storage location.\n")
+				if !s3BackupStoreHasData(s3Store) {
+					logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
+					logrus.Info("Enter information to configure access to your backup storage location.\n")
 
-				s3Store := newS3BackupStore()
+					promptForS3BackupStore(s3Store)
+				}
 
 				skipStoreValidationFlag, err := cmd.Flags().GetBool("skip-store-validation")
 				if err != nil {
@@ -478,6 +482,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		},
 	}
 
+	addS3Flags(cmd, s3Store)
+
 	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the restore will complete without internet access.")
 	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Local artifact mirror port")
@@ -499,6 +505,15 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
+}
+
+func addS3Flags(cmd *cobra.Command, store *s3BackupStore) {
+	cmd.Flags().StringVar(&store.endpoint, "s3-endpoint", "", "S3 endpoint")
+	cmd.Flags().StringVar(&store.region, "s3-region", "", "S3 region")
+	cmd.Flags().StringVar(&store.bucket, "s3-bucket", "", "S3 bucket")
+	cmd.Flags().StringVar(&store.prefix, "s3-prefix", "", "S3 prefix")
+	cmd.Flags().StringVar(&store.accessKeyID, "s3-access-key-id", "", "S3 access key ID")
+	cmd.Flags().StringVar(&store.secretAccessKey, "s3-secret-access-key", "", "S3 secret access key")
 }
 
 // getECRestoreState returns the current restore state.
@@ -652,26 +667,40 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*snapshots.R
 	return &backup, nil
 }
 
-// newS3BackupStore prompts the user for S3 backup store configuration.
-func newS3BackupStore() *s3BackupStore {
-	store := &s3BackupStore{}
+// s3BackupStoreHasData checks if the store already has data from flags.
+func s3BackupStoreHasData(store *s3BackupStore) bool {
+	// store.prefix not required
+	return store.endpoint != "" && store.region != "" && store.bucket != "" && store.prefix != "" && store.accessKeyID != "" && store.secretAccessKey != ""
+}
 
-	for {
-		store.endpoint = prompts.New().Input("S3 endpoint:", "", true)
-		if strings.HasPrefix(store.endpoint, "http://") || strings.HasPrefix(store.endpoint, "https://") {
-			break
+// promptForS3BackupStore prompts the user for S3 backup store configuration.
+func promptForS3BackupStore(store *s3BackupStore) {
+	if store.endpoint == "" {
+		for {
+			store.endpoint = prompts.New().Input("S3 endpoint:", "", true)
+			if strings.HasPrefix(store.endpoint, "http://") || strings.HasPrefix(store.endpoint, "https://") {
+				break
+			}
+			logrus.Info("Endpoint must start with http:// or https://")
 		}
-		logrus.Info("Endpoint must start with http:// or https://")
 	}
 
-	store.region = prompts.New().Input("Region:", "", true)
-	store.bucket = prompts.New().Input("Bucket:", "", true)
-	store.prefix = strings.TrimPrefix(prompts.New().Input("Prefix (press Enter to skip):", "", false), "/")
-	store.accessKeyID = prompts.New().Input("Access key ID:", "", true)
-	store.secretAccessKey = prompts.New().Password("Secret access key:")
+	if store.region == "" {
+		store.region = prompts.New().Input("Region:", "", true)
+	}
+	if store.bucket == "" {
+		store.bucket = prompts.New().Input("Bucket:", "", true)
+	}
+	if store.prefix == "" {
+		store.prefix = strings.TrimPrefix(prompts.New().Input("Prefix (press Enter to skip):", "", false), "/")
+	}
+	if store.accessKeyID == "" {
+		store.accessKeyID = prompts.New().Input("Access key ID:", "", true)
+	}
+	if store.secretAccessKey == "" {
+		store.secretAccessKey = prompts.New().Password("Secret access key:")
+	}
 	logrus.Info("")
-
-	return store
 }
 
 // validateS3BackupStore validates the S3 backup store configuration.
@@ -979,18 +1008,17 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]snapshots.ReplicatedB
 
 func listBackupsWithTimeout(ctx context.Context, kcli client.Client) ([]snapshots.ReplicatedBackup, error) {
 	for i := 0; i < 30; i++ {
-		time.Sleep(5 * time.Second)
-
 		backups, err := snapshots.ListReplicatedBackups(ctx, kcli)
 		if err != nil {
 			return nil, fmt.Errorf("unable to list backups: %w", err)
 		}
-		if len(backups) == 0 {
-			logrus.Debugf("No backups found yet...")
-			continue
+		if len(backups) > 0 {
+			logrus.Debugf("Found %d backups", len(backups))
+			return backups, nil
 		}
 
-		return backups, nil
+		logrus.Debugf("No backups found yet...")
+		time.Sleep(5 * time.Second)
 	}
 
 	return nil, fmt.Errorf("timed out waiting for backups to become available")
