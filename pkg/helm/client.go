@@ -258,7 +258,6 @@ func (h *Helm) Install(ctx context.Context, releaseName string, chartPath string
 	client.ReleaseName = releaseName
 	client.Namespace = namespace
 	client.Replace = true
-	client.IncludeCRDs = true
 	client.CreateNamespace = true
 	client.WaitForJobs = true
 	client.Wait = true
