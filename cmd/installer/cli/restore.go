@@ -246,6 +246,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 					promptForS3BackupStore(s3Store)
 				}
+				s3Store.prefix = strings.TrimPrefix(s3Store.prefix, "/")
 
 				skipStoreValidationFlag, err := cmd.Flags().GetBool("skip-store-validation")
 				if err != nil {
@@ -685,7 +686,7 @@ func promptForS3BackupStore(store *s3BackupStore) {
 
 	store.region = strings.TrimSpace(prompts.New().Input("Region:", store.region, true))
 	store.bucket = strings.TrimSpace(prompts.New().Input("Bucket:", store.bucket, true))
-	store.prefix = strings.TrimSpace(strings.TrimPrefix(prompts.New().Input("Prefix (press Enter to skip):", store.prefix, false), "/"))
+	store.prefix = strings.TrimSpace(prompts.New().Input("Prefix (press Enter to skip):", store.prefix, false))
 	store.accessKeyID = strings.TrimSpace(prompts.New().Input("Access key ID:", store.accessKeyID, true))
 	store.secretAccessKey = strings.TrimSpace(prompts.New().Password("Secret access key:"))
 
