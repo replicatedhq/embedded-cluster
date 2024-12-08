@@ -5,11 +5,11 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 4.0.379
+version: 4.0.380
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/seaweedfs
 images:
     seaweedfs:
         repo: proxy.replicated.com/anonymous/replicated/ec-seaweedfs
         tag:
-            amd64: 3.79-r0-amd64@sha256:607a9f1369a2dcc548957f5af4a47b6072f8f6a5a7760cdc811983cb091afe58
-            arm64: 3.79-r0-arm64@sha256:5acebbd54bdff6339e3fcf45d50d54626c5fa7823f917b439b677259c213a42c
+            amd64: 3.80-r0-amd64@sha256:8da9cf95f3c15967064b770314159453cde10c0257ecf8bab9e65a95d9740035
+            arm64: 3.80-r0-arm64@sha256:969242add99f2623ff271c300a7533e19b4630c5f5caf40049ee46e1d2c30909
