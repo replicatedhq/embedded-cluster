@@ -211,17 +211,23 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return err
 	}
 
+	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(flags.license)
+	if err != nil {
+		return fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
+	}
+
 	logrus.Debugf("installing addons")
 	if err := addons2.InstallAddons(cmd.Context(), addons2.InstallOptions{
-		ClusterConfig:    clusterConfig,
-		AdminConsolePwd:  flags.adminConsolePassword,
-		License:          flags.license,
-		LicenseFile:      flags.licenseFile,
-		AirgapBundle:     flags.airgapBundle,
-		Proxy:            flags.proxy,
-		PrivateCAs:       flags.privateCAs,
-		ConfigValuesFile: flags.configValues,
-		NetworkInterface: flags.networkInterface,
+		ClusterConfig:           clusterConfig,
+		AdminConsolePwd:         flags.adminConsolePassword,
+		License:                 flags.license,
+		LicenseFile:             flags.licenseFile,
+		AirgapBundle:            flags.airgapBundle,
+		Proxy:                   flags.proxy,
+		PrivateCAs:              flags.privateCAs,
+		ConfigValuesFile:        flags.configValues,
+		NetworkInterface:        flags.networkInterface,
+		DisasterRecoveryEnabled: disasterRecoveryEnabled,
 	}); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
