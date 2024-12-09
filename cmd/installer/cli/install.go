@@ -645,6 +645,8 @@ func ensureK0sConfig(cmd *cobra.Command, applier *addons.Applier) (*k0sconfig.Cl
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
+	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
+
 	cidrCfg, err := getCIDRConfig(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
@@ -681,8 +683,6 @@ func ensureK0sConfig(cmd *cobra.Command, applier *addons.Applier) (*k0sconfig.Cl
 	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
 		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
-
-	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 
 	return cfg, nil
 }
