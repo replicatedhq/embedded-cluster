@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"embed"
 	_ "embed"
+	"io"
 	"io/fs"
 	"testing"
 	"time"
@@ -12,12 +14,23 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/snapshots"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func Test_isReplicatedBackupRestorable(t *testing.T) {
+	appendCommonAnnotations := func(annotations map[string]string) map[string]string {
+		annotations["kots.io/embedded-cluster-version"] = "v0.0.0"
+		annotations["kots.io/apps-versions"] = `{"app-slug":"1.0.0"}`
+		annotations["kots.io/is-airgap"] = "false"
+		return annotations
+	}
+
 	infraBackup := velerov1.Backup{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Backup",
@@ -29,12 +42,15 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			Labels: map[string]string{
 				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
 			},
-			Annotations: map[string]string{
+			Annotations: appendCommonAnnotations(map[string]string{
 				snapshots.BackupIsECAnnotation:          "true",
 				snapshots.InstanceBackupTypeAnnotation:  snapshots.InstanceBackupTypeInfra,
 				snapshots.InstanceBackupCountAnnotation: "2",
-			},
+			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.UTC)},
+		},
+		Status: velerov1.BackupStatus{
+			Phase: velerov1.BackupPhaseCompleted,
 		},
 	}
 	appBackup := velerov1.Backup{
@@ -48,12 +64,15 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			Labels: map[string]string{
 				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
 			},
-			Annotations: map[string]string{
+			Annotations: appendCommonAnnotations(map[string]string{
 				snapshots.BackupIsECAnnotation:          "true",
 				snapshots.InstanceBackupTypeAnnotation:  snapshots.InstanceBackupTypeApp,
 				snapshots.InstanceBackupCountAnnotation: "2",
-			},
+			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.UTC)},
+		},
+		Status: velerov1.BackupStatus{
+			Phase: velerov1.BackupPhaseCompleted,
 		},
 	}
 	legacyBackup := velerov1.Backup{
@@ -64,11 +83,14 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "instance-efgh",
 			Namespace: "velero",
-			Annotations: map[string]string{
+			Annotations: appendCommonAnnotations(map[string]string{
 				snapshots.BackupIsECAnnotation: "true",
 				// legacy backups do not have the InstanceBackupTypeAnnotation
-			},
+			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
+		},
+		Status: velerov1.BackupStatus{
+			Phase: velerov1.BackupPhaseCompleted,
 		},
 	}
 
@@ -93,7 +115,8 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 					appBackup,
 				},
 				rel: &release.ChannelRelease{
-					VersionLabel: "1.20.1+k8s-1.30",
+					VersionLabel: "1.0.0",
+					AppSlug:      "app-slug",
 				},
 				isAirgap: false,
 				k0sCfg:   &k0sv1beta1.ClusterConfig{},
@@ -110,7 +133,8 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 					appBackup,
 				},
 				rel: &release.ChannelRelease{
-					VersionLabel: "1.20.1+k8s-1.30",
+					VersionLabel: "1.0.0",
+					AppSlug:      "app-slug",
 				},
 				isAirgap: false,
 				k0sCfg:   &k0sv1beta1.ClusterConfig{},
@@ -126,13 +150,32 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 					legacyBackup,
 				},
 				rel: &release.ChannelRelease{
-					VersionLabel: "1.20.1+k8s-1.30",
+					VersionLabel: "1.0.0",
+					AppSlug:      "app-slug",
 				},
 				isAirgap: false,
 				k0sCfg:   &k0sv1beta1.ClusterConfig{},
 			},
 			want:  false,
 			want1: "legacy backup found but improved dr is enabled",
+		},
+		{
+			name:      "valid improved dr backup should return true",
+			releaseFS: clitesting.RestoreReleaseDataNewDR,
+			args: args{
+				backup: snapshots.ReplicatedBackup{
+					infraBackup,
+					appBackup,
+				},
+				rel: &release.ChannelRelease{
+					VersionLabel: "1.0.0",
+					AppSlug:      "app-slug",
+				},
+				isAirgap: false,
+				k0sCfg:   &k0sv1beta1.ClusterConfig{},
+			},
+			want:  true,
+			want1: "",
 		},
 	}
 	for _, tt := range tests {
@@ -143,6 +186,148 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			got, got1 := isReplicatedBackupRestorable(tt.args.backup, tt.args.rel, tt.args.isAirgap, tt.args.k0sCfg)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.want1, got1)
+		})
+	}
+}
+
+func Test_waitForBackups(t *testing.T) {
+	scheme := scheme.Scheme
+	velerov1.AddToScheme(scheme)
+
+	appendCommonAnnotations := func(annotations map[string]string) map[string]string {
+		annotations["kots.io/embedded-cluster-version"] = "v0.0.0"
+		annotations["kots.io/apps-versions"] = `{"app-slug":"1.0.0"}`
+		annotations["kots.io/is-airgap"] = "false"
+		return annotations
+	}
+
+	infraBackup := velerov1.Backup{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Backup",
+			APIVersion: "velero.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "instance-abcd",
+			Namespace: "velero",
+			Labels: map[string]string{
+				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
+			},
+			Annotations: appendCommonAnnotations(map[string]string{
+				snapshots.BackupIsECAnnotation:          "true",
+				snapshots.InstanceBackupTypeAnnotation:  snapshots.InstanceBackupTypeInfra,
+				snapshots.InstanceBackupCountAnnotation: "2",
+			}),
+			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
+		},
+		Status: velerov1.BackupStatus{
+			Phase: velerov1.BackupPhaseCompleted,
+		},
+	}
+	appBackup := velerov1.Backup{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Backup",
+			APIVersion: "velero.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "application-abcd",
+			Namespace: "velero",
+			Labels: map[string]string{
+				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
+			},
+			Annotations: appendCommonAnnotations(map[string]string{
+				snapshots.BackupIsECAnnotation:          "true",
+				snapshots.InstanceBackupTypeAnnotation:  snapshots.InstanceBackupTypeApp,
+				snapshots.InstanceBackupCountAnnotation: "2",
+			}),
+			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
+		},
+		Status: velerov1.BackupStatus{
+			Phase: velerov1.BackupPhaseCompleted,
+		},
+	}
+	legacyBackup := velerov1.Backup{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Backup",
+			APIVersion: "velero.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "instance-efgh",
+			Namespace: "velero",
+			Annotations: appendCommonAnnotations(map[string]string{
+				snapshots.BackupIsECAnnotation: "true",
+				// legacy backups do not have the InstanceBackupTypeAnnotation
+			}),
+			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
+		},
+		Status: velerov1.BackupStatus{
+			Phase: velerov1.BackupPhaseCompleted,
+		},
+	}
+
+	type args struct {
+		kcli     client.Client
+		k0sCfg   *k0sv1beta1.ClusterConfig
+		isAirgap bool
+	}
+	tests := []struct {
+		name      string
+		releaseFS embed.FS
+		args      args
+		want      []snapshots.ReplicatedBackup
+		wantErr   bool
+	}{
+		{
+			name:      "legacy release data should return valid legacy backup",
+			releaseFS: clitesting.RestoreReleaseDataLegacyDR,
+			args: args{
+				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+					&infraBackup,
+					&appBackup,
+					&legacyBackup,
+				).Build(),
+				k0sCfg:   &k0sv1beta1.ClusterConfig{},
+				isAirgap: false,
+			},
+			want: []snapshots.ReplicatedBackup{
+				{
+					legacyBackup,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:      "new dr release data should return valid backup",
+			releaseFS: clitesting.RestoreReleaseDataNewDR,
+			args: args{
+				kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+					&infraBackup,
+					&appBackup,
+					&legacyBackup,
+				).Build(),
+				k0sCfg:   &k0sv1beta1.ClusterConfig{},
+				isAirgap: false,
+			},
+			want: []snapshots.ReplicatedBackup{
+				{
+					appBackup,
+					infraBackup,
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			files := embedFSToMap(t, tt.releaseFS)
+			release.SetReleaseDataForTests(files)
+
+			got, err := waitForBackups(context.Background(), io.Discard, tt.args.kcli, tt.args.k0sCfg, tt.args.isAirgap)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

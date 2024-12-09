@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -214,6 +215,11 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
+			kcli, err := kubeutils.KubeClient()
+			if err != nil {
+				return fmt.Errorf("unable to create kube client: %w", err)
+			}
+
 			opts := addonsApplierOpts{
 				assumeYes:    assumeYes,
 				license:      "",
@@ -282,10 +288,6 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					return err
 				}
 
-				kcli, err := kubeutils.KubeClient()
-				if err != nil {
-					return fmt.Errorf("unable to create kube client: %w", err)
-				}
 				errCh := kubeutils.WaitForKubernetes(cmd.Context(), kcli)
 				defer func() {
 					for len(errCh) > 0 {
@@ -319,8 +321,13 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
 
+				k0sCfg, err := getK0sConfigFromDisk()
+				if err != nil {
+					return fmt.Errorf("unable to get k0s config from disk: %w", err)
+				}
+
 				logrus.Debugf("waiting for backups to become available")
-				backups, err := waitForBackups(cmd.Context(), airgapBundle != "")
+				backups, err := waitForBackups(cmd.Context(), cmd.OutOrStdout(), kcli, k0sCfg, airgapBundle != "")
 				if err != nil {
 					return err
 				}
@@ -960,15 +967,13 @@ func isHighAvailabilityReplicatedBackup(backup snapshots.ReplicatedBackup) (bool
 
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
-func waitForBackups(ctx context.Context, isAirgap bool) ([]snapshots.ReplicatedBackup, error) {
-	loading := spinner.Start()
+func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, isAirgap bool) ([]snapshots.ReplicatedBackup, error) {
+	loading := spinner.Start(spinner.WithWriter(func(format string, a ...any) (int, error) {
+		return fmt.Fprintf(out, format, a...)
+	}))
+
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
-
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("unable to create kube client: %w", err)
-	}
 
 	rel, err := release.GetChannelRelease()
 	if err != nil {
@@ -979,12 +984,7 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]snapshots.ReplicatedB
 		return nil, fmt.Errorf("no release found in binary")
 	}
 
-	k0sCfg, err := getK0sConfigFromDisk()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
-	}
-
-	replicatedBackups, err := listBackupsWithTimeout(ctx, kcli)
+	replicatedBackups, err := listBackupsWithTimeout(ctx, kcli, 30, 5*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -1018,8 +1018,11 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]snapshots.ReplicatedB
 	return validBackups, nil
 }
 
-func listBackupsWithTimeout(ctx context.Context, kcli client.Client) ([]snapshots.ReplicatedBackup, error) {
-	for i := 0; i < 30; i++ {
+func listBackupsWithTimeout(ctx context.Context, kcli client.Client, tries int, sleep time.Duration) ([]snapshots.ReplicatedBackup, error) {
+	if tries == 0 {
+		tries = 1
+	}
+	for i := 0; i < tries; i++ {
 		backups, err := snapshots.ListReplicatedBackups(ctx, kcli)
 		if err != nil {
 			return nil, fmt.Errorf("unable to list backups: %w", err)
@@ -1030,7 +1033,7 @@ func listBackupsWithTimeout(ctx context.Context, kcli client.Client) ([]snapshot
 		}
 
 		logrus.Debugf("No backups found yet...")
-		time.Sleep(5 * time.Second)
+		time.Sleep(sleep)
 	}
 
 	return nil, fmt.Errorf("timed out waiting for backups to become available")
