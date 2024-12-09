@@ -9,9 +9,9 @@ runs:
     run: |
       df -h
 
-      # Don't enable these as they take a long time to run (sometimes over 10 minutes)
-      # sudo docker system prune -af
-      # sudo rm -rf /usr/local/lib/android
+      # these take a long time to run (sometimes over 10 minutes) but we need disk space...
+      sudo docker system prune -af
+      sudo rm -rf /usr/local/lib/android
 
       sudo rm -rf \
         /opt/hostedtoolcache/CodeQL \
