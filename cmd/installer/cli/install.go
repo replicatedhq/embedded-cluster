@@ -90,6 +90,17 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to parse cidr flags: %w", err)
 			}
 
+			// if a network interface flag was not provided, attempt to discover it
+			if networkInterface == "" {
+				autoInterface, err := determineBestNetworkInterface()
+				if err == nil {
+					// set the variable
+					networkInterface = autoInterface
+					// set it in cobra since we pass the cmd around in this version
+					cmd.Flags().Set("network-interface", autoInterface)
+				}
+			}
+
 			if os.Getenv("DISABLE_TELEMETRY") != "" {
 				metrics.DisableMetrics()
 			}
