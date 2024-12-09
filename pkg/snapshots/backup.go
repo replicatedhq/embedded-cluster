@@ -19,6 +19,9 @@ import (
 )
 
 const (
+	// BackupIsECAnnotation is the annotation used to store if the backup is from an EC install.
+	BackupIsECAnnotation = "kots.io/embedded-cluster"
+
 	// InstanceBackupNameLabel is the label used to store the name of the backup for an instance
 	// backup. This property is used to group backups together.
 	InstanceBackupNameLabel = "replicated.com/backup-name"
@@ -205,7 +208,7 @@ func groupBackupsByName(backups []velerov1.Backup) []ReplicatedBackup {
 	groupedBackups := []ReplicatedBackup{}
 	for _, backup := range backups {
 		// this is not a replicated backup
-		if backup.Annotations["kots.io/embedded-cluster"] != "true" {
+		if backup.Annotations[BackupIsECAnnotation] != "true" {
 			continue
 		}
 		found := false

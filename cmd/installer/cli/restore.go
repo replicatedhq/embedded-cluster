@@ -510,13 +510,33 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
+// addS3Flags adds the s3 flags to the restore command. These flags are used only for ease of
+// development and are marked as hidden for now.
 func addS3Flags(cmd *cobra.Command, store *s3BackupStore) {
 	cmd.Flags().StringVar(&store.endpoint, "s3-endpoint", "", "S3 endpoint")
+	if err := cmd.Flags().MarkHidden("s3-endpoint"); err != nil {
+		panic(err)
+	}
 	cmd.Flags().StringVar(&store.region, "s3-region", "", "S3 region")
+	if err := cmd.Flags().MarkHidden("s3-region"); err != nil {
+		panic(err)
+	}
 	cmd.Flags().StringVar(&store.bucket, "s3-bucket", "", "S3 bucket")
+	if err := cmd.Flags().MarkHidden("s3-bucket"); err != nil {
+		panic(err)
+	}
 	cmd.Flags().StringVar(&store.prefix, "s3-prefix", "", "S3 prefix")
+	if err := cmd.Flags().MarkHidden("s3-prefix"); err != nil {
+		panic(err)
+	}
 	cmd.Flags().StringVar(&store.accessKeyID, "s3-access-key-id", "", "S3 access key ID")
+	if err := cmd.Flags().MarkHidden("s3-access-key-id"); err != nil {
+		panic(err)
+	}
 	cmd.Flags().StringVar(&store.secretAccessKey, "s3-secret-access-key", "", "S3 secret access key")
+	if err := cmd.Flags().MarkHidden("s3-secret-access-key"); err != nil {
+		panic(err)
+	}
 }
 
 // getECRestoreState returns the current restore state.
@@ -853,7 +873,7 @@ func isReplicatedBackupRestorable(backup snapshots.ReplicatedBackup, rel *releas
 }
 
 func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
-	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
+	if backup.Annotations[snapshots.BackupIsECAnnotation] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
 
@@ -1343,7 +1363,7 @@ func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup) error {
 		if restore.Annotations == nil {
 			restore.Annotations = map[string]string{}
 		}
-		restore.Annotations["kots.io/embedded-cluster"] = "true"
+		restore.Annotations[snapshots.BackupIsECAnnotation] = "true"
 
 		ensureImprovedDrMetadata(restore, backup)
 
@@ -1399,7 +1419,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				Namespace: runtimeconfig.VeleroNamespace,
 				Name:      restoreName,
 				Annotations: map[string]string{
-					"kots.io/embedded-cluster": "true",
+					snapshots.BackupIsECAnnotation: "true",
 				},
 				Labels: map[string]string{},
 			},
@@ -1446,11 +1466,11 @@ func ensureImprovedDrMetadata(restore *velerov1.Restore, backup *velerov1.Backup
 	if val, ok := backup.Labels[snapshots.InstanceBackupNameLabel]; ok {
 		restore.Labels[snapshots.InstanceBackupNameLabel] = val
 	}
-	if val, ok := backup.Labels[snapshots.InstanceBackupTypeAnnotation]; ok {
-		restore.Labels[snapshots.InstanceBackupTypeAnnotation] = val
+	if val, ok := backup.Annotations[snapshots.InstanceBackupTypeAnnotation]; ok {
+		restore.Annotations[snapshots.InstanceBackupTypeAnnotation] = val
 	}
-	if val, ok := backup.Labels[snapshots.InstanceBackupCountAnnotation]; ok {
-		restore.Labels[snapshots.InstanceBackupCountAnnotation] = val
+	if val, ok := backup.Annotations[snapshots.InstanceBackupCountAnnotation]; ok {
+		restore.Annotations[snapshots.InstanceBackupCountAnnotation] = val
 	}
 }
 
