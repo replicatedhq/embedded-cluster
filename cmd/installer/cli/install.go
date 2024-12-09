@@ -681,6 +681,9 @@ func ensureK0sConfig(cmd *cobra.Command, applier *addons.Applier) (*k0sconfig.Cl
 	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
 		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
+
+	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
+
 	return cfg, nil
 }
 
