@@ -168,7 +168,7 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupNameLabel: "app-slug-abcd",
 							},
 							Annotations: map[string]string{
-								"kots.io/embedded-cluster":    "true",
+								BackupIsECAnnotation:          "true",
 								InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 								InstanceBackupCountAnnotation: "2",
 							},
@@ -187,7 +187,7 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupNameLabel: "app-slug-abcd",
 							},
 							Annotations: map[string]string{
-								"kots.io/embedded-cluster":    "true",
+								BackupIsECAnnotation:          "true",
 								InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 								InstanceBackupCountAnnotation: "2",
 							},
@@ -203,7 +203,7 @@ func TestListReplicatedBackups(t *testing.T) {
 							Name:      "instance-efgh",
 							Namespace: "velero",
 							Annotations: map[string]string{
-								"kots.io/embedded-cluster": "true",
+								BackupIsECAnnotation: "true",
 								// legacy backups do not have the InstanceBackupTypeAnnotation
 							},
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -236,7 +236,7 @@ func TestListReplicatedBackups(t *testing.T) {
 							Name:      "instance-efgh",
 							Namespace: "velero",
 							Annotations: map[string]string{
-								"kots.io/embedded-cluster": "true",
+								BackupIsECAnnotation: "true",
 							},
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
 							ResourceVersion:   "999",
@@ -256,7 +256,7 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupNameLabel: "app-slug-abcd",
 							},
 							Annotations: map[string]string{
-								"kots.io/embedded-cluster":    "true",
+								BackupIsECAnnotation:          "true",
 								InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 								InstanceBackupCountAnnotation: "2",
 							},
@@ -276,7 +276,7 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupNameLabel: "app-slug-abcd",
 							},
 							Annotations: map[string]string{
-								"kots.io/embedded-cluster":    "true",
+								BackupIsECAnnotation:          "true",
 								InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 								InstanceBackupCountAnnotation: "2",
 							},
@@ -318,7 +318,7 @@ func TestGetReplicatedBackup(t *testing.T) {
 					InstanceBackupNameLabel: "app-slug-abcd",
 				},
 				Annotations: map[string]string{
-					"kots.io/embedded-cluster":    "true",
+					BackupIsECAnnotation:          "true",
 					InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 					InstanceBackupCountAnnotation: "2",
 				},
@@ -337,7 +337,7 @@ func TestGetReplicatedBackup(t *testing.T) {
 					InstanceBackupNameLabel: "app-slug-abcd",
 				},
 				Annotations: map[string]string{
-					"kots.io/embedded-cluster":    "true",
+					BackupIsECAnnotation:          "true",
 					InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 					InstanceBackupCountAnnotation: "2",
 				},
@@ -353,7 +353,7 @@ func TestGetReplicatedBackup(t *testing.T) {
 				Name:      "instance-efgh",
 				Namespace: "velero",
 				Annotations: map[string]string{
-					"kots.io/embedded-cluster": "true",
+					BackupIsECAnnotation: "true",
 					// legacy backups do not have the InstanceBackupTypeAnnotation
 				},
 				CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -403,7 +403,7 @@ func TestGetReplicatedBackup(t *testing.T) {
 						Name:      "instance-efgh",
 						Namespace: "velero",
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster": "true",
+							BackupIsECAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -433,7 +433,7 @@ func TestGetReplicatedBackup(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -453,7 +453,7 @@ func TestGetReplicatedBackup(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -512,7 +512,7 @@ func TestReplicatedBackup_GetName(t *testing.T) {
 						Name:      "instance-efgh",
 						Namespace: "velero",
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster": "true",
+							BackupIsECAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -537,7 +537,7 @@ func TestReplicatedBackup_GetName(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -557,7 +557,7 @@ func TestReplicatedBackup_GetName(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -600,7 +600,7 @@ func TestReplicatedBackup_GetInfraBackup(t *testing.T) {
 						Name:      "instance-efgh",
 						Namespace: "velero",
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster": "true",
+							BackupIsECAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -617,7 +617,7 @@ func TestReplicatedBackup_GetInfraBackup(t *testing.T) {
 					Name:      "instance-efgh",
 					Namespace: "velero",
 					Annotations: map[string]string{
-						"kots.io/embedded-cluster": "true",
+						BackupIsECAnnotation: "true",
 						// legacy backups do not have the InstanceBackupTypeAnnotation
 					},
 					CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -640,7 +640,7 @@ func TestReplicatedBackup_GetInfraBackup(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -660,7 +660,7 @@ func TestReplicatedBackup_GetInfraBackup(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -681,7 +681,7 @@ func TestReplicatedBackup_GetInfraBackup(t *testing.T) {
 						InstanceBackupNameLabel: "app-slug-abcd",
 					},
 					Annotations: map[string]string{
-						"kots.io/embedded-cluster":    "true",
+						BackupIsECAnnotation:          "true",
 						InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 						InstanceBackupCountAnnotation: "2",
 					},
@@ -722,7 +722,7 @@ func TestReplicatedBackup_GetAppBackup(t *testing.T) {
 						Name:      "instance-efgh",
 						Namespace: "velero",
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster": "true",
+							BackupIsECAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -739,7 +739,7 @@ func TestReplicatedBackup_GetAppBackup(t *testing.T) {
 					Name:      "instance-efgh",
 					Namespace: "velero",
 					Annotations: map[string]string{
-						"kots.io/embedded-cluster": "true",
+						BackupIsECAnnotation: "true",
 						// legacy backups do not have the InstanceBackupTypeAnnotation
 					},
 					CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -762,7 +762,7 @@ func TestReplicatedBackup_GetAppBackup(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -782,7 +782,7 @@ func TestReplicatedBackup_GetAppBackup(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -803,7 +803,7 @@ func TestReplicatedBackup_GetAppBackup(t *testing.T) {
 						InstanceBackupNameLabel: "app-slug-abcd",
 					},
 					Annotations: map[string]string{
-						"kots.io/embedded-cluster":    "true",
+						BackupIsECAnnotation:          "true",
 						InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 						InstanceBackupCountAnnotation: "2",
 					},
@@ -844,7 +844,7 @@ func TestReplicatedBackup_GetExpectedBackupCount(t *testing.T) {
 						Name:      "instance-efgh",
 						Namespace: "velero",
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster": "true",
+							BackupIsECAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -869,7 +869,7 @@ func TestReplicatedBackup_GetExpectedBackupCount(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -889,7 +889,7 @@ func TestReplicatedBackup_GetExpectedBackupCount(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -915,7 +915,7 @@ func TestReplicatedBackup_GetExpectedBackupCount(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -958,7 +958,7 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 						Name:      "instance-efgh",
 						Namespace: "velero",
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster": "true",
+							BackupIsECAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -983,7 +983,7 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -1003,7 +1003,7 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -1029,7 +1029,7 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
@@ -1077,7 +1077,7 @@ func TestReplicatedBackup_GetAnnotation(t *testing.T) {
 						Name:      "instance-efgh",
 						Namespace: "velero",
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster": "true",
+							BackupIsECAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 							"some-annotation": "some-value",
 						},
@@ -1107,7 +1107,7 @@ func TestReplicatedBackup_GetAnnotation(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 							"some-annotation":             "some-other-value",
@@ -1128,7 +1128,7 @@ func TestReplicatedBackup_GetAnnotation(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 							"some-annotation":             "some-value",
@@ -1159,7 +1159,7 @@ func TestReplicatedBackup_GetAnnotation(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 							"some-annotation":             "some-other-value",
@@ -1180,7 +1180,7 @@ func TestReplicatedBackup_GetAnnotation(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 							"some-annotation":             "some-value",
@@ -1211,7 +1211,7 @@ func TestReplicatedBackup_GetAnnotation(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							"kots.io/embedded-cluster":    "true",
+							BackupIsECAnnotation:          "true",
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 							"some-annotation":             "some-other-value",
