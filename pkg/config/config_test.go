@@ -124,3 +124,11 @@ func Test_extractK0sConfigPatch(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderK0sConfig(t *testing.T) {
+	cfg := RenderK0sConfig()
+
+	assert.Equal(t, "calico", cfg.Spec.Network.Provider)
+	assert.Equal(t, DefaultServiceNodePortRange, cfg.Spec.API.ExtraArgs["service-node-port-range"])
+	assert.Contains(t, cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
+}
