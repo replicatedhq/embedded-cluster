@@ -28,10 +28,7 @@ type InstallOptions struct {
 	DisasterRecoveryEnabled bool
 }
 
-// this is a temp function that's much more specific than we actually need it to be
-// this is going to get us to working installs, and we refactor.
-// this is not configurable at all, it's not the way it needs to be in the product
-func InstallAddons(ctx context.Context, opts InstallOptions) error {
+func Install(ctx context.Context, opts InstallOptions) error {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{},
 		&adminconsole.AdminConsole{
