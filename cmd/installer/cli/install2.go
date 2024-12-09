@@ -10,6 +10,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -217,7 +218,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	logrus.Debugf("installing addons")
-	if err := addons2.InstallAddons(cmd.Context(), addons2.InstallOptions{
+	if err := addons2.Install(cmd.Context(), addons2.InstallOptions{
 		ClusterConfig:           clusterConfig,
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
@@ -229,6 +230,12 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		NetworkInterface:        flags.networkInterface,
 		DisasterRecoveryEnabled: disasterRecoveryEnabled,
 	}); err != nil {
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		return err
+	}
+
+	logrus.Debugf("installing extensions")
+	if err := extensions.Install(cmd.Context()); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}
