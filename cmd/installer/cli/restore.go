@@ -753,6 +753,8 @@ func ensureK0sConfigForRestore(cmd *cobra.Command, applier *addons.Applier) (*k0
 	cfg.Spec.API.Address = address
 	cfg.Spec.Storage.Etcd.PeerAddress = address
 
+	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
+
 	cidrCfg, err := getCIDRConfig(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
