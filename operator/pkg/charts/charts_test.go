@@ -250,7 +250,7 @@ service:
 const test_proxyAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: v1.2.3-operator
 extraEnv:
-- name: ENABLE_IMPROVED_DR:
+- name: ENABLE_IMPROVED_DR
   value: "true"
 - name: HTTP_PROXY
   value: http://proxy
