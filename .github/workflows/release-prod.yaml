@@ -260,6 +260,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Install replicated CLI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -267,6 +268,7 @@ jobs:
           gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
           tar xf replicated.tar.gz replicated && rm replicated.tar.gz
           mv replicated /usr/local/bin/replicated
+
       - name: Create CI releases
         env:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
@@ -314,6 +316,7 @@ jobs:
           export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade	
           ./scripts/ci-release-app.sh
+
       - name: Create airgap releases
         env:
           REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
