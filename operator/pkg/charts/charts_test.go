@@ -159,6 +159,9 @@ service:
 
 const test_overriddenOnlineAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: abctest
+extraEnv:
+- name: ENABLE_IMPROVED_DR
+  value: "true"
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -186,6 +189,9 @@ service:
 
 const test_airgapAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: v1.2.3-operator
+extraEnv:
+- name: ENABLE_IMPROVED_DR
+  value: "true"
 images:
   kotsadm: ':'
   kurlProxy: ':'
