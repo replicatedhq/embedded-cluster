@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -206,7 +207,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to prepare and run preflights: %w", err)
 	}
 
-	clusterConfig, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.cidrCfg, flags.overrides)
+	_, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.cidrCfg, flags.overrides)
 	if err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
@@ -219,7 +220,6 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 
 	logrus.Debugf("installing addons")
 	if err := addons2.Install(cmd.Context(), addons2.InstallOptions{
-		ClusterConfig:           clusterConfig,
 		AdminConsolePwd:         flags.adminConsolePassword,
 		License:                 flags.license,
 		LicenseFile:             flags.licenseFile,
@@ -228,6 +228,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		PrivateCAs:              flags.privateCAs,
 		ConfigValuesFile:        flags.configValues,
 		NetworkInterface:        flags.networkInterface,
+		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: disasterRecoveryEnabled,
 	}); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
@@ -244,6 +245,10 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	if err := installAndEnableManager(); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
+	}
+
+	if err = kotscli.CreateHostSupportBundle(); err != nil {
+		logrus.Warnf("unable to create host support bundle: %v", err)
 	}
 
 	if err := printSuccessMessage(flags.license, flags.networkInterface); err != nil {

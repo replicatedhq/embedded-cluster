@@ -3,11 +3,11 @@ package addons2
 import (
 	"context"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -16,7 +16,6 @@ import (
 )
 
 type InstallOptions struct {
-	ClusterConfig           *k0sconfig.ClusterConfig
 	AdminConsolePwd         string
 	License                 *kotsv1beta1.License
 	LicenseFile             string
@@ -25,30 +24,11 @@ type InstallOptions struct {
 	PrivateCAs              []string
 	ConfigValuesFile        string
 	NetworkInterface        string
+	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
 }
 
 func Install(ctx context.Context, opts InstallOptions) error {
-	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
-		&adminconsole.AdminConsole{
-			Password:         opts.AdminConsolePwd,
-			License:          opts.License,
-			LicenseFile:      opts.LicenseFile,
-			AirgapBundle:     opts.AirgapBundle,
-			Proxy:            opts.Proxy,
-			PrivateCAs:       opts.PrivateCAs,
-			ConfigValuesFile: opts.ConfigValuesFile,
-			NetworkInterface: opts.NetworkInterface,
-		},
-	}
-
-	if opts.DisasterRecoveryEnabled {
-		addOns = append(addOns, &velero.Velero{
-			Proxy: opts.Proxy,
-		})
-	}
-
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
@@ -57,7 +37,7 @@ func Install(ctx context.Context, opts InstallOptions) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
-	for _, addon := range addOns {
+	for _, addon := range getAddOns(opts) {
 		loading.Infof("Installing %s addon", addon.Name())
 
 		if err := addon.Prepare(); err != nil {
@@ -69,4 +49,35 @@ func Install(ctx context.Context, opts InstallOptions) error {
 	}
 
 	return nil
+}
+
+func getAddOns(opts InstallOptions) []types.AddOn {
+	addOns := []types.AddOn{
+		&openebs.OpenEBS{},
+	}
+
+	if opts.AirgapBundle != "" {
+		addOns = append(addOns, &registry.Registry{
+			ServiceCIDR: opts.ServiceCIDR,
+		})
+	}
+
+	if opts.DisasterRecoveryEnabled {
+		addOns = append(addOns, &velero.Velero{
+			Proxy: opts.Proxy,
+		})
+	}
+
+	addOns = append(addOns, &adminconsole.AdminConsole{
+		Password:         opts.AdminConsolePwd,
+		License:          opts.License,
+		LicenseFile:      opts.LicenseFile,
+		AirgapBundle:     opts.AirgapBundle,
+		Proxy:            opts.Proxy,
+		PrivateCAs:       opts.PrivateCAs,
+		ConfigValuesFile: opts.ConfigValuesFile,
+		NetworkInterface: opts.NetworkInterface,
+	})
+
+	return addOns
 }
