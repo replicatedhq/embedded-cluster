@@ -215,11 +215,6 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 
-			kcli, err := kubeutils.KubeClient()
-			if err != nil {
-				return fmt.Errorf("unable to create kube client: %w", err)
-			}
-
 			opts := addonsApplierOpts{
 				assumeYes:    assumeYes,
 				license:      "",
@@ -288,6 +283,11 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					return err
 				}
 
+				kcli, err := kubeutils.KubeClient()
+				if err != nil {
+					return fmt.Errorf("unable to create kube client: %w", err)
+				}
+
 				errCh := kubeutils.WaitForKubernetes(cmd.Context(), kcli)
 				defer func() {
 					for len(errCh) > 0 {
@@ -319,6 +319,11 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				logrus.Debugf("setting restore state to %q", ecRestoreStateConfirmBackup)
 				if err := setECRestoreState(cmd.Context(), ecRestoreStateConfirmBackup, ""); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
+				}
+
+				kcli, err := kubeutils.KubeClient()
+				if err != nil {
+					return fmt.Errorf("unable to create kube client: %w", err)
 				}
 
 				k0sCfg, err := getK0sConfigFromDisk()
