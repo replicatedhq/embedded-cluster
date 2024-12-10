@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -13,8 +14,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
@@ -70,6 +73,15 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 				hostSupportBundle,
 			)
 
+			sbPath, err := localLicenseSupportBundleSpec()
+			if err != nil {
+				return fmt.Errorf("failed to create local license collector: %w", err)
+			}
+
+			if sbPath != "" {
+				arguments = append(arguments, sbPath)
+			}
+
 			spin := spinner.Start()
 			spin.Infof("Generating support bundle (this can take a while)")
 
@@ -98,4 +110,56 @@ func SupportBundleCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	return cmd
+}
+
+// localLicenseSupportBundleSpec creates a support bundle spec to collect
+// the license file used to install embedded-cluster. The file is assumed
+// to be in the same directory as the calling binary. If not, we do not
+// attempt to collect the license.
+func localLicenseSupportBundleSpec() (string, error) {
+	// Directory of calling binary
+	dir, err := filepath.Abs(path.Dir(path.Clean(os.Args[0])))
+	if err != nil {
+		return "", err
+	}
+
+	// Path to license file
+	licensePath := path.Join(dir, "license.yaml")
+	_, err = os.Stat(licensePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logrus.Debugf("License file not found at %s. Not collecting in support bundle", licensePath)
+			return "", nil
+		}
+		return "", err
+	}
+
+	sb := v1beta2.SupportBundle{
+		Spec: v1beta2.SupportBundleSpec{
+			HostCollectors: []*v1beta2.HostCollect{
+				{
+					HostCopy: &v1beta2.HostCopy{
+						HostCollectorMeta: v1beta2.HostCollectorMeta{
+							CollectorName: "embedded-cluster", // Used as directory name in support bundle
+						},
+						Path: licensePath,
+					},
+				},
+			},
+		},
+	}
+
+	// return support bundle spec path in temp dir
+	sbPath := path.Join(os.TempDir(), "license-support-bundle.yaml")
+	d, err := k8syaml.Marshal(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = os.WriteFile(sbPath, d, 0644)
+	if err != nil {
+		return "", err
+	}
+
+	return sbPath, nil
 }
