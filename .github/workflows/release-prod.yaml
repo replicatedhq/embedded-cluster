@@ -340,12 +340,6 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # promote a release with improved dr support
-          export EC_VERSION="${{ github.ref_name }}-dr"
-          export APP_VERSION="appver-${{ github.ref_name }}-dr"
-          export RELEASE_YAML_DIR=e2e/kots-release-install-dr
-          ./scripts/ci-release-app.sh
-
           # and finally an app upgrade	
           export EC_VERSION="${{ github.ref_name }}"
           export APP_VERSION="appver-${{ github.ref_name }}-upgrade"
@@ -461,7 +455,6 @@ jobs:
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
           - TestSingleNodeDisasterRecovery
-          - TestSingleNodeNewDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
