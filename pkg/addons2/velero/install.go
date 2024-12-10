@@ -25,7 +25,13 @@ func (v *Velero) Install(ctx context.Context, kcli client.Client, writer *spinne
 		return errors.Wrap(err, "create helm client")
 	}
 
-	_, err = hcli.Install(ctx, releaseName, Metadata.Location, Metadata.Version, helmValues, namespace)
+	_, err = hcli.Install(ctx, helm.InstallOptions{
+		ReleaseName:  releaseName,
+		ChartPath:    Metadata.Location,
+		ChartVersion: Metadata.Version,
+		Values:       helmValues,
+		Namespace:    namespace,
+	})
 	if err != nil {
 		return errors.Wrap(err, "install velero")
 	}

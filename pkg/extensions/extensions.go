@@ -64,7 +64,14 @@ func Install(ctx context.Context) error {
 			return errors.Wrap(err, "unmarshal values")
 		}
 
-		_, err = hcli.Install(ctx, ext.Name, ext.ChartName, ext.Version, values, ext.TargetNS)
+		_, err = hcli.Install(ctx, helm.InstallOptions{
+			ReleaseName:  ext.Name,
+			ChartPath:    ext.ChartName,
+			ChartVersion: ext.Version,
+			Values:       values,
+			Namespace:    ext.TargetNS,
+			Timeout:      ext.Timeout.Duration,
+		})
 		if err != nil {
 			return errors.Wrap(err, "helm install")
 		}
