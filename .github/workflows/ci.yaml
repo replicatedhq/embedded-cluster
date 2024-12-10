@@ -240,6 +240,7 @@ jobs:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install-newdr
+          EC_BINARY: output/bin/embedded-cluster-newdr
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           USES_DEV_BUCKET: "0"
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
@@ -308,6 +309,7 @@ jobs:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
+          EC_BINARY: output/bin/embedded-cluster-previous-k0s
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           USES_DEV_BUCKET: "0"
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
@@ -412,6 +414,7 @@ jobs:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-upgrade
+          EC_BINARY: output/bin/embedded-cluster-upgrade
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           USES_DEV_BUCKET: "0"
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
