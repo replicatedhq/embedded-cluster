@@ -13,6 +13,7 @@ USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
 IMAGES_REGISTRY_SERVER=${IMAGES_REGISTRY_SERVER:-ttl.sh}
 ARCH=${ARCH:-$(go env GOARCH)}
 
+require EC_BINARY "${EC_BINARY:-}"
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"
 fi
