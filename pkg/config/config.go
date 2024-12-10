@@ -49,6 +49,7 @@ func RenderK0sConfig() *k0sconfig.ClusterConfig {
 		cfg.Spec.API.ExtraArgs = map[string]string{}
 	}
 	cfg.Spec.API.ExtraArgs["service-node-port-range"] = DefaultServiceNodePortRange
+	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 	overrideK0sImages(cfg)
 	return cfg
 }
