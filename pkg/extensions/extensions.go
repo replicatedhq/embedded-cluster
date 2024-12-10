@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"context"
+	"sort"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -14,10 +15,15 @@ import (
 )
 
 func Install(ctx context.Context) error {
+	// check if there are any extensions
+	if len(config.AdditionalCharts()) == 0 {
+		return nil
+	}
+
 	loading := spinner.Start()
 	defer loading.Close()
 
-	helm, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewHelm(helm.HelmOptions{
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
@@ -39,12 +45,18 @@ func Install(ctx context.Context) error {
 		if k0sRepo.Insecure != nil {
 			helmRepo.InsecureSkipTLSverify = *k0sRepo.Insecure
 		}
-		if err := helm.AddRepo(helmRepo); err != nil {
+		if err := hcli.AddRepo(helmRepo); err != nil {
 			return errors.Wrapf(err, "add helm repository %s", k0sRepo.Name)
 		}
 	}
 
-	for _, ext := range config.AdditionalCharts() {
+	// sort by order first
+	sorted := config.AdditionalCharts()
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Order < sorted[j].Order
+	})
+
+	for _, ext := range sorted {
 		loading.Infof("Installing %s", ext.Name)
 
 		var values map[string]interface{}
@@ -52,7 +64,7 @@ func Install(ctx context.Context) error {
 			return errors.Wrap(err, "unmarshal values")
 		}
 
-		_, err = helm.Install(ctx, ext.Name, ext.ChartName, ext.Version, values, ext.TargetNS)
+		_, err = hcli.Install(ctx, ext.Name, ext.ChartName, ext.Version, values, ext.TargetNS)
 		if err != nil {
 			return errors.Wrap(err, "helm install")
 		}

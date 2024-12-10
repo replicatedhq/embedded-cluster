@@ -11,14 +11,14 @@ import (
 )
 
 func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
-	helm, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewHelm(helm.HelmOptions{
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
 		return errors.Wrap(err, "create helm client")
 	}
 
-	_, err = helm.Install(ctx, releaseName, Metadata.Location, Metadata.Version, helmValues, namespace)
+	_, err = hcli.Install(ctx, releaseName, Metadata.Location, Metadata.Version, helmValues, namespace)
 	if err != nil {
 		return errors.Wrap(err, "install openebs")
 	}
