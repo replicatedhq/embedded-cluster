@@ -239,7 +239,7 @@ jobs:
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
-          RELEASE_YAML_DIR: e2e/kots-release-install-dr
+          RELEASE_YAML_DIR: e2e/kots-release-install-newdr
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           USES_DEV_BUCKET: "0"
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
