@@ -134,13 +134,14 @@ func localLicenseSupportBundleSpec() (string, error) {
 		return "", err
 	}
 
+	// Store license file in <sb>/host-collectors/embedded-cluster/license.yaml
 	sb := v1beta2.SupportBundle{
 		Spec: v1beta2.SupportBundleSpec{
 			HostCollectors: []*v1beta2.HostCollect{
 				{
 					HostCopy: &v1beta2.HostCopy{
 						HostCollectorMeta: v1beta2.HostCollectorMeta{
-							CollectorName: "embedded-cluster", // Used as directory name in support bundle
+							CollectorName: "embedded-cluster",
 						},
 						Path: licensePath,
 					},
