@@ -12,6 +12,7 @@ import (
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/utils/pkg/embed"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"gopkg.in/yaml.v2"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
@@ -30,6 +31,8 @@ type ReleaseData struct {
 	HostPreflights        [][]byte
 	EmbeddedClusterConfig []byte
 	ChannelRelease        []byte
+	VeleroBackup          []byte
+	VeleroRestore         []byte
 }
 
 // NewReleaseDataFrom parses the provide slice of bytes and returns a ReleaseData
@@ -149,6 +152,50 @@ func (r *ReleaseData) GetEmbeddedClusterConfig() (*embeddedclusterv1beta1.Config
 	return &cfg, nil
 }
 
+// GetVeleroBackup reads and returns the velero backup embedded as part of the release. If
+// no backup is found, returns nil and no error.
+func GetVeleroBackup() (*velerov1.Backup, error) {
+	if err := parseReleaseDataFromBinary(); err != nil {
+		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
+	}
+	return releaseData.GetVeleroBackup()
+}
+
+// GetVeleroBackup reads and returns the velero backup embedded as part of the release. If
+// no backup is found, returns nil and no error.
+func (r *ReleaseData) GetVeleroBackup() (*velerov1.Backup, error) {
+	if len(r.VeleroBackup) == 0 {
+		return nil, nil
+	}
+	var backup velerov1.Backup
+	if err := kyaml.Unmarshal(r.VeleroBackup, &backup); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal velero backup: %w", err)
+	}
+	return &backup, nil
+}
+
+// GetVeleroRestore reads and returns the velero restore embedded as part of the release. If
+// no restore is found, returns nil and no error.
+func GetVeleroRestore() (*velerov1.Restore, error) {
+	if err := parseReleaseDataFromBinary(); err != nil {
+		return nil, fmt.Errorf("failed to parse data from binary: %w", err)
+	}
+	return releaseData.GetVeleroRestore()
+}
+
+// GetVeleroRestore reads and returns the velero restore embedded as part of the release. If
+// no restore is found, returns nil and no error.
+func (r *ReleaseData) GetVeleroRestore() (*velerov1.Restore, error) {
+	if len(r.VeleroRestore) == 0 {
+		return nil, nil
+	}
+	var restore velerov1.Restore
+	if err := kyaml.Unmarshal(r.VeleroRestore, &restore); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal velero restore: %w", err)
+	}
+	return &restore, nil
+}
+
 // ChannelRelease contains information about a specific app release inside a channel.
 type ChannelRelease struct {
 	VersionLabel string `yaml:"versionLabel"`
@@ -187,7 +234,9 @@ func (r *ReleaseData) parse() error {
 		return fmt.Errorf("unable to create gzip reader: %w", err)
 	}
 	defer gzr.Close()
+
 	tr := tar.NewReader(gzr)
+
 	for {
 		header, err := tr.Next()
 		switch {
@@ -201,36 +250,42 @@ func (r *ReleaseData) parse() error {
 		if header.Typeflag != tar.TypeReg {
 			continue
 		}
+
 		content := bytes.NewBuffer(nil)
 		if _, err := io.Copy(content, tr); err != nil {
 			return fmt.Errorf("unable to copy file out of tar: %w", err)
 		}
-		if bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta1")) {
+
+		switch {
+		case bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta1")):
 			if bytes.Contains(content.Bytes(), []byte("kind: Application")) {
 				r.Application = content.Bytes()
 			}
-			continue
-		}
-		if bytes.Contains(content.Bytes(), []byte("apiVersion: troubleshoot.sh/v1beta2")) {
+
+		case bytes.Contains(content.Bytes(), []byte("apiVersion: troubleshoot.sh/v1beta2")):
 			if !bytes.Contains(content.Bytes(), []byte("kind: HostPreflight")) {
-				continue
+				break
 			}
 			if bytes.Contains(content.Bytes(), []byte("cluster.kurl.sh/v1beta1")) {
-				continue
+				break
 			}
 			r.HostPreflights = append(r.HostPreflights, content.Bytes())
-			continue
-		}
-		if bytes.Contains(content.Bytes(), []byte("apiVersion: embeddedcluster.replicated.com/v1beta1")) {
+
+		case bytes.Contains(content.Bytes(), []byte("apiVersion: embeddedcluster.replicated.com/v1beta1")):
 			if !bytes.Contains(content.Bytes(), []byte("kind: Config")) {
-				continue
+				break
 			}
 			r.EmbeddedClusterConfig = content.Bytes()
-			continue
-		}
-		if bytes.Contains(content.Bytes(), []byte("# channel release object")) {
+
+		case bytes.Contains(content.Bytes(), []byte("apiVersion: velero.io/v1")):
+			if bytes.Contains(content.Bytes(), []byte("kind: Backup")) {
+				r.VeleroBackup = content.Bytes()
+			} else if bytes.Contains(content.Bytes(), []byte("kind: Restore")) {
+				r.VeleroRestore = content.Bytes()
+			}
+
+		case bytes.Contains(content.Bytes(), []byte("# channel release object")):
 			r.ChannelRelease = content.Bytes()
-			continue
 		}
 	}
 }
