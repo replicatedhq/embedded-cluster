@@ -219,6 +219,9 @@ service:
 
 const test_airgapHAAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: v1.2.3-operator
+extraEnv:
+- name: ENABLE_IMPROVED_DR
+  value: "true"
 images:
   kotsadm: ':'
   kurlProxy: ':'
