@@ -6,6 +6,8 @@ metadata:
     preserve: me
 spec:
   backupName: backup
+  includedNamespaces:
+  - '*'
   hooks:
     resources:
     - name: restore-hook-1
