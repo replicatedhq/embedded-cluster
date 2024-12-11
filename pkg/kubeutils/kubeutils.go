@@ -2,6 +2,7 @@ package kubeutils
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +11,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -162,16 +163,16 @@ func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, 
 			}
 
 			// check the status of the installation
-			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateInstalled {
+			if lastInstall.Status.State == ecv1beta1.InstallationStateInstalled {
 				return true, nil
 			}
 			lasterr = fmt.Errorf("installation state is %q (%q)", lastInstall.Status.State, lastInstall.Status.Reason)
 
-			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateFailed {
+			if lastInstall.Status.State == ecv1beta1.InstallationStateFailed {
 				return false, fmt.Errorf("installation failed: %s", lastInstall.Status.Reason)
 			}
 
-			if lastInstall.Status.State == embeddedclusterv1beta1.InstallationStateHelmChartUpdateFailure {
+			if lastInstall.Status.State == ecv1beta1.InstallationStateHelmChartUpdateFailure {
 				return false, fmt.Errorf("helm chart installation failed: %s", lastInstall.Status.Reason)
 			}
 
@@ -190,8 +191,109 @@ func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, 
 	return nil
 }
 
-func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedclusterv1beta1.Installation, error) {
-	var list embeddedclusterv1beta1.InstallationList
+func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	data, err := json.Marshal(in)
+	if err != nil {
+		return fmt.Errorf("marshal installation: %w", err)
+	}
+
+	cm := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "embedded-cluster",
+			Name:      in.Name,
+			Labels: map[string]string{
+				"replicated.com/installation":      "embedded-cluster",
+				"replicated.com/disaster-recovery": "ec-install",
+			},
+		},
+		Data: map[string]string{
+			"installation": string(data),
+		},
+	}
+	if err := cli.Create(ctx, cm); err != nil {
+		return fmt.Errorf("create configmap: %w", err)
+	}
+
+	return nil
+}
+
+func UpdateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	// if the installation source type is CRD (or not set), just update directly
+	if in.Spec.SourceType == "" || in.Spec.SourceType == ecv1beta1.InstallationSourceTypeCRD {
+		if err := cli.Update(ctx, in); err != nil {
+			return fmt.Errorf("update crd installation: %w", err)
+		}
+		return nil
+	}
+
+	// find configmap with the same name as the installation
+	var cm corev1.ConfigMap
+	if err := cli.Get(ctx, types.NamespacedName{Namespace: "embedded-cluster", Name: in.Name}, &cm); err != nil {
+		return fmt.Errorf("get configmap: %w", err)
+	}
+
+	// marshal the installation and update the configmap
+	data, err := json.Marshal(in)
+	if err != nil {
+		return fmt.Errorf("marshal installation: %w", err)
+	}
+	cm.Data["installation"] = string(data)
+
+	if err := cli.Update(ctx, &cm); err != nil {
+		return fmt.Errorf("update configmap: %w", err)
+	}
+	return nil
+}
+
+func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	// if the installation source type is CRD (or not set), just update directly
+	if in.Spec.SourceType == "" || in.Spec.SourceType == ecv1beta1.InstallationSourceTypeCRD {
+		if err := cli.Status().Update(ctx, in); err != nil {
+			return fmt.Errorf("update crd installation status: %w", err)
+		}
+		return nil
+	}
+
+	return UpdateInstallation(ctx, cli, in)
+}
+
+func ListCMInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
+	opts := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(
+			labels.Set{"replicated.com/installation": "embedded-cluster"},
+		),
+	}
+	var cmList corev1.ConfigMapList
+	if err := cli.List(ctx, &cmList, opts); err != nil {
+		return nil, fmt.Errorf("list configmaps: %w", err)
+	}
+
+	installs := []ecv1beta1.Installation{}
+	for _, cm := range cmList.Items {
+		var install ecv1beta1.Installation
+		data, ok := cm.Data["installation"]
+		if !ok {
+			return nil, fmt.Errorf("installation data not found in configmap %s/%s", cm.Namespace, cm.Name)
+		}
+		if err := json.Unmarshal([]byte(data), &install); err != nil {
+			return nil, fmt.Errorf("unmarshal installation: %w", err)
+		}
+		installs = append(installs, install)
+	}
+
+	sort.SliceStable(installs, func(i, j int) bool {
+		return installs[j].Name < installs[i].Name
+	})
+
+	return installs, nil
+}
+
+func ListCRDInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
+	var list ecv1beta1.InstallationList
 	err := cli.List(ctx, &list)
 	if meta.IsNoMatchError(err) {
 		// this will happen if the CRD is not yet installed
@@ -203,14 +305,14 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedcluste
 	sort.SliceStable(installs, func(i, j int) bool {
 		return installs[j].Name < installs[i].Name
 	})
-	var previous *embeddedclusterv1beta1.Installation
+	var previous *ecv1beta1.Installation
 	for i := len(installs) - 1; i >= 0; i-- {
 		install, didUpdate, err := MaybeOverrideInstallationDataDirs(installs[i], previous)
 		if err != nil {
 			return nil, fmt.Errorf("override installation data dirs: %w", err)
 		}
 		if didUpdate {
-			err := cli.Update(ctx, &install)
+			err := UpdateInstallation(ctx, cli, &install)
 			if err != nil {
 				return nil, fmt.Errorf("update installation with legacy data dirs: %w", err)
 			}
@@ -223,7 +325,24 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]embeddedcluste
 	return installs, nil
 }
 
-func GetInstallation(ctx context.Context, cli client.Client, name string) (*embeddedclusterv1beta1.Installation, error) {
+func ListInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
+	installs, err := ListCMInstallations(ctx, cli)
+	if err != nil {
+		return nil, fmt.Errorf("list cm installations: %w", err)
+	}
+	if len(installs) > 0 {
+		return installs, nil
+	}
+
+	// fall back to CRD-based installations
+	installs, err = ListCRDInstallations(ctx, cli)
+	if err != nil {
+		return nil, fmt.Errorf("list crd installations: %w", err)
+	}
+	return installs, nil
+}
+
+func GetInstallation(ctx context.Context, cli client.Client, name string) (*ecv1beta1.Installation, error) {
 	installations, err := ListInstallations(ctx, cli)
 	if err != nil {
 		return nil, err
@@ -242,7 +361,7 @@ func GetInstallation(ctx context.Context, cli client.Client, name string) (*embe
 	return nil, ErrInstallationNotFound{}
 }
 
-func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclusterv1beta1.Installation, error) {
+func GetLatestInstallation(ctx context.Context, cli client.Client) (*ecv1beta1.Installation, error) {
 	installations, err := ListInstallations(ctx, cli)
 	if err != nil {
 		return nil, err
@@ -256,7 +375,7 @@ func GetLatestInstallation(ctx context.Context, cli client.Client) (*embeddedclu
 }
 
 // GetPreviousInstallation returns the latest installation object in the cluster OTHER than the one passed as an argument.
-func GetPreviousInstallation(ctx context.Context, cli client.Client, in *embeddedclusterv1beta1.Installation) (*embeddedclusterv1beta1.Installation, error) {
+func GetPreviousInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (*ecv1beta1.Installation, error) {
 	installations, err := ListInstallations(ctx, cli)
 	if err != nil {
 		return nil, err
@@ -292,7 +411,7 @@ func lessThanK0s115(ver *semver.Version) bool {
 // didn't store the location of the data directories in the installation object. If it is not set,
 // it will set the annotation and update the installation object with the old location of the data
 // directories.
-func MaybeOverrideInstallationDataDirs(in embeddedclusterv1beta1.Installation, previous *embeddedclusterv1beta1.Installation) (embeddedclusterv1beta1.Installation, bool, error) {
+func MaybeOverrideInstallationDataDirs(in ecv1beta1.Installation, previous *ecv1beta1.Installation) (ecv1beta1.Installation, bool, error) {
 	if previous != nil {
 		ver, err := semver.NewVersion(previous.Spec.Config.Version)
 		if err != nil {
@@ -303,7 +422,7 @@ func MaybeOverrideInstallationDataDirs(in embeddedclusterv1beta1.Installation, p
 			didUpdate := false
 
 			if in.Spec.RuntimeConfig == nil {
-				in.Spec.RuntimeConfig = &embeddedclusterv1beta1.RuntimeConfigSpec{}
+				in.Spec.RuntimeConfig = &ecv1beta1.RuntimeConfigSpec{}
 			}
 
 			// In prior versions, the data directories are not a subdirectory of /var/lib/embedded-cluster.
@@ -323,8 +442,8 @@ func MaybeOverrideInstallationDataDirs(in embeddedclusterv1beta1.Installation, p
 	return in, false, nil
 }
 
-func writeStatusMessage(writer *spinner.MessageWriter, install *embeddedclusterv1beta1.Installation) {
-	if install.Status.State != embeddedclusterv1beta1.InstallationStatePendingChartCreation {
+func writeStatusMessage(writer *spinner.MessageWriter, install *ecv1beta1.Installation) {
+	if install.Status.State != ecv1beta1.InstallationStatePendingChartCreation {
 		return
 	}
 
@@ -372,7 +491,7 @@ func (k *KubeUtils) WaitForHAInstallation(ctx context.Context, cli client.Client
 	}
 }
 
-func CheckConditionStatus(inStat embeddedclusterv1beta1.InstallationStatus, conditionName string) metav1.ConditionStatus {
+func CheckConditionStatus(inStat ecv1beta1.InstallationStatus, conditionName string) metav1.ConditionStatus {
 	for _, cond := range inStat.Conditions {
 		if cond.Type == conditionName {
 			return cond.Status
@@ -583,7 +702,7 @@ func (k *KubeUtils) WaitAndMarkInstallation(ctx context.Context, cli client.Clie
 			}
 		} else {
 			in.Status.State = state
-			if err := cli.Status().Update(ctx, in); err != nil {
+			if err := UpdateInstallationStatus(ctx, cli, in); err != nil {
 				return fmt.Errorf("unable to update installation status: %w", err)
 			}
 			return nil

@@ -42,6 +42,12 @@ const (
 	InstallationStatePendingChartCreation   string = "PendingChartCreation"
 )
 
+// Valid installation source types
+const (
+	InstallationSourceTypeCRD       string = "CRD"
+	InstallationSourceTypeConfigMap string = "ConfigMap"
+)
+
 // ConfigSecretEntryName holds the entry name we are looking for in the secret
 // that holds the embedded cluster configuration.
 const ConfigSecretEntryName = "config.yaml"
@@ -126,6 +132,8 @@ type InstallationSpec struct {
 	// the Config for this Installation object must be read from there. This option
 	// supersedes (overrides) the Config field.
 	ConfigSecret *ConfigSecret `json:"configSecret,omitempty"`
+	// SourceType indicates where this Installation object is stored (CRD, ConfigMap, etc...).
+	SourceType string `json:"sourceType,omitempty"`
 
 	// RuntimeConfig holds the runtime configuration used at installation time.
 	RuntimeConfig *RuntimeConfigSpec `json:"runtimeConfig,omitempty"`
@@ -154,6 +162,10 @@ func (i *InstallationSpec) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &ji)
 	if err != nil {
 		return err
+	}
+
+	if i.SourceType == "" {
+		i.SourceType = InstallationSourceTypeCRD
 	}
 
 	if i.Deprecated_AdminConsole != nil && i.Deprecated_AdminConsole.Port > 0 {

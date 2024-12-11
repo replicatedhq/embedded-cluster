@@ -92,7 +92,7 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 	}
 	in.Spec.HighAvailability = true
 
-	if err := kcli.Update(ctx, in); err != nil {
+	if err := kubeutils.UpdateInstallation(ctx, kcli, in); err != nil {
 		return errors.Wrap(err, "update installation")
 	}
 

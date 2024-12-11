@@ -52,7 +52,7 @@ func (s *SeaweedFS) createPreRequisites(ctx context.Context, kcli client.Client)
 		return errors.Wrap(err, "create s3 service")
 	}
 
-	if _, err := createS3Secret(ctx, kcli); err != nil {
+	if err := createS3Secret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create s3 secret")
 	}
 
@@ -99,17 +99,17 @@ func createService(ctx context.Context, kcli client.Client, serviceCIDR string) 
 			},
 		},
 	}
+
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
-	err = kcli.Create(ctx, obj)
-	if err != nil {
+	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "create s3 service")
 	}
 
 	return nil
 }
 
-func createS3Secret(ctx context.Context, kcli client.Client) (*seaweedfsConfig, error) {
+func createS3Secret(ctx context.Context, kcli client.Client) error {
 	var config seaweedfsConfig
 	config.Identities = append(config.Identities, seaweedfsIdentity{
 		Name: "anvAdmin",
@@ -130,7 +130,7 @@ func createS3Secret(ctx context.Context, kcli client.Client) (*seaweedfsConfig, 
 
 	configData, err := json.Marshal(config)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshal seaweedfs_s3_config")
+		return errors.Wrap(err, "marshal seaweedfs_s3_config")
 	}
 
 	obj := &corev1.Secret{
@@ -142,11 +142,11 @@ func createS3Secret(ctx context.Context, kcli client.Client) (*seaweedfsConfig, 
 
 	obj.ObjectMeta.Labels = ApplyLabels(obj.ObjectMeta.Labels, "s3")
 
-	err = kcli.Create(ctx, obj)
-	if err != nil {
-		return nil, errors.Wrap(err, "create s3 secret")
+	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "create s3 secret")
 	}
-	return &config, nil
+
+	return nil
 }
 
 func ApplyLabels(labels map[string]string, component string) map[string]string {

@@ -52,6 +52,7 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.AddCommand(InstallCmd(ctx, name))
 	cmd.AddCommand(Install2Cmd(ctx, name))
 	cmd.AddCommand(JoinCmd(ctx, name))
+	cmd.AddCommand(Join2Cmd(ctx, name))
 	cmd.AddCommand(ShellCmd(ctx, name))
 	cmd.AddCommand(NodeCmd(ctx, name))
 	cmd.AddCommand(VersionCmd(ctx, name))

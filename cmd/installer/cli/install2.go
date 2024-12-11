@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
@@ -14,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -24,6 +27,10 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Install2CmdFlags struct {
@@ -214,7 +221,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to prepare and run preflights: %w", err)
 	}
 
-	_, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.cidrCfg, flags.overrides)
+	k0sCfg, err := installAndStartCluster(cmd.Context(), flags.networkInterface, flags.airgapBundle, flags.license, flags.proxy, flags.cidrCfg, flags.overrides)
 	if err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
@@ -223,6 +230,11 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	disasterRecoveryEnabled, err := helpers.DisasterRecoveryEnabled(flags.license)
 	if err != nil {
 		return fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
+	}
+
+	if err := recordInstallation(cmd.Context(), flags, k0sCfg, disasterRecoveryEnabled); err != nil {
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		return err
 	}
 
 	logrus.Debugf("installing addons")
@@ -399,6 +411,101 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 
 	loading.Infof("Node installation finished!")
 	return cfg, nil
+}
+
+func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("create kube client: %w", err)
+	}
+
+	if err := createECNamespace(ctx, kcli); err != nil {
+		return fmt.Errorf("create embedded-cluster namespace: %w", err)
+	}
+
+	cfg, err := release.GetEmbeddedClusterConfig()
+	if err != nil {
+		return err
+	}
+	var cfgspec *ecv1beta1.ConfigSpec
+	if cfg != nil {
+		cfgspec = &cfg.Spec
+	}
+
+	var euOverrides string
+	if flags.overrides != "" {
+		eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
+		if err != nil {
+			return fmt.Errorf("process overrides file: %w", err)
+		}
+		if eucfg != nil {
+			euOverrides = eucfg.Spec.UnsupportedOverrides.K0s
+		}
+	}
+
+	installation := ecv1beta1.Installation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: ecv1beta1.GroupVersion.String(),
+			Kind:       "Installation",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("embedded-cluster-installation-%s", time.Now().Format("20060102150405")),
+		},
+		Spec: ecv1beta1.InstallationSpec{
+			ClusterID:                 metrics.ClusterID().String(),
+			MetricsBaseURL:            metrics.BaseURL(flags.license),
+			AirGap:                    flags.airgapBundle != "",
+			Proxy:                     flags.proxy,
+			Network:                   networkSpecFromK0sConfig(k0sCfg),
+			Config:                    cfgspec,
+			RuntimeConfig:             runtimeconfig.Get(),
+			EndUserK0sConfigOverrides: euOverrides,
+			BinaryName:                runtimeconfig.BinaryName(),
+			SourceType:                ecv1beta1.InstallationSourceTypeConfigMap,
+			LicenseInfo: &ecv1beta1.LicenseInfo{
+				IsDisasterRecoverySupported: disasterRecoveryEnabled,
+			},
+		},
+	}
+	if err := kubeutils.CreateInstallation(ctx, kcli, &installation); err != nil {
+		return fmt.Errorf("create installation: %w", err)
+	}
+
+	// we wait for the installation to exist here because items do not show up in the apiserver instantaneously after being created
+	if err := kubeutils.WaitAndMarkInstallation(ctx, kcli, installation.Name, ecv1beta1.InstallationStateKubernetesInstalled); err != nil {
+		return fmt.Errorf("wait and mark installation: %w", err)
+	}
+
+	return nil
+}
+
+func createECNamespace(ctx context.Context, kcli client.Client) error {
+	ns := corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "embedded-cluster",
+		},
+	}
+	if err := kcli.Create(ctx, &ns); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
+}
+
+func networkSpecFromK0sConfig(k0sCfg *k0sv1beta1.ClusterConfig) *ecv1beta1.NetworkSpec {
+	network := &ecv1beta1.NetworkSpec{}
+
+	if k0sCfg.Spec != nil && k0sCfg.Spec.Network != nil {
+		network.PodCIDR = k0sCfg.Spec.Network.PodCIDR
+		network.ServiceCIDR = k0sCfg.Spec.Network.ServiceCIDR
+	}
+
+	if k0sCfg.Spec.API != nil {
+		if val, ok := k0sCfg.Spec.API.ExtraArgs["service-node-port-range"]; ok {
+			network.NodePortRange = val
+		}
+	}
+
+	return network
 }
 
 func printSuccessMessage(license *kotsv1beta1.License, networkInterface string) error {
