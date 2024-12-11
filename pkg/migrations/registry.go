@@ -30,7 +30,7 @@ var (
 	seaweedFSS3URL = "http://seaweedfs-s3.seaweedfs:8333/"
 )
 
-// RegistryData runs a migration that copies data on disk in the registry-data PVC to the seaweedfs s3 store.
+// RegistryData runs a migration that copies data on disk in the registry PVC to the seaweedfs s3 store.
 func RegistryData(ctx context.Context) error {
 	logrus.Debug("Migrating registry data")
 
