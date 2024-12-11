@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
-	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -296,7 +296,7 @@ func TestListReplicatedBackups(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			assert.DeepEqual(t, tt.want, got)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -489,7 +489,7 @@ func TestGetReplicatedBackup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetReplicatedBackup(context.Background(), tt.args.cli, tt.args.veleroNamespace, tt.args.backupName)
 			require.Equal(t, tt.wantErr, err)
-			assert.DeepEqual(t, tt.want, got)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -699,7 +699,7 @@ func TestReplicatedBackup_GetInfraBackup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.b.GetInfraBackup()
-			assert.DeepEqual(t, tt.want, got)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -821,7 +821,7 @@ func TestReplicatedBackup_GetAppBackup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.b.GetAppBackup()
-			assert.DeepEqual(t, tt.want, got)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -1242,6 +1242,63 @@ func TestReplicatedBackup_GetAnnotation(t *testing.T) {
 			got, got1 := tt.b.GetAnnotation(tt.args.key)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.want1, got1)
+		})
+	}
+}
+
+func TestReplicatedBackup_GetRestore(t *testing.T) {
+	tests := []struct {
+		name    string
+		b       ReplicatedBackup
+		want    *velerov1.Restore
+		wantErr bool
+	}{
+		{
+			name: "has app backup with annotation should return restore",
+			b: ReplicatedBackup{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Backup",
+						APIVersion: "velero.io/v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "instance-abcd",
+						Namespace: "velero",
+						Labels: map[string]string{
+							InstanceBackupNameLabel: "app-slug-abcd",
+						},
+						Annotations: map[string]string{
+							BackupIsECAnnotation:               "true",
+							InstanceBackupTypeAnnotation:       InstanceBackupTypeApp,
+							InstanceBackupCountAnnotation:      "2",
+							InstanceBackupResoreSpecAnnotation: `{"kind":"Restore","apiVersion":"velero.io/v1","metadata":{"name":"test-restore","creationTimestamp":null},"spec":{"backupName":"test-backup","hooks":{}},"status":{}}`,
+						},
+					},
+				},
+			},
+			want: &velerov1.Restore{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Restore",
+					APIVersion: "velero.io/v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-restore",
+				},
+				Spec: velerov1.RestoreSpec{
+					BackupName: "test-backup",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.b.GetRestore()
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
