@@ -60,6 +60,7 @@ function binary() {
         METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
         METADATA_OPERATOR_BINARY_URL_OVERRIDE="$operator_binary_url" \
         LOCAL_ARTIFACT_MIRROR_IMAGE="$local_artifact_mirror_image"
+    mv output/bin/embedded-cluster "$EC_BINARY"
     cp "$EC_BINARY" output/bin/embedded-cluster-original
 }
 
