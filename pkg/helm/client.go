@@ -85,6 +85,15 @@ type HelmOptions struct {
 	Writer     io.Writer
 }
 
+type InstallOptions struct {
+	ReleaseName  string
+	ChartPath    string
+	ChartVersion string
+	Values       map[string]interface{}
+	Namespace    string
+	Timeout      time.Duration
+}
+
 type Helm struct {
 	tmpdir   string
 	kversion *semver.Version
@@ -248,22 +257,27 @@ func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
 	return cfg, nil
 }
 
-func (h *Helm) Install(ctx context.Context, releaseName string, chartPath string, chartVersion string, values map[string]interface{}, namespace string) (*release.Release, error) {
-	cfg, err := h.getActionCfg(namespace)
+func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
+	cfg, err := h.getActionCfg(opts.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("get action configuration: %w", err)
 	}
 
 	client := action.NewInstall(cfg)
-	client.ReleaseName = releaseName
-	client.Namespace = namespace
+	client.ReleaseName = opts.ReleaseName
+	client.Namespace = opts.Namespace
 	client.Replace = true
 	client.CreateNamespace = true
 	client.WaitForJobs = true
 	client.Wait = true
-	client.Timeout = 5 * time.Minute
 
-	localPath, err := h.PullOCI(chartPath, chartVersion)
+	if opts.Timeout != 0 {
+		client.Timeout = opts.Timeout
+	} else {
+		client.Timeout = 5 * time.Minute
+	}
+
+	localPath, err := h.PullOCI(opts.ChartPath, opts.ChartVersion)
 	if err != nil {
 		return nil, fmt.Errorf("pull oci: %w", err)
 	}
@@ -280,7 +294,7 @@ func (h *Helm) Install(ctx context.Context, releaseName string, chartPath string
 		}
 	}
 
-	cleanVals := cleanUpGenericMap(values)
+	cleanVals := cleanUpGenericMap(opts.Values)
 
 	release, err := client.RunWithContext(ctx, chartRequested, cleanVals)
 	if err != nil {
