@@ -39,11 +39,11 @@ func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 	}
 
 	if ipnet.String() != cidr {
-		return fmt.Errorf("the provided address is not a valid CIDR")
+		return fmt.Errorf("The provided CIDR block (%s) is not valid", cidr)
 	}
 
 	if size, _ := ipnet.Mask.Size(); size > notLessThan {
-		return fmt.Errorf("cidr needs to be at least a /%d", notLessThan)
+		return fmt.Errorf("The provided CIDR block (%s) is too small. It must be /%d or larger.", cidr, notLessThan)
 	}
 
 	if !private {
@@ -57,7 +57,7 @@ func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 		}
 	}
 
-	return fmt.Errorf("cidr is not in private ranges %s", strings.Join(privates, ", "))
+	return fmt.Errorf("The provided CIDR block (%s) is not in a private IP address range (%s)", cidr, strings.Join(privates, ", "))
 }
 
 // NetworksAreAdjacentAndSameSize returns true if the two provided CIDRs are

@@ -87,7 +87,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			proxy = p
 
 			if err := validateCIDRFlags(cmd); err != nil {
-				return fmt.Errorf("unable to parse cidr flags: %w", err)
+				return err
 			}
 
 			// if a network interface flag was not provided, attempt to discover it
