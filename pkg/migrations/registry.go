@@ -26,8 +26,10 @@ import (
 )
 
 var (
-	registryBucket = "registry"
-	seaweedFSS3URL = "http://seaweedfs-s3.seaweedfs:8333/"
+	registryBucket        = "registry"
+	registryNamespace     = "registry"
+	registryLabelSelector = "app=docker-registry"
+	seaweedFSS3URL        = "http://seaweedfs-s3.seaweedfs:8333/"
 )
 
 // RegistryData runs a migration that copies data on disk in the registry PVC to the seaweedfs s3 store.
@@ -116,8 +118,8 @@ func readRegistryData(ctx context.Context, writer io.Writer) error {
 		return errors.Wrap(err, "add corev1 scheme")
 	}
 
-	pods, err := clientSet.CoreV1().Pods("registry").List(ctx, metav1.ListOptions{
-		LabelSelector: "app=docker-registry",
+	pods, err := clientSet.CoreV1().Pods(registryNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: registryLabelSelector,
 	})
 	if err != nil {
 		return errors.Wrap(err, "list registry pods")
@@ -130,7 +132,7 @@ func readRegistryData(ctx context.Context, writer io.Writer) error {
 	req := clientSet.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
-		Namespace("registry").
+		Namespace(registryNamespace).
 		SubResource("exec")
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
