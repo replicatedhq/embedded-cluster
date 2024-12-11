@@ -131,3 +131,28 @@ func TestJoinTCPConnectionsRequired(t *testing.T) {
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
+
+func TestJoinRunPreflights(t *testing.T) {
+	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
+	client := &dryrun.Client{
+		Kotsadm: dryrun.NewKotsadm(),
+	}
+	clusterID := uuid.New()
+	jcmd := &kotsadm.JoinCommandResponse{
+		K0sJoinCommand:         "/usr/local/bin/k0s install controller --enable-worker --no-taints --labels kots.io/embedded-cluster-role=total-1,kots.io/embedded-cluster-role-0=controller-test,controller-label=controller-label-value",
+		K0sToken:               "some-k0s-token",
+		EmbeddedClusterVersion: "v0.0.0",
+		ClusterID:              clusterID,
+		InstallationSpec: ecv1beta1.InstallationSpec{
+			ClusterID: clusterID.String(),
+			Config: &ecv1beta1.ConfigSpec{
+				UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{},
+			},
+		},
+		TCPConnectionsRequired: []string{"10.0.0.1:6443", "10.0.0.1:9443"},
+	}
+	client.Kotsadm.SetGetJoinTokenResponse("10.0.0.1", "some-token", jcmd, nil)
+	dryrun.Init(drFile, client)
+	dryrunJoin(t, "run-preflights", "10.0.0.1", "some-token")
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
