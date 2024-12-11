@@ -5,6 +5,7 @@ export EMBEDDED_CLUSTER_BASE_DIR="${EMBEDDED_CLUSTER_BASE_DIR:-/var/lib/embedded
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export PATH="$PATH:${EMBEDDED_CLUSTER_BASE_DIR}/bin"
 export K0SCONFIG=/etc/k0s/k0s.yaml
+export APP_NAMESPACE="${APP_NAMESPACE:-kotsadm}"
 
 KUBECONFIG="${KUBECONFIG:-${EMBEDDED_CLUSTER_BASE_DIR}/k0s/pki/admin.conf}"
 export KUBECONFIG
@@ -89,19 +90,22 @@ wait_for_installation() {
 }
 
 wait_for_nginx_pods() {
-    ready=$(kubectl get pods -n kotsadm | grep "nginx" | grep -c Running || true)
+    ready=$(kubectl get pods -n "$APP_NAMESPACE" | grep "nginx" | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             echo "nginx pods did not appear"
-            kubectl get pods -n kotsadm
+            if [ "$APP_NAMESPACE" != "kotsadm" ]; then
+                kubectl get pods -n kotsadm
+            fi
+            kubectl get pods -n "$APP_NAMESPACE"
             kubectl logs -n kotsadm -l app=kotsadm
             return 1
         fi
         sleep 5
         counter=$((counter+1))
         echo "Waiting for nginx pods"
-        ready=$(kubectl get pods -n kotsadm | grep "nginx" | grep -c Running || true)
+        ready=$(kubectl get pods -n "$APP_NAMESPACE" | grep "nginx" | grep -c Running || true)
         kubectl get pods -n nginx 2>&1 || true
         echo "ready: $ready"
     done
