@@ -1,5 +1,0 @@
-vulnerabilities:
-  - id: CVE-2023-47108
-    paths:
-      - usr/local/bin/kube-proxy
-    statement: Accepted upstream; not in code path; https://github.com/kubernetes/kubernetes/pull/121842
