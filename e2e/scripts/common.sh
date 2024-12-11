@@ -223,7 +223,7 @@ ensure_app_not_upgraded() {
         echo "found memcached ns"
         return 1
     fi
-    if kubectl get pods -n kotsadm -l app=second | grep -q second ; then
+    if kubectl get pods -n "$APP_NAMESPACE" -l app=second | grep -q second ; then
         echo "found pods from app update"
         return 1
     fi
