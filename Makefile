@@ -7,8 +7,8 @@ ARCH ?= $(shell go env GOARCH)
 
 APP_NAME = embedded-cluster
 ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
-ADMIN_CONSOLE_IMAGE_OVERRIDE =
-ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
+ADMIN_CONSOLE_IMAGE_OVERRIDE = ttl.sh/ethan/kotsadm:24h
+ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE = ttl.sh/ethan/kotsadm-migrations:24h
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 K0S_VERSION = v1.30.6+k0s.0
 K0S_GO_VERSION = v1.30.6+k0s.0
@@ -20,7 +20,7 @@ TROUBLESHOOT_VERSION = v0.112.1
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
-KOTS_BINARY_URL_OVERRIDE =
+KOTS_BINARY_URL_OVERRIDE = https://repldev-ethan-test.s3.us-east-1.amazonaws.com/kots.tar.gz
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
 KOTS_BINARY_FILE_OVERRIDE =
 # TODO: move this to a manifest file
@@ -186,12 +186,14 @@ output/bin/embedded-cluster-release-builder:
 .PHONY: initial-release
 initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: export APP_VERSION = appver-dev-$(call random-string)
+initial-release: export RELEASE_YAML_DIR = e2e/kots-release-install
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 		./scripts/build-and-release.sh
 
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
+rebuild-release: export RELEASE_YAML_DIR = e2e/kots-release-install
 rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 	SKIP_RELEASE=1 \

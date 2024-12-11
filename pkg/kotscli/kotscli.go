@@ -338,8 +338,9 @@ func CreateHostSupportBundle() error {
 			Name:      "embedded-cluster-host-support-bundle",
 			Namespace: "kotsadm",
 			Labels: map[string]string{
-				"troubleshoot.sh/kind":             "support-bundle",
-				"replicated.com/disaster-recovery": "app",
+				"troubleshoot.sh/kind":                   "support-bundle",
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "admin-console",
 			},
 		},
 		Data: map[string]string{

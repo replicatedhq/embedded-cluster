@@ -9,9 +9,15 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
+var Scheme = scheme.Scheme
+
+var Codecs = scheme.Codecs
+
+var ParameterCodec = scheme.ParameterCodec
+
 func init() {
-	utilruntime.Must(autopilotv1beta2.AddToScheme(scheme.Scheme))
-	utilruntime.Must(k0sv1beta1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(embeddedclusterv1beta1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(velerov1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(autopilotv1beta2.AddToScheme(Scheme))
+	utilruntime.Must(k0sv1beta1.AddToScheme(Scheme))
+	utilruntime.Must(embeddedclusterv1beta1.AddToScheme(Scheme))
+	utilruntime.Must(velerov1.AddToScheme(Scheme))
 }
