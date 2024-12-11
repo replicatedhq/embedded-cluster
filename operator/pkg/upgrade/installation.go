@@ -47,7 +47,7 @@ func setInstallationState(ctx context.Context, cli client.Client, name string, s
 			return fmt.Errorf("get installation: %w", err)
 		}
 		existingInstallation.Status.SetState(state, reason, pendingCharts)
-		err = cli.Status().Update(ctx, existingInstallation)
+		err = kubeutils.UpdateInstallationStatus(ctx, cli, existingInstallation)
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func reApplyInstallation(ctx context.Context, cli client.Client, in *clusterv1be
 	}
 
 	existingInstallation.Spec = *in.Spec.DeepCopy() // copy the spec in, in case there were fields added to the spec
-	err = cli.Update(ctx, existingInstallation)
+	err = kubeutils.UpdateInstallation(ctx, cli, existingInstallation)
 	if err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
