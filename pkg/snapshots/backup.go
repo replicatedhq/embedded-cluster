@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	velerov1api "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -31,6 +32,9 @@ const (
 	// InstanceBackupCountAnnotation is the annotation used to store the expected number of backups
 	// for an instance backup. This is expected to be 1 for legacy and otherwise 2.
 	InstanceBackupCountAnnotation = "replicated.com/backup-count"
+	// InstanceBackupResoreSpecAnnotation is the annotation used to store the restore spec for an
+	// instance backup.
+	InstanceBackupResoreSpecAnnotation = "replicated.com/restore-spec"
 
 	// InstanceBackupTypeInfra indicates that the backup is of type infrastructure.
 	InstanceBackupTypeInfra = "infra"
@@ -142,6 +146,26 @@ func (b ReplicatedBackup) GetExpectedBackupCount() int {
 		return getInstanceBackupCount(backup)
 	}
 	return 0
+}
+
+// GetRestore returns the restore CR from the annotation of the velero app backup.
+func (b ReplicatedBackup) GetRestore() (*velerov1.Restore, error) {
+	backup := b.GetAppBackup()
+	if backup == nil {
+		return nil, fmt.Errorf("no app backup found")
+	}
+	if val, ok := backup.Annotations[InstanceBackupResoreSpecAnnotation]; ok {
+		decode := kubeutils.Codecs.UniversalDeserializer().Decode
+		obj, gvk, err := decode([]byte(val), nil, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode restore spec: %w", err)
+		}
+		if gvk.String() != "velero.io/v1, Kind=Restore" {
+			return nil, fmt.Errorf("unexpected gvk: %s", gvk.String())
+		}
+		return obj.(*velerov1.Restore), nil
+	}
+	return nil, fmt.Errorf("missing restore spec annotation")
 }
 
 // GetCreationTimestamp returns the creation timestamp of the velero infra backup object or the

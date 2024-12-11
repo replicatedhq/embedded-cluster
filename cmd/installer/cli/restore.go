@@ -1306,7 +1306,11 @@ func restoreFromReplicatedBackup(ctx context.Context, backup snapshots.Replicate
 		// the vendor. Otherwise, we use the "replicated.com/disaster-recovery" label to discover
 		// the application resources in the cluster.
 		if isImprovedDR {
-			err := restoreAppFromBackup(ctx, b)
+			r, err := backup.GetRestore()
+			if err != nil {
+				return fmt.Errorf("failed to get restore cr from backup: %w", err)
+			}
+			err = restoreAppFromBackup(ctx, b, r)
 			if err != nil {
 				return fmt.Errorf("failed to restore app from backup using improved dr: %w", err)
 			}
@@ -1342,15 +1346,13 @@ func usesImprovedDR() (bool, error) {
 
 // restoreAppFromBackup will either restore using the spec provided by the vendor as part of the
 // improved dr support.
-func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup) error {
-	drComponent := disasterRecoveryComponentApp
-
+func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup, restore *velerov1.Restore) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
 
-	restoreName := fmt.Sprintf("%s.%s", backup.Name, string(drComponent))
+	restoreName := fmt.Sprintf("%s.restore", backup.Name)
 
 	// check if a restore object already exists
 	rest := velerov1api.Restore{}
@@ -1361,11 +1363,6 @@ func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup) error {
 
 	// create a new restore object if it doesn't exist
 	if errors.IsNotFound(err) {
-		restore, err := release.GetVeleroRestore()
-		if err != nil {
-			return fmt.Errorf("failed to get velero restore: %w", err)
-		}
-
 		restore.Namespace = runtimeconfig.VeleroNamespace
 		restore.Name = restoreName
 		if restore.Annotations == nil {
@@ -1386,7 +1383,7 @@ func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup) error {
 	}
 
 	// wait for restore to complete
-	return waitForDRComponent(ctx, drComponent, restoreName)
+	return waitForDRComponent(ctx, disasterRecoveryComponentApp, restoreName)
 }
 
 // restoreFromBackup will use the "replicated.com/disaster-recovery" label value provided to create
