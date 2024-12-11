@@ -16,6 +16,7 @@ type AdminConsole struct {
 	License          *kotsv1beta1.License
 	LicenseFile      string
 	AirgapBundle     string
+	IsAirgap         bool
 	IsHA             bool
 	Proxy            *ecv1beta1.ProxySpec
 	PrivateCAs       []string

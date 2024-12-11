@@ -53,11 +53,11 @@ func (r *Registry) createPreRequisites(ctx context.Context, kcli client.Client) 
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := createRegistryAuthSecret(ctx, kcli); err != nil {
+	if err := createAuthSecret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create registry-auth secret")
 	}
 
-	if err := createRegistryTLSSecret(ctx, kcli); err != nil {
+	if err := createTLSSecret(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create registry tls secret")
 	}
 
@@ -76,7 +76,7 @@ func createNamespace(ctx context.Context, kcli client.Client, namespace string) 
 	return nil
 }
 
-func createRegistryAuthSecret(ctx context.Context, kcli client.Client) error {
+func createAuthSecret(ctx context.Context, kcli client.Client) error {
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(registryPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return errors.Wrap(err, "hash registry password")
@@ -106,7 +106,7 @@ func createRegistryAuthSecret(ctx context.Context, kcli client.Client) error {
 	return nil
 }
 
-func createRegistryTLSSecret(ctx context.Context, kcli client.Client) error {
+func createTLSSecret(ctx context.Context, kcli client.Client) error {
 	tlsCert, tlsKey, err := generateRegistryTLS(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "generate registry tls")

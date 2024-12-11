@@ -12,7 +12,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 )
@@ -23,16 +22,18 @@ import (
 var ErrPreflightsHaveFail = fmt.Errorf("host preflight failures detected")
 
 type PrepareAndRunOptions struct {
-	License              *kotsv1beta1.License
-	Proxy                *ecv1beta1.ProxySpec
-	PodCIDR              string
-	ServiceCIDR          string
-	GlobalCIDR           *string
-	PrivateCAs           []string
-	IsAirgap             bool
-	SkipHostPreflights   bool
-	IgnoreHostPreflights bool
-	AssumeYes            bool
+	ReplicatedAPIURL       string
+	ProxyRegistryURL       string
+	Proxy                  *ecv1beta1.ProxySpec
+	PodCIDR                string
+	ServiceCIDR            string
+	GlobalCIDR             *string
+	PrivateCAs             []string
+	IsAirgap               bool
+	SkipHostPreflights     bool
+	IgnoreHostPreflights   bool
+	AssumeYes              bool
+	TCPConnectionsRequired []string
 }
 
 func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
@@ -41,20 +42,14 @@ func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 		return fmt.Errorf("read host preflights: %w", err)
 	}
 
-	var replicatedAPIURL, proxyRegistryURL string
-	if opts.License != nil {
-		replicatedAPIURL = opts.License.Spec.Endpoint
-		proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
-	}
-
 	privateCA := ""
 	if len(opts.PrivateCAs) > 0 {
 		privateCA = opts.PrivateCAs[0]
 	}
 
 	data, err := types.TemplateData{
-		ReplicatedAPIURL:        replicatedAPIURL,
-		ProxyRegistryURL:        proxyRegistryURL,
+		ReplicatedAPIURL:        opts.ReplicatedAPIURL,
+		ProxyRegistryURL:        opts.ProxyRegistryURL,
 		IsAirgap:                opts.IsAirgap,
 		AdminConsolePort:        runtimeconfig.AdminConsolePort(),
 		LocalArtifactMirrorPort: runtimeconfig.LocalArtifactMirrorPort(),
@@ -65,6 +60,7 @@ func PrepareAndRun(ctx context.Context, opts PrepareAndRunOptions) error {
 		SystemArchitecture:      runtime.GOARCH,
 		FromCIDR:                opts.PodCIDR,
 		ToCIDR:                  opts.ServiceCIDR,
+		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {

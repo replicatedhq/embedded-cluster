@@ -70,11 +70,11 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := createKotsPasswordSecret(ctx, kcli, namespace, a.Password); err != nil {
+	if err := createPasswordSecret(ctx, kcli, namespace, a.Password); err != nil {
 		return errors.Wrap(err, "create kots password secret")
 	}
 
-	if err := createKotsCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
+	if err := createCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
 		return errors.Wrap(err, "create kots CA configmap")
 	}
 
@@ -100,7 +100,7 @@ func createNamespace(ctx context.Context, kcli client.Client, namespace string) 
 	return nil
 }
 
-func createKotsPasswordSecret(ctx context.Context, kcli client.Client, namespace string, password string) error {
+func createPasswordSecret(ctx context.Context, kcli client.Client, namespace string, password string) error {
 	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
 		return errors.Wrap(err, "generate bcrypt from password")
@@ -133,7 +133,7 @@ func createKotsPasswordSecret(ctx context.Context, kcli client.Client, namespace
 	return nil
 }
 
-func createKotsCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
+func createCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
 	cas, err := privateCAsToMap(privateCAs)
 	if err != nil {
 		return errors.Wrap(err, "create private cas map")

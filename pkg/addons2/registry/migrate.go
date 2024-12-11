@@ -1,4 +1,4 @@
-package migrations
+package registry
 
 import (
 	"archive/tar"
@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
@@ -22,21 +22,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/remotecommand"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 var (
-	registryBucket        = "registry"
-	registryNamespace     = "registry"
-	registryLabelSelector = "app=docker-registry"
-	seaweedFSS3URL        = "http://seaweedfs-s3.seaweedfs:8333/"
+	bucket        = "registry"
+	labelSelector = "app=docker-registry"
 )
 
-// RegistryData runs a migration that copies data on disk in the registry PVC to the seaweedfs s3 store.
-func RegistryData(ctx context.Context) error {
-	logrus.Debug("Migrating registry data")
-
-	s3Client, err := getS3Client(ctx)
+// Migrate runs a migration that copies data on disk in the registry PVC to the seaweedfs s3 store.
+func (r *Registry) Migrate(ctx context.Context, kcli client.Client) error {
+	s3Client, err := getS3Client(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "get s3 client")
 	}
@@ -61,18 +58,16 @@ func RegistryData(ctx context.Context) error {
 		return err
 	}
 
-	logrus.Debug("Registry data migrated successfully")
 	return nil
 }
 
-func getS3Client(ctx context.Context) (*s3.Client, error) {
-	// TODO NOW: pass creds as params
-	creds := credentials.NewStaticCredentialsProvider(
-		os.Getenv("s3AccessKey"),
-		os.Getenv("s3SecretKey"),
-		"",
-	)
+func getS3Client(ctx context.Context, kcli client.Client) (*s3.Client, error) {
+	accessKey, secretKey, err := seaweedfs.GetS3RWCreds(ctx, kcli)
+	if err != nil {
+		return nil, errors.Wrap(err, "get seaweedfs s3 rw creds")
+	}
 
+	creds := credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")
 	conf, err := awsconfig.LoadDefaultConfig(
 		ctx,
 		awsconfig.WithCredentialsProvider(creds),
@@ -84,7 +79,7 @@ func getS3Client(ctx context.Context) (*s3.Client, error) {
 
 	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {
 		o.UsePathStyle = true
-		o.BaseEndpoint = aws.String(seaweedFSS3URL)
+		o.BaseEndpoint = aws.String(seaweedfs.S3URL)
 	})
 
 	return s3Client, nil
@@ -92,7 +87,7 @@ func getS3Client(ctx context.Context) (*s3.Client, error) {
 
 func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
 	_, err := s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
-		Bucket: &registryBucket,
+		Bucket: &bucket,
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "BucketAlreadyExists") {
@@ -118,8 +113,8 @@ func readRegistryData(ctx context.Context, writer io.Writer) error {
 		return errors.Wrap(err, "add corev1 scheme")
 	}
 
-	pods, err := clientSet.CoreV1().Pods(registryNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: registryLabelSelector,
+	pods, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		return errors.Wrap(err, "list registry pods")
@@ -132,7 +127,7 @@ func readRegistryData(ctx context.Context, writer io.Writer) error {
 	req := clientSet.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
-		Namespace(registryNamespace).
+		Namespace(namespace).
 		SubResource("exec")
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
@@ -180,7 +175,7 @@ func writeRegistryData(ctx context.Context, reader io.Reader, s3Client *s3.Clien
 		}
 
 		_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
-			Bucket: &registryBucket,
+			Bucket: &bucket,
 			Key:    aws.String(relPath),
 			Body:   tr,
 		})

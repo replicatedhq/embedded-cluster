@@ -185,9 +185,16 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to configure network manager: %w", err)
 	}
 
+	var replicatedAPIURL, proxyRegistryURL string
+	if flags.license != nil {
+		replicatedAPIURL = flags.license.Spec.Endpoint
+		proxyRegistryURL = fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
+	}
+
 	logrus.Debugf("running host preflights")
 	if err := preflights.PrepareAndRun(cmd.Context(), preflights.PrepareAndRunOptions{
-		License:              flags.license,
+		ReplicatedAPIURL:     replicatedAPIURL,
+		ProxyRegistryURL:     proxyRegistryURL,
 		Proxy:                flags.proxy,
 		PodCIDR:              flags.cidrCfg.PodCIDR,
 		ServiceCIDR:          flags.cidrCfg.ServiceCIDR,
