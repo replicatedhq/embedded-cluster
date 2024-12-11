@@ -10,7 +10,7 @@ spec:
   additionalNamespaces:
     - my-app
   statusInformers:
-    - deployment/nginx
+    - my-app/deployment/nginx
   ports:
     - serviceName: "nginx"
       servicePort: 80
