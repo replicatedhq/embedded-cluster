@@ -6,13 +6,11 @@ metadata:
     preserve: me
 spec:
   backupName: backup
-  includedNamespaces:
-  - my-app
   hooks:
     resources:
     - name: restore-hook-1
       includedNamespaces:
-      - app
+      - my-app
       postHooks:
       - init:
           initContainers:
