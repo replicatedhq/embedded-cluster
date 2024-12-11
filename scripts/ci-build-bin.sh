@@ -7,13 +7,11 @@ set -euo pipefail
 
 EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
-EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
 IMAGES_REGISTRY_SERVER=${IMAGES_REGISTRY_SERVER:-ttl.sh}
 ARCH=${ARCH:-$(go env GOARCH)}
 
-require EC_BINARY "${EC_BINARY:-}"
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"
 fi
@@ -60,8 +58,7 @@ function binary() {
         METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
         METADATA_OPERATOR_BINARY_URL_OVERRIDE="$operator_binary_url" \
         LOCAL_ARTIFACT_MIRROR_IMAGE="$local_artifact_mirror_image"
-    mv output/bin/embedded-cluster "$EC_BINARY"
-    cp "$EC_BINARY" output/bin/embedded-cluster-original
+    cp output/bin/embedded-cluster output/bin/embedded-cluster-original
 }
 
 function update_operator_metadata() {
