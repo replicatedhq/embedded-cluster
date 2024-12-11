@@ -1,18 +1,17 @@
-package openebs
+package adminconsole
 
 import (
 	"context"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
-	if err := o.prepare(); err != nil {
-		return errors.Wrap(err, "prepare openebs")
+func (a *AdminConsole) Upgrade(ctx context.Context, kcli client.Client) error {
+	if err := a.prepare(); err != nil {
+		return errors.Wrap(err, "prepare admin console")
 	}
 
 	hcli, err := helm.NewHelm(helm.HelmOptions{
@@ -22,15 +21,16 @@ func (o *OpenEBS) Install(ctx context.Context, kcli client.Client, writer *spinn
 		return errors.Wrap(err, "create helm client")
 	}
 
-	_, err = hcli.Install(ctx, helm.InstallOptions{
+	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
 		Values:       helmValues,
 		Namespace:    namespace,
+		Force:        false,
 	})
 	if err != nil {
-		return errors.Wrap(err, "install openebs")
+		return errors.Wrap(err, "upgrade admin console")
 	}
 
 	return nil

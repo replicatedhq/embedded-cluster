@@ -10,7 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
-func (a *AdminConsole) Prepare() error {
+func (a *AdminConsole) prepare() error {
 	if err := a.generateHelmValues(); err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}
@@ -23,7 +23,7 @@ func (a *AdminConsole) generateHelmValues() error {
 	helmValues["embeddedClusterID"] = metrics.ClusterID().String()
 	helmValues["isHA"] = a.IsHA
 
-	if a.AirgapBundle != "" {
+	if a.IsAirgap || a.AirgapBundle != "" {
 		helmValues["isAirgap"] = "true"
 	} else {
 		helmValues["isAirgap"] = "false"

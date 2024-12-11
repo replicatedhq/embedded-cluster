@@ -278,6 +278,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 			RuntimeConfig:             runtimeconfig.Get(),
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                e.binaryName,
+			SourceType:                ecv1beta1.InstallationSourceTypeCRD,
 			LicenseInfo: &ecv1beta1.LicenseInfo{
 				IsDisasterRecoverySupported: licenseDisasterRecoverySupported(e.license),
 			},

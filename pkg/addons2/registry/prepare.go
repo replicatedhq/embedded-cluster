@@ -2,11 +2,12 @@ package registry
 
 import (
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
-func (r *Registry) Prepare() error {
-	svcIP, err := helpers.GetLowerBandIP(r.ServiceCIDR, registryLowerBandIPIndex)
+func (r *Registry) prepare() error {
+	svcIP, err := helpers.GetLowerBandIP(r.ServiceCIDR, lowerBandIPIndex)
 	if err != nil {
 		return errors.Wrap(err, "get cluster IP for registry service")
 	}
@@ -20,10 +21,24 @@ func (r *Registry) Prepare() error {
 }
 
 func (r *Registry) generateHelmValues() error {
-	helmValues["tlsSecretName"] = tlsSecretName
+	var values map[string]interface{}
+	if r.IsHA {
+		values = helmValuesHA
+	} else {
+		values = helmValues
+	}
 
-	helmValues["service"] = map[string]interface{}{
+	values["tlsSecretName"] = tlsSecretName
+	values["service"] = map[string]interface{}{
 		"clusterIP": registryAddress,
+	}
+
+	if r.IsHA {
+		seaweedFSEndpoint, err := seaweedfs.GetS3Endpoint(r.ServiceCIDR)
+		if err != nil {
+			return errors.Wrap(err, "get seaweedfs s3 endpoint")
+		}
+		values["s3"].(map[string]interface{})["regionEndpoint"] = seaweedFSEndpoint
 	}
 
 	return nil

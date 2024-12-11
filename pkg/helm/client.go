@@ -94,6 +94,16 @@ type InstallOptions struct {
 	Timeout      time.Duration
 }
 
+type UpgradeOptions struct {
+	ReleaseName  string
+	ChartPath    string
+	ChartVersion string
+	Values       map[string]interface{}
+	Namespace    string
+	Timeout      time.Duration
+	Force        bool
+}
+
 type Helm struct {
 	tmpdir   string
 	kversion *semver.Version
@@ -290,7 +300,7 @@ func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Relea
 
 	if req := chartRequested.Metadata.Dependencies; req != nil {
 		if err := action.CheckDependencies(chartRequested, req); err != nil {
-			return nil, fmt.Errorf("failed dependency check: %w", err)
+			return nil, fmt.Errorf("check chart dependencies: %w", err)
 		}
 	}
 
@@ -299,6 +309,51 @@ func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Relea
 	release, err := client.RunWithContext(ctx, chartRequested, cleanVals)
 	if err != nil {
 		return nil, fmt.Errorf("run install: %w", err)
+	}
+
+	return release, nil
+}
+
+func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
+	cfg, err := h.getActionCfg(opts.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("get action configuration: %w", err)
+	}
+
+	client := action.NewUpgrade(cfg)
+	client.Namespace = opts.Namespace
+	client.WaitForJobs = true
+	client.Wait = true
+	client.Force = opts.Force
+
+	if opts.Timeout != 0 {
+		client.Timeout = opts.Timeout
+	} else {
+		client.Timeout = 5 * time.Minute
+	}
+
+	localPath, err := h.PullOCI(opts.ChartPath, opts.ChartVersion)
+	if err != nil {
+		return nil, fmt.Errorf("pull oci: %w", err)
+	}
+	defer os.RemoveAll(localPath)
+
+	chartRequested, err := loader.Load(localPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %w", err)
+	}
+
+	if req := chartRequested.Metadata.Dependencies; req != nil {
+		if err := action.CheckDependencies(chartRequested, req); err != nil {
+			return nil, fmt.Errorf("check chart dependencies: %w", err)
+		}
+	}
+
+	cleanVals := cleanUpGenericMap(opts.Values)
+
+	release, err := client.RunWithContext(ctx, opts.ReleaseName, chartRequested, cleanVals)
+	if err != nil {
+		return nil, fmt.Errorf("run upgrade: %w", err)
 	}
 
 	return release, nil

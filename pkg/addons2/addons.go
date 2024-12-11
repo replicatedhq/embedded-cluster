@@ -23,7 +23,6 @@ type InstallOptions struct {
 	Proxy                   *ecv1beta1.ProxySpec
 	PrivateCAs              []string
 	ConfigValuesFile        string
-	NetworkInterface        string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
 }
@@ -34,18 +33,16 @@ func Install(ctx context.Context, opts InstallOptions) error {
 		return errors.Wrap(err, "create kube client")
 	}
 
-	loading := spinner.Start()
-	defer loading.Close()
-
 	for _, addon := range getAddOns(opts) {
-		loading.Infof("Installing %s addon", addon.Name())
+		loading := spinner.Start()
+		loading.Infof("Installing %s", addon.Name())
 
-		if err := addon.Prepare(); err != nil {
-			return errors.Wrap(err, "prepare addon")
-		}
 		if err := addon.Install(ctx, kcli, loading); err != nil {
+			loading.CloseWithError()
 			return errors.Wrap(err, "install addon")
 		}
+
+		loading.Closef("%s is ready!", addon.Name())
 	}
 
 	return nil
@@ -76,7 +73,6 @@ func getAddOns(opts InstallOptions) []types.AddOn {
 		Proxy:            opts.Proxy,
 		PrivateCAs:       opts.PrivateCAs,
 		ConfigValuesFile: opts.ConfigValuesFile,
-		NetworkInterface: opts.NetworkInterface,
 	})
 
 	return addOns
