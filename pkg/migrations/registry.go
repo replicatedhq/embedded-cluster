@@ -179,7 +179,7 @@ func writeRegistryData(ctx context.Context, reader io.Reader, s3Client *s3.Clien
 
 		_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 			Bucket: &registryBucket,
-			Key:    aws.String(header.Name),
+			Key:    aws.String(relPath),
 			Body:   tr,
 		})
 		if err != nil {
