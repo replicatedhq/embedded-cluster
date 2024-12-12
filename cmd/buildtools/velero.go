@@ -181,8 +181,7 @@ func findBestAWSPluginVersion(ctx context.Context, veleroVersion string) (string
 	}
 	constraints, ok := veleroPluginForAWSCompatibility[fmt.Sprintf("%d.%d", sv.Major(), sv.Minor())]
 	if !ok {
-		url := "https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/main/README.md#compatibility"
-		return "", fmt.Errorf("no aws plugin compatibility constraints found for velero version %s (see %s to update compatibility)", veleroVersion, url)
+		return "", fmt.Errorf("no aws plugin compatibility constraints found for velero version %s (see the \"veleroPluginForAWSCompatibility\" map in cmd/buildtools/velero.go to update compatibility)", veleroVersion)
 	}
 	awsPluginVersion, err := GetGreatestGitHubTag(ctx, "vmware-tanzu", "velero-plugin-for-aws", constraints)
 	if err != nil {
