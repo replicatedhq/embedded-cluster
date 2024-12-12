@@ -14,8 +14,9 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
-// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/26bf6253ff0d74f8e5ce6aeb3053f31b7a297a99/README.md#compatibility
+// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/2dd6bcb3f57b0ba3aa3f0cea262c60f917940720/README.md#compatibility
 var veleroPluginForAWSCompatibility = map[string]*semver.Constraints{
+	"1.15": mustParseSemverConstraints(">=1.11,<1.12"),
 	"1.14": mustParseSemverConstraints(">=1.10,<1.11"),
 	"1.13": mustParseSemverConstraints(">=1.9,<1.10"),
 }
@@ -180,7 +181,7 @@ func findBestAWSPluginVersion(ctx context.Context, veleroVersion string) (string
 	}
 	constraints, ok := veleroPluginForAWSCompatibility[fmt.Sprintf("%d.%d", sv.Major(), sv.Minor())]
 	if !ok {
-		return "", fmt.Errorf("no aws plugin compatibility constraints found for velero version %s", veleroVersion)
+		return "", fmt.Errorf("no aws plugin compatibility constraints found for velero version %s (see the \"veleroPluginForAWSCompatibility\" map in cmd/buildtools/velero.go to update compatibility)", veleroVersion)
 	}
 	awsPluginVersion, err := GetGreatestGitHubTag(ctx, "vmware-tanzu", "velero-plugin-for-aws", constraints)
 	if err != nil {
