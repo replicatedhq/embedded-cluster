@@ -28,9 +28,6 @@ const (
 	// s3SecretName is the name of the Seaweedfs secret.
 	// This secret name is defined in the chart in the release metadata.
 	s3SecretName = "secret-seaweedfs-s3"
-
-	// S3URL is the URL to the Seaweedfs S3 service.
-	S3URL = "http://seaweedfs-s3.seaweedfs:8333/"
 )
 
 var (

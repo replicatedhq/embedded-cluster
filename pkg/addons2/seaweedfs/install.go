@@ -187,6 +187,14 @@ func GetS3RWCreds(ctx context.Context, kcli client.Client) (string, string, erro
 	return "", "", errors.New("credentials not found")
 }
 
+func GetS3URL(serviceCIDR string) (string, error) {
+	endpoint, err := GetS3Endpoint(serviceCIDR)
+	if err != nil {
+		return "", errors.Wrap(err, "get s3 endpoint")
+	}
+	return fmt.Sprintf("http://%s", endpoint), nil
+}
+
 func GetS3Endpoint(serviceCIDR string) (string, error) {
 	ip, err := getServiceIP(serviceCIDR)
 	if err != nil {

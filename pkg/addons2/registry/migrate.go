@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
@@ -33,7 +34,7 @@ var (
 
 // Migrate runs a migration that copies data on disk in the registry PVC to the seaweedfs s3 store.
 func (r *Registry) Migrate(ctx context.Context, kcli client.Client) error {
-	s3Client, err := getS3Client(ctx, kcli)
+	s3Client, err := getS3Client(ctx, kcli, r.ServiceCIDR)
 	if err != nil {
 		return errors.Wrap(err, "get s3 client")
 	}
@@ -51,7 +52,7 @@ func (r *Registry) Migrate(ctx context.Context, kcli client.Client) error {
 	})
 
 	g.Go(func() error {
-		return writeRegistryData(ctx, pipeReader, s3Client)
+		return writeRegistryData(ctx, pipeReader, s3manager.NewUploader(s3Client))
 	})
 
 	if err := g.Wait(); err != nil {
@@ -61,7 +62,7 @@ func (r *Registry) Migrate(ctx context.Context, kcli client.Client) error {
 	return nil
 }
 
-func getS3Client(ctx context.Context, kcli client.Client) (*s3.Client, error) {
+func getS3Client(ctx context.Context, kcli client.Client, serviceCIDR string) (*s3.Client, error) {
 	accessKey, secretKey, err := seaweedfs.GetS3RWCreds(ctx, kcli)
 	if err != nil {
 		return nil, errors.Wrap(err, "get seaweedfs s3 rw creds")
@@ -77,9 +78,14 @@ func getS3Client(ctx context.Context, kcli client.Client) (*s3.Client, error) {
 		return nil, errors.Wrap(err, "load aws config")
 	}
 
+	s3URL, err := seaweedfs.GetS3URL(serviceCIDR)
+	if err != nil {
+		return nil, errors.Wrap(err, "get seaweedfs s3 endpoint")
+	}
+
 	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {
 		o.UsePathStyle = true
-		o.BaseEndpoint = aws.String(seaweedfs.S3URL)
+		o.BaseEndpoint = aws.String(s3URL)
 	})
 
 	return s3Client, nil
@@ -154,7 +160,7 @@ func readRegistryData(ctx context.Context, writer io.Writer) error {
 	return nil
 }
 
-func writeRegistryData(ctx context.Context, reader io.Reader, s3Client *s3.Client) error {
+func writeRegistryData(ctx context.Context, reader io.Reader, s3Uploader *s3manager.Uploader) error {
 	tr := tar.NewReader(reader)
 	for {
 		header, err := tr.Next()
@@ -174,7 +180,7 @@ func writeRegistryData(ctx context.Context, reader io.Reader, s3Client *s3.Clien
 			return errors.Wrap(err, "get relative path")
 		}
 
-		_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
+		_, err = s3Uploader.Upload(ctx, &s3.PutObjectInput{
 			Bucket: &bucket,
 			Key:    aws.String(relPath),
 			Body:   tr,
