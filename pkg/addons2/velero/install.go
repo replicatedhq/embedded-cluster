@@ -14,6 +14,10 @@ import (
 )
 
 func (v *Velero) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
+	if err := v.prepare(); err != nil {
+		return errors.Wrap(err, "prepare velero")
+	}
+
 	if err := v.createPreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}

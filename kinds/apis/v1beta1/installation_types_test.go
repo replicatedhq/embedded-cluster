@@ -67,6 +67,7 @@ spec:
 				Config: &ConfigSpec{
 					Version: "1.29.1+k0s.0",
 				},
+				SourceType: InstallationSourceTypeCRD,
 				RuntimeConfig: &RuntimeConfigSpec{
 					AdminConsole: AdminConsoleSpec{
 						Port: 31111,
@@ -96,6 +97,7 @@ spec:
 				Config: &ConfigSpec{
 					Version: "1.29.1+k0s.0",
 				},
+				SourceType: InstallationSourceTypeCRD,
 				RuntimeConfig: &RuntimeConfigSpec{
 					LocalArtifactMirror: LocalArtifactMirrorSpec{
 						Port: 51111,

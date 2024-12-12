@@ -8,7 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-func (v *Velero) Prepare() error {
+func (v *Velero) prepare() error {
 	if err := v.generateHelmValues(); err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}

@@ -12,13 +12,14 @@ import (
 
 type Registry struct {
 	ServiceCIDR string
+	IsHA        bool
 }
 
 const (
-	releaseName              = "docker-registry"
-	namespace                = runtimeconfig.RegistryNamespace
-	tlsSecretName            = "registry-tls"
-	registryLowerBandIPIndex = 10
+	releaseName      = "docker-registry"
+	namespace        = runtimeconfig.RegistryNamespace
+	tlsSecretName    = "registry-tls"
+	lowerBandIPIndex = 10
 )
 
 var (
@@ -26,6 +27,10 @@ var (
 	rawvalues []byte
 	// helmValues is the unmarshal version of rawvalues.
 	helmValues map[string]interface{}
+	//go:embed static/values-ha.tpl.yaml
+	rawvaluesha []byte
+	// helmValuesHA is the unmarshal version of rawvaluesha.
+	helmValuesHA map[string]interface{}
 	//go:embed static/metadata.yaml
 	rawmetadata []byte
 	// Metadata is the unmarshal version of rawmetadata.
@@ -39,11 +44,18 @@ func init() {
 	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
 		panic(errors.Wrap(err, "unable to unmarshal metadata"))
 	}
+
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		panic(errors.Wrap(err, "unable to unmarshal values"))
 	}
 	helmValues = hv
+
+	hvHA, err := release.RenderHelmValues(rawvaluesha, Metadata)
+	if err != nil {
+		panic(errors.Wrap(err, "unable to unmarshal ha values"))
+	}
+	helmValuesHA = hvHA
 }
 
 func (r *Registry) Name() string {
