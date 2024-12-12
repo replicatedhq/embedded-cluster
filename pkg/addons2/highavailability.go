@@ -59,6 +59,9 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 		}
 
 		logrus.Debug("installing seaweedfs")
+		if err := sw.Prepare(); err != nil {
+			return errors.Wrap(err, "prepare seaweedfs")
+		}
 		if err := sw.Install(ctx, kcli, nil); err != nil {
 			return errors.Wrap(err, "install seaweedfs")
 		}
