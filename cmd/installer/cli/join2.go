@@ -48,7 +48,7 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 	var flags Join2CmdFlags
 
 	cmd := &cobra.Command{
-		Use:           "join <url> <token>",
+		Use:           "join2 <url> <token>",
 		Short:         fmt.Sprintf("Join %s", name),
 		Args:          cobra.ExactArgs(2),
 		SilenceErrors: true,
@@ -87,7 +87,7 @@ func Join2Cmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
-	cmd.AddCommand(JoinRunPreflightsCmd(ctx, name))
+	// TODO (@salah): add join preflights subcommand
 
 	return cmd
 }

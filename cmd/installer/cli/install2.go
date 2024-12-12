@@ -237,6 +237,8 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return err
 	}
 
+	// TODO (@salah): update installation status to reflect what's happening
+
 	logrus.Debugf("installing addons")
 	if err := addons2.Install(cmd.Context(), addons2.InstallOptions{
 		AdminConsolePwd:         flags.adminConsolePassword,
@@ -466,14 +468,12 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 				IsDisasterRecoverySupported: disasterRecoveryEnabled,
 			},
 		},
+		Status: ecv1beta1.InstallationStatus{
+			State: ecv1beta1.InstallationStateKubernetesInstalled,
+		},
 	}
 	if err := kubeutils.CreateInstallation(ctx, kcli, &installation); err != nil {
 		return fmt.Errorf("create installation: %w", err)
-	}
-
-	// we wait for the installation to exist here because items do not show up in the apiserver instantaneously after being created
-	if err := kubeutils.WaitAndMarkInstallation(ctx, kcli, installation.Name, ecv1beta1.InstallationStateKubernetesInstalled); err != nil {
-		return fmt.Errorf("wait and mark installation: %w", err)
 	}
 
 	return nil
