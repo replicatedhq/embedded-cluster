@@ -112,7 +112,7 @@ func TestGetLatestInstallation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := kubeutils.GetLatestInstallation(context.Background(), tt.args.cli(t))
 			if tt.wantErr != nil {
-				require.Equal(t, tt.wantErr, err)
+				require.ErrorIs(t, tt.wantErr, err)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.wantName, got.Name)
