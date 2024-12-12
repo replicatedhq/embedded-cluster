@@ -26,12 +26,12 @@ import (
 
 func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	var (
-		airgapBundle            string
-		enabledHighAvailability bool
-		networkInterface        string
-		assumeYes               bool
-		skipHostPreflights      bool
-		ignoreHostPreflights    bool
+		airgapBundle           string
+		enableHighAvailability bool
+		networkInterface       string
+		assumeYes              bool
+		skipHostPreflights     bool
+		ignoreHostPreflights   bool
 	)
 
 	cmd := &cobra.Command{
@@ -101,12 +101,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 			setProxyEnv(jcmd.InstallationSpec.Proxy)
 
-			networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
-			if err != nil {
-				return fmt.Errorf("unable to get network-interface flag: %w", err)
-			}
-
-			proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterfaceFlag)
+			proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterface)
 			if err != nil {
 				return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 			}
@@ -222,7 +217,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("overriding network configuration")
-			if err := applyNetworkConfiguration(cmd, jcmd); err != nil {
+			if err := applyNetworkConfiguration(networkInterface, jcmd); err != nil {
 				err := fmt.Errorf("unable to apply network configuration: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			}
@@ -235,13 +230,13 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("joining node to cluster")
-			if err := runK0sInstallCommand(cmd, jcmd.K0sJoinCommand); err != nil {
+			if err := runK0sInstallCommand(networkInterface, jcmd.K0sJoinCommand); err != nil {
 				err := fmt.Errorf("unable to join node to cluster: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
 
-			if err := startAndWaitForK0s(cmd, name, jcmd); err != nil {
+			if err := startAndWaitForK0s(cmd.Context(), name, jcmd); err != nil {
 				return err
 			}
 
@@ -278,12 +273,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			enabledHighAvailabilityFlag, err := cmd.Flags().GetBool("enable-ha")
-			if err != nil {
-				return fmt.Errorf("unable to get enable-ha flag: %w", err)
-			}
-
-			if enabledHighAvailabilityFlag {
+			if enableHighAvailability {
 				if err := tryEnableHA(cmd.Context(), kcli); err != nil {
 					err := fmt.Errorf("unable to enable high availability: %w", err)
 					metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
@@ -298,7 +288,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
-	cmd.Flags().BoolVar(&enabledHighAvailability, "enable-ha", false, "Enable high availability.")
+	cmd.Flags().BoolVar(&enableHighAvailability, "enable-ha", false, "Enable high availability.")
 	cmd.Flags().MarkHidden("enable-ha")
 
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")

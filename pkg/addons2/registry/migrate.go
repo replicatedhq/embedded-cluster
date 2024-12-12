@@ -29,8 +29,9 @@ import (
 )
 
 var (
-	bucket        = "registry"
-	labelSelector = "app=docker-registry"
+	s3Bucket        = "registry"
+	s3RootDirectory = "registry"
+	labelSelector   = "app=docker-registry"
 )
 
 // Migrate runs a migration that copies data on disk in the registry PVC to the seaweedfs s3 store.
@@ -94,7 +95,7 @@ func getS3Client(ctx context.Context, kcli client.Client, serviceCIDR string) (*
 
 func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
 	_, err := s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
-		Bucket: &bucket,
+		Bucket: &s3Bucket,
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "BucketAlreadyExists") {
@@ -135,8 +136,8 @@ func writeRegistryData(ctx context.Context, reader io.Reader, s3Uploader *s3mana
 		}
 
 		_, err = s3Uploader.Upload(ctx, &s3.PutObjectInput{
-			Bucket: &bucket,
-			Key:    aws.String(relPath),
+			Bucket: &s3Bucket,
+			Key:    aws.String(filepath.Join(s3RootDirectory, relPath)),
 			Body:   tr,
 		})
 		if err != nil {
