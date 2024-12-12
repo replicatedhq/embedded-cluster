@@ -69,6 +69,9 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 		}
 
 		logrus.Debug("upgrading registry")
+		if err := reg.Prepare(); err != nil {
+			return errors.Wrap(err, "prepare registry")
+		}
 		if err := reg.Upgrade(ctx, kcli); err != nil {
 			return errors.Wrap(err, "upgrade registry")
 		}
