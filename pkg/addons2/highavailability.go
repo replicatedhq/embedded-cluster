@@ -84,6 +84,9 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 	}
 
 	logrus.Debug("upgrading admin console")
+	if err := ac.Prepare(); err != nil {
+		return errors.Wrap(err, "prepare admin console")
+	}
 	if err := ac.Upgrade(ctx, kcli); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
