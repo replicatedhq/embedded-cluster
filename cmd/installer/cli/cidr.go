@@ -20,7 +20,7 @@ func addCIDRFlags(cmd *cobra.Command) {
 
 func validateCIDRFlags(cmd *cobra.Command) error {
 	if cmd.Flags().Changed("cidr") && (cmd.Flags().Changed("pod-cidr") || cmd.Flags().Changed("service-cidr")) {
-		return fmt.Errorf("--cidr flag can't be used with --pod-cidr or --service-cidr")
+		return fmt.Errorf("--cidr can't be used with --pod-cidr or --service-cidr")
 	}
 
 	cidr, err := cmd.Flags().GetString("cidr")
@@ -29,7 +29,7 @@ func validateCIDRFlags(cmd *cobra.Command) error {
 	}
 
 	if err := netutils.ValidateCIDR(cidr, 16, true); err != nil {
-		return fmt.Errorf("invalid cidr %q: %w", cidr, err)
+		return err
 	}
 
 	return nil
