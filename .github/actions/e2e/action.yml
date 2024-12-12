@@ -79,7 +79,6 @@ runs:
            external_ids:ovn-encap-type=geneve                      \
            external_ids:ovn-encap-ip=127.0.0.1
   - name: Free up runner disk space
-    if: ${{ inputs.is-large-runner == 'false' }}
     uses: ./.github/actions/free-disk-space
   - name: Set AppArmor mode to complain
     shell: bash
