@@ -23,6 +23,19 @@ const (
 	// BackupIsECAnnotation is the annotation used to store if the backup is from an EC install.
 	BackupIsECAnnotation = "kots.io/embedded-cluster"
 
+	// InstanceBackupAnnotation is the annotation used to indicate that a backup is a legacy
+	// instance backup.
+	InstanceBackupAnnotation = "kots.io/instance"
+
+	// InstanceBackupVersionAnnotation is the annotation used to store the version of the backup
+	// for an instance (DR) backup.
+	InstanceBackupVersionAnnotation = "replicated.com/disaster-recovery-version"
+	// InstanceBackupVersion1 indicates that the backup is of version 1.
+	InstanceBackupVersion1 = "1"
+	// InstanceBackupVersionCurrent is the current backup version. When future breaking changes are
+	// introduced, we can increment this number on backup creation.
+	InstanceBackupVersionCurrent = InstanceBackupVersion1
+
 	// InstanceBackupNameLabel is the label used to store the name of the backup for an instance
 	// backup. This property is used to group backups together.
 	InstanceBackupNameLabel = "replicated.com/backup-name"
@@ -198,6 +211,26 @@ func (b ReplicatedBackup) GetAnnotation(key string) (string, bool) {
 	return "", false
 }
 
+// IsInstanceBackup returns true if the backup is an instance backup.
+func IsInstanceBackup(veleroBackup velerov1.Backup) bool {
+	if GetInstanceBackupVersion(veleroBackup) != "" {
+		return true
+	}
+	if val, ok := veleroBackup.GetAnnotations()[InstanceBackupAnnotation]; ok {
+		return val == "true"
+	}
+	return false
+}
+
+// GetInstanceBackupVersion returns the version of the backup from the velero backup object
+// annotation.
+func GetInstanceBackupVersion(veleroBackup velerov1.Backup) string {
+	if val, ok := veleroBackup.GetAnnotations()[InstanceBackupVersionAnnotation]; ok {
+		return val
+	}
+	return ""
+}
+
 // GetInstanceBackupType returns the type of the backup from the velero backup object annotation.
 // This can be either "infra", "app", or "legacy".
 func GetInstanceBackupType(backup velerov1.Backup) string {
@@ -233,6 +266,9 @@ func groupBackupsByName(backups []velerov1.Backup) []ReplicatedBackup {
 	for _, backup := range backups {
 		// this is not a replicated backup
 		if backup.Annotations[BackupIsECAnnotation] != "true" {
+			continue
+		}
+		if !IsInstanceBackup(backup) {
 			continue
 		}
 		found := false

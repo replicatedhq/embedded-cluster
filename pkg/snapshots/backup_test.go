@@ -168,9 +168,10 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupNameLabel: "app-slug-abcd",
 							},
 							Annotations: map[string]string{
-								BackupIsECAnnotation:          "true",
-								InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
-								InstanceBackupCountAnnotation: "2",
+								BackupIsECAnnotation:            "true",
+								InstanceBackupVersionAnnotation: InstanceBackupVersionCurrent,
+								InstanceBackupTypeAnnotation:    InstanceBackupTypeInfra,
+								InstanceBackupCountAnnotation:   "2",
 							},
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 						},
@@ -187,9 +188,10 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupNameLabel: "app-slug-abcd",
 							},
 							Annotations: map[string]string{
-								BackupIsECAnnotation:          "true",
-								InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
-								InstanceBackupCountAnnotation: "2",
+								BackupIsECAnnotation:            "true",
+								InstanceBackupVersionAnnotation: InstanceBackupVersionCurrent,
+								InstanceBackupTypeAnnotation:    InstanceBackupTypeApp,
+								InstanceBackupCountAnnotation:   "2",
 							},
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 						},
@@ -203,7 +205,8 @@ func TestListReplicatedBackups(t *testing.T) {
 							Name:      "instance-efgh",
 							Namespace: "velero",
 							Annotations: map[string]string{
-								BackupIsECAnnotation: "true",
+								BackupIsECAnnotation:     "true",
+								InstanceBackupAnnotation: "true",
 								// legacy backups do not have the InstanceBackupTypeAnnotation
 							},
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
@@ -223,6 +226,21 @@ func TestListReplicatedBackups(t *testing.T) {
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)},
 						},
 					},
+					&velerov1.Backup{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "Backup",
+							APIVersion: "velero.io/v1",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "not-instance-type",
+							Namespace: "velero",
+							Annotations: map[string]string{
+								BackupIsECAnnotation: "true",
+								// Instance backups need the kots.io/instance or replicated.com/disaster-recovery-version annotation
+							},
+							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)},
+						},
+					},
 				).Build(),
 			},
 			want: []ReplicatedBackup{
@@ -236,7 +254,8 @@ func TestListReplicatedBackups(t *testing.T) {
 							Name:      "instance-efgh",
 							Namespace: "velero",
 							Annotations: map[string]string{
-								BackupIsECAnnotation: "true",
+								BackupIsECAnnotation:     "true",
+								InstanceBackupAnnotation: "true",
 							},
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
 							ResourceVersion:   "999",
@@ -256,9 +275,10 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupNameLabel: "app-slug-abcd",
 							},
 							Annotations: map[string]string{
-								BackupIsECAnnotation:          "true",
-								InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
-								InstanceBackupCountAnnotation: "2",
+								BackupIsECAnnotation:            "true",
+								InstanceBackupVersionAnnotation: InstanceBackupVersionCurrent,
+								InstanceBackupTypeAnnotation:    InstanceBackupTypeApp,
+								InstanceBackupCountAnnotation:   "2",
 							},
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 							ResourceVersion:   "999",
@@ -276,9 +296,10 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupNameLabel: "app-slug-abcd",
 							},
 							Annotations: map[string]string{
-								BackupIsECAnnotation:          "true",
-								InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
-								InstanceBackupCountAnnotation: "2",
+								BackupIsECAnnotation:            "true",
+								InstanceBackupVersionAnnotation: InstanceBackupVersionCurrent,
+								InstanceBackupTypeAnnotation:    InstanceBackupTypeInfra,
+								InstanceBackupCountAnnotation:   "2",
 							},
 							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 							ResourceVersion:   "999",
@@ -318,9 +339,10 @@ func TestGetReplicatedBackup(t *testing.T) {
 					InstanceBackupNameLabel: "app-slug-abcd",
 				},
 				Annotations: map[string]string{
-					BackupIsECAnnotation:          "true",
-					InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
-					InstanceBackupCountAnnotation: "2",
+					BackupIsECAnnotation:            "true",
+					InstanceBackupVersionAnnotation: InstanceBackupVersionCurrent,
+					InstanceBackupTypeAnnotation:    InstanceBackupTypeInfra,
+					InstanceBackupCountAnnotation:   "2",
 				},
 				CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 			},
@@ -337,9 +359,10 @@ func TestGetReplicatedBackup(t *testing.T) {
 					InstanceBackupNameLabel: "app-slug-abcd",
 				},
 				Annotations: map[string]string{
-					BackupIsECAnnotation:          "true",
-					InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
-					InstanceBackupCountAnnotation: "2",
+					BackupIsECAnnotation:            "true",
+					InstanceBackupVersionAnnotation: InstanceBackupVersionCurrent,
+					InstanceBackupTypeAnnotation:    InstanceBackupTypeApp,
+					InstanceBackupCountAnnotation:   "2",
 				},
 				CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 			},
@@ -353,7 +376,8 @@ func TestGetReplicatedBackup(t *testing.T) {
 				Name:      "instance-efgh",
 				Namespace: "velero",
 				Annotations: map[string]string{
-					BackupIsECAnnotation: "true",
+					BackupIsECAnnotation:     "true",
+					InstanceBackupAnnotation: "true",
 					// legacy backups do not have the InstanceBackupTypeAnnotation
 				},
 				CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
@@ -403,7 +427,8 @@ func TestGetReplicatedBackup(t *testing.T) {
 						Name:      "instance-efgh",
 						Namespace: "velero",
 						Annotations: map[string]string{
-							BackupIsECAnnotation: "true",
+							BackupIsECAnnotation:     "true",
+							InstanceBackupAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
@@ -433,9 +458,10 @@ func TestGetReplicatedBackup(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							BackupIsECAnnotation:          "true",
-							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
-							InstanceBackupCountAnnotation: "2",
+							BackupIsECAnnotation:            "true",
+							InstanceBackupVersionAnnotation: InstanceBackupVersionCurrent,
+							InstanceBackupTypeAnnotation:    InstanceBackupTypeApp,
+							InstanceBackupCountAnnotation:   "2",
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 						ResourceVersion:   "999",
@@ -453,9 +479,10 @@ func TestGetReplicatedBackup(t *testing.T) {
 							InstanceBackupNameLabel: "app-slug-abcd",
 						},
 						Annotations: map[string]string{
-							BackupIsECAnnotation:          "true",
-							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
-							InstanceBackupCountAnnotation: "2",
+							BackupIsECAnnotation:            "true",
+							InstanceBackupVersionAnnotation: InstanceBackupVersionCurrent,
+							InstanceBackupTypeAnnotation:    InstanceBackupTypeInfra,
+							InstanceBackupCountAnnotation:   "2",
 						},
 						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 						ResourceVersion:   "999",
@@ -1242,6 +1269,65 @@ func TestReplicatedBackup_GetAnnotation(t *testing.T) {
 			got, got1 := tt.b.GetAnnotation(tt.args.key)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.want1, got1)
+		})
+	}
+}
+
+func TestIsInstanceBackup(t *testing.T) {
+	type args struct {
+		veleroBackup velerov1.Backup
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "legacy backup should return true",
+			args: args{
+				veleroBackup: velerov1.Backup{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							BackupIsECAnnotation:     "true",
+							InstanceBackupAnnotation: "true",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "DR backup should return true",
+			args: args{
+				veleroBackup: velerov1.Backup{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							BackupIsECAnnotation:            "true",
+							InstanceBackupVersionAnnotation: InstanceBackupVersion1,
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "app backup should return false",
+			args: args{
+				veleroBackup: velerov1.Backup{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							BackupIsECAnnotation: "true",
+						},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsInstanceBackup(tt.args.veleroBackup)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
