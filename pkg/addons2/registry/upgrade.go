@@ -31,11 +31,18 @@ func (r *Registry) Upgrade(ctx context.Context, kcli client.Client) error {
 		return errors.Wrap(err, "create helm client")
 	}
 
+	var values map[string]interface{}
+	if r.IsHA {
+		values = helmValuesHA
+	} else {
+		values = helmValues
+	}
+
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  releaseName,
 		ChartPath:    Metadata.Location,
 		ChartVersion: Metadata.Version,
-		Values:       helmValues,
+		Values:       values,
 		Namespace:    namespace,
 		Force:        false,
 	})
