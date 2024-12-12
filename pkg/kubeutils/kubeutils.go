@@ -337,7 +337,7 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Inst
 	// fall back to CRD-based installations
 	installs, err = ListCRDInstallations(ctx, cli)
 	if err != nil {
-		return nil, fmt.Errorf("list crd installations: %w", err)
+		return nil, err
 	}
 	return installs, nil
 }
