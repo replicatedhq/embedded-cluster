@@ -129,6 +129,9 @@ utilsImage: abc-repo/ec-utils:latest-amd64@sha256:92dec6e167ff57b35953da389c2f62
 
 const test_onlineAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: v1.2.3-operator
+extraEnv:
+- name: ENABLE_IMPROVED_DR
+  value: "true"
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -156,6 +159,9 @@ service:
 
 const test_overriddenOnlineAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: abctest
+extraEnv:
+- name: ENABLE_IMPROVED_DR
+  value: "true"
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -183,6 +189,9 @@ service:
 
 const test_airgapAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: v1.2.3-operator
+extraEnv:
+- name: ENABLE_IMPROVED_DR
+  value: "true"
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -210,6 +219,9 @@ service:
 
 const test_airgapHAAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: v1.2.3-operator
+extraEnv:
+- name: ENABLE_IMPROVED_DR
+  value: "true"
 images:
   kotsadm: ':'
   kurlProxy: ':'
@@ -238,6 +250,8 @@ service:
 const test_proxyAdminConsoleValues = `embeddedClusterID: e79f0701-67f3-4abf-a672-42a1f3ed231b
 embeddedClusterVersion: v1.2.3-operator
 extraEnv:
+- name: ENABLE_IMPROVED_DR
+  value: "true"
 - name: HTTP_PROXY
   value: http://proxy
 - name: HTTPS_PROXY

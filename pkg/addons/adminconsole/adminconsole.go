@@ -128,18 +128,20 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 			helmValues["isAirgap"] = "false"
 		}
 		helmValues["isHA"] = a.isHA
+		// TODO(improveddr): remove this for testing
+		extraEnv := []map[string]interface{}{{
+			"name":  "ENABLE_IMPROVED_DR",
+			"value": "true",
+		}}
 		if len(a.proxyEnv) > 0 {
-			extraEnv := []map[string]interface{}{}
 			for _, k := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
 				extraEnv = append(extraEnv, map[string]interface{}{
 					"name":  k,
 					"value": a.proxyEnv[k],
 				})
 			}
-			helmValues["extraEnv"] = extraEnv
-		} else {
-			delete(helmValues, "extraEnv")
 		}
+		helmValues["extraEnv"] = extraEnv
 
 		var err error
 		helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", runtimeconfig.AdminConsolePort())

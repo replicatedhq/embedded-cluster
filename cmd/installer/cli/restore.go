@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
@@ -88,6 +90,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 		skipHostPreflights      bool
 		ignoreHostPreflights    bool
 		skipStoreValidation     bool
+
+		s3Store = &s3BackupStore{}
 
 		proxy *ecv1beta1.ProxySpec
 	)
@@ -179,7 +183,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			// if the user wants to resume, check if a backup has already been picked.
-			var backupToRestore *velerov1.Backup
+			var backupToRestore *disasterrecovery.ReplicatedBackup
 			if state != ecRestoreStateNew {
 				logrus.Debugf("getting backup from restore state")
 				var err error
@@ -188,10 +192,10 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					return fmt.Errorf("unable to resume: %w", err)
 				}
 				if backupToRestore != nil {
-					completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
-					logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.Name, completionTimestamp)
+					creationTimestamp := backupToRestore.GetCreationTimestamp().Format("2006-01-02 15:04:05 UTC")
+					logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.GetName(), creationTimestamp)
 
-					if err := overrideRuntimeConfigFromBackup(localArtifactMirrorPort, backupToRestore); err != nil {
+					if err := overrideRuntimeConfigFromBackup(localArtifactMirrorPort, *backupToRestore); err != nil {
 						return fmt.Errorf("unable to override runtime config from backup: %w", err)
 					}
 				}
@@ -239,10 +243,13 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					os.Exit(1)
 				}
 
-				logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
-				logrus.Info("Enter information to configure access to your backup storage location.\n")
+				if !s3BackupStoreHasData(s3Store) {
+					logrus.Infof("You'll be guided through the process of restoring %s from a backup.\n", name)
+					logrus.Info("Enter information to configure access to your backup storage location.\n")
 
-				s3Store := newS3BackupStore()
+					promptForS3BackupStore(s3Store)
+				}
+				s3Store.prefix = strings.TrimPrefix(s3Store.prefix, "/")
 
 				skipStoreValidationFlag, err := cmd.Flags().GetBool("skip-store-validation")
 				if err != nil {
@@ -280,6 +287,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("unable to create kube client: %w", err)
 				}
+
 				errCh := kubeutils.WaitForKubernetes(cmd.Context(), kcli)
 				defer func() {
 					for len(errCh) > 0 {
@@ -313,8 +321,18 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
 
+				kcli, err := kubeutils.KubeClient()
+				if err != nil {
+					return fmt.Errorf("unable to create kube client: %w", err)
+				}
+
+				k0sCfg, err := getK0sConfigFromDisk()
+				if err != nil {
+					return fmt.Errorf("unable to get k0s config from disk: %w", err)
+				}
+
 				logrus.Debugf("waiting for backups to become available")
-				backups, err := waitForBackups(cmd.Context(), airgapBundle != "")
+				backups, err := waitForBackups(cmd.Context(), cmd.OutOrStdout(), kcli, k0sCfg, airgapBundle != "")
 				if err != nil {
 					return err
 				}
@@ -323,8 +341,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				backupToRestore = pickBackupToRestore(backups)
 
 				logrus.Info("")
-				completionTimestamp := backupToRestore.Status.CompletionTimestamp.Time.Format("2006-01-02 15:04:05 UTC")
-				shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.Name, completionTimestamp), true)
+				creationTimestamp := backupToRestore.GetCreationTimestamp().Time.Format("2006-01-02 15:04:05 UTC")
+				shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.GetName(), creationTimestamp), true)
 				logrus.Info("")
 				if !shouldRestore {
 					logrus.Infof("Aborting restore...")
@@ -334,21 +352,21 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 			case ecRestoreStateRestoreECInstall:
 				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECInstall)
-				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreECInstall, backupToRestore.Name); err != nil {
+				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreECInstall, backupToRestore.GetName()); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
 
-				logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.Name)
-				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentECInstall); err != nil {
+				logrus.Debugf("restoring embedded cluster installation from backup %q", backupToRestore.GetName())
+				if err := restoreFromReplicatedBackup(cmd.Context(), *backupToRestore, disasterRecoveryComponentECInstall); err != nil {
 					return fmt.Errorf("unable to restore from backup: %w", err)
 				}
 
-				logrus.Debugf("updating installation from backup %q", backupToRestore.Name)
+				logrus.Debugf("updating installation from backup %q", backupToRestore.GetName())
 				if err := restoreReconcileInstallationFromRuntimeConfig(cmd.Context()); err != nil {
 					return fmt.Errorf("unable to update installation from backup: %w", err)
 				}
 
-				logrus.Debugf("updating local artifact mirror service from backup %q", backupToRestore.Name)
+				logrus.Debugf("updating local artifact mirror service from backup %q", backupToRestore.GetName())
 				if err := updateLocalArtifactMirrorService(); err != nil {
 					return fmt.Errorf("unable to update local artifact mirror service from backup: %w", err)
 				}
@@ -357,12 +375,12 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 			case ecRestoreStateRestoreAdminConsole:
 				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreAdminConsole)
-				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreAdminConsole, backupToRestore.Name); err != nil {
+				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreAdminConsole, backupToRestore.GetName()); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
 
-				logrus.Debugf("restoring admin console from backup %q", backupToRestore.Name)
-				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
+				logrus.Debugf("restoring admin console from backup %q", backupToRestore.GetName())
+				if err := restoreFromReplicatedBackup(cmd.Context(), *backupToRestore, disasterRecoveryComponentAdminConsole); err != nil {
 					return err
 				}
 
@@ -375,12 +393,12 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 			case ecRestoreStateWaitForNodes:
 				logrus.Debugf("setting restore state to %q", ecRestoreStateWaitForNodes)
-				if err := setECRestoreState(cmd.Context(), ecRestoreStateWaitForNodes, backupToRestore.Name); err != nil {
+				if err := setECRestoreState(cmd.Context(), ecRestoreStateWaitForNodes, backupToRestore.GetName()); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
 
 				logrus.Debugf("checking if backup is high availability")
-				highAvailability, err := isHighAvailabilityBackup(backupToRestore)
+				highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 				if err != nil {
 					return err
 				}
@@ -400,18 +418,18 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 			case ecRestoreStateRestoreSeaweedFS:
 				// only restore seaweedfs in case of high availability and airgap
-				highAvailability, err := isHighAvailabilityBackup(backupToRestore)
+				highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
 				if err != nil {
 					return err
 				}
 
 				if highAvailability && airgapBundle != "" {
 					logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreSeaweedFS)
-					if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreSeaweedFS, backupToRestore.Name); err != nil {
+					if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreSeaweedFS, backupToRestore.GetName()); err != nil {
 						return fmt.Errorf("unable to set restore state: %w", err)
 					}
-					logrus.Debugf("restoring seaweedfs from backup %q", backupToRestore.Name)
-					if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentSeaweedFS); err != nil {
+					logrus.Debugf("restoring seaweedfs from backup %q", backupToRestore.GetName())
+					if err := restoreFromReplicatedBackup(cmd.Context(), *backupToRestore, disasterRecoveryComponentSeaweedFS); err != nil {
 						return err
 					}
 				}
@@ -422,16 +440,16 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				// only restore registry in case of airgap
 				if airgapBundle != "" {
 					logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreRegistry)
-					if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreRegistry, backupToRestore.Name); err != nil {
+					if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreRegistry, backupToRestore.GetName()); err != nil {
 						return fmt.Errorf("unable to set restore state: %w", err)
 					}
 
-					logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.Name)
-					if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentRegistry); err != nil {
+					logrus.Debugf("restoring embedded cluster registry from backup %q", backupToRestore.GetName())
+					if err := restoreFromReplicatedBackup(cmd.Context(), *backupToRestore, disasterRecoveryComponentRegistry); err != nil {
 						return err
 					}
 
-					registryAddress, ok := backupToRestore.Annotations["kots.io/embedded-registry"]
+					registryAddress, ok := backupToRestore.GetAnnotation("kots.io/embedded-registry")
 					if !ok {
 						return fmt.Errorf("unable to read registry address from backup")
 					}
@@ -444,12 +462,12 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 			case ecRestoreStateRestoreECO:
 				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreECO)
-				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreECO, backupToRestore.Name); err != nil {
+				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreECO, backupToRestore.GetName()); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
 
-				logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.Name)
-				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentECO); err != nil {
+				logrus.Debugf("restoring embedded cluster operator from backup %q", backupToRestore.GetName())
+				if err := restoreFromReplicatedBackup(cmd.Context(), *backupToRestore, disasterRecoveryComponentECO); err != nil {
 					return err
 				}
 
@@ -457,12 +475,12 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 			case ecRestoreStateRestoreApp:
 				logrus.Debugf("setting restore state to %q", ecRestoreStateRestoreApp)
-				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreApp, backupToRestore.Name); err != nil {
+				if err := setECRestoreState(cmd.Context(), ecRestoreStateRestoreApp, backupToRestore.GetName()); err != nil {
 					return fmt.Errorf("unable to set restore state: %w", err)
 				}
 
-				logrus.Debugf("restoring app from backup %q", backupToRestore.Name)
-				if err := restoreFromBackup(cmd.Context(), backupToRestore, disasterRecoveryComponentApp); err != nil {
+				logrus.Debugf("restoring app from backup %q", backupToRestore.GetName())
+				if err := restoreFromReplicatedBackup(cmd.Context(), *backupToRestore, disasterRecoveryComponentApp); err != nil {
 					return err
 				}
 
@@ -478,6 +496,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 	}
+
+	addS3Flags(cmd, s3Store)
 
 	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the restore will complete without internet access.")
 	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
@@ -500,6 +520,35 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return cmd
+}
+
+// addS3Flags adds the s3 flags to the restore command. These flags are used only for ease of
+// development and are marked as hidden for now.
+func addS3Flags(cmd *cobra.Command, store *s3BackupStore) {
+	cmd.Flags().StringVar(&store.endpoint, "s3-endpoint", "", "S3 endpoint")
+	if err := cmd.Flags().MarkHidden("s3-endpoint"); err != nil {
+		panic(err)
+	}
+	cmd.Flags().StringVar(&store.region, "s3-region", "", "S3 region")
+	if err := cmd.Flags().MarkHidden("s3-region"); err != nil {
+		panic(err)
+	}
+	cmd.Flags().StringVar(&store.bucket, "s3-bucket", "", "S3 bucket")
+	if err := cmd.Flags().MarkHidden("s3-bucket"); err != nil {
+		panic(err)
+	}
+	cmd.Flags().StringVar(&store.prefix, "s3-prefix", "", "S3 prefix")
+	if err := cmd.Flags().MarkHidden("s3-prefix"); err != nil {
+		panic(err)
+	}
+	cmd.Flags().StringVar(&store.accessKeyID, "s3-access-key-id", "", "S3 access key ID")
+	if err := cmd.Flags().MarkHidden("s3-access-key-id"); err != nil {
+		panic(err)
+	}
+	cmd.Flags().StringVar(&store.secretAccessKey, "s3-secret-access-key", "", "S3 secret access key")
+	if err := cmd.Flags().MarkHidden("s3-secret-access-key"); err != nil {
+		panic(err)
+	}
 }
 
 // getECRestoreState returns the current restore state.
@@ -605,7 +654,7 @@ func resetECRestoreState(ctx context.Context) error {
 // It returns an error if a backup is defined in the restore state but:
 //   - is not found by Velero anymore.
 //   - is not restorable by the current binary.
-func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Backup, error) {
+func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*disasterrecovery.ReplicatedBackup, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kube client: %w", err)
@@ -627,10 +676,9 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 		return nil, nil
 	}
 
-	backup := velerov1api.Backup{}
-	err = kcli.Get(ctx, types.NamespacedName{Name: backupName, Namespace: runtimeconfig.VeleroNamespace}, &backup)
+	backup, err := disasterrecovery.GetReplicatedBackup(ctx, kcli, runtimeconfig.VeleroNamespace, backupName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get backup: %w", err)
+		return nil, err
 	}
 
 	rel, err := release.GetChannelRelease()
@@ -647,33 +695,36 @@ func getBackupFromRestoreState(ctx context.Context, isAirgap bool) (*velerov1.Ba
 		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
 	}
 
-	if restorable, reason := isBackupRestorable(&backup, rel, isAirgap, k0sCfg); !restorable {
-		return nil, fmt.Errorf("backup %q %s", backup.Name, reason)
+	if restorable, reason := isReplicatedBackupRestorable(backup, rel, isAirgap, k0sCfg); !restorable {
+		return nil, fmt.Errorf("backup %q %s", backup.GetName(), reason)
 	}
 
 	return &backup, nil
 }
 
-// newS3BackupStore prompts the user for S3 backup store configuration.
-func newS3BackupStore() *s3BackupStore {
-	store := &s3BackupStore{}
+// s3BackupStoreHasData checks if the store already has data from flags.
+func s3BackupStoreHasData(store *s3BackupStore) bool {
+	// store.prefix not required
+	return store.endpoint != "" && store.region != "" && store.bucket != "" && store.accessKeyID != "" && store.secretAccessKey != ""
+}
 
+// promptForS3BackupStore prompts the user for S3 backup store configuration.
+func promptForS3BackupStore(store *s3BackupStore) {
 	for {
-		store.endpoint = prompts.New().Input("S3 endpoint:", "", true)
+		store.endpoint = strings.TrimSpace(prompts.New().Input("S3 endpoint:", store.endpoint, true))
 		if strings.HasPrefix(store.endpoint, "http://") || strings.HasPrefix(store.endpoint, "https://") {
 			break
 		}
 		logrus.Info("Endpoint must start with http:// or https://")
 	}
 
-	store.region = prompts.New().Input("Region:", "", true)
-	store.bucket = prompts.New().Input("Bucket:", "", true)
-	store.prefix = strings.TrimPrefix(prompts.New().Input("Prefix (press Enter to skip):", "", false), "/")
-	store.accessKeyID = prompts.New().Input("Access key ID:", "", true)
-	store.secretAccessKey = prompts.New().Password("Secret access key:")
-	logrus.Info("")
+	store.region = strings.TrimSpace(prompts.New().Input("Region:", store.region, true))
+	store.bucket = strings.TrimSpace(prompts.New().Input("Bucket:", store.bucket, true))
+	store.prefix = strings.TrimSpace(prompts.New().Input("Prefix (press Enter to skip):", store.prefix, false))
+	store.accessKeyID = strings.TrimSpace(prompts.New().Input("Access key ID:", store.accessKeyID, true))
+	store.secretAccessKey = strings.TrimSpace(prompts.New().Password("Secret access key:"))
 
-	return store
+	logrus.Info("")
 }
 
 // validateS3BackupStore validates the S3 backup store configuration.
@@ -804,8 +855,37 @@ func runOutroForRestore(cmd *cobra.Command, applier *addons.Applier, cfg *k0sv1b
 	return applier.OutroForRestore(cmd.Context(), cfg)
 }
 
+func isReplicatedBackupRestorable(backup disasterrecovery.ReplicatedBackup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
+	if backup.GetExpectedBackupCount() != len(backup) {
+		return false, fmt.Sprintf("has a different number of backups (%d) than the expected number (%d)", len(backup), backup.GetExpectedBackupCount())
+	}
+
+	improvedDR, err := usesImprovedDR()
+	if err != nil {
+		return false, fmt.Sprintf("failed to check if improved dr is enabled: %v", err)
+	}
+
+	appBackup := backup.GetAppBackup()
+	if appBackup == nil {
+		return false, "missing app backup"
+	}
+	if disasterrecovery.GetInstanceBackupType(*appBackup) == disasterrecovery.InstanceBackupTypeApp && !improvedDR {
+		return false, "app backup found but improved dr is not enabled"
+	} else if disasterrecovery.GetInstanceBackupType(*appBackup) == disasterrecovery.InstanceBackupTypeLegacy && improvedDR {
+		return false, "legacy backup found but improved dr is enabled"
+	}
+
+	for _, b := range backup {
+		restorable, reason := isBackupRestorable(&b, rel, isAirgap, k0sCfg)
+		if !restorable {
+			return false, reason
+		}
+	}
+	return true, ""
+}
+
 func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, isAirgap bool, k0sCfg *k0sv1beta1.ClusterConfig) (bool, string) {
-	if backup.Annotations["kots.io/embedded-cluster"] != "true" {
+	if backup.Annotations[disasterrecovery.BackupIsECAnnotation] != "true" {
 		return false, "is not an embedded cluster backup"
 	}
 
@@ -881,8 +961,8 @@ func isBackupRestorable(backup *velerov1.Backup, rel *release.ChannelRelease, is
 	return true, ""
 }
 
-func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
-	ha, ok := backup.Annotations["kots.io/embedded-cluster-is-ha"]
+func isHighAvailabilityReplicatedBackup(backup disasterrecovery.ReplicatedBackup) (bool, error) {
+	ha, ok := backup.GetAnnotation("kots.io/embedded-cluster-is-ha")
 	if !ok {
 		return false, fmt.Errorf("high availability annotation not found in backup")
 	}
@@ -892,15 +972,13 @@ func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
 
 // waitForBackups waits for backups to become available.
 // It returns a list of restorable backups, or an error if none are found.
-func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, error) {
-	loading := spinner.Start()
+func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, isAirgap bool) ([]disasterrecovery.ReplicatedBackup, error) {
+	loading := spinner.Start(spinner.WithWriter(func(format string, a ...any) (int, error) {
+		return fmt.Fprintf(out, format, a...)
+	}))
+
 	defer loading.Close()
 	loading.Infof("Waiting for backups to become available")
-
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("unable to create kube client: %w", err)
-	}
 
 	rel, err := release.GetChannelRelease()
 	if err != nil {
@@ -911,52 +989,56 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 		return nil, fmt.Errorf("no release found in binary")
 	}
 
-	k0sCfg, err := getK0sConfigFromDisk()
+	replicatedBackups, err := listBackupsWithTimeout(ctx, kcli, 30, 5*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get k0s config from disk: %w", err)
+		return nil, err
 	}
 
-	for i := 0; i < 30; i++ {
-		time.Sleep(5 * time.Second)
+	validBackups := []disasterrecovery.ReplicatedBackup{}
+	invalidBackups := []disasterrecovery.ReplicatedBackup{}
+	invalidReasons := []string{}
 
-		backupList := velerov1api.BackupList{}
-		err = kcli.List(ctx, &backupList, client.InNamespace(runtimeconfig.VeleroNamespace))
+	for _, backup := range replicatedBackups {
+		restorable, reason := isReplicatedBackupRestorable(backup, rel, isAirgap, k0sCfg)
+		if restorable {
+			validBackups = append(validBackups, backup)
+		} else {
+			invalidBackups = append(invalidBackups, backup)
+			invalidReasons = append(invalidReasons, reason)
+		}
+	}
 
+	if len(validBackups) == 0 {
+		return nil, &invalidBackupsError{
+			invalidBackups: invalidBackups,
+			invalidReasons: invalidReasons,
+		}
+	}
+
+	if len(validBackups) == 1 {
+		loading.Infof("Found 1 restorable backup!")
+	} else {
+		loading.Infof("Found %d restorable backups!", len(validBackups))
+	}
+	return validBackups, nil
+}
+
+func listBackupsWithTimeout(ctx context.Context, kcli client.Client, tries int, sleep time.Duration) ([]disasterrecovery.ReplicatedBackup, error) {
+	if tries == 0 {
+		tries = 1
+	}
+	for i := 0; i < tries; i++ {
+		backups, err := disasterrecovery.ListReplicatedBackups(ctx, kcli)
 		if err != nil {
 			return nil, fmt.Errorf("unable to list backups: %w", err)
 		}
-		if len(backupList.Items) == 0 {
-			logrus.Debugf("No backups found yet...")
-			continue
+		if len(backups) > 0 {
+			logrus.Debugf("Found %d backups", len(backups))
+			return backups, nil
 		}
 
-		validBackups := []velerov1.Backup{}
-		invalidBackups := []velerov1.Backup{}
-		invalidReasons := []string{}
-
-		for _, backup := range backupList.Items {
-			restorable, reason := isBackupRestorable(&backup, rel, isAirgap, k0sCfg)
-			if restorable {
-				validBackups = append(validBackups, backup)
-			} else {
-				invalidBackups = append(invalidBackups, backup)
-				invalidReasons = append(invalidReasons, reason)
-			}
-		}
-
-		if len(validBackups) == 0 {
-			return nil, &invalidBackupsError{
-				invalidBackups: invalidBackups,
-				invalidReasons: invalidReasons,
-			}
-		}
-
-		if len(validBackups) == 1 {
-			loading.Infof("Found 1 restorable backup!")
-		} else {
-			loading.Infof("Found %d restorable backups!", len(validBackups))
-		}
-		return validBackups, nil
+		logrus.Debugf("No backups found yet...")
+		time.Sleep(sleep)
 	}
 
 	return nil, fmt.Errorf("timed out waiting for backups to become available")
@@ -964,14 +1046,14 @@ func waitForBackups(ctx context.Context, isAirgap bool) ([]velerov1.Backup, erro
 
 // pickBackupToRestore picks a backup to restore from a list of backups.
 // Currently, it picks the latest backup.
-func pickBackupToRestore(backups []velerov1.Backup) *velerov1.Backup {
-	var latestBackup *velerov1.Backup
+func pickBackupToRestore(backups []disasterrecovery.ReplicatedBackup) *disasterrecovery.ReplicatedBackup {
+	var latestBackup *disasterrecovery.ReplicatedBackup
 	for _, b := range backups {
 		if latestBackup == nil {
 			latestBackup = &b
 			continue
 		}
-		if b.Status.CompletionTimestamp.After(latestBackup.Status.CompletionTimestamp.Time) {
+		if b.GetCreationTimestamp().After(latestBackup.GetCreationTimestamp().Time) {
 			latestBackup = &b
 		}
 	}
@@ -1069,6 +1151,15 @@ func getSeaweedFSS3ServiceIPFromBackup(backup *velerov1.Backup) (string, error) 
 	}
 
 	return swIP, nil
+}
+
+func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
+	ha, ok := backup.Annotations["kots.io/embedded-cluster-is-ha"]
+	if !ok {
+		return false, fmt.Errorf("high availability annotation not found in backup")
+	}
+
+	return ha == "true", nil
 }
 
 // ensureRestoreResourceModifiers ensures the necessary restore resource modifiers.
@@ -1200,7 +1291,103 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 	return nil
 }
 
-// restoreFromBackup restores a disaster recovery component from a backup.
+// restoreFromReplicatedBackup restores a disaster recovery component from a backup.
+func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.ReplicatedBackup, drComponent disasterRecoveryComponent) error {
+	if drComponent == disasterRecoveryComponentApp {
+		b := backup.GetAppBackup()
+		if b == nil {
+			return fmt.Errorf("unable to find app backup")
+		}
+		isImprovedDR, err := usesImprovedDR()
+		if err != nil {
+			return fmt.Errorf("failed to check if improved dr is enabled: %w", err)
+		}
+		// If the app is using improved dr, we need to restore the app using the spec provided by
+		// the vendor. Otherwise, we use the "replicated.com/disaster-recovery" label to discover
+		// the application resources in the cluster.
+		if isImprovedDR {
+			r, err := backup.GetRestore()
+			if err != nil {
+				return fmt.Errorf("failed to get restore cr from backup: %w", err)
+			}
+			err = restoreAppFromBackup(ctx, b, r)
+			if err != nil {
+				return fmt.Errorf("failed to restore app from backup using improved dr: %w", err)
+			}
+		} else {
+			err = restoreFromBackup(ctx, b, drComponent)
+			if err != nil {
+				return fmt.Errorf("failed to restore app from backup: %w", err)
+			}
+		}
+	}
+	b := backup.GetInfraBackup()
+	if b == nil {
+		return fmt.Errorf("unable to find infra backup")
+	}
+	err := restoreFromBackup(ctx, b, drComponent)
+	if err != nil {
+		return fmt.Errorf("failed to restore infra from backup: %w", err)
+	}
+	return nil
+}
+
+func usesImprovedDR() (bool, error) {
+	backup, err := release.GetVeleroBackup()
+	if err != nil {
+		return false, fmt.Errorf("failed to get velero backup: %w", err)
+	}
+	restore, err := release.GetVeleroRestore()
+	if err != nil {
+		return false, fmt.Errorf("failed to get velero restore: %w", err)
+	}
+	return backup != nil && restore != nil, nil
+}
+
+// restoreAppFromBackup will either restore using the spec provided by the vendor as part of the
+// improved dr support.
+func restoreAppFromBackup(ctx context.Context, backup *velerov1.Backup, restore *velerov1.Restore) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+
+	restoreName := fmt.Sprintf("%s.restore", backup.Name)
+
+	// check if a restore object already exists
+	rest := velerov1api.Restore{}
+	err = kcli.Get(ctx, types.NamespacedName{Name: restoreName, Namespace: runtimeconfig.VeleroNamespace}, &rest)
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("unable to get restore: %w", err)
+	}
+
+	// create a new restore object if it doesn't exist
+	if errors.IsNotFound(err) {
+		restore.Namespace = runtimeconfig.VeleroNamespace
+		restore.Name = restoreName
+		if restore.Annotations == nil {
+			restore.Annotations = map[string]string{}
+		}
+		restore.Annotations[disasterrecovery.BackupIsECAnnotation] = "true"
+
+		ensureImprovedDrMetadata(restore, backup)
+
+		restore.Spec.BackupName = backup.Name
+
+		logrus.Debugf("creating restore %s", restoreName)
+
+		err = kcli.Create(ctx, restore)
+		if err != nil {
+			return fmt.Errorf("unable to create restore: %w", err)
+		}
+	}
+
+	// wait for restore to complete
+	return waitForDRComponent(ctx, disasterRecoveryComponentApp, restoreName)
+}
+
+// restoreFromBackup will use the "replicated.com/disaster-recovery" label value provided to create
+// a velero restore object which will restore one set of resources to the cluster.
 func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent disasterRecoveryComponent) error {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
@@ -1237,8 +1424,9 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				Namespace: runtimeconfig.VeleroNamespace,
 				Name:      restoreName,
 				Annotations: map[string]string{
-					"kots.io/embedded-cluster": "true",
+					disasterrecovery.BackupIsECAnnotation: "true",
 				},
+				Labels: map[string]string{},
 			},
 			Spec: velerov1.RestoreSpec{
 				BackupName: backup.Name,
@@ -1254,10 +1442,14 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 			},
 		}
 
+		ensureImprovedDrMetadata(restore, backup)
+
 		// ensure restore resource modifiers first
 		if err := ensureRestoreResourceModifiers(ctx, backup); err != nil {
 			return fmt.Errorf("unable to ensure restore resource modifiers: %w", err)
 		}
+
+		logrus.Debugf("creating restore %s", restoreName)
 
 		err = kcli.Create(ctx, restore)
 		if err != nil {
@@ -1267,6 +1459,24 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 
 	// wait for restore to complete
 	return waitForDRComponent(ctx, drComponent, restoreName)
+}
+
+func ensureImprovedDrMetadata(restore *velerov1.Restore, backup *velerov1.Backup) {
+	if restore.Labels == nil {
+		restore.Labels = map[string]string{}
+	}
+	if restore.Annotations == nil {
+		restore.Annotations = map[string]string{}
+	}
+	if val, ok := backup.Labels[disasterrecovery.InstanceBackupNameLabel]; ok {
+		restore.Labels[disasterrecovery.InstanceBackupNameLabel] = val
+	}
+	if val, ok := backup.Annotations[disasterrecovery.InstanceBackupTypeAnnotation]; ok {
+		restore.Annotations[disasterrecovery.InstanceBackupTypeAnnotation] = val
+	}
+	if val, ok := backup.Annotations[disasterrecovery.InstanceBackupCountAnnotation]; ok {
+		restore.Annotations[disasterrecovery.InstanceBackupCountAnnotation] = val
+	}
 }
 
 // waitForAdditionalNodes waits for for user to add additional nodes to the cluster.
@@ -1394,14 +1604,14 @@ func restoreReconcileInstallationFromRuntimeConfig(ctx context.Context) error {
 // overrideRuntimeConfigFromBackup will update the runtime config from the backup. These values may
 // be used during the install and set in the Installation object via the
 // restoreReconcileInstallationFromRuntimeConfig function.
-func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup *velerov1.Backup) error {
+func overrideRuntimeConfigFromBackup(localArtifactMirrorPort int, backup disasterrecovery.ReplicatedBackup) error {
 	if localArtifactMirrorPort != 0 {
-		if val := backup.Annotations["kots.io/embedded-cluster-local-artifact-mirror-port"]; val != "" {
+		if val, _ := backup.GetAnnotation("kots.io/embedded-cluster-local-artifact-mirror-port"); val != "" {
 			port, err := k8snet.ParsePort(val, false)
 			if err != nil {
 				return fmt.Errorf("parse local artifact mirror port: %w", err)
 			}
-			logrus.Debugf("updating local artifact mirror port to %d from backup %q", port, backup.Name)
+			logrus.Debugf("updating local artifact mirror port to %d from backup %q", port, backup.GetName())
 			runtimeconfig.SetLocalArtifactMirrorPort(port)
 		}
 	}
@@ -1448,14 +1658,14 @@ const (
 )
 
 type invalidBackupsError struct {
-	invalidBackups []velerov1.Backup
+	invalidBackups []disasterrecovery.ReplicatedBackup
 	invalidReasons []string
 }
 
 func (e *invalidBackupsError) Error() string {
 	reasons := []string{}
 	for i, backup := range e.invalidBackups {
-		reasons = append(reasons, fmt.Sprintf("%q %s", backup.Name, e.invalidReasons[i]))
+		reasons = append(reasons, fmt.Sprintf("%q %s", backup.GetName(), e.invalidReasons[i]))
 	}
 
 	if len(e.invalidBackups) == 1 {
