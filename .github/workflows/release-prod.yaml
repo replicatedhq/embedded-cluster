@@ -69,7 +69,7 @@ jobs:
 
       - name: Install dagger
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=v0.14.0 sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build and push operator image
@@ -114,7 +114,7 @@ jobs:
 
       - name: Install dagger
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=v0.14.0 sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build and push local-artifact-mirror image
