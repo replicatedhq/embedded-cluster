@@ -11,8 +11,8 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	clitesting "github.com/replicatedhq/embedded-cluster/cmd/installer/cli/testing"
+	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/snapshots"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -40,13 +40,13 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			Name:      "instance-abcd",
 			Namespace: "velero",
 			Labels: map[string]string{
-				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
+				disasterrecovery.InstanceBackupNameLabel: "app-slug-abcd",
 			},
 			Annotations: appendCommonAnnotations(map[string]string{
-				snapshots.BackupIsECAnnotation:            "true",
-				snapshots.InstanceBackupVersionAnnotation: snapshots.InstanceBackupVersionCurrent,
-				snapshots.InstanceBackupTypeAnnotation:    snapshots.InstanceBackupTypeInfra,
-				snapshots.InstanceBackupCountAnnotation:   "2",
+				disasterrecovery.BackupIsECAnnotation:            "true",
+				disasterrecovery.InstanceBackupVersionAnnotation: disasterrecovery.InstanceBackupVersionCurrent,
+				disasterrecovery.InstanceBackupTypeAnnotation:    disasterrecovery.InstanceBackupTypeInfra,
+				disasterrecovery.InstanceBackupCountAnnotation:   "2",
 			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.UTC)},
 		},
@@ -63,13 +63,13 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			Name:      "application-abcd",
 			Namespace: "velero",
 			Labels: map[string]string{
-				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
+				disasterrecovery.InstanceBackupNameLabel: "app-slug-abcd",
 			},
 			Annotations: appendCommonAnnotations(map[string]string{
-				snapshots.BackupIsECAnnotation:            "true",
-				snapshots.InstanceBackupVersionAnnotation: snapshots.InstanceBackupVersionCurrent,
-				snapshots.InstanceBackupTypeAnnotation:    snapshots.InstanceBackupTypeApp,
-				snapshots.InstanceBackupCountAnnotation:   "2",
+				disasterrecovery.BackupIsECAnnotation:            "true",
+				disasterrecovery.InstanceBackupVersionAnnotation: disasterrecovery.InstanceBackupVersionCurrent,
+				disasterrecovery.InstanceBackupTypeAnnotation:    disasterrecovery.InstanceBackupTypeApp,
+				disasterrecovery.InstanceBackupCountAnnotation:   "2",
 			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.UTC)},
 		},
@@ -86,8 +86,8 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			Name:      "instance-efgh",
 			Namespace: "velero",
 			Annotations: appendCommonAnnotations(map[string]string{
-				snapshots.BackupIsECAnnotation:     "true",
-				snapshots.InstanceBackupAnnotation: "true",
+				disasterrecovery.BackupIsECAnnotation:     "true",
+				disasterrecovery.InstanceBackupAnnotation: "true",
 				// legacy backups do not have the InstanceBackupTypeAnnotation
 			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)},
@@ -98,7 +98,7 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 	}
 
 	type args struct {
-		backup   snapshots.ReplicatedBackup
+		backup   disasterrecovery.ReplicatedBackup
 		rel      *release.ChannelRelease
 		isAirgap bool
 		k0sCfg   *k0sv1beta1.ClusterConfig
@@ -114,7 +114,7 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			name:      "wrong backup count should fail",
 			releaseFS: clitesting.RestoreReleaseDataNewDR,
 			args: args{
-				backup: snapshots.ReplicatedBackup{
+				backup: disasterrecovery.ReplicatedBackup{
 					appBackup,
 				},
 				rel: &release.ChannelRelease{
@@ -131,7 +131,7 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			name:      "app backup found but uses legacy dr should fail",
 			releaseFS: clitesting.RestoreReleaseDataLegacyDR,
 			args: args{
-				backup: snapshots.ReplicatedBackup{
+				backup: disasterrecovery.ReplicatedBackup{
 					infraBackup,
 					appBackup,
 				},
@@ -149,7 +149,7 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			name:      "legacy backup found but uses improved dr should fail",
 			releaseFS: clitesting.RestoreReleaseDataNewDR,
 			args: args{
-				backup: snapshots.ReplicatedBackup{
+				backup: disasterrecovery.ReplicatedBackup{
 					legacyBackup,
 				},
 				rel: &release.ChannelRelease{
@@ -166,7 +166,7 @@ func Test_isReplicatedBackupRestorable(t *testing.T) {
 			name:      "valid improved dr backup should return true",
 			releaseFS: clitesting.RestoreReleaseDataNewDR,
 			args: args{
-				backup: snapshots.ReplicatedBackup{
+				backup: disasterrecovery.ReplicatedBackup{
 					infraBackup,
 					appBackup,
 				},
@@ -213,13 +213,13 @@ func Test_waitForBackups(t *testing.T) {
 			Name:      "instance-abcd",
 			Namespace: "velero",
 			Labels: map[string]string{
-				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
+				disasterrecovery.InstanceBackupNameLabel: "app-slug-abcd",
 			},
 			Annotations: appendCommonAnnotations(map[string]string{
-				snapshots.BackupIsECAnnotation:            "true",
-				snapshots.InstanceBackupVersionAnnotation: snapshots.InstanceBackupVersionCurrent,
-				snapshots.InstanceBackupTypeAnnotation:    snapshots.InstanceBackupTypeInfra,
-				snapshots.InstanceBackupCountAnnotation:   "2",
+				disasterrecovery.BackupIsECAnnotation:            "true",
+				disasterrecovery.InstanceBackupVersionAnnotation: disasterrecovery.InstanceBackupVersionCurrent,
+				disasterrecovery.InstanceBackupTypeAnnotation:    disasterrecovery.InstanceBackupTypeInfra,
+				disasterrecovery.InstanceBackupCountAnnotation:   "2",
 			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 		},
@@ -236,13 +236,13 @@ func Test_waitForBackups(t *testing.T) {
 			Name:      "application-abcd",
 			Namespace: "velero",
 			Labels: map[string]string{
-				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
+				disasterrecovery.InstanceBackupNameLabel: "app-slug-abcd",
 			},
 			Annotations: appendCommonAnnotations(map[string]string{
-				snapshots.BackupIsECAnnotation:            "true",
-				snapshots.InstanceBackupVersionAnnotation: snapshots.InstanceBackupVersionCurrent,
-				snapshots.InstanceBackupTypeAnnotation:    snapshots.InstanceBackupTypeApp,
-				snapshots.InstanceBackupCountAnnotation:   "2",
+				disasterrecovery.BackupIsECAnnotation:            "true",
+				disasterrecovery.InstanceBackupVersionAnnotation: disasterrecovery.InstanceBackupVersionCurrent,
+				disasterrecovery.InstanceBackupTypeAnnotation:    disasterrecovery.InstanceBackupTypeApp,
+				disasterrecovery.InstanceBackupCountAnnotation:   "2",
 			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 		},
@@ -259,8 +259,8 @@ func Test_waitForBackups(t *testing.T) {
 			Name:      "instance-efgh",
 			Namespace: "velero",
 			Annotations: appendCommonAnnotations(map[string]string{
-				snapshots.BackupIsECAnnotation:     "true",
-				snapshots.InstanceBackupAnnotation: "true",
+				disasterrecovery.BackupIsECAnnotation:     "true",
+				disasterrecovery.InstanceBackupAnnotation: "true",
 				// legacy backups do not have the InstanceBackupTypeAnnotation
 			}),
 			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
@@ -279,7 +279,7 @@ func Test_waitForBackups(t *testing.T) {
 		name      string
 		releaseFS embed.FS
 		args      args
-		want      []snapshots.ReplicatedBackup
+		want      []disasterrecovery.ReplicatedBackup
 		wantErr   bool
 	}{
 		{
@@ -294,7 +294,7 @@ func Test_waitForBackups(t *testing.T) {
 				k0sCfg:   &k0sv1beta1.ClusterConfig{},
 				isAirgap: false,
 			},
-			want: []snapshots.ReplicatedBackup{
+			want: []disasterrecovery.ReplicatedBackup{
 				{
 					legacyBackup,
 				},
@@ -313,7 +313,7 @@ func Test_waitForBackups(t *testing.T) {
 				k0sCfg:   &k0sv1beta1.ClusterConfig{},
 				isAirgap: false,
 			},
-			want: []snapshots.ReplicatedBackup{
+			want: []disasterrecovery.ReplicatedBackup{
 				{
 					appBackup,
 					infraBackup,
@@ -384,9 +384,9 @@ func Test_ensureImprovedDrMetadata(t *testing.T) {
 							"some-other-label": "some-other-value",
 						},
 						Annotations: map[string]string{
-							snapshots.BackupIsECAnnotation:     "true",
-							snapshots.InstanceBackupAnnotation: "true",
-							"some-other-annotation":            "some-other-value",
+							disasterrecovery.BackupIsECAnnotation:     "true",
+							disasterrecovery.InstanceBackupAnnotation: "true",
+							"some-other-annotation":                   "some-other-value",
 						},
 					},
 				},
@@ -431,27 +431,27 @@ func Test_ensureImprovedDrMetadata(t *testing.T) {
 						Name:      "backup",
 						Namespace: "velero",
 						Labels: map[string]string{
-							snapshots.InstanceBackupNameLabel: "app-slug-abcd",
-							"some-other-label":                "some-other-value",
+							disasterrecovery.InstanceBackupNameLabel: "app-slug-abcd",
+							"some-other-label":                       "some-other-value",
 						},
 						Annotations: map[string]string{
-							snapshots.BackupIsECAnnotation:            "true",
-							snapshots.InstanceBackupVersionAnnotation: snapshots.InstanceBackupVersionCurrent,
-							snapshots.InstanceBackupTypeAnnotation:    snapshots.InstanceBackupTypeApp,
-							snapshots.InstanceBackupCountAnnotation:   "2",
-							"some-other-annotation":                   "some-other-value",
+							disasterrecovery.BackupIsECAnnotation:            "true",
+							disasterrecovery.InstanceBackupVersionAnnotation: disasterrecovery.InstanceBackupVersionCurrent,
+							disasterrecovery.InstanceBackupTypeAnnotation:    disasterrecovery.InstanceBackupTypeApp,
+							disasterrecovery.InstanceBackupCountAnnotation:   "2",
+							"some-other-annotation":                          "some-other-value",
 						},
 					},
 				},
 			},
 			wantLabels: map[string]string{
-				"some-label":                      "some-value",
-				snapshots.InstanceBackupNameLabel: "app-slug-abcd",
+				"some-label":                             "some-value",
+				disasterrecovery.InstanceBackupNameLabel: "app-slug-abcd",
 			},
 			wantAnnotations: map[string]string{
-				"some-annotation":                       "some-value",
-				snapshots.InstanceBackupTypeAnnotation:  snapshots.InstanceBackupTypeApp,
-				snapshots.InstanceBackupCountAnnotation: "2",
+				"some-annotation": "some-value",
+				disasterrecovery.InstanceBackupTypeAnnotation:  disasterrecovery.InstanceBackupTypeApp,
+				disasterrecovery.InstanceBackupCountAnnotation: "2",
 			},
 		},
 	}
