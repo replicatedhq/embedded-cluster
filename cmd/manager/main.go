@@ -34,6 +34,7 @@ func RootCmd(ctx context.Context, v *viper.Viper, name string) *cobra.Command {
 
 	cmd.AddCommand(StartCmd(ctx, name))
 	cmd.AddCommand(StatusCmd(ctx, name))
+	cmd.AddCommand(SendCmd(ctx, name))
 
 	return cmd
 }

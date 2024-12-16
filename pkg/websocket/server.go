@@ -10,11 +10,14 @@ import (
 
 	gwebsocket "github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/upgrade"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 var wsDialer = &gwebsocket.Dialer{
@@ -73,7 +76,7 @@ func attemptConnection(ctx context.Context) error {
 	go pingWSServer(conn)
 
 	// listen to server messages
-	return listenToWSServer(conn)
+	return listenToWSServer(ctx, conn)
 }
 
 func pingWSServer(conn *gwebsocket.Conn) error {
@@ -89,11 +92,39 @@ func pingWSServer(conn *gwebsocket.Conn) error {
 	}
 }
 
-func listenToWSServer(conn *gwebsocket.Conn) error {
+type Message struct {
+	Command string `json:"command"`
+	Data    string `json:"data"`
+}
+
+func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 	for {
-		_, _, err := conn.ReadMessage() // this is required to receive ping/pong messages
+		_, message, err := conn.ReadMessage() // receive messages, including ping/pong
 		if err != nil {
 			return errors.Wrap(err, "read message")
+		}
+
+		var msg Message
+		if err := k8syaml.Unmarshal(message, &msg); err != nil {
+			logrus.Errorf("failed to unmarshal message: %s: %s", err, string(message))
+			continue
+		}
+
+		switch msg.Command {
+		case "upgrade-cluster":
+			var newInstall ecv1beta1.Installation
+			if err := k8syaml.Unmarshal([]byte(msg.Data), &newInstall); err != nil {
+				logrus.Errorf("failed to unmarshal installation: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			if err := upgrade.Upgrade(ctx, &newInstall); err != nil {
+				logrus.Errorf("failed to upgrade cluster: %s", err.Error())
+				// TODO send error back to kots
+				continue
+			}
+		default:
+			logrus.Infof("Received unknown command: %s", msg.Command)
 		}
 	}
 }
