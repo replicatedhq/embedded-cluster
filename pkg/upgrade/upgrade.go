@@ -36,6 +36,11 @@ func Upgrade(ctx context.Context, in *clusterv1beta1.Installation) error {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
+	err = createInstallation(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("apply installation: %w", err)
+	}
+
 	fmt.Printf("Upgrading to version %s\n", in.Spec.Config.Version)
 	err = k0sUpgrade(ctx, cli, in)
 	if err != nil {
