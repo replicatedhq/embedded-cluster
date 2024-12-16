@@ -559,7 +559,7 @@ spec:
   - textAnalyze:
       checkName: Check if 'modprobe' command exists in PATH
       fileName: host-collectors/run-host/check-modprobe.txt
-      regex: '/usr/sbin/modprobe'
+      regex: 'modprobe'
       outcomes:
         - pass:
             when: "true"
@@ -570,7 +570,7 @@ spec:
   - textAnalyze:
       checkName: Check if 'mount' command exists in PATH
       fileName: host-collectors/run-host/check-mount.txt
-      regex: '/usr/bin/mount'
+      regex: 'mount'
       outcomes:
         - pass:
             when: "true"
@@ -581,7 +581,7 @@ spec:
   - textAnalyze:
       checkName: Check if 'umount' command exists in PATH
       fileName: host-collectors/run-host/check-umount.txt
-      regex: '/usr/bin/umount'
+      regex: 'umount'
       outcomes:
         - pass:
             when: "true"
