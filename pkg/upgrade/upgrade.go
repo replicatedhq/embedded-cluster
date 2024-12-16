@@ -36,6 +36,14 @@ func Upgrade(ctx context.Context, in *clusterv1beta1.Installation) error {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
+	// Augment the installation with data dirs that may not be present in the previous version.
+	// This is important to do ahead of updating the cluster config.
+	// We still cannot update the installation object as the CRDs are not updated yet.
+	in, err = maybeOverrideInstallationDataDirs(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("override installation data dirs: %w", err)
+	}
+
 	err = createInstallation(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("apply installation: %w", err)
@@ -45,14 +53,6 @@ func Upgrade(ctx context.Context, in *clusterv1beta1.Installation) error {
 	err = k0sUpgrade(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
-	}
-
-	// Augment the installation with data dirs that may not be present in the previous version.
-	// This is important to do ahead of updating the cluster config.
-	// We still cannot update the installation object as the CRDs are not updated yet.
-	in, err = maybeOverrideInstallationDataDirs(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("override installation data dirs: %w", err)
 	}
 
 	// We must update the cluster config after we upgrade k0s as it is possible that the schema
@@ -67,13 +67,6 @@ func Upgrade(ctx context.Context, in *clusterv1beta1.Installation) error {
 	err = registryMigrationStatus(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("registry migration status: %w", err)
-	}
-
-	fmt.Printf("Re-applying installation\n")
-	// Finally, re-apply the installation as the CRDs are up-to-date.
-	err = reApplyInstallation(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("unlock installation: %w", err)
 	}
 
 	err = kotscli.CreateHostSupportBundle()
