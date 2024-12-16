@@ -1,6 +1,6 @@
 package:
   name: local-artifact-mirror
-  version: ${PACKAGE_VERSION}
+  version: "0.0.1" # our versioning is not compatible with apk
   epoch: 0
   description: Local Artifact Mirror
   copyright:
