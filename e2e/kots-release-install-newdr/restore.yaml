@@ -12,7 +12,10 @@ spec:
     resources:
     - name: restore-hook-1
       includedNamespaces:
-      - my-app
+      - kotsadm
+      labelSelector:
+        matchLabels:
+          app: example
       postHooks:
       - init:
           initContainers:

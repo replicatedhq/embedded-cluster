@@ -7,7 +7,11 @@ metadata:
 spec:
   ttl: 36h0m0s
   includedNamespaces:
-  - my-app
+  - kotsadm
+  orLabelSelectors:
+  - matchExpressions:
+    - { key: kots.io/backup, operator: DoesNotExist }
+    - { key: replicated.com/disaster-recovery, operator: DoesNotExist }
   hooks:
     resources:
     - name: test-hook

@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: second
-  namespace: my-app
   labels:
     app: second
     replicated.com/disaster-recovery: app
