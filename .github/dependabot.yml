@@ -19,6 +19,12 @@ updates:
       security:
         update-types:
           - "patch"
+      k8s.io:
+        patterns:
+          - "k8s.io/*"
+      aws-sdk-go-v2:
+        patterns:
+          - "github.com/aws/aws-sdk-go-v2*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
