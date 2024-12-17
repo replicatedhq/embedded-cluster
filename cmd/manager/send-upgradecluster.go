@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -26,7 +25,7 @@ func SendUpgradeClusterCmd(ctx context.Context, name string) *cobra.Command {
 			if _, err := os.Stat(args[0]); err != nil {
 				return err
 			}
-			spec, err := ioutil.ReadFile(args[0])
+			spec, err := os.ReadFile(args[0])
 			if err != nil {
 				return err
 			}
