@@ -12,6 +12,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func reportUpgradeStarted(ctx context.Context, data map[string]string) {
+	if err := sendUpgradeReport(ctx, data, "running", ""); err != nil {
+		logrus.Errorf("failed to report upgrade started: %s", err.Error())
+	}
+}
+
 func reportUpgradeError(ctx context.Context, data map[string]string, errMsg string) {
 	if err := sendUpgradeReport(ctx, data, "failed", errMsg); err != nil {
 		logrus.Errorf("failed to report upgrade error: %s", err.Error())

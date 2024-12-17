@@ -113,6 +113,8 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 				continue
 			}
 
+			reportUpgradeStarted(ctx, d)
+
 			var newInstall ecv1beta1.Installation
 			if err := k8syaml.Unmarshal([]byte(d["installation"]), &newInstall); err != nil {
 				errMsg := fmt.Sprintf("failed to unmarshal installation: %s: %s", err, string(msg.Data))
