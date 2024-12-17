@@ -11,7 +11,6 @@ spec:
   orLabelSelectors:
   - matchExpressions:
     - { key: kots.io/kotsadm, operator: NotIn, values: ["true"] }
-    - { key: replicated.com/disaster-recovery, operator: DoesNotExist }
   hooks:
     resources:
     - name: test-hook
