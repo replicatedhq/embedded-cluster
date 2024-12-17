@@ -85,6 +85,12 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore-newdr.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
@@ -102,7 +108,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeNewDisasterRecovery(t *testing.T) {
+func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
@@ -180,14 +186,6 @@ func TestSingleNodeNewDisasterRecovery(t *testing.T) {
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
-
-	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-restore-newdr.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// TODO: upgrade
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
