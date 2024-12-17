@@ -86,7 +86,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-restore-newdr.sh"}
+	line = []string{"check-post-restore.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -131,7 +131,7 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "snapshot-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster-newdr",
+		ECBinaryPath: "../output/bin/embedded-cluster-legacydr",
 	})
 	defer tc.Cleanup()
 
@@ -148,7 +148,7 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	appVersion := fmt.Sprintf("appver-%s-newdr", os.Getenv("SHORT_SHA"))
+	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}

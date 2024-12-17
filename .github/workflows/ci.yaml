@@ -204,8 +204,8 @@ jobs:
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
-  build-newdr:
-    name: Build new DR
+  build-legacydr:
+    name: Build legacy DR
     runs-on: embedded-cluster
     needs:
       - git-sha
@@ -239,7 +239,7 @@ jobs:
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
-          RELEASE_YAML_DIR: e2e/kots-release-install-newdr
+          RELEASE_YAML_DIR: e2e/kots-release-install-legacydr
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           USES_DEV_BUCKET: "0"
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
@@ -251,20 +251,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
-          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-newdr
-          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-newdr
+          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-legacydr
+          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-legacydr
           # avoid rate limiting
           export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
 
           ./scripts/build-and-release.sh
-          cp output/bin/embedded-cluster output/bin/embedded-cluster-newdr
+          cp output/bin/embedded-cluster output/bin/embedded-cluster-legacydr
 
       - name: Upload release
         uses: actions/upload-artifact@v4
         with:
-          name: newdr-release
+          name: legacydr-release
           path: |
-            output/bin/embedded-cluster-newdr
+            output/bin/embedded-cluster-legacydr
 
       - name: Export k0s version
         id: export
@@ -509,7 +509,7 @@ jobs:
     needs:
       - git-sha
       - build-current
-      - build-newdr
+      - build-legacydr
       - build-previous-k0s
       - build-upgrade
       - find-previous-stable
@@ -564,9 +564,9 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # promote a release with improved dr support
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-newdr"
-          export APP_VERSION="appver-${SHORT_SHA}-newdr"
-          export RELEASE_YAML_DIR=e2e/kots-release-install-newdr
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-legacydr"
+          export APP_VERSION="appver-${SHORT_SHA}-legacydr"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-legacydr
           ./scripts/ci-release-app.sh
 
           # then a noop upgrade
@@ -610,9 +610,9 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # promote a release with improved dr support
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-newdr"
-          export APP_VERSION="appver-${SHORT_SHA}-newdr"
-          export RELEASE_YAML_DIR=e2e/kots-release-install-newdr
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-legacydr"
+          export APP_VERSION="appver-${SHORT_SHA}-legacydr"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-legacydr
           ./scripts/ci-release-app.sh
 
           # and finally an app upgrade
@@ -654,7 +654,7 @@ jobs:
     needs:
       - git-sha
       - build-current
-      - build-newdr
+      - build-legacydr
       - build-previous-k0s
       - build-upgrade
       - find-previous-stable
@@ -706,7 +706,7 @@ jobs:
       - name: Download new DR binary
         uses: actions/download-artifact@v4
         with:
-          name: newdr-release
+          name: legacydr-release
           path: output/bin
       - name: Setup go
         uses: actions/setup-go@v5
@@ -754,7 +754,7 @@ jobs:
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     needs:
       - build-current
-      - build-newdr
+      - build-legacydr
       - build-previous-k0s
       - build-upgrade
       - find-previous-stable
