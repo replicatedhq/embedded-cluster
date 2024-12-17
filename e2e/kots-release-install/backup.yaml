@@ -11,6 +11,7 @@ spec:
   orLabelSelectors:
   - matchExpressions:
     - { key: kots.io/backup, operator: DoesNotExist }
+  - matchExpressions:
     - { key: replicated.com/disaster-recovery, operator: DoesNotExist }
   hooks:
     resources:
