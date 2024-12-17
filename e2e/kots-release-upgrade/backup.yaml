@@ -10,7 +10,7 @@ spec:
   - kotsadm
   orLabelSelectors:
   - matchExpressions:
-    - { key: kots.io/backup, operator: DoesNotExist }
+    - { key: kots.io/kotsadm, operator: NotIn, values: ["true"] }
     - { key: replicated.com/disaster-recovery, operator: DoesNotExist }
   hooks:
     resources:
