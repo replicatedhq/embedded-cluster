@@ -118,14 +118,14 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 			var newInstall ecv1beta1.Installation
 			if err := k8syaml.Unmarshal([]byte(d["installation"]), &newInstall); err != nil {
 				errMsg := fmt.Sprintf("failed to unmarshal installation: %s: %s", err, string(msg.Data))
-				logrus.Errorf(errMsg)
+				logrus.Error(errMsg)
 				reportUpgradeError(ctx, d, errMsg)
 				continue
 			}
 
 			if err := upgrade.Upgrade(ctx, &newInstall); err != nil {
 				errMsg := fmt.Sprintf("failed to upgrade cluster: %s", err.Error())
-				logrus.Errorf(errMsg)
+				logrus.Error(errMsg)
 				reportUpgradeError(ctx, d, errMsg)
 				continue
 			}
