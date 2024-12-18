@@ -508,9 +508,12 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 		}
 
 		if err := r.Create(ctx, job); err != nil {
-			return fmt.Errorf("failed to create job: %w", err)
+			if !errors.IsAlreadyExists(err) {
+				return fmt.Errorf("failed to create job: %w", err)
+			}
+		} else {
+			log.Info("Copy host preflight results job for node created", "node", event.NodeName, "installation", in.Name)
 		}
-		log.Info("Copy host preflight results job for node created", "node", event.NodeName, "installation", in.Name)
 	}
 
 	return nil
