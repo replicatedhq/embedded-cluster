@@ -52,7 +52,7 @@ require (
 	k8s.io/apimachinery v0.32.0
 	k8s.io/cli-runtime v0.32.0
 	k8s.io/client-go v0.32.0
-	k8s.io/kubectl v0.31.3
+	k8s.io/kubectl v0.32.0
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	oras.land/oras-go/v2 v2.5.0
 	sigs.k8s.io/controller-runtime v0.19.3
@@ -141,7 +141,7 @@ require (
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/envoyproxy/go-control-plane v0.13.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.1.0 // indirect
-	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
+	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
@@ -297,9 +297,9 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	k8s.io/apiserver v0.31.3 // indirect
-	k8s.io/component-base v0.31.3 // indirect
+	k8s.io/component-base v0.32.0 // indirect
 	k8s.io/kubelet v0.31.2 // indirect
-	k8s.io/metrics v0.31.3 // indirect
+	k8s.io/metrics v0.32.0 // indirect
 	oras.land/oras-go v1.2.6 // indirect
 	periph.io/x/host/v3 v3.8.2 // indirect
 	sigs.k8s.io/kustomize/api v0.18.0 // indirect
