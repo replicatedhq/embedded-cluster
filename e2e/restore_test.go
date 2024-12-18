@@ -272,7 +272,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
 	line = []string{"check-post-restore.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
