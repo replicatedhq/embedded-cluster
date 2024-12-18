@@ -50,7 +50,7 @@ require (
 	helm.sh/helm/v3 v3.16.3
 	k8s.io/api v0.32.0
 	k8s.io/apimachinery v0.32.0
-	k8s.io/cli-runtime v0.31.3
+	k8s.io/cli-runtime v0.32.0
 	k8s.io/client-go v0.32.0
 	k8s.io/kubectl v0.31.3
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
@@ -283,7 +283,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.32.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.29.0 // indirect
 	go.opentelemetry.io/otel/trace v1.32.0 // indirect
-	go.starlark.net v0.0.0-20240925182052-1207426daebd // indirect
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/mod v0.22.0 // indirect
@@ -303,8 +302,8 @@ require (
 	k8s.io/metrics v0.31.3 // indirect
 	oras.land/oras-go v1.2.6 // indirect
 	periph.io/x/host/v3 v3.8.2 // indirect
-	sigs.k8s.io/kustomize/api v0.17.2 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.17.1 // indirect
+	sigs.k8s.io/kustomize/api v0.18.0 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.18.1 // indirect
 )
 
 require (
