@@ -882,6 +882,10 @@ func TestOldVersionUpgrade(t *testing.T) {
 	line = []string{"kots-upstream-upgrade.sh", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to run kots upstream upgrade: %v: %s: %s", err, stdout, stderr)
+	} else {
+		t.Log(stdout)
+		t.Log(stderr)
+		t.Logf("%s: ran kots upstream upgrade", time.Now().Format(time.RFC3339))
 	}
 
 	t.Logf("%s: checking installation state after upgrade", time.Now().Format(time.RFC3339))
