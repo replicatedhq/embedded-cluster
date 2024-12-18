@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/upgrade"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -39,13 +38,9 @@ func attemptConnection(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
 	}
-	var svc corev1.Service
-	if err := kcli.Get(ctx, types.NamespacedName{Name: "kotsadm", Namespace: runtimeconfig.KotsadmNamespace}, &svc); err != nil {
-		return errors.Wrap(err, "get kotsadm service")
-	}
-	clusterIP := svc.Spec.ClusterIP
-	if clusterIP == "" {
-		return errors.New("cluster ip is empty")
+	clusterIP, err := getKOTSClusterIP(ctx, kcli)
+	if err != nil {
+		return errors.Wrap(err, "get kots cluster ip")
 	}
 
 	hostname, err := os.Hostname()
@@ -112,17 +107,30 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 
 		switch msg.Command {
 		case "upgrade-cluster":
+			d := map[string]string{}
+			if err := k8syaml.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportUpgradeStarted(ctx, d)
+
 			var newInstall ecv1beta1.Installation
-			if err := k8syaml.Unmarshal([]byte(msg.Data), &newInstall); err != nil {
-				logrus.Errorf("failed to unmarshal installation: %s: %s", err, string(msg.Data))
+			if err := k8syaml.Unmarshal([]byte(d["installation"]), &newInstall); err != nil {
+				errMsg := fmt.Sprintf("failed to unmarshal installation: %s: %s", err, string(msg.Data))
+				logrus.Error(errMsg)
+				reportUpgradeError(ctx, d, errMsg)
 				continue
 			}
 
 			if err := upgrade.Upgrade(ctx, &newInstall); err != nil {
-				logrus.Errorf("failed to upgrade cluster: %s", err.Error())
-				// TODO send error back to kots
+				errMsg := fmt.Sprintf("failed to upgrade cluster: %s", err.Error())
+				logrus.Error(errMsg)
+				reportUpgradeError(ctx, d, errMsg)
 				continue
 			}
+
+			reportUpgradeSuccess(ctx, d)
 		default:
 			logrus.Infof("Received unknown command: %s", msg.Command)
 		}

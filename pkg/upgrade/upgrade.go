@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
@@ -110,25 +112,13 @@ func k0sUpgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Insta
 	fmt.Printf("Upgrading k0s to version %s\n", desiredVersion)
 
 	// create an autopilot upgrade plan if one does not yet exist
-	var plan apv1b2.Plan
-	okey := client.ObjectKey{Name: "autopilot"}
-	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get upgrade plan: %w", err)
-	} else if errors.IsNotFound(err) {
-		// if the kubernetes version has changed we create an upgrade command
-		fmt.Printf("Starting k0s autopilot upgrade plan to version %s\n", desiredVersion)
-
-		// there is no autopilot plan in the cluster so we are free to
-		// start our own plan. here we link the plan to the installation
-		// by its name.
-		if err := StartAutopilotUpgrade(ctx, cli, in, meta); err != nil {
-			return fmt.Errorf("failed to start upgrade: %w", err)
-		}
+	if err := createAutopilotPlan(ctx, cli, desiredVersion, in, meta); err != nil {
+		return fmt.Errorf("failed to create autpilot upgrade plan: %w", err)
 	}
 
-	// restart this function/pod until the plan is complete
-	if !autopilot.HasThePlanEnded(plan) {
-		return fmt.Errorf("an autopilot upgrade is in progress (%s)", plan.Spec.ID)
+	plan, err := waitForAutopilotPlan(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("failed to wait for autpilot plan: %w", err)
 	}
 
 	if autopilot.HasPlanFailed(plan) {
@@ -220,4 +210,37 @@ func registryMigrationStatus(ctx context.Context, cli client.Client, in *cluster
 		return fmt.Errorf("ensure registry migration complete condition: %w", err)
 	}
 	return nil
+}
+
+func createAutopilotPlan(ctx context.Context, cli client.Client, desiredVersion string, in *clusterv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+	var plan apv1b2.Plan
+	okey := client.ObjectKey{Name: "autopilot"}
+	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get upgrade plan: %w", err)
+	} else if errors.IsNotFound(err) {
+		// if the kubernetes version has changed we create an upgrade command
+		fmt.Printf("Starting k0s autopilot upgrade plan to version %s\n", desiredVersion)
+
+		// there is no autopilot plan in the cluster so we are free to
+		// start our own plan. here we link the plan to the installation
+		// by its name.
+		if err := StartAutopilotUpgrade(ctx, cli, in, meta); err != nil {
+			return fmt.Errorf("failed to start upgrade: %w", err)
+		}
+	}
+	return nil
+}
+
+func waitForAutopilotPlan(ctx context.Context, cli client.Client) (apv1b2.Plan, error) {
+	for {
+		var plan apv1b2.Plan
+		if err := cli.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan); err != nil {
+			return plan, fmt.Errorf("get upgrade plan: %w", err)
+		}
+		if autopilot.HasThePlanEnded(plan) {
+			return plan, nil
+		}
+		logrus.Infof("an autopilot upgrade is in progress (%s)", plan.Spec.ID)
+		time.Sleep(5 * time.Second)
+	}
 }
