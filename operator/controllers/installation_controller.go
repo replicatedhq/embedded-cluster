@@ -32,7 +32,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -508,7 +508,7 @@ func (r *InstallationReconciler) CopyHostPreflightResultsFromNodes(ctx context.C
 		}
 
 		if err := r.Create(ctx, job); err != nil {
-			if !errors.IsAlreadyExists(err) {
+			if !k8serrors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create job: %w", err)
 			}
 		} else {
@@ -641,7 +641,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// save the installation status. nothing more to do with it.
 	if err := r.Status().Update(ctx, in.DeepCopy()); err != nil {
-		if errors.IsConflict(err) {
+		if k8serrors.IsConflict(err) {
 			return ctrl.Result{}, fmt.Errorf("failed to update status: conflict")
 		}
 		return ctrl.Result{}, fmt.Errorf("failed to update installation status: %w", err)
