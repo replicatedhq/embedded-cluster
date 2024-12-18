@@ -85,6 +85,12 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
@@ -102,7 +108,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeNewDisasterRecovery(t *testing.T) {
+func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
@@ -125,18 +131,13 @@ func TestSingleNodeNewDisasterRecovery(t *testing.T) {
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "snapshot-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster-newdr",
+		ECBinaryPath: "../output/bin/embedded-cluster-legacydr",
 	})
 	defer tc.Cleanup()
 
-	// Use an alternate data directory
-	withEnv := map[string]string{
-		"APP_NAMESPACE": "my-app",
-	}
-
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "ui"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -147,11 +148,11 @@ func TestSingleNodeNewDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v", err)
 	}
 
-	appVersion := fmt.Sprintf("appver-%s-newdr", os.Getenv("SHORT_SHA"))
+	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -182,17 +183,9 @@ func TestSingleNodeNewDisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
 	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
-
-	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-restore-newdr.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
-		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// TODO: upgrade
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -275,6 +268,12 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	line = []string{"check-installation-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -451,6 +450,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
@@ -654,6 +659,12 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion(), "true"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -919,6 +930,12 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion(), "true"}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
+	}
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

@@ -7,7 +7,10 @@ metadata:
 spec:
   ttl: 36h0m0s
   includedNamespaces:
-  - my-app
+  - kotsadm
+  orLabelSelectors:
+  - matchExpressions:
+    - { key: kots.io/kotsadm, operator: NotIn, values: ["true"] }
   hooks:
     resources:
     - name: test-hook

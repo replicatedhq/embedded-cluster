@@ -28,6 +28,7 @@
      labels:
        replicated.com/disaster-recovery: infra
        replicated.com/disaster-recovery-chart: admin-console
+       kots.io/kotsadm: "true"
    spec:
      type: NodePort
      ports:
