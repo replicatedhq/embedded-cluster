@@ -4,14 +4,13 @@ import (
 	"context"
 	"sort"
 
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
-	helmrepo "helm.sh/helm/v3/pkg/repo"
 )
 
 func Install(ctx context.Context) error {
@@ -30,24 +29,8 @@ func Install(ctx context.Context) error {
 		return errors.Wrap(err, "create helm client")
 	}
 
-	for _, k0sRepo := range config.AdditionalRepositories() {
-		logrus.Debugf("Adding helm repository %s", k0sRepo.Name)
-
-		helmRepo := &helmrepo.Entry{
-			Name:     k0sRepo.Name,
-			URL:      k0sRepo.URL,
-			Username: k0sRepo.Username,
-			Password: k0sRepo.Password,
-			CertFile: k0sRepo.CertFile,
-			KeyFile:  k0sRepo.KeyFile,
-			CAFile:   k0sRepo.CAFile,
-		}
-		if k0sRepo.Insecure != nil {
-			helmRepo.InsecureSkipTLSverify = *k0sRepo.Insecure
-		}
-		if err := hcli.AddRepo(helmRepo); err != nil {
-			return errors.Wrapf(err, "add helm repository %s", k0sRepo.Name)
-		}
+	if err := addRepos(hcli, config.AdditionalRepositories()); err != nil {
+		return errors.Wrap(err, "add additional helm repositories")
 	}
 
 	// sort by order first
@@ -59,22 +42,66 @@ func Install(ctx context.Context) error {
 	for _, ext := range sorted {
 		loading.Infof("Installing %s", ext.Name)
 
-		var values map[string]interface{}
-		if err := yaml.Unmarshal([]byte(ext.Values), &values); err != nil {
-			return errors.Wrap(err, "unmarshal values")
+		if err := install(ctx, hcli, ext); err != nil {
+			return errors.Wrap(err, "install extension")
 		}
+	}
 
-		_, err = hcli.Install(ctx, helm.InstallOptions{
-			ReleaseName:  ext.Name,
-			ChartPath:    ext.ChartName,
-			ChartVersion: ext.Version,
-			Values:       values,
-			Namespace:    ext.TargetNS,
-			Timeout:      ext.Timeout.Duration,
-		})
-		if err != nil {
-			return errors.Wrap(err, "helm install")
-		}
+	return nil
+}
+
+func Add(ctx context.Context, repos []k0sv1beta1.Repository, ext ecv1beta1.Chart) error {
+	hcli, err := helm.NewHelm(helm.HelmOptions{
+		K0sVersion: versions.K0sVersion,
+	})
+	if err != nil {
+		return errors.Wrap(err, "create helm client")
+	}
+
+	if err := addRepos(hcli, repos); err != nil {
+		return errors.Wrap(err, "add repos")
+	}
+
+	if err := install(ctx, hcli, ext); err != nil {
+		return errors.Wrap(err, "install extension")
+	}
+
+	return nil
+}
+
+func Upgrade(ctx context.Context, repos []k0sv1beta1.Repository, ext ecv1beta1.Chart) error {
+	hcli, err := helm.NewHelm(helm.HelmOptions{
+		K0sVersion: versions.K0sVersion,
+	})
+	if err != nil {
+		return errors.Wrap(err, "create helm client")
+	}
+
+	if err := addRepos(hcli, repos); err != nil {
+		return errors.Wrap(err, "add repos")
+	}
+
+	if err := upgrade(ctx, hcli, ext); err != nil {
+		return errors.Wrap(err, "upgrade extension")
+	}
+
+	return nil
+}
+
+func Remove(ctx context.Context, repos []k0sv1beta1.Repository, ext ecv1beta1.Chart) error {
+	hcli, err := helm.NewHelm(helm.HelmOptions{
+		K0sVersion: versions.K0sVersion,
+	})
+	if err != nil {
+		return errors.Wrap(err, "create helm client")
+	}
+
+	if err := addRepos(hcli, repos); err != nil {
+		return errors.Wrap(err, "add repos")
+	}
+
+	if err := uninstall(ctx, hcli, ext); err != nil {
+		return errors.Wrap(err, "uninstall extension")
 	}
 
 	return nil
