@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -9,14 +10,15 @@ import (
 	"time"
 
 	gwebsocket "github.com/gorilla/websocket"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/upgrade"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	k8syaml "sigs.k8s.io/yaml"
 )
 
 var wsDialer = &gwebsocket.Dialer{
@@ -100,7 +102,7 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 		}
 
 		var msg Message
-		if err := k8syaml.Unmarshal(message, &msg); err != nil {
+		if err := json.Unmarshal(message, &msg); err != nil {
 			logrus.Errorf("failed to unmarshal message: %s: %s", err, string(message))
 			continue
 		}
@@ -108,29 +110,109 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 		switch msg.Command {
 		case "upgrade-cluster":
 			d := map[string]string{}
-			if err := k8syaml.Unmarshal([]byte(msg.Data), &d); err != nil {
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
 				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
 				continue
 			}
 
-			reportUpgradeStarted(ctx, d)
+			reportStepStarted(ctx, d)
 
 			var newInstall ecv1beta1.Installation
-			if err := k8syaml.Unmarshal([]byte(d["installation"]), &newInstall); err != nil {
-				errMsg := fmt.Sprintf("failed to unmarshal installation: %s: %s", err, string(msg.Data))
-				logrus.Error(errMsg)
-				reportUpgradeError(ctx, d, errMsg)
+			if err := json.Unmarshal([]byte(d["installation"]), &newInstall); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal installation: %s: %s", err, string(msg.Data)))
 				continue
 			}
 
 			if err := upgrade.Upgrade(ctx, &newInstall); err != nil {
-				errMsg := fmt.Sprintf("failed to upgrade cluster: %s", err.Error())
-				logrus.Error(errMsg)
-				reportUpgradeError(ctx, d, errMsg)
+				reportStepError(ctx, d, fmt.Sprintf("failed to upgrade cluster: %s", err.Error()))
 				continue
 			}
 
-			reportUpgradeSuccess(ctx, d)
+			reportStepSuccess(ctx, d)
+
+		case "add-extension":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, d)
+
+			var repos []k0sv1beta1.Repository
+			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			var chart ecv1beta1.Chart
+			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			if err := extensions.Add(ctx, repos, chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to add extension: %s", err.Error()))
+				continue
+			}
+
+			reportStepSuccess(ctx, d)
+
+		case "upgrade-extension":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, d)
+
+			var repos []k0sv1beta1.Repository
+			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			var chart ecv1beta1.Chart
+			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			if err := extensions.Upgrade(ctx, repos, chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to upgrade extension: %s", err.Error()))
+				continue
+			}
+
+			reportStepSuccess(ctx, d)
+
+		case "remove-extension":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, d)
+
+			var repos []k0sv1beta1.Repository
+			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			var chart ecv1beta1.Chart
+			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			if err := extensions.Remove(ctx, repos, chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to remove extension: %s", err.Error()))
+				continue
+			}
+
+			reportStepSuccess(ctx, d)
 		default:
 			logrus.Infof("Received unknown command: %s", msg.Command)
 		}

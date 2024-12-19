@@ -12,25 +12,26 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func reportUpgradeStarted(ctx context.Context, data map[string]string) {
-	if err := sendUpgradeReport(ctx, data, "running", ""); err != nil {
+func reportStepStarted(ctx context.Context, data map[string]string) {
+	if err := sendStepReport(ctx, data, "running", ""); err != nil {
 		logrus.Errorf("failed to report upgrade started: %s", err.Error())
 	}
 }
 
-func reportUpgradeError(ctx context.Context, data map[string]string, errMsg string) {
-	if err := sendUpgradeReport(ctx, data, "failed", errMsg); err != nil {
+func reportStepError(ctx context.Context, data map[string]string, errMsg string) {
+	logrus.Error(errMsg)
+	if err := sendStepReport(ctx, data, "failed", errMsg); err != nil {
 		logrus.Errorf("failed to report upgrade error: %s", err.Error())
 	}
 }
 
-func reportUpgradeSuccess(ctx context.Context, data map[string]string) {
-	if err := sendUpgradeReport(ctx, data, "complete", ""); err != nil {
+func reportStepSuccess(ctx context.Context, data map[string]string) {
+	if err := sendStepReport(ctx, data, "complete", ""); err != nil {
 		logrus.Errorf("failed to report upgrade success: %s", err.Error())
 	}
 }
 
-func sendUpgradeReport(ctx context.Context, data map[string]string, status string, errMsg string) error {
+func sendStepReport(ctx context.Context, data map[string]string, status string, errMsg string) error {
 	reportBody := map[string]string{
 		"versionLabel": data["versionLabel"],
 		"status":       status,

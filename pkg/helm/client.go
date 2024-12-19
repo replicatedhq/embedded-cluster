@@ -104,6 +104,11 @@ type UpgradeOptions struct {
 	Force        bool
 }
 
+type UninstallOptions struct {
+	ReleaseName string
+	Namespace   string
+}
+
 type Helm struct {
 	tmpdir   string
 	kversion *semver.Version
@@ -357,6 +362,25 @@ func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Relea
 	}
 
 	return release, nil
+}
+
+func (h *Helm) Uninstall(ctx context.Context, opts UninstallOptions) error {
+	cfg, err := h.getActionCfg(opts.Namespace)
+	if err != nil {
+		return fmt.Errorf("get action configuration: %w", err)
+	}
+
+	client := action.NewUninstall(cfg)
+
+	if deadline, ok := ctx.Deadline(); ok {
+		client.Timeout = time.Until(deadline)
+	}
+
+	if _, err := client.Run(opts.ReleaseName); err != nil {
+		return fmt.Errorf("uninstall release: %w", err)
+	}
+
+	return nil
 }
 
 func (h *Helm) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string) ([][]byte, error) {
