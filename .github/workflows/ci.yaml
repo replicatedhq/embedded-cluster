@@ -818,6 +818,50 @@ jobs:
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
 
+  e2e-main:
+    name: E2E (on merge) # this name is used by .github/workflows/automated-prs-manager.yaml
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    needs:
+      - build-current
+      - build-legacydr
+      - build-previous-k0s
+      - build-upgrade
+      - find-previous-stable
+      - release-app
+      - export-version-specifier
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test: TestFiveNodesAirgapUpgrade
+            runner: embedded-cluster
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download current binary
+        uses: actions/download-artifact@v4
+        with:
+          name: current-release
+          path: output/bin
+
+      - uses: ./.github/actions/e2e
+        with:
+          test-name: '${{ matrix.test }}'
+          is-large-runner: ${{ matrix.runner == 'embedded-cluster' }}
+          airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
+          snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
+          snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
+          airgap-snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_SNAPSHOT_LICENSE_ID }}
+          license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
+          license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
+          dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          k0s-version: ${{ needs.build-current.outputs.k0s_version }}
+          k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
+
   # this job will validate that all the tests passed
   # it is used for the github branch protection rule
   validate-success:
@@ -825,6 +869,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - e2e
+      - e2e-main
       - e2e-docker
       - sanitize
       - test
@@ -837,6 +882,9 @@ jobs:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
       - name: fail if e2e job was not successful
         if: needs.e2e.result != 'success'
+        run: exit 1
+      - name: fail if e2e-main job was not successful
+        if: needs.e2e-main.result != 'success'
         run: exit 1
       - name: fail if e2e-docker job was not successful
         if: needs.e2e-docker.result != 'success'
