@@ -150,3 +150,15 @@ spec:
       - pass:
           when: "false"
           message: "OpenEBS Local Provisioner is provisioning PVs"
+  - textAnalyze:
+      checkName: "CoreDNS nameserver configuration"
+      regex: "no nameservers found"
+      ignoreIfNoFiles: true
+      fileName: podlogs/coredns/coredns-*/coredns.log
+      outcomes:
+      - fail:
+          when: "true"
+          message: "CoreDNS reported missing nameserver configuration. Check /etc/resolv.conf and ensure valid nameservers are configured"
+      - pass:
+          when: "false"
+          message: "CoreDNS found valid nameserver configuration"
