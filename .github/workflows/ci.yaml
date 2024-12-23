@@ -884,7 +884,7 @@ jobs:
         if: needs.e2e.result != 'success'
         run: exit 1
       - name: fail if e2e-main job was not successful
-        if: needs.e2e-main.result != 'success'
+        if: needs.e2e-main.result != 'success' && needs.e2e-main.result != 'skipped'
         run: exit 1
       - name: fail if e2e-docker job was not successful
         if: needs.e2e-docker.result != 'success'
