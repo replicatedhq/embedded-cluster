@@ -949,7 +949,7 @@ func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
 	if err != nil {
 		return fmt.Errorf("unable to read license file: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, "license.yaml"), licenseData, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "license.yaml"), licenseData, 0400); err != nil {
 		return fmt.Errorf("unable to write license file: %w", err)
 	}
 	return nil
