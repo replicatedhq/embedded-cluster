@@ -163,6 +163,10 @@ main() {
 
     echo "all pods"
     kubectl get pods -A
+
+    if ! ensure_license_in_data_dir; then
+        exit 1
+    fi
 }
 
 main "$@"
