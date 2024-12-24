@@ -443,6 +443,17 @@ spec:
           - pass:
               when: "false"
               message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf"
+    - textAnalyze:
+        checkName: Nameserver Configuration
+        fileName: host-collectors/run-host/resolv.conf.txt
+        regex: '(?m)^nameserver\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\s*$'
+        outcomes:
+          - fail:
+              when: "false"
+              message: "No nameservers are configured in resolv.conf. Update resolv.conf to include at least one nameserver."
+          - pass:
+              when: "true"
+              message: "Nameservers are configured in resolv.conf."
     - filesystemPerformance:
         checkName: Filesystem Write Latency
         collectorName: filesystem-write-latency-etcd
