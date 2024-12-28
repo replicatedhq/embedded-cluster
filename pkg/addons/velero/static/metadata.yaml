@@ -21,8 +21,8 @@ images:
     velero-plugin-for-aws:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
         tag:
-            amd64: 1.11.0-r1-amd64@sha256:661be7720a93891983652fdc6907e8ad0c3041b3de639e143c487a312c893257
-            arm64: 1.11.0-r1-arm64@sha256:414b765b9740ee509eefe63bc6bcbf28114c48acd4661e1da9be78578534127a
+            amd64: 1.11.1-r0-amd64@sha256:2758fa7f61a25ef8b962fd6f39b429fc8f578e9f00e031980f965ea2061e4ba9
+            arm64: 1.11.1-r0-arm64@sha256:2177f4b05a54859bd793d2295ba7c303b216ad110db4d4fd92d4d8669b86c1ee
     velero-restore-helper:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
         tag:
