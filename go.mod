@@ -23,7 +23,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-github/v62 v62.0.0
 	github.com/google/uuid v1.6.0
-	github.com/gosimple/slug v1.14.0
+	github.com/gosimple/slug v1.15.0
 	github.com/jedib0t/go-pretty/v6 v6.6.5
 	github.com/k0sproject/dig v0.3.1
 	github.com/k0sproject/k0s v1.30.7-0.20241029184556-a942e759e13b
