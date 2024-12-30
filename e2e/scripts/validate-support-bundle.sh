@@ -29,6 +29,18 @@ main() {
         return 1
     fi
 
+    if ! ls support-bundle-*/podlogs/embedded-cluster-operator; then
+        echo "Failed to find operator logs inside the support bundle generated with the embedded cluster binary"
+        return 1
+    fi
+
+    if ! ls support-bundle-*/host-collectors/embedded-cluster/license.yaml; then
+        echo "Failed to find license file inside the support bundle generated with the embedded cluster binary"
+        return 1
+    elif diff /assets/license.yaml support-bundle-*/host-collectors/embedded-cluster/license.yaml; then
+        echo "license file inside the support bundle is not the same as the one in the assets folder"
+        return 1
+    fi
 }
 
 main "$@"
