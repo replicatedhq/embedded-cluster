@@ -68,10 +68,11 @@ check_openebs_storage_class() {
 
 main() {
     local app_deploy_method="$1"
+    local version="$2"
 
     local additional_args=
-    if [ -n "${2:-}" ]; then
-        additional_args="${*:2}"
+    if [ -n "${3:-}" ]; then
+        additional_args="${*:3}"
         echo "Running install with additional args: $additional_args"
     fi
 
@@ -154,6 +155,13 @@ main() {
     if ! ensure_installation_is_installed; then
         echo "installation is not installed"
         exit 1
+    fi
+
+    # if this is the current version in CI
+    if echo "$version" | grep -qvE "(pre-minio-removal|1.8.0-k8s)" ; then
+        if ! ensure_license_in_data_dir; then
+            exit 1
+        fi
     fi
 
     echo "kotsadm logs"
