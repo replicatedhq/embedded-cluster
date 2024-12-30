@@ -198,7 +198,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 			logrus.Debugf("copy license file to %s", dataDir)
 			if err := copyLicenseFileToDataDir(licenseFile, dataDir); err != nil {
-				// TODO: Do we need to report this error?
+				// We have decided not to report this error
 				logrus.Warnf("unable to copy license file to %s: %v", dataDir, err)
 			}
 
