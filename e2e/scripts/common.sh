@@ -290,7 +290,7 @@ ensure_license_in_data_dir() {
     if [ -e "$expected_license_path" ]; then
         echo "license file exists in $expected_license_path"
     else
-        echo "license file does not exists in $expected_license_path"
+        echo "license file does not exist in $expected_license_path"
         return 1
     fi
 }

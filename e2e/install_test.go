@@ -1151,7 +1151,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
+	line = []string{"single-node-airgap-install.sh", appVer}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1579,9 +1579,10 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
@@ -1621,7 +1622,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
+	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1680,7 +1681,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), k8sVersionPreviousStable()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
