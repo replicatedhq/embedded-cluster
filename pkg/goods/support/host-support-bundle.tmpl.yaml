@@ -319,6 +319,9 @@ spec:
       collectorName: "localhost-ips"
       command: "sh"
       args: ["-c", "host localhost"]
+  - copy:
+      collectorName: embedded-cluster   # Directory to copy license file to
+      path: {{ .DataDir }}/license.yaml
   hostAnalyzers:
   - ipv4Interfaces:
       outcomes:

@@ -196,6 +196,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			logrus.Debugf("copy license file to %s", dataDir)
+			if err := copyLicenseFileToDataDir(licenseFile, dataDir); err != nil {
+				// We have decided not to report this error
+				logrus.Warnf("unable to copy license file to %s: %v", dataDir, err)
+			}
+
 			opts := addonsApplierOpts{
 				assumeYes:    assumeYes,
 				license:      licenseFile,
@@ -933,4 +939,18 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 		name = "yes"
 	}
 	return pflag.NormalizedName(name)
+}
+
+func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
+	if licenseFile == "" {
+		return nil
+	}
+	licenseData, err := os.ReadFile(licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to read license file: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "license.yaml"), licenseData, 0400); err != nil {
+		return fmt.Errorf("unable to write license file: %w", err)
+	}
+	return nil
 }
