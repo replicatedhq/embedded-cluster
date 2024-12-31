@@ -64,6 +64,22 @@ spec:
           '-i',
           'https://localhost:2379/health',
         ]
+  - run:
+      collectorName: etcd-member-list
+      command: 'curl'
+      args:
+        [
+          '--cert',
+          '{{ .K0sDataDir }}/pki/etcd/server.crt',
+          '--key',
+          '{{ .K0sDataDir }}/pki/etcd/server.key',
+          '--cacert',
+          '{{ .K0sDataDir }}/pki/etcd/ca.crt',
+          '-s',
+          '-X',
+          'POST',
+          'https://localhost:2379/v3/cluster/member/list'
+        ]
   # Run collectors for system information & metrics
   - run:
       collectorName: free
