@@ -817,7 +817,7 @@ jobs:
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
 
   e2e-main:
-    name: E2E (on merge) # this name is used by .github/workflows/automated-prs-manager.yaml
+    name: E2E (on merge)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     needs:
