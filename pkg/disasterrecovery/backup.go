@@ -63,22 +63,32 @@ var (
 )
 
 // ReplicatedBackups implements sort.Interface for []ReplicatedBackup based on the
-// CreationTimestamp of the infrastructure backup.
+// Status.StartTimestamp of the infrastructure backup.
 type ReplicatedBackups []ReplicatedBackup
 
 func (a ReplicatedBackups) Len() int      { return len(a) }
 func (a ReplicatedBackups) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ReplicatedBackups) Less(i, j int) bool {
 	var iTime, jTime time.Time
-	if a[i].GetInfraBackup() != nil {
-		iTime = a[i].GetInfraBackup().GetCreationTimestamp().Time
-	} else if len(a[i]) > 0 {
-		iTime = a[i][0].GetCreationTimestamp().Time
+	if a[i].GetInfraBackup() != nil && a[i].GetInfraBackup().Status.StartTimestamp != nil {
+		iTime = a[i].GetInfraBackup().Status.StartTimestamp.Time
+	} else {
+		for _, backup := range a[i] {
+			if backup.Status.StartTimestamp != nil {
+				iTime = backup.Status.StartTimestamp.Time
+				break
+			}
+		}
 	}
-	if a[j].GetInfraBackup() != nil {
-		jTime = a[j].GetInfraBackup().GetCreationTimestamp().Time
-	} else if len(a[j]) > 0 {
-		jTime = a[j][0].GetCreationTimestamp().Time
+	if a[j].GetInfraBackup() != nil && a[j].GetInfraBackup().Status.StartTimestamp != nil {
+		jTime = a[j].GetInfraBackup().Status.StartTimestamp.Time
+	} else {
+		for _, backup := range a[j] {
+			if backup.Status.StartTimestamp != nil {
+				jTime = backup.Status.StartTimestamp.Time
+				break
+			}
+		}
 	}
 	return iTime.Before(jTime)
 }
@@ -181,18 +191,22 @@ func (b ReplicatedBackup) GetRestore() (*velerov1.Restore, error) {
 	return nil, fmt.Errorf("missing restore spec annotation")
 }
 
-// GetCreationTimestamp returns the creation timestamp of the velero infra backup object or the
-// first backup in the slice if the infra backup is not found.
-func (b ReplicatedBackup) GetCreationTimestamp() metav1.Time {
-	backup := b.GetInfraBackup()
-	if backup != nil {
-		return backup.GetCreationTimestamp()
+// GetCompletionTimestamp returns the completion timestamp of the last velero backup to be
+// completed or zero if the expected backup count is not met or any of the backups in the slice is
+// not completed.
+func (b ReplicatedBackup) GetCompletionTimestamp() metav1.Time {
+	if b.GetExpectedBackupCount() != len(b) {
+		return metav1.Time{}
 	}
-	// if the infra backup is not found, we return the creation timestamp of the first backup
+	var completionTimestamp metav1.Time
 	for _, backup := range b {
-		return backup.GetCreationTimestamp()
+		if backup.Status.CompletionTimestamp == nil {
+			return metav1.Time{}
+		} else if backup.Status.CompletionTimestamp.Time.After(completionTimestamp.Time) {
+			completionTimestamp = *backup.Status.CompletionTimestamp
+		}
 	}
-	return metav1.Time{}
+	return completionTimestamp
 }
 
 // GetAnnotation returns the value of the specified annotation key from the velero infra backup

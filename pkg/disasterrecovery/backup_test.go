@@ -31,8 +31,8 @@ func TestReplicatedBackups_Less(t *testing.T) {
 		return backup
 	}
 
-	withCreationTimestamp := func(backup velerov1.Backup, t time.Time) velerov1.Backup {
-		backup.CreationTimestamp = metav1.Time{Time: t}
+	withStartTimestamp := func(backup velerov1.Backup, t time.Time) velerov1.Backup {
+		backup.Status.StartTimestamp = &metav1.Time{Time: t}
 		return backup
 	}
 
@@ -45,10 +45,10 @@ func TestReplicatedBackups_Less(t *testing.T) {
 			name: "greater",
 			a: ReplicatedBackups{
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)),
 				},
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
 				},
 			},
 			want: false,
@@ -57,10 +57,10 @@ func TestReplicatedBackups_Less(t *testing.T) {
 			name: "less",
 			a: ReplicatedBackups{
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
 				},
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)),
 				},
 			},
 			want: true,
@@ -69,10 +69,10 @@ func TestReplicatedBackups_Less(t *testing.T) {
 			name: "equal",
 			a: ReplicatedBackups{
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
 				},
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
 				},
 			},
 			want: false,
@@ -81,10 +81,10 @@ func TestReplicatedBackups_Less(t *testing.T) {
 			name: "greater no infra",
 			a: ReplicatedBackups{
 				{
-					withCreationTimestamp(withInfraType(newBackup(), InstanceBackupTypeApp), time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(withInfraType(newBackup(), InstanceBackupTypeApp), time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)),
 				},
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
 				},
 			},
 			want: false,
@@ -93,20 +93,56 @@ func TestReplicatedBackups_Less(t *testing.T) {
 			name: "less no infra",
 			a: ReplicatedBackups{
 				{
-					withCreationTimestamp(withInfraType(newBackup(), InstanceBackupTypeApp), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(withInfraType(newBackup(), InstanceBackupTypeApp), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
 				},
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)),
 				},
 			},
 			want: true,
+		},
+		{
+			name: "less no start timestamp",
+			a: ReplicatedBackups{
+				{
+					newBackup(),
+				},
+				{
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "greater no start timestamp",
+			a: ReplicatedBackups{
+				{
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+				},
+				{
+					newBackup(),
+				},
+			},
+			want: false,
+		},
+		{
+			name: "equal no start timestamp",
+			a: ReplicatedBackups{
+				{
+					newBackup(),
+				},
+				{
+					newBackup(),
+				},
+			},
+			want: false,
 		},
 		{
 			name: "i no backups should be less",
 			a: ReplicatedBackups{
 				{},
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
 				},
 			},
 			want: true,
@@ -115,7 +151,7 @@ func TestReplicatedBackups_Less(t *testing.T) {
 			name: "j no backups should be greater",
 			a: ReplicatedBackups{
 				{
-					withCreationTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
+					withStartTimestamp(newBackup(), time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)),
 				},
 				{},
 			},
@@ -173,7 +209,9 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupTypeAnnotation:    InstanceBackupTypeInfra,
 								InstanceBackupCountAnnotation:   "2",
 							},
-							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
+						},
+						Status: velerov1.BackupStatus{
+							StartTimestamp: &metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 						},
 					},
 					&velerov1.Backup{
@@ -193,7 +231,9 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupTypeAnnotation:    InstanceBackupTypeApp,
 								InstanceBackupCountAnnotation:   "2",
 							},
-							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
+						},
+						Status: velerov1.BackupStatus{
+							StartTimestamp: &metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 						},
 					},
 					&velerov1.Backup{
@@ -209,7 +249,9 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupAnnotation: "true",
 								// legacy backups do not have the InstanceBackupTypeAnnotation
 							},
-							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
+						},
+						Status: velerov1.BackupStatus{
+							StartTimestamp: &metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
 						},
 					},
 					&velerov1.Backup{
@@ -223,7 +265,9 @@ func TestListReplicatedBackups(t *testing.T) {
 							Annotations: map[string]string{
 								// EC backups need the kots.io/embedded-cluster annotation
 							},
-							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)},
+						},
+						Status: velerov1.BackupStatus{
+							StartTimestamp: &metav1.Time{Time: time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)},
 						},
 					},
 					&velerov1.Backup{
@@ -238,7 +282,9 @@ func TestListReplicatedBackups(t *testing.T) {
 								BackupIsECAnnotation: "true",
 								// Instance backups need the kots.io/instance or replicated.com/disaster-recovery-version annotation
 							},
-							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)},
+						},
+						Status: velerov1.BackupStatus{
+							StartTimestamp: &metav1.Time{Time: time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local)},
 						},
 					},
 				).Build(),
@@ -257,8 +303,10 @@ func TestListReplicatedBackups(t *testing.T) {
 								BackupIsECAnnotation:     "true",
 								InstanceBackupAnnotation: "true",
 							},
-							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
-							ResourceVersion:   "999",
+							ResourceVersion: "999",
+						},
+						Status: velerov1.BackupStatus{
+							StartTimestamp: &metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
 						},
 					},
 				},
@@ -280,8 +328,10 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupTypeAnnotation:    InstanceBackupTypeApp,
 								InstanceBackupCountAnnotation:   "2",
 							},
-							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
-							ResourceVersion:   "999",
+							ResourceVersion: "999",
+						},
+						Status: velerov1.BackupStatus{
+							StartTimestamp: &metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 						},
 					},
 					{
@@ -301,8 +351,10 @@ func TestListReplicatedBackups(t *testing.T) {
 								InstanceBackupTypeAnnotation:    InstanceBackupTypeInfra,
 								InstanceBackupCountAnnotation:   "2",
 							},
-							CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
-							ResourceVersion:   "999",
+							ResourceVersion: "999",
+						},
+						Status: velerov1.BackupStatus{
+							StartTimestamp: &metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 						},
 					},
 				},
@@ -967,14 +1019,14 @@ func TestReplicatedBackup_GetExpectedBackupCount(t *testing.T) {
 	}
 }
 
-func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
+func TestReplicatedBackup_GetCompletionTimestamp(t *testing.T) {
 	tests := []struct {
 		name string
 		b    ReplicatedBackup
 		want metav1.Time
 	}{
 		{
-			name: "legacy backups should return the legacy backup creation timestamp",
+			name: "legacy backups should return the legacy backup completion timestamp",
 			b: ReplicatedBackup{
 				{
 					TypeMeta: metav1.TypeMeta{
@@ -988,15 +1040,17 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 							BackupIsECAnnotation: "true",
 							// legacy backups do not have the InstanceBackupTypeAnnotation
 						},
-						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
-						ResourceVersion:   "999",
+						ResourceVersion: "999",
+					},
+					Status: velerov1.BackupStatus{
+						CompletionTimestamp: &metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
 					},
 				},
 			},
 			want: metav1.Time{Time: time.Date(2022, 1, 2, 0, 0, 0, 0, time.Local)},
 		},
 		{
-			name: "improved dr backups should return the infra backup creation timestamp",
+			name: "improved dr backups should return the last backup completion timestamp",
 			b: ReplicatedBackup{
 				{
 					TypeMeta: metav1.TypeMeta{
@@ -1014,8 +1068,10 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
-						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
-						ResourceVersion:   "999",
+						ResourceVersion: "999",
+					},
+					Status: velerov1.BackupStatus{
+						CompletionTimestamp: &metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 					},
 				},
 				{
@@ -1034,15 +1090,17 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
 							InstanceBackupCountAnnotation: "2",
 						},
-						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
-						ResourceVersion:   "999",
+						ResourceVersion: "999",
+					},
+					Status: velerov1.BackupStatus{
+						CompletionTimestamp: &metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 					},
 				},
 			},
-			want: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
+			want: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
 		},
 		{
-			name: "improved dr backup without infra backup should return the app backup creation timestamp",
+			name: "improved dr backups without all complete should return zero",
 			b: ReplicatedBackup{
 				{
 					TypeMeta: metav1.TypeMeta{
@@ -1060,12 +1118,64 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
 							InstanceBackupCountAnnotation: "2",
 						},
-						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
-						ResourceVersion:   "999",
+						ResourceVersion: "999",
+					},
+					Status: velerov1.BackupStatus{
+						CompletionTimestamp: nil,
+					},
+				},
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Backup",
+						APIVersion: "velero.io/v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "instance-abcd",
+						Namespace: "velero",
+						Labels: map[string]string{
+							InstanceBackupNameLabel: "app-slug-abcd",
+						},
+						Annotations: map[string]string{
+							BackupIsECAnnotation:          "true",
+							InstanceBackupTypeAnnotation:  InstanceBackupTypeInfra,
+							InstanceBackupCountAnnotation: "2",
+						},
+						ResourceVersion: "999",
+					},
+					Status: velerov1.BackupStatus{
+						CompletionTimestamp: &metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.Local)},
 					},
 				},
 			},
-			want: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
+			want: metav1.Time{},
+		},
+		{
+			name: "improved dr backup without expected backup count should return zero",
+			b: ReplicatedBackup{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Backup",
+						APIVersion: "velero.io/v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "application-abcd",
+						Namespace: "velero",
+						Labels: map[string]string{
+							InstanceBackupNameLabel: "app-slug-abcd",
+						},
+						Annotations: map[string]string{
+							BackupIsECAnnotation:          "true",
+							InstanceBackupTypeAnnotation:  InstanceBackupTypeApp,
+							InstanceBackupCountAnnotation: "2",
+						},
+						ResourceVersion: "999",
+					},
+					Status: velerov1.BackupStatus{
+						CompletionTimestamp: &metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.Local)},
+					},
+				},
+			},
+			want: metav1.Time{},
 		},
 		{
 			name: "no backups should return zero",
@@ -1075,7 +1185,7 @@ func TestReplicatedBackup_GetCreationTimestamp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.b.GetCreationTimestamp()
+			got := tt.b.GetCompletionTimestamp()
 			assert.Equal(t, tt.want, got)
 		})
 	}
