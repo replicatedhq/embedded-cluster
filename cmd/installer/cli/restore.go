@@ -35,6 +35,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -1054,6 +1055,7 @@ func pickBackupToRestore(backups []disasterrecovery.ReplicatedBackup) *disasterr
 			latestBackup = &b
 			continue
 		}
+		// Should this use Status.StartTimestamp instead of Status.CompletionTimestamp?
 		if b.GetCompletionTimestamp().After(latestBackup.GetCompletionTimestamp().Time) {
 			latestBackup = &b
 		}
