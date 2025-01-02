@@ -35,7 +35,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
@@ -192,8 +191,8 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 					return fmt.Errorf("unable to resume: %w", err)
 				}
 				if backupToRestore != nil {
-					creationTimestamp := backupToRestore.GetCreationTimestamp().Format("2006-01-02 15:04:05 UTC")
-					logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.GetName(), creationTimestamp)
+					completionTimestamp := backupToRestore.GetCompletionTimestamp().Format("2006-01-02 15:04:05 UTC")
+					logrus.Infof("Resuming restore from backup %q (%s)\n", backupToRestore.GetName(), completionTimestamp)
 
 					if err := overrideRuntimeConfigFromBackup(localArtifactMirrorPort, *backupToRestore); err != nil {
 						return fmt.Errorf("unable to override runtime config from backup: %w", err)
@@ -339,10 +338,11 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 
 				logrus.Debugf("picking backup to restore")
 				backupToRestore = pickBackupToRestore(backups)
+				logrus.Debugf("backup to restore: %s", backupToRestore.GetName())
 
 				logrus.Info("")
-				creationTimestamp := backupToRestore.GetCreationTimestamp().Time.Format("2006-01-02 15:04:05 UTC")
-				shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.GetName(), creationTimestamp), true)
+				completionTimestamp := backupToRestore.GetCompletionTimestamp().Format("2006-01-02 15:04:05 UTC")
+				shouldRestore := prompts.New().Confirm(fmt.Sprintf("Restore from backup %q (%s)?", backupToRestore.GetName(), completionTimestamp), true)
 				logrus.Info("")
 				if !shouldRestore {
 					logrus.Infof("Aborting restore...")
@@ -1015,6 +1015,7 @@ func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sC
 		}
 	}
 
+	logrus.Debugf("Found %d restorable backup(s)", len(validBackups))
 	if len(validBackups) == 1 {
 		loading.Infof("Found 1 restorable backup!")
 	} else {
@@ -1053,7 +1054,7 @@ func pickBackupToRestore(backups []disasterrecovery.ReplicatedBackup) *disasterr
 			latestBackup = &b
 			continue
 		}
-		if b.GetCreationTimestamp().After(latestBackup.GetCreationTimestamp().Time) {
+		if b.GetCompletionTimestamp().After(latestBackup.GetCompletionTimestamp().Time) {
 			latestBackup = &b
 		}
 	}
