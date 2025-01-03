@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: manager-migrate
+  namespace: embedded-cluster
+  labels:
+    app: manager-migrate
+spec:
+  selector:
+    matchLabels:
+      app: manager-migrate
+  template:
+    metadata:
+      labels:
+        app: manager-migrate
+    spec:
+      containers:
+        - name: run-once
+          image: ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan
+          imagePullPolicy: Always
+          command: ["sh", "-c", 'trap "exit 0" TERM; sleep 3600 & wait $!']
+      initContainers:
+        - name: manager-migrate
+          image: ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan
+          imagePullPolicy: Always
+          command: ["/manager"]
+          args:
+            - migrate
+            - manager
+          securityContext:
+            runAsUser: 0
+            privileged: true
+          env:
+            - name: DBUS_SYSTEM_BUS_ADDRESS
+              value: unix:path=/host/run/dbus/system_bus_socket
+          volumeMounts:
+            - name: host-run
+              mountPath: /host/run
+            - name: host-etc-systemd
+              mountPath: /etc/systemd
+            - name: host-var-lib-embedded-cluster
+              mountPath: /var/lib/embedded-cluster
+              readOnly: true
+      volumes:
+        - name: host-run
+          hostPath:
+            path: /run
+            type: Directory
+        - name: host-etc-systemd
+          hostPath:
+            path: /etc/systemd
+            type: Directory
+        - name: host-var-lib-embedded-cluster
+          hostPath:
+            path: /var/lib/embedded-cluster
+            type: Directory
