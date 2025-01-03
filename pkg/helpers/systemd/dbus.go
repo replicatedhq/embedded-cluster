@@ -78,6 +78,58 @@ func Restart(ctx context.Context, unit string) error {
 	}
 }
 
+// Stop stops a systemd service.
+func Stop(ctx context.Context, unit string) error {
+	logrus.Debugf("Stopping systemd unit %q", unit)
+
+	conn, err := newDBusConn(ctx)
+	if err != nil {
+		return fmt.Errorf("new dbus connection: %w", err)
+	}
+	defer conn.Close()
+
+	unit = normalizeUnitName(unit)
+
+	ch := make(chan string)
+	_, err = conn.StopUnitContext(ctx, unit, "replace", ch)
+	if err != nil {
+		return fmt.Errorf("stop unit: %w", err)
+	}
+
+	result := <-ch
+	logrus.Debugf("Stop systemd unit %q got result %q", unit, result)
+
+	switch result {
+	case "done":
+		logrus.Debugf("Successfully stopped systemd unit %q", unit)
+		return nil
+
+	default:
+		return fmt.Errorf("failed to stop systemd unit, %q expected %q but received %q", unit, "done", result)
+	}
+}
+
+// Disable disables a systemd service.
+func Disable(ctx context.Context, unit string) error {
+	logrus.Debugf("Disabling systemd unit %q", unit)
+
+	conn, err := newDBusConn(ctx)
+	if err != nil {
+		return fmt.Errorf("new dbus connection: %w", err)
+	}
+	defer conn.Close()
+
+	unit = normalizeUnitName(unit)
+
+	_, err = conn.DisableUnitFilesContext(ctx, []string{unit}, false)
+	if err != nil {
+		return fmt.Errorf("disable unit: %w", err)
+	}
+
+	logrus.Debugf("Successfully disabled systemd unit %q", unit)
+	return nil
+}
+
 // IsActive checks if a systemd service is active or not.
 func IsActive(ctx context.Context, unit string) (bool, error) {
 	conn, err := newDBusConn(ctx)

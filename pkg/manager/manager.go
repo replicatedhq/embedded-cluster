@@ -45,6 +45,11 @@ func WriteSystemdUnitFile(m *goods.Materializer) error {
 	return nil
 }
 
+// DropInDirPath returns the path to the manager drop-in directory.
+func DropInDirPath() string {
+	return systemd.DropInDirPath(UnitName())
+}
+
 // WriteDropInFile writes the manager drop-in file.
 func WriteDropInFile() error {
 	contents := fmt.Sprintf(
@@ -57,7 +62,7 @@ func WriteDropInFile() error {
 	}
 	err = systemd.Reload(context.Background())
 	if err != nil {
-		return fmt.Errorf("reload systemd: %w", err)
+		return fmt.Errorf("systemd reload: %w", err)
 	}
 	return nil
 }
@@ -70,4 +75,17 @@ func EnableAndStart(ctx context.Context) error {
 // Restart restarts the manager service.
 func Restart(ctx context.Context) error {
 	return systemd.Restart(ctx, UnitName())
+}
+
+// StopAndDisable stops and disables the manager service.
+func StopAndDisable(ctx context.Context) error {
+	err := systemd.Stop(ctx, UnitName())
+	if err != nil {
+		return fmt.Errorf("systemd stop: %w", err)
+	}
+	err = systemd.Disable(ctx, UnitName())
+	if err != nil {
+		return fmt.Errorf("systemd disable: %w", err)
+	}
+	return nil
 }
