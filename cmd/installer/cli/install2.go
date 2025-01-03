@@ -262,7 +262,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(); err != nil {
+	if err := installAndEnableManager(cmd.Context()); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}

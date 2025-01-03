@@ -163,7 +163,7 @@ func runJoin2(cmd *cobra.Command, args []string, name string, flags Join2CmdFlag
 	}
 
 	logrus.Debugf("installing manager")
-	if err := installAndEnableManager(); err != nil {
+	if err := installAndEnableManager(cmd.Context()); err != nil {
 		err := fmt.Errorf("unable to install and enable manager: %w", err)
 		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 		return err
