@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
@@ -182,12 +183,8 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to remove logs directory: %w", err)
 			}
 
-			if err := helpers.RemoveAll(runtimeconfig.PathToK0sContainerdConfig()); err != nil {
-				return fmt.Errorf("failed to remove containerd config: %w", err)
-			}
-
-			if err := helpers.RemoveAll(systemdUnitFileName()); err != nil {
-				return fmt.Errorf("failed to remove systemd unit file: %w", err)
+			if err := manager.Uninstall(cmd.Context(), logrus.Debugf); err != nil {
+				return fmt.Errorf("failed to uninstall manager service: %w", err)
 			}
 
 			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir()); err != nil {
