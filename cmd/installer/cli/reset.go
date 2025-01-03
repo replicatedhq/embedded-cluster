@@ -191,8 +191,16 @@ func ResetCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("failed to remove systemd unit file: %w", err)
 			}
 
+			if err := manager.StopAndDisable(cmd.Context()); err != nil {
+				return fmt.Errorf("failed to stop and disable manager service: %w", err)
+			}
+
 			if err := helpers.RemoveAll(manager.SystemdUnitFilePath()); err != nil {
 				return fmt.Errorf("failed to remove manager systemd unit file: %w", err)
+			}
+
+			if err := helpers.RemoveAll(manager.DropInDirPath()); err != nil {
+				return fmt.Errorf("failed to remove manager drop-in directory: %w", err)
 			}
 
 			if err := helpers.RemoveAll(runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir()); err != nil {

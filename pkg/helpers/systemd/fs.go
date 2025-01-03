@@ -25,10 +25,15 @@ func WriteUnitFile(unit string, contents []byte) error {
 	return nil
 }
 
+// DropInDirPath returns the path to a systemd unit drop-in directory.
+func DropInDirPath(unit string) string {
+	unit = normalizeUnitName(unit)
+	return filepath.Join("/etc/systemd/system", fmt.Sprintf("%s.d", unit))
+}
+
 // DropInFilePath returns the path to a systemd drop-in file.
 func DropInFilePath(unit, fileName string) string {
-	unit = normalizeUnitName(unit)
-	return filepath.Join("/etc/systemd/system", fmt.Sprintf("%s.d", unit), normalizeDropInFileName(fileName))
+	return filepath.Join(DropInDirPath(unit), normalizeDropInFileName(fileName))
 }
 
 // WriteDropInFile writes a systemd drop-in file to the unit's drop-in directory.
