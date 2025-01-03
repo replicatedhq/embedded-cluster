@@ -829,22 +829,9 @@ func installAndEnableLocalArtifactMirror() error {
 
 // installAndEnableManager installs and enables the manager. This service is
 // responsible for managing the embedded cluster after the initial installation.
-func installAndEnableManager() error {
-	materializer := goods.NewMaterializer()
-	if err := manager.WriteSystemdUnitFile(materializer); err != nil {
-		return fmt.Errorf("unable to materialize manager unit: %w", err)
-	}
-	if err := manager.WriteDropInFile(); err != nil {
-		return fmt.Errorf("unable to write manager environment file: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "start", runtimeconfig.ManagerServiceName); err != nil {
-		return fmt.Errorf("unable to start the manager: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "enable", runtimeconfig.ManagerServiceName); err != nil {
-		return fmt.Errorf("unable to start the manager service: %w", err)
+func installAndEnableManager(ctx context.Context) error {
+	if err := manager.Install(ctx, goods.NewMaterializer(), logrus.Debugf); err != nil {
+		return fmt.Errorf("failed to install manager service: %w", err)
 	}
 	return nil
 }

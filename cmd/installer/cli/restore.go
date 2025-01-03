@@ -386,7 +386,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				}
 
 				logrus.Debugf("installing manager")
-				if err := installAndEnableManager(); err != nil {
+				if err := installAndEnableManager(cmd.Context()); err != nil {
 					return fmt.Errorf("unable to install manager: %w", err)
 				}
 
