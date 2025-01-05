@@ -9,8 +9,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.32.7
 	github.com/aws/aws-sdk-go-v2/config v1.28.7
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.48
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.44
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.71.1
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.45
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.72.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/canonical/lxd v0.0.0-20241030172432-dee0d04b56ee
 	github.com/containers/image/v5 v5.33.0
@@ -28,7 +28,7 @@ require (
 	github.com/k0sproject/dig v0.4.0
 	github.com/k0sproject/k0s v1.30.7-0.20241029184556-a942e759e13b
 	github.com/ohler55/ojg v1.25.1
-	github.com/onsi/ginkgo/v2 v2.22.1
+	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
