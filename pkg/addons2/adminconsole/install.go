@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -20,6 +20,10 @@ import (
 )
 
 func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, writer *spinner.MessageWriter) error {
+	if err := a.prepare(); err != nil {
+		return errors.Wrap(err, "prepare admin console")
+	}
+
 	// some resources are not part of the helm chart and need to be created before the chart is installed
 	// TODO: move this to the helm chart
 
@@ -29,14 +33,20 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, writer *
 
 	// install the helm chart
 
-	helm, err := helm.NewHelm(helm.HelmOptions{
+	hcli, err := helm.NewHelm(helm.HelmOptions{
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
 		return errors.Wrap(err, "create helm client")
 	}
 
-	_, err = helm.Install(ctx, releaseName, Metadata.Location, Metadata.Version, helmValues, namespace)
+	_, err = hcli.Install(ctx, helm.InstallOptions{
+		ReleaseName:  releaseName,
+		ChartPath:    Metadata.Location,
+		ChartVersion: Metadata.Version,
+		Values:       helmValues,
+		Namespace:    namespace,
+	})
 	if err != nil {
 		return errors.Wrap(err, "install admin console")
 	}
@@ -64,11 +74,11 @@ func (a *AdminConsole) createPreRequisites(ctx context.Context, kcli client.Clie
 		return errors.Wrap(err, "create namespace")
 	}
 
-	if err := createKotsPasswordSecret(ctx, kcli, namespace, a.Password); err != nil {
+	if err := createPasswordSecret(ctx, kcli, namespace, a.Password); err != nil {
 		return errors.Wrap(err, "create kots password secret")
 	}
 
-	if err := createKotsCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
+	if err := createCAConfigmap(ctx, kcli, namespace, a.PrivateCAs); err != nil {
 		return errors.Wrap(err, "create kots CA configmap")
 	}
 
@@ -94,7 +104,7 @@ func createNamespace(ctx context.Context, kcli client.Client, namespace string) 
 	return nil
 }
 
-func createKotsPasswordSecret(ctx context.Context, kcli client.Client, namespace string, password string) error {
+func createPasswordSecret(ctx context.Context, kcli client.Client, namespace string, password string) error {
 	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
 		return errors.Wrap(err, "generate bcrypt from password")
@@ -127,7 +137,7 @@ func createKotsPasswordSecret(ctx context.Context, kcli client.Client, namespace
 	return nil
 }
 
-func createKotsCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
+func createCAConfigmap(ctx context.Context, cli client.Client, namespace string, privateCAs []string) error {
 	cas, err := privateCAsToMap(privateCAs)
 	if err != nil {
 		return errors.Wrap(err, "create private cas map")

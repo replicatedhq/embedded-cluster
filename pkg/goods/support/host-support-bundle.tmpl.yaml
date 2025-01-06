@@ -206,9 +206,13 @@ spec:
       collectorName: runtime-config
       path: /etc/embedded-cluster/*
   - run:
-        collectorName: "systemctl-firewalld-status"
-        command: "systemctl"
-        args: ["status", "firewalld"]
+      collectorName: "systemctl-firewalld-status"
+      command: "systemctl"
+      args: ["status", "firewalld"]
+  - run:
+      collectorName: "firewalld-cmd-list-all"
+      command: "firewalld-cmd"
+      args: ["--list-all"]
   - run:
       collectorName: "systemctl-resolved-status"
       command: "systemctl"
@@ -315,6 +319,9 @@ spec:
       collectorName: "localhost-ips"
       command: "sh"
       args: ["-c", "host localhost"]
+  - copy:
+      collectorName: embedded-cluster   # Directory to copy license file to
+      path: {{ .DataDir }}/license.yaml
   hostAnalyzers:
   - ipv4Interfaces:
       outcomes:
@@ -555,7 +562,7 @@ spec:
   - textAnalyze:
       checkName: Check if 'modprobe' command exists in PATH
       fileName: host-collectors/run-host/check-modprobe.txt
-      regex: '/usr/sbin/modprobe'
+      regex: 'modprobe'
       outcomes:
         - pass:
             when: "true"
@@ -566,7 +573,7 @@ spec:
   - textAnalyze:
       checkName: Check if 'mount' command exists in PATH
       fileName: host-collectors/run-host/check-mount.txt
-      regex: '/usr/bin/mount'
+      regex: 'mount'
       outcomes:
         - pass:
             when: "true"
@@ -577,7 +584,7 @@ spec:
   - textAnalyze:
       checkName: Check if 'umount' command exists in PATH
       fileName: host-collectors/run-host/check-umount.txt
-      regex: '/usr/bin/umount'
+      regex: 'umount'
       outcomes:
         - pass:
             when: "true"

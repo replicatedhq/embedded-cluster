@@ -14,6 +14,8 @@ import (
 func StartCmd(ctx context.Context, name string) *cobra.Command {
 	var (
 		dataDir string
+
+		disableWebsocket bool
 	)
 
 	cmd := &cobra.Command{
@@ -34,7 +36,11 @@ func StartCmd(ctx context.Context, name string) *cobra.Command {
 			}()
 
 			// connect to the KOTS WebSocket server
-			go websocket.ConnectToKOTSWebSocket(ctx)
+			if !disableWebsocket {
+				go func() {
+					go websocket.ConnectToKOTSWebSocket(ctx)
+				}()
+			}
 
 			<-ctx.Done()
 			return nil
@@ -42,6 +48,10 @@ func StartCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&dataDir, "data-dir", "", "Path to the data directory")
+
+	// flags to enable running in test mode
+	cmd.Flags().BoolVar(&disableWebsocket, "disable-websocket", false, "When set, don't connect to the KOTS webscoket")
+	cmd.Flags().MarkHidden("disable-websocket")
 
 	return cmd
 }

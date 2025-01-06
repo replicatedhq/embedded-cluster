@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -9,9 +10,12 @@ import (
 	"time"
 
 	gwebsocket "github.com/gorilla/websocket"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/upgrade"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,13 +40,9 @@ func attemptConnection(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "create kube client")
 	}
-	var svc corev1.Service
-	if err := kcli.Get(ctx, types.NamespacedName{Name: "kotsadm", Namespace: runtimeconfig.KotsadmNamespace}, &svc); err != nil {
-		return errors.Wrap(err, "get kotsadm service")
-	}
-	clusterIP := svc.Spec.ClusterIP
-	if clusterIP == "" {
-		return errors.New("cluster ip is empty")
+	clusterIP, err := getKOTSClusterIP(ctx, kcli)
+	if err != nil {
+		return errors.Wrap(err, "get kots cluster ip")
 	}
 
 	hostname, err := os.Hostname()
@@ -73,7 +73,7 @@ func attemptConnection(ctx context.Context) error {
 	go pingWSServer(conn)
 
 	// listen to server messages
-	return listenToWSServer(conn)
+	return listenToWSServer(ctx, conn)
 }
 
 func pingWSServer(conn *gwebsocket.Conn) error {
@@ -89,11 +89,132 @@ func pingWSServer(conn *gwebsocket.Conn) error {
 	}
 }
 
-func listenToWSServer(conn *gwebsocket.Conn) error {
+type Message struct {
+	Command string `json:"command"`
+	Data    string `json:"data"`
+}
+
+func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 	for {
-		_, _, err := conn.ReadMessage() // this is required to receive ping/pong messages
+		_, message, err := conn.ReadMessage() // receive messages, including ping/pong
 		if err != nil {
 			return errors.Wrap(err, "read message")
+		}
+
+		var msg Message
+		if err := json.Unmarshal(message, &msg); err != nil {
+			logrus.Errorf("failed to unmarshal message: %s: %s", err, string(message))
+			continue
+		}
+
+		switch msg.Command {
+		case "upgrade-cluster":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, d)
+
+			var newInstall ecv1beta1.Installation
+			if err := json.Unmarshal([]byte(d["installation"]), &newInstall); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal installation: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			if err := upgrade.Upgrade(ctx, &newInstall); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to upgrade cluster: %s", err.Error()))
+				continue
+			}
+
+			reportStepSuccess(ctx, d)
+
+		case "add-extension":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, d)
+
+			var repos []k0sv1beta1.Repository
+			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			var chart ecv1beta1.Chart
+			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			if err := extensions.Add(ctx, repos, chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to add extension: %s", err.Error()))
+				continue
+			}
+
+			reportStepSuccess(ctx, d)
+
+		case "upgrade-extension":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, d)
+
+			var repos []k0sv1beta1.Repository
+			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			var chart ecv1beta1.Chart
+			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			if err := extensions.Upgrade(ctx, repos, chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to upgrade extension: %s", err.Error()))
+				continue
+			}
+
+			reportStepSuccess(ctx, d)
+
+		case "remove-extension":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, d)
+
+			var repos []k0sv1beta1.Repository
+			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			var chart ecv1beta1.Chart
+			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				continue
+			}
+
+			if err := extensions.Remove(ctx, repos, chart); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to remove extension: %s", err.Error()))
+				continue
+			}
+
+			reportStepSuccess(ctx, d)
+		default:
+			logrus.Infof("Received unknown command: %s", msg.Command)
 		}
 	}
 }

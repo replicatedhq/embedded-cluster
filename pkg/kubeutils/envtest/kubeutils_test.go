@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +38,7 @@ func TestGetLatestInstallation(t *testing.T) {
 					t.Cleanup(func() { _ = testEnv.Stop() })
 
 					scheme := runtime.NewScheme()
+					corev1.AddToScheme(scheme)
 					embeddedclusterv1beta1.AddToScheme(scheme)
 
 					cli, err := client.New(cfg, client.Options{Scheme: scheme})
@@ -72,6 +74,7 @@ func TestGetLatestInstallation(t *testing.T) {
 					t.Cleanup(func() { _ = testEnv.Stop() })
 
 					scheme := runtime.NewScheme()
+					corev1.AddToScheme(scheme)
 					embeddedclusterv1beta1.AddToScheme(scheme)
 
 					cli, err := client.New(cfg, client.Options{Scheme: scheme})
@@ -93,6 +96,7 @@ func TestGetLatestInstallation(t *testing.T) {
 					t.Cleanup(func() { _ = testEnv.Stop() })
 
 					scheme := runtime.NewScheme()
+					corev1.AddToScheme(scheme)
 					embeddedclusterv1beta1.AddToScheme(scheme)
 
 					cli, err := client.New(cfg, client.Options{Scheme: scheme})

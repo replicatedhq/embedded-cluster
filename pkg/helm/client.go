@@ -85,6 +85,30 @@ type HelmOptions struct {
 	Writer     io.Writer
 }
 
+type InstallOptions struct {
+	ReleaseName  string
+	ChartPath    string
+	ChartVersion string
+	Values       map[string]interface{}
+	Namespace    string
+	Timeout      time.Duration
+}
+
+type UpgradeOptions struct {
+	ReleaseName  string
+	ChartPath    string
+	ChartVersion string
+	Values       map[string]interface{}
+	Namespace    string
+	Timeout      time.Duration
+	Force        bool
+}
+
+type UninstallOptions struct {
+	ReleaseName string
+	Namespace   string
+}
+
 type Helm struct {
 	tmpdir   string
 	kversion *semver.Version
@@ -248,23 +272,27 @@ func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
 	return cfg, nil
 }
 
-func (h *Helm) Install(ctx context.Context, releaseName string, chartPath string, chartVersion string, values map[string]interface{}, namespace string) (*release.Release, error) {
-	cfg, err := h.getActionCfg(namespace)
+func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
+	cfg, err := h.getActionCfg(opts.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("get action configuration: %w", err)
 	}
 
 	client := action.NewInstall(cfg)
-	client.ReleaseName = releaseName
-	client.Namespace = namespace
+	client.ReleaseName = opts.ReleaseName
+	client.Namespace = opts.Namespace
 	client.Replace = true
-	client.IncludeCRDs = true
 	client.CreateNamespace = true
 	client.WaitForJobs = true
 	client.Wait = true
-	client.Timeout = 5 * time.Minute
 
-	localPath, err := h.PullOCI(chartPath, chartVersion)
+	if opts.Timeout != 0 {
+		client.Timeout = opts.Timeout
+	} else {
+		client.Timeout = 5 * time.Minute
+	}
+
+	localPath, err := h.PullOCI(opts.ChartPath, opts.ChartVersion)
 	if err != nil {
 		return nil, fmt.Errorf("pull oci: %w", err)
 	}
@@ -277,11 +305,11 @@ func (h *Helm) Install(ctx context.Context, releaseName string, chartPath string
 
 	if req := chartRequested.Metadata.Dependencies; req != nil {
 		if err := action.CheckDependencies(chartRequested, req); err != nil {
-			return nil, fmt.Errorf("failed dependency check: %w", err)
+			return nil, fmt.Errorf("check chart dependencies: %w", err)
 		}
 	}
 
-	cleanVals := cleanUpGenericMap(values)
+	cleanVals := cleanUpGenericMap(opts.Values)
 
 	release, err := client.RunWithContext(ctx, chartRequested, cleanVals)
 	if err != nil {
@@ -289,6 +317,70 @@ func (h *Helm) Install(ctx context.Context, releaseName string, chartPath string
 	}
 
 	return release, nil
+}
+
+func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
+	cfg, err := h.getActionCfg(opts.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("get action configuration: %w", err)
+	}
+
+	client := action.NewUpgrade(cfg)
+	client.Namespace = opts.Namespace
+	client.WaitForJobs = true
+	client.Wait = true
+	client.Force = opts.Force
+
+	if opts.Timeout != 0 {
+		client.Timeout = opts.Timeout
+	} else {
+		client.Timeout = 5 * time.Minute
+	}
+
+	localPath, err := h.PullOCI(opts.ChartPath, opts.ChartVersion)
+	if err != nil {
+		return nil, fmt.Errorf("pull oci: %w", err)
+	}
+	defer os.RemoveAll(localPath)
+
+	chartRequested, err := loader.Load(localPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %w", err)
+	}
+
+	if req := chartRequested.Metadata.Dependencies; req != nil {
+		if err := action.CheckDependencies(chartRequested, req); err != nil {
+			return nil, fmt.Errorf("check chart dependencies: %w", err)
+		}
+	}
+
+	cleanVals := cleanUpGenericMap(opts.Values)
+
+	release, err := client.RunWithContext(ctx, opts.ReleaseName, chartRequested, cleanVals)
+	if err != nil {
+		return nil, fmt.Errorf("run upgrade: %w", err)
+	}
+
+	return release, nil
+}
+
+func (h *Helm) Uninstall(ctx context.Context, opts UninstallOptions) error {
+	cfg, err := h.getActionCfg(opts.Namespace)
+	if err != nil {
+		return fmt.Errorf("get action configuration: %w", err)
+	}
+
+	client := action.NewUninstall(cfg)
+
+	if deadline, ok := ctx.Deadline(); ok {
+		client.Timeout = time.Until(deadline)
+	}
+
+	if _, err := client.Run(opts.ReleaseName); err != nil {
+		return fmt.Errorf("uninstall release: %w", err)
+	}
+
+	return nil
 }
 
 func (h *Helm) Render(releaseName string, chartPath string, values map[string]interface{}, namespace string) ([][]byte, error) {

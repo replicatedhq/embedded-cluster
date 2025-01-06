@@ -5,26 +5,26 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 7.2.2
+version: 8.2.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
         repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.31.3-r0-amd64@sha256:0fdd6f7fc21b4de0e10bc1b4463a220bcd5cd8a4da689f12b446408f33f8dff2
-            arm64: 1.31.3-r0-arm64@sha256:d01b7f55bacdb28d660999bddd5f6197d517bd8b8eae8b483630947d40845f27
+            amd64: 1.32.0-r3-amd64@sha256:8f7aeab404bf935fa3d642ef74b3671c683ac91ed0e8cb8b43a697005cf459a5
+            arm64: 1.32.0-r3-arm64@sha256:577acef6cb2af05fa440ec8fe5175d691fc7b089a5f59d73446a61d9d4cdf579
     velero:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero
         tag:
-            amd64: 1.14.1-r1-amd64@sha256:cce8403ac480974cf2656bacaf20042bab2068ba177cf6fa63e0e995564016f0
-            arm64: 1.14.1-r1-arm64@sha256:67fc8ea3624919b2c35f8de26a2bc65e46c280310555cea0ce994bd3e09bd12d
+            amd64: 1.15.1-r0-amd64@sha256:89fd4ed58366ebdf1e0a5b665b21557f4c7d011748d1bf13e104202c3f35e856
+            arm64: 1.15.1-r0-arm64@sha256:ef1fa6b3f894904945a3453c526e33266ebdebd642fd4ad36527390c45bbb418
     velero-plugin-for-aws:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws
         tag:
-            amd64: 1.10.1-r1-amd64@sha256:545673c55ceb657e54fd570139a0d116d085d94499b599b356c32c40a0d34414
-            arm64: 1.10.1-r1-arm64@sha256:c9acd532a45a9d487d17222c5f911b1cc113499bfda40bf59cd4b17711a37a4a
+            amd64: 1.11.1-r0-amd64@sha256:2758fa7f61a25ef8b962fd6f39b429fc8f578e9f00e031980f965ea2061e4ba9
+            arm64: 1.11.1-r0-arm64@sha256:2177f4b05a54859bd793d2295ba7c303b216ad110db4d4fd92d4d8669b86c1ee
     velero-restore-helper:
         repo: proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper
         tag:
-            amd64: 1.14.1-r1-amd64@sha256:c542e55a2bfe6abbf33f5b5d4be42b1b56f70e4387e2af3ae2684b7d45b89092
-            arm64: 1.14.1-r1-arm64@sha256:179e2f0dfee8ef2471ae2764c755918bffa807983e78ed9243f1c1e58b776ee8
+            amd64: 1.15.1-r0-amd64@sha256:88fb494f5a71be752c13c5c4ae351adce1d97de0a49cd3d6e96eb82306cff415
+            arm64: 1.15.1-r0-arm64@sha256:4a42e6c4cf717b05977cc2828e53924a33fffd9e22d84eb41d4f886bd3ab588f

@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -28,6 +29,7 @@ type Client struct {
 	Helpers   *Helpers
 	Metrics   *Sender
 	K0sClient *K0sClient
+	Kotsadm   *Kotsadm
 }
 
 func Init(outputFile string, client *Client) {
@@ -53,10 +55,14 @@ func Init(outputFile string, client *Client) {
 	if client.K0sClient == nil {
 		client.K0sClient = &K0sClient{}
 	}
+	if client.Kotsadm == nil {
+		client.Kotsadm = NewKotsadm()
+	}
 	kubeutils.Set(client.KubeUtils)
 	helpers.Set(client.Helpers)
 	metrics.Set(client.Metrics)
 	k0s.Set(client.K0sClient)
+	kotsadm.Set(client.Kotsadm)
 }
 
 func Dump() error {

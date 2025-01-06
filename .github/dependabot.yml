@@ -2,7 +2,11 @@
 version: 2
 updates:
   - package-ecosystem: "gomod"
-    directory: "/"
+    directories:
+      - "/"
+      - "/kinds/"
+      - "/utils/"
+      - "/dagger/"
     open-pull-requests-limit: 25
     schedule:
       interval: "weekly"
@@ -15,21 +19,12 @@ updates:
       security:
         update-types:
           - "patch"
-
-  - package-ecosystem: "gomod"
-    directory: "/kinds/"
-    open-pull-requests-limit: 25
-    schedule:
-      interval: "weekly"
-      day: "saturday"
-    labels:
-      - "dependencies"
-      - "go"
-      - "type::chore"
-    groups:
-      security:
-        update-types:
-          - "patch"
+      k8s.io:
+        patterns:
+          - "k8s.io/*"
+      aws-sdk-go-v2:
+        patterns:
+          - "github.com/aws/aws-sdk-go-v2*"
 
   - package-ecosystem: "github-actions"
     directory: "/"

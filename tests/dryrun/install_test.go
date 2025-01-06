@@ -109,6 +109,7 @@ func TestDefaultInstallation(t *testing.T) {
 
 	assert.Equal(t, "10.244.0.0/17", k0sConfig.Spec.Network.PodCIDR)
 	assert.Equal(t, "10.244.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
+	assert.Contains(t, k0sConfig.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 
 	assertHelmValues(t, k0sConfig, "openebs", map[string]interface{}{
 		"['localpv-provisioner'].localpv.basePath": "/var/lib/embedded-cluster/openebs-local",

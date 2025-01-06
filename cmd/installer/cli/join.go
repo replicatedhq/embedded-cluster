@@ -6,44 +6,40 @@ import (
 	"os"
 	"strings"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
-	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/highavailability"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	k8syaml "sigs.k8s.io/yaml"
 )
 
 func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	var (
-		airgapBundle            string
-		enabledHighAvailability bool
-		networkInterface        string
-		assumeYes               bool
-		skipHostPreflights      bool
-		ignoreHostPreflights    bool
+		airgapBundle           string
+		enableHighAvailability bool
+		networkInterface       string
+		assumeYes              bool
+		skipHostPreflights     bool
+		ignoreHostPreflights   bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "join <url> <token>",
-		Short: fmt.Sprintf("Join %s", name),
-		Args:  cobra.ExactArgs(2),
+		Use:           "join <url> <token>",
+		Short:         fmt.Sprintf("Join %s", name),
+		Args:          cobra.ExactArgs(2),
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("join command must be run as root")
@@ -85,7 +81,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("fetching join token remotely")
-			jcmd, err := getJoinToken(cmd.Context(), args[0], args[1])
+			jcmd, err := kotsadm.GetJoinToken(cmd.Context(), args[0], args[1])
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
@@ -105,12 +101,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 
 			setProxyEnv(jcmd.InstallationSpec.Proxy)
 
-			networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
-			if err != nil {
-				return fmt.Errorf("unable to get network-interface flag: %w", err)
-			}
-
-			proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterfaceFlag)
+			proxyOK, localIP, err := checkProxyConfigForLocalIP(jcmd.InstallationSpec.Proxy, networkInterface)
 			if err != nil {
 				return fmt.Errorf("failed to check proxy config for local IP: %w", err)
 			}
@@ -182,7 +173,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			// jcmd.InstallationSpec.MetricsBaseURL is the replicated.app endpoint url
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 			proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
-			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, cidrCfg, assumeYes); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, cidrCfg, jcmd.TCPConnectionsRequired, assumeYes); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
@@ -226,7 +217,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("overriding network configuration")
-			if err := applyNetworkConfiguration(cmd, jcmd); err != nil {
+			if err := applyNetworkConfiguration(networkInterface, jcmd); err != nil {
 				err := fmt.Errorf("unable to apply network configuration: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 			}
@@ -239,13 +230,13 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			logrus.Debugf("joining node to cluster")
-			if err := runK0sInstallCommand(cmd, jcmd.K0sJoinCommand); err != nil {
+			if err := runK0sInstallCommand(networkInterface, jcmd.K0sJoinCommand); err != nil {
 				err := fmt.Errorf("unable to join node to cluster: %w", err)
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 				return err
 			}
 
-			if err := startAndWaitForK0s(cmd, name, jcmd); err != nil {
+			if err := startAndWaitForK0s(cmd.Context(), name, jcmd); err != nil {
 				return err
 			}
 
@@ -282,13 +273,8 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
-			enabledHighAvailabilityFlag, err := cmd.Flags().GetBool("enable-ha")
-			if err != nil {
-				return fmt.Errorf("unable to get enable-ha flag: %w", err)
-			}
-
-			if enabledHighAvailabilityFlag {
-				if err := maybeEnableHA(cmd.Context(), kcli); err != nil {
+			if enableHighAvailability {
+				if err := tryEnableHA(cmd.Context(), kcli); err != nil {
 					err := fmt.Errorf("unable to enable high availability: %w", err)
 					metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
 					return err
@@ -302,7 +288,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
-	cmd.Flags().BoolVar(&enabledHighAvailability, "enable-ha", false, "Enable high availability.")
+	cmd.Flags().BoolVar(&enableHighAvailability, "enable-ha", false, "Enable high availability.")
 	cmd.Flags().MarkHidden("enable-ha")
 
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
@@ -317,217 +303,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 	return cmd
 }
 
-// saveTokenToDisk saves the provided token in "/etc/k0s/join-token".
-func saveTokenToDisk(token string) error {
-	if err := os.MkdirAll("/etc/k0s", 0755); err != nil {
-		return err
-	}
-	data := []byte(token)
-	if err := os.WriteFile("/etc/k0s/join-token", data, 0644); err != nil {
-		return err
-	}
-	return nil
-}
-
-// installK0sBinary moves the embedded k0s binary to its destination.
-func installK0sBinary() error {
-	ourbin := runtimeconfig.PathToEmbeddedClusterBinary("k0s")
-	hstbin := runtimeconfig.K0sBinaryPath()
-	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
-		return fmt.Errorf("unable to move k0s binary: %w", err)
-	}
-	return nil
-}
-
-// startK0sService starts the k0s service.
-func startK0sService() error {
-	if _, err := helpers.RunCommand(runtimeconfig.K0sBinaryPath(), "start"); err != nil {
-		return fmt.Errorf("unable to start: %w", err)
-	}
-	return nil
-}
-
-func applyNetworkConfiguration(cmd *cobra.Command, jcmd *JoinCommandResponse) error {
-	if jcmd.InstallationSpec.Network != nil {
-		clusterSpec := config.RenderK0sConfig()
-
-		networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
-		if err != nil {
-			return fmt.Errorf("unable to get network-interface flag: %w", err)
-		}
-		address, err := netutils.FirstValidAddress(networkInterfaceFlag)
-		if err != nil {
-			return fmt.Errorf("unable to find first valid address: %w", err)
-		}
-		clusterSpec.Spec.API.Address = address
-		clusterSpec.Spec.Storage.Etcd.PeerAddress = address
-		// NOTE: we should be copying everything from the in cluster config spec and overriding
-		// the node specific config from clusterSpec.GetClusterWideConfig()
-		clusterSpec.Spec.Network.PodCIDR = jcmd.InstallationSpec.Network.PodCIDR
-		clusterSpec.Spec.Network.ServiceCIDR = jcmd.InstallationSpec.Network.ServiceCIDR
-		if jcmd.InstallationSpec.Network.NodePortRange != "" {
-			if clusterSpec.Spec.API.ExtraArgs == nil {
-				clusterSpec.Spec.API.ExtraArgs = map[string]string{}
-			}
-			clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = jcmd.InstallationSpec.Network.NodePortRange
-		}
-		clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
-
-		if err != nil {
-			return fmt.Errorf("unable to marshal cluster spec: %w", err)
-		}
-		err = os.WriteFile(runtimeconfig.PathToK0sConfig(), clusterSpecYaml, 0644)
-		if err != nil {
-			return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
-		}
-	}
-	return nil
-}
-
-// startAndWaitForK0s starts the k0s service and waits for the node to be ready.
-func startAndWaitForK0s(cmd *cobra.Command, name string, jcmd *JoinCommandResponse) error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Installing %s node", name)
-	logrus.Debugf("starting %s service", name)
-	if err := startK0sService(); err != nil {
-		err := fmt.Errorf("unable to start service: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
-	}
-
-	loading.Infof("Waiting for %s node to be ready", name)
-	logrus.Debugf("waiting for k0s to be ready")
-	if err := waitForK0s(); err != nil {
-		err := fmt.Errorf("unable to wait for node: %w", err)
-		metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-		return err
-	}
-
-	loading.Infof("Node installation finished!")
-	return nil
-}
-
-// applyJoinConfigurationOverrides applies both config overrides received from the kots api.
-// Applies first the EmbeddedOverrides and then the EndUserOverrides.
-func applyJoinConfigurationOverrides(jcmd *JoinCommandResponse) error {
-	patch, err := jcmd.EmbeddedOverrides()
-	if err != nil {
-		return fmt.Errorf("unable to get embedded overrides: %w", err)
-	}
-	if len(patch) > 0 {
-		if data, err := yaml.Marshal(patch); err != nil {
-			return fmt.Errorf("unable to marshal embedded overrides: %w", err)
-		} else if err := patchK0sConfig(
-			runtimeconfig.PathToK0sConfig(), string(data),
-		); err != nil {
-			return fmt.Errorf("unable to patch config with embedded data: %w", err)
-		}
-	}
-	if patch, err = jcmd.EndUserOverrides(); err != nil {
-		return fmt.Errorf("unable to get embedded overrides: %w", err)
-	} else if len(patch) == 0 {
-		return nil
-	}
-	if data, err := yaml.Marshal(patch); err != nil {
-		return fmt.Errorf("unable to marshal embedded overrides: %w", err)
-	} else if err := patchK0sConfig(
-		runtimeconfig.PathToK0sConfig(), string(data),
-	); err != nil {
-		return fmt.Errorf("unable to patch config with embedded data: %w", err)
-	}
-	return nil
-}
-
-// patchK0sConfig patches the created k0s config with the unsupported overrides passed in.
-func patchK0sConfig(path string, patch string) error {
-	if len(patch) == 0 {
-		return nil
-	}
-	finalcfg := k0sconfig.ClusterConfig{
-		ObjectMeta: metav1.ObjectMeta{Name: runtimeconfig.BinaryName()},
-	}
-	if _, err := os.Stat(path); err == nil {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("unable to read node config: %w", err)
-		}
-		finalcfg = k0sconfig.ClusterConfig{}
-		if err := k8syaml.Unmarshal(data, &finalcfg); err != nil {
-			return fmt.Errorf("unable to unmarshal node config: %w", err)
-		}
-	}
-	result, err := config.PatchK0sConfig(finalcfg.DeepCopy(), patch)
-	if err != nil {
-		return fmt.Errorf("unable to patch node config: %w", err)
-	}
-	if result.Spec.API != nil {
-		if finalcfg.Spec == nil {
-			finalcfg.Spec = &k0sconfig.ClusterSpec{}
-		}
-		finalcfg.Spec.API = result.Spec.API
-	}
-	if result.Spec.Storage != nil {
-		if finalcfg.Spec == nil {
-			finalcfg.Spec = &k0sconfig.ClusterSpec{}
-		}
-		finalcfg.Spec.Storage = result.Spec.Storage
-	}
-	// This is necessary to install the previous version of k0s in e2e tests
-	// TODO: remove this once the previous version is > 1.29
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(&finalcfg)
-	if err != nil {
-		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
-	}
-	data, err := k8syaml.Marshal(unstructured)
-	if err != nil {
-		return fmt.Errorf("unable to marshal node config: %w", err)
-	}
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("unable to write node config file: %w", err)
-	}
-	return nil
-}
-
-// runK0sInstallCommand runs the k0s install command as provided by the kots
-// adm api.
-func runK0sInstallCommand(cmd *cobra.Command, fullcmd string) error {
-	args := strings.Split(fullcmd, " ")
-	args = append(args, "--token-file", "/etc/k0s/join-token")
-
-	networkInterfaceFlag, err := cmd.Flags().GetString("network-interface")
-	if err != nil {
-		return fmt.Errorf("unable to get network-interface flag: %w", err)
-	}
-	nodeIP, err := netutils.FirstValidAddress(networkInterfaceFlag)
-	if err != nil {
-		return fmt.Errorf("unable to find first valid address: %w", err)
-	}
-
-	args = append(args, config.AdditionalInstallFlags(nodeIP)...)
-
-	if strings.Contains(fullcmd, "controller") {
-		args = append(args, config.AdditionalInstallFlagsController()...)
-	}
-
-	if _, err := helpers.RunCommand(args[0], args[1:]...); err != nil {
-		return err
-	}
-	return nil
-}
-
-func waitForNode(ctx context.Context, kcli client.Client, hostname string) error {
-	loading := spinner.Start()
-	defer loading.Close()
-	loading.Infof("Waiting for node to join the cluster")
-	if err := kubeutils.WaitForControllerNode(ctx, kcli, hostname); err != nil {
-		return fmt.Errorf("unable to wait for node: %w", err)
-	}
-	loading.Infof("Node has joined the cluster!")
-	return nil
-}
-
-func maybeEnableHA(ctx context.Context, kcli client.Client) error {
+func tryEnableHA(ctx context.Context, kcli client.Client) error {
 	canEnableHA, err := highavailability.CanEnableHA(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("unable to check if HA can be enabled: %w", err)

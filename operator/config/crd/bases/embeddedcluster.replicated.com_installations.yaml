@@ -393,6 +393,10 @@ spec:
                       provisioner. By default the data will be stored in a subdirectory of DataDir.
                     type: string
                 type: object
+              sourceType:
+                description: SourceType indicates where this Installation object is
+                  stored (CRD, ConfigMap, etc...).
+                type: string
             type: object
           status:
             description: InstallationStatus defines the observed state of Installation

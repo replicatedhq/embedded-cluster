@@ -162,7 +162,7 @@ jobs:
 
       - name: Install dagger
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=v0.14.0 sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build
@@ -182,7 +182,6 @@ jobs:
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
           export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}
           # avoid rate limiting
           export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
@@ -197,6 +196,75 @@ jobs:
             output/bin/embedded-cluster
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
+
+      - name: Export k0s version
+        id: export
+        run: |
+          K0S_VERSION="$(make print-K0S_VERSION)"
+          echo "K0S_VERSION=\"$K0S_VERSION\""
+          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+
+  build-legacydr:
+    name: Build legacy DR
+    runs-on: embedded-cluster
+    needs:
+      - git-sha
+    outputs:
+      k0s_version: ${{ steps.export.outputs.k0s_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache
+
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
+      - name: Build
+        env:
+          APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
+          APP_CHANNEL_SLUG: ci
+          RELEASE_YAML_DIR: e2e/kots-release-install-legacydr
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          USES_DEV_BUCKET: "0"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+          USE_CHAINGUARD: "1"
+          UPLOAD_BINARIES: "1"
+          SKIP_RELEASE: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export K0S_VERSION=$(make print-K0S_VERSION)
+          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-legacydr
+          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-legacydr
+          # avoid rate limiting
+          export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
+
+          ./scripts/build-and-release.sh
+          cp output/bin/embedded-cluster output/bin/embedded-cluster-legacydr
+
+      - name: Upload release
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacydr-release
+          path: |
+            output/bin/embedded-cluster-legacydr
 
       - name: Export k0s version
         id: export
@@ -233,7 +301,7 @@ jobs:
 
       - name: Install dagger
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=v0.14.0 sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build
@@ -260,6 +328,7 @@ jobs:
           export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
 
           ./scripts/build-and-release.sh
+          cp output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
 
       - name: Upload release
         uses: actions/upload-artifact@v4
@@ -337,7 +406,7 @@ jobs:
 
       - name: Install dagger
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=v0.14.0 sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build
@@ -363,6 +432,7 @@ jobs:
           export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
 
           ./scripts/build-and-release.sh
+          cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
 
       - name: Upload release
         uses: actions/upload-artifact@v4
@@ -439,6 +509,7 @@ jobs:
     needs:
       - git-sha
       - build-current
+      - build-legacydr
       - build-previous-k0s
       - build-upgrade
       - find-previous-stable
@@ -492,6 +563,12 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
+          # promote a release with improved dr support
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-legacydr"
+          export APP_VERSION="appver-${SHORT_SHA}-legacydr"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-legacydr
+          ./scripts/ci-release-app.sh
+
           # then a noop upgrade
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}-noop"
@@ -530,6 +607,12 @@ jobs:
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
           export APP_VERSION="appver-${SHORT_SHA}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # promote a release with improved dr support
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-legacydr"
+          export APP_VERSION="appver-${SHORT_SHA}-legacydr"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-legacydr
           ./scripts/ci-release-app.sh
 
           # and finally an app upgrade
@@ -571,6 +654,7 @@ jobs:
     needs:
       - git-sha
       - build-current
+      - build-legacydr
       - build-previous-k0s
       - build-upgrade
       - find-previous-stable
@@ -600,6 +684,7 @@ jobs:
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
           - TestSingleNodeDisasterRecovery
+          - TestSingleNodeLegacyDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
@@ -617,6 +702,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: current-release
+          path: output/bin
+      - name: Download new DR binary
+        uses: actions/download-artifact@v4
+        with:
+          name: legacydr-release
           path: output/bin
       - name: Setup go
         uses: actions/setup-go@v5
@@ -664,6 +754,7 @@ jobs:
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     needs:
       - build-current
+      - build-legacydr
       - build-previous-k0s
       - build-upgrade
       - find-previous-stable
@@ -699,6 +790,48 @@ jobs:
             runner: embedded-cluster
           - test: TestMultiNodeAirgapHADisasterRecovery
             runner: embedded-cluster
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download current binary
+        uses: actions/download-artifact@v4
+        with:
+          name: current-release
+          path: output/bin
+
+      - uses: ./.github/actions/e2e
+        with:
+          test-name: '${{ matrix.test }}'
+          is-large-runner: ${{ matrix.runner == 'embedded-cluster' }}
+          airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
+          snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
+          snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
+          airgap-snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_SNAPSHOT_LICENSE_ID }}
+          license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
+          license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
+          dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          k0s-version: ${{ needs.build-current.outputs.k0s_version }}
+          k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
+
+  e2e-main:
+    name: E2E (on merge)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    needs:
+      - build-current
+      - build-legacydr
+      - build-previous-k0s
+      - build-upgrade
+      - find-previous-stable
+      - release-app
+      - export-version-specifier
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - test: TestFiveNodesAirgapUpgrade
             runner: embedded-cluster
     steps:
@@ -734,6 +867,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - e2e
+      - e2e-main
       - e2e-docker
       - sanitize
       - test
@@ -746,6 +880,9 @@ jobs:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
       - name: fail if e2e job was not successful
         if: needs.e2e.result != 'success'
+        run: exit 1
+      - name: fail if e2e-main job was not successful
+        if: needs.e2e-main.result != 'success' && needs.e2e-main.result != 'skipped'
         run: exit 1
       - name: fail if e2e-docker job was not successful
         if: needs.e2e-docker.result != 'success'

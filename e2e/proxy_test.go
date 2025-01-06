@@ -45,7 +45,7 @@ func TestProxiedEnvironment(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
 	line = append(line, "--https-proxy", lxd.HTTPProxy)
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
@@ -158,7 +158,7 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
 	line = append(line, "--https-proxy", lxd.HTTPProxy)
 	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
@@ -279,7 +279,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	// bootstrap the first node and makes sure it is healthy. also executes the kots
 	// ssl certificate configuration (kurl-proxy).
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPMITMProxy)
 	line = append(line, "--https-proxy", lxd.HTTPMITMProxy)
 	line = append(line, "--private-ca", "/usr/local/share/ca-certificates/proxy/ca.crt")

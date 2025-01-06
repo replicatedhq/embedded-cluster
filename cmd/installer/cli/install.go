@@ -59,8 +59,10 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "install",
-		Short: fmt.Sprintf("Install %s", name),
+		Use:           "install",
+		Short:         fmt.Sprintf("Install %s", name),
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getuid() != 0 {
 				return fmt.Errorf("install command must be run as root")
@@ -85,7 +87,18 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 			proxy = p
 
 			if err := validateCIDRFlags(cmd); err != nil {
-				return fmt.Errorf("unable to parse cidr flags: %w", err)
+				return err
+			}
+
+			// if a network interface flag was not provided, attempt to discover it
+			if networkInterface == "" {
+				autoInterface, err := determineBestNetworkInterface()
+				if err == nil {
+					// set the variable
+					networkInterface = autoInterface
+					// set it in cobra since we pass the cmd around in this version
+					cmd.Flags().Set("network-interface", autoInterface)
+				}
 			}
 
 			if os.Getenv("DISABLE_TELEMETRY") != "" {
@@ -183,6 +196,12 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return err
 			}
 
+			logrus.Debugf("copy license file to %s", dataDir)
+			if err := copyLicenseFileToDataDir(licenseFile, dataDir); err != nil {
+				// We have decided not to report this error
+				logrus.Warnf("unable to copy license file to %s: %v", dataDir, err)
+			}
+
 			opts := addonsApplierOpts{
 				assumeYes:    assumeYes,
 				license:      licenseFile,
@@ -209,7 +228,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 				return fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 			}
 
-			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, assumeYes); err != nil {
+			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, nil, assumeYes); err != nil {
 				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
 				if err == ErrPreflightsHaveFail {
 					return ErrNothingElseToAdd
@@ -237,17 +256,17 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.Flags().IntVar(&adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 	cmd.Flags().StringVar(&airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 	cmd.Flags().StringVar(&dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
-	cmd.Flags().StringVar(&licenseFile, "license", "", "Path to the license file")
+	cmd.Flags().StringVarP(&licenseFile, "license", "l", "", "Path to the license file")
 	cmd.Flags().IntVar(&localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	cmd.Flags().StringVar(&networkInterface, "network-interface", "", "The network interface to use for the cluster")
-	cmd.Flags().BoolVar(&assumeYes, "yes", false, "Assume yes to all prompts.")
+	cmd.Flags().BoolVarP(&assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	cmd.Flags().StringVar(&overrides, "overrides", "", "File with an EmbeddedClusterConfig object to override the default configuration")
 	cmd.Flags().MarkHidden("overrides")
 	cmd.Flags().StringSliceVar(&privateCAs, "private-ca", []string{}, "Path to a trusted private CA certificate file")
 	cmd.Flags().BoolVar(&skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks. This is not recommended and has been deprecated.")
 	cmd.Flags().MarkHidden("skip-host-preflights")
-	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Run host preflight checks, but prompt the user to continue if they fail instead of exiting.")
-	cmd.Flags().StringVar(&configValues, "config-values", "", "path to a manifest containing config values (must be apiVersion: kots.io/v1beta1, kind: ConfigValues)")
+	cmd.Flags().BoolVar(&ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures.")
+	cmd.Flags().StringVar(&configValues, "config-values", "", "Path to the config values to use when installing")
 
 	addProxyFlags(cmd)
 	addCIDRFlags(cmd)
@@ -920,4 +939,18 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 		name = "yes"
 	}
 	return pflag.NormalizedName(name)
+}
+
+func copyLicenseFileToDataDir(licenseFile, dataDir string) error {
+	if licenseFile == "" {
+		return nil
+	}
+	licenseData, err := os.ReadFile(licenseFile)
+	if err != nil {
+		return fmt.Errorf("unable to read license file: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "license.yaml"), licenseData, 0400); err != nil {
+		return fmt.Errorf("unable to write license file: %w", err)
+	}
+	return nil
 }

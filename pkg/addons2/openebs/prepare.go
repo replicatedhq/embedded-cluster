@@ -6,7 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-func (a *OpenEBS) Prepare() error {
+func (a *OpenEBS) prepare() error {
 	if err := a.generateHelmValues(); err != nil {
 		return errors.Wrap(err, "generate helm values")
 	}

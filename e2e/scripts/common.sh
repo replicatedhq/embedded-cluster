@@ -5,6 +5,7 @@ export EMBEDDED_CLUSTER_BASE_DIR="${EMBEDDED_CLUSTER_BASE_DIR:-/var/lib/embedded
 export EMBEDDED_CLUSTER_METRICS_BASEURL="https://staging.replicated.app"
 export PATH="$PATH:${EMBEDDED_CLUSTER_BASE_DIR}/bin"
 export K0SCONFIG=/etc/k0s/k0s.yaml
+export APP_NAMESPACE="${APP_NAMESPACE:-kotsadm}"
 
 KUBECONFIG="${KUBECONFIG:-${EMBEDDED_CLUSTER_BASE_DIR}/k0s/pki/admin.conf}"
 export KUBECONFIG
@@ -89,19 +90,22 @@ wait_for_installation() {
 }
 
 wait_for_nginx_pods() {
-    ready=$(kubectl get pods -n kotsadm | grep "nginx" | grep -c Running || true)
+    ready=$(kubectl get pods -n "$APP_NAMESPACE" | grep "nginx" | grep -c Running || true)
     counter=0
     while [ "$ready" -lt "1" ]; do
         if [ "$counter" -gt 36 ]; then
             echo "nginx pods did not appear"
-            kubectl get pods -n kotsadm
+            if [ "$APP_NAMESPACE" != "kotsadm" ]; then
+                kubectl get pods -n kotsadm
+            fi
+            kubectl get pods -n "$APP_NAMESPACE"
             kubectl logs -n kotsadm -l app=kotsadm
             return 1
         fi
         sleep 5
         counter=$((counter+1))
         echo "Waiting for nginx pods"
-        ready=$(kubectl get pods -n kotsadm | grep "nginx" | grep -c Running || true)
+        ready=$(kubectl get pods -n "$APP_NAMESPACE" | grep "nginx" | grep -c Running || true)
         kubectl get pods -n nginx 2>&1 || true
         echo "ready: $ready"
     done
@@ -219,7 +223,7 @@ ensure_app_not_upgraded() {
         echo "found memcached ns"
         return 1
     fi
-    if kubectl get pods -n kotsadm -l app=second | grep -q second ; then
+    if kubectl get pods -n "$APP_NAMESPACE" -l app=second | grep -q second ; then
         echo "found pods from app update"
         return 1
     fi
@@ -277,6 +281,16 @@ ensure_binary_copy() {
     fi
     if ! "${EMBEDDED_CLUSTER_BASE_DIR}/bin/embedded-cluster" version ; then
         echo "embedded-cluster binary is not executable"
+        return 1
+    fi
+}
+
+ensure_license_in_data_dir() {
+    local expected_license_path="$EMBEDDED_CLUSTER_BASE_DIR/license.yaml"
+    if [ -e "$expected_license_path" ]; then
+        echo "license file exists in $expected_license_path"
+    else
+        echo "license file does not exist in $expected_license_path"
         return 1
     fi
 }
@@ -358,7 +372,7 @@ validate_data_dirs() {
     if kubectl -n kube-system get charts k0s-addon-chart-openebs -oyaml >/dev/null 2>&1 ; then
         echo "found openebs chart"
 
-        openebsdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-openebs -oyaml | grep -v apiVersion | grep "basePath:" | awk '{print $2}') 
+        openebsdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-openebs -oyaml | grep -v apiVersion | grep "basePath:" | awk '{print $2}')
         echo "found openebsdatadir $openebsdatadir, want $expected_openebsdatadir"
         if [ "$openebsdatadir" != "$expected_openebsdatadir" ]; then
             echo "got unexpected openebsdatadir $openebsdatadir, want $expected_openebsdatadir"
@@ -374,7 +388,7 @@ validate_data_dirs() {
     if kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml >/dev/null 2>&1 ; then
         echo "found seaweedfs chart"
 
-        seaweefdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml| grep -v apiVersion | grep -m 1 "hostPathPrefix:" | awk '{print $2}') 
+        seaweefdatadir=$(kubectl -n kube-system get charts k0s-addon-chart-seaweedfs -oyaml| grep -v apiVersion | grep -m 1 "hostPathPrefix:" | awk '{print $2}')
         echo "found seaweefdatadir $seaweefdatadir, want $expected_datadir/seaweedfs/(ssd|storage)"
         if ! echo "$seaweefdatadir" | grep -qE "^$expected_datadir/seaweedfs/(ssd|storage)$" ; then
             echo "got unexpected seaweefdatadir $seaweefdatadir, want $expected_datadir/seaweedfs/(ssd|storage)"
@@ -390,7 +404,7 @@ validate_data_dirs() {
     if kubectl -n kube-system get charts k0s-addon-chart-velero -oyaml >/dev/null 2>&1 ; then
         echo "found velero chart"
 
-        velerodatadir=$(kubectl -n kube-system get charts k0s-addon-chart-velero -oyaml | grep -v apiVersion | grep "podVolumePath:" | awk '{print $2}') 
+        velerodatadir=$(kubectl -n kube-system get charts k0s-addon-chart-velero -oyaml | grep -v apiVersion | grep "podVolumePath:" | awk '{print $2}')
         echo "found velerodatadir $velerodatadir, want $expected_k0sdatadir/kubelet/pods"
         if [ "$velerodatadir" != "$expected_k0sdatadir/kubelet/pods" ]; then
             echo "got unexpected velerodatadir $velerodatadir, want $expected_openebsdatadir/kubelet/pods"

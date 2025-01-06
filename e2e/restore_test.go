@@ -39,7 +39,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -85,6 +85,12 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
@@ -97,6 +103,88 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	line = []string{"check-postupgrade-state.sh", k8sVersion(), ecUpgradeTargetVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
+	t.Parallel()
+
+	requiredEnvVars := []string{
+		"DR_AWS_S3_ENDPOINT",
+		"DR_AWS_S3_REGION",
+		"DR_AWS_S3_BUCKET",
+		"DR_AWS_S3_PREFIX",
+		"DR_AWS_ACCESS_KEY_ID",
+		"DR_AWS_SECRET_ACCESS_KEY",
+	}
+	RequireEnvVars(t, requiredEnvVars)
+
+	testArgs := []string{}
+	for _, envVar := range requiredEnvVars {
+		testArgs = append(testArgs, os.Getenv(envVar))
+	}
+
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "debian-bookworm",
+		LicensePath:  "snapshot-license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster-legacydr",
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	if err := tc.SetupPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+	if _, _, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v", err)
+	}
+
+	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: resetting the installation", time.Now().Format(time.RFC3339))
+	line = []string{"reset-installation.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to reset the installation: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// wait for the cluster nodes to reboot
+	tc.WaitForReady()
+
+	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
+	line = append([]string{"restore-installation.exp"}, testArgs...)
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
+	}
+
+	line = []string{"collect-support-bundle-host-in-cluster.sh"}
+	stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	if err != nil {
+		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state.sh", appVersion, k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -136,7 +224,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	tc.InstallTestDependenciesDebian(t, 0, true)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--http-proxy", lxd.HTTPProxy)
 	line = append(line, "--https-proxy", lxd.HTTPProxy)
 	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
@@ -182,6 +270,12 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -213,7 +307,7 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -310,7 +404,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
 	}
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", "--proxy"}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--proxy"}
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
 	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
@@ -356,6 +450,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
@@ -414,7 +514,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui"}); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -561,6 +661,12 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
 
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
 
@@ -634,7 +740,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", "--proxy", "--data-dir", "/var/lib/ec"}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA"), "--proxy", "--data-dir", "/var/lib/ec"}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv, lxd.WithProxyEnv(tc.IPs)); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -824,6 +930,12 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion(), "true"}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post ha state: %v", err)
+	}
+
+	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
+	line = []string{"check-post-restore.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

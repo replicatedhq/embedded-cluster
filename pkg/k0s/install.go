@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -137,4 +138,54 @@ func applyUnsupportedOverrides(ctx context.Context, overrides string, cfg *k0sco
 	}
 
 	return cfg, nil
+}
+
+// PatchK0sConfig patches the created k0s config with the unsupported overrides passed in.
+func PatchK0sConfig(path string, patch string) error {
+	if len(patch) == 0 {
+		return nil
+	}
+	finalcfg := k0sconfig.ClusterConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: runtimeconfig.BinaryName()},
+	}
+	if _, err := os.Stat(path); err == nil {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("unable to read node config: %w", err)
+		}
+		finalcfg = k0sconfig.ClusterConfig{}
+		if err := k8syaml.Unmarshal(data, &finalcfg); err != nil {
+			return fmt.Errorf("unable to unmarshal node config: %w", err)
+		}
+	}
+	result, err := config.PatchK0sConfig(finalcfg.DeepCopy(), patch)
+	if err != nil {
+		return fmt.Errorf("unable to patch node config: %w", err)
+	}
+	if result.Spec.API != nil {
+		if finalcfg.Spec == nil {
+			finalcfg.Spec = &k0sconfig.ClusterSpec{}
+		}
+		finalcfg.Spec.API = result.Spec.API
+	}
+	if result.Spec.Storage != nil {
+		if finalcfg.Spec == nil {
+			finalcfg.Spec = &k0sconfig.ClusterSpec{}
+		}
+		finalcfg.Spec.Storage = result.Spec.Storage
+	}
+	// This is necessary to install the previous version of k0s in e2e tests
+	// TODO: remove this once the previous version is > 1.29
+	unstructured, err := helpers.K0sClusterConfigTo129Compat(&finalcfg)
+	if err != nil {
+		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+	}
+	data, err := k8syaml.Marshal(unstructured)
+	if err != nil {
+		return fmt.Errorf("unable to marshal node config: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return fmt.Errorf("unable to write node config file: %w", err)
+	}
+	return nil
 }

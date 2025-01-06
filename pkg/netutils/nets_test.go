@@ -53,7 +53,7 @@ func TestValidateCIDR(t *testing.T) {
 		{
 			name: "small cidr",
 			cidr: "10.0.0.0/24",
-			err:  "cidr needs to be at least a /16",
+			err:  "The provided CIDR block (10.0.0.0/24) is too small. It must be /16 or larger.",
 		},
 		{
 			name: "invalid cidr",
@@ -63,12 +63,12 @@ func TestValidateCIDR(t *testing.T) {
 		{
 			name: "a /32 cidr",
 			cidr: "10.0.0.0/32",
-			err:  "cidr needs to be at least a /16",
+			err:  "The provided CIDR block (10.0.0.0/32) is too small. It must be /16 or larger.",
 		},
 		{
 			name: "a public cidr",
 			cidr: "100.0.0.0/16",
-			err:  "cidr is not in private ranges",
+			err:  "The provided CIDR block (100.0.0.0/16) is not in a private IP address range (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)",
 		},
 		{
 			name: "matching the whole private range",
@@ -81,7 +81,7 @@ func TestValidateCIDR(t *testing.T) {
 		{
 			name: "not a cidr address",
 			cidr: "192.168.1.1/16",
-			err:  "the provided address is not a valid CIDR",
+			err:  "The provided CIDR block (192.168.1.1/16) is not valid",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

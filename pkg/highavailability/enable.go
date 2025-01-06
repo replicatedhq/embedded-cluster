@@ -64,7 +64,7 @@ func EnableHA(ctx context.Context, kcli client.Client) error {
 
 		loading.Debugf("updating installation")
 		in.Spec.HighAvailability = true
-		if err := kcli.Update(ctx, in); err != nil {
+		if err := kubeutils.UpdateInstallation(ctx, kcli, in); err != nil {
 			return fmt.Errorf("unable to update installation: %w", err)
 		}
 	}

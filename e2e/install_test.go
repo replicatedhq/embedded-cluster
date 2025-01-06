@@ -33,7 +33,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", "--admin-console-port", "30002"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--admin-console-port", "30002"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -96,7 +96,7 @@ func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -143,7 +143,7 @@ func TestSingleNodeInstallationDebian12(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -190,7 +190,7 @@ func TestSingleNodeInstallationDebian11(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -243,7 +243,7 @@ func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -342,7 +342,7 @@ func TestMultiNodeInstallation(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui"}); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -455,7 +455,7 @@ func TestInstallFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -500,13 +500,14 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
+	line := []string{"vandoor-prepare.sh", initialVersion, os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "ui", initialVersion}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -516,7 +517,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), k8sVersionPreviousStable()}
+	line = []string{"check-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -550,14 +551,15 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	t.Logf("%s: downloading embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"vandoor-prepare.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), os.Getenv("LICENSE_ID"), "false"}
+	line := []string{"vandoor-prepare.sh", initialVersion, os.Getenv("LICENSE_ID"), "false"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to download embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "ui", initialVersion}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -567,7 +569,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state", time.Now().Format(time.RFC3339))
-	line = []string{"check-installation-state.sh", fmt.Sprintf("%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-installation-state.sh", initialVersion, k8sVersionPrevious()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -625,7 +627,7 @@ func TestUpgradeEC18FromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster %s on node 0", appVer, time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "ui", appVer}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -725,7 +727,7 @@ func TestResetAndReinstall(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -750,7 +752,7 @@ func TestResetAndReinstall(t *testing.T) {
 	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: installing embedded-cluster on node 0 after reset", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -802,7 +804,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -827,7 +829,7 @@ func TestResetAndReinstallAirgap(t *testing.T) {
 	time.Sleep(30 * time.Second)
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -901,9 +903,10 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
@@ -937,7 +940,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
+	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -952,7 +955,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -993,9 +996,10 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
@@ -1029,7 +1033,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", initialVersion}
 	line = append(line, "--cidr", "172.16.0.0/15")
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
@@ -1045,7 +1049,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -1147,7 +1151,7 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", appVer}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1316,7 +1320,7 @@ func TestMultiNodeAirgapUpgradeSameK0s(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1428,9 +1432,10 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
@@ -1470,7 +1475,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
+	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1529,7 +1534,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -1574,9 +1579,10 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
@@ -1616,7 +1622,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
+	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001"} // choose an alternate lam port
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -1675,7 +1681,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA")), k8sVersionPreviousStable()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -1726,7 +1732,7 @@ func TestMultiNodeHAInstallation(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui"}); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -1880,7 +1886,7 @@ func TestMultiNodeAirgapHAInstallation(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh"}
+	line = []string{"single-node-airgap-install.sh", os.Getenv("SHORT_SHA")}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -2074,7 +2080,7 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui"}
+	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -2130,7 +2136,7 @@ func TestCustomCIDR(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	// this uses the proxy install script because that accepts arbitrary install flags
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	line = append(line, "--pod-cidr", "10.128.0.0/20")
 	line = append(line, "--service-cidr", "10.129.0.0/20")
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
@@ -2226,7 +2232,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -2267,9 +2273,10 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
@@ -2295,7 +2302,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: preparing and installing embedded cluster on node 0", time.Now().Format(time.RFC3339))
 	installCommands := [][]string{
 		{"airgap-prepare.sh"},
-		{"single-node-airgap-install.sh"},
+		{"single-node-airgap-install.sh", initialVersion},
 		{"rm", "/assets/release.airgap"},
 		{"rm", "/usr/local/bin/embedded-cluster"},
 	}
@@ -2363,7 +2370,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line := []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line := []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -2426,7 +2433,7 @@ func TestInstallWithPrivateCAs(t *testing.T) {
 	})
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "ui", "--private-ca", "/tmp/ca.crt"}
+	line := []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--private-ca", "/tmp/ca.crt"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -2501,7 +2508,7 @@ spec:
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-install.sh", "ui", "--config-values", "/assets/config-values.yaml"}
+	line = []string{"single-node-install.sh", "ui", os.Getenv("SHORT_SHA"), "--config-values", "/assets/config-values.yaml"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -2549,9 +2556,10 @@ func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	airgapInstallBundlePath := "/tmp/airgap-install-bundle.tar.gz"
 	airgapUpgradeBundlePath := "/tmp/airgap-upgrade-bundle.tar.gz"
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+			return downloadAirgapBundle(t, initialVersion, airgapInstallBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		}, func(t *testing.T) error {
 			return downloadAirgapBundle(t, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), airgapUpgradeBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
 		},
@@ -2610,7 +2618,7 @@ spec:
 	}
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line = []string{"single-node-airgap-install.sh", "--local-artifact-mirror-port", "50001", "--config-values", "/assets/config-values.yaml"} // choose an alternate lam port
+	line = []string{"single-node-airgap-install.sh", initialVersion, "--local-artifact-mirror-port", "50001", "--config-values", "/assets/config-values.yaml"} // choose an alternate lam port
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node %s: %v", tc.Nodes[0], err)
 	}
@@ -2621,7 +2629,7 @@ spec:
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA")), k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}

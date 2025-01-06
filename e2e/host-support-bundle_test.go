@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func TestHostCollectSupportBundleInCluster(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install.sh", "cli"}
+	line := []string{"single-node-install.sh", "cli", os.Getenv("SHORT_SHA")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
 	}

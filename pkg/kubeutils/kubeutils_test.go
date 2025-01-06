@@ -100,6 +100,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 					Config: &embeddedclusterv1beta1.ConfigSpec{
 						Version: "1.12.0+k8s-1.29-49-gf92daca6",
 					},
+					SourceType: embeddedclusterv1beta1.InstallationSourceTypeCRD,
 					RuntimeConfig: &embeddedclusterv1beta1.RuntimeConfigSpec{
 						K0sDataDirOverride:     "/var/lib/k0s",
 						OpenEBSDataDirOverride: "/var/openebs",
@@ -255,6 +256,7 @@ func TestGetInstallation(t *testing.T) {
 					Config: &embeddedclusterv1beta1.ConfigSpec{
 						Version: "1.15.0+k8s-1.29-49-gf92daca6",
 					},
+					SourceType: embeddedclusterv1beta1.InstallationSourceTypeCRD,
 					RuntimeConfig: &embeddedclusterv1beta1.RuntimeConfigSpec{
 						K0sDataDirOverride:     "/var/lib/k0s",
 						OpenEBSDataDirOverride: "/var/openebs",
@@ -311,6 +313,7 @@ func TestGetInstallation(t *testing.T) {
 					Config: &embeddedclusterv1beta1.ConfigSpec{
 						Version: "1.15.1+k8s-1.29-49-gf92daca6",
 					},
+					SourceType: embeddedclusterv1beta1.InstallationSourceTypeCRD,
 				},
 			},
 			wantErr: false,
@@ -363,6 +366,7 @@ func TestGetInstallation(t *testing.T) {
 					Config: &embeddedclusterv1beta1.ConfigSpec{
 						Version: "1.15.0+k8s-1.29-49-gf92daca6",
 					},
+					SourceType: embeddedclusterv1beta1.InstallationSourceTypeCRD,
 				},
 			},
 			wantErr: false,
@@ -379,6 +383,7 @@ func TestGetInstallation(t *testing.T) {
 						Config: &embeddedclusterv1beta1.ConfigSpec{
 							Version: "1.15.0+k8s-1.29-49-gf92daca6",
 						},
+						SourceType: embeddedclusterv1beta1.InstallationSourceTypeCRD,
 					},
 				},
 			},
