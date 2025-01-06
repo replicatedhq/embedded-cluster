@@ -14,11 +14,12 @@ spec:
       labels:
         app: manager-migrate
     spec:
+      hostNetwork: true # required to connect to LAM on host
       containers:
         - name: run-once
           image: ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan
           imagePullPolicy: Always
-          command: ["sh", "-c", 'trap "exit 0" TERM; sleep 3600 & wait $!']
+          command: ["/bin/sh", "-c", 'trap : TERM INT; sleep 9999999999d & wait']
       initContainers:
         - name: manager-migrate
           image: ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan
@@ -31,21 +32,21 @@ spec:
             runAsUser: 0
             privileged: true
           env:
-            - name: DBUS_SYSTEM_BUS_ADDRESS
+            - name: DBUS_SYSTEM_BUS_ADDRESS # required to run systemctl commands
               value: unix:path=/host/run/dbus/system_bus_socket
           volumeMounts:
-            - name: host-run
-              mountPath: /host/run
-            - name: host-etc-systemd
+            - name: host-run-dbus-system-bus-socket # required to run systemctl commands
+              mountPath: /host/run/dbus/system_bus_socket
+            - name: host-etc-systemd # required to write systemd unit files
               mountPath: /etc/systemd
-            - name: host-var-lib-embedded-cluster
+            - name: host-var-lib-embedded-cluster # required to materialize files
               mountPath: /var/lib/embedded-cluster
               readOnly: true
       volumes:
-        - name: host-run
+        - name: host-run-dbus-system-bus-socket
           hostPath:
-            path: /run
-            type: Directory
+            path: /run/dbus/system_bus_socket
+            type: Socket
         - name: host-etc-systemd
           hostPath:
             path: /etc/systemd

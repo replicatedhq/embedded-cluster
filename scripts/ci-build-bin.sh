@@ -46,6 +46,7 @@ function binary() {
     if [ "$USES_DEV_BUCKET" == "1" ]; then
         k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$(url_encode_semver "$K0S_VERSION")-$ARCH"
         kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")-$ARCH.tar.gz"
+        manager_binary_url="https://$S3_BUCKET.s3.amazonaws.com/manager-binaries/$(url_encode_semver "$EC_VERSION")-$ARCH.tar.gz"
         operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")-$ARCH.tar.gz"
     fi
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
@@ -56,6 +57,7 @@ function binary() {
         VERSION="$EC_VERSION" \
         METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
         METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
+        METADATA_MANAGER_BINARY_URL_OVERRIDE="$manager_binary_url" \
         METADATA_OPERATOR_BINARY_URL_OVERRIDE="$operator_binary_url" \
         LOCAL_ARTIFACT_MIRROR_IMAGE="$local_artifact_mirror_image"
     cp output/bin/embedded-cluster output/bin/embedded-cluster-original
@@ -99,6 +101,11 @@ function archive() {
     log "created build/embedded-cluster-linux-$ARCH.tgz"
 }
 
+function managerarchive() {
+    mkdir -p build
+    tar -C output/bins -czvf "build/manager-linux-$ARCH.tgz" manager
+}
+
 function metadata() {
     mkdir -p build
     docker run --rm --platform linux/$ARCH -v "$(pwd)/output/bin:/wrk" -w /wrk debian:bookworm-slim \
@@ -112,6 +119,7 @@ function main() {
     update_operator_metadata
     binary
     archive
+    managerarchive
     metadata
 }
 

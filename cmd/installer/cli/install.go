@@ -566,6 +566,7 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig, withChannelRelease b
 	artifacts := map[string]string{
 		"k0s":                         fmt.Sprintf("k0s-binaries/%s-%s", versions.K0sVersion, runtime.GOARCH),
 		"kots":                        fmt.Sprintf("kots-binaries/%s-%s.tar.gz", adminconsole.KotsVersion, runtime.GOARCH),
+		"manager":                     fmt.Sprintf("manager-binaries/%s-%s.tar.gz", versions.Version, runtime.GOARCH),
 		"operator":                    fmt.Sprintf("operator-binaries/%s-%s.tar.gz", embeddedclusteroperator.Metadata.Version, runtime.GOARCH),
 		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
 	}
@@ -574,6 +575,9 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig, withChannelRelease b
 	}
 	if versions.KOTSBinaryURLOverride != "" {
 		artifacts["kots"] = versions.KOTSBinaryURLOverride
+	}
+	if versions.ManagerBinaryURLOverride != "" {
+		artifacts["manager"] = versions.ManagerBinaryURLOverride
 	}
 	if versions.OperatorBinaryURLOverride != "" {
 		artifacts["operator"] = versions.OperatorBinaryURLOverride
