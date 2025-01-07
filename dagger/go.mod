@@ -1,6 +1,6 @@
 module dagger/embedded-cluster
 
-go 1.23.2
+go 1.23.4
 
 require (
 	github.com/99designs/gqlgen v0.17.55
@@ -37,12 +37,12 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.31.0 // indirect
 	go.opentelemetry.io/otel/metric v1.32.0
 	go.opentelemetry.io/otel/sdk/metric v1.29.0
-	golang.org/x/net v0.31.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241007155032-5fefd90f89a9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241007155032-5fefd90f89a9 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	google.golang.org/protobuf v1.36.1 // indirect
 )
 
 replace go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc => go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.0.0-20240518090000-14441aefdf88
