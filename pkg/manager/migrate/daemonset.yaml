@@ -28,6 +28,10 @@ spec:
           args:
             - migrate
             - manager
+            - --installation-file=/ec/installation
+            - --license-id=TODO
+            - --license-endpoint=TODO
+            - --version-label=TODO
           securityContext:
             runAsUser: 0
             privileged: true
@@ -35,14 +39,19 @@ spec:
             - name: DBUS_SYSTEM_BUS_ADDRESS # required to run systemctl commands
               value: unix:path=/host/run/dbus/system_bus_socket
           volumeMounts:
+            - name: installation # required to set runtime config
+              mountPath: /ec
+              readOnly: true
             - name: host-run-dbus-system-bus-socket # required to run systemctl commands
               mountPath: /host/run/dbus/system_bus_socket
             - name: host-etc-systemd # required to write systemd unit files
               mountPath: /etc/systemd
             - name: host-var-lib-embedded-cluster # required to materialize files
               mountPath: /var/lib/embedded-cluster
-              readOnly: true
       volumes:
+        - name: installation
+          configMap:
+            name: "TODO"
         - name: host-run-dbus-system-bus-socket
           hostPath:
             path: /run/dbus/system_bus_socket
