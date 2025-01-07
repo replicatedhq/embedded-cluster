@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -50,31 +51,49 @@ func Install(ctx context.Context, m *goods.Materializer, logf func(string, ...in
 
 // Uninstall stops and disables the manager service.
 func Uninstall(ctx context.Context, logf func(string, ...interface{})) error {
-	logf("Stopping manager service")
-	err := systemd.Stop(ctx, UnitName())
+	exists, err := systemd.UnitExists(ctx, UnitName())
 	if err != nil {
-		return fmt.Errorf("systemd stop: %w", err)
+		return fmt.Errorf("check if unit exists: %w", err)
 	}
-	logf("Successfully stopped manager service")
+	if !exists {
+		logf("Manager service does not exist, nothing to uninstall")
+	} else {
+		logf("Stopping manager service")
+		err := systemd.Stop(ctx, UnitName())
+		if err != nil {
+			return fmt.Errorf("systemd stop: %w", err)
+		}
+		logf("Successfully stopped manager service")
 
-	logf("Disabling manager service")
-	err = systemd.Disable(ctx, UnitName())
-	if err != nil {
-		return fmt.Errorf("systemd disable: %w", err)
+		logf("Disabling manager service")
+		err = systemd.Disable(ctx, UnitName())
+		if err != nil {
+			return fmt.Errorf("systemd disable: %w", err)
+		}
+		logf("Successfully disabled manager service")
 	}
-	logf("Successfully disabled manager service")
 
-	logf("Removing manager drop-in directory")
-	if err := helpers.RemoveAll(DropInDirPath()); err != nil {
-		return fmt.Errorf("remove manager drop-in directory: %w", err)
+	_, err = os.Stat(DropInDirPath())
+	if err == nil {
+		logf("Removing manager drop-in directory")
+		if err := helpers.RemoveAll(DropInDirPath()); err != nil {
+			return fmt.Errorf("remove manager drop-in directory: %w", err)
+		}
+		logf("Successfully removed manager drop-in directory")
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("check if drop-in directory exists: %w", err)
 	}
-	logf("Successfully removed manager drop-in directory")
 
-	logf("Removing manager systemd unit file")
-	if err := helpers.RemoveAll(SystemdUnitFilePath()); err != nil {
-		return fmt.Errorf("remove manager systemd unit file: %w", err)
+	_, err = os.Stat(SystemdUnitFilePath())
+	if err == nil {
+		logf("Removing manager systemd unit file")
+		if err := helpers.RemoveAll(SystemdUnitFilePath()); err != nil {
+			return fmt.Errorf("remove manager systemd unit file: %w", err)
+		}
+		logf("Successfully removed manager systemd unit file")
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("check if systemd unit file exists: %w", err)
 	}
-	logf("Successfully removed manager systemd unit file")
 
 	return nil
 }

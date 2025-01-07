@@ -90,6 +90,14 @@ func Stop(ctx context.Context, unit string) error {
 
 	unit = normalizeUnitName(unit)
 
+	isActive, err := IsActive(ctx, unit)
+	if err != nil {
+		return fmt.Errorf("check if active: %w", err)
+	}
+	if !isActive {
+		return nil
+	}
+
 	ch := make(chan string)
 	_, err = conn.StopUnitContext(ctx, unit, "replace", ch)
 	if err != nil {
@@ -121,6 +129,14 @@ func Disable(ctx context.Context, unit string) error {
 
 	unit = normalizeUnitName(unit)
 
+	isEnabled, err := IsEnabled(ctx, unit)
+	if err != nil {
+		return fmt.Errorf("check if enabled: %w", err)
+	}
+	if !isEnabled {
+		return nil
+	}
+
 	_, err = conn.DisableUnitFilesContext(ctx, []string{unit}, false)
 	if err != nil {
 		return fmt.Errorf("disable unit: %w", err)
@@ -145,6 +161,40 @@ func IsActive(ctx context.Context, unit string) (bool, error) {
 		return false, fmt.Errorf("get unit property: %w", err)
 	}
 	return prop.Value.String() == `"active"`, nil
+}
+
+// IsEnabled checks if a systemd service is enabled.
+func IsEnabled(ctx context.Context, unit string) (bool, error) {
+	conn, err := newDBusConn(ctx)
+	if err != nil {
+		return false, fmt.Errorf("new dbus connection: %w", err)
+	}
+	defer conn.Close()
+
+	unit = normalizeUnitName(unit)
+
+	prop, err := conn.GetUnitPropertyContext(ctx, unit, "LoadState")
+	if err != nil {
+		return false, fmt.Errorf("get unit property: %w", err)
+	}
+	return prop.Value.String() == `"loaded"`, nil
+}
+
+func UnitExists(ctx context.Context, unit string) (bool, error) {
+	conn, err := newDBusConn(ctx)
+	if err != nil {
+		return false, fmt.Errorf("new dbus connection: %w", err)
+	}
+	defer conn.Close()
+
+	unit = normalizeUnitName(unit)
+
+	status, err := conn.ListUnitsByNamesContext(ctx, []string{unit})
+	if err != nil {
+		return false, fmt.Errorf("list units: %w", err)
+	}
+
+	return len(status) > 0, nil
 }
 
 // Reload instructs systemd to reload the unit files.

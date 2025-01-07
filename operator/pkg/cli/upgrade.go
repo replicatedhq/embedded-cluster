@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -38,7 +37,7 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("failed to read installation file: %w", err)
 			}
 
-			in, err := decodeInstallation(cmd.Context(), []byte(installationData))
+			in, err := decodeInstallation([]byte(installationData))
 			if err != nil {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
@@ -96,7 +95,7 @@ func readInstallationFile(path string) ([]byte, error) {
 	return b, nil
 }
 
-func decodeInstallation(ctx context.Context, data []byte) (*clusterv1beta1.Installation, error) {
+func decodeInstallation(data []byte) (*clusterv1beta1.Installation, error) {
 	scheme := runtime.NewScheme()
 	err := clusterv1beta1.AddToScheme(scheme)
 	if err != nil {

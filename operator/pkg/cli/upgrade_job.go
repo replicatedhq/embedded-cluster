@@ -35,7 +35,7 @@ func UpgradeJobCmd() *cobra.Command {
 
 			fmt.Printf("installation data: %s\n", installationData)
 
-			in, err := decodeInstallation(cmd.Context(), []byte(installationData))
+			in, err := decodeInstallation([]byte(installationData))
 			if err != nil {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
