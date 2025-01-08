@@ -31,7 +31,11 @@ import (
 // if the installation is airgapped, the artifacts are copied to the nodes and the autopilot plan is
 // created to copy the images to the cluster. A configmap is then created containing the target installation
 // spec and the upgrade job is created. The upgrade job will update the cluster version, and then update the operator chart.
-func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string, previousInstallVersion string) error {
+func CreateUpgradeJob(
+	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
+	localArtifactMirrorImage string, previousInstallVersion string,
+	migrateV2 bool,
+) error {
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
 	err := cli.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
@@ -121,6 +125,18 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 		})
 	}
 
+	command := []string{
+		"/manager",
+		"upgrade-job",
+		"--installation",
+		"/config/installation.yaml",
+		"--previous-version",
+		previousInstallVersion,
+	}
+	if migrateV2 {
+		command = append(command, "--migrate-v2")
+	}
+
 	// create the upgrade job
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -171,14 +187,7 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 							Image:           operatorImage,
 							ImagePullPolicy: pullPolicy,
 							Env:             env,
-							Command: []string{
-								"/manager",
-								"upgrade-job",
-								"--installation",
-								"/config/installation.yaml",
-								"--previous-version",
-								previousInstallVersion,
-							},
+							Command:         command,
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "config",

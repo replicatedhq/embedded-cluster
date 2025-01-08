@@ -1,4 +1,4 @@
-package migrate
+package manager
 
 import (
 	"context"
@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	managerBinary = "manager"
+	BinaryName = "manager"
 )
 
-func downloadManagerBinaryOnline(ctx context.Context, licenseID string, licenseEndpoint string, versionLabel string, dst string) error {
+func DownloadBinaryOnline(ctx context.Context, dstPath string, licenseID string, licenseEndpoint string, versionLabel string) error {
 	tmpdir, err := os.MkdirTemp("", "embedded-cluster-artifact-*")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
@@ -62,16 +62,16 @@ func downloadManagerBinaryOnline(ctx context.Context, licenseID string, licenseE
 		return fmt.Errorf("decompress tgz: %w", err)
 	}
 
-	if _, err := os.Stat(dst); err == nil {
+	if _, err := os.Stat(dstPath); err == nil {
 		// move the file to a backup location
-		err := helpers.MoveFile(dst, fmt.Sprintf("%s.bak", dst))
+		err := helpers.MoveFile(dstPath, fmt.Sprintf("%s.bak", dstPath))
 		if err != nil {
 			return fmt.Errorf("move backup file: %w", err)
 		}
 	}
 
-	src := filepath.Join(tmpdir, managerBinary)
-	err = helpers.MoveFile(src, dst)
+	src := filepath.Join(tmpdir, BinaryName)
+	err = helpers.MoveFile(src, dstPath)
 	if err != nil {
 		return fmt.Errorf("move file: %w", err)
 	}

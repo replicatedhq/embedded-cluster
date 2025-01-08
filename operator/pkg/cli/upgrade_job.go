@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -15,11 +16,30 @@ import (
 // It is called by KOTS admin console to upgrade the embedded cluster operator and installation.
 func UpgradeJobCmd() *cobra.Command {
 	var installationFile, previousInstallationVersion string
+	var migrateV2 bool
+
+	var installation *ecv1beta1.Installation
 
 	cmd := &cobra.Command{
 		Use:          "upgrade-job",
 		Short:        "Upgrade k0s and then all addons from within a job that may be restarted",
 		SilenceUsage: true,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			installationData, err := readInstallationFile(installationFile)
+			if err != nil {
+				return fmt.Errorf("failed to read installation file: %w", err)
+			}
+
+			installation, err = decodeInstallation(installationData)
+			if err != nil {
+				return fmt.Errorf("failed to decode installation: %w", err)
+			}
+
+			// set the runtime config from the installation spec
+			runtimeconfig.Set(installation.Spec.RuntimeConfig)
+
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Printf("Upgrade job version %s started\n", versions.Version)
 
@@ -28,27 +48,20 @@ func UpgradeJobCmd() *cobra.Command {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			installationData, err := readInstallationFile(installationFile)
-			if err != nil {
-				return fmt.Errorf("failed to read installation file: %w", err)
+			fmt.Printf("Upgrading to installation %s (version %s)\n", installation.Name, installation.Spec.Config.Version)
+
+			if migrateV2 {
+				err := runMigrateV2(cmd.Context(), cli, installation)
+				if err != nil {
+					return fmt.Errorf("failed to migrate v2: %w", err)
+				}
+				return nil
 			}
-
-			fmt.Printf("installation data: %s\n", installationData)
-
-			in, err := decodeInstallation([]byte(installationData))
-			if err != nil {
-				return fmt.Errorf("failed to decode installation: %w", err)
-			}
-
-			// set the runtime config from the installation spec
-			runtimeconfig.Set(in.Spec.RuntimeConfig)
-
-			fmt.Printf("Upgrading to installation %s (version %s)\n", in.Name, in.Spec.Config.Version)
 
 			i := 0
 			sleepDuration := time.Second * 5
 			for {
-				err = upgrade.Upgrade(cmd.Context(), cli, in)
+				err = upgrade.Upgrade(cmd.Context(), cli, installation)
 				if err != nil {
 					fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
 					if i >= 10 {
@@ -77,6 +90,8 @@ func UpgradeJobCmd() *cobra.Command {
 	if err != nil {
 		panic(err)
 	}
+
+	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
 
 	return cmd
 }

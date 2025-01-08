@@ -1,5 +1,5 @@
-apiVersion: apps/v1
-kind: DaemonSet
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: manager-migrate
   namespace: embedded-cluster
@@ -16,22 +16,17 @@ spec:
     spec:
       hostNetwork: true # required to connect to LAM on host
       containers:
-        - name: run-once
-          image: ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan
-          imagePullPolicy: Always
-          command: ["/bin/sh", "-c", 'trap : TERM INT; sleep 9999999999d & wait']
-      initContainers:
         - name: manager-migrate
           image: ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan
           imagePullPolicy: Always
-          command: ["/manager"]
-          args:
-            - migrate
-            - manager
-            - --installation-file=/ec/installation
-            - --license-id=TODO
-            - --license-endpoint=TODO
-            - --version-label=TODO
+          command:
+            - /manager
+            - upgrade
+            - install-v2-manager
+            - --installation=/ec/installation
+            - --license-id=2mAPK1kmpNHeougzJTk8VhBhNpN
+            - --license-endpoint=https://ec-e2e-replicated-app.testcluster.net
+            - --version-label=appver-dev-Lwf1xc
           securityContext:
             runAsUser: 0
             privileged: true
@@ -51,7 +46,7 @@ spec:
       volumes:
         - name: installation
           configMap:
-            name: "TODO"
+            name: "20250106220709"
         - name: host-run-dbus-system-bus-socket
           hostPath:
             path: /run/dbus/system_bus_socket

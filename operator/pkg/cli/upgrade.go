@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -19,11 +19,30 @@ import (
 // It is called by KOTS admin console and will preposition images before creating a job to truly upgrade the cluster.
 func UpgradeCmd() *cobra.Command {
 	var installationFile, localArtifactMirrorImage string
+	var migrateV2 bool
+
+	var installation *ecv1beta1.Installation
 
 	cmd := &cobra.Command{
 		Use:          "upgrade",
 		Short:        "create a job to upgrade the embedded cluster operator",
 		SilenceUsage: true,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			installationData, err := readInstallationFile(installationFile)
+			if err != nil {
+				return fmt.Errorf("failed to read installation file: %w", err)
+			}
+
+			installation, err = decodeInstallation(installationData)
+			if err != nil {
+				return fmt.Errorf("failed to decode installation: %w", err)
+			}
+
+			// set the runtime config from the installation spec
+			runtimeconfig.Set(installation.Spec.RuntimeConfig)
+
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("Upgrade job creation started")
 
@@ -32,32 +51,19 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			installationData, err := readInstallationFile(installationFile)
-			if err != nil {
-				return fmt.Errorf("failed to read installation file: %w", err)
-			}
-
-			in, err := decodeInstallation([]byte(installationData))
-			if err != nil {
-				return fmt.Errorf("failed to decode installation: %w", err)
-			}
-
-			// set the runtime config from the installation spec
-			runtimeconfig.Set(in.Spec.RuntimeConfig)
-
-			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", in.Name, in.Spec.Config.Version)
+			fmt.Printf("Preparing upgrade to installation %s (k0s version %s)\n", installation.Name, installation.Spec.Config.Version)
 
 			// create the installation object so that kotsadm can immediately find it and watch it for the upgrade process
-			err = upgrade.CreateInstallation(cmd.Context(), cli, in)
+			err = upgrade.CreateInstallation(cmd.Context(), cli, installation)
 			if err != nil {
 				return fmt.Errorf("apply installation: %w", err)
 			}
-			previousInstallation, err := kubeutils.GetPreviousInstallation(cmd.Context(), cli, in)
+			previousInstallation, err := kubeutils.GetPreviousInstallation(cmd.Context(), cli, installation)
 			if err != nil {
 				return fmt.Errorf("get previous installation: %w", err)
 			}
 
-			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, in, localArtifactMirrorImage, previousInstallation.Spec.Config.Version)
+			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version, migrateV2)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
@@ -77,6 +83,12 @@ func UpgradeCmd() *cobra.Command {
 		panic(err)
 	}
 
+	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
+
+	cmd.AddCommand(
+		UpgradeInstallV2ManagerCmd(),
+	)
+
 	return cmd
 }
 
@@ -95,9 +107,9 @@ func readInstallationFile(path string) ([]byte, error) {
 	return b, nil
 }
 
-func decodeInstallation(data []byte) (*clusterv1beta1.Installation, error) {
+func decodeInstallation(data []byte) (*ecv1beta1.Installation, error) {
 	scheme := runtime.NewScheme()
-	err := clusterv1beta1.AddToScheme(scheme)
+	err := ecv1beta1.AddToScheme(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("add to scheme: %w", err)
 	}
@@ -108,7 +120,7 @@ func decodeInstallation(data []byte) (*clusterv1beta1.Installation, error) {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 
-	in, ok := obj.(*clusterv1beta1.Installation)
+	in, ok := obj.(*ecv1beta1.Installation)
 	if !ok {
 		return nil, fmt.Errorf("unexpected object type: %T", obj)
 	}

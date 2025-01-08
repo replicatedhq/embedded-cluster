@@ -15,7 +15,6 @@ func MigrateCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		MigrateRegistryDataCmd(),
-		MigrateManagerCmd(),
 	)
 
 	return cmd

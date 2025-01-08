@@ -8,8 +8,26 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	_ dbusInterface = (*DBus)(nil)
+)
+
+type dbusInterface interface {
+	EnableAndStart(ctx context.Context, unit string) error
+	Stop(ctx context.Context, unit string) error
+	Disable(ctx context.Context, unit string) error
+	Restart(ctx context.Context, unit string) error
+	IsActive(ctx context.Context, unit string) (bool, error)
+	IsEnabled(ctx context.Context, unit string) (bool, error)
+	UnitExists(ctx context.Context, unit string) (bool, error)
+	Reload(ctx context.Context) error
+}
+
+// DBus is a systemd helper that uses the DBus API to run systemctl equivalent commands.
+type DBus struct{}
+
 // EnableAndStart instructs systemd to start a unit and enables its unit files.
-func EnableAndStart(ctx context.Context, unit string) error {
+func (d *DBus) EnableAndStart(ctx context.Context, unit string) error {
 	logrus.Debugf("Enabling and starting systemd unit %q", unit)
 
 	conn, err := newDBusConn(ctx)
@@ -48,7 +66,7 @@ func EnableAndStart(ctx context.Context, unit string) error {
 
 // Restart restarts a systemd service. If a service is restarted that isn't running it will be
 // started.
-func Restart(ctx context.Context, unit string) error {
+func (d *DBus) Restart(ctx context.Context, unit string) error {
 	logrus.Debugf("Restarting systemd unit %q", unit)
 
 	conn, err := newDBusConn(ctx)
@@ -79,7 +97,7 @@ func Restart(ctx context.Context, unit string) error {
 }
 
 // Stop stops a systemd service.
-func Stop(ctx context.Context, unit string) error {
+func (d *DBus) Stop(ctx context.Context, unit string) error {
 	logrus.Debugf("Stopping systemd unit %q", unit)
 
 	conn, err := newDBusConn(ctx)
@@ -90,7 +108,7 @@ func Stop(ctx context.Context, unit string) error {
 
 	unit = normalizeUnitName(unit)
 
-	isActive, err := IsActive(ctx, unit)
+	isActive, err := d.IsActive(ctx, unit)
 	if err != nil {
 		return fmt.Errorf("check if active: %w", err)
 	}
@@ -118,7 +136,7 @@ func Stop(ctx context.Context, unit string) error {
 }
 
 // Disable disables a systemd service.
-func Disable(ctx context.Context, unit string) error {
+func (d *DBus) Disable(ctx context.Context, unit string) error {
 	logrus.Debugf("Disabling systemd unit %q", unit)
 
 	conn, err := newDBusConn(ctx)
@@ -129,7 +147,7 @@ func Disable(ctx context.Context, unit string) error {
 
 	unit = normalizeUnitName(unit)
 
-	isEnabled, err := IsEnabled(ctx, unit)
+	isEnabled, err := d.IsEnabled(ctx, unit)
 	if err != nil {
 		return fmt.Errorf("check if enabled: %w", err)
 	}
@@ -147,7 +165,7 @@ func Disable(ctx context.Context, unit string) error {
 }
 
 // IsActive checks if a systemd service is active or not.
-func IsActive(ctx context.Context, unit string) (bool, error) {
+func (d *DBus) IsActive(ctx context.Context, unit string) (bool, error) {
 	conn, err := newDBusConn(ctx)
 	if err != nil {
 		return false, fmt.Errorf("new dbus connection: %w", err)
@@ -164,7 +182,7 @@ func IsActive(ctx context.Context, unit string) (bool, error) {
 }
 
 // IsEnabled checks if a systemd service is enabled.
-func IsEnabled(ctx context.Context, unit string) (bool, error) {
+func (d *DBus) IsEnabled(ctx context.Context, unit string) (bool, error) {
 	conn, err := newDBusConn(ctx)
 	if err != nil {
 		return false, fmt.Errorf("new dbus connection: %w", err)
@@ -180,7 +198,7 @@ func IsEnabled(ctx context.Context, unit string) (bool, error) {
 	return prop.Value.String() == `"loaded"`, nil
 }
 
-func UnitExists(ctx context.Context, unit string) (bool, error) {
+func (d *DBus) UnitExists(ctx context.Context, unit string) (bool, error) {
 	conn, err := newDBusConn(ctx)
 	if err != nil {
 		return false, fmt.Errorf("new dbus connection: %w", err)
@@ -198,7 +216,7 @@ func UnitExists(ctx context.Context, unit string) (bool, error) {
 }
 
 // Reload instructs systemd to reload the unit files.
-func Reload(ctx context.Context) error {
+func (d *DBus) Reload(ctx context.Context) error {
 	conn, err := newDBusConn(ctx)
 	if err != nil {
 		return fmt.Errorf("new dbus connection: %w", err)

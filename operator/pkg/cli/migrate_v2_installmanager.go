@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/manager/migrate"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -10,28 +9,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func MigrateManagerCmd() *cobra.Command {
+// UpgradeInstallV2ManagerCmd returns a cobra command intended to be run in a pod on all nodes in
+// the cluster. It will download the manager binary and install it as a systemd service on the
+// host.
+func UpgradeInstallV2ManagerCmd() *cobra.Command {
 	var installationFile string
 	var licenseID string
 	var licenseEndpoint string
 	var versionLabel string
 
 	cmd := &cobra.Command{
-		Use:   "manager",
-		Short: "Migrate to the manager service",
+		Use:   "install-v2-manager",
+		Short: "Downloads the v2 manager binary and installs it as a systemd service.",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			logrus.SetLevel(logrus.DebugLevel)
 
-			if installationFile == "" {
-				return fmt.Errorf("installation file is required")
-			}
-
-			data, err := os.ReadFile(installationFile)
+			installationData, err := readInstallationFile(installationFile)
 			if err != nil {
 				return fmt.Errorf("failed to read installation file: %w", err)
 			}
 
-			installation, err := decodeInstallation(data)
+			installation, err := decodeInstallation(installationData)
 			if err != nil {
 				return fmt.Errorf("failed to decode installation: %w", err)
 			}
@@ -42,15 +40,15 @@ func MigrateManagerCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := migrate.Migrate(cmd.Context(), licenseID, licenseEndpoint, versionLabel); err != nil {
+			if err := migrate.InstallAndStartManager(cmd.Context(), licenseID, licenseEndpoint, versionLabel); err != nil {
 				return fmt.Errorf("failed to run manager migration: %w", err)
 			}
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&installationFile, "installation-file", "", "The path to the installation file")
-	err := cmd.MarkFlagRequired("installation-file")
+	cmd.Flags().StringVar(&installationFile, "installation", "", "Path to the installation file")
+	err := cmd.MarkFlagRequired("installation")
 	if err != nil {
 		panic(err)
 	}
