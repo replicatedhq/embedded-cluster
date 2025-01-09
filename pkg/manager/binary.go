@@ -18,7 +18,11 @@ const (
 	BinaryName = "manager"
 )
 
-func DownloadBinaryOnline(ctx context.Context, dstPath string, licenseID string, licenseEndpoint string, versionLabel string) error {
+// DownloadBinaryOnline downloads the manager binary from the replicated.app API.
+func DownloadBinaryOnline(
+	ctx context.Context, dstPath string,
+	licenseID string, licenseEndpoint string, versionLabel string,
+) error {
 	tmpdir, err := os.MkdirTemp("", "embedded-cluster-artifact-*")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)

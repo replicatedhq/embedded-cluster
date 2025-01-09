@@ -19,7 +19,6 @@ import (
 // It is called by KOTS admin console and will preposition images before creating a job to truly upgrade the cluster.
 func UpgradeCmd() *cobra.Command {
 	var installationFile, localArtifactMirrorImage string
-	var migrateV2 bool
 
 	var installation *ecv1beta1.Installation
 
@@ -28,14 +27,10 @@ func UpgradeCmd() *cobra.Command {
 		Short:        "create a job to upgrade the embedded cluster operator",
 		SilenceUsage: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			installationData, err := readInstallationFile(installationFile)
+			var err error
+			installation, err = getInstallationFromFile(installationFile)
 			if err != nil {
-				return fmt.Errorf("failed to read installation file: %w", err)
-			}
-
-			installation, err = decodeInstallation(installationData)
-			if err != nil {
-				return fmt.Errorf("failed to decode installation: %w", err)
+				return fmt.Errorf("failed to get installation from file: %w", err)
 			}
 
 			// set the runtime config from the installation spec
@@ -63,7 +58,7 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("get previous installation: %w", err)
 			}
 
-			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version, migrateV2)
+			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
@@ -83,13 +78,21 @@ func UpgradeCmd() *cobra.Command {
 		panic(err)
 	}
 
-	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
-
-	cmd.AddCommand(
-		UpgradeInstallV2ManagerCmd(),
-	)
-
 	return cmd
+}
+
+func getInstallationFromFile(path string) (*ecv1beta1.Installation, error) {
+	data, err := readInstallationFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read installation file: %w", err)
+	}
+
+	installation, err := decodeInstallation(data)
+	if err != nil {
+		return nil, fmt.Errorf("decode installation: %w", err)
+	}
+
+	return installation, nil
 }
 
 func readInstallationFile(path string) ([]byte, error) {

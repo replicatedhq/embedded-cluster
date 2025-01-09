@@ -1,0 +1,27 @@
+apiVersion: core/v1
+kind: Pod
+metadata:
+  name: manager-migrate
+  namespace: embedded-cluster
+spec:
+  containers:
+    - name: manager-migrate
+      image: ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan
+      imagePullPolicy: Always
+      command:
+        - /manager
+        - migrate-v2
+        - --installation=/ec/installation
+        - --license-endpoint=https://ec-e2e-replicated-app.testcluster.net
+        - --version-label=appver-dev-Lwf1xc
+      env:
+        - name: LICENSE_ID
+          value: "2mAPK1kmpNHeougzJTk8VhBhNpN"
+      resources:
+        limits:
+          memory: 128Mi
+          cpu: 500m
+  volumes:
+    - name: installation
+      configMap:
+        name: "20250106220709"

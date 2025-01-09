@@ -1,17 +1,32 @@
-package migrate
+package migratev2
 
 import (
+	"context"
+	"fmt"
+
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
-var job = batchv1.Job{
+var _managerInstallJob = batchv1.Job{
+	TypeMeta: metav1.TypeMeta{
+		APIVersion: "batch/v1",
+		Kind:       "Job",
+	},
 	ObjectMeta: metav1.ObjectMeta{
 		Namespace: "embedded-cluster",
-		Name:      "install-v2-manager",
+		Name:      "install-v2-manager-DYNAMIC",
+		Labels: map[string]string{
+			"app": "install-v2-manager",
+		},
 	},
 	Spec: batchv1.JobSpec{
 		Template: corev1.PodTemplateSpec{
@@ -28,11 +43,11 @@ var job = batchv1.Job{
 							Privileged: ptr.To(true),
 						},
 						Command: []string{
-							"/manager", "upgrade", "install-v2-manager",
+							"/manager", "migrate-v2", "install-manager",
 							"--installation", "/ec/installation",
-							"--license-id", "DYNAMIC",
-							"--license-endpoint", "DYNAMIC",
-							"--version-label", "DYNAMIC",
+							// "--license-id", "DYNAMIC",
+							// "--license-endpoint", "DYNAMIC",
+							// "--version-label", "DYNAMIC",
 						},
 						Env: []corev1.EnvVar{
 							{
@@ -103,4 +118,62 @@ var job = batchv1.Job{
 			},
 		},
 	},
+}
+
+// InstallAndStartManager installs and starts the manager service on the host. This is run in a job
+// on all nodes in the cluster.
+func InstallAndStartManager(ctx context.Context, licenseID string, licenseEndpoint string, versionLabel string) error {
+	binPath := runtimeconfig.PathToEmbeddedClusterBinary("manager")
+
+	// TODO: airgap
+	err := manager.DownloadBinaryOnline(ctx, binPath, licenseID, licenseEndpoint, versionLabel)
+	if err != nil {
+		return fmt.Errorf("download manager binary: %w", err)
+	}
+
+	err = manager.Install(ctx, logrus.Infof, goods.NewMaterializer())
+	if err != nil {
+		return fmt.Errorf("install manager: %w", err)
+	}
+
+	return nil
+}
+
+func getManagerInstallJobSpecForNode(
+	node corev1.Node, installation *ecv1beta1.Installation,
+	licenseID string, licenseEndpoint string, versionLabel string,
+) *batchv1.Job {
+	job := _managerInstallJob.DeepCopy()
+
+	job.ObjectMeta.Name = getManagerInstallJobName(node)
+
+	job.Spec.Template.Spec.Containers[0].Image = "TODO"
+	job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
+		"--license-id", licenseID,
+		"--license-endpoint", licenseEndpoint,
+		"--version-label", versionLabel,
+	)
+
+	for ix, volume := range job.Spec.Template.Spec.Volumes {
+		if volume.Name == "installation" {
+			job.Spec.Template.Spec.Volumes[ix].
+				VolumeSource.ConfigMap.LocalObjectReference.Name = installation.Name
+		}
+	}
+
+	job.Spec.Template.Spec.NodeName = node.Name
+	// tolerate all taints
+	for _, taint := range node.Spec.Taints {
+		job.Spec.Template.Spec.Tolerations = append(job.Spec.Template.Spec.Tolerations, corev1.Toleration{
+			Key:      taint.Key,
+			Value:    taint.Value,
+			Operator: corev1.TolerationOpEqual,
+		})
+	}
+
+	return job
+}
+
+func getManagerInstallJobName(node corev1.Node) string {
+	return util.NameWithLengthLimit(jobNamePrefix, node.Name)
 }

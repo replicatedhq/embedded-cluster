@@ -16,8 +16,6 @@ import (
 // It is called by KOTS admin console to upgrade the embedded cluster operator and installation.
 func UpgradeJobCmd() *cobra.Command {
 	var installationFile, previousInstallationVersion string
-	var migrateV2 bool
-
 	var installation *ecv1beta1.Installation
 
 	cmd := &cobra.Command{
@@ -25,14 +23,10 @@ func UpgradeJobCmd() *cobra.Command {
 		Short:        "Upgrade k0s and then all addons from within a job that may be restarted",
 		SilenceUsage: true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			installationData, err := readInstallationFile(installationFile)
+			var err error
+			installation, err = getInstallationFromFile(installationFile)
 			if err != nil {
-				return fmt.Errorf("failed to read installation file: %w", err)
-			}
-
-			installation, err = decodeInstallation(installationData)
-			if err != nil {
-				return fmt.Errorf("failed to decode installation: %w", err)
+				return fmt.Errorf("failed to get installation from file: %w", err)
 			}
 
 			// set the runtime config from the installation spec
@@ -49,14 +43,6 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Upgrading to installation %s (version %s)\n", installation.Name, installation.Spec.Config.Version)
-
-			if migrateV2 {
-				err := runMigrateV2(cmd.Context(), cli, installation)
-				if err != nil {
-					return fmt.Errorf("failed to migrate v2: %w", err)
-				}
-				return nil
-			}
 
 			i := 0
 			sleepDuration := time.Second * 5
@@ -90,8 +76,6 @@ func UpgradeJobCmd() *cobra.Command {
 	if err != nil {
 		panic(err)
 	}
-
-	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
 
 	return cmd
 }

@@ -20,13 +20,15 @@ ExecStart=%s start
 `
 )
 
+type LogFunc func(string, ...interface{})
+
 // UnitName returns the name of the systemd unit for the manager service.
 func UnitName() string {
 	return fmt.Sprintf("%s.service", runtimeconfig.ManagerServiceName)
 }
 
 // Install installs and starts the manager service.
-func Install(ctx context.Context, m *goods.Materializer, logf func(string, ...interface{})) error {
+func Install(ctx context.Context, logf LogFunc, m *goods.Materializer) error {
 	logf("Writing manager systemd unit file")
 	err := writeSystemdUnitFile(m)
 	if err != nil {
@@ -50,7 +52,7 @@ func Install(ctx context.Context, m *goods.Materializer, logf func(string, ...in
 }
 
 // Uninstall stops and disables the manager service.
-func Uninstall(ctx context.Context, logf func(string, ...interface{})) error {
+func Uninstall(ctx context.Context, logf LogFunc) error {
 	exists, err := systemd.UnitExists(ctx, UnitName())
 	if err != nil {
 		return fmt.Errorf("check if unit exists: %w", err)

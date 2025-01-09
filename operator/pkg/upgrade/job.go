@@ -34,7 +34,6 @@ import (
 func CreateUpgradeJob(
 	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
 	localArtifactMirrorImage string, previousInstallVersion string,
-	migrateV2 bool,
 ) error {
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
@@ -125,18 +124,6 @@ func CreateUpgradeJob(
 		})
 	}
 
-	command := []string{
-		"/manager",
-		"upgrade-job",
-		"--installation",
-		"/config/installation.yaml",
-		"--previous-version",
-		previousInstallVersion,
-	}
-	if migrateV2 {
-		command = append(command, "--migrate-v2")
-	}
-
 	// create the upgrade job
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -187,7 +174,14 @@ func CreateUpgradeJob(
 							Image:           operatorImage,
 							ImagePullPolicy: pullPolicy,
 							Env:             env,
-							Command:         command,
+							Command: []string{
+								"/manager",
+								"upgrade-job",
+								"--installation",
+								"/config/installation.yaml",
+								"--previous-version",
+								previousInstallVersion,
+							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "config",
