@@ -32,11 +32,13 @@ func MigrateV2InstallManagerCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := migratev2.InstallAndStartManager(
-				cmd.Context(), flags.licenseID, flags.licenseEndpoint, flags.versionLabel,
-			); err != nil {
+			ctx := cmd.Context()
+
+			err := migratev2.InstallAndStartManager(ctx, flags.licenseID, flags.licenseEndpoint, flags.versionLabel)
+			if err != nil {
 				return fmt.Errorf("failed to run manager migration: %w", err)
 			}
+
 			return nil
 		},
 	}

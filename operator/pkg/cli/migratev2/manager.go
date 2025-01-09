@@ -3,8 +3,11 @@ package migratev2
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"golang.org/x/sync/errgroup"
 	batchv1 "k8s.io/api/batch/v1"
@@ -21,9 +24,16 @@ const (
 // RunManagerInstallJobsAndWait runs the v2 manager install job and waits for it to finish.
 func RunManagerInstallJobsAndWait(
 	ctx context.Context, logf LogFunc, cli client.Client,
-	installation *ecv1beta1.Installation,
+	in *ecv1beta1.Installation,
 	licenseID string, licenseEndpoint string, versionLabel string,
 ) error {
+	logf("Getting operator image name")
+	operatorImage, err := getOperatorImageName(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("get operator image name: %w", err)
+	}
+	logf("Successfully got operator image name")
+
 	var nodes corev1.NodeList
 	if err := cli.List(ctx, &nodes); err != nil {
 		return fmt.Errorf("list nodes: %w", err)
@@ -31,7 +41,7 @@ func RunManagerInstallJobsAndWait(
 
 	for _, node := range nodes.Items {
 		logf("Ensuring manager install job for node %s", node.Name)
-		_, err := ensureManagerInstallJobForNode(ctx, cli, node, installation, licenseID, licenseEndpoint, versionLabel)
+		_, err := ensureManagerInstallJobForNode(ctx, cli, node, in, operatorImage, licenseID, licenseEndpoint, versionLabel)
 		if err != nil {
 			return fmt.Errorf("create job for node %s: %w", node.Name, err)
 		}
@@ -39,7 +49,7 @@ func RunManagerInstallJobsAndWait(
 	}
 
 	logf("Waiting for manager install jobs to finish")
-	err := waitForManagerInstallJobs(ctx, cli, nodes.Items)
+	err = waitForManagerInstallJobs(ctx, cli, nodes.Items)
 	if err != nil {
 		return fmt.Errorf("wait for jobs: %w", err)
 	}
@@ -55,9 +65,30 @@ func RunManagerInstallJobsAndWait(
 	return nil
 }
 
+func getOperatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (string, error) {
+	if in.Spec.AirGap {
+		err := metadata.CopyVersionMetadataToCluster(ctx, cli, in)
+		if err != nil {
+			return "", fmt.Errorf("copy version metadata to cluster: %w", err)
+		}
+	}
+
+	meta, err := release.MetadataFor(ctx, in, cli)
+	if err != nil {
+		return "", fmt.Errorf("get release metadata: %w", err)
+	}
+
+	for _, image := range meta.Images {
+		if strings.Contains(image, "embedded-cluster-operator-image") {
+			return image, nil
+		}
+	}
+	return "", fmt.Errorf("no embedded-cluster-operator image found in release metadata")
+}
+
 func ensureManagerInstallJobForNode(
 	ctx context.Context, cli client.Client,
-	node corev1.Node, installation *ecv1beta1.Installation,
+	node corev1.Node, in *ecv1beta1.Installation, operatorImage string,
 	licenseID string, licenseEndpoint string, versionLabel string,
 ) (string, error) {
 	existing, err := getManagerInstallJobForNode(ctx, cli, node)
@@ -74,7 +105,7 @@ func ensureManagerInstallJobForNode(
 		return "", fmt.Errorf("get job for node %s: %w", node.Name, err)
 	}
 
-	job := getManagerInstallJobSpecForNode(node, installation, licenseID, licenseEndpoint, versionLabel)
+	job := getManagerInstallJobSpecForNode(node, in, operatorImage, licenseID, licenseEndpoint, versionLabel)
 	if err := cli.Create(ctx, job); err != nil {
 		return "", err
 	}

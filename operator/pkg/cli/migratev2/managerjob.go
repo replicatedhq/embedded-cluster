@@ -140,14 +140,14 @@ func InstallAndStartManager(ctx context.Context, licenseID string, licenseEndpoi
 }
 
 func getManagerInstallJobSpecForNode(
-	node corev1.Node, installation *ecv1beta1.Installation,
+	node corev1.Node, in *ecv1beta1.Installation, operatorImage string,
 	licenseID string, licenseEndpoint string, versionLabel string,
 ) *batchv1.Job {
 	job := _managerInstallJob.DeepCopy()
 
 	job.ObjectMeta.Name = getManagerInstallJobName(node)
 
-	job.Spec.Template.Spec.Containers[0].Image = "TODO"
+	job.Spec.Template.Spec.Containers[0].Image = operatorImage
 	job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
 		"--license-id", licenseID,
 		"--license-endpoint", licenseEndpoint,
@@ -157,7 +157,7 @@ func getManagerInstallJobSpecForNode(
 	for ix, volume := range job.Spec.Template.Spec.Volumes {
 		if volume.Name == "installation" {
 			job.Spec.Template.Spec.Volumes[ix].
-				VolumeSource.ConfigMap.LocalObjectReference.Name = installation.Name
+				VolumeSource.ConfigMap.LocalObjectReference.Name = in.Name
 		}
 	}
 

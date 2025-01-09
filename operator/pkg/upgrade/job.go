@@ -211,17 +211,12 @@ func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta
 	if err != nil {
 		return "", fmt.Errorf("failed to get release metadata: %w", err)
 	}
-	operatorImage := ""
 	for _, image := range meta.Images {
 		if strings.Contains(image, "embedded-cluster-operator-image") {
-			operatorImage = image
-			break
+			return image, nil
 		}
 	}
-	if operatorImage == "" {
-		return "", fmt.Errorf("no embedded-cluster-operator image found in release metadata")
-	}
-	return operatorImage, nil
+	return "", fmt.Errorf("no embedded-cluster-operator image found in release metadata")
 }
 
 func airgapDistributeArtifacts(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
