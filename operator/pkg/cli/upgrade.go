@@ -22,6 +22,9 @@ func UpgradeCmd() *cobra.Command {
 
 	var installation *ecv1beta1.Installation
 
+	var migrateV2 bool
+	var migrateV2LicenseSecret, migrateV2AppVersionLabel string
+
 	cmd := &cobra.Command{
 		Use:          "upgrade",
 		Short:        "create a job to upgrade the embedded cluster operator",
@@ -35,6 +38,15 @@ func UpgradeCmd() *cobra.Command {
 
 			// set the runtime config from the installation spec
 			runtimeconfig.Set(installation.Spec.RuntimeConfig)
+
+			if migrateV2 {
+				if migrateV2LicenseSecret == "" {
+					return fmt.Errorf("--migrate-v2 is set to true but --license-secret is not set")
+				}
+				if migrateV2AppVersionLabel == "" {
+					return fmt.Errorf("--migrate-v2 is set to true but --app-version-label is not set")
+				}
+			}
 
 			return nil
 		},
@@ -58,7 +70,11 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("get previous installation: %w", err)
 			}
 
-			err = upgrade.CreateUpgradeJob(cmd.Context(), cli, installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version)
+			err = upgrade.CreateUpgradeJob(
+				cmd.Context(), cli,
+				installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version,
+				migrateV2, migrateV2LicenseSecret, migrateV2AppVersionLabel,
+			)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
@@ -77,6 +93,10 @@ func UpgradeCmd() *cobra.Command {
 	if err != nil {
 		panic(err)
 	}
+
+	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
+	cmd.Flags().StringVar(&migrateV2LicenseSecret, "license-secret", "", "The secret name from which to read the license (required if --migrate-v2 is set to true)")
+	cmd.Flags().StringVar(&migrateV2AppVersionLabel, "app-version-label", "", "The application version label (required if --migrate-v2 is set to true)")
 
 	return cmd
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -17,6 +18,9 @@ import (
 func UpgradeJobCmd() *cobra.Command {
 	var installationFile, previousInstallationVersion string
 	var installation *ecv1beta1.Installation
+
+	var migrateV2 bool
+	var licenseSecret, appVersionLabel string
 
 	cmd := &cobra.Command{
 		Use:          "upgrade-job",
@@ -32,10 +36,21 @@ func UpgradeJobCmd() *cobra.Command {
 			// set the runtime config from the installation spec
 			runtimeconfig.Set(installation.Spec.RuntimeConfig)
 
+			if migrateV2 {
+				if licenseSecret == "" {
+					return fmt.Errorf("--migrate-v2 is set to true but --license-secret is not set")
+				}
+				if appVersionLabel == "" {
+					return fmt.Errorf("--migrate-v2 is set to true but --app-version-label is not set")
+				}
+			}
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Printf("Upgrade job version %s started\n", versions.Version)
+
+			ctx := cmd.Context()
 
 			cli, err := k8sutil.KubeClient()
 			if err != nil {
@@ -47,7 +62,7 @@ func UpgradeJobCmd() *cobra.Command {
 			i := 0
 			sleepDuration := time.Second * 5
 			for {
-				err = upgrade.Upgrade(cmd.Context(), cli, installation)
+				err = upgrade.Upgrade(ctx, cli, installation)
 				if err != nil {
 					fmt.Printf("Upgrade failed, retrying: %s\n", err.Error())
 					if i >= 10 {
@@ -62,20 +77,35 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 
 			fmt.Println("Upgrade completed successfully")
+
+			if migrateV2 {
+				logf := func(format string, args ...any) {
+					fmt.Println(fmt.Sprintf(format, args...))
+				}
+				err := migratev2.Run(ctx, logf, cli, installation, licenseSecret, appVersionLabel)
+				if err != nil {
+					return fmt.Errorf("failed to run v2 migration: %w", err)
+				}
+			}
+
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVar(&installationFile, "installation", "", "Path to the installation file")
-	cmd.Flags().StringVar(&previousInstallationVersion, "previous-version", "", "the previous installation version")
 	err := cmd.MarkFlagRequired("installation")
 	if err != nil {
 		panic(err)
 	}
+	cmd.Flags().StringVar(&previousInstallationVersion, "previous-version", "", "the previous installation version")
 	err = cmd.MarkFlagRequired("previous-version")
 	if err != nil {
 		panic(err)
 	}
+
+	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
+	cmd.Flags().StringVar(&licenseSecret, "license-secret", "", "The secret name from which to read the license")
+	cmd.Flags().StringVar(&appVersionLabel, "app-version-label", "", "The application version label")
 
 	return cmd
 }

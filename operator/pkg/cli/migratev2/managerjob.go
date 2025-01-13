@@ -22,7 +22,7 @@ var _managerInstallJob = batchv1.Job{
 		Kind:       "Job",
 	},
 	ObjectMeta: metav1.ObjectMeta{
-		Namespace: "embedded-cluster",
+		Namespace: ecNamespace,
 		Name:      "install-v2-manager-DYNAMIC",
 		Labels: map[string]string{
 			"app": "install-v2-manager",
@@ -44,10 +44,9 @@ var _managerInstallJob = batchv1.Job{
 						},
 						Command: []string{
 							"/manager", "migrate-v2", "install-manager",
-							"--installation", "/ec/installation",
-							// "--license-id", "DYNAMIC",
-							// "--license-endpoint", "DYNAMIC",
-							// "--version-label", "DYNAMIC",
+							"--installation", "/ec/installation/installation",
+							"--license", "/ec/license/license",
+							// "--app-version-label", "DYNAMIC",
 						},
 						Env: []corev1.EnvVar{
 							{
@@ -58,7 +57,12 @@ var _managerInstallJob = batchv1.Job{
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "installation", // required to set runtime config
-								MountPath: "/ec",
+								MountPath: "/ec/installation",
+								ReadOnly:  true,
+							},
+							{
+								Name:      "license", // required to download the manager binary
+								MountPath: "/ec/license",
 								ReadOnly:  true,
 							},
 							{
@@ -77,16 +81,24 @@ var _managerInstallJob = batchv1.Job{
 					},
 				},
 				Volumes: []corev1.Volume{
-					{
-						Name: "installation",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "DYNAMIC",
-								},
-							},
-						},
-					},
+					// {
+					// 	Name: "installation",
+					// 	VolumeSource: corev1.VolumeSource{
+					// 		ConfigMap: &corev1.ConfigMapVolumeSource{
+					// 			LocalObjectReference: corev1.LocalObjectReference{
+					// 				Name: "DYNAMIC",
+					// 			},
+					// 		},
+					// 	},
+					// },
+					// {
+					// 	Name: "license",
+					// 	VolumeSource: corev1.VolumeSource{
+					// 		Secret: &corev1.SecretVolumeSource{
+					// 			SecretName: "DYNAMIC",
+					// 		},
+					// 	},
+					// },
 					{
 						Name: "host-run-dbus-system-bus-socket",
 						VolumeSource: corev1.VolumeSource{
@@ -122,11 +134,11 @@ var _managerInstallJob = batchv1.Job{
 
 // InstallAndStartManager installs and starts the manager service on the host. This is run in a job
 // on all nodes in the cluster.
-func InstallAndStartManager(ctx context.Context, licenseID string, licenseEndpoint string, versionLabel string) error {
+func InstallAndStartManager(ctx context.Context, licenseID string, licenseEndpoint string, appVersionLabel string) error {
 	binPath := runtimeconfig.PathToEmbeddedClusterBinary("manager")
 
 	// TODO: airgap
-	err := manager.DownloadBinaryOnline(ctx, binPath, licenseID, licenseEndpoint, versionLabel)
+	err := manager.DownloadBinaryOnline(ctx, binPath, licenseID, licenseEndpoint, appVersionLabel)
 	if err != nil {
 		return fmt.Errorf("download manager binary: %w", err)
 	}
@@ -141,7 +153,7 @@ func InstallAndStartManager(ctx context.Context, licenseID string, licenseEndpoi
 
 func getManagerInstallJobSpecForNode(
 	node corev1.Node, in *ecv1beta1.Installation, operatorImage string,
-	licenseID string, licenseEndpoint string, versionLabel string,
+	licenseSecret string, appVersionLabel string,
 ) *batchv1.Job {
 	job := _managerInstallJob.DeepCopy()
 
@@ -149,17 +161,27 @@ func getManagerInstallJobSpecForNode(
 
 	job.Spec.Template.Spec.Containers[0].Image = operatorImage
 	job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
-		"--license-id", licenseID,
-		"--license-endpoint", licenseEndpoint,
-		"--version-label", versionLabel,
+		"--app-version-label", appVersionLabel,
 	)
 
-	for ix, volume := range job.Spec.Template.Spec.Volumes {
-		if volume.Name == "installation" {
-			job.Spec.Template.Spec.Volumes[ix].
-				VolumeSource.ConfigMap.LocalObjectReference.Name = in.Name
-		}
-	}
+	job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: "installation",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: in.Name,
+				},
+			},
+		},
+	})
+	job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: "license",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: licenseSecret,
+			},
+		},
+	})
 
 	job.Spec.Template.Spec.NodeName = node.Name
 	// tolerate all taints

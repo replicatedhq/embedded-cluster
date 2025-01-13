@@ -21,12 +21,18 @@ const (
 	jobNamePrefix = "install-v2-manager-"
 )
 
-// RunManagerInstallJobsAndWait runs the v2 manager install job and waits for it to finish.
-func RunManagerInstallJobsAndWait(
+// runManagerInstallJobsAndWait runs the v2 manager install job and waits for it to finish.
+func runManagerInstallJobsAndWait(
 	ctx context.Context, logf LogFunc, cli client.Client,
 	in *ecv1beta1.Installation,
-	licenseID string, licenseEndpoint string, versionLabel string,
+	licenseSecret string, appVersionLabel string,
 ) error {
+	logf("Ensuring installation config map")
+	if err := ensureInstallationConfigMap(ctx, cli, in); err != nil {
+		return fmt.Errorf("ensure installation config map: %w", err)
+	}
+	logf("Successfully ensured installation config map")
+
 	logf("Getting operator image name")
 	operatorImage, err := getOperatorImageName(ctx, cli, in)
 	if err != nil {
@@ -41,7 +47,7 @@ func RunManagerInstallJobsAndWait(
 
 	for _, node := range nodes.Items {
 		logf("Ensuring manager install job for node %s", node.Name)
-		_, err := ensureManagerInstallJobForNode(ctx, cli, node, in, operatorImage, licenseID, licenseEndpoint, versionLabel)
+		_, err := ensureManagerInstallJobForNode(ctx, cli, node, in, operatorImage, licenseSecret, appVersionLabel)
 		if err != nil {
 			return fmt.Errorf("create job for node %s: %w", node.Name, err)
 		}
@@ -89,7 +95,7 @@ func getOperatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.
 func ensureManagerInstallJobForNode(
 	ctx context.Context, cli client.Client,
 	node corev1.Node, in *ecv1beta1.Installation, operatorImage string,
-	licenseID string, licenseEndpoint string, versionLabel string,
+	licenseSecret string, appVersionLabel string,
 ) (string, error) {
 	existing, err := getManagerInstallJobForNode(ctx, cli, node)
 	if err == nil {
@@ -100,12 +106,15 @@ func ensureManagerInstallJobForNode(
 			if err != nil {
 				return "", fmt.Errorf("delete job %s: %w", existing.Name, err)
 			}
+		} else {
+			// still running
+			return existing.Name, nil
 		}
 	} else if !k8serrors.IsNotFound(err) {
 		return "", fmt.Errorf("get job for node %s: %w", node.Name, err)
 	}
 
-	job := getManagerInstallJobSpecForNode(node, in, operatorImage, licenseID, licenseEndpoint, versionLabel)
+	job := getManagerInstallJobSpecForNode(node, in, operatorImage, licenseSecret, appVersionLabel)
 	if err := cli.Create(ctx, job); err != nil {
 		return "", err
 	}
@@ -131,7 +140,7 @@ func deleteManagerInstallJobs(ctx context.Context, cli client.Client, nodes []co
 }
 
 func waitForManagerInstallJobs(ctx context.Context, cli client.Client, nodes []corev1.Node) error {
-	eg, egCtx := errgroup.WithContext(ctx)
+	eg := errgroup.Group{}
 
 	for _, node := range nodes {
 		jobName := getManagerInstallJobName(node)
@@ -144,8 +153,8 @@ func waitForManagerInstallJobs(ctx context.Context, cli client.Client, nodes []c
 		})
 	}
 
-	<-egCtx.Done()
-	err := egCtx.Err()
+	// wait cancels
+	err := eg.Wait()
 	if err != nil {
 		return err
 	}

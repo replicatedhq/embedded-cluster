@@ -34,6 +34,7 @@ import (
 func CreateUpgradeJob(
 	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
 	localArtifactMirrorImage string, previousInstallVersion string,
+	migrateV2 bool, licenseSecret string, appVersionLabel string,
 ) error {
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
@@ -198,6 +199,28 @@ func CreateUpgradeJob(
 			},
 		},
 	}
+
+	if migrateV2 {
+		job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
+			"--migrate-v2",
+			"--license", "/ec/license/license",
+			"--app-version-label", appVersionLabel,
+		)
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      "license",
+			MountPath: "/ec/license",
+			ReadOnly:  true,
+		})
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "license",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: licenseSecret,
+				},
+			},
+		})
+	}
+
 	if err = cli.Create(ctx, job); err != nil {
 		return fmt.Errorf("failed to create upgrade job: %w", err)
 	}

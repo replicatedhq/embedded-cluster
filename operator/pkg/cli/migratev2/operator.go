@@ -11,11 +11,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// CleanupV1 removes control of the Helm Charts from the k0s controller and uninstalls the Embedded
+// cleanupV1 removes control of the Helm Charts from the k0s controller and uninstalls the Embedded
 // Cluster operator.
-func CleanupV1(ctx context.Context, logf LogFunc, cli client.Client) error {
+func cleanupV1(ctx context.Context, logf LogFunc, cli client.Client) error {
+	logf("Deleting Installation CRs")
+	err := deleteInstallationCRs(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("delete installation crs: %w", err)
+	}
+	logf("Successfully deleted Installation CRs")
+
 	logf("Cleaning up v1 ClusterConfig")
-	err := cleanupClusterConfig(ctx, cli)
+	err = cleanupClusterConfig(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("cleanup cluster config: %w", err)
 	}

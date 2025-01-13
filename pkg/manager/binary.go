@@ -21,7 +21,7 @@ const (
 // DownloadBinaryOnline downloads the manager binary from the replicated.app API.
 func DownloadBinaryOnline(
 	ctx context.Context, dstPath string,
-	licenseID string, licenseEndpoint string, versionLabel string,
+	licenseID string, licenseEndpoint string, appVersionLabel string,
 ) error {
 	tmpdir, err := os.MkdirTemp("", "embedded-cluster-artifact-*")
 	if err != nil {
@@ -29,7 +29,7 @@ func DownloadBinaryOnline(
 	}
 	defer os.RemoveAll(tmpdir)
 
-	url := fmt.Sprintf("%s/clusterconfig/artifact/manager?versionLabel=%s", licenseEndpoint, url.QueryEscape(versionLabel))
+	url := fmt.Sprintf("%s/clusterconfig/artifact/manager?versionLabel=%s", licenseEndpoint, url.QueryEscape(appVersionLabel))
 	logrus.Debugf("Downloading manager binary with URL %s", url)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
