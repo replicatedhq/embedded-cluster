@@ -57,6 +57,7 @@ type Applier struct {
 	privateCAs              map[string]string
 	isHA                    bool
 	isHAMigrationInProgress bool
+	isEC2Install            bool
 	binaryNameOverride      string
 	configValuesFile        string
 }
@@ -331,6 +332,7 @@ func (a *Applier) load() ([]AddOn, error) {
 		a.airgapBundle,
 		a.isAirgap,
 		a.isHA,
+		a.isEC2Install,
 		a.proxyEnv,
 		a.privateCAs,
 		a.configValuesFile,

@@ -92,6 +92,7 @@ type AdminConsole struct {
 	airgapBundle     string
 	isAirgap         bool
 	isHA             bool
+	isEC2Install     bool
 	proxyEnv         map[string]string
 	privateCAs       map[string]string
 	configValuesFile string
@@ -147,6 +148,10 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 		helmValues, err = helm.SetValue(helmValues, "kurlProxy.nodePort", runtimeconfig.AdminConsolePort())
 		if err != nil {
 			return nil, nil, fmt.Errorf("set helm values admin-console.kurlProxy.nodePort: %w", err)
+		}
+
+		if a.isEC2Install {
+			helmValues["isEC2Install"] = "true"
 		}
 	}
 
@@ -239,6 +244,7 @@ func New(
 	airgapBundle string,
 	isAirgap bool,
 	isHA bool,
+	isEC2Install bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
 	configValuesFile string,
@@ -250,6 +256,7 @@ func New(
 		airgapBundle:     airgapBundle,
 		isAirgap:         isAirgap,
 		isHA:             isHA,
+		isEC2Install:     isEC2Install,
 		proxyEnv:         proxyEnv,
 		privateCAs:       privateCAs,
 		configValuesFile: configValuesFile,

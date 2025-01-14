@@ -9,11 +9,20 @@ import (
 )
 
 const (
+	// ConditionTypeIsEC2Install indicates to the operator that a v2 migration has been completed.
+	ConditionTypeIsEC2Install = "IsEC2Install"
+)
+
+const (
 	ecNamespace = "embedded-cluster"
 )
 
+// LogFunc can be used as an argument to Run to log messages.
 type LogFunc func(string, ...any)
 
+// Run runs the v1 to v2 migration. It installs the manager service on all nodes, copies the
+// installations to configmaps, enables the v2 admin console, and finally removes the operator
+// chart.
 func Run(
 	ctx context.Context, logf LogFunc, cli client.Client,
 	in *ecv1beta1.Installation,
@@ -29,7 +38,7 @@ func Run(
 		return fmt.Errorf("copy installations to config maps: %w", err)
 	}
 
-	err = enableV2AdminConsole(ctx, logf, cli)
+	err = enableV2AdminConsole(ctx, logf, cli, in)
 	if err != nil {
 		return fmt.Errorf("enable v2 admin console: %w", err)
 	}

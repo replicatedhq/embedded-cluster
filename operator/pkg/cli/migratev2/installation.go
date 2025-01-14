@@ -31,10 +31,11 @@ func copyInstallationsToConfigMaps(ctx context.Context, logf LogFunc, cli client
 }
 
 func ensureInstallationConfigMap(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
-	in.Spec.SourceType = ecv1beta1.InstallationSourceTypeConfigMap
-	err := kubeutils.CreateInstallation(ctx, cli, in)
+	copy := in.DeepCopy()
+	copy.Spec.SourceType = ecv1beta1.InstallationSourceTypeConfigMap
+	err := kubeutils.CreateInstallation(ctx, cli, copy)
 	if k8serrors.IsAlreadyExists(err) {
-		err := kubeutils.UpdateInstallation(ctx, cli, in)
+		err := kubeutils.UpdateInstallation(ctx, cli, copy)
 		if err != nil {
 			return fmt.Errorf("update installation: %w", err)
 		}
