@@ -224,9 +224,6 @@ build-chart:
 build-ttl.sh:
 	@$(MAKE) build-and-push-operator-image \
 		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image
-	docker tag "ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image:$(call image-tag,$(PACKAGE_VERSION))" \
-		"ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image:$(call image-tag,$(PACKAGE_VERSION))-$(ARCH)"
-	docker push "ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image:$(call image-tag,$(PACKAGE_VERSION))-$(ARCH)"
 
 .PHONY: build-chart-ttl.sh
 build-chart-ttl.sh:
