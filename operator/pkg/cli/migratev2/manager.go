@@ -130,7 +130,7 @@ func deleteManagerInstallJobs(ctx context.Context, cli client.Client, nodes []co
 				Namespace: ecNamespace, Name: jobName,
 			},
 		}
-		err := cli.Delete(ctx, job)
+		err := cli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
 		if err != nil {
 			return fmt.Errorf("delete job for node %s: %w", node.Name, err)
 		}

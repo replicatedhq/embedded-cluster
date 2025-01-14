@@ -603,6 +603,9 @@ func (k *KubeUtils) IsDeploymentReady(ctx context.Context, cli client.Client, ns
 		return false, err
 	}
 	if deploy.Spec.Replicas == nil {
+		if deploy.Status.ReadyReplicas == 1 {
+			return true, nil
+		}
 		return false, nil
 	}
 	return deploy.Status.ReadyReplicas == *deploy.Spec.Replicas, nil
@@ -616,6 +619,9 @@ func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, n
 		return false, err
 	}
 	if statefulset.Spec.Replicas == nil {
+		if statefulset.Status.ReadyReplicas == 1 {
+			return true, nil
+		}
 		return false, nil
 	}
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil

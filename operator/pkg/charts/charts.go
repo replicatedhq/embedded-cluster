@@ -11,7 +11,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
-	migratev2 "github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -103,14 +102,12 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 	embeddedclusteroperator.Render()
 
 	registryMigrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
-	isEC2InstallStatus := k8sutil.CheckConditionStatus(in.Status, migratev2.ConditionTypeIsEC2Install)
 
 	opts := []addons.Option{
 		addons.WithProxy(in.Spec.Proxy),
 		addons.WithAirgap(in.Spec.AirGap),
 		addons.WithHA(in.Spec.HighAvailability),
 		addons.WithHAMigrationInProgress(registryMigrationStatus == metav1.ConditionFalse),
-		addons.WithIsEC2Install(isEC2InstallStatus == metav1.ConditionTrue),
 		addons.WithBinaryNameOverride(in.Spec.BinaryName),
 	}
 	if in.Spec.LicenseInfo != nil {

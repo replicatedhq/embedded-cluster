@@ -108,12 +108,6 @@ func WithHAMigrationInProgress(isHAMigrationInProgress bool) Option {
 	}
 }
 
-func WithIsEC2Install(isEC2Install bool) Option {
-	return func(a *Applier) {
-		a.isEC2Install = isEC2Install
-	}
-}
-
 func WithBinaryNameOverride(name string) Option {
 	return func(a *Applier) {
 		a.binaryNameOverride = name

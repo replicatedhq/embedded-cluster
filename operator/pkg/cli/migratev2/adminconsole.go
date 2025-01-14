@@ -85,10 +85,15 @@ func updateAdminConsoleChartValues(values []byte) ([]byte, error) {
 	return b, nil
 }
 
+// setIsEC2InstallInstallationStatus is needed to inform the operator that the installation has
+// been upgraded to v2 which prevents the operator from reconciling the installation.
 func setIsEC2InstallInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	copy := in.DeepCopy()
 	copy.Spec.SourceType = ecv1beta1.InstallationSourceTypeCRD
 
+	if in.Status.Conditions == nil {
+		in.Status.Conditions = []metav1.Condition{}
+	}
 	in.Status.SetCondition(metav1.Condition{
 		Type:               ConditionTypeIsEC2Install,
 		Status:             metav1.ConditionTrue,
@@ -96,7 +101,7 @@ func setIsEC2InstallInstallationStatus(ctx context.Context, cli client.Client, i
 		ObservedGeneration: in.Generation,
 	})
 
-	err := kubeutils.UpdateInstallation(ctx, cli, in)
+	err := kubeutils.UpdateInstallationStatus(ctx, cli, in)
 	if err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}

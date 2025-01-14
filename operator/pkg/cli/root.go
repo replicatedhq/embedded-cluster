@@ -43,9 +43,6 @@ func RootCmd() *cobra.Command {
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			zaplog := zap.New(zap.UseDevMode(true))
-			ctrl.SetLogger(zaplog)
-
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 				Scheme: k8sutil.Scheme(),
 				Metrics: metricsserver.Options{
@@ -109,6 +106,10 @@ func setupCLILog(cmd *cobra.Command, level logrus.Level) error {
 	}
 	ctx := ctrl.LoggerInto(cmd.Context(), log)
 	cmd.SetContext(ctx)
+
+	zaplog := zap.New(zap.UseDevMode(true))
+	ctrl.SetLogger(zaplog)
+
 	return nil
 }
 
