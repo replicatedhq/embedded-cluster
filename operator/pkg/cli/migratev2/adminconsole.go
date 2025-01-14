@@ -91,17 +91,17 @@ func setIsEC2InstallInstallationStatus(ctx context.Context, cli client.Client, i
 	copy := in.DeepCopy()
 	copy.Spec.SourceType = ecv1beta1.InstallationSourceTypeCRD
 
-	if in.Status.Conditions == nil {
-		in.Status.Conditions = []metav1.Condition{}
+	if copy.Status.Conditions == nil {
+		copy.Status.Conditions = []metav1.Condition{}
 	}
-	in.Status.SetCondition(metav1.Condition{
+	copy.Status.SetCondition(metav1.Condition{
 		Type:               ConditionTypeIsEC2Install,
 		Status:             metav1.ConditionTrue,
 		Reason:             "MigrationComplete",
-		ObservedGeneration: in.Generation,
+		ObservedGeneration: copy.Generation,
 	})
 
-	err := kubeutils.UpdateInstallationStatus(ctx, cli, in)
+	err := kubeutils.UpdateInstallationStatus(ctx, cli, copy)
 	if err != nil {
 		return fmt.Errorf("update installation: %w", err)
 	}
