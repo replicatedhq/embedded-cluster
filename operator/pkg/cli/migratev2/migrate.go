@@ -29,7 +29,10 @@ func Run(
 		return fmt.Errorf("copy installations to config maps: %w", err)
 	}
 
-	// Configure KOTS to Enable EC V2
+	err = enableV2AdminConsole(ctx, logf, cli)
+	if err != nil {
+		return fmt.Errorf("enable v2 admin console: %w", err)
+	}
 
 	err = cleanupV1(ctx, logf, cli)
 	if err != nil {
