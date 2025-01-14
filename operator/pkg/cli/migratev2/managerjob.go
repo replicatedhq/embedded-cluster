@@ -37,7 +37,7 @@ var _managerInstallJob = batchv1.Job{
 					{
 						Name:            "install-v2-manager",
 						Image:           "DYNAMIC",
-						ImagePullPolicy: corev1.PullAlways,
+						ImagePullPolicy: corev1.PullIfNotPresent,
 						SecurityContext: &corev1.SecurityContext{
 							RunAsUser:  ptr.To(int64(0)),
 							Privileged: ptr.To(true),
