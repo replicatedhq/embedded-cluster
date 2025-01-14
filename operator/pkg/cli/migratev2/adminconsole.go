@@ -3,13 +3,15 @@ package migratev2
 import (
 	"context"
 	"fmt"
+	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,7 +35,7 @@ func enableV2AdminConsole(ctx context.Context, logf LogFunc, cli client.Client, 
 	logf("Waiting for admin-console deployment to be updated")
 	err = waitForAdminConsoleDeployment(ctx, cli)
 	if err != nil {
-		return fmt.Errorf("wait for chart update: %w", err)
+		return fmt.Errorf("wait for admin console deployment to be updated: %w", err)
 	}
 	logf("Successfully waited for admin-console deployment to be updated")
 
@@ -89,30 +91,67 @@ func updateAdminConsoleChartValues(values []byte) ([]byte, error) {
 // been upgraded to v2 which prevents the operator from reconciling the installation.
 func setIsEC2InstallInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	copy := in.DeepCopy()
-	copy.Spec.SourceType = ecv1beta1.InstallationSourceTypeCRD
 
 	if copy.Status.Conditions == nil {
 		copy.Status.Conditions = []metav1.Condition{}
 	}
 	copy.Status.SetCondition(metav1.Condition{
-		Type:               ConditionTypeIsEC2Install,
-		Status:             metav1.ConditionTrue,
-		Reason:             "MigrationComplete",
-		ObservedGeneration: copy.Generation,
+		Type:   ConditionTypeIsEC2Install,
+		Status: metav1.ConditionTrue,
+		Reason: "MigrationComplete",
 	})
 
-	err := kubeutils.UpdateInstallationStatus(ctx, cli, copy)
-	if err != nil {
-		return fmt.Errorf("update installation: %w", err)
+	if err := cli.Status().Patch(ctx, copy, client.MergeFrom(in.DeepCopy())); err != nil {
+		return fmt.Errorf("patch crd installation status: %w", err)
 	}
 
 	return nil
 }
 
+// waitForAdminConsoleDeployment waits for the kotsadm pod to be updated as the service account
+// does not have permissions to get deployments.
 func waitForAdminConsoleDeployment(ctx context.Context, cli client.Client) error {
-	err := kubeutils.WaitForDeployment(ctx, cli, "kotsadm", "kotsadm")
-	if err != nil {
-		return fmt.Errorf("wait for kotsadm deployment: %w", err)
+	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := isAdminConsoleDeploymentUpdated(ctx, cli)
+			if err != nil {
+				lasterr = fmt.Errorf("check deployment: %w", err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return lasterr
+		}
+		return err
 	}
 	return nil
+}
+
+// isAdminConsoleDeploymentUpdated checks that the kotsadm pod has the desired environment
+// variable, as the service account does not have permissions to get deployments.
+func isAdminConsoleDeploymentUpdated(ctx context.Context, cli client.Client) (bool, error) {
+	var podList corev1.PodList
+	err := cli.List(ctx, &podList, client.InNamespace("kotsadm"), client.MatchingLabels{"app": "kotsadm"})
+	if err != nil {
+		return false, fmt.Errorf("list kotsadm pods: %w", err)
+	}
+	// could be a rolling update
+	if len(podList.Items) != 1 {
+		return false, nil
+	}
+	pod := podList.Items[0]
+	for _, container := range pod.Spec.Containers {
+		if container.Name == "kotsadm" {
+			for _, env := range container.Env {
+				if env.Name == "IS_EC2_INSTALL" && env.Value == "true" {
+					return true, nil
+				}
+			}
+		}
+	}
+	return false, nil
 }

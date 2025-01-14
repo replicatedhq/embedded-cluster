@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
@@ -74,13 +73,15 @@ func NewHelm(opts HelmOptions) (*Helm, error) {
 		return nil, fmt.Errorf("create registry client: %w", err)
 	}
 	return &Helm{
-		tmpdir:   tmpdir,
-		kversion: kversion,
-		regcli:   regcli,
+		tmpdir:     tmpdir,
+		kubeconfig: opts.KubeConfig,
+		kversion:   kversion,
+		regcli:     regcli,
 	}, nil
 }
 
 type HelmOptions struct {
+	KubeConfig string
 	K0sVersion string
 	Writer     io.Writer
 }
@@ -111,11 +112,12 @@ type UninstallOptions struct {
 }
 
 type Helm struct {
-	tmpdir   string
-	kversion *semver.Version
-	regcli   *registry.Client
-	repocfg  string
-	repos    []*repo.Entry
+	tmpdir     string
+	kversion   *semver.Version
+	kubeconfig string
+	regcli     *registry.Client
+	repocfg    string
+	repos      []*repo.Entry
 }
 
 func (h *Helm) prepare() error {
@@ -261,10 +263,11 @@ func (h *Helm) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
 }
 
 func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
-	kubeConfig := runtimeconfig.PathToKubeConfig()
 	cfgFlags := &genericclioptions.ConfigFlags{
-		KubeConfig: &kubeConfig,
-		Namespace:  &namespace,
+		Namespace: &namespace,
+	}
+	if h.kubeconfig != "" {
+		cfgFlags.KubeConfig = &h.kubeconfig
 	}
 	cfg := &action.Configuration{}
 	if err := cfg.Init(cfgFlags, namespace, "secret", logFn); err != nil {
