@@ -31,8 +31,7 @@ var _managerInstallJob = batchv1.Job{
 	Spec: batchv1.JobSpec{
 		Template: corev1.PodTemplateSpec{
 			Spec: corev1.PodSpec{
-				RestartPolicy:      corev1.RestartPolicyOnFailure,
-				ServiceAccountName: "embedded-cluster-operator",
+				RestartPolicy: corev1.RestartPolicyOnFailure,
 				Containers: []corev1.Container{
 					{
 						Name:            "install-v2-manager",
