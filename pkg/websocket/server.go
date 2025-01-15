@@ -14,20 +14,24 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var wsDialer = &gwebsocket.Dialer{
 	HandshakeTimeout: 10 * time.Second,
 }
 
-func ConnectToKOTSWebSocket(ctx context.Context) {
+func ConnectToKOTSWebSocket(ctx context.Context, kcli client.Client) {
 	for {
-		if err := attemptConnection(ctx); err != nil {
+		if err := attemptConnection(ctx, kcli); err != nil {
 			logrus.Errorf("Connection attempt to KOTS failed: %v, retrying in 10 seconds...", err)
 			time.Sleep(10 * time.Second)
 			continue
@@ -35,11 +39,7 @@ func ConnectToKOTSWebSocket(ctx context.Context) {
 	}
 }
 
-func attemptConnection(ctx context.Context) error {
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return errors.Wrap(err, "create kube client")
-	}
+func attemptConnection(ctx context.Context, kcli client.Client) error {
 	clusterIP, err := getKOTSClusterIP(ctx, kcli)
 	if err != nil {
 		return errors.Wrap(err, "get kots cluster ip")
@@ -54,7 +54,7 @@ func attemptConnection(ctx context.Context) error {
 		return errors.Wrap(err, "get node")
 	}
 
-	wsURL := fmt.Sprintf("ws://%s:3000/ec-ws?nodeName=%s", clusterIP, node.Name)
+	wsURL := fmt.Sprintf("ws://%s:%s/ec-ws?nodeName=%s&version=%s", clusterIP, getKOTSPort(), url.QueryEscape(node.Name), url.QueryEscape(versions.Version))
 	logrus.Infof("connecting to KOTS WebSocket server on %s", wsURL)
 	u, err := url.Parse(wsURL)
 	if err != nil {
@@ -73,7 +73,7 @@ func attemptConnection(ctx context.Context) error {
 	go pingWSServer(conn)
 
 	// listen to server messages
-	return listenToWSServer(ctx, conn)
+	return listenToWSServer(ctx, conn, kcli)
 }
 
 func pingWSServer(conn *gwebsocket.Conn) error {
@@ -94,7 +94,7 @@ type Message struct {
 	Data    string `json:"data"`
 }
 
-func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
+func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn, kcli client.Client) error {
 	for {
 		_, message, err := conn.ReadMessage() // receive messages, including ping/pong
 		if err != nil {
@@ -107,7 +107,41 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 			continue
 		}
 
+		// ensure the environment is set up correctly
+		os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
+		os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
+
 		switch msg.Command {
+		case "upgrade-manager":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, kcli, d)
+
+			// path to the manager binary on the host
+			binPath := runtimeconfig.PathToEmbeddedClusterBinary("manager")
+
+			// TODO (@salah): airgap
+			err := manager.DownloadBinaryOnline(ctx, binPath, d["licenseID"], d["licenseEndpoint"], d["versionLabel"])
+			if err != nil {
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to download manager binary: %s", err))
+				continue
+			}
+
+			// this is hacky but app slug is what determines the service name
+			manager.SetServiceName(d["appSlug"])
+
+			if err := systemd.Restart(ctx, manager.UnitName()); err != nil {
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to restart manager service: %s", err))
+				continue
+			}
+
+			// kots marks the step as complete when the new manager connects to it
+			// TODO (@salah): figure out a better way to do this ^
+
 		case "upgrade-cluster":
 			d := map[string]string{}
 			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
@@ -115,20 +149,20 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 				continue
 			}
 
-			reportStepStarted(ctx, d)
+			reportStepStarted(ctx, kcli, d)
 
 			var newInstall ecv1beta1.Installation
 			if err := json.Unmarshal([]byte(d["installation"]), &newInstall); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal installation: %s: %s", err, string(msg.Data)))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to unmarshal installation: %s: %s", err, string(msg.Data)))
 				continue
 			}
 
 			if err := upgrade.Upgrade(ctx, &newInstall); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to upgrade cluster: %s", err.Error()))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to upgrade cluster: %s", err.Error()))
 				continue
 			}
 
-			reportStepSuccess(ctx, d)
+			reportStepComplete(ctx, kcli, d)
 
 		case "add-extension":
 			d := map[string]string{}
@@ -137,26 +171,26 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 				continue
 			}
 
-			reportStepStarted(ctx, d)
+			reportStepStarted(ctx, kcli, d)
 
 			var repos []k0sv1beta1.Repository
 			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
 				continue
 			}
 
 			var chart ecv1beta1.Chart
 			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
 				continue
 			}
 
 			if err := extensions.Add(ctx, repos, chart); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to add extension: %s", err.Error()))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to add extension: %s", err.Error()))
 				continue
 			}
 
-			reportStepSuccess(ctx, d)
+			reportStepComplete(ctx, kcli, d)
 
 		case "upgrade-extension":
 			d := map[string]string{}
@@ -165,26 +199,26 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 				continue
 			}
 
-			reportStepStarted(ctx, d)
+			reportStepStarted(ctx, kcli, d)
 
 			var repos []k0sv1beta1.Repository
 			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
 				continue
 			}
 
 			var chart ecv1beta1.Chart
 			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
 				continue
 			}
 
 			if err := extensions.Upgrade(ctx, repos, chart); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to upgrade extension: %s", err.Error()))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to upgrade extension: %s", err.Error()))
 				continue
 			}
 
-			reportStepSuccess(ctx, d)
+			reportStepComplete(ctx, kcli, d)
 
 		case "remove-extension":
 			d := map[string]string{}
@@ -193,26 +227,26 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 				continue
 			}
 
-			reportStepStarted(ctx, d)
+			reportStepStarted(ctx, kcli, d)
 
 			var repos []k0sv1beta1.Repository
 			if err := json.Unmarshal([]byte(d["repos"]), &repos); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to unmarshal repos: %s: %s", err, string(msg.Data)))
 				continue
 			}
 
 			var chart ecv1beta1.Chart
 			if err := json.Unmarshal([]byte(d["chart"]), &chart); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to unmarshal chart: %s: %s", err, string(msg.Data)))
 				continue
 			}
 
 			if err := extensions.Remove(ctx, repos, chart); err != nil {
-				reportStepError(ctx, d, fmt.Sprintf("failed to remove extension: %s", err.Error()))
+				reportStepFailed(ctx, kcli, d, fmt.Sprintf("failed to remove extension: %s", err.Error()))
 				continue
 			}
 
-			reportStepSuccess(ctx, d)
+			reportStepComplete(ctx, kcli, d)
 		default:
 			logrus.Infof("Received unknown command: %s", msg.Command)
 		}

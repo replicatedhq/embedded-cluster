@@ -9,7 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -50,7 +49,7 @@ func Install(ctx context.Context, logf LogFunc, m *goods.Materializer) error {
 	}
 	logf("Successfully wrote manager systemd unit file")
 
-	logrus.Infof("Writing manager drop-in file")
+	logf("Writing manager drop-in file")
 	if err := writeDropInFile(); err != nil {
 		return fmt.Errorf("write manager drop-in file: %w", err)
 	}
