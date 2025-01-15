@@ -1311,11 +1311,11 @@ func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.Re
 		if isImprovedDR {
 			r, err := backup.GetRestore()
 			if err != nil {
-				return fmt.Errorf("failed to get restore cr from backup: %w", err)
+				return fmt.Errorf("failed to get restore resource from backup: %w", err)
 			}
 			err = restoreAppFromBackup(ctx, b, r)
 			if err != nil {
-				return fmt.Errorf("failed to restore app from backup using improved dr: %w", err)
+				return fmt.Errorf("failed to restore app from backup: %w", err)
 			}
 		} else {
 			err = restoreFromBackup(ctx, b, drComponent)
