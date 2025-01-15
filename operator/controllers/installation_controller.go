@@ -28,7 +28,6 @@ import (
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apcore "github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
-	migratev2 "github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
@@ -583,11 +582,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	versionChanged, err := r.needsUpgrade(ctx, in)
 	if versionChanged {
 		return ctrl.Result{}, err
-	}
-
-	if status := k8sutil.CheckConditionStatus(in.Status, migratev2.ConditionTypeIsEC2Install); status == metav1.ConditionTrue {
-		log.Info("Embedded cluster is upgraded to v2, reconciliation ended")
-		return ctrl.Result{}, nil
 	}
 
 	// if this cluster has no id we bail out immediately.

@@ -8,11 +8,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	// ConditionTypeIsEC2Install indicates to the operator that a v2 migration has been completed.
-	ConditionTypeIsEC2Install = "IsEC2Install"
-)
-
 // LogFunc can be used as an argument to Run to log messages.
 type LogFunc func(string, ...any)
 
@@ -32,6 +27,13 @@ func Run(
 	err = copyInstallationsToConfigMaps(ctx, logf, cli)
 	if err != nil {
 		return fmt.Errorf("copy installations to config maps: %w", err)
+	}
+
+	// We must first uninstall the operator to ensure that it does not reconcile and revert our
+	// changes.
+	err = uninstallOperator(ctx, logf, cli)
+	if err != nil {
+		return fmt.Errorf("uninstall operator: %w", err)
 	}
 
 	err = enableV2AdminConsole(ctx, logf, cli, in)

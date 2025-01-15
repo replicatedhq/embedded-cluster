@@ -9,8 +9,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,13 +23,6 @@ func enableV2AdminConsole(ctx context.Context, logf LogFunc, cli client.Client, 
 		return fmt.Errorf("update cluster config: %w", err)
 	}
 	logf("Successfully updated admin-console chart values")
-
-	logf("Setting v2 installation status to true")
-	err = setIsEC2InstallInstallationStatus(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("set isEC2Install install status: %w", err)
-	}
-	logf("Successfully set v2 installation status to true")
 
 	logf("Waiting for admin-console deployment to be updated")
 	err = waitForAdminConsoleDeployment(ctx, cli)
@@ -86,31 +77,6 @@ func updateAdminConsoleChartValues(values []byte) ([]byte, error) {
 	}
 
 	return b, nil
-}
-
-// setIsEC2InstallInstallationStatus is needed to inform the operator that the installation has
-// been upgraded to v2 which prevents the operator from reconciling the installation.
-func setIsEC2InstallInstallationStatus(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
-	copy := in.DeepCopy()
-
-	if copy.Status.Conditions == nil {
-		copy.Status.Conditions = []metav1.Condition{}
-	}
-	copy.Status.SetCondition(metav1.Condition{
-		Type:   ConditionTypeIsEC2Install,
-		Status: metav1.ConditionTrue,
-		Reason: "MigrationComplete",
-	})
-
-	if err := cli.Status().Patch(ctx, copy, client.MergeFrom(in.DeepCopy())); err != nil {
-		// handle the case where the CRD has already been uninstalled
-		if meta.IsNoMatchError(err) {
-			return nil
-		}
-		return fmt.Errorf("patch crd installation status: %w", err)
-	}
-
-	return nil
 }
 
 // waitForAdminConsoleDeployment waits for the kotsadm pod to be updated as the service account
