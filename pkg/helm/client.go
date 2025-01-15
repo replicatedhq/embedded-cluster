@@ -77,6 +77,7 @@ func NewHelm(opts HelmOptions) (*Helm, error) {
 		kubeconfig: opts.KubeConfig,
 		kversion:   kversion,
 		regcli:     regcli,
+		logFn:      opts.LogFn,
 	}, nil
 }
 
@@ -84,6 +85,7 @@ type HelmOptions struct {
 	KubeConfig string
 	K0sVersion string
 	Writer     io.Writer
+	LogFn      action.DebugLog
 }
 
 type InstallOptions struct {
@@ -118,6 +120,7 @@ type Helm struct {
 	regcli     *registry.Client
 	repocfg    string
 	repos      []*repo.Entry
+	logFn      action.DebugLog
 }
 
 func (h *Helm) prepare() error {
@@ -270,6 +273,12 @@ func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
 		cfgFlags.KubeConfig = &h.kubeconfig
 	}
 	cfg := &action.Configuration{}
+	var logFn action.DebugLog
+	if h.logFn != nil {
+		logFn = h.logFn
+	} else {
+		logFn = _logFn
+	}
 	if err := cfg.Init(cfgFlags, namespace, "secret", logFn); err != nil {
 		return nil, fmt.Errorf("init helm configuration: %w", err)
 	}
@@ -496,7 +505,7 @@ func cleanUpInterfaceMap(in map[string]interface{}) map[string]interface{} {
 	return result
 }
 
-func logFn(format string, args ...interface{}) {
+func _logFn(format string, args ...interface{}) {
 	log := logrus.WithField("component", "helm")
 	log.Debugf(format, args...)
 }

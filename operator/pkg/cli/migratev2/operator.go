@@ -29,7 +29,7 @@ func cleanupV1(ctx context.Context, logf LogFunc, cli client.Client) error {
 	logf("Successfully cleaned up v1 ClusterConfig")
 
 	logf("Uninstalling operator")
-	err = helmUninstallOperator(ctx)
+	err = helmUninstallOperator(ctx, logf)
 	if err != nil {
 		return fmt.Errorf("helm uninstall operator: %w", err)
 	}
@@ -56,8 +56,11 @@ func cleanupClusterConfig(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-func helmUninstallOperator(ctx context.Context) error {
-	helmCLI, err := helm.NewHelm(helm.HelmOptions{Writer: io.Discard})
+func helmUninstallOperator(ctx context.Context, logf LogFunc) error {
+	helmCLI, err := helm.NewHelm(helm.HelmOptions{
+		Writer: io.Discard,
+		LogFn:  func(format string, v ...interface{}) { logf(format, v...) },
+	})
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)
 	}
