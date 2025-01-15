@@ -9,6 +9,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -102,6 +103,10 @@ func setIsEC2InstallInstallationStatus(ctx context.Context, cli client.Client, i
 	})
 
 	if err := cli.Status().Patch(ctx, copy, client.MergeFrom(in.DeepCopy())); err != nil {
+		// handle the case where the CRD has already been uninstalled
+		if meta.IsNoMatchError(err) {
+			return nil
+		}
 		return fmt.Errorf("patch crd installation status: %w", err)
 	}
 

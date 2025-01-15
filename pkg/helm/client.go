@@ -108,9 +108,10 @@ type UpgradeOptions struct {
 }
 
 type UninstallOptions struct {
-	ReleaseName string
-	Namespace   string
-	Wait        bool
+	ReleaseName    string
+	Namespace      string
+	Wait           bool
+	IgnoreNotFound bool
 }
 
 type Helm struct {
@@ -384,9 +385,8 @@ func (h *Helm) Uninstall(ctx context.Context, opts UninstallOptions) error {
 	}
 
 	client := action.NewUninstall(cfg)
-	if opts.Wait {
-		client.Wait = true
-	}
+	client.Wait = opts.Wait
+	client.IgnoreNotFound = opts.IgnoreNotFound
 
 	if deadline, ok := ctx.Deadline(); ok {
 		client.Timeout = time.Until(deadline)

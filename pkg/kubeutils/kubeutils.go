@@ -262,13 +262,11 @@ func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1be
 }
 
 func ListCMInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
-	opts := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(
-			labels.Set{"replicated.com/installation": "embedded-cluster"},
-		),
-	}
 	var cmList corev1.ConfigMapList
-	if err := cli.List(ctx, &cmList, client.InNamespace("embedded-cluster"), opts); err != nil {
+	if err := cli.List(ctx, &cmList,
+		client.InNamespace("embedded-cluster"),
+		client.MatchingLabels(labels.Set{"replicated.com/installation": "embedded-cluster"}),
+	); err != nil {
 		return nil, fmt.Errorf("list configmaps: %w", err)
 	}
 
