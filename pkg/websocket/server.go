@@ -14,8 +14,12 @@ import (
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -54,7 +58,7 @@ func attemptConnection(ctx context.Context) error {
 		return errors.Wrap(err, "get node")
 	}
 
-	wsURL := fmt.Sprintf("ws://%s:3000/ec-ws?nodeName=%s", clusterIP, node.Name)
+	wsURL := fmt.Sprintf("ws://%s:3000/ec-ws?nodeName=%s&version=%s", clusterIP, url.QueryEscape(node.Name), url.QueryEscape(versions.Version))
 	logrus.Infof("connecting to KOTS WebSocket server on %s", wsURL)
 	u, err := url.Parse(wsURL)
 	if err != nil {
@@ -108,6 +112,38 @@ func listenToWSServer(ctx context.Context, conn *gwebsocket.Conn) error {
 		}
 
 		switch msg.Command {
+		case "upgrade-manager":
+			d := map[string]string{}
+			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
+				logrus.Errorf("failed to unmarshal data: %s: %s", err, string(msg.Data))
+				continue
+			}
+
+			reportStepStarted(ctx, d)
+
+			// path to the manager binary on the host
+			binPath := runtimeconfig.PathToEmbeddedClusterBinary("manager")
+
+			// TODO (@salah): airgap
+			err := manager.DownloadBinaryOnline(ctx, binPath, d["licenseID"], d["licenseEndpoint"], d["versionLabel"])
+			if err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to download manager binary: %s", err))
+				continue
+			}
+
+			// report success before restarting because restart will kill this process
+			// this is okay for now since kots will wait for the new manager to connect
+			reportStepSuccess(ctx, d)
+
+			// this is hacky but app slug is what determines the service name
+			manager.SetServiceName(d["appSlug"])
+
+			// restart manager service
+			if err := systemd.Restart(ctx, manager.UnitName()); err != nil {
+				reportStepError(ctx, d, fmt.Sprintf("failed to restart manager service: %s", err))
+				continue
+			}
+
 		case "upgrade-cluster":
 			d := map[string]string{}
 			if err := json.Unmarshal([]byte(msg.Data), &d); err != nil {
