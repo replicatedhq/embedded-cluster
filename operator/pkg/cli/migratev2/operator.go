@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -110,10 +110,18 @@ func forceDeleteChartCRs(ctx context.Context, cli client.Client) error {
 		if err != nil {
 			return fmt.Errorf("update chart: %w", err)
 		}
+	}
 
-		err = cli.Delete(ctx, &chart,
-			client.GracePeriodSeconds(0), client.PropagationPolicy(metav1.DeletePropagationOrphan),
-		)
+	// this is a hack to ensure that the k0s controller does not uninstall the Helm release
+	time.Sleep(time.Second * 5)
+
+	err = cli.List(ctx, &chartList)
+	if err != nil {
+		return fmt.Errorf("list charts: %w", err)
+	}
+
+	for _, chart := range chartList.Items {
+		err = cli.Delete(ctx, &chart, client.GracePeriodSeconds(0))
 		if err != nil {
 			return fmt.Errorf("delete chart: %w", err)
 		}
