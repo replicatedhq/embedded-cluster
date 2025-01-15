@@ -164,8 +164,8 @@ func waitForManagerInstallJobs(ctx context.Context, cli client.Client, nodes []c
 }
 
 func waitForManagerInstallJob(ctx context.Context, cli client.Client, jobName string) error {
-	// 120 steps at 5 second intervals = ~ 10 minutes
-	return kubeutils.WaitForJob(ctx, cli, jobNamespace, jobName, 120, 1)
+	// 60 steps at 5 second intervals = ~ 5 minutes
+	return kubeutils.WaitForJob(ctx, cli, jobNamespace, jobName, 60, 1)
 }
 
 func getManagerInstallJobForNode(ctx context.Context, cli client.Client, node corev1.Node) (batchv1.Job, error) {

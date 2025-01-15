@@ -268,7 +268,7 @@ func ListCMInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.In
 		),
 	}
 	var cmList corev1.ConfigMapList
-	if err := cli.List(ctx, &cmList, opts); err != nil {
+	if err := cli.List(ctx, &cmList, client.InNamespace("embedded-cluster"), opts); err != nil {
 		return nil, fmt.Errorf("list configmaps: %w", err)
 	}
 
@@ -603,6 +603,7 @@ func (k *KubeUtils) IsDeploymentReady(ctx context.Context, cli client.Client, ns
 		return false, err
 	}
 	if deploy.Spec.Replicas == nil {
+		// Defaults to 1 if the replicas field is nil
 		if deploy.Status.ReadyReplicas == 1 {
 			return true, nil
 		}
@@ -619,6 +620,7 @@ func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, n
 		return false, err
 	}
 	if statefulset.Spec.Replicas == nil {
+		// Defaults to 1 if the replicas field is nil
 		if statefulset.Status.ReadyReplicas == 1 {
 			return true, nil
 		}

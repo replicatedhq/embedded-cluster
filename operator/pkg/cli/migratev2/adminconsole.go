@@ -131,8 +131,9 @@ func waitForAdminConsoleDeployment(ctx context.Context, cli client.Client) error
 	return nil
 }
 
-// isAdminConsoleDeploymentUpdated checks that the kotsadm pod has the desired environment
-// variable, as the service account does not have permissions to get deployments.
+// isAdminConsoleDeploymentUpdated checks that the kotsadm pod has the desired environment variable
+// and is ready. This is necessary as the service account does not have permissions to get
+// deployments.
 func isAdminConsoleDeploymentUpdated(ctx context.Context, cli client.Client) (bool, error) {
 	var podList corev1.PodList
 	err := cli.List(ctx, &podList, client.InNamespace("kotsadm"), client.MatchingLabels{"app": "kotsadm"})
@@ -144,14 +145,31 @@ func isAdminConsoleDeploymentUpdated(ctx context.Context, cli client.Client) (bo
 		return false, nil
 	}
 	pod := podList.Items[0]
+	if adminConsolePodHasEnvVar(pod) && adminConsolePodIsReady(pod) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func adminConsolePodHasEnvVar(pod corev1.Pod) bool {
 	for _, container := range pod.Spec.Containers {
 		if container.Name == "kotsadm" {
 			for _, env := range container.Env {
 				if env.Name == "IS_EC2_INSTALL" && env.Value == "true" {
-					return true, nil
+					return true
 				}
 			}
+			break
 		}
 	}
-	return false, nil
+	return false
+}
+
+func adminConsolePodIsReady(pod corev1.Pod) bool {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+	return false
 }

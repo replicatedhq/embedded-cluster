@@ -69,8 +69,7 @@ function k0sbin() {
 }
 
 function managerbin() {
-    local operator_image=""
-    local operator_version=""
+    local manager_version=""
 
     if [ ! -f "operator/build/image-$EC_VERSION" ]; then
         fail "file operator/build/image-$EC_VERSION not found"
