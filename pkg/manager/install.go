@@ -22,9 +22,23 @@ ExecStart=%s start
 
 type LogFunc func(string, ...interface{})
 
+var (
+	_serviceName = "manager"
+)
+
+// ServiceName returns the name of the systemd service for the manager service.
+func ServiceName() string {
+	return _serviceName
+}
+
+// SetServiceName sets the name of the systemd service for the manager service.
+func SetServiceName(appSlug string) {
+	_serviceName = fmt.Sprintf("%s-manager", appSlug)
+}
+
 // UnitName returns the name of the systemd unit for the manager service.
 func UnitName() string {
-	return fmt.Sprintf("%s.service", runtimeconfig.ManagerServiceName)
+	return fmt.Sprintf("%s.service", ServiceName())
 }
 
 // Install installs and starts the manager service.

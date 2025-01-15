@@ -34,7 +34,7 @@ import (
 func CreateUpgradeJob(
 	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
 	localArtifactMirrorImage string, previousInstallVersion string,
-	migrateV2 bool, licenseSecret string, appVersionLabel string,
+	migrateV2 bool, licenseSecret string, appSlug string, appVersionLabel string,
 ) error {
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
@@ -204,6 +204,7 @@ func CreateUpgradeJob(
 		job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
 			"--migrate-v2",
 			"--license", "/ec/license/license",
+			"--app-slug", appSlug,
 			"--app-version-label", appVersionLabel,
 		)
 		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{

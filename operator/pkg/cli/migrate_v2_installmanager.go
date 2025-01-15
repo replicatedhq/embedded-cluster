@@ -6,6 +6,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -16,7 +17,7 @@ import (
 // a pod on all nodes in the cluster. It will download the manager binary and install it as a
 // systemd service on the host.
 func MigrateV2InstallManagerCmd() *cobra.Command {
-	var installationFile, licenseFile, appVersionLabel string
+	var installationFile, licenseFile, appSlug, appVersionLabel string
 
 	var installation *ecv1beta1.Installation
 	var license *kotsv1beta1.License
@@ -42,6 +43,8 @@ func MigrateV2InstallManagerCmd() *cobra.Command {
 			// set the runtime config from the installation spec
 			runtimeconfig.Set(installation.Spec.RuntimeConfig)
 
+			manager.SetServiceName(appSlug)
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -66,6 +69,11 @@ func MigrateV2InstallManagerCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&licenseFile, "license", "", "Path to the license file")
 	err = cmd.MarkFlagRequired("license")
+	if err != nil {
+		panic(err)
+	}
+	cmd.Flags().StringVar(&appSlug, "app-slug", "", "The application slug")
+	err = cmd.MarkFlagRequired("app-slug")
 	if err != nil {
 		panic(err)
 	}

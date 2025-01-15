@@ -152,7 +152,7 @@ func InstallAndStartManager(ctx context.Context, licenseID string, licenseEndpoi
 
 func getManagerInstallJobSpecForNode(
 	node corev1.Node, in *ecv1beta1.Installation, operatorImage string,
-	licenseSecret string, appVersionLabel string,
+	licenseSecret string, appSlug string, appVersionLabel string,
 ) *batchv1.Job {
 	job := _managerInstallJob.DeepCopy()
 
@@ -160,6 +160,7 @@ func getManagerInstallJobSpecForNode(
 
 	job.Spec.Template.Spec.Containers[0].Image = operatorImage
 	job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
+		"--app-slug", appSlug,
 		"--app-version-label", appVersionLabel,
 	)
 

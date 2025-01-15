@@ -7,13 +7,14 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
 
 // MigrateV2Cmd returns a cobra command for migrating the installation from v1 to v2.
 func MigrateV2Cmd() *cobra.Command {
-	var installationFile, licenseSecret, appVersionLabel string
+	var installationFile, licenseSecret, appSlug, appVersionLabel string
 
 	var installation *ecv1beta1.Installation
 
@@ -32,6 +33,8 @@ func MigrateV2Cmd() *cobra.Command {
 			// NOTE: this is run in a pod so the data dir is not available
 			runtimeconfig.Set(installation.Spec.RuntimeConfig)
 
+			manager.SetServiceName(appSlug)
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -42,7 +45,7 @@ func MigrateV2Cmd() *cobra.Command {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			err = migratev2.Run(ctx, log.Printf, cli, installation, licenseSecret, appVersionLabel)
+			err = migratev2.Run(ctx, log.Printf, cli, installation, licenseSecret, appSlug, appVersionLabel)
 			if err != nil {
 				return fmt.Errorf("failed to run v2 migration: %w", err)
 			}
@@ -58,6 +61,11 @@ func MigrateV2Cmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&licenseSecret, "license-secret", "", "The secret name from which to read the license")
 	err = cmd.MarkFlagRequired("license-secret")
+	if err != nil {
+		panic(err)
+	}
+	cmd.Flags().StringVar(&appSlug, "app-slug", "", "The application slug")
+	err = cmd.MarkFlagRequired("app-slug")
 	if err != nil {
 		panic(err)
 	}

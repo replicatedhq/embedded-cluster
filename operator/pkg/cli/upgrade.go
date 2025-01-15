@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,7 +24,7 @@ func UpgradeCmd() *cobra.Command {
 	var installation *ecv1beta1.Installation
 
 	var migrateV2 bool
-	var migrateV2LicenseSecret, migrateV2AppVersionLabel string
+	var migrateV2LicenseSecret, migrateV2AppSlug, migrateV2AppVersionLabel string
 
 	cmd := &cobra.Command{
 		Use:          "upgrade",
@@ -43,9 +44,14 @@ func UpgradeCmd() *cobra.Command {
 				if migrateV2LicenseSecret == "" {
 					return fmt.Errorf("--migrate-v2 is set to true but --license-secret is not set")
 				}
+				if migrateV2AppSlug == "" {
+					return fmt.Errorf("--migrate-v2 is set to true but --app-slug is not set")
+				}
 				if migrateV2AppVersionLabel == "" {
 					return fmt.Errorf("--migrate-v2 is set to true but --app-version-label is not set")
 				}
+
+				manager.SetServiceName(migrateV2AppSlug)
 			}
 
 			return nil
@@ -73,7 +79,7 @@ func UpgradeCmd() *cobra.Command {
 			err = upgrade.CreateUpgradeJob(
 				cmd.Context(), cli,
 				installation, localArtifactMirrorImage, previousInstallation.Spec.Config.Version,
-				migrateV2, migrateV2LicenseSecret, migrateV2AppVersionLabel,
+				migrateV2, migrateV2LicenseSecret, migrateV2AppSlug, migrateV2AppVersionLabel,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
@@ -96,6 +102,7 @@ func UpgradeCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
 	cmd.Flags().StringVar(&migrateV2LicenseSecret, "license-secret", "", "The secret name from which to read the license (required if --migrate-v2 is set to true)")
+	cmd.Flags().StringVar(&migrateV2AppSlug, "app-slug", "", "The application slug (required if --migrate-v2 is set to true)")
 	cmd.Flags().StringVar(&migrateV2AppVersionLabel, "app-version-label", "", "The application version label (required if --migrate-v2 is set to true)")
 
 	return cmd
