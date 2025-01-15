@@ -1297,10 +1297,6 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 // restoreFromReplicatedBackup restores a disaster recovery component from a backup.
 func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.ReplicatedBackup, drComponent disasterRecoveryComponent) error {
 	if drComponent == disasterRecoveryComponentApp {
-		b := backup.GetAppBackup()
-		if b == nil {
-			return fmt.Errorf("unable to find app backup")
-		}
 		isImprovedDR, err := usesImprovedDR()
 		if err != nil {
 			return fmt.Errorf("failed to check if improved dr is enabled: %w", err)
@@ -1309,6 +1305,10 @@ func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.Re
 		// the vendor. Otherwise, we use the "replicated.com/disaster-recovery" label to discover
 		// the application resources in the cluster.
 		if isImprovedDR {
+			b := backup.GetAppBackup()
+			if b == nil {
+				return fmt.Errorf("unable to find app backup")
+			}
 			r, err := backup.GetRestore()
 			if err != nil {
 				return fmt.Errorf("failed to get restore resource from backup: %w", err)
@@ -1317,11 +1317,7 @@ func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.Re
 			if err != nil {
 				return fmt.Errorf("failed to restore app from backup: %w", err)
 			}
-		} else {
-			err = restoreFromBackup(ctx, b, drComponent)
-			if err != nil {
-				return fmt.Errorf("failed to restore app from backup: %w", err)
-			}
+			return nil
 		}
 	}
 	b := backup.GetInfraBackup()
