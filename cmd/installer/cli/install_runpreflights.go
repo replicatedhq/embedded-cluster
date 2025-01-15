@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -38,7 +39,13 @@ var ErrNothingElseToAdd = fmt.Errorf("")
 // ErrPreflightsHaveFail is an error returned when we managed to execute the
 // host preflights but they contain failures. We use this to differentiate the
 // way we provide user feedback.
-var ErrPreflightsHaveFail = fmt.Errorf("host preflight failures detected")
+type ErrPreflightsHaveFail struct {
+	Fails []preflightstypes.Record
+}
+
+func (e *ErrPreflightsHaveFail) Error() string {
+	return fmt.Sprintf("host preflight failures detected:  %v", e.Fails)
+}
 
 func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 	var (
@@ -127,7 +134,7 @@ func InstallRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			}
 
 			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, nil, assumeYes); err != nil {
-				if err == ErrPreflightsHaveFail {
+				if errors.Is(err, &ErrPreflightsHaveFail{}) {
 					return ErrNothingElseToAdd
 				}
 				return err
@@ -454,7 +461,7 @@ func runHostPreflights(cmd *cobra.Command, hpf *v1beta2.HostPreflightSpec, proxy
 			logrus.Info("Please address this issue and try again.")
 		}
 		metrics.ReportPreflightsFailed(cmd.Context(), replicatedAPIURL, *output, false, cmd.CalledAs())
-		return ErrPreflightsHaveFail
+		return &ErrPreflightsHaveFail{Fails: output.Fail}
 	}
 
 	// Warnings found

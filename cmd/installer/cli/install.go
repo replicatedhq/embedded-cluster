@@ -230,7 +230,7 @@ func InstallCmd(ctx context.Context, name string) *cobra.Command {
 
 			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, proxy, cidrCfg, nil, assumeYes); err != nil {
 				metrics.ReportApplyFinished(cmd.Context(), licenseFile, nil, err)
-				if err == ErrPreflightsHaveFail {
+				if errors.Is(err, &ErrPreflightsHaveFail{}) {
 					return ErrNothingElseToAdd
 				}
 				return err

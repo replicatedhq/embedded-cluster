@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -175,7 +176,7 @@ func JoinCmd(ctx context.Context, name string) *cobra.Command {
 			proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, cidrCfg, jcmd.TCPConnectionsRequired, assumeYes); err != nil {
 				metrics.ReportJoinFailed(cmd.Context(), jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID, err)
-				if err == ErrPreflightsHaveFail {
+				if errors.Is(err, &ErrPreflightsHaveFail{}) {
 					return ErrNothingElseToAdd
 				}
 				return err

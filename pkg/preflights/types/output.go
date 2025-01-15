@@ -130,3 +130,7 @@ type Record struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`
 }
+
+func (r Record) String() string {
+	return fmt.Sprintf("%s: %s", r.Title, r.Message)
+}

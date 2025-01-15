@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -119,7 +120,7 @@ func JoinRunPreflightsCmd(ctx context.Context, name string) *cobra.Command {
 			replicatedAPIURL := jcmd.InstallationSpec.MetricsBaseURL
 			proxyRegistryURL := fmt.Sprintf("https://%s", runtimeconfig.ProxyRegistryAddress)
 			if err := RunHostPreflights(cmd, applier, replicatedAPIURL, proxyRegistryURL, isAirgap, jcmd.InstallationSpec.Proxy, cidrCfg, jcmd.TCPConnectionsRequired, assumeYes); err != nil {
-				if err == ErrPreflightsHaveFail {
+				if errors.Is(err, &ErrPreflightsHaveFail{}) {
 					return ErrNothingElseToAdd
 				}
 				return err
