@@ -13,10 +13,6 @@ const (
 	ConditionTypeIsEC2Install = "IsEC2Install"
 )
 
-const (
-	ecNamespace = "embedded-cluster"
-)
-
 // LogFunc can be used as an argument to Run to log messages.
 type LogFunc func(string, ...any)
 

@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	jobNamespace  = "embedded-cluster"
 	jobNamePrefix = "install-v2-manager-"
 )
 
@@ -127,7 +128,7 @@ func deleteManagerInstallJobs(ctx context.Context, cli client.Client, nodes []co
 		jobName := getManagerInstallJobName(node)
 		job := &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: ecNamespace, Name: jobName,
+				Namespace: jobNamespace, Name: jobName,
 			},
 		}
 		err := cli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
@@ -164,14 +165,14 @@ func waitForManagerInstallJobs(ctx context.Context, cli client.Client, nodes []c
 
 func waitForManagerInstallJob(ctx context.Context, cli client.Client, jobName string) error {
 	// 120 steps at 5 second intervals = ~ 10 minutes
-	return kubeutils.WaitForJob(ctx, cli, ecNamespace, jobName, 120, 1)
+	return kubeutils.WaitForJob(ctx, cli, jobNamespace, jobName, 120, 1)
 }
 
 func getManagerInstallJobForNode(ctx context.Context, cli client.Client, node corev1.Node) (batchv1.Job, error) {
 	jobName := getManagerInstallJobName(node)
 
 	var job batchv1.Job
-	err := cli.Get(ctx, client.ObjectKey{Namespace: ecNamespace, Name: jobName}, &job)
+	err := cli.Get(ctx, client.ObjectKey{Namespace: jobNamespace, Name: jobName}, &job)
 	if err != nil {
 		return job, fmt.Errorf("get job %s: %w", jobName, err)
 	}

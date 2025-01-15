@@ -68,7 +68,7 @@ func helmUninstallOperator(ctx context.Context, logf LogFunc) error {
 
 	return helmCLI.Uninstall(ctx, helm.UninstallOptions{
 		ReleaseName: "embedded-cluster-operator",
-		Namespace:   ecNamespace,
+		Namespace:   "embedded-cluster",
 		Wait:        true,
 	})
 }

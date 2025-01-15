@@ -22,7 +22,7 @@ var _managerInstallJob = batchv1.Job{
 		Kind:       "Job",
 	},
 	ObjectMeta: metav1.ObjectMeta{
-		Namespace: ecNamespace,
+		Namespace: jobNamespace,
 		Name:      "install-v2-manager-DYNAMIC",
 		Labels: map[string]string{
 			"app": "install-v2-manager",
