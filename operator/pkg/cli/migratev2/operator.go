@@ -111,9 +111,6 @@ func forceDeleteChartCRs(ctx context.Context, cli client.Client) error {
 		}
 	}
 
-	// // this is a hack to ensure that the k0s controller does not uninstall the Helm release
-	// time.Sleep(time.Second * 5)
-
 	// wait for all finalizers to be removed before deleting the charts
 	for hasFinalizers := true; hasFinalizers; {
 		err = cli.List(ctx, &chartList)
