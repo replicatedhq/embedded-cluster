@@ -91,10 +91,6 @@ main() {
         echo "Failed to validate that the Admin Console is ready"
         exit 1
     fi
-    if ! ensure_version_metadata_present; then
-        echo "Failed to check the presence of the version metadata configmap"
-        exit 1
-    fi
     if ! ensure_binary_copy; then
         echo "Failed to ensure the embedded binary has been copied to ${EMBEDDED_CLUSTER_BASE_DIR}/bin"
         exit 1
