@@ -18,27 +18,27 @@ func reportStepStarted(ctx context.Context, data map[string]string) {
 	}
 }
 
-func reportStepError(ctx context.Context, data map[string]string, errMsg string) {
+func reportStepFailed(ctx context.Context, data map[string]string, errMsg string) {
 	logrus.Error(errMsg)
 	if err := sendStepReport(ctx, data, "failed", errMsg); err != nil {
 		logrus.Errorf("failed to report upgrade error: %s", err.Error())
 	}
 }
 
-func reportStepSuccess(ctx context.Context, data map[string]string) {
+func reportStepComplete(ctx context.Context, data map[string]string) {
 	if err := sendStepReport(ctx, data, "complete", ""); err != nil {
 		logrus.Errorf("failed to report upgrade success: %s", err.Error())
 	}
 }
 
-func sendStepReport(ctx context.Context, data map[string]string, status string, errMsg string) error {
+func sendStepReport(ctx context.Context, data map[string]string, status string, desc string) error {
 	reportBody := map[string]string{
 		"versionLabel": data["versionLabel"],
 		"status":       status,
 		"output":       "",
 	}
-	if errMsg != "" {
-		reportBody["statusDescription"] = errMsg
+	if desc != "" {
+		reportBody["statusDescription"] = desc
 	}
 
 	body, err := json.Marshal(reportBody)
