@@ -253,6 +253,16 @@ ensure_release_builtin_overrides() {
     fi
 }
 
+# ensure_release_builtin_overrides_install2 verifies if the built in overrides we provide as part
+# of the release have been applied to the helm charts.
+ensure_release_builtin_overrides_install2() {
+    if ! kubectl get secrets -n kotsadm sh.helm.release.v1.admin-console.v1 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gzip -d | grep -q -E "^ +release-custom-label"; then
+        echo "release-custom-label not found in k0s-addon-chart-admin-console"
+        kubectl get secrets -n kotsadm sh.helm.release.v1.admin-console.v1 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gzip -d
+        return 1
+    fi
+}
+
 # ensure_version_metadata_present verifies if a configmap containing the embedded cluster version
 # metadata is present in the embedded-cluster namespace. this configmap should always exist.
 ensure_version_metadata_present() {

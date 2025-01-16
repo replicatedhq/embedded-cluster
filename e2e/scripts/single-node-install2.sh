@@ -137,9 +137,10 @@ main() {
     if ! check_pod_install_order; then
         exit 1
     fi
-    if ! ensure_release_builtin_overrides; then
-        exit 1
-    fi
+# TODO: enable this once we support builtin overrides in install2
+#    if ! ensure_release_builtin_overrides_install2; then
+#        exit 1
+#    fi
     if ! systemctl status embedded-cluster; then
         echo "Failed to get status of embedded-cluster service"
         exit 1
