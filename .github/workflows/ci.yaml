@@ -954,10 +954,10 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeInstallUpgrade2UbuntuJammy
-          - TestSingleNodeInstallUpgrade2AlmaLinux8
-          - TestSingleNodeInstallUpgrade2Debian11
-          - TestSingleNodeInstallUpgrade2Debian12
+          - TestSingleNodeInstall2UpgradeUbuntuJammy
+          - TestSingleNodeInstall2UpgradeAlmaLinux8
+          - TestSingleNodeInstall2UpgradeDebian11
+          - TestSingleNodeInstall2UpgradeDebian12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
