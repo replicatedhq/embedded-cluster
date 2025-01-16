@@ -130,9 +130,8 @@ type TestServer struct {
 		Status string
 		Desc   string
 	}
-	WSConn   *gwebsocket.Conn
-	upgrader gwebsocket.Upgrader
-	t        *testing.T
+	WSConn *gwebsocket.Conn
+	t      *testing.T
 }
 
 // NewTestServer creates a new test server with all the required endpoints
