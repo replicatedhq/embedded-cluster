@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
 
@@ -10,6 +11,9 @@ import (
 )
 
 var (
+	//go:embed static/manager.service
+	_systemdUnitFileContents []byte
+
 	managerDropInFileContents = `[Service]
 # Empty ExecStart= will clear out the previous ExecStart value
 ExecStart=
@@ -18,10 +22,6 @@ ExecStart=%s start
 )
 
 type LogFunc func(string, ...interface{})
-
-type ManagerUnitFileMaterializer interface {
-	ManagerUnitFileContents() ([]byte, error)
-}
 
 const (
 	DefaultServiceName = "manager"
@@ -47,9 +47,9 @@ func UnitName() string {
 }
 
 // Install installs and starts the manager service.
-func Install(ctx context.Context, logf LogFunc, m ManagerUnitFileMaterializer) error {
+func Install(ctx context.Context, logf LogFunc) error {
 	logf("Writing manager systemd unit file")
-	err := writeSystemdUnitFile(m)
+	err := writeSystemdUnitFile()
 	if err != nil {
 		return fmt.Errorf("write manager systemd unit file: %w", err)
 	}
@@ -121,17 +121,9 @@ func DropInDirPath() string {
 	return systemd.DropInDirPath(UnitName())
 }
 
-func systemdUnitFileContents(m ManagerUnitFileMaterializer) ([]byte, error) {
-	return m.ManagerUnitFileContents()
-}
-
 // writeSystemdUnitFile writes the manager systemd unit file.
-func writeSystemdUnitFile(m ManagerUnitFileMaterializer) error {
-	contents, err := systemdUnitFileContents(m)
-	if err != nil {
-		return fmt.Errorf("read unit file: %w", err)
-	}
-	err = systemd.WriteUnitFile(UnitName(), contents)
+func writeSystemdUnitFile() error {
+	err := systemd.WriteUnitFile(UnitName(), _systemdUnitFileContents)
 	if err != nil {
 		return fmt.Errorf("write unit file: %w", err)
 	}

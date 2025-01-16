@@ -6,7 +6,6 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -142,7 +141,7 @@ func InstallAndStartManager(ctx context.Context, licenseID string, licenseEndpoi
 		return fmt.Errorf("download manager binary: %w", err)
 	}
 
-	err = manager.Install(ctx, logrus.Infof, goods.NewMaterializer())
+	err = manager.Install(ctx, logrus.Infof)
 	if err != nil {
 		return fmt.Errorf("install manager: %w", err)
 	}

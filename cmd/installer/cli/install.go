@@ -834,7 +834,7 @@ func installAndEnableLocalArtifactMirror() error {
 // installAndEnableManager installs and enables the manager. This service is
 // responsible for managing the embedded cluster after the initial installation.
 func installAndEnableManager(ctx context.Context) error {
-	if err := manager.Install(ctx, logrus.Debugf, goods.NewMaterializer()); err != nil {
+	if err := manager.Install(ctx, logrus.Debugf); err != nil {
 		return fmt.Errorf("failed to install manager service: %w", err)
 	}
 	return nil

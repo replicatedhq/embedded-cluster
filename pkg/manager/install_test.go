@@ -13,16 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// mockMaterializer implements the minimal required interface for testing
-type mockMaterializer struct {
-	mock.Mock
-}
-
-func (m *mockMaterializer) ManagerUnitFileContents() ([]byte, error) {
-	args := m.Called()
-	return args.Get(0).([]byte), args.Error(1)
-}
-
 func TestInstall(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -51,22 +41,17 @@ func TestInstall(t *testing.T) {
 	mockDBus.On("Reload", mock.Anything).Return(nil)
 	mockDBus.On("EnableAndStart", mock.Anything, unitName).Return(nil)
 
-	// Create a mock materializer with test unit file contents
-	testUnitContents := []byte("[Unit]\nDescription=Test Unit\n")
-	materializer := &mockMaterializer{}
-	materializer.On("ManagerUnitFileContents").Return(testUnitContents, nil)
-
 	discardLogger := func(string, ...interface{}) {}
 
 	// Run the Install function
-	err := Install(context.Background(), discardLogger, materializer)
+	err := Install(context.Background(), discardLogger)
 	assert.NoError(t, err)
 
 	// Verify the unit file was written correctly
 	unitFilePath := filepath.Join(tmpDir, unitName)
 	contents, err := os.ReadFile(unitFilePath)
 	assert.NoError(t, err)
-	assert.Equal(t, testUnitContents, contents)
+	assert.Equal(t, _systemdUnitFileContents, contents)
 
 	// Verify the drop-in file was written correctly
 	dropInPath := filepath.Join(tmpDir, unitName+".d", "embedded-cluster.conf")
@@ -76,7 +61,6 @@ func TestInstall(t *testing.T) {
 
 	// Verify the mock was called as expected
 	mockDBus.AssertExpectations(t)
-	materializer.AssertExpectations(t)
 }
 
 func TestUninstall(t *testing.T) {
