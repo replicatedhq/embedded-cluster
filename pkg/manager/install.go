@@ -28,8 +28,12 @@ const (
 )
 
 var (
-	_serviceName = DefaultServiceName
+	_serviceName string
 )
+
+func init() {
+	SetServiceName(DefaultServiceName)
+}
 
 // ServiceName returns the name of the systemd service for the manager service.
 func ServiceName() string {

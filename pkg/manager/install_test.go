@@ -128,7 +128,7 @@ func TestSystemdUnitFilePath(t *testing.T) {
 	}()
 
 	// Test with default service name
-	expected := filepath.Join(tmpDir, "manager.service")
+	expected := filepath.Join(tmpDir, "manager-manager.service")
 	actual := SystemdUnitFilePath()
 	assert.Equal(t, expected, actual, "default service name path mismatch")
 
