@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -22,8 +20,16 @@ ExecStart=%s start
 
 type LogFunc func(string, ...interface{})
 
+type ManagerUnitFileMaterializer interface {
+	ManagerUnitFileContents() ([]byte, error)
+}
+
+const (
+	DefaultServiceName = "manager"
+)
+
 var (
-	_serviceName = "manager"
+	_serviceName = DefaultServiceName
 )
 
 // ServiceName returns the name of the systemd service for the manager service.
@@ -42,7 +48,7 @@ func UnitName() string {
 }
 
 // Install installs and starts the manager service.
-func Install(ctx context.Context, logf LogFunc, m *goods.Materializer) error {
+func Install(ctx context.Context, logf LogFunc, m ManagerUnitFileMaterializer) error {
 	logf("Writing manager systemd unit file")
 	err := writeSystemdUnitFile(m)
 	if err != nil {
@@ -89,27 +95,19 @@ func Uninstall(ctx context.Context, logf LogFunc) error {
 		logf("Successfully disabled manager service")
 	}
 
-	_, err = os.Stat(DropInDirPath())
-	if err == nil {
-		logf("Removing manager drop-in directory")
-		if err := helpers.RemoveAll(DropInDirPath()); err != nil {
-			return fmt.Errorf("remove manager drop-in directory: %w", err)
-		}
-		logf("Successfully removed manager drop-in directory")
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("check if drop-in directory exists: %w", err)
+	logf("Removing manager drop-in directory")
+	err = os.RemoveAll(DropInDirPath())
+	if err != nil {
+		return fmt.Errorf("remove manager drop-in directory: %w", err)
 	}
+	logf("Successfully removed manager drop-in directory")
 
-	_, err = os.Stat(SystemdUnitFilePath())
-	if err == nil {
-		logf("Removing manager systemd unit file")
-		if err := helpers.RemoveAll(SystemdUnitFilePath()); err != nil {
-			return fmt.Errorf("remove manager systemd unit file: %w", err)
-		}
-		logf("Successfully removed manager systemd unit file")
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("check if systemd unit file exists: %w", err)
+	logf("Removing manager systemd unit file")
+	_ = os.RemoveAll(SystemdUnitFilePath())
+	if err != nil {
+		return fmt.Errorf("remove manager systemd unit file: %w", err)
 	}
+	logf("Successfully removed manager systemd unit file")
 
 	return nil
 }
@@ -124,12 +122,12 @@ func DropInDirPath() string {
 	return systemd.DropInDirPath(UnitName())
 }
 
-func systemdUnitFileContents(m *goods.Materializer) ([]byte, error) {
+func systemdUnitFileContents(m ManagerUnitFileMaterializer) ([]byte, error) {
 	return m.ManagerUnitFileContents()
 }
 
 // writeSystemdUnitFile writes the manager systemd unit file.
-func writeSystemdUnitFile(m *goods.Materializer) error {
+func writeSystemdUnitFile(m ManagerUnitFileMaterializer) error {
 	contents, err := systemdUnitFileContents(m)
 	if err != nil {
 		return fmt.Errorf("read unit file: %w", err)
