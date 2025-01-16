@@ -102,7 +102,7 @@ func Uninstall(ctx context.Context, logf LogFunc) error {
 	logf("Successfully removed manager drop-in directory")
 
 	logf("Removing manager systemd unit file")
-	_ = os.RemoveAll(SystemdUnitFilePath())
+	err = os.RemoveAll(SystemdUnitFilePath())
 	if err != nil {
 		return fmt.Errorf("remove manager systemd unit file: %w", err)
 	}
