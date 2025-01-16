@@ -197,3 +197,72 @@ func chartCRsToRuntimeObjects(charts []k0shelmv1beta1.Chart) []client.Object {
 	}
 	return objects
 }
+
+func Test_removeClusterConfigHelmExtensions(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialConfig *k0sv1beta1.ClusterConfig
+		expectError   bool
+	}{
+		{
+			name: "cleans up helm extensions",
+			initialConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Extensions: &k0sv1beta1.ClusterExtensions{
+						Helm: &k0sv1beta1.HelmExtensions{
+							Charts: k0sv1beta1.ChartsSettings{
+								{Name: "chart1"},
+								{Name: "chart2"},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "handles nil extensions",
+			initialConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			require.NoError(t, k0sv1beta1.AddToScheme(scheme))
+
+			cli := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.initialConfig).
+				Build()
+
+			err := removeClusterConfigHelmExtensions(context.Background(), cli)
+
+			if tt.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			var updatedConfig k0sv1beta1.ClusterConfig
+			err = cli.Get(context.Background(), apitypes.NamespacedName{
+				Namespace: "kube-system",
+				Name:      "k0s",
+			}, &updatedConfig)
+			require.NoError(t, err)
+
+			assert.Equal(t, &k0sv1beta1.HelmExtensions{}, updatedConfig.Spec.Extensions.Helm)
+		})
+	}
+}

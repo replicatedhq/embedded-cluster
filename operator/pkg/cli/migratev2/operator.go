@@ -87,7 +87,7 @@ func cleanupV1(ctx context.Context, logf LogFunc, cli client.Client) error {
 	logf("Successfully force deleted Chart custom resources")
 
 	logf("Removing Helm Charts from ClusterConfig")
-	err = cleanupClusterConfig(ctx, cli)
+	err = removeClusterConfigHelmExtensions(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("cleanup cluster config: %w", err)
 	}
@@ -139,7 +139,7 @@ func forceDeleteChartCRs(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-func cleanupClusterConfig(ctx context.Context, cli client.Client) error {
+func removeClusterConfigHelmExtensions(ctx context.Context, cli client.Client) error {
 	var clusterConfig k0sv1beta1.ClusterConfig
 	err := cli.Get(ctx, apitypes.NamespacedName{Namespace: "kube-system", Name: "k0s"}, &clusterConfig)
 	if err != nil {
