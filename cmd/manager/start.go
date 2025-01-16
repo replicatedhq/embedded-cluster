@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/socket"
 	"github.com/replicatedhq/embedded-cluster/pkg/websocket"
@@ -38,7 +39,11 @@ func StartCmd(ctx context.Context, name string) *cobra.Command {
 			// connect to the KOTS WebSocket server
 			if !disableWebsocket {
 				go func() {
-					go websocket.ConnectToKOTSWebSocket(ctx)
+					kcli, err := kubeutils.KubeClient()
+					if err != nil {
+						panic(err)
+					}
+					websocket.ConnectToKOTSWebSocket(ctx, kcli)
 				}()
 			}
 
