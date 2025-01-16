@@ -13,12 +13,7 @@ import (
 )
 
 func TestDownloadBinaryOnline(t *testing.T) {
-	// Create a temporary directory for our test files
-	tmpDir, err := os.MkdirTemp("", "binary-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Create the test content
 	testContent := []byte("TESTING")
