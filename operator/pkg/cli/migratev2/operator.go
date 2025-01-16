@@ -3,7 +3,6 @@ package migratev2
 import (
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
@@ -16,10 +15,10 @@ import (
 
 // uninstallOperator removes control of the Operator Chart from the k0s controller and uninstalls
 // the Helm Chart manually.
-func uninstallOperator(ctx context.Context, logf LogFunc, cli client.Client) error {
+func uninstallOperator(ctx context.Context, logf LogFunc, cli client.Client, helmCLI helm.Client) error {
 	// This is necessary to ensure that the operator does not reconcile and revert our changes.
 	logf("Uninstalling operator")
-	err := helmUninstallOperator(ctx, logf)
+	err := helmUninstallOperator(ctx, helmCLI)
 	if err != nil {
 		return fmt.Errorf("helm uninstall operator: %w", err)
 	}
@@ -34,7 +33,7 @@ func uninstallOperator(ctx context.Context, logf LogFunc, cli client.Client) err
 
 	// This is necessary to ensure that the operator is not re-installed by k0s.
 	logf("Uninstalling operator again")
-	err = helmUninstallOperator(ctx, logf)
+	err = helmUninstallOperator(ctx, helmCLI)
 	if err != nil {
 		return fmt.Errorf("helm uninstall operator: %w", err)
 	}
@@ -112,16 +111,29 @@ func forceDeleteChartCRs(ctx context.Context, cli client.Client) error {
 		}
 	}
 
-	// this is a hack to ensure that the k0s controller does not uninstall the Helm release
-	time.Sleep(time.Second * 5)
+	// // this is a hack to ensure that the k0s controller does not uninstall the Helm release
+	// time.Sleep(time.Second * 5)
 
-	err = cli.List(ctx, &chartList)
-	if err != nil {
-		return fmt.Errorf("list charts: %w", err)
+	// wait for all finalizers to be removed before deleting the charts
+	for hasFinalizers := true; hasFinalizers; {
+		err = cli.List(ctx, &chartList)
+		if err != nil {
+			return fmt.Errorf("list charts: %w", err)
+		}
+
+		hasFinalizers = false
+		for _, chart := range chartList.Items {
+			if len(chart.GetFinalizers()) > 0 {
+				hasFinalizers = true
+				break
+			}
+		}
+
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	for _, chart := range chartList.Items {
-		err = cli.Delete(ctx, &chart, client.GracePeriodSeconds(0))
+		err := cli.Delete(ctx, &chart, client.GracePeriodSeconds(0))
 		if err != nil {
 			return fmt.Errorf("delete chart: %w", err)
 		}
@@ -152,16 +164,7 @@ func cleanupClusterConfig(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-func helmUninstallOperator(ctx context.Context, logf LogFunc) error {
-	helmCLI, err := helm.NewHelm(helm.HelmOptions{
-		Writer: io.Discard,
-		LogFn:  func(format string, v ...interface{}) { logf(format, v...) },
-	})
-	if err != nil {
-		return fmt.Errorf("create helm client: %w", err)
-	}
-	defer helmCLI.Close()
-
+func helmUninstallOperator(ctx context.Context, helmCLI helm.Client) error {
 	return helmCLI.Uninstall(ctx, helm.UninstallOptions{
 		ReleaseName:    "embedded-cluster-operator",
 		Namespace:      "embedded-cluster",

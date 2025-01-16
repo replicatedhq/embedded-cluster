@@ -2,12 +2,14 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -88,7 +90,17 @@ func UpgradeJobCmd() *cobra.Command {
 				logf := func(format string, args ...any) {
 					fmt.Println(fmt.Sprintf(format, args...))
 				}
-				err := migratev2.Run(ctx, logf, cli, installation, licenseSecret, appSlug, appVersionLabel)
+
+				helmCLI, err := helm.NewHelm(helm.HelmOptions{
+					Writer:                  io.Discard,
+					LogFn:                   logf,
+					RESTClientGetterFactory: k8sutil.RESTClientGetterFactory,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to create helm client: %w", err)
+				}
+
+				err = migratev2.Run(ctx, logf, cli, helmCLI, installation, licenseSecret, appSlug, appVersionLabel)
 				if err != nil {
 					return fmt.Errorf("failed to run v2 migration: %w", err)
 				}

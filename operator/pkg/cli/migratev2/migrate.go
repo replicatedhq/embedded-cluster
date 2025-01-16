@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -15,7 +16,7 @@ type LogFunc func(string, ...any)
 // installations to configmaps, enables the v2 admin console, and finally removes the operator
 // chart.
 func Run(
-	ctx context.Context, logf LogFunc, cli client.Client,
+	ctx context.Context, logf LogFunc, cli client.Client, helmCLI helm.Client,
 	in *ecv1beta1.Installation,
 	licenseSecret string, appSlug string, appVersionLabel string,
 ) error {
@@ -31,7 +32,7 @@ func Run(
 
 	// We must first uninstall the operator to ensure that it does not reconcile and revert our
 	// changes.
-	err = uninstallOperator(ctx, logf, cli)
+	err = uninstallOperator(ctx, logf, cli, helmCLI)
 	if err != nil {
 		return fmt.Errorf("uninstall operator: %w", err)
 	}

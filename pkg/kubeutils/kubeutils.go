@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -729,4 +730,14 @@ func (k *KubeUtils) KubeClient() (client.Client, error) {
 		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
 	}
 	return client.New(cfg, client.Options{})
+}
+
+// RESTClientGetterFactory is a factory function that can be used to create namespaced
+// genericclioptions.RESTClientGetters.
+func (k *KubeUtils) RESTClientGetterFactory(namespace string) genericclioptions.RESTClientGetter {
+	cfgFlags := genericclioptions.NewConfigFlags(false)
+	if namespace != "" {
+		cfgFlags.Namespace = &namespace
+	}
+	return cfgFlags
 }

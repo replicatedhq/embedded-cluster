@@ -2,11 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"log"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
@@ -45,7 +47,16 @@ func MigrateV2Cmd() *cobra.Command {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			err = migratev2.Run(ctx, log.Printf, cli, installation, licenseSecret, appSlug, appVersionLabel)
+			helmCLI, err := helm.NewHelm(helm.HelmOptions{
+				Writer:                  io.Discard,
+				LogFn:                   log.Printf,
+				RESTClientGetterFactory: k8sutil.RESTClientGetterFactory,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create helm client: %w", err)
+			}
+
+			err = migratev2.Run(ctx, log.Printf, cli, helmCLI, installation, licenseSecret, appSlug, appVersionLabel)
 			if err != nil {
 				return fmt.Errorf("failed to run v2 migration: %w", err)
 			}

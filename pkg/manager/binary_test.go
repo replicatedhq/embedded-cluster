@@ -46,7 +46,7 @@ func TestDownloadBinaryOnline(t *testing.T) {
 	dstPath := filepath.Join(tmpDir, "downloaded-manager")
 
 	// Test the download function
-	err = DownloadBinaryOnline(
+	err := DownloadBinaryOnline(
 		context.Background(),
 		dstPath,
 		"testlicense",
