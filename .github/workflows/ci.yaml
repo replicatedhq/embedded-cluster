@@ -880,6 +880,8 @@ jobs:
         test:
           - TestSingleNodeInstall2UbuntuJammy
           - TestSingleNodeInstall2AlmaLinux8
+          - TestSingleNodeInstall2Debian11
+          - TestSingleNodeInstall2Debian12
     steps:
       - name: Checkout
         uses: actions/checkout@v4

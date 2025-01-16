@@ -83,3 +83,37 @@ func TestSingleNodeInstall2AlmaLinux8(t *testing.T) {
 	singleNodeInstalUpgradeTest(t, tc)
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
+
+func TestSingleNodeInstall2Debian11(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "debian-bullseye",
+		LicensePath:  "license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
+	})
+	defer tc.Cleanup()
+	singleNodeInstalUpgradeTest(t, tc)
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestSingleNodeInstall2Debian12(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "debian-bookworm",
+		LicensePath:  "license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
+	})
+	defer tc.Cleanup()
+	singleNodeInstalUpgradeTest(t, tc)
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
