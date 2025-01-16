@@ -7,9 +7,11 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	apitypes "k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -132,17 +134,18 @@ func Test_updateAdminConsoleClusterConfig(t *testing.T) {
 
 func Test_isAdminConsoleDeploymentUpdated(t *testing.T) {
 	tests := []struct {
-		name     string
-		pods     []corev1.Pod
-		want     bool
-		wantErr  bool
+		name    string
+		pods    []corev1.Pod
+		want    bool
+		wantErr bool
 	}{
 		{
 			name: "pod is ready and has correct env var",
 			pods: []corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "kotsadm-123",
+						Name:      "kotsadm-123",
+						Namespace: "kotsadm",
 						Labels: map[string]string{
 							"app": "kotsadm",
 						},
@@ -178,7 +181,8 @@ func Test_isAdminConsoleDeploymentUpdated(t *testing.T) {
 			pods: []corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "kotsadm-123",
+						Name:      "kotsadm-123",
+						Namespace: "kotsadm",
 						Labels: map[string]string{
 							"app": "kotsadm",
 						},
@@ -209,7 +213,8 @@ func Test_isAdminConsoleDeploymentUpdated(t *testing.T) {
 			pods: []corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "kotsadm-123",
+						Name:      "kotsadm-123",
+						Namespace: "kotsadm",
 						Labels: map[string]string{
 							"app": "kotsadm",
 						},
@@ -245,7 +250,8 @@ func Test_isAdminConsoleDeploymentUpdated(t *testing.T) {
 			pods: []corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "kotsadm-123",
+						Name:      "kotsadm-123",
+						Namespace: "kotsadm",
 						Labels: map[string]string{
 							"app": "kotsadm",
 						},
@@ -266,7 +272,8 @@ func Test_isAdminConsoleDeploymentUpdated(t *testing.T) {
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "kotsadm-124",
+						Name:      "kotsadm-124",
+						Namespace: "kotsadm",
 						Labels: map[string]string{
 							"app": "kotsadm",
 						},
@@ -290,20 +297,19 @@ func Test_isAdminConsoleDeploymentUpdated(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:     "no pods found",
-			pods:     []corev1.Pod{},
-			want:     false,
+			name:    "no pods found",
+			pods:    []corev1.Pod{},
+			want:    false,
 			wantErr: false,
 		},
 	}
 
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			scheme := runtime.NewScheme()
-			require.NoError(t, corev1.AddToScheme(scheme))
-
 			cli := fake.NewClientBuilder().
-				WithScheme(scheme).
 				WithObjects(podsToRuntimeObjects(tt.pods)...).
 				Build()
 
