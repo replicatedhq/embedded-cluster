@@ -879,6 +879,7 @@ jobs:
       matrix:
         test:
           - TestSingleNodeInstall2UbuntuJammy
+          - TestSingleNodeInstall2AlmaLinux8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
