@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
@@ -14,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -22,7 +24,8 @@ const (
 	jobNamePrefix = "install-v2-manager-"
 )
 
-// runManagerInstallJobsAndWait runs the v2 manager install job and waits for it to finish.
+// runManagerInstallJobsAndWait runs the v2 manager install job on all nodes and waits for the jobs
+// to finish.
 func runManagerInstallJobsAndWait(
 	ctx context.Context, logf LogFunc, cli client.Client,
 	in *ecv1beta1.Installation,
@@ -41,12 +44,12 @@ func runManagerInstallJobsAndWait(
 	}
 	logf("Successfully got operator image name")
 
-	var nodes corev1.NodeList
-	if err := cli.List(ctx, &nodes); err != nil {
+	var nodeList corev1.NodeList
+	if err := cli.List(ctx, &nodeList); err != nil {
 		return fmt.Errorf("list nodes: %w", err)
 	}
 
-	for _, node := range nodes.Items {
+	for _, node := range nodeList.Items {
 		logf("Ensuring manager install job for node %s", node.Name)
 		_, err := ensureManagerInstallJobForNode(ctx, cli, node, in, operatorImage, licenseSecret, appSlug, appVersionLabel)
 		if err != nil {
@@ -56,18 +59,11 @@ func runManagerInstallJobsAndWait(
 	}
 
 	logf("Waiting for manager install jobs to finish")
-	err = waitForManagerInstallJobs(ctx, cli, nodes.Items)
+	err = waitForManagerInstallJobs(ctx, cli, nodeList.Items)
 	if err != nil {
 		return fmt.Errorf("wait for jobs: %w", err)
 	}
 	logf("Successfully waited for manager install jobs to finish")
-
-	logf("Deleting manager install jobs")
-	err = deleteManagerInstallJobs(ctx, cli, nodes.Items)
-	if err != nil {
-		return fmt.Errorf("delete jobs: %w", err)
-	}
-	logf("Successfully deleted manager install jobs")
 
 	return nil
 }
@@ -123,8 +119,16 @@ func ensureManagerInstallJobForNode(
 	return job.Name, nil
 }
 
-func deleteManagerInstallJobs(ctx context.Context, cli client.Client, nodes []corev1.Node) error {
-	for _, node := range nodes {
+// deleteManagerInstallJobs deletes all manager install jobs on all nodes.
+func deleteManagerInstallJobs(ctx context.Context, logf LogFunc, cli client.Client) error {
+	logf("Deleting manager install jobs")
+
+	var nodeList corev1.NodeList
+	if err := cli.List(ctx, &nodeList); err != nil {
+		return fmt.Errorf("list nodes: %w", err)
+	}
+
+	for _, node := range nodeList.Items {
 		jobName := getManagerInstallJobName(node)
 		job := &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
@@ -136,6 +140,8 @@ func deleteManagerInstallJobs(ctx context.Context, cli client.Client, nodes []co
 			return fmt.Errorf("delete job for node %s: %w", node.Name, err)
 		}
 	}
+
+	logf("Successfully deleted manager install jobs")
 
 	return nil
 }
@@ -165,7 +171,8 @@ func waitForManagerInstallJobs(ctx context.Context, cli client.Client, nodes []c
 
 func waitForManagerInstallJob(ctx context.Context, cli client.Client, jobName string) error {
 	// 60 steps at 5 second intervals = ~ 5 minutes
-	return kubeutils.WaitForJob(ctx, cli, jobNamespace, jobName, 60, 1)
+	backoff := wait.Backoff{Steps: 60, Cap: 5 * time.Second, Duration: 1 * time.Second, Factor: 2.0, Jitter: 0.1}
+	return kubeutils.WaitForJob(ctx, cli, jobNamespace, jobName, 1, &kubeutils.WaitOptions{Backoff: &backoff})
 }
 
 func getManagerInstallJobForNode(ctx context.Context, cli client.Client, node corev1.Node) (batchv1.Job, error) {

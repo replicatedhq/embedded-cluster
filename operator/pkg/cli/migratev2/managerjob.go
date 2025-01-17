@@ -157,6 +157,18 @@ func getManagerInstallJobSpecForNode(
 
 	job.ObjectMeta.Name = getManagerInstallJobName(node)
 
+	// pin to a specific node
+	job.Spec.Template.Spec.NodeSelector = map[string]string{"kubernetes.io/hostname": node.Name}
+
+	// tolerate all taints
+	for _, taint := range node.Spec.Taints {
+		job.Spec.Template.Spec.Tolerations = append(job.Spec.Template.Spec.Tolerations, corev1.Toleration{
+			Key:      taint.Key,
+			Value:    taint.Value,
+			Operator: corev1.TolerationOpEqual,
+		})
+	}
+
 	job.Spec.Template.Spec.Containers[0].Image = operatorImage
 	job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
 		"--app-slug", appSlug,
@@ -181,16 +193,6 @@ func getManagerInstallJobSpecForNode(
 			},
 		},
 	})
-
-	job.Spec.Template.Spec.NodeName = node.Name
-	// tolerate all taints
-	for _, taint := range node.Spec.Taints {
-		job.Spec.Template.Spec.Tolerations = append(job.Spec.Template.Spec.Tolerations, corev1.Toleration{
-			Key:      taint.Key,
-			Value:    taint.Value,
-			Operator: corev1.TolerationOpEqual,
-		})
-	}
 
 	return job
 }

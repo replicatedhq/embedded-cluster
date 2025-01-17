@@ -25,6 +25,11 @@ func Run(
 		return fmt.Errorf("run manager install jobs: %w", err)
 	}
 
+	err = deleteManagerInstallJobs(ctx, logf, cli)
+	if err != nil {
+		return fmt.Errorf("delete jobs: %w", err)
+	}
+
 	err = copyInstallationsToConfigMaps(ctx, logf, cli)
 	if err != nil {
 		return fmt.Errorf("copy installations to config maps: %w", err)

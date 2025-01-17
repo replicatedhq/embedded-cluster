@@ -65,7 +65,7 @@ func createSeaweedfsResources(ctx context.Context, kcli client.Client, in *embed
 		return nil, fmt.Errorf("unable to create seaweedfs namespace: %w", err)
 	}
 
-	err = kubeutils.WaitForNamespace(ctx, kcli, runtimeconfig.SeaweedFSNamespace)
+	err = kubeutils.WaitForNamespace(ctx, kcli, runtimeconfig.SeaweedFSNamespace, nil)
 	if err != nil {
 		return nil, fmt.Errorf("wait for seaweedfs namespace: %w", err)
 	}

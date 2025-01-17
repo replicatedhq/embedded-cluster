@@ -126,7 +126,7 @@ func (o *OpenEBS) GetAdditionalImages() []string {
 func (o *OpenEBS) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta1.ClusterConfig, releaseMetadata *types.ReleaseMetadata) error {
 	loading := spinner.Start()
 	loading.Infof("Waiting for Storage to be ready")
-	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "openebs-localpv-provisioner"); err != nil {
+	if err := kubeutils.WaitForDeployment(ctx, cli, namespace, "openebs-localpv-provisioner", nil); err != nil {
 		loading.Close()
 		return err
 	}

@@ -285,7 +285,7 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1be
 	loading := spinner.Start()
 	loading.Infof("Waiting for Registry to be ready")
 
-	if err := kubeutils.WaitForNamespace(ctx, cli, o.namespace); err != nil {
+	if err := kubeutils.WaitForNamespace(ctx, cli, o.namespace, nil); err != nil {
 		loading.CloseWithError()
 		return err
 	}
@@ -324,7 +324,7 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1be
 		return fmt.Errorf("unable to create registry-auth secret: %w", err)
 	}
 
-	if err := kubeutils.WaitForService(ctx, cli, o.namespace, "registry"); err != nil {
+	if err := kubeutils.WaitForService(ctx, cli, o.namespace, "registry", nil); err != nil {
 		loading.CloseWithError()
 		return err
 	}
@@ -357,7 +357,7 @@ func (o *Registry) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1be
 		return fmt.Errorf("unable to create %s secret: %w", tlsSecretName, err)
 	}
 
-	if err := kubeutils.WaitForDeployment(ctx, cli, o.namespace, "registry"); err != nil {
+	if err := kubeutils.WaitForDeployment(ctx, cli, o.namespace, "registry", nil); err != nil {
 		loading.CloseWithError()
 		return err
 	}

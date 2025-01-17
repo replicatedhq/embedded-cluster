@@ -1261,7 +1261,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.RegistryNamespace, "registry"); err != nil {
+		if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.RegistryNamespace, "registry", nil); err != nil {
 			return fmt.Errorf("unable to wait for registry to be ready: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentECO {

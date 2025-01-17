@@ -12,19 +12,23 @@ type KubeUtils struct{}
 
 var _ kubeutils.KubeUtilsInterface = (*KubeUtils)(nil)
 
-func (k *KubeUtils) WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
+func (k *KubeUtils) WaitForNamespace(ctx context.Context, cli client.Client, ns string, opts *kubeutils.WaitOptions) error {
 	return nil
 }
 
-func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) error {
+func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns, name string, opts *kubeutils.WaitOptions) error {
 	return nil
 }
 
-func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) error {
+func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *kubeutils.WaitOptions) error {
 	return nil
 }
 
-func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, name string) error {
+func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, name string, opts *kubeutils.WaitOptions) error {
+	return nil
+}
+
+func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *kubeutils.WaitOptions) error {
 	return nil
 }
 
@@ -41,10 +45,6 @@ func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
 }
 
 func (k *KubeUtils) WaitForControllerNode(ctx context.Context, kcli client.Client, name string) error {
-	return nil
-}
-
-func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxSteps int, completions int32) error {
 	return nil
 }
 

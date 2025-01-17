@@ -24,7 +24,7 @@ func createRegistryResources(ctx context.Context, kcli client.Client, config *se
 		return fmt.Errorf("unable to create registry namespace: %w", err)
 	}
 
-	err = kubeutils.WaitForNamespace(ctx, kcli, runtimeconfig.RegistryNamespace)
+	err = kubeutils.WaitForNamespace(ctx, kcli, runtimeconfig.RegistryNamespace, nil)
 	if err != nil {
 		return fmt.Errorf("wait for registry namespace: %w", err)
 	}
