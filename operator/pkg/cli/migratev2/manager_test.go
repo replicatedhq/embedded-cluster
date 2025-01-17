@@ -249,6 +249,169 @@ func nodesToRuntimeObjects(nodes []corev1.Node) []client.Object {
 	return objects
 }
 
+func Test_ensureManagerInstallJobForNode(t *testing.T) {
+	// Set up common test objects
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-node",
+		},
+		Spec: corev1.NodeSpec{
+			Taints: []corev1.Taint{
+				{
+					Key:    "node-role.kubernetes.io/control-plane",
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			},
+		},
+	}
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-install",
+		},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "1.0.0",
+			},
+		},
+	}
+
+	tests := []struct {
+		name         string
+		existingJob  *batchv1.Job
+		expectNewJob bool
+		validateJob  func(*testing.T, *batchv1.Job)
+		expectError  bool
+	}{
+		{
+			name:        "creates new job when none exists",
+			existingJob: nil,
+			validateJob: func(t *testing.T, job *batchv1.Job) {
+				assert.Equal(t, "install-v2-manager-test-node", job.Name)
+				assert.Equal(t, "embedded-cluster", job.Namespace)
+				assert.Equal(t, "install-v2-manager", job.Labels["app"])
+
+				podSpec := job.Spec.Template.Spec
+				assert.Equal(t, "test-node", podSpec.NodeSelector["kubernetes.io/hostname"])
+
+				// Verify tolerations
+				expectedToleration := corev1.Toleration{
+					Key:      "node-role.kubernetes.io/control-plane",
+					Value:    "",
+					Operator: corev1.TolerationOpEqual,
+				}
+				assert.Contains(t, podSpec.Tolerations, expectedToleration)
+
+				// Verify volumes
+				foundInstallationVolume := false
+				foundLicenseVolume := false
+				for _, volume := range podSpec.Volumes {
+					if volume.Name == "installation" {
+						foundInstallationVolume = true
+						assert.Equal(t, "test-install", volume.ConfigMap.Name)
+					}
+					if volume.Name == "license" {
+						foundLicenseVolume = true
+						assert.Equal(t, "test-secret", volume.Secret.SecretName)
+					}
+				}
+				assert.True(t, foundInstallationVolume, "expected installation volume to be mounted")
+				assert.True(t, foundLicenseVolume, "expected license volume to be mounted")
+
+				// Verify container
+				container := podSpec.Containers[0]
+				assert.Equal(t, "embedded-cluster-operator-image:1.0", container.Image)
+				assert.Contains(t, container.Command, "migrate-v2")
+				assert.Contains(t, container.Command, "install-manager")
+				assert.Contains(t, container.Command, "--app-slug")
+				assert.Contains(t, container.Command, "test-app")
+				assert.Contains(t, container.Command, "--app-version-label")
+				assert.Contains(t, container.Command, "v1.0.0")
+			},
+			expectError: false,
+		},
+		{
+			name: "reuses existing successful job",
+			existingJob: &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "install-v2-manager-test-node",
+					Namespace: "embedded-cluster",
+				},
+				Status: batchv1.JobStatus{
+					Succeeded: 1,
+				},
+			},
+			validateJob: func(t *testing.T, job *batchv1.Job) {
+				assert.Equal(t, int32(1), job.Status.Succeeded)
+			},
+			expectError: false,
+		},
+		{
+			name: "replaces failed job",
+			existingJob: &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "install-v2-manager-test-node",
+					Namespace: "embedded-cluster",
+				},
+				Status: batchv1.JobStatus{
+					Failed: 1,
+				},
+			},
+			validateJob: func(t *testing.T, job *batchv1.Job) {
+				assert.Equal(t, int32(0), job.Status.Failed)
+			},
+			expectError: false,
+		},
+	}
+
+	// Set up the test scheme
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, batchv1.AddToScheme(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			// Create fake client
+			builder := fake.NewClientBuilder().WithScheme(scheme)
+			if tt.existingJob != nil {
+				builder = builder.WithObjects(tt.existingJob)
+			}
+			cli := builder.Build()
+
+			// Run the function
+			jobName, err := ensureManagerInstallJobForNode(
+				context.Background(),
+				cli,
+				node,
+				installation,
+				"embedded-cluster-operator-image:1.0",
+				"test-secret",
+				"test-app",
+				"v1.0.0",
+			)
+
+			if tt.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			// Get the job
+			var job batchv1.Job
+			err = cli.Get(context.Background(), client.ObjectKey{
+				Namespace: "embedded-cluster",
+				Name:      jobName,
+			}, &job)
+			require.NoError(t, err)
+
+			// Run validation
+			tt.validateJob(t, &job)
+		})
+	}
+}
+
 func jobsToRuntimeObjects(jobs []batchv1.Job) []client.Object {
 	objects := make([]client.Object, len(jobs))
 	for i := range jobs {
