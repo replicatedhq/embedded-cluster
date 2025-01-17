@@ -216,7 +216,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 	loading := spinner.Start()
 	loading.Infof("Waiting for Embedded Cluster Operator to be ready")
 
-	if err := kubeutils.WaitForNamespace(ctx, cli, e.namespace); err != nil {
+	if err := kubeutils.WaitForNamespace(ctx, cli, e.namespace, nil); err != nil {
 		return err
 	}
 
@@ -224,7 +224,7 @@ func (e *EmbeddedClusterOperator) Outro(ctx context.Context, cli client.Client, 
 		return fmt.Errorf("unable to create CA configmap: %w", err)
 	}
 
-	if err := kubeutils.WaitForDeployment(ctx, cli, e.namespace, e.deployName); err != nil {
+	if err := kubeutils.WaitForDeployment(ctx, cli, e.namespace, e.deployName, nil); err != nil {
 		loading.Close()
 		return err
 	}

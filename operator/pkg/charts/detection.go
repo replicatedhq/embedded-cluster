@@ -3,7 +3,7 @@ package charts
 import (
 	"fmt"
 
-	v1beta2 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
+	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"sigs.k8s.io/yaml"
 )
@@ -85,7 +85,7 @@ func YamlDiff(a, b string) (bool, error) {
 }
 
 // check if all charts in the combinedConfigs are installed successfully with the desired version and values
-func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts v1beta2.ChartList) ([]string, map[string]string, error) {
+func DetectChartCompletion(existingHelm *v1beta1.HelmExtensions, installedCharts k0shelmv1beta1.ChartList) ([]string, map[string]string, error) {
 	incompleteCharts := []string{}
 	chartErrors := map[string]string{}
 	if existingHelm == nil {

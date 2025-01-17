@@ -23,7 +23,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -564,6 +566,7 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig, withChannelRelease b
 	artifacts := map[string]string{
 		"k0s":                         fmt.Sprintf("k0s-binaries/%s-%s", versions.K0sVersion, runtime.GOARCH),
 		"kots":                        fmt.Sprintf("kots-binaries/%s-%s.tar.gz", adminconsole.KotsVersion, runtime.GOARCH),
+		"manager":                     fmt.Sprintf("manager-binaries/%s-%s.tar.gz", versions.Version, runtime.GOARCH),
 		"operator":                    fmt.Sprintf("operator-binaries/%s-%s.tar.gz", embeddedclusteroperator.Metadata.Version, runtime.GOARCH),
 		"local-artifact-mirror-image": versions.LocalArtifactMirrorImage,
 	}
@@ -572,6 +575,9 @@ func gatherVersionMetadata(k0sCfg *k0sconfig.ClusterConfig, withChannelRelease b
 	}
 	if versions.KOTSBinaryURLOverride != "" {
 		artifacts["kots"] = versions.KOTSBinaryURLOverride
+	}
+	if versions.ManagerBinaryURLOverride != "" {
+		artifacts["manager"] = versions.ManagerBinaryURLOverride
 	}
 	if versions.OperatorBinaryURLOverride != "" {
 		artifacts["operator"] = versions.OperatorBinaryURLOverride
@@ -827,28 +833,14 @@ func installAndEnableLocalArtifactMirror() error {
 
 // installAndEnableManager installs and enables the manager. This service is
 // responsible for managing the embedded cluster after the initial installation.
-func installAndEnableManager() error {
-	materializer := goods.NewMaterializer()
-	if err := materializer.ManagerUnitFile(); err != nil {
-		return fmt.Errorf("unable to materialize manager unit: %w", err)
-	}
-	if err := writeManagerDropInFile(); err != nil {
-		return fmt.Errorf("unable to write manager environment file: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("unable to get reload systemctl daemon: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "start", runtimeconfig.ManagerServiceName); err != nil {
-		return fmt.Errorf("unable to start the manager: %w", err)
-	}
-	if _, err := helpers.RunCommand("systemctl", "enable", runtimeconfig.ManagerServiceName); err != nil {
-		return fmt.Errorf("unable to start the manager service: %w", err)
+func installAndEnableManager(ctx context.Context) error {
+	if err := manager.Install(ctx, logrus.Debugf); err != nil {
+		return fmt.Errorf("failed to install manager service: %w", err)
 	}
 	return nil
 }
 
 const (
-	localArtifactMirrorSystemdConfFile    = "/etc/systemd/system/local-artifact-mirror.service.d/embedded-cluster.conf"
 	localArtifactMirrorDropInFileContents = `[Service]
 Environment="LOCAL_ARTIFACT_MIRROR_PORT=%d"
 Environment="LOCAL_ARTIFACT_MIRROR_DATA_DIR=%s"
@@ -858,47 +850,16 @@ ExecStart=%s serve
 `
 )
 
-var (
-	managerSystemdConfFile    = fmt.Sprintf("/etc/systemd/system/%s.service.d/embedded-cluster.conf", runtimeconfig.ManagerServiceName)
-	managerDropInFileContents = `[Service]
-# Empty ExecStart= will clear out the previous ExecStart value
-ExecStart=
-ExecStart=%s start
-`
-)
-
 func writeLocalArtifactMirrorDropInFile() error {
-	dir := filepath.Dir(localArtifactMirrorSystemdConfFile)
-	err := os.MkdirAll(dir, 0755)
-	if err != nil {
-		return fmt.Errorf("create directory: %w", err)
-	}
 	contents := fmt.Sprintf(
 		localArtifactMirrorDropInFileContents,
 		runtimeconfig.LocalArtifactMirrorPort(),
 		runtimeconfig.EmbeddedClusterHomeDirectory(),
 		runtimeconfig.PathToEmbeddedClusterBinary("local-artifact-mirror"),
 	)
-	err = os.WriteFile(localArtifactMirrorSystemdConfFile, []byte(contents), 0644)
+	err := systemd.WriteDropInFile("local-artifact-mirror.service", "embedded-cluster.conf", []byte(contents))
 	if err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-	return nil
-}
-
-func writeManagerDropInFile() error {
-	dir := filepath.Dir(managerSystemdConfFile)
-	err := os.MkdirAll(dir, 0755)
-	if err != nil {
-		return fmt.Errorf("create directory: %w", err)
-	}
-	contents := fmt.Sprintf(
-		managerDropInFileContents,
-		runtimeconfig.PathToEmbeddedClusterBinary("manager"),
-	)
-	err = os.WriteFile(managerSystemdConfFile, []byte(contents), 0644)
-	if err != nil {
-		return fmt.Errorf("write file: %w", err)
+		return fmt.Errorf("write drop-in file: %w", err)
 	}
 	return nil
 }

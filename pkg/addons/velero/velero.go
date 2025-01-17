@@ -154,7 +154,7 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta
 	loading := spinner.Start()
 	loading.Infof("Waiting for Velero to be ready")
 
-	if err := kubeutils.WaitForNamespace(ctx, cli, o.namespace); err != nil {
+	if err := kubeutils.WaitForNamespace(ctx, cli, o.namespace, nil); err != nil {
 		loading.Close()
 		return err
 	}
@@ -175,12 +175,12 @@ func (o *Velero) Outro(ctx context.Context, cli client.Client, k0sCfg *k0sv1beta
 		return fmt.Errorf("unable to create %s secret: %w", credentialsSecretName, err)
 	}
 
-	if err := kubeutils.WaitForDeployment(ctx, cli, o.namespace, "velero"); err != nil {
+	if err := kubeutils.WaitForDeployment(ctx, cli, o.namespace, "velero", nil); err != nil {
 		loading.Close()
 		return fmt.Errorf("timed out waiting for Velero to deploy: %v", err)
 	}
 
-	if err := kubeutils.WaitForDaemonset(ctx, cli, o.namespace, "node-agent"); err != nil {
+	if err := kubeutils.WaitForDaemonset(ctx, cli, o.namespace, "node-agent", nil); err != nil {
 		loading.Close()
 		return fmt.Errorf("timed out waiting for node-agent to deploy: %v", err)
 	}

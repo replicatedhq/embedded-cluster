@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
@@ -52,6 +51,27 @@ var (
 	}
 )
 
+var (
+	_ Client = (*Helm)(nil)
+)
+
+type Client interface {
+	Close() error
+	AddRepo(repo *repo.Entry) error
+	Latest(reponame, chart string) (string, error)
+	PullOCI(url string, version string) (string, error)
+	Pull(repo string, chart string, version string) (string, error)
+	RegistryAuth(server, user, pass string) error
+	Push(path, dst string) error
+	GetChartMetadata(chartPath string) (*chart.Metadata, error)
+	Install(ctx context.Context, opts InstallOptions) (*release.Release, error)
+	Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error)
+	Uninstall(ctx context.Context, opts UninstallOptions) error
+	Render(releaseName string, chartPath string, values map[string]interface{}, namespace string) ([][]byte, error)
+}
+
+type RESTClientGetterFactory func(namespace string) genericclioptions.RESTClientGetter
+
 func NewHelm(opts HelmOptions) (*Helm, error) {
 	tmpdir, err := os.MkdirTemp(os.TempDir(), "helm-cache-*")
 	if err != nil {
@@ -74,15 +94,21 @@ func NewHelm(opts HelmOptions) (*Helm, error) {
 		return nil, fmt.Errorf("create registry client: %w", err)
 	}
 	return &Helm{
-		tmpdir:   tmpdir,
-		kversion: kversion,
-		regcli:   regcli,
+		tmpdir:        tmpdir,
+		kubeconfig:    opts.KubeConfig,
+		kversion:      kversion,
+		regcli:        regcli,
+		logFn:         opts.LogFn,
+		getterFactory: opts.RESTClientGetterFactory,
 	}, nil
 }
 
 type HelmOptions struct {
-	K0sVersion string
-	Writer     io.Writer
+	KubeConfig              string
+	K0sVersion              string
+	Writer                  io.Writer
+	LogFn                   action.DebugLog
+	RESTClientGetterFactory RESTClientGetterFactory
 }
 
 type InstallOptions struct {
@@ -105,16 +131,21 @@ type UpgradeOptions struct {
 }
 
 type UninstallOptions struct {
-	ReleaseName string
-	Namespace   string
+	ReleaseName    string
+	Namespace      string
+	Wait           bool
+	IgnoreNotFound bool
 }
 
 type Helm struct {
-	tmpdir   string
-	kversion *semver.Version
-	regcli   *registry.Client
-	repocfg  string
-	repos    []*repo.Entry
+	tmpdir        string
+	kversion      *semver.Version
+	kubeconfig    string
+	regcli        *registry.Client
+	repocfg       string
+	repos         []*repo.Entry
+	logFn         action.DebugLog
+	getterFactory RESTClientGetterFactory
 }
 
 func (h *Helm) prepare() error {
@@ -259,19 +290,6 @@ func (h *Helm) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
 	return chartRequested.Metadata, nil
 }
 
-func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
-	kubeConfig := runtimeconfig.PathToKubeConfig()
-	cfgFlags := &genericclioptions.ConfigFlags{
-		KubeConfig: &kubeConfig,
-		Namespace:  &namespace,
-	}
-	cfg := &action.Configuration{}
-	if err := cfg.Init(cfgFlags, namespace, "secret", logFn); err != nil {
-		return nil, fmt.Errorf("init helm configuration: %w", err)
-	}
-	return cfg, nil
-}
-
 func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
 	cfg, err := h.getActionCfg(opts.Namespace)
 	if err != nil {
@@ -371,6 +389,8 @@ func (h *Helm) Uninstall(ctx context.Context, opts UninstallOptions) error {
 	}
 
 	client := action.NewUninstall(cfg)
+	client.Wait = opts.Wait
+	client.IgnoreNotFound = opts.IgnoreNotFound
 
 	if deadline, ok := ctx.Deadline(); ok {
 		client.Timeout = time.Until(deadline)
@@ -437,6 +457,36 @@ func (h *Helm) Render(releaseName string, chartPath string, values map[string]in
 	return resources, nil
 }
 
+func (h *Helm) getActionCfg(namespace string) (*action.Configuration, error) {
+	getter := h.getRESTClientGetter(namespace)
+
+	cfg := &action.Configuration{}
+	var logFn action.DebugLog
+	if h.logFn != nil {
+		logFn = h.logFn
+	} else {
+		logFn = _logFn
+	}
+	if err := cfg.Init(getter, namespace, "secret", logFn); err != nil {
+		return nil, fmt.Errorf("init helm configuration: %w", err)
+	}
+	return cfg, nil
+}
+
+func (h *Helm) getRESTClientGetter(namespace string) genericclioptions.RESTClientGetter {
+	if h.getterFactory != nil {
+		return h.getterFactory(namespace)
+	}
+
+	cfgFlags := &genericclioptions.ConfigFlags{
+		Namespace: &namespace,
+	}
+	if h.kubeconfig != "" {
+		cfgFlags.KubeConfig = &h.kubeconfig
+	}
+	return cfgFlags
+}
+
 // cleanUpGenericMap is a helper to "cleanup" generic yaml parsing where nested maps
 // are unmarshalled with type map[interface{}]interface{}
 func cleanUpGenericMap(in map[string]interface{}) map[string]interface{} {
@@ -489,7 +539,7 @@ func cleanUpInterfaceMap(in map[string]interface{}) map[string]interface{} {
 	return result
 }
 
-func logFn(format string, args ...interface{}) {
+func _logFn(format string, args ...interface{}) {
 	log := logrus.WithField("component", "helm")
 	log.Debugf(format, args...)
 }

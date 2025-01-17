@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	v1beta3 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
+	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
@@ -77,7 +77,7 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 	}
 
 	// detect drift between the cluster config and the installer metadata
-	var installedCharts v1beta3.ChartList
+	var installedCharts k0shelmv1beta1.ChartList
 	if err := cli.List(ctx, &installedCharts); err != nil {
 		return nil, fmt.Errorf("failed to list installed charts: %w", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/certs"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"golang.org/x/crypto/bcrypt"
@@ -28,6 +29,7 @@ func (r *Registry) Install(ctx context.Context, kcli client.Client, writer *spin
 	}
 
 	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {

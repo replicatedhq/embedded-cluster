@@ -31,7 +31,11 @@ import (
 // if the installation is airgapped, the artifacts are copied to the nodes and the autopilot plan is
 // created to copy the images to the cluster. A configmap is then created containing the target installation
 // spec and the upgrade job is created. The upgrade job will update the cluster version, and then update the operator chart.
-func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string, previousInstallVersion string) error {
+func CreateUpgradeJob(
+	ctx context.Context, cli client.Client, in *clusterv1beta1.Installation,
+	localArtifactMirrorImage string, previousInstallVersion string,
+	migrateV2 bool, migrateV2Secret string, appSlug string, appVersionLabel string,
+) error {
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
 	err := cli.Get(ctx, client.ObjectKey{Namespace: "embedded-cluster", Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
@@ -195,6 +199,29 @@ func CreateUpgradeJob(ctx context.Context, cli client.Client, in *clusterv1beta1
 			},
 		},
 	}
+
+	if migrateV2 {
+		job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
+			"--migrate-v2",
+			"--license", "/ec/license/license",
+			"--app-slug", appSlug,
+			"--app-version-label", appVersionLabel,
+		)
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      "license",
+			MountPath: "/ec/license",
+			ReadOnly:  true,
+		})
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "license",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: migrateV2Secret,
+				},
+			},
+		})
+	}
+
 	if err = cli.Create(ctx, job); err != nil {
 		return fmt.Errorf("failed to create upgrade job: %w", err)
 	}
@@ -208,17 +235,12 @@ func operatorImageName(ctx context.Context, cli client.Client, in *clusterv1beta
 	if err != nil {
 		return "", fmt.Errorf("failed to get release metadata: %w", err)
 	}
-	operatorImage := ""
 	for _, image := range meta.Images {
 		if strings.Contains(image, "embedded-cluster-operator-image") {
-			operatorImage = image
-			break
+			return image, nil
 		}
 	}
-	if operatorImage == "" {
-		return "", fmt.Errorf("no embedded-cluster-operator image found in release metadata")
-	}
-	return operatorImage, nil
+	return "", fmt.Errorf("no embedded-cluster-operator image found in release metadata")
 }
 
 func airgapDistributeArtifacts(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation, localArtifactMirrorImage string) error {
