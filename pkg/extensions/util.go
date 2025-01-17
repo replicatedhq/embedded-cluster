@@ -82,6 +82,7 @@ func uninstall(ctx context.Context, hcli *helm.Helm, ext ecv1beta1.Chart) error 
 	err := hcli.Uninstall(ctx, helm.UninstallOptions{
 		ReleaseName: ext.Name,
 		Namespace:   ext.TargetNS,
+		Wait:        true,
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm uninstall")
