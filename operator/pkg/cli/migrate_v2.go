@@ -15,7 +15,6 @@ import (
 )
 
 // MigrateV2Cmd returns a cobra command for migrating the installation from v1 to v2.
-// NOTE: this command is unused in the product but can be used for testing.
 func MigrateV2Cmd() *cobra.Command {
 	var installationFile, licenseSecret, appSlug, appVersionLabel string
 
@@ -40,6 +39,7 @@ func MigrateV2Cmd() *cobra.Command {
 
 			return nil
 		},
+		// NOTE: the top level command is unused in the product but can be used for testing.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
