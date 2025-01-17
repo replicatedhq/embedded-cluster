@@ -18,9 +18,9 @@ type LogFunc func(string, ...any)
 func Run(
 	ctx context.Context, logf LogFunc, cli client.Client, helmCLI helm.Client,
 	in *ecv1beta1.Installation,
-	licenseSecret string, appSlug string, appVersionLabel string,
+	migrationSecret string, appSlug string, appVersionLabel string,
 ) error {
-	err := runManagerInstallJobsAndWait(ctx, logf, cli, in, licenseSecret, appSlug, appVersionLabel)
+	err := runManagerInstallJobsAndWait(ctx, logf, cli, in, migrationSecret, appSlug, appVersionLabel)
 	if err != nil {
 		return fmt.Errorf("run manager install jobs: %w", err)
 	}

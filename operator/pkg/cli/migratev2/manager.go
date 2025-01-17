@@ -29,7 +29,7 @@ const (
 func runManagerInstallJobsAndWait(
 	ctx context.Context, logf LogFunc, cli client.Client,
 	in *ecv1beta1.Installation,
-	licenseSecret string, appSlug string, appVersionLabel string,
+	migrationSecret string, appSlug string, appVersionLabel string,
 ) error {
 	logf("Ensuring installation config map")
 	if err := ensureInstallationConfigMap(ctx, cli, in); err != nil {
@@ -51,7 +51,7 @@ func runManagerInstallJobsAndWait(
 
 	for _, node := range nodeList.Items {
 		logf("Ensuring manager install job for node %s", node.Name)
-		_, err := ensureManagerInstallJobForNode(ctx, cli, node, in, operatorImage, licenseSecret, appSlug, appVersionLabel)
+		_, err := ensureManagerInstallJobForNode(ctx, cli, node, in, operatorImage, migrationSecret, appSlug, appVersionLabel)
 		if err != nil {
 			return fmt.Errorf("create job for node %s: %w", node.Name, err)
 		}
@@ -92,7 +92,7 @@ func getOperatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.
 func ensureManagerInstallJobForNode(
 	ctx context.Context, cli client.Client,
 	node corev1.Node, in *ecv1beta1.Installation, operatorImage string,
-	licenseSecret string, appSlug string, appVersionLabel string,
+	migrationSecret string, appSlug string, appVersionLabel string,
 ) (string, error) {
 	existing, err := getManagerInstallJobForNode(ctx, cli, node)
 	if err == nil {
@@ -111,7 +111,7 @@ func ensureManagerInstallJobForNode(
 		return "", fmt.Errorf("get job for node %s: %w", node.Name, err)
 	}
 
-	job := getManagerInstallJobSpecForNode(node, in, operatorImage, licenseSecret, appSlug, appVersionLabel)
+	job := getManagerInstallJobSpecForNode(node, in, operatorImage, migrationSecret, appSlug, appVersionLabel)
 	if err := cli.Create(ctx, job); err != nil {
 		return "", err
 	}

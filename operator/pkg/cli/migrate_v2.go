@@ -16,7 +16,7 @@ import (
 
 // MigrateV2Cmd returns a cobra command for migrating the installation from v1 to v2.
 func MigrateV2Cmd() *cobra.Command {
-	var installationFile, licenseSecret, appSlug, appVersionLabel string
+	var installationFile, migrationSecret, appSlug, appVersionLabel string
 
 	var installation *ecv1beta1.Installation
 
@@ -57,7 +57,7 @@ func MigrateV2Cmd() *cobra.Command {
 				return fmt.Errorf("failed to create helm client: %w", err)
 			}
 
-			err = migratev2.Run(ctx, log.Printf, cli, helmCLI, installation, licenseSecret, appSlug, appVersionLabel)
+			err = migratev2.Run(ctx, log.Printf, cli, helmCLI, installation, migrationSecret, appSlug, appVersionLabel)
 			if err != nil {
 				return fmt.Errorf("failed to run v2 migration: %w", err)
 			}
@@ -71,8 +71,8 @@ func MigrateV2Cmd() *cobra.Command {
 	if err != nil {
 		panic(err)
 	}
-	cmd.Flags().StringVar(&licenseSecret, "license-secret", "", "The secret name from which to read the license")
-	err = cmd.MarkFlagRequired("license-secret")
+	cmd.Flags().StringVar(&migrationSecret, "migrate-v2-secret", "", "The secret name from which to read the license")
+	err = cmd.MarkFlagRequired("migrate-v2-secret")
 	if err != nil {
 		panic(err)
 	}

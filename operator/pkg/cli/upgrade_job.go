@@ -23,7 +23,7 @@ func UpgradeJobCmd() *cobra.Command {
 	var installation *ecv1beta1.Installation
 
 	var migrateV2 bool
-	var licenseSecret, appSlug, appVersionLabel string
+	var migrateV2Secret, appSlug, appVersionLabel string
 
 	cmd := &cobra.Command{
 		Use:          "upgrade-job",
@@ -40,8 +40,8 @@ func UpgradeJobCmd() *cobra.Command {
 			runtimeconfig.Set(installation.Spec.RuntimeConfig)
 
 			if migrateV2 {
-				if licenseSecret == "" {
-					return fmt.Errorf("--migrate-v2 is set to true but --license-secret is not set")
+				if migrateV2Secret == "" {
+					return fmt.Errorf("--migrate-v2 is set to true but --migrate-v2-secret is not set")
 				}
 				if appSlug == "" {
 					return fmt.Errorf("--migrate-v2 is set to true but --app-slug is not set")
@@ -100,7 +100,7 @@ func UpgradeJobCmd() *cobra.Command {
 					return fmt.Errorf("failed to create helm client: %w", err)
 				}
 
-				err = migratev2.Run(ctx, logf, cli, helmCLI, installation, licenseSecret, appSlug, appVersionLabel)
+				err = migratev2.Run(ctx, logf, cli, helmCLI, installation, migrateV2Secret, appSlug, appVersionLabel)
 				if err != nil {
 					return fmt.Errorf("failed to run v2 migration: %w", err)
 				}
@@ -122,7 +122,7 @@ func UpgradeJobCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&migrateV2, "migrate-v2", false, "Set to true to run the v2 migration")
-	cmd.Flags().StringVar(&licenseSecret, "license-secret", "", "The secret name from which to read the license (required if --migrate-v2 is set to true)")
+	cmd.Flags().StringVar(&migrateV2Secret, "migrate-v2-secret", "", "The secret name from which to read the license (required if --migrate-v2 is set to true)")
 	cmd.Flags().StringVar(&appSlug, "app-slug", "", "The application slug (required if --migrate-v2 is set to true)")
 	cmd.Flags().StringVar(&appVersionLabel, "app-version-label", "", "The application version label (required if --migrate-v2 is set to true)")
 

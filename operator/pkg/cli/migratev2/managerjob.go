@@ -151,7 +151,7 @@ func InstallAndStartManager(ctx context.Context, licenseID string, licenseEndpoi
 
 func getManagerInstallJobSpecForNode(
 	node corev1.Node, in *ecv1beta1.Installation, operatorImage string,
-	licenseSecret string, appSlug string, appVersionLabel string,
+	migrationSecret string, appSlug string, appVersionLabel string,
 ) *batchv1.Job {
 	job := _managerInstallJob.DeepCopy()
 
@@ -189,7 +189,7 @@ func getManagerInstallJobSpecForNode(
 		Name: "license",
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: licenseSecret,
+				SecretName: migrationSecret,
 			},
 		},
 	})
