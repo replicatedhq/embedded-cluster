@@ -181,10 +181,78 @@ func Test_runManagerInstallJobsAndWait(t *testing.T) {
 	}
 }
 
+func Test_deleteManagerInstallJobs(t *testing.T) {
+	// Create test nodes
+	nodes := []corev1.Node{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node1",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node2",
+			},
+		},
+	}
+
+	// Create existing jobs
+	jobs := []batchv1.Job{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "install-v2-manager-node1",
+				Namespace: "embedded-cluster",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "install-v2-manager-node2",
+				Namespace: "embedded-cluster",
+			},
+		},
+	}
+
+	// Set up the test scheme
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, batchv1.AddToScheme(scheme))
+
+	// Create fake client with nodes and jobs
+	cli := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(append(
+			nodesToRuntimeObjects(nodes),
+			jobsToRuntimeObjects(jobs)...,
+		)...).
+		Build()
+
+	// Run the function
+	logf := func(format string, args ...any) {
+		// No-op logger for testing
+	}
+
+	err := deleteManagerInstallJobs(context.Background(), logf, cli)
+	require.NoError(t, err)
+
+	// Verify jobs were deleted
+	var remainingJobs batchv1.JobList
+	err = cli.List(context.Background(), &remainingJobs)
+	require.NoError(t, err)
+	assert.Empty(t, remainingJobs.Items, "expected all jobs to be deleted")
+}
+
 func nodesToRuntimeObjects(nodes []corev1.Node) []client.Object {
 	objects := make([]client.Object, len(nodes))
 	for i := range nodes {
 		objects[i] = &nodes[i]
+	}
+	return objects
+}
+
+func jobsToRuntimeObjects(jobs []batchv1.Job) []client.Object {
+	objects := make([]client.Object, len(jobs))
+	for i := range jobs {
+		objects[i] = &jobs[i]
 	}
 	return objects
 }
