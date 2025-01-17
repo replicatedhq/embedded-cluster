@@ -171,7 +171,7 @@ func waitForManagerInstallJobs(ctx context.Context, cli client.Client, nodes []c
 
 func waitForManagerInstallJob(ctx context.Context, cli client.Client, jobName string) error {
 	// 60 steps at 5 second intervals = ~ 5 minutes
-	backoff := wait.Backoff{Steps: 60, Cap: 5 * time.Second, Duration: 1 * time.Second, Factor: 2.0, Jitter: 0.1}
+	backoff := wait.Backoff{Steps: 60, Duration: 2 * time.Second, Factor: 1.0, Jitter: 0.1}
 	return kubeutils.WaitForJob(ctx, cli, jobNamespace, jobName, 1, &kubeutils.WaitOptions{Backoff: &backoff})
 }
 
