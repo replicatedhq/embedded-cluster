@@ -37,12 +37,12 @@ func TestUpgradeManagerCommand(t *testing.T) {
 	t.Setenv("KOTS_PORT", fmt.Sprintf("%d", ts.Server.Listener.Addr().(*net.TCPAddr).Port))
 
 	// Create mock systemd
-	mockSystemd := &MockSystemd{}
-	systemd.Set(mockSystemd)
+	mockDBus := &systemd.MockDBus{}
+	systemd.Set(mockDBus)
 	defer systemd.Set(&systemd.Systemd{})
 
 	// Setup expectations
-	mockSystemd.On("Restart", mock.Anything, "test-app-manager.service").Return(nil)
+	mockDBus.On("Restart", mock.Anything, "test-app-manager.service").Return(nil)
 
 	// Create fake k8s client
 	scheme := runtime.NewScheme()
@@ -114,7 +114,7 @@ func TestUpgradeManagerCommand(t *testing.T) {
 	assert.Equal(t, "-rw-r--r--", binInfo.Mode().String())
 
 	// Verify systemd calls
-	mockSystemd.AssertExpectations(t)
+	mockDBus.AssertExpectations(t)
 }
 
 func mustMarshal(t *testing.T, v interface{}) []byte {
@@ -261,49 +261,4 @@ func createTestTarGz(tarGzPath, srcPath, tarPath string) error {
 	}
 
 	return nil
-}
-
-// MockSystemd is a mock implementation of systemd.Interface
-type MockSystemd struct {
-	mock.Mock
-}
-
-func (m *MockSystemd) EnableAndStart(ctx context.Context, unit string) error {
-	args := m.Called(ctx, unit)
-	return args.Error(0)
-}
-
-func (m *MockSystemd) Stop(ctx context.Context, unit string) error {
-	args := m.Called(ctx, unit)
-	return args.Error(0)
-}
-
-func (m *MockSystemd) Disable(ctx context.Context, unit string) error {
-	args := m.Called(ctx, unit)
-	return args.Error(0)
-}
-
-func (m *MockSystemd) Restart(ctx context.Context, unit string) error {
-	args := m.Called(ctx, unit)
-	return args.Error(0)
-}
-
-func (m *MockSystemd) IsActive(ctx context.Context, unit string) (bool, error) {
-	args := m.Called(ctx, unit)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockSystemd) IsEnabled(ctx context.Context, unit string) (bool, error) {
-	args := m.Called(ctx, unit)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockSystemd) UnitExists(ctx context.Context, unit string) (bool, error) {
-	args := m.Called(ctx, unit)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockSystemd) Reload(ctx context.Context) error {
-	args := m.Called(ctx)
-	return args.Error(0)
 }
