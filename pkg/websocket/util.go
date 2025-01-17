@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -19,4 +20,11 @@ func getKOTSClusterIP(ctx context.Context, kcli client.Client) (string, error) {
 		return "", errors.New("cluster ip is empty")
 	}
 	return svc.Spec.ClusterIP, nil
+}
+
+func getKOTSPort() string {
+	if p := os.Getenv("KOTS_PORT"); p != "" {
+		return p
+	}
+	return "3000"
 }

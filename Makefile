@@ -145,7 +145,7 @@ endif
 .PHONY: pkg/goods/bins/manager
 pkg/goods/bins/manager:
 	mkdir -p pkg/goods/bins
-	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o output/bins/manager ./cmd/manager
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -ldflags="-s -w $(LD_FLAGS) -extldflags=-static" -o output/bins/manager ./cmd/manager
 	cp output/bins/manager $@
 	touch $@
 
