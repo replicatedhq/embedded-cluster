@@ -143,7 +143,6 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
 			ready, err := k.IsJobComplete(ctx, cli, ns, name, completions)
-			fmt.Println("job:", name, "ready:", ready, "err:", err)
 			if err != nil {
 				lasterr = fmt.Errorf("unable to get job status: %w", err)
 				return false, nil

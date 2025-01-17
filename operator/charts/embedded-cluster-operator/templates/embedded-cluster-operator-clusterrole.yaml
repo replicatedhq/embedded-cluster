@@ -134,3 +134,10 @@ rules:
   - get
   - list
   - watch
+# helm uninstall operator
+- apiGroups:
+  - "*"
+  resources:
+  - "*"
+  verbs:
+  - delete
