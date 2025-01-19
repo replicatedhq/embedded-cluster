@@ -40,7 +40,6 @@ rules:
   resources:
   - persistentvolumes
   - persistentvolumeclaims
-  - pods
   verbs:
   - delete
   - get
@@ -50,6 +49,7 @@ rules:
   - ""
   resources:
   - configmaps
+  - pods
   verbs:
   - create
   - get
