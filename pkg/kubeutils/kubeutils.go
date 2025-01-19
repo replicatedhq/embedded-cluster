@@ -159,6 +159,29 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 	return nil
 }
 
+// WaitForPod waits for a pod to be completed.
+func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error {
+	backoff := opts.GetBackoff()
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := k.IsPodComplete(ctx, cli, ns, name)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get pod status: %w", err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for pod %s: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for pod %s", name)
+		}
+	}
+	return nil
+}
+
 func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
 	backoff := wait.Backoff{Steps: 60 * 5, Duration: time.Second, Factor: 1.0, Jitter: 0.1}
 	var lasterr error
@@ -641,6 +664,17 @@ func (k *KubeUtils) IsJobComplete(ctx context.Context, cli client.Client, ns, na
 		return true, nil
 	}
 	return false, nil
+}
+
+// IsPodComplete returns true if the pod has completed.
+func (k *KubeUtils) IsPodComplete(ctx context.Context, cli client.Client, ns, name string) (bool, error) {
+	pod := corev1.Pod{}
+	nsn := types.NamespacedName{Namespace: ns, Name: name}
+	err := cli.Get(ctx, nsn, &pod)
+	if err != nil {
+		return false, err
+	}
+	return pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed, nil
 }
 
 // WaitForKubernetes waits for all deployments to be ready in kube-system, and returns an error channel.

@@ -32,6 +32,10 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 	return nil
 }
 
+func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *kubeutils.WaitOptions) error {
+	return nil
+}
+
 func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
 	return nil
 }

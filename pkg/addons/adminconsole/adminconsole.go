@@ -129,10 +129,16 @@ func (a *AdminConsole) GenerateHelmConfig(k0sCfg *k0sv1beta1.ClusterConfig, only
 		}
 		helmValues["isHA"] = a.isHA
 		// TODO(improveddr): remove this for testing
-		extraEnv := []map[string]interface{}{{
-			"name":  "ENABLE_IMPROVED_DR",
-			"value": "true",
-		}}
+		extraEnv := []map[string]interface{}{
+			{
+				"name":  "ENABLE_IMPROVED_DR",
+				"value": "true",
+			},
+			{
+				"name":  "ENABLE_V2_MIGRATION",
+				"value": "true",
+			},
+		}
 		if len(a.proxyEnv) > 0 {
 			for _, k := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
 				extraEnv = append(extraEnv, map[string]interface{}{
