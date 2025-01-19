@@ -165,7 +165,7 @@ func getManagerInstallPodSpecForNode(
 		})
 	}
 
-	pod.Spec.Containers[0].Image = "ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan" // TODO: operatorImage
+	pod.Spec.Containers[0].Image = operatorImage
 	pod.Spec.Containers[0].Command = append(pod.Spec.Containers[0].Command,
 		"--app-slug", appSlug,
 		"--app-version-label", appVersionLabel,

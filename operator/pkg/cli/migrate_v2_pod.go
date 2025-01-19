@@ -111,6 +111,13 @@ func runMigrateV2PodAndWait(
 	}
 	logf("Successfully waited for v2 migration pod to finish")
 
+	logf("Deleting installation config map")
+	err = deleteInstallationConfigMap(ctx, cli, in)
+	if err != nil {
+		return fmt.Errorf("delete installation config map: %w", err)
+	}
+	logf("Successfully deleted installation config map")
+
 	return nil
 }
 
@@ -213,7 +220,7 @@ func getMigrateV2PodSpec(
 ) *corev1.Pod {
 	pod := _migrateV2PodSpec.DeepCopy()
 
-	pod.Spec.Containers[0].Image = "ttl.sh/ethan/embedded-cluster-operator-image:1.20.0-k8s-1.30-rc1-ethan" // TODO: operatorImage
+	pod.Spec.Containers[0].Image = operatorImage
 	pod.Spec.Containers[0].Command = append(pod.Spec.Containers[0].Command,
 		"--migrate-v2-secret", migrationSecret,
 		"--app-slug", appSlug,
@@ -246,6 +253,20 @@ func ensureInstallationConfigMap(ctx context.Context, cli client.Client, in *ecv
 		return fmt.Errorf("create installation config map: %w", err)
 	}
 	return nil
+}
+
+func deleteInstallationConfigMap(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: migrateV2PodNamespace,
+			Name:      getInstallationConfigMapName(in),
+		},
+	}
+	err := cli.Delete(ctx, &cm)
+	if k8serrors.IsNotFound(err) {
+		return nil
+	}
+	return err
 }
 
 func createInstallationConfigMap(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
