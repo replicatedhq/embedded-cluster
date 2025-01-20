@@ -203,23 +203,10 @@ func CreateUpgradeJob(
 	if migrateV2 {
 		job.Spec.Template.Spec.Containers[0].Command = append(job.Spec.Template.Spec.Containers[0].Command,
 			"--migrate-v2",
-			"--license", "/ec/license/license",
+			"--migrate-v2-secret", migrateV2Secret,
 			"--app-slug", appSlug,
 			"--app-version-label", appVersionLabel,
 		)
-		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-			Name:      "license",
-			MountPath: "/ec/license",
-			ReadOnly:  true,
-		})
-		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "license",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: migrateV2Secret,
-				},
-			},
-		})
 	}
 
 	if err = cli.Create(ctx, job); err != nil {

@@ -39,7 +39,6 @@ func MigrateV2Cmd() *cobra.Command {
 
 			return nil
 		},
-		// NOTE: the top level command is unused in the product but can be used for testing.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 

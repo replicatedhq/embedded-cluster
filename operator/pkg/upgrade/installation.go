@@ -17,7 +17,7 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *cluste
 
 	// check if the installation already exists - this function can be called multiple times
 	// if the installation is already created, we can just return
-	if in, err := kubeutils.GetInstallation(ctx, cli, in.Name); err == nil {
+	if in, err := kubeutils.GetCRDInstallation(ctx, cli, in.Name); err == nil {
 		log.Info(fmt.Sprintf("Installation %s already exists", in.Name))
 		return nil
 	}
@@ -63,7 +63,7 @@ func setInstallationState(ctx context.Context, cli client.Client, name string, s
 // reApplyInstallation updates the installation spec to match what's in the configmap used by the upgrade job.
 // This is required because the installation CRD may have been updated as part of this upgrade, and additional fields may be present now.
 func reApplyInstallation(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) error {
-	existingInstallation, err := kubeutils.GetInstallation(ctx, cli, in.Name)
+	existingInstallation, err := kubeutils.GetCRDInstallation(ctx, cli, in.Name)
 	if err != nil {
 		return fmt.Errorf("get installation: %w", err)
 	}

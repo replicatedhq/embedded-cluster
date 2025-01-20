@@ -48,6 +48,10 @@ const (
 	InstallationSourceTypeConfigMap string = "ConfigMap"
 )
 
+const (
+	DisableReconcileConditionType = "DisableReconcile"
+)
+
 // ConfigSecretEntryName holds the entry name we are looking for in the secret
 // that holds the embedded cluster configuration.
 const ConfigSecretEntryName = "config.yaml"
