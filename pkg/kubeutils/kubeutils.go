@@ -160,7 +160,7 @@ func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name 
 }
 
 // WaitForPod waits for a pod to be completed.
-func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error {
+func (k *KubeUtils) WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
 	backoff := opts.GetBackoff()
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
@@ -395,6 +395,25 @@ func GetInstallation(ctx context.Context, cli client.Client, name string) (*ecv1
 	return nil, ErrInstallationNotFound{}
 }
 
+func GetCRDInstallation(ctx context.Context, cli client.Client, name string) (*ecv1beta1.Installation, error) {
+	installations, err := ListCRDInstallations(ctx, cli)
+	if err != nil {
+		return nil, err
+	}
+	if len(installations) == 0 {
+		return nil, ErrNoInstallations{}
+	}
+
+	for _, installation := range installations {
+		if installation.Name == name {
+			return &installation, nil
+		}
+	}
+
+	// if we get here, we didn't find the installation
+	return nil, ErrInstallationNotFound{}
+}
+
 func GetLatestInstallation(ctx context.Context, cli client.Client) (*ecv1beta1.Installation, error) {
 	installations, err := ListInstallations(ctx, cli)
 	if err != nil {
@@ -411,6 +430,27 @@ func GetLatestInstallation(ctx context.Context, cli client.Client) (*ecv1beta1.I
 // GetPreviousInstallation returns the latest installation object in the cluster OTHER than the one passed as an argument.
 func GetPreviousInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (*ecv1beta1.Installation, error) {
 	installations, err := ListInstallations(ctx, cli)
+	if err != nil {
+		return nil, err
+	}
+	if len(installations) == 0 {
+		return nil, ErrNoInstallations{}
+	}
+
+	// find the first installation with a different name than the one we're upgrading to
+	for _, installation := range installations {
+		if installation.Name != in.Name {
+			return &installation, nil
+		}
+	}
+
+	// if we get here, we didn't find a previous installation
+	return nil, ErrInstallationNotFound{}
+}
+
+// GetPreviousCRDInstallation returns the latest installation object in the cluster OTHER than the one passed as an argument.
+func GetPreviousCRDInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (*ecv1beta1.Installation, error) {
+	installations, err := ListCRDInstallations(ctx, cli)
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +714,12 @@ func (k *KubeUtils) IsPodComplete(ctx context.Context, cli client.Client, ns, na
 	if err != nil {
 		return false, err
 	}
-	return pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed, nil
+	if pod.Status.Phase == corev1.PodSucceeded {
+		return true, nil
+	} else if pod.Status.Phase == corev1.PodFailed {
+		return true, fmt.Errorf("pod failed: %s", pod.Status.Reason)
+	}
+	return false, nil
 }
 
 // WaitForKubernetes waits for all deployments to be ready in kube-system, and returns an error channel.

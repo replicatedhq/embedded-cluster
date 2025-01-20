@@ -10,7 +10,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -111,12 +110,15 @@ func runMigrateV2PodAndWait(
 	}
 	logf("Successfully waited for v2 migration pod to finish")
 
-	logf("Deleting installation config map")
-	err = deleteInstallationConfigMap(ctx, cli, in)
-	if err != nil {
-		return fmt.Errorf("delete installation config map: %w", err)
-	}
-	logf("Successfully deleted installation config map")
+	// NOTE: the installation config map cannot be deleted because the service account gets deleted
+	// during the v2 migration so this pod no longer has permissions.
+	//
+	// logf("Deleting installation config map")
+	// err = deleteInstallationConfigMap(ctx, cli, in)
+	// if err != nil {
+	// 	return fmt.Errorf("delete installation config map: %w", err)
+	// }
+	// logf("Successfully deleted installation config map")
 
 	return nil
 }
@@ -192,9 +194,25 @@ func deleteMigrateV2Pod(ctx context.Context, logf LogFunc, cli client.Client) er
 }
 
 func waitForMigrateV2Pod(ctx context.Context, cli client.Client) error {
-	// 60 steps at 5 second intervals = ~ 5 minutes
-	backoff := wait.Backoff{Steps: 60, Duration: 2 * time.Second, Factor: 1.0, Jitter: 0.1}
-	return kubeutils.WaitForPodComplete(ctx, cli, migrateV2PodNamespace, migrateV2PodName, 1, &kubeutils.WaitOptions{Backoff: &backoff})
+	return wait.PollUntilContextCancel(ctx, 2*time.Second, true, func(ctx context.Context) (bool, error) {
+		pod := corev1.Pod{}
+		nsn := apitypes.NamespacedName{Namespace: migrateV2PodNamespace, Name: migrateV2PodName}
+		err := cli.Get(ctx, nsn, &pod)
+		switch {
+		// If we get unauthorized, it means the service account has been deleted by the migration
+		// pod and it is likely almost done.
+		case k8serrors.IsUnauthorized(err):
+			return true, nil
+		case err != nil:
+			return false, fmt.Errorf("get pod: %w", err)
+		case pod.Status.Phase == corev1.PodSucceeded:
+			return true, nil
+		case pod.Status.Phase == corev1.PodFailed:
+			return true, fmt.Errorf("pod failed: %s", pod.Status.Reason)
+		default:
+			return false, nil
+		}
+	})
 }
 
 func getMigrateV2Pod(ctx context.Context, cli client.Client) (corev1.Pod, error) {

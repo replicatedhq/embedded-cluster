@@ -171,7 +171,7 @@ func waitForManagerInstallPods(ctx context.Context, cli client.Client, nodes []c
 func waitForManagerInstallPod(ctx context.Context, cli client.Client, podName string) error {
 	// 60 steps at 5 second intervals = ~ 5 minutes
 	backoff := wait.Backoff{Steps: 60, Duration: 2 * time.Second, Factor: 1.0, Jitter: 0.1}
-	return kubeutils.WaitForPodComplete(ctx, cli, podNamespace, podName, 1, &kubeutils.WaitOptions{Backoff: &backoff})
+	return kubeutils.WaitForPodComplete(ctx, cli, podNamespace, podName, &kubeutils.WaitOptions{Backoff: &backoff})
 }
 
 func getManagerInstallPodForNode(ctx context.Context, cli client.Client, node corev1.Node) (corev1.Pod, error) {

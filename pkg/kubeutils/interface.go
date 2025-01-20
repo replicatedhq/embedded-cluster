@@ -25,7 +25,7 @@ type KubeUtilsInterface interface {
 	WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForService(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForJob(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error
-	WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error
+	WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error
 	WaitForHAInstallation(ctx context.Context, cli client.Client) error
 	WaitForNodes(ctx context.Context, cli client.Client) error
@@ -75,8 +75,8 @@ func WaitForJob(ctx context.Context, cli client.Client, ns, name string, complet
 	return kb.WaitForJob(ctx, cli, ns, name, completions, opts)
 }
 
-func WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error {
-	return kb.WaitForPodComplete(ctx, cli, ns, name, completions, opts)
+func WaitForPodComplete(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	return kb.WaitForPodComplete(ctx, cli, ns, name, opts)
 }
 
 func WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error {
