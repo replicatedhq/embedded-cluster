@@ -89,7 +89,7 @@ main() {
     fi
 
     if ! embedded-cluster install2 --no-prompt --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
-        echo "Failed to install2 embedded-cluster"
+        echo "Failed to install2 embedded-cluster with command 'embedded-cluster install2 --no-prompt --license /assets/license.yaml $additional_args'"
         kubectl get pods -A
         kubectl get storageclass -A
         exit 1

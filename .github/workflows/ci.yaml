@@ -1027,6 +1027,48 @@ jobs:
       fail-fast: false
       matrix:
         test:
+          - TestVersion
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download current binary
+        uses: actions/download-artifact@v4
+        with:
+          name: current-release
+          path: output/bin
+
+      - uses: ./.github/actions/e2e
+        with:
+          test-name: '${{ matrix.test }}'
+          is-large-runner: ${{ matrix.runner == 'embedded-cluster' }}
+          airgap-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_LICENSE_ID }}
+          snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE_ID }}
+          snapshot-license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_SNAPSHOT_LICENSE }}
+          airgap-snapshot-license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_AIRGAP_SNAPSHOT_LICENSE_ID }}
+          license-id: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE_ID }}
+          license: ${{ secrets.STAGING_EMBEDDED_CLUSTER_LICENSE }}
+          dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          k0s-version: ${{ needs.build-current.outputs.k0s_version }}
+          k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
+
+  e2e-install2-failing:
+    name: E2E Install2 Failing
+    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    needs:
+      - build-current
+      - build-legacydr
+      - build-previous-k0s
+      - build-upgrade
+      - find-previous-stable
+      - release-app
+      - export-version-specifier
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
           - TestSingleNodeAirgapInstall2
     steps:
       - name: Checkout
@@ -1073,6 +1115,7 @@ jobs:
       - e2e-docker-install2
       - e2e-docker-install2-failing
       - e2e-install2
+      - e2e-install2-failing
     if: always()
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -1105,6 +1148,9 @@ jobs:
         run: exit 1
       - name: fail if e2e-install2 job was not successful
         if: needs.e2e-install2.result != 'success'
+        run: exit 1
+      - name: fail if e2e-install2-failing job WAS successful
+        if: needs.e2e-install2-failing.result == 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"
