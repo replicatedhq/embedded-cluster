@@ -232,7 +232,8 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return fmt.Errorf("unable to check if disaster recovery is enabled: %w", err)
 	}
 
-	if err := recordInstallation(cmd.Context(), flags, k0sCfg, disasterRecoveryEnabled); err != nil {
+	installObject, err := recordInstallation(cmd.Context(), flags, k0sCfg, disasterRecoveryEnabled)
+	if err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}
@@ -263,6 +264,13 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 
 	logrus.Debugf("installing manager")
 	if err := installAndEnableManager(cmd.Context()); err != nil {
+		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
+		return err
+	}
+
+	// mark that the installation is installed as everything has been applied
+	installObject.Status.State = ecv1beta1.InstallationStateInstalled
+	if err := updateInstallation(cmd.Context(), installObject); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}
@@ -414,19 +422,19 @@ func installAndStartCluster(ctx context.Context, networkInterface string, airgap
 	return cfg, nil
 }
 
-func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) error {
+func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0sv1beta1.ClusterConfig, disasterRecoveryEnabled bool) (*ecv1beta1.Installation, error) {
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		return fmt.Errorf("create kube client: %w", err)
+		return nil, fmt.Errorf("create kube client: %w", err)
 	}
 
 	if err := createECNamespace(ctx, kcli); err != nil {
-		return fmt.Errorf("create embedded-cluster namespace: %w", err)
+		return nil, fmt.Errorf("create embedded-cluster namespace: %w", err)
 	}
 
 	cfg, err := release.GetEmbeddedClusterConfig()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var cfgspec *ecv1beta1.ConfigSpec
 	if cfg != nil {
@@ -437,7 +445,7 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 	if flags.overrides != "" {
 		eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
 		if err != nil {
-			return fmt.Errorf("process overrides file: %w", err)
+			return nil, fmt.Errorf("process overrides file: %w", err)
 		}
 		if eucfg != nil {
 			euOverrides = eucfg.Spec.UnsupportedOverrides.K0s
@@ -472,9 +480,21 @@ func recordInstallation(ctx context.Context, flags Install2CmdFlags, k0sCfg *k0s
 		},
 	}
 	if err := kubeutils.CreateInstallation(ctx, kcli, &installation); err != nil {
-		return fmt.Errorf("create installation: %w", err)
+		return nil, fmt.Errorf("create installation: %w", err)
 	}
 
+	return &installation, nil
+}
+
+func updateInstallation(ctx context.Context, install *ecv1beta1.Installation) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("create kube client: %w", err)
+	}
+
+	if err := kubeutils.UpdateInstallation(ctx, kcli, install); err != nil {
+		return fmt.Errorf("Failed to update installation")
+	}
 	return nil
 }
 
