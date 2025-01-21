@@ -19,6 +19,12 @@ func singleNodeInstallTest(t *testing.T, tc cluster.Cluster, isAirgap string) {
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// TODO: check installation state
 }
 
 func singleNodeInstallUpgradeTest(t *testing.T, tc cluster.Cluster, isAirgap string) {
