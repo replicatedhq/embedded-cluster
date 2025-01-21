@@ -6,22 +6,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 	"github.com/stretchr/testify/require"
 )
 
 // TODO: Remove this in favor of singleNodeInstallUpgradeTest
-func singleNodeInstallTest(t *testing.T, tc *docker.Cluster) {
+func singleNodeInstallTest(t *testing.T, tc cluster.Cluster, isAirgap string) {
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA"), "--admin-console-port", "30002"}
+	line := []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA"), isAirgap, "--admin-console-port", "30002"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 }
 
-func singleNodeInstallUpgradeTest(t *testing.T, tc *docker.Cluster) {
+func singleNodeInstallUpgradeTest(t *testing.T, tc cluster.Cluster, isAirgap string) {
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA"), "--admin-console-port", "30002"}
+	line := []string{"single-node-install2.sh", "ui", os.Getenv("SHORT_SHA"), isAirgap, "--admin-console-port", "30002"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
@@ -66,7 +68,7 @@ func TestSingleNodeInstall2UbuntuJammy(t *testing.T) {
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
-	singleNodeInstallTest(t, tc)
+	singleNodeInstallTest(t, tc, "false")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -90,7 +92,7 @@ func TestSingleNodeInstall2AlmaLinux8(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	singleNodeInstallTest(t, tc)
+	singleNodeInstallTest(t, tc, "false")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -107,7 +109,7 @@ func TestSingleNodeInstall2Debian11(t *testing.T) {
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
-	singleNodeInstallTest(t, tc)
+	singleNodeInstallTest(t, tc, "false")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -124,7 +126,7 @@ func TestSingleNodeInstall2Debian12(t *testing.T) {
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
-	singleNodeInstallTest(t, tc)
+	singleNodeInstallTest(t, tc, "false")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -141,7 +143,7 @@ func TestSingleNodeInstall2UpgradeUbuntuJammy(t *testing.T) {
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
-	singleNodeInstallUpgradeTest(t, tc)
+	singleNodeInstallUpgradeTest(t, tc, "false")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -165,7 +167,7 @@ func TestSingleNodeInstall2UpgradeAlmaLinux8(t *testing.T) {
 		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	singleNodeInstallUpgradeTest(t, tc)
+	singleNodeInstallUpgradeTest(t, tc, "false")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -182,7 +184,7 @@ func TestSingleNodeInstall2UpgradeDebian11(t *testing.T) {
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
-	singleNodeInstallUpgradeTest(t, tc)
+	singleNodeInstallUpgradeTest(t, tc, "false")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -199,6 +201,42 @@ func TestSingleNodeInstall2UpgradeDebian12(t *testing.T) {
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})
 	defer tc.Cleanup()
-	singleNodeInstallUpgradeTest(t, tc)
+	singleNodeInstallUpgradeTest(t, tc, "false")
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestSingleNodeAirgapInstall2(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	t.Logf("%s: downloading airgap file", time.Now().Format(time.RFC3339))
+	airgapBundlePath := "/tmp/airgap-bundle.tar.gz"
+	err := downloadAirgapBundle(t, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), airgapBundlePath, os.Getenv("AIRGAP_LICENSE_ID"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("%s: creating airgap node", time.Now().Format(time.RFC3339))
+
+	tc := lxd.NewCluster(&lxd.ClusterInput{
+		T:                       t,
+		Nodes:                   1,
+		Image:                   "debian/12",
+		WithProxy:               true,
+		AirgapInstallBundlePath: airgapBundlePath,
+	})
+	defer tc.Cleanup()
+
+	// install "curl" dependency on node 0 for app version checks.
+	tc.InstallTestDependenciesDebian(t, 0, true)
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
+	}
+
+	singleNodeInstallTest(t, tc, "true")
 }

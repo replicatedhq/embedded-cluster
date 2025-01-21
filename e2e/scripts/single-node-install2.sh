@@ -69,10 +69,17 @@ check_openebs_storage_class() {
 main() {
     local app_deploy_method="$1"
     local version="$2"
+    local is_airgap="$3"
 
     local additional_args=
-    if [ -n "${3:-}" ]; then
-        additional_args="${*:3}"
+
+    # if is_airgap is "true" then include additional flags
+    if [ "$is_airgap" == "true" ]; then
+        additional_args="--airgap-bundle /assets/release.airgap"
+    fi
+
+    if [ -n "${4:-}" ]; then
+        additional_args="$additional_args ${*:4}"
         echo "Running install2 with additional args: $additional_args"
     fi
 
