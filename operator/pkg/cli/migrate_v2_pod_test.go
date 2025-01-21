@@ -113,7 +113,7 @@ func Test_runMigrateV2PodAndWait(t *testing.T) {
 	for _, volume := range pod.Spec.Volumes {
 		if volume.Name == "installation" {
 			foundInstallationVolume = true
-			assert.Equal(t, "test-install", volume.ConfigMap.Name)
+			assert.Equal(t, "test-install-installation", volume.ConfigMap.Name)
 		}
 	}
 	assert.True(t, foundInstallationVolume, "expected installation volume to be mounted")
@@ -208,7 +208,7 @@ func Test_ensureMigrateV2Pod(t *testing.T) {
 				for _, volume := range pod.Spec.Volumes {
 					if volume.Name == "installation" {
 						foundInstallationVolume = true
-						assert.Equal(t, "test-install", volume.ConfigMap.Name)
+						assert.Equal(t, "test-install-installation", volume.ConfigMap.Name)
 					}
 				}
 				assert.True(t, foundInstallationVolume, "expected installation volume to be mounted")
