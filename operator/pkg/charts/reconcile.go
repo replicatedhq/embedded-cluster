@@ -9,8 +9,10 @@ import (
 	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -120,7 +122,11 @@ func ReconcileHelmCharts(ctx context.Context, cli client.Client, in *v1beta1.Ins
 		if in.Status.State != v1beta1.InstallationStateInstalled {
 			ev = &RecordedEvent{Reason: "AddonsUpgraded", Message: "Addons upgraded"}
 		}
-		in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded", nil)
+		if k8sutil.CheckConditionStatus(in.Status, v1beta1.ConditionTypeV2MigrationInProgress) == metav1.ConditionTrue {
+			in.Status.SetState(v1beta1.InstallationStateAddonsInstalled, "Addons upgraded", nil)
+		} else {
+			in.Status.SetState(v1beta1.InstallationStateInstalled, "Addons upgraded", nil)
+		}
 		return ev, nil
 	}
 

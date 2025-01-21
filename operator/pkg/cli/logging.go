@@ -13,3 +13,6 @@ func NewLogger(level logrus.Level) (logr.Logger, error) {
 	log := logrusr.New(logrusLog)
 	return log, nil
 }
+
+// LogFunc can be used as an argument to functions that log messages.
+type LogFunc func(string, ...any)

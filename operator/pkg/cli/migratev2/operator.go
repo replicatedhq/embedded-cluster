@@ -10,40 +10,27 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// disableOperator sets the DisablingReconcile condition to true on the installation object which
+// will prevent the operator from reconciling the installation.
 func disableOperator(ctx context.Context, logf LogFunc, cli client.Client, in *ecv1beta1.Installation) error {
 	logf("Disabling operator")
 
-	for timer := time.NewTimer(0); ; timer = time.NewTimer(2 * time.Second) {
-		<-timer.C
-
-		var copy ecv1beta1.Installation
-		err := cli.Get(ctx, client.ObjectKey{Name: in.Name}, &copy)
-		if err != nil {
-			return fmt.Errorf("get installation: %w", err)
-		}
-
-		copy.Status.SetCondition(metav1.Condition{
-			Type:   ecv1beta1.DisableReconcileConditionType,
-			Status: metav1.ConditionTrue,
-			Reason: "V2MigrationInProgress",
-		})
-
-		err = cli.Status().Update(ctx, &copy)
-		if k8serrors.IsConflict(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("update installation status: %w", err)
-		}
-
-		logf("Successfully disabled operator")
-		return nil
+	err := setInstallationCondition(ctx, cli, in, metav1.Condition{
+		Type:   ecv1beta1.ConditionTypeDisableReconcile,
+		Status: metav1.ConditionTrue,
+		Reason: "V2MigrationInProgress",
+	})
+	if err != nil {
+		return fmt.Errorf("set disable reconcile condition: %w", err)
 	}
+
+	logf("Successfully disabled operator")
+	return nil
 }
 
 // cleanupV1 removes control of the Helm Charts from the k0s controller and uninstalls the Embedded
