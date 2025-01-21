@@ -62,7 +62,7 @@ func Test_disableOperator(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check that the DisableReconcile condition was set correctly
-			condition := meta.FindStatusCondition(updatedInstallation.Status.Conditions, ecv1beta1.DisableReconcileConditionType)
+			condition := meta.FindStatusCondition(updatedInstallation.Status.Conditions, ecv1beta1.ConditionTypeDisableReconcile)
 			require.NotNil(t, condition)
 			assert.Equal(t, metav1.ConditionTrue, condition.Status)
 			assert.Equal(t, "V2MigrationInProgress", condition.Reason)

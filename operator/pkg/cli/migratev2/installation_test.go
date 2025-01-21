@@ -3,240 +3,195 @@ package migratev2
 import (
 	"context"
 	"testing"
+	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func Test_copyInstallationsToConfigMaps(t *testing.T) {
+func Test_waitForInstallationStateInstalled(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+
 	tests := []struct {
-		name            string
-		installs        []ecv1beta1.Installation
-		existingConfigs []corev1.ConfigMap
-		expectError     bool
-		validate        func(*testing.T, client.Client)
+		name         string
+		installation *ecv1beta1.Installation
+		updateFunc   func(*ecv1beta1.Installation) // Function to update installation state during test
+		expectError  bool
+		errorString  string
 	}{
 		{
-			name: "copies single installation to configmap when none exists",
-			installs: []ecv1beta1.Installation{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-install",
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "1.0.0",
-						},
-					},
+			name: "installation already in installed state",
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
+				},
+				Status: ecv1beta1.InstallationStatus{
+					State: ecv1beta1.InstallationStateInstalled,
 				},
 			},
 			expectError: false,
-			validate: func(t *testing.T, cli client.Client) {
-				var cm corev1.ConfigMap
-				err := cli.Get(context.Background(), types.NamespacedName{
-					Namespace: "embedded-cluster",
-					Name:      "test-install",
-				}, &cm)
-				require.NoError(t, err)
-
-				// Verify configmap has correct labels
-				assert.Equal(t, "embedded-cluster", cm.Labels["replicated.com/installation"])
-				assert.Equal(t, "ec-install", cm.Labels["replicated.com/disaster-recovery"])
-
-				// Verify installation data is present
-				assert.Contains(t, cm.Data["installation"], `"version":"1.0.0"`)
-			},
 		},
 		{
-			name: "updates existing configmap with new installation data",
-			installs: []ecv1beta1.Installation{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-install",
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.0.0", // New version
-						},
-					},
+			name: "installation already in failed state",
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
+				},
+				Status: ecv1beta1.InstallationStatus{
+					State:  ecv1beta1.InstallationStateFailed,
+					Reason: "something went wrong",
 				},
 			},
-			existingConfigs: []corev1.ConfigMap{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-install",
-						Namespace: "embedded-cluster",
-						Labels: map[string]string{
-							"replicated.com/installation":      "embedded-cluster",
-							"replicated.com/disaster-recovery": "ec-install",
-						},
-					},
-					Data: map[string]string{
-						"installation": `{"spec":{"config":{"version":"1.0.0"}}}`, // Old version
-					},
-				},
-			},
-			expectError: false,
-			validate: func(t *testing.T, cli client.Client) {
-				var cm corev1.ConfigMap
-				err := cli.Get(context.Background(), types.NamespacedName{
-					Namespace: "embedded-cluster",
-					Name:      "test-install",
-				}, &cm)
-				require.NoError(t, err)
-
-				// Verify configmap has correct labels
-				assert.Equal(t, "embedded-cluster", cm.Labels["replicated.com/installation"])
-				assert.Equal(t, "ec-install", cm.Labels["replicated.com/disaster-recovery"])
-
-				// Verify installation data is updated
-				assert.Contains(t, cm.Data["installation"], `"version":"2.0.0"`)
-				assert.NotContains(t, cm.Data["installation"], `"version":"1.0.0"`)
-			},
+			expectError: true,
+			errorString: "installation failed: something went wrong",
 		},
 		{
-			name: "handles mix of new and existing configmaps",
-			installs: []ecv1beta1.Installation{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "install-1",
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.0.0", // Updated version
-						},
-					},
+			name: "installation transitions to installed state",
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
 				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "install-2",
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "1.0.0", // New installation
-						},
-					},
+				Status: ecv1beta1.InstallationStatus{
+					State: ecv1beta1.InstallationStateAddonsInstalling,
 				},
 			},
-			existingConfigs: []corev1.ConfigMap{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "install-1",
-						Namespace: "embedded-cluster",
-						Labels: map[string]string{
-							"replicated.com/installation":      "embedded-cluster",
-							"replicated.com/disaster-recovery": "ec-install",
-						},
-					},
-					Data: map[string]string{
-						"installation": `{"spec":{"config":{"version":"1.0.0"}}}`, // Old version
-					},
-				},
+			updateFunc: func(in *ecv1beta1.Installation) {
+				in.Status.State = ecv1beta1.InstallationStateInstalled
 			},
 			expectError: false,
-			validate: func(t *testing.T, cli client.Client) {
-				var cms corev1.ConfigMapList
-				err := cli.List(context.Background(), &cms, client.InNamespace("embedded-cluster"))
-				require.NoError(t, err)
-				assert.Len(t, cms.Items, 2)
-
-				// Verify both configmaps exist with correct data
-				for _, cm := range cms.Items {
-					assert.Equal(t, "embedded-cluster", cm.Labels["replicated.com/installation"])
-					assert.Equal(t, "ec-install", cm.Labels["replicated.com/disaster-recovery"])
-					if cm.Name == "install-1" {
-						assert.Contains(t, cm.Data["installation"], `"version":"2.0.0"`)
-						assert.NotContains(t, cm.Data["installation"], `"version":"1.0.0"`)
-					} else {
-						assert.Contains(t, cm.Data["installation"], `"version":"1.0.0"`)
-					}
-				}
-			},
 		},
 		{
-			name: "copies multiple installations to configmaps",
-			installs: []ecv1beta1.Installation{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "install-1",
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "1.0.0",
-						},
-					},
+			name: "installation transitions to failed state",
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
 				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "install-2",
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.0.0",
-						},
-					},
+				Status: ecv1beta1.InstallationStatus{
+					State: ecv1beta1.InstallationStateAddonsInstalling,
 				},
 			},
-			expectError: false,
-			validate: func(t *testing.T, cli client.Client) {
-				var cms corev1.ConfigMapList
-				err := cli.List(context.Background(), &cms, client.InNamespace("embedded-cluster"))
-				require.NoError(t, err)
-				assert.Len(t, cms.Items, 2)
-
-				// Verify both configmaps exist with correct data
-				for _, cm := range cms.Items {
-					assert.Equal(t, "embedded-cluster", cm.Labels["replicated.com/installation"])
-					assert.Equal(t, "ec-install", cm.Labels["replicated.com/disaster-recovery"])
-					if cm.Name == "install-1" {
-						assert.Contains(t, cm.Data["installation"], `"version":"1.0.0"`)
-					} else {
-						assert.Contains(t, cm.Data["installation"], `"version":"2.0.0"`)
-					}
-				}
+			updateFunc: func(in *ecv1beta1.Installation) {
+				in.Status.State = ecv1beta1.InstallationStateHelmChartUpdateFailure
+				in.Status.Reason = "helm chart update failed"
 			},
+			expectError: true,
+			errorString: "installation failed: helm chart update failed",
 		},
 		{
-			name:        "handles no installations",
-			installs:    []ecv1beta1.Installation{},
-			expectError: false,
-			validate: func(t *testing.T, cli client.Client) {
-				var cms corev1.ConfigMapList
-				err := cli.List(context.Background(), &cms, client.InNamespace("embedded-cluster"))
-				require.NoError(t, err)
-				assert.Empty(t, cms.Items)
+			name: "installation becomes obsolete",
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
+				},
+				Status: ecv1beta1.InstallationStatus{
+					State: ecv1beta1.InstallationStateAddonsInstalling,
+				},
 			},
+			updateFunc: func(in *ecv1beta1.Installation) {
+				in.Status.State = ecv1beta1.InstallationStateObsolete
+				in.Status.Reason = "This is not the most recent installation object"
+			},
+			expectError: true,
+			errorString: "installation is obsolete",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			scheme := runtime.NewScheme()
-			require.NoError(t, ecv1beta1.AddToScheme(scheme))
-			require.NoError(t, corev1.AddToScheme(scheme))
-
-			// Create fake client with installations and existing configmaps
+			// Create a fake client with the test installation
 			cli := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(append(
-					installationsToRuntimeObjects(tt.installs),
-					configMapsToRuntimeObjects(tt.existingConfigs)...,
-				)...).
+				WithObjects(tt.installation).
+				WithStatusSubresource(tt.installation).
 				Build()
 
-			logf := func(format string, args ...any) {
-				// No-op logger for testing
+			// If there's an update function, run it in a goroutine after a short delay
+			if tt.updateFunc != nil {
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					var installation ecv1beta1.Installation
+					err := cli.Get(context.Background(), client.ObjectKey{Name: tt.installation.Name}, &installation)
+					require.NoError(t, err)
+					tt.updateFunc(&installation)
+					err = cli.Status().Update(context.Background(), &installation)
+					require.NoError(t, err)
+				}()
 			}
 
-			// Run the function
-			err := copyInstallationsToConfigMaps(context.Background(), logf, cli)
+			// Call waitForInstallationStateInstalled
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			err := waitForInstallationStateInstalled(ctx, t.Logf, cli, tt.installation)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorString != "" {
+					assert.Contains(t, err.Error(), tt.errorString)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func Test_ensureInstallationStateInstalled(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	tests := []struct {
+		name         string
+		installation *ecv1beta1.Installation
+		expectError  bool
+	}{
+		{
+			name: "updates installation state and removes conditions",
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
+				},
+				Status: ecv1beta1.InstallationStatus{
+					State: ecv1beta1.InstallationStateAddonsInstalled,
+					Conditions: []metav1.Condition{
+						{
+							Type:               ecv1beta1.ConditionTypeV2MigrationInProgress,
+							Status:             metav1.ConditionTrue,
+							Reason:             "V2MigrationInProgress",
+							ObservedGeneration: 1,
+						},
+						{
+							Type:               ecv1beta1.ConditionTypeDisableReconcile,
+							Status:             metav1.ConditionTrue,
+							Reason:             "V2MigrationInProgress",
+							ObservedGeneration: 1,
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a fake client with the test installation
+			cli := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.installation).
+				WithStatusSubresource(tt.installation).
+				Build()
+
+			// Call ensureInstallationStateInstalled
+			err := ensureInstallationStateInstalled(context.Background(), t.Logf, cli, tt.installation)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -244,24 +199,21 @@ func Test_copyInstallationsToConfigMaps(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			// Run validation
-			tt.validate(t, cli)
+			// Verify the installation was updated correctly
+			var updatedInstallation ecv1beta1.Installation
+			err = cli.Get(context.Background(), client.ObjectKey{Name: tt.installation.Name}, &updatedInstallation)
+			require.NoError(t, err)
+
+			// Check state is set to Installed
+			assert.Equal(t, ecv1beta1.InstallationStateInstalled, updatedInstallation.Status.State)
+			assert.Equal(t, "V2MigrationComplete", updatedInstallation.Status.Reason)
+
+			// Check conditions are removed
+			condition := meta.FindStatusCondition(updatedInstallation.Status.Conditions, ecv1beta1.ConditionTypeV2MigrationInProgress)
+			assert.Nil(t, condition, "V2MigrationInProgress condition should be removed")
+
+			condition = meta.FindStatusCondition(updatedInstallation.Status.Conditions, ecv1beta1.ConditionTypeDisableReconcile)
+			assert.Nil(t, condition, "DisableReconcile condition should be removed")
 		})
 	}
-}
-
-func installationsToRuntimeObjects(installs []ecv1beta1.Installation) []client.Object {
-	objects := make([]client.Object, len(installs))
-	for i := range installs {
-		objects[i] = &installs[i]
-	}
-	return objects
-}
-
-func configMapsToRuntimeObjects(configs []corev1.ConfigMap) []client.Object {
-	objects := make([]client.Object, len(configs))
-	for i := range configs {
-		objects[i] = &configs[i]
-	}
-	return objects
 }
