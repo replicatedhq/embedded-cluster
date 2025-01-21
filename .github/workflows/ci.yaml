@@ -833,7 +833,7 @@ jobs:
       matrix:
         include:
           - test: TestFiveNodesAirgapUpgrade
-            runner: embedded-cluster
+            runner: embedded-cluster-2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
