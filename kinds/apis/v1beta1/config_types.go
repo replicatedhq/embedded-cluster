@@ -178,8 +178,9 @@ func ConvertFrom(e k0sv1beta1.HelmExtensions, t *Helm) (*Helm, error) {
 type ConfigSpec struct {
 	Version string `json:"version,omitempty"`
 	// V2Enabled is a temporary property that can be used to opt-in to the new installer. If set,
-	// v1 installations will be migrated to v2 on upgrade. This property will be removed once the
-	// new installer is fully implemented and the old installer is removed.
+	// in addition to using the new v2 install method, v1 installations will be migrated to v2 on
+	// upgrade. This property will be removed once the new installer is fully implemented and the
+	// old installer is removed.
 	V2Enabled            bool                 `json:"v2Enabled,omitempty"`
 	BinaryOverrideURL    string               `json:"binaryOverrideUrl,omitempty"`
 	MetadataOverrideURL  string               `json:"metadataOverrideUrl,omitempty"`
