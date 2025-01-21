@@ -5,12 +5,12 @@ PARALLEL ?= 2
 RUN ?=
 
 .PHONY: test
-test: test-openebs
+test: test-kind test-manager
 
-.PHONY: test-openebs
-test-openebs:
-	DEBUG=$(DEBUG) go test -v -tags exclude_graphdriver_btrfs \
-		-timeout=5m \
-		-parallel=$(PARALLEL) \
-		-run='$(value RUN)' \
-		./openebs/...
+.PHONY: test-kind
+test-kind:
+	$(MAKE) -C ./kind test
+
+.PHONY: test-manager
+test-manager:
+	$(MAKE) -C ./manager clean build test
