@@ -18,7 +18,7 @@ test:
 		-e DATA_DIR=/wrk \
 		replicated/ec-distro:$(DISTRO)
 	@sleep 5 # wait for container to be ready
-	docker exec -it \
+	docker exec \
 		-e DEBUG=$(DEBUG) \
 		$(CONTAINER_NAME) \
 		/wrk/manager.test \
