@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -44,19 +45,8 @@ func (e ErrInstallationNotFound) Error() string {
 	return "installation not found"
 }
 
-// BackOffToDuration returns the maximum duration of the provided backoff.
-func BackOffToDuration(backoff wait.Backoff) time.Duration {
-	var total time.Duration
-	duration := backoff.Duration
-	for i := 0; i < backoff.Steps; i++ {
-		total += duration
-		duration = time.Duration(float64(duration) * backoff.Factor)
-	}
-	return total
-}
-
-func (k *KubeUtils) WaitForNamespace(ctx context.Context, cli client.Client, ns string) error {
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+func (k *KubeUtils) WaitForNamespace(ctx context.Context, cli client.Client, ns string, opts *WaitOptions) error {
+	backoff := opts.GetBackoff()
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
@@ -78,8 +68,8 @@ func (k *KubeUtils) WaitForNamespace(ctx context.Context, cli client.Client, ns 
 }
 
 // WaitForDeployment waits for the provided deployment to be ready.
-func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns, name string) error {
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	backoff := opts.GetBackoff()
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
@@ -101,8 +91,8 @@ func (k *KubeUtils) WaitForDeployment(ctx context.Context, cli client.Client, ns
 }
 
 // WaitForDaemonset waits for the provided daemonset to be ready.
-func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string) error {
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	backoff := opts.GetBackoff()
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
@@ -123,8 +113,8 @@ func (k *KubeUtils) WaitForDaemonset(ctx context.Context, cli client.Client, ns,
 	return nil
 }
 
-func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, name string) error {
-	backoff := wait.Backoff{Steps: 60, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
+func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error {
+	backoff := opts.GetBackoff()
 	var lasterr error
 	if err := wait.ExponentialBackoffWithContext(
 		ctx, backoff, func(ctx context.Context) (bool, error) {
@@ -141,6 +131,30 @@ func (k *KubeUtils) WaitForService(ctx context.Context, cli client.Client, ns, n
 			return fmt.Errorf("timed out waiting for service %s to have an IP: %v", name, lasterr)
 		} else {
 			return fmt.Errorf("timed out waiting for service %s to have an IP", name)
+		}
+	}
+	return nil
+}
+
+// WaitForJob waits for a job to have a certain number of completions.
+func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name string, completions int32, opts *WaitOptions) error {
+	backoff := opts.GetBackoff()
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(
+		ctx, backoff, func(ctx context.Context) (bool, error) {
+			ready, err := k.IsJobComplete(ctx, cli, ns, name, completions)
+			fmt.Println("job:", name, "ready:", ready, "err:", err)
+			if err != nil {
+				lasterr = fmt.Errorf("unable to get job status: %w", err)
+				return false, nil
+			}
+			return ready, nil
+		},
+	); err != nil {
+		if lasterr != nil {
+			return fmt.Errorf("timed out waiting for job %s: %w", name, lasterr)
+		} else {
+			return fmt.Errorf("timed out waiting for job %s", name)
 		}
 	}
 	return nil
@@ -262,13 +276,11 @@ func UpdateInstallationStatus(ctx context.Context, cli client.Client, in *ecv1be
 }
 
 func ListCMInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Installation, error) {
-	opts := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(
-			labels.Set{"replicated.com/installation": "embedded-cluster"},
-		),
-	}
 	var cmList corev1.ConfigMapList
-	if err := cli.List(ctx, &cmList, opts); err != nil {
+	if err := cli.List(ctx, &cmList,
+		client.InNamespace("embedded-cluster"),
+		client.MatchingLabels(labels.Set{"replicated.com/installation": "embedded-cluster"}),
+	); err != nil {
 		return nil, fmt.Errorf("list configmaps: %w", err)
 	}
 
@@ -564,29 +576,6 @@ func (k *KubeUtils) WaitForControllerNode(ctx context.Context, kcli client.Clien
 	return nil
 }
 
-// WaitForJob waits for a job to have a certain number of completions.
-func (k *KubeUtils) WaitForJob(ctx context.Context, cli client.Client, ns, name string, maxSteps int, completions int32) error {
-	backoff := wait.Backoff{Steps: maxSteps, Duration: 5 * time.Second, Factor: 1.0, Jitter: 0.1}
-	var lasterr error
-	if err := wait.ExponentialBackoffWithContext(
-		ctx, backoff, func(ctx context.Context) (bool, error) {
-			ready, err := k.IsJobComplete(ctx, cli, ns, name, completions)
-			if err != nil {
-				lasterr = fmt.Errorf("unable to get job status: %w", err)
-				return false, nil
-			}
-			return ready, nil
-		},
-	); err != nil {
-		if lasterr != nil {
-			return fmt.Errorf("timed out waiting for job %s: %w", name, lasterr)
-		} else {
-			return fmt.Errorf("timed out waiting for job %s", name)
-		}
-	}
-	return nil
-}
-
 func (k *KubeUtils) IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
 	if err := cli.Get(ctx, types.NamespacedName{Name: ns}, &namespace); err != nil {
@@ -603,6 +592,10 @@ func (k *KubeUtils) IsDeploymentReady(ctx context.Context, cli client.Client, ns
 		return false, err
 	}
 	if deploy.Spec.Replicas == nil {
+		// Defaults to 1 if the replicas field is nil
+		if deploy.Status.ReadyReplicas == 1 {
+			return true, nil
+		}
 		return false, nil
 	}
 	return deploy.Status.ReadyReplicas == *deploy.Spec.Replicas, nil
@@ -616,6 +609,10 @@ func (k *KubeUtils) IsStatefulSetReady(ctx context.Context, cli client.Client, n
 		return false, err
 	}
 	if statefulset.Spec.Replicas == nil {
+		// Defaults to 1 if the replicas field is nil
+		if statefulset.Status.ReadyReplicas == 1 {
+			return true, nil
+		}
 		return false, nil
 	}
 	return statefulset.Status.ReadyReplicas == *statefulset.Spec.Replicas, nil
@@ -670,7 +667,7 @@ func (k *KubeUtils) WaitForKubernetes(ctx context.Context, cli client.Client) <-
 
 	for _, dep := range deps.Items {
 		go func(depName string) {
-			err := k.WaitForDeployment(ctx, cli, "kube-system", depName)
+			err := k.WaitForDeployment(ctx, cli, "kube-system", depName, nil)
 			if err != nil {
 				errch <- fmt.Errorf("%s failed to become healthy: %w", depName, err)
 			}
@@ -723,4 +720,14 @@ func (k *KubeUtils) KubeClient() (client.Client, error) {
 		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
 	}
 	return client.New(cfg, client.Options{})
+}
+
+// RESTClientGetterFactory is a factory function that can be used to create namespaced
+// genericclioptions.RESTClientGetters.
+func (k *KubeUtils) RESTClientGetterFactory(namespace string) genericclioptions.RESTClientGetter {
+	cfgFlags := genericclioptions.NewConfigFlags(false)
+	if namespace != "" {
+		cfgFlags.Namespace = &namespace
+	}
+	return cfgFlags
 }

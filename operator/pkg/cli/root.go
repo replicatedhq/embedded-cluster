@@ -2,9 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/operator/controllers"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
@@ -13,9 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	"github.com/replicatedhq/embedded-cluster/operator/controllers"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/k8sutil"
 )
 
 var (
@@ -44,9 +43,6 @@ func RootCmd() *cobra.Command {
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			zaplog := zap.New(zap.UseDevMode(true))
-			ctrl.SetLogger(zaplog)
-
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 				Scheme: k8sutil.Scheme(),
 				Metrics: metricsserver.Options{
@@ -110,6 +106,10 @@ func setupCLILog(cmd *cobra.Command, level logrus.Level) error {
 	}
 	ctx := ctrl.LoggerInto(cmd.Context(), log)
 	cmd.SetContext(ctx)
+
+	zaplog := zap.New(zap.UseDevMode(true))
+	ctrl.SetLogger(zaplog)
+
 	return nil
 }
 
@@ -118,6 +118,7 @@ func addSubcommands(cmd *cobra.Command) {
 		MigrateCmd(),
 		UpgradeCmd(),
 		UpgradeJobCmd(),
+		MigrateV2Cmd(),
 		VersionCmd(),
 	)
 }

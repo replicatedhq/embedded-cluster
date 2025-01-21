@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +33,8 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 					metrics.DisableMetrics()
 				}
 			}
+
+			setManagerServiceName()
 
 			return nil
 		},
@@ -64,4 +68,16 @@ func RootCmd(ctx context.Context, name string) *cobra.Command {
 	cmd.AddCommand(SupportBundleCmd(ctx, name))
 
 	return cmd
+}
+
+// setManagerServiceName sets the manager service name based on the app slug in the embedded
+// channel release.
+func setManagerServiceName() {
+	rel, err := release.GetChannelRelease()
+	if err != nil {
+		panic(fmt.Errorf("unable to get channel release: %w", err))
+	}
+	if rel != nil {
+		manager.SetServiceName(rel.AppSlug)
+	}
 }

@@ -306,7 +306,7 @@ func GetURL(networkInterface string, port int) string {
 }
 
 func createRegistrySecret(ctx context.Context, cli client.Client, namespace string) error {
-	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+	if err := kubeutils.WaitForNamespace(ctx, cli, namespace, nil); err != nil {
 		return err
 	}
 
@@ -342,7 +342,7 @@ func createRegistrySecret(ctx context.Context, cli client.Client, namespace stri
 }
 
 func createKotsPasswordSecret(ctx context.Context, cli client.Client, namespace string, password string) error {
-	if err := kubeutils.WaitForNamespace(ctx, cli, namespace); err != nil {
+	if err := kubeutils.WaitForNamespace(ctx, cli, namespace, nil); err != nil {
 		return err
 	}
 

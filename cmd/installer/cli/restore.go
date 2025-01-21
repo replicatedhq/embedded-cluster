@@ -386,7 +386,7 @@ func RestoreCmd(ctx context.Context, name string) *cobra.Command {
 				}
 
 				logrus.Debugf("installing manager")
-				if err := installAndEnableManager(); err != nil {
+				if err := installAndEnableManager(cmd.Context()); err != nil {
 					return fmt.Errorf("unable to install manager: %w", err)
 				}
 
@@ -1261,7 +1261,7 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.RegistryNamespace, "registry"); err != nil {
+		if err := kubeutils.WaitForDeployment(ctx, kcli, runtimeconfig.RegistryNamespace, "registry", nil); err != nil {
 			return fmt.Errorf("unable to wait for registry to be ready: %w", err)
 		}
 	} else if drComponent == disasterRecoveryComponentECO {
@@ -1297,10 +1297,6 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 // restoreFromReplicatedBackup restores a disaster recovery component from a backup.
 func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.ReplicatedBackup, drComponent disasterRecoveryComponent) error {
 	if drComponent == disasterRecoveryComponentApp {
-		b := backup.GetAppBackup()
-		if b == nil {
-			return fmt.Errorf("unable to find app backup")
-		}
 		isImprovedDR, err := usesImprovedDR()
 		if err != nil {
 			return fmt.Errorf("failed to check if improved dr is enabled: %w", err)
@@ -1309,19 +1305,19 @@ func restoreFromReplicatedBackup(ctx context.Context, backup disasterrecovery.Re
 		// the vendor. Otherwise, we use the "replicated.com/disaster-recovery" label to discover
 		// the application resources in the cluster.
 		if isImprovedDR {
+			b := backup.GetAppBackup()
+			if b == nil {
+				return fmt.Errorf("unable to find app backup")
+			}
 			r, err := backup.GetRestore()
 			if err != nil {
-				return fmt.Errorf("failed to get restore cr from backup: %w", err)
+				return fmt.Errorf("failed to get restore resource from backup: %w", err)
 			}
 			err = restoreAppFromBackup(ctx, b, r)
 			if err != nil {
-				return fmt.Errorf("failed to restore app from backup using improved dr: %w", err)
-			}
-		} else {
-			err = restoreFromBackup(ctx, b, drComponent)
-			if err != nil {
 				return fmt.Errorf("failed to restore app from backup: %w", err)
 			}
+			return nil
 		}
 	}
 	b := backup.GetInfraBackup()
