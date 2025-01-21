@@ -61,7 +61,7 @@ func Run(
 		return fmt.Errorf("set installation state to installed: %w", err)
 	}
 
-	err = cleanupV1(ctx, logf, cli)
+	err = cleanupV1(ctx, logf, cli, helmCLI)
 	if err != nil {
 		return fmt.Errorf("cleanup v1: %w", err)
 	}
