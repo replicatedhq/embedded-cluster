@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -15,6 +16,7 @@ func (a *AdminConsole) Upgrade(ctx context.Context, kcli client.Client) error {
 	}
 
 	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {

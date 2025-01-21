@@ -6,6 +6,7 @@ import (
 	"os"
 	"text/template"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/manager"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -21,7 +22,7 @@ func MaterializeSupportBundleSpec() error {
 		DataDir:            runtimeconfig.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:         runtimeconfig.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:     runtimeconfig.EmbeddedClusterOpenEBSLocalSubDir(),
-		ManagerServiceName: runtimeconfig.ManagerServiceName,
+		ManagerServiceName: manager.ServiceName(),
 	}
 	path := runtimeconfig.PathToEmbeddedClusterSupportFile("host-support-bundle.tmpl.yaml")
 	tmpl, err := os.ReadFile(path)

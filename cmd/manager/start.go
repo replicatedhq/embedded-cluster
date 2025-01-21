@@ -37,9 +37,7 @@ func StartCmd(ctx context.Context, name string) *cobra.Command {
 
 			// connect to the KOTS WebSocket server
 			if !disableWebsocket {
-				go func() {
-					go websocket.ConnectToKOTSWebSocket(ctx)
-				}()
+				go websocket.ConnectToKOTSWebSocket(ctx)
 			}
 
 			<-ctx.Done()

@@ -13,6 +13,7 @@ import (
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -42,4 +43,14 @@ func KubeClient() (client.Client, error) {
 		return nil, fmt.Errorf("unable to process kubernetes config: %w", err)
 	}
 	return client.New(cfg, client.Options{Scheme: newScheme})
+}
+
+// RESTClientGetterFactory is a factory function that can be used to create namespaced
+// genericclioptions.RESTClientGetters.
+func RESTClientGetterFactory(namespace string) genericclioptions.RESTClientGetter {
+	cfgFlags := genericclioptions.NewConfigFlags(false)
+	if namespace != "" {
+		cfgFlags.Namespace = &namespace
+	}
+	return cfgFlags
 }

@@ -101,13 +101,13 @@ func generateHelmConfigs(ctx context.Context, in *clusterv1beta1.Installation, c
 	embeddedclusteroperator.Metadata.Version = strings.TrimPrefix(versions.Version, "v")
 	embeddedclusteroperator.Render()
 
-	migrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
+	registryMigrationStatus := k8sutil.CheckConditionStatus(in.Status, registry.RegistryMigrationStatusConditionType)
 
 	opts := []addons.Option{
 		addons.WithProxy(in.Spec.Proxy),
 		addons.WithAirgap(in.Spec.AirGap),
 		addons.WithHA(in.Spec.HighAvailability),
-		addons.WithHAMigrationInProgress(migrationStatus == metav1.ConditionFalse),
+		addons.WithHAMigrationInProgress(registryMigrationStatus == metav1.ConditionFalse),
 		addons.WithBinaryNameOverride(in.Spec.BinaryName),
 	}
 	if in.Spec.LicenseInfo != nil {

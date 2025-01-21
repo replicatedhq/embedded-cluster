@@ -9,6 +9,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
@@ -23,6 +24,7 @@ func Install(ctx context.Context) error {
 	defer loading.Close()
 
 	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
@@ -52,6 +54,7 @@ func Install(ctx context.Context) error {
 
 func Add(ctx context.Context, repos []k0sv1beta1.Repository, ext ecv1beta1.Chart) error {
 	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
@@ -71,6 +74,7 @@ func Add(ctx context.Context, repos []k0sv1beta1.Repository, ext ecv1beta1.Chart
 
 func Upgrade(ctx context.Context, repos []k0sv1beta1.Repository, ext ecv1beta1.Chart) error {
 	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
@@ -90,6 +94,7 @@ func Upgrade(ctx context.Context, repos []k0sv1beta1.Repository, ext ecv1beta1.C
 
 func Remove(ctx context.Context, repos []k0sv1beta1.Repository, ext ecv1beta1.Chart) error {
 	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
 	})
 	if err != nil {
