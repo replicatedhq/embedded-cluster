@@ -1,4 +1,4 @@
-package migratev2
+package cli
 
 import (
 	"context"
@@ -13,35 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func Test_runManagerInstallPodsAndWait(t *testing.T) {
-	// Create test nodes, one with taints
-	nodes := []corev1.Node{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "node1",
-			},
-			Spec: corev1.NodeSpec{
-				Taints: []corev1.Taint{
-					{
-						Key:    "node-role.kubernetes.io/control-plane",
-						Effect: corev1.TaintEffectNoSchedule,
-					},
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "node2",
-			},
-		},
-	}
-
+func Test_runMigrateV2PodAndWait(t *testing.T) {
 	// Start a mock server for the metadata request
 	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		metadata := map[string]interface{}{
@@ -75,7 +55,6 @@ func Test_runManagerInstallPodsAndWait(t *testing.T) {
 	// Create fake client with nodes
 	cli := fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithObjects(nodesToRuntimeObjects(nodes)...).
 		WithObjects(installation).
 		Build()
 
@@ -83,27 +62,25 @@ func Test_runManagerInstallPodsAndWait(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Start a goroutine to simulate the pods completing successfully
+	// Start a goroutine to simulate the pod completing successfully
 	go func() {
 		for {
-			time.Sleep(100 * time.Millisecond) // Give time for pods to be created
+			time.Sleep(100 * time.Millisecond) // Give time for pod to be created
 
-			// List the pods
-			var pods corev1.PodList
-			err := cli.List(ctx, &pods)
+			// Get the pod
+			nsn := apitypes.NamespacedName{Namespace: migrateV2PodNamespace, Name: migrateV2PodName}
+			var pod corev1.Pod
+			err := cli.Get(ctx, nsn, &pod)
+			if k8serrors.IsNotFound(err) {
+				continue
+			}
 			require.NoError(t, err)
 
-			// Update each pod to be successful
-			for _, pod := range pods.Items {
-				// Update pod status
-				pod.Status.Phase = corev1.PodSucceeded
-				err = cli.Status().Update(ctx, &pod)
-				require.NoError(t, err)
-			}
-
-			if len(pods.Items) == len(nodes) {
-				break
-			}
+			// Update the pod to be successful
+			// Update pod status
+			pod.Status.Phase = corev1.PodSucceeded
+			err = cli.Status().Update(ctx, &pod)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -112,99 +89,54 @@ func Test_runManagerInstallPodsAndWait(t *testing.T) {
 		// No-op logger for testing
 	}
 
-	err := runManagerInstallPodsAndWait(ctx, logf, cli, installation, "test-secret", "test-app", "v1.0.0")
+	err := runMigrateV2PodAndWait(ctx, logf, cli, installation, "test-secret", "test-app", "v1.0.0")
 	require.NoError(t, err)
 
-	// Verify the pods were created and completed
-	var pods corev1.PodList
-	err = cli.List(ctx, &pods)
+	// Verify the pod was created and completed
+	nsn := apitypes.NamespacedName{Namespace: migrateV2PodNamespace, Name: migrateV2PodName}
+	var pod corev1.Pod
+	err = cli.Get(ctx, nsn, &pod)
 	require.NoError(t, err)
 
-	// Verify number of pods matches number of nodes
-	assert.Len(t, pods.Items, len(nodes))
+	// Verify pod succeeded
+	assert.Equal(t, corev1.PodSucceeded, pod.Status.Phase)
 
-	// Verify each pod
-	for _, pod := range pods.Items {
-		// Verify pod succeeded
-		assert.Equal(t, corev1.PodSucceeded, pod.Status.Phase)
+	// Verify pod has correct labels
+	assert.Equal(t, "install-v2-manager", pod.Labels["app"])
 
-		// Verify pod has correct labels
-		assert.Equal(t, "install-v2-manager", pod.Labels["app"])
+	// Verify pod spec
+	assert.Equal(t, "install-v2-manager", pod.Spec.Containers[0].Name)
+	assert.Equal(t, corev1.RestartPolicyNever, pod.Spec.RestartPolicy)
 
-		// Verify pod spec
-		assert.Equal(t, "install-v2-manager", pod.Spec.Containers[0].Name)
-		assert.Equal(t, corev1.RestartPolicyNever, pod.Spec.RestartPolicy)
-
-		// Verify node affinity
-		if pod.Name == "install-v2-manager-node1" {
-			assert.Equal(t, "node1", pod.Spec.NodeSelector["kubernetes.io/hostname"])
-
-			// Verify tolerations are set for tainted nodes
-			expectedToleration := corev1.Toleration{
-				Key:      "node-role.kubernetes.io/control-plane",
-				Value:    "",
-				Operator: corev1.TolerationOpEqual,
-			}
-			assert.Contains(t, pod.Spec.Tolerations, expectedToleration)
-		} else {
-			assert.Equal(t, "node2", pod.Spec.NodeSelector["kubernetes.io/hostname"])
+	// Verify volumes
+	foundInstallationVolume := false
+	for _, volume := range pod.Spec.Volumes {
+		if volume.Name == "installation" {
+			foundInstallationVolume = true
+			assert.Equal(t, "test-install-installation", volume.ConfigMap.Name)
 		}
-
-		// Verify volumes
-		foundInstallationVolume := false
-		foundLicenseVolume := false
-		for _, volume := range pod.Spec.Volumes {
-			if volume.Name == "installation" {
-				foundInstallationVolume = true
-				assert.Equal(t, "test-install", volume.ConfigMap.Name)
-			}
-			if volume.Name == "license" {
-				foundLicenseVolume = true
-				assert.Equal(t, "test-secret", volume.Secret.SecretName)
-			}
-		}
-		assert.True(t, foundInstallationVolume, "expected installation volume to be mounted")
-		assert.True(t, foundLicenseVolume, "expected license volume to be mounted")
-
-		// Verify command arguments
-		container := pod.Spec.Containers[0]
-		assert.Equal(t, container.Image, "embedded-cluster-operator-image:1.0")
-		assert.Contains(t, container.Command, "migrate-v2")
-		assert.Contains(t, container.Command, "install-manager")
-		assert.Contains(t, container.Command, "--app-slug")
-		assert.Contains(t, container.Command, "test-app")
-		assert.Contains(t, container.Command, "--app-version-label")
-		assert.Contains(t, container.Command, "v1.0.0")
 	}
+	assert.True(t, foundInstallationVolume, "expected installation volume to be mounted")
+
+	// Verify command arguments
+	container := pod.Spec.Containers[0]
+	assert.Equal(t, container.Image, "embedded-cluster-operator-image:1.0")
+	assert.Contains(t, container.Command, "migrate-v2")
+	assert.Contains(t, container.Command, "--migrate-v2-secret")
+	assert.Contains(t, container.Command, "test-secret")
+	assert.Contains(t, container.Command, "--app-slug")
+	assert.Contains(t, container.Command, "test-app")
+	assert.Contains(t, container.Command, "--app-version-label")
+	assert.Contains(t, container.Command, "v1.0.0")
 }
 
-func Test_deleteManagerInstallPods(t *testing.T) {
-	// Create test nodes
-	nodes := []corev1.Node{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "node1",
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "node2",
-			},
-		},
-	}
-
-	// Create existing pods
+func Test_deleteMigrateV2Pod(t *testing.T) {
+	// Create existing pod
 	pods := []corev1.Pod{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install-v2-manager-node1",
-				Namespace: "embedded-cluster",
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install-v2-manager-node2",
-				Namespace: "embedded-cluster",
+				Name:      migrateV2PodName,
+				Namespace: migrateV2PodNamespace,
 			},
 		},
 	}
@@ -217,10 +149,9 @@ func Test_deleteManagerInstallPods(t *testing.T) {
 	// Create fake client with nodes and pods
 	cli := fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithObjects(append(
-			nodesToRuntimeObjects(nodes),
+		WithObjects(
 			podsToRuntimeObjects(pods)...,
-		)...).
+		).
 		Build()
 
 	// Run the function
@@ -228,7 +159,7 @@ func Test_deleteManagerInstallPods(t *testing.T) {
 		// No-op logger for testing
 	}
 
-	err := deleteManagerInstallPods(context.Background(), logf, cli)
+	err := deleteMigrateV2Pod(context.Background(), logf, cli)
 	require.NoError(t, err)
 
 	// Verify pods were deleted
@@ -246,22 +177,7 @@ func nodesToRuntimeObjects(nodes []corev1.Node) []client.Object {
 	return objects
 }
 
-func Test_ensureManagerInstallPodForNode(t *testing.T) {
-	// Set up common test objects
-	node := corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-node",
-		},
-		Spec: corev1.NodeSpec{
-			Taints: []corev1.Taint{
-				{
-					Key:    "node-role.kubernetes.io/control-plane",
-					Effect: corev1.TaintEffectNoSchedule,
-				},
-			},
-		},
-	}
-
+func Test_ensureMigrateV2Pod(t *testing.T) {
 	installation := &ecv1beta1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-install",
@@ -284,41 +200,25 @@ func Test_ensureManagerInstallPodForNode(t *testing.T) {
 			name:        "creates new pod when none exists",
 			existingPod: nil,
 			validatePod: func(t *testing.T, pod *corev1.Pod) {
-				assert.Equal(t, "install-v2-manager-test-node", pod.Name)
-				assert.Equal(t, "embedded-cluster", pod.Namespace)
-				assert.Equal(t, "install-v2-manager", pod.Labels["app"])
-
-				assert.Equal(t, "test-node", pod.Spec.NodeSelector["kubernetes.io/hostname"])
-
-				// Verify tolerations
-				expectedToleration := corev1.Toleration{
-					Key:      "node-role.kubernetes.io/control-plane",
-					Value:    "",
-					Operator: corev1.TolerationOpEqual,
-				}
-				assert.Contains(t, pod.Spec.Tolerations, expectedToleration)
+				assert.Equal(t, migrateV2PodName, pod.Name)
+				assert.Equal(t, migrateV2PodNamespace, pod.Namespace)
 
 				// Verify volumes
 				foundInstallationVolume := false
-				foundLicenseVolume := false
 				for _, volume := range pod.Spec.Volumes {
 					if volume.Name == "installation" {
 						foundInstallationVolume = true
-						assert.Equal(t, "test-install", volume.ConfigMap.Name)
-					}
-					if volume.Name == "license" {
-						foundLicenseVolume = true
-						assert.Equal(t, "test-secret", volume.Secret.SecretName)
+						assert.Equal(t, "test-install-installation", volume.ConfigMap.Name)
 					}
 				}
 				assert.True(t, foundInstallationVolume, "expected installation volume to be mounted")
-				assert.True(t, foundLicenseVolume, "expected license volume to be mounted")
 
 				// Verify container
 				container := pod.Spec.Containers[0]
-				assert.Equal(t, "embedded-cluster-operator-image:1.0", container.Image)
+				assert.Equal(t, container.Image, "embedded-cluster-operator-image:1.0")
 				assert.Contains(t, container.Command, "migrate-v2")
-				assert.Contains(t, container.Command, "install-manager")
+				assert.Contains(t, container.Command, "--migrate-v2-secret")
+				assert.Contains(t, container.Command, "test-secret")
 				assert.Contains(t, container.Command, "--app-slug")
 				assert.Contains(t, container.Command, "test-app")
 				assert.Contains(t, container.Command, "--app-version-label")
@@ -330,8 +230,8 @@ func Test_ensureManagerInstallPodForNode(t *testing.T) {
 			name: "reuses existing successful pod",
 			existingPod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "install-v2-manager-test-node",
-					Namespace: "embedded-cluster",
+					Name:      migrateV2PodName,
+					Namespace: migrateV2PodNamespace,
 				},
 				Status: corev1.PodStatus{
 					Phase: corev1.PodSucceeded,
@@ -346,8 +246,8 @@ func Test_ensureManagerInstallPodForNode(t *testing.T) {
 			name: "replaces failed pod",
 			existingPod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "install-v2-manager-test-node",
-					Namespace: "embedded-cluster",
+					Name:      migrateV2PodName,
+					Namespace: migrateV2PodNamespace,
 				},
 				Status: corev1.PodStatus{
 					Phase: corev1.PodFailed,
@@ -377,10 +277,9 @@ func Test_ensureManagerInstallPodForNode(t *testing.T) {
 			cli := builder.Build()
 
 			// Run the function
-			podName, err := ensureManagerInstallPodForNode(
+			podName, err := ensureMigrateV2Pod(
 				context.Background(),
 				cli,
-				node,
 				installation,
 				"embedded-cluster-operator-image:1.0",
 				"test-secret",
@@ -397,7 +296,7 @@ func Test_ensureManagerInstallPodForNode(t *testing.T) {
 			// Get the pod
 			var pod corev1.Pod
 			err = cli.Get(context.Background(), client.ObjectKey{
-				Namespace: "embedded-cluster",
+				Namespace: migrateV2PodNamespace,
 				Name:      podName,
 			}, &pod)
 			require.NoError(t, err)
@@ -406,4 +305,12 @@ func Test_ensureManagerInstallPodForNode(t *testing.T) {
 			tt.validatePod(t, &pod)
 		})
 	}
+}
+
+func podsToRuntimeObjects(pods []corev1.Pod) []client.Object {
+	objects := make([]client.Object, len(pods))
+	for i := range pods {
+		objects[i] = &pods[i]
+	}
+	return objects
 }
