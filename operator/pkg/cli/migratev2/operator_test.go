@@ -6,8 +6,10 @@ import (
 
 	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	apitypes "k8s.io/apimachinery/pkg/types"
@@ -15,72 +17,37 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func Test_removeOperatorFromClusterConfig(t *testing.T) {
+func Test_disableOperator(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+
 	tests := []struct {
-		name           string
-		initialCharts  k0sv1beta1.ChartsSettings
-		expectedCharts k0sv1beta1.ChartsSettings
-		expectError    bool
+		name         string
+		installation *ecv1beta1.Installation
+		expectError  bool
 	}{
 		{
-			name: "removes operator chart while preserving others",
-			initialCharts: k0sv1beta1.ChartsSettings{
-				{Name: "embedded-cluster-operator"},
-				{Name: "other-chart"},
-			},
-			expectedCharts: k0sv1beta1.ChartsSettings{
-				{Name: "other-chart"},
-			},
-			expectError: false,
-		},
-		{
-			name:           "handles empty charts",
-			initialCharts:  nil,
-			expectedCharts: nil,
-			expectError:    false,
-		},
-		{
-			name: "handles config with no operator chart",
-			initialCharts: k0sv1beta1.ChartsSettings{
-				{Name: "other-chart-1"},
-				{Name: "other-chart-2"},
-			},
-			expectedCharts: k0sv1beta1.ChartsSettings{
-				{Name: "other-chart-1"},
-				{Name: "other-chart-2"},
+			name: "disables operator reconciliation",
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
+				},
 			},
 			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
-		scheme := runtime.NewScheme()
-		require.NoError(t, k0sv1beta1.AddToScheme(scheme))
-		require.NoError(t, k0shelmv1beta1.AddToScheme(scheme))
-
 		t.Run(tt.name, func(t *testing.T) {
-			initialConfig := &k0sv1beta1.ClusterConfig{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "k0s",
-					Namespace: "kube-system",
-				},
-				Spec: &k0sv1beta1.ClusterSpec{
-					Extensions: &k0sv1beta1.ClusterExtensions{
-						Helm: &k0sv1beta1.HelmExtensions{
-							Charts: tt.initialCharts,
-						},
-					},
-				},
-			}
-
-			// Create a fake client with the test case's initial config
+			// Create a fake client with the test case's initial installation
 			cli := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(initialConfig).
+				WithObjects(tt.installation).
+				WithStatusSubresource(tt.installation).
 				Build()
 
-			// Call removeOperatorFromClusterConfig
-			err := removeOperatorFromClusterConfig(context.Background(), cli)
+			// Call disableOperator
+			err := disableOperator(context.Background(), t.Logf, cli, tt.installation)
 
 			// Check error expectation
 			if tt.expectError {
@@ -89,26 +56,17 @@ func Test_removeOperatorFromClusterConfig(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			// Verify the updated config
-			var updatedConfig k0sv1beta1.ClusterConfig
-			err = cli.Get(context.Background(), apitypes.NamespacedName{
-				Namespace: "kube-system",
-				Name:      "k0s",
-			}, &updatedConfig)
+			// Verify the installation status was updated
+			var updatedInstallation ecv1beta1.Installation
+			err = cli.Get(context.Background(), client.ObjectKey{Name: tt.installation.Name}, &updatedInstallation)
 			require.NoError(t, err)
 
-			// If we expect no charts, verify extensions or helm is nil
-			if tt.expectedCharts == nil {
-				if updatedConfig.Spec.Extensions != nil && updatedConfig.Spec.Extensions.Helm != nil {
-					assert.Empty(t, updatedConfig.Spec.Extensions.Helm.Charts)
-				}
-				return
-			}
-
-			// Verify the remaining charts match expectations
-			require.NotNil(t, updatedConfig.Spec.Extensions)
-			require.NotNil(t, updatedConfig.Spec.Extensions.Helm)
-			assert.Equal(t, tt.expectedCharts, updatedConfig.Spec.Extensions.Helm.Charts)
+			// Check that the DisableReconcile condition was set correctly
+			condition := meta.FindStatusCondition(updatedInstallation.Status.Conditions, ecv1beta1.ConditionTypeDisableReconcile)
+			require.NotNil(t, condition)
+			assert.Equal(t, metav1.ConditionTrue, condition.Status)
+			assert.Equal(t, "V2MigrationInProgress", condition.Reason)
+			assert.Equal(t, tt.installation.Generation, condition.ObservedGeneration)
 		})
 	}
 }

@@ -91,7 +91,7 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 }
 
 func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (*clusterv1beta1.Installation, error) {
-	previous, err := kubeutils.GetPreviousInstallation(ctx, cli, in)
+	previous, err := kubeutils.GetPreviousCRDInstallation(ctx, cli, in)
 	if err != nil {
 		return in, fmt.Errorf("get latest installation: %w", err)
 	}

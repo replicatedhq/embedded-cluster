@@ -557,7 +557,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// are going to operate only on the newest one (sorting by installation
 	// name).
 	log := ctrl.LoggerFrom(ctx)
-	installs, err := kubeutils.ListInstallations(ctx, r.Client)
+	installs, err := kubeutils.ListCRDInstallations(ctx, r.Client)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to list installations: %w", err)
 	}
@@ -587,6 +587,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// if this cluster has no id we bail out immediately.
 	if in.Spec.ClusterID == "" {
 		log.Info("No cluster ID found, reconciliation ended")
+		return ctrl.Result{}, nil
+	}
+
+	if k8sutil.CheckConditionStatus(in.Status, v1beta1.ConditionTypeDisableReconcile) == metav1.ConditionTrue {
+		log.Info("Installation reconciliation is disabled, reconciliation ended")
 		return ctrl.Result{}, nil
 	}
 

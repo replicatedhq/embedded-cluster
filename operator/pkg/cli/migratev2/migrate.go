@@ -20,14 +20,24 @@ func Run(
 	in *ecv1beta1.Installation,
 	migrationSecret string, appSlug string, appVersionLabel string,
 ) error {
-	err := runManagerInstallJobsAndWait(ctx, logf, cli, in, migrationSecret, appSlug, appVersionLabel)
+	err := setV2MigrationInProgress(ctx, logf, cli, in)
 	if err != nil {
-		return fmt.Errorf("run manager install jobs: %w", err)
+		return fmt.Errorf("set v2 migration in progress: %w", err)
 	}
 
-	err = deleteManagerInstallJobs(ctx, logf, cli)
+	err = waitForInstallationStateInstalled(ctx, logf, cli, in)
 	if err != nil {
-		return fmt.Errorf("delete jobs: %w", err)
+		return fmt.Errorf("failed to wait for addon installation: %w", err)
+	}
+
+	err = runManagerInstallPodsAndWait(ctx, logf, cli, in, migrationSecret, appSlug, appVersionLabel)
+	if err != nil {
+		return fmt.Errorf("run manager install pods: %w", err)
+	}
+
+	err = deleteManagerInstallPods(ctx, logf, cli)
+	if err != nil {
+		return fmt.Errorf("delete pods: %w", err)
 	}
 
 	err = copyInstallationsToConfigMaps(ctx, logf, cli)
@@ -35,16 +45,20 @@ func Run(
 		return fmt.Errorf("copy installations to config maps: %w", err)
 	}
 
-	// We must first uninstall the operator to ensure that it does not reconcile and revert our
-	// changes.
-	err = uninstallOperator(ctx, logf, cli, helmCLI)
+	// disable the operator to ensure that it does not reconcile and revert our changes.
+	err = disableOperator(ctx, logf, cli, in)
 	if err != nil {
-		return fmt.Errorf("uninstall operator: %w", err)
+		return fmt.Errorf("disable operator: %w", err)
 	}
 
 	err = enableV2AdminConsole(ctx, logf, cli, in)
 	if err != nil {
 		return fmt.Errorf("enable v2 admin console: %w", err)
+	}
+
+	err = ensureInstallationStateInstalled(ctx, logf, cli, in)
+	if err != nil {
+		return fmt.Errorf("set installation state to installed: %w", err)
 	}
 
 	err = cleanupV1(ctx, logf, cli)

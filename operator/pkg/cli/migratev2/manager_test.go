@@ -3,7 +3,6 @@ package migratev2
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func Test_runManagerInstallJobsAndWait(t *testing.T) {
+func Test_runManagerInstallPodsAndWait(t *testing.T) {
 	// Create test nodes, one with taints
 	nodes := []corev1.Node{
 		{
@@ -84,26 +83,25 @@ func Test_runManagerInstallJobsAndWait(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Start a goroutine to simulate the jobs completing successfully
+	// Start a goroutine to simulate the pods completing successfully
 	go func() {
 		for {
-			time.Sleep(100 * time.Millisecond) // Give time for jobs to be created
+			time.Sleep(100 * time.Millisecond) // Give time for pods to be created
 
-			// List the jobs
-			var jobs batchv1.JobList
-			err := cli.List(ctx, &jobs)
+			// List the pods
+			var pods corev1.PodList
+			err := cli.List(ctx, &pods)
 			require.NoError(t, err)
 
-			// Update each job to be successful
-			for _, job := range jobs.Items {
-				// Update job status
-				job.Status.Succeeded = 1
-				fmt.Printf("Updating job %s to be successful\n", job.Name)
-				err = cli.Status().Update(ctx, &job)
+			// Update each pod to be successful
+			for _, pod := range pods.Items {
+				// Update pod status
+				pod.Status.Phase = corev1.PodSucceeded
+				err = cli.Status().Update(ctx, &pod)
 				require.NoError(t, err)
 			}
 
-			if len(jobs.Items) == len(nodes) {
+			if len(pods.Items) == len(nodes) {
 				break
 			}
 		}
@@ -114,33 +112,32 @@ func Test_runManagerInstallJobsAndWait(t *testing.T) {
 		// No-op logger for testing
 	}
 
-	err := runManagerInstallJobsAndWait(ctx, logf, cli, installation, "test-secret", "test-app", "v1.0.0")
+	err := runManagerInstallPodsAndWait(ctx, logf, cli, installation, "test-secret", "test-app", "v1.0.0")
 	require.NoError(t, err)
 
-	// Verify the jobs were created and completed
-	var jobs batchv1.JobList
-	err = cli.List(ctx, &jobs)
+	// Verify the pods were created and completed
+	var pods corev1.PodList
+	err = cli.List(ctx, &pods)
 	require.NoError(t, err)
 
-	// Verify number of jobs matches number of nodes
-	assert.Len(t, jobs.Items, len(nodes))
+	// Verify number of pods matches number of nodes
+	assert.Len(t, pods.Items, len(nodes))
 
-	// Verify each job
-	for _, job := range jobs.Items {
-		// Verify job succeeded
-		assert.Equal(t, int32(1), job.Status.Succeeded)
+	// Verify each pod
+	for _, pod := range pods.Items {
+		// Verify pod succeeded
+		assert.Equal(t, corev1.PodSucceeded, pod.Status.Phase)
 
-		// Verify job has correct labels
-		assert.Equal(t, "install-v2-manager", job.Labels["app"])
+		// Verify pod has correct labels
+		assert.Equal(t, "install-v2-manager", pod.Labels["app"])
 
-		// Verify job spec
-		podSpec := job.Spec.Template.Spec
-		assert.Equal(t, "install-v2-manager", podSpec.Containers[0].Name)
-		assert.Equal(t, corev1.RestartPolicyOnFailure, podSpec.RestartPolicy)
+		// Verify pod spec
+		assert.Equal(t, "install-v2-manager", pod.Spec.Containers[0].Name)
+		assert.Equal(t, corev1.RestartPolicyNever, pod.Spec.RestartPolicy)
 
 		// Verify node affinity
-		if job.Name == "install-v2-manager-node1" {
-			assert.Equal(t, "node1", podSpec.NodeSelector["kubernetes.io/hostname"])
+		if pod.Name == "install-v2-manager-node1" {
+			assert.Equal(t, "node1", pod.Spec.NodeSelector["kubernetes.io/hostname"])
 
 			// Verify tolerations are set for tainted nodes
 			expectedToleration := corev1.Toleration{
@@ -148,15 +145,15 @@ func Test_runManagerInstallJobsAndWait(t *testing.T) {
 				Value:    "",
 				Operator: corev1.TolerationOpEqual,
 			}
-			assert.Contains(t, podSpec.Tolerations, expectedToleration)
+			assert.Contains(t, pod.Spec.Tolerations, expectedToleration)
 		} else {
-			assert.Equal(t, "node2", podSpec.NodeSelector["kubernetes.io/hostname"])
+			assert.Equal(t, "node2", pod.Spec.NodeSelector["kubernetes.io/hostname"])
 		}
 
 		// Verify volumes
 		foundInstallationVolume := false
 		foundLicenseVolume := false
-		for _, volume := range podSpec.Volumes {
+		for _, volume := range pod.Spec.Volumes {
 			if volume.Name == "installation" {
 				foundInstallationVolume = true
 				assert.Equal(t, "test-install", volume.ConfigMap.Name)
@@ -170,7 +167,7 @@ func Test_runManagerInstallJobsAndWait(t *testing.T) {
 		assert.True(t, foundLicenseVolume, "expected license volume to be mounted")
 
 		// Verify command arguments
-		container := podSpec.Containers[0]
+		container := pod.Spec.Containers[0]
 		assert.Equal(t, container.Image, "embedded-cluster-operator-image:1.0")
 		assert.Contains(t, container.Command, "migrate-v2")
 		assert.Contains(t, container.Command, "install-manager")
@@ -181,7 +178,7 @@ func Test_runManagerInstallJobsAndWait(t *testing.T) {
 	}
 }
 
-func Test_deleteManagerInstallJobs(t *testing.T) {
+func Test_deleteManagerInstallPods(t *testing.T) {
 	// Create test nodes
 	nodes := []corev1.Node{
 		{
@@ -196,8 +193,8 @@ func Test_deleteManagerInstallJobs(t *testing.T) {
 		},
 	}
 
-	// Create existing jobs
-	jobs := []batchv1.Job{
+	// Create existing pods
+	pods := []corev1.Pod{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "install-v2-manager-node1",
@@ -217,12 +214,12 @@ func Test_deleteManagerInstallJobs(t *testing.T) {
 	require.NoError(t, corev1.AddToScheme(scheme))
 	require.NoError(t, batchv1.AddToScheme(scheme))
 
-	// Create fake client with nodes and jobs
+	// Create fake client with nodes and pods
 	cli := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(append(
 			nodesToRuntimeObjects(nodes),
-			jobsToRuntimeObjects(jobs)...,
+			podsToRuntimeObjects(pods)...,
 		)...).
 		Build()
 
@@ -231,14 +228,14 @@ func Test_deleteManagerInstallJobs(t *testing.T) {
 		// No-op logger for testing
 	}
 
-	err := deleteManagerInstallJobs(context.Background(), logf, cli)
+	err := deleteManagerInstallPods(context.Background(), logf, cli)
 	require.NoError(t, err)
 
-	// Verify jobs were deleted
-	var remainingJobs batchv1.JobList
-	err = cli.List(context.Background(), &remainingJobs)
+	// Verify pods were deleted
+	var remainingPods corev1.PodList
+	err = cli.List(context.Background(), &remainingPods)
 	require.NoError(t, err)
-	assert.Empty(t, remainingJobs.Items, "expected all jobs to be deleted")
+	assert.Empty(t, remainingPods.Items, "expected all pods to be deleted")
 }
 
 func nodesToRuntimeObjects(nodes []corev1.Node) []client.Object {
@@ -249,7 +246,7 @@ func nodesToRuntimeObjects(nodes []corev1.Node) []client.Object {
 	return objects
 }
 
-func Test_ensureManagerInstallJobForNode(t *testing.T) {
+func Test_ensureManagerInstallPodForNode(t *testing.T) {
 	// Set up common test objects
 	node := corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -278,21 +275,20 @@ func Test_ensureManagerInstallJobForNode(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		existingJob  *batchv1.Job
-		expectNewJob bool
-		validateJob  func(*testing.T, *batchv1.Job)
+		existingPod  *corev1.Pod
+		expectNewPod bool
+		validatePod  func(*testing.T, *corev1.Pod)
 		expectError  bool
 	}{
 		{
-			name:        "creates new job when none exists",
-			existingJob: nil,
-			validateJob: func(t *testing.T, job *batchv1.Job) {
-				assert.Equal(t, "install-v2-manager-test-node", job.Name)
-				assert.Equal(t, "embedded-cluster", job.Namespace)
-				assert.Equal(t, "install-v2-manager", job.Labels["app"])
+			name:        "creates new pod when none exists",
+			existingPod: nil,
+			validatePod: func(t *testing.T, pod *corev1.Pod) {
+				assert.Equal(t, "install-v2-manager-test-node", pod.Name)
+				assert.Equal(t, "embedded-cluster", pod.Namespace)
+				assert.Equal(t, "install-v2-manager", pod.Labels["app"])
 
-				podSpec := job.Spec.Template.Spec
-				assert.Equal(t, "test-node", podSpec.NodeSelector["kubernetes.io/hostname"])
+				assert.Equal(t, "test-node", pod.Spec.NodeSelector["kubernetes.io/hostname"])
 
 				// Verify tolerations
 				expectedToleration := corev1.Toleration{
@@ -300,12 +296,12 @@ func Test_ensureManagerInstallJobForNode(t *testing.T) {
 					Value:    "",
 					Operator: corev1.TolerationOpEqual,
 				}
-				assert.Contains(t, podSpec.Tolerations, expectedToleration)
+				assert.Contains(t, pod.Spec.Tolerations, expectedToleration)
 
 				// Verify volumes
 				foundInstallationVolume := false
 				foundLicenseVolume := false
-				for _, volume := range podSpec.Volumes {
+				for _, volume := range pod.Spec.Volumes {
 					if volume.Name == "installation" {
 						foundInstallationVolume = true
 						assert.Equal(t, "test-install", volume.ConfigMap.Name)
@@ -319,7 +315,7 @@ func Test_ensureManagerInstallJobForNode(t *testing.T) {
 				assert.True(t, foundLicenseVolume, "expected license volume to be mounted")
 
 				// Verify container
-				container := podSpec.Containers[0]
+				container := pod.Spec.Containers[0]
 				assert.Equal(t, "embedded-cluster-operator-image:1.0", container.Image)
 				assert.Contains(t, container.Command, "migrate-v2")
 				assert.Contains(t, container.Command, "install-manager")
@@ -331,34 +327,34 @@ func Test_ensureManagerInstallJobForNode(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "reuses existing successful job",
-			existingJob: &batchv1.Job{
+			name: "reuses existing successful pod",
+			existingPod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "install-v2-manager-test-node",
 					Namespace: "embedded-cluster",
 				},
-				Status: batchv1.JobStatus{
-					Succeeded: 1,
+				Status: corev1.PodStatus{
+					Phase: corev1.PodSucceeded,
 				},
 			},
-			validateJob: func(t *testing.T, job *batchv1.Job) {
-				assert.Equal(t, int32(1), job.Status.Succeeded)
+			validatePod: func(t *testing.T, pod *corev1.Pod) {
+				assert.Equal(t, corev1.PodSucceeded, pod.Status.Phase)
 			},
 			expectError: false,
 		},
 		{
-			name: "replaces failed job",
-			existingJob: &batchv1.Job{
+			name: "replaces failed pod",
+			existingPod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "install-v2-manager-test-node",
 					Namespace: "embedded-cluster",
 				},
-				Status: batchv1.JobStatus{
-					Failed: 1,
+				Status: corev1.PodStatus{
+					Phase: corev1.PodFailed,
 				},
 			},
-			validateJob: func(t *testing.T, job *batchv1.Job) {
-				assert.Equal(t, int32(0), job.Status.Failed)
+			validatePod: func(t *testing.T, pod *corev1.Pod) {
+				assert.Equal(t, corev1.PodPhase(""), pod.Status.Phase)
 			},
 			expectError: false,
 		},
@@ -375,13 +371,13 @@ func Test_ensureManagerInstallJobForNode(t *testing.T) {
 
 			// Create fake client
 			builder := fake.NewClientBuilder().WithScheme(scheme)
-			if tt.existingJob != nil {
-				builder = builder.WithObjects(tt.existingJob)
+			if tt.existingPod != nil {
+				builder = builder.WithObjects(tt.existingPod)
 			}
 			cli := builder.Build()
 
 			// Run the function
-			jobName, err := ensureManagerInstallJobForNode(
+			podName, err := ensureManagerInstallPodForNode(
 				context.Background(),
 				cli,
 				node,
@@ -398,24 +394,16 @@ func Test_ensureManagerInstallJobForNode(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			// Get the job
-			var job batchv1.Job
+			// Get the pod
+			var pod corev1.Pod
 			err = cli.Get(context.Background(), client.ObjectKey{
 				Namespace: "embedded-cluster",
-				Name:      jobName,
-			}, &job)
+				Name:      podName,
+			}, &pod)
 			require.NoError(t, err)
 
 			// Run validation
-			tt.validateJob(t, &job)
+			tt.validatePod(t, &pod)
 		})
 	}
-}
-
-func jobsToRuntimeObjects(jobs []batchv1.Job) []client.Object {
-	objects := make([]client.Object, len(jobs))
-	for i := range jobs {
-		objects[i] = &jobs[i]
-	}
-	return objects
 }

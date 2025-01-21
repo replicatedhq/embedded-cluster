@@ -11,7 +11,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"golang.org/x/sync/errgroup"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,13 +19,13 @@ import (
 )
 
 const (
-	jobNamespace  = "embedded-cluster"
-	jobNamePrefix = "install-v2-manager-"
+	podNamespace  = "embedded-cluster"
+	podNamePrefix = "install-v2-manager-"
 )
 
-// runManagerInstallJobsAndWait runs the v2 manager install job on all nodes and waits for the jobs
+// runManagerInstallPodsAndWait runs the v2 manager install pod on all nodes and waits for the pods
 // to finish.
-func runManagerInstallJobsAndWait(
+func runManagerInstallPodsAndWait(
 	ctx context.Context, logf LogFunc, cli client.Client,
 	in *ecv1beta1.Installation,
 	migrationSecret string, appSlug string, appVersionLabel string,
@@ -50,20 +49,20 @@ func runManagerInstallJobsAndWait(
 	}
 
 	for _, node := range nodeList.Items {
-		logf("Ensuring manager install job for node %s", node.Name)
-		_, err := ensureManagerInstallJobForNode(ctx, cli, node, in, operatorImage, migrationSecret, appSlug, appVersionLabel)
+		logf("Ensuring manager install pod for node %s", node.Name)
+		_, err := ensureManagerInstallPodForNode(ctx, cli, node, in, operatorImage, migrationSecret, appSlug, appVersionLabel)
 		if err != nil {
-			return fmt.Errorf("create job for node %s: %w", node.Name, err)
+			return fmt.Errorf("create pod for node %s: %w", node.Name, err)
 		}
-		logf("Successfully ensured manager install job for node %s", node.Name)
+		logf("Successfully ensured manager install pod for node %s", node.Name)
 	}
 
-	logf("Waiting for manager install jobs to finish")
-	err = waitForManagerInstallJobs(ctx, cli, nodeList.Items)
+	logf("Waiting for manager install pods to finish")
+	err = waitForManagerInstallPods(ctx, cli, nodeList.Items)
 	if err != nil {
-		return fmt.Errorf("wait for jobs: %w", err)
+		return fmt.Errorf("wait for pods: %w", err)
 	}
-	logf("Successfully waited for manager install jobs to finish")
+	logf("Successfully waited for manager install pods to finish")
 
 	return nil
 }
@@ -89,39 +88,39 @@ func getOperatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.
 	return "", fmt.Errorf("no embedded-cluster-operator image found in release metadata")
 }
 
-func ensureManagerInstallJobForNode(
+func ensureManagerInstallPodForNode(
 	ctx context.Context, cli client.Client,
 	node corev1.Node, in *ecv1beta1.Installation, operatorImage string,
 	migrationSecret string, appSlug string, appVersionLabel string,
 ) (string, error) {
-	existing, err := getManagerInstallJobForNode(ctx, cli, node)
+	existing, err := getManagerInstallPodForNode(ctx, cli, node)
 	if err == nil {
-		if managerInstallJobHasSucceeded(existing) {
+		if managerInstallPodHasSucceeded(existing) {
 			return existing.Name, nil
-		} else if managerInstallJobHasFailed(existing) {
+		} else if managerInstallPodHasFailed(existing) {
 			err := cli.Delete(ctx, &existing)
 			if err != nil {
-				return "", fmt.Errorf("delete job %s: %w", existing.Name, err)
+				return "", fmt.Errorf("delete pod %s: %w", existing.Name, err)
 			}
 		} else {
 			// still running
 			return existing.Name, nil
 		}
 	} else if !k8serrors.IsNotFound(err) {
-		return "", fmt.Errorf("get job for node %s: %w", node.Name, err)
+		return "", fmt.Errorf("get pod for node %s: %w", node.Name, err)
 	}
 
-	job := getManagerInstallJobSpecForNode(node, in, operatorImage, migrationSecret, appSlug, appVersionLabel)
-	if err := cli.Create(ctx, job); err != nil {
+	pod := getManagerInstallPodSpecForNode(node, in, operatorImage, migrationSecret, appSlug, appVersionLabel)
+	if err := cli.Create(ctx, pod); err != nil {
 		return "", err
 	}
 
-	return job.Name, nil
+	return pod.Name, nil
 }
 
-// deleteManagerInstallJobs deletes all manager install jobs on all nodes.
-func deleteManagerInstallJobs(ctx context.Context, logf LogFunc, cli client.Client) error {
-	logf("Deleting manager install jobs")
+// deleteManagerInstallPods deletes all manager install pods on all nodes.
+func deleteManagerInstallPods(ctx context.Context, logf LogFunc, cli client.Client) error {
+	logf("Deleting manager install pods")
 
 	var nodeList corev1.NodeList
 	if err := cli.List(ctx, &nodeList); err != nil {
@@ -129,32 +128,32 @@ func deleteManagerInstallJobs(ctx context.Context, logf LogFunc, cli client.Clie
 	}
 
 	for _, node := range nodeList.Items {
-		jobName := getManagerInstallJobName(node)
-		job := &batchv1.Job{
+		podName := getManagerInstallPodName(node)
+		pod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: jobNamespace, Name: jobName,
+				Namespace: podNamespace, Name: podName,
 			},
 		}
-		err := cli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
+		err := cli.Delete(ctx, pod, client.PropagationPolicy(metav1.DeletePropagationBackground))
 		if err != nil {
-			return fmt.Errorf("delete job for node %s: %w", node.Name, err)
+			return fmt.Errorf("delete pod for node %s: %w", node.Name, err)
 		}
 	}
 
-	logf("Successfully deleted manager install jobs")
+	logf("Successfully deleted manager install pods")
 
 	return nil
 }
 
-func waitForManagerInstallJobs(ctx context.Context, cli client.Client, nodes []corev1.Node) error {
+func waitForManagerInstallPods(ctx context.Context, cli client.Client, nodes []corev1.Node) error {
 	eg := errgroup.Group{}
 
 	for _, node := range nodes {
-		jobName := getManagerInstallJobName(node)
+		podName := getManagerInstallPodName(node)
 		eg.Go(func() error {
-			err := waitForManagerInstallJob(ctx, cli, jobName)
+			err := waitForManagerInstallPod(ctx, cli, podName)
 			if err != nil {
-				return fmt.Errorf("wait for job for node %s: %v", node.Name, err)
+				return fmt.Errorf("wait for pod for node %s: %v", node.Name, err)
 			}
 			return nil
 		})
@@ -169,27 +168,27 @@ func waitForManagerInstallJobs(ctx context.Context, cli client.Client, nodes []c
 	return nil
 }
 
-func waitForManagerInstallJob(ctx context.Context, cli client.Client, jobName string) error {
+func waitForManagerInstallPod(ctx context.Context, cli client.Client, podName string) error {
 	// 60 steps at 5 second intervals = ~ 5 minutes
 	backoff := wait.Backoff{Steps: 60, Duration: 2 * time.Second, Factor: 1.0, Jitter: 0.1}
-	return kubeutils.WaitForJob(ctx, cli, jobNamespace, jobName, 1, &kubeutils.WaitOptions{Backoff: &backoff})
+	return kubeutils.WaitForPodComplete(ctx, cli, podNamespace, podName, &kubeutils.WaitOptions{Backoff: &backoff})
 }
 
-func getManagerInstallJobForNode(ctx context.Context, cli client.Client, node corev1.Node) (batchv1.Job, error) {
-	jobName := getManagerInstallJobName(node)
+func getManagerInstallPodForNode(ctx context.Context, cli client.Client, node corev1.Node) (corev1.Pod, error) {
+	podName := getManagerInstallPodName(node)
 
-	var job batchv1.Job
-	err := cli.Get(ctx, client.ObjectKey{Namespace: jobNamespace, Name: jobName}, &job)
+	var pod corev1.Pod
+	err := cli.Get(ctx, client.ObjectKey{Namespace: podNamespace, Name: podName}, &pod)
 	if err != nil {
-		return job, fmt.Errorf("get job %s: %w", jobName, err)
+		return pod, fmt.Errorf("get pod %s: %w", podName, err)
 	}
-	return job, nil
+	return pod, nil
 }
 
-func managerInstallJobHasSucceeded(job batchv1.Job) bool {
-	return job.Status.Succeeded > 0
+func managerInstallPodHasSucceeded(pod corev1.Pod) bool {
+	return pod.Status.Phase == corev1.PodSucceeded
 }
 
-func managerInstallJobHasFailed(job batchv1.Job) bool {
-	return job.Status.Failed > 0
+func managerInstallPodHasFailed(pod corev1.Pod) bool {
+	return pod.Status.Phase == corev1.PodFailed
 }

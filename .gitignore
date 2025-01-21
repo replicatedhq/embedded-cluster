@@ -24,3 +24,6 @@ preflightbundle*
 
 hack/release.tgz
 hack/release
+
+# Test binary, built with `go test -c`
+*.test
