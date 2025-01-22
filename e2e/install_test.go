@@ -523,7 +523,7 @@ func TestMigrateV2FromReplicatedApp(t *testing.T) {
 
 	// upgrade the cluster and migrate to v2
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade-v2", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion := fmt.Sprintf("appver-%s-v2upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
