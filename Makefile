@@ -189,6 +189,7 @@ output/bin/embedded-cluster-release-builder:
 initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: export APP_VERSION = appver-dev-$(call random-string)
 initial-release: export RELEASE_YAML_DIR = e2e/kots-release-install
+initial-release: export V2_ENABLED = 0
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=0 \
 		./scripts/build-and-release.sh
@@ -205,6 +206,7 @@ rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 upgrade-release: RANDOM_STRING = $(call random-string)
 upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
 upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
+upgrade-release: export V2_ENABLED = 0
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
 	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
