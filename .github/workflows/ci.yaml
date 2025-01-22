@@ -672,19 +672,19 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # and finally an app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
-          export APP_VERSION="appver-${SHORT_SHA}-upgrade"
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
-          ./scripts/ci-release-app.sh
-
-          # and finally an app upgrade v2
+          # an app upgrade to v2
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade-v2"
           export APP_VERSION="appver-${SHORT_SHA}-upgrade-v2"
           export V2_ENABLED="1"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
           unset V2_ENABLED
+
+          # and finally an app upgrade
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
+          export APP_VERSION="appver-${SHORT_SHA}-upgrade"
+          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
+          ./scripts/ci-release-app.sh
 
       - name: Create airgap releases
         env:
@@ -720,19 +720,19 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install-legacydr
           ./scripts/ci-release-app.sh
 
-          # and finally an app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
-          export APP_VERSION="appver-${SHORT_SHA}-upgrade"
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
-          ./scripts/ci-release-app.sh
-
-          # and finally an app upgrade v2
+          # an app upgrade to v2
           export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade-v2"
           export APP_VERSION="appver-${SHORT_SHA}-upgrade-v2"
           export V2_ENABLED="1"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
           unset V2_ENABLED
+
+          # and finally an app upgrade
+          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
+          export APP_VERSION="appver-${SHORT_SHA}-upgrade"
+          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
+          ./scripts/ci-release-app.sh
 
       - name: Create download link message text
         if: github.event_name == 'pull_request'
