@@ -218,6 +218,13 @@ spec:
                       to use a string here.
                     type: string
                 type: object
+              v2Enabled:
+                description: |-
+                  V2Enabled is a temporary property that can be used to opt-in to the new installer. If set,
+                  in addition to using the new v2 install method, v1 installations will be migrated to v2 on
+                  upgrade. This property will be removed once the new installer is fully implemented and the
+                  old installer is removed.
+                type: boolean
               version:
                 type: string
             type: object
@@ -508,6 +515,13 @@ spec:
                           to use a string here.
                         type: string
                     type: object
+                  v2Enabled:
+                    description: |-
+                      V2Enabled is a temporary property that can be used to opt-in to the new installer. If set,
+                      in addition to using the new v2 install method, v1 installations will be migrated to v2 on
+                      upgrade. This property will be removed once the new installer is fully implemented and the
+                      old installer is removed.
+                    type: boolean
                   version:
                     type: string
                 type: object
