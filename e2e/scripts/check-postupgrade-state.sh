@@ -17,7 +17,11 @@ main() {
     local v2_enabled="${3:-}"
 
     echo "ensure that installation is installed"
-    wait_for_installation
+    if [ "$v2_enabled" != "true" ]; then
+        wait_for_installation
+    else
+        wait_for_installation_v2
+    fi
 
     echo "pods"
     kubectl get pods -A
