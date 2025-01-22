@@ -690,36 +690,36 @@ jobs:
       matrix:
         test:
           - TestPreflights
-#          - TestMaterialize
-#          - TestHostPreflightCustomSpec
-#          - TestHostPreflightInBuiltSpec
-#          - TestSingleNodeInstallation
-#          - TestSingleNodeInstallationAlmaLinux8
-#          - TestSingleNodeInstallationDebian11
-#          - TestSingleNodeInstallationDebian12
-#          - TestSingleNodeInstallationCentos9Stream
-#          - TestSingleNodeUpgradePreviousStable
-#          - TestInstallFromReplicatedApp
-#          - TestUpgradeFromReplicatedApp
-#          - TestInstallWithoutEmbed
-#          - TestUpgradeEC18FromReplicatedApp
-#          - TestResetAndReinstall
-#          - TestOldVersionUpgrade
-#          - TestInstallSnapshotFromReplicatedApp
-#          - TestMultiNodeInstallation
-#          - TestMultiNodeHAInstallation
-#          - TestSingleNodeDisasterRecovery
-#          - TestSingleNodeLegacyDisasterRecovery
-#          - TestSingleNodeResumeDisasterRecovery
-#          - TestMultiNodeHADisasterRecovery
-#          - TestSingleNodeInstallationNoopUpgrade
-#          - TestCustomCIDR
-#          - TestLocalArtifactMirror
-#          - TestMultiNodeReset
-#          - TestCollectSupportBundle
-#          - TestUnsupportedOverrides
-#          - TestHostCollectSupportBundleInCluster
-#          - TestInstallWithConfigValues
+          - TestMaterialize
+          - TestHostPreflightCustomSpec
+          - TestHostPreflightInBuiltSpec
+          - TestSingleNodeInstallation
+          - TestSingleNodeInstallationAlmaLinux8
+          - TestSingleNodeInstallationDebian11
+          - TestSingleNodeInstallationDebian12
+          - TestSingleNodeInstallationCentos9Stream
+          - TestSingleNodeUpgradePreviousStable
+          - TestInstallFromReplicatedApp
+          - TestUpgradeFromReplicatedApp
+          - TestInstallWithoutEmbed
+          - TestUpgradeEC18FromReplicatedApp
+          - TestResetAndReinstall
+          - TestOldVersionUpgrade
+          - TestInstallSnapshotFromReplicatedApp
+          - TestMultiNodeInstallation
+          - TestMultiNodeHAInstallation
+          - TestSingleNodeDisasterRecovery
+          - TestSingleNodeLegacyDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
+          - TestMultiNodeHADisasterRecovery
+          - TestSingleNodeInstallationNoopUpgrade
+          - TestCustomCIDR
+          - TestLocalArtifactMirror
+          - TestMultiNodeReset
+          - TestCollectSupportBundle
+          - TestUnsupportedOverrides
+          - TestHostCollectSupportBundleInCluster
+          - TestInstallWithConfigValues
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -790,31 +790,31 @@ jobs:
       matrix:
         test:
           - TestVersion
-#          - TestCommandsRequireSudo
-#          - TestResetAndReinstallAirgap
-#          - TestSingleNodeAirgapUpgrade
-#          - TestSingleNodeAirgapUpgradeConfigValues
-#          - TestSingleNodeAirgapUpgradeCustomCIDR
-#          - TestSingleNodeDisasterRecoveryWithProxy
-#          - TestProxiedEnvironment
-#          - TestProxiedCustomCIDR
-#          - TestInstallWithPrivateCAs
-#          - TestInstallWithMITMProxy
-#        include:
-#          - test: TestMultiNodeAirgapUpgrade
-#            runner: embedded-cluster-2
-#          - test: TestMultiNodeAirgapUpgradeSameK0s
-#            runner: embedded-cluster-2
-#          - test: TestMultiNodeAirgapUpgradePreviousStable
-#            runner: embedded-cluster-2
-#          - test: TestAirgapUpgradeFromEC18
-#            runner: embedded-cluster-2
-#          - test: TestSingleNodeAirgapDisasterRecovery
-#            runner: embedded-cluster-2
-#          - test: TestMultiNodeAirgapHAInstallation
-#            runner: embedded-cluster-2
-#          - test: TestMultiNodeAirgapHADisasterRecovery
-#            runner: embedded-cluster-2
+          - TestCommandsRequireSudo
+          - TestResetAndReinstallAirgap
+          - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeConfigValues
+          - TestSingleNodeAirgapUpgradeCustomCIDR
+          - TestSingleNodeDisasterRecoveryWithProxy
+          - TestProxiedEnvironment
+          - TestProxiedCustomCIDR
+          - TestInstallWithPrivateCAs
+          - TestInstallWithMITMProxy
+        include:
+          - test: TestMultiNodeAirgapUpgrade
+            runner: embedded-cluster-2
+          - test: TestMultiNodeAirgapUpgradeSameK0s
+            runner: embedded-cluster-2
+          - test: TestMultiNodeAirgapUpgradePreviousStable
+            runner: embedded-cluster-2
+          - test: TestAirgapUpgradeFromEC18
+            runner: embedded-cluster-2
+          - test: TestSingleNodeAirgapDisasterRecovery
+            runner: embedded-cluster-2
+          - test: TestMultiNodeAirgapHAInstallation
+            runner: embedded-cluster-2
+          - test: TestMultiNodeAirgapHADisasterRecovery
+            runner: embedded-cluster-2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -965,6 +965,7 @@ jobs:
   # the tests here are expected to fail and should be moved to e2e-docker-install2 once they are fixed
   e2e-docker-install2-failing:
     name: E2E Docker (install2, failing)
+    if: contains(github.event.pull_request.labels.*.name, 'run-failing-install2-tests')
     runs-on: ubuntu-latest
     needs:
       - git-sha
@@ -1081,6 +1082,7 @@ jobs:
 
   e2e-install2-failing:
     name: E2E Install2 Failing
+    if: contains(github.event.pull_request.labels.*.name, 'run-failing-install2-tests')
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     needs:
       - build-current
