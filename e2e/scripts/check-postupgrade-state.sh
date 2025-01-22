@@ -14,7 +14,7 @@ function check_nginx_version {
 main() {
     local k8s_version="$1"
     local ec_version="$2"
-    local v2_enabled="$3"
+    local v2_enabled="${3:-}"
 
     echo "ensure that installation is installed"
     wait_for_installation
