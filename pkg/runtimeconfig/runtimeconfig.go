@@ -121,7 +121,7 @@ func PathToKubeConfig() string {
 // a running cluster should be stored into this directory.
 func EmbeddedClusterSupportSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "support")
-	if err := os.MkdirAll(path, 0700); err != nil {
+	if err := helpers.MkDirAll(path, 0700); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster support dir: %s", err)
 	}
 	return path
