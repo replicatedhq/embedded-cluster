@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/support"
 )
 
 // PlaceHolder is a filename we use in some of the directories here so we can
@@ -114,9 +115,16 @@ func (m *Materializer) SupportFiles() error {
 		}
 		dstpath := runtimeconfig.PathToEmbeddedClusterSupportFile(entry.Name())
 		if err := os.WriteFile(dstpath, srcfile, 0644); err != nil {
-			return fmt.Errorf("unable to write file: %w", err)
+			return fmt.Errorf("unable to write file %s: %w", dstpath, err)
 		}
 	}
+
+	name := "host-support-bundle-remote.yaml"
+	dstpath := runtimeconfig.PathToEmbeddedClusterSupportFile(name)
+	if err := os.WriteFile(dstpath, support.GetRemoteHostSupportBundleSpec(), 0644); err != nil {
+		return fmt.Errorf("unable to write file %s: %w", dstpath, err)
+	}
+
 	return nil
 }
 
