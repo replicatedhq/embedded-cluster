@@ -31,6 +31,7 @@ func (r *Registry) Install(ctx context.Context, kcli client.Client, writer *spin
 	hcli, err := helm.NewHelm(helm.HelmOptions{
 		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
+		AirgapPath: runtimeconfig.EmbeddedClusterChartsSubDir(), // registry is always airgap
 	})
 	if err != nil {
 		return errors.Wrap(err, "create helm client")

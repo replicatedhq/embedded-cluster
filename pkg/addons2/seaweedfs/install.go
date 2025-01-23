@@ -27,9 +27,15 @@ func (s *SeaweedFS) Install(ctx context.Context, kcli client.Client, writer *spi
 		return errors.Wrap(err, "create prerequisites")
 	}
 
+	airgapChartsPath := ""
+	if s.IsAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
 	hcli, err := helm.NewHelm(helm.HelmOptions{
 		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {
 		return errors.Wrap(err, "create helm client")

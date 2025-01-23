@@ -32,11 +32,16 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, writer *
 		return errors.Wrap(err, "create prerequisites")
 	}
 
-	// install the helm chart
+	airgapChartsPath := ""
+	if a.AirgapBundle != "" || a.IsAirgap {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
 
+	// install the helm chart
 	hcli, err := helm.NewHelm(helm.HelmOptions{
 		KubeConfig: runtimeconfig.PathToKubeConfig(),
 		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {
 		return errors.Wrap(err, "create helm client")

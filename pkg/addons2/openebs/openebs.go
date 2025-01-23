@@ -9,6 +9,7 @@ import (
 )
 
 type OpenEBS struct {
+	IsAirgap bool
 }
 
 const (

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -100,12 +101,14 @@ func NewHelm(opts HelmOptions) (*Helm, error) {
 		regcli:        regcli,
 		logFn:         opts.LogFn,
 		getterFactory: opts.RESTClientGetterFactory,
+		airgapPath:    opts.AirgapPath,
 	}, nil
 }
 
 type HelmOptions struct {
 	KubeConfig              string
 	K0sVersion              string
+	AirgapPath              string
 	Writer                  io.Writer
 	LogFn                   action.DebugLog
 	RESTClientGetterFactory RESTClientGetterFactory
@@ -146,6 +149,7 @@ type Helm struct {
 	repos         []*repo.Entry
 	logFn         action.DebugLog
 	getterFactory RESTClientGetterFactory
+	airgapPath    string
 }
 
 func (h *Helm) prepare() error {
@@ -310,11 +314,18 @@ func (h *Helm) Install(ctx context.Context, opts InstallOptions) (*release.Relea
 		client.Timeout = 5 * time.Minute
 	}
 
-	localPath, err := h.PullOCI(opts.ChartPath, opts.ChartVersion)
-	if err != nil {
-		return nil, fmt.Errorf("pull oci: %w", err)
+	var localPath string
+	if h.airgapPath == "" {
+		// online, pull chart from remote
+		localPath, err = h.PullOCI(opts.ChartPath, opts.ChartVersion)
+		if err != nil {
+			return nil, fmt.Errorf("pull oci: %w", err)
+		}
+		defer os.RemoveAll(localPath)
+	} else {
+		// airgapped, use chart from airgap path
+		localPath = path.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
 	}
-	defer os.RemoveAll(localPath)
 
 	chartRequested, err := loader.Load(localPath)
 	if err != nil {
@@ -355,11 +366,18 @@ func (h *Helm) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Relea
 		client.Timeout = 5 * time.Minute
 	}
 
-	localPath, err := h.PullOCI(opts.ChartPath, opts.ChartVersion)
-	if err != nil {
-		return nil, fmt.Errorf("pull oci: %w", err)
+	var localPath string
+	if h.airgapPath == "" {
+		// online, pull chart from remote
+		localPath, err = h.PullOCI(opts.ChartPath, opts.ChartVersion)
+		if err != nil {
+			return nil, fmt.Errorf("pull oci: %w", err)
+		}
+		defer os.RemoveAll(localPath)
+	} else {
+		// airgapped, use chart from airgap path
+		localPath = path.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", opts.ReleaseName, opts.ChartVersion))
 	}
-	defer os.RemoveAll(localPath)
 
 	chartRequested, err := loader.Load(localPath)
 	if err != nil {

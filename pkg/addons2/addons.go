@@ -50,7 +50,9 @@ func Install(ctx context.Context, opts InstallOptions) error {
 
 func getAddOns(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{},
+		&openebs.OpenEBS{
+			IsAirgap: opts.AirgapBundle != "",
+		},
 	}
 
 	if opts.AirgapBundle != "" {
@@ -61,7 +63,8 @@ func getAddOns(opts InstallOptions) []types.AddOn {
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy: opts.Proxy,
+			Proxy:    opts.Proxy,
+			IsAirgap: opts.AirgapBundle != "",
 		})
 	}
 
