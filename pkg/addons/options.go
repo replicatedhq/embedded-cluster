@@ -2,6 +2,7 @@ package addons
 
 import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -49,13 +50,6 @@ func WithEndUserConfig(config *ecv1beta1.Config) Option {
 func WithLicense(license *kotsv1beta1.License) Option {
 	return func(a *Applier) {
 		a.license = license
-	}
-}
-
-// WithLicenseFile sets the license filepath for the application.
-func WithLicenseFile(licenseFile string) Option {
-	return func(a *Applier) {
-		a.licenseFile = licenseFile
 	}
 }
 
@@ -117,5 +111,11 @@ func WithBinaryNameOverride(name string) Option {
 func WithConfigValuesFile(filename string) Option {
 	return func(a *Applier) {
 		a.configValuesFile = filename
+	}
+}
+
+func WithKotsInstaller(installer adminconsole.KotsInstaller) Option {
+	return func(a *Applier) {
+		a.kotsInstaller = installer
 	}
 }

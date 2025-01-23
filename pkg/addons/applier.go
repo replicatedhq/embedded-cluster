@@ -46,7 +46,6 @@ type Applier struct {
 	verbose                 bool
 	adminConsolePwd         string // admin console password
 	license                 *kotsv1beta1.License
-	licenseFile             string
 	onlyDefaults            bool
 	endUserConfig           *ecv1beta1.Config
 	airgapBundle            string
@@ -57,6 +56,7 @@ type Applier struct {
 	isHAMigrationInProgress bool
 	binaryNameOverride      string
 	configValuesFile        string
+	kotsInstaller           adminconsole.KotsInstaller
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -325,13 +325,13 @@ func (a *Applier) load() ([]AddOn, error) {
 	aconsole, err := adminconsole.New(
 		runtimeconfig.KotsadmNamespace,
 		a.adminConsolePwd,
-		a.licenseFile,
 		a.airgapBundle,
 		a.isAirgap,
 		a.isHA,
 		a.proxyEnv,
 		a.privateCAs,
 		a.configValuesFile,
+		a.kotsInstaller,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)

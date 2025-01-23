@@ -14,8 +14,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -88,14 +86,16 @@ func Render() {
 type AdminConsole struct {
 	namespace        string
 	password         string
-	licenseFile      string
 	airgapBundle     string
 	isAirgap         bool
 	isHA             bool
 	proxyEnv         map[string]string
 	privateCAs       map[string]string
 	configValuesFile string
+	kotsInstaller    KotsInstaller
 }
+
+type KotsInstaller func(msg *spinner.MessageWriter) error
 
 // Version returns the embedded admin console version.
 func (a *AdminConsole) Version() (map[string]string, error) {
@@ -211,19 +211,9 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 		return err
 	}
 
-	if a.licenseFile != "" {
-		license, err := helpers.ParseLicense(a.licenseFile)
+	if a.kotsInstaller != nil {
+		err := a.kotsInstaller(loading)
 		if err != nil {
-			return fmt.Errorf("unable to parse license: %w", err)
-		}
-		installOpts := kotscli.InstallOptions{
-			AppSlug:          license.Spec.AppSlug,
-			LicenseFile:      a.licenseFile,
-			Namespace:        a.namespace,
-			AirgapBundle:     a.airgapBundle,
-			ConfigValuesFile: a.configValuesFile,
-		}
-		if err := kotscli.Install(installOpts, loading); err != nil {
 			return err
 		}
 	}
@@ -237,24 +227,24 @@ func (a *AdminConsole) Outro(ctx context.Context, cli client.Client, k0sCfg *k0s
 func New(
 	namespace string,
 	password string,
-	licenseFile string,
 	airgapBundle string,
 	isAirgap bool,
 	isHA bool,
 	proxyEnv map[string]string,
 	privateCAs map[string]string,
 	configValuesFile string,
+	kotsInstaller KotsInstaller,
 ) (*AdminConsole, error) {
 	return &AdminConsole{
 		namespace:        namespace,
 		password:         password,
-		licenseFile:      licenseFile,
 		airgapBundle:     airgapBundle,
 		isAirgap:         isAirgap,
 		isHA:             isHA,
 		proxyEnv:         proxyEnv,
 		privateCAs:       privateCAs,
 		configValuesFile: configValuesFile,
+		kotsInstaller:    kotsInstaller,
 	}, nil
 }
 

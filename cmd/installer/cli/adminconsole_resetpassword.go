@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli/kotscli"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
