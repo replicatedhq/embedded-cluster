@@ -14,8 +14,6 @@ import (
 
 func StartCmd(ctx context.Context, name string) *cobra.Command {
 	var (
-		dataDir string
-
 		disableWebsocket bool
 	)
 
@@ -24,7 +22,10 @@ func StartCmd(ctx context.Context, name string) *cobra.Command {
 		Short: fmt.Sprintf("Start the %s cluster manager", name),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			// init runtime config and relevant env vars
-			runtimeconfig.ApplyFlags(cmd.Flags())
+			if dataDir := os.Getenv("DATA_DIR"); dataDir != "" {
+				runtimeconfig.SetDataDir(dataDir)
+			}
+
 			os.Setenv("KUBECONFIG", runtimeconfig.PathToKubeConfig())
 			os.Setenv("TMPDIR", runtimeconfig.EmbeddedClusterTmpSubDir())
 		},
@@ -51,8 +52,6 @@ func StartCmd(ctx context.Context, name string) *cobra.Command {
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVar(&dataDir, "data-dir", "", "Path to the data directory")
 
 	// flags to enable running in test mode
 	cmd.Flags().BoolVar(&disableWebsocket, "disable-websocket", false, "When set, don't connect to the KOTS webscoket")
