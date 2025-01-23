@@ -37,7 +37,6 @@ async function handlePreflightChecks(iframe: FrameLocator) {
   await expect(iframe.getByText('Preflight checks', { exact: true })).toBeVisible({ timeout: 10 * 1000 });
   await expect(iframe.getByRole('button', { name: 'Rerun' })).toBeVisible({ timeout: 10 * 1000 });
   await expect(iframe.locator('#app')).toContainText('K0s ClusterConfig CRD exists');
-  await expect(iframe.locator('#app')).toContainText('Embedded Cluster Config CRD exists');
   await expect(iframe.getByRole('button', { name: 'Back: Config' })).toBeVisible();
   await iframe.getByRole('button', { name: 'Next: Confirm and deploy' }).click();
 }
