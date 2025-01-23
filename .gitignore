@@ -1,9 +1,9 @@
 bundle
-cmd/installer/cli/goods/bins/*
-!cmd/installer/cli/goods/bins/.placeholder
-cmd/installer/cli/goods/internal/bins/*
-!cmd/installer/cli/goods/internal/bins/.placeholder
-cmd/installer/cli/goods/images
+cmd/installer/goods/bins/*
+!cmd/installer/goods/bins/.placeholder
+cmd/installer/goods/internal/bins/*
+!cmd/installer/goods/internal/bins/.placeholder
+cmd/installer/goods/images
 .pre-commit-config.yaml
 vendor
 e2e/kots-release-install/license.yaml

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli/goods"
-	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli/kotscli"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"

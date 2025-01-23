@@ -11,7 +11,7 @@ import (
 
 // PlaceHolder is a filename we use in some of the directories here so we can
 // commit them to git. Without having these files the unit tests tend to fail
-// with: "cmd/installer/cli/goods/goods.go:12:13: pattern bins/*: no matching files found".
+// with: "cmd/installer/goods/goods.go:12:13: pattern bins/*: no matching files found".
 const PlaceHolder = ".placeholder"
 
 // Materializer is an entity capable of materialize (write to disk) embedded assets.
