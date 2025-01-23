@@ -268,7 +268,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 	}
 
 	logrus.Debugf("installing extensions")
-	if err := extensions.Install(cmd.Context()); err != nil {
+	if err := extensions.Install(cmd.Context(), flags.airgapBundle != ""); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
 	}
