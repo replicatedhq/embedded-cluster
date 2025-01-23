@@ -3,6 +3,7 @@ package migratev2
 import (
 	"context"
 	"fmt"
+	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -50,6 +51,9 @@ func Run(
 	if err != nil {
 		return fmt.Errorf("disable operator: %w", err)
 	}
+
+	// allow some time for the operator to be disabled
+	time.Sleep(5 * time.Second)
 
 	err = enableV2AdminConsole(ctx, logf, cli, in)
 	if err != nil {
