@@ -17,8 +17,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -82,7 +82,7 @@ func Upgrade(ctx context.Context, cli client.Client, in *clusterv1beta1.Installa
 		return fmt.Errorf("unlock installation: %w", err)
 	}
 
-	err = kotscli.CreateHostSupportBundle()
+	err = support.CreateHostSupportBundle()
 	if err != nil {
 		logrus.Warnf("Failed to upgrade host support bundle: %v", err)
 	}

@@ -21,14 +21,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
-
-const SpecDataKey = "support-bundle-spec"
 
 // AddOn is the interface that all addons must implement.
 type AddOn interface {
@@ -48,7 +46,6 @@ type Applier struct {
 	verbose                 bool
 	adminConsolePwd         string // admin console password
 	license                 *kotsv1beta1.License
-	licenseFile             string
 	onlyDefaults            bool
 	endUserConfig           *ecv1beta1.Config
 	airgapBundle            string
@@ -59,6 +56,7 @@ type Applier struct {
 	isHAMigrationInProgress bool
 	binaryNameOverride      string
 	configValuesFile        string
+	kotsInstaller           adminconsole.KotsInstaller
 }
 
 // Outro runs the outro in all enabled add-ons.
@@ -89,7 +87,7 @@ func (a *Applier) Outro(ctx context.Context, k0sCfg *k0sv1beta1.ClusterConfig, e
 		return err
 	}
 
-	err = kotscli.CreateHostSupportBundle()
+	err = support.CreateHostSupportBundle()
 	if err != nil {
 		logrus.Warnf("failed to create host support bundle: %v", err)
 	}
@@ -327,13 +325,13 @@ func (a *Applier) load() ([]AddOn, error) {
 	aconsole, err := adminconsole.New(
 		runtimeconfig.KotsadmNamespace,
 		a.adminConsolePwd,
-		a.licenseFile,
 		a.airgapBundle,
 		a.isAirgap,
 		a.isHA,
 		a.proxyEnv,
 		a.privateCAs,
 		a.configValuesFile,
+		a.kotsInstaller,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create admin console addon: %w", err)
