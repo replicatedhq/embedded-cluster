@@ -46,7 +46,7 @@ func EmbeddedClusterHomeDirectory() string {
 func EmbeddedClusterTmpSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "tmp")
 
-	if err := helpers.InitDir(path, 0755); err != nil {
+	if err := helpers.MkDirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster tmp dir: %s", err)
 	}
 	return path
@@ -57,7 +57,7 @@ func EmbeddedClusterTmpSubDir() string {
 func EmbeddedClusterBinsSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "bin")
 
-	if err := helpers.InitDir(path, 0755); err != nil {
+	if err := helpers.MkDirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster bin dir: %s", err)
 	}
 	return path
@@ -68,7 +68,7 @@ func EmbeddedClusterBinsSubDir() string {
 func EmbeddedClusterChartsSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "charts")
 
-	if err := helpers.InitDir(path, 0755); err != nil {
+	if err := helpers.MkDirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster charts dir: %s", err)
 	}
 	return path
@@ -77,7 +77,7 @@ func EmbeddedClusterChartsSubDir() string {
 // EmbeddedClusterImagesSubDir returns the path to the directory where docker images are stored.
 func EmbeddedClusterImagesSubDir() string {
 	path := filepath.Join(EmbeddedClusterHomeDirectory(), "images")
-	if err := helpers.InitDir(path, 0755); err != nil {
+	if err := helpers.MkDirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster images dir: %s", err)
 	}
 	return path
