@@ -19,7 +19,7 @@ K0S_BINARY_SOURCE_OVERRIDE =
 TROUBLESHOOT_VERSION = v0.112.1
 
 #KOTS_VERSION = v0.0.1-ethan-1
-KOTS_VERSION = v0.0.1-ethanamd64-1
+KOTS_VERSION = v0.0.1-ethanamd64-2
 #KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 # When updating KOTS_BINARY_URL_OVERRIDE, also update the KOTS_VERSION above or
 # scripts/ci-upload-binaries.sh may find the version in the cache and not upload the overridden binary.
