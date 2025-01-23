@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
