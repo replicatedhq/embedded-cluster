@@ -677,19 +677,19 @@ jobs:
     name: E2E docker # this name is used by .github/workflows/automated-prs-manager.yaml
     runs-on: ubuntu-latest
     needs:
-#      - git-sha
-#      - build-current
-#      - build-legacydr
-#      - build-previous-k0s
-#      - build-upgrade
-#      - find-previous-stable
-#      - release-app
-#      - export-version-specifier
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        test:
-#          - TestPreflights
+      - git-sha
+      - build-current
+      - build-legacydr
+      - build-previous-k0s
+      - build-upgrade
+      - find-previous-stable
+      - release-app
+      - export-version-specifier
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - TestPreflights
 #          - TestMaterialize
 #          - TestHostPreflightCustomSpec
 #          - TestHostPreflightInBuiltSpec
@@ -789,7 +789,7 @@ jobs:
       fail-fast: false
       matrix:
         test:
-#          - TestVersion
+          - TestVersion
 #          - TestCommandsRequireSudo
 #          - TestResetAndReinstallAirgap
 #          - TestSingleNodeAirgapUpgrade
