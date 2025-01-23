@@ -9,13 +9,13 @@ import (
 
 	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/k0s"
-	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -251,6 +252,16 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		ConfigValuesFile:        flags.configValues,
 		ServiceCIDR:             flags.cidrCfg.ServiceCIDR,
 		DisasterRecoveryEnabled: disasterRecoveryEnabled,
+		KotsInstaller: func(msg *spinner.MessageWriter) error {
+			opts := kotscli.InstallOptions{
+				AppSlug:          flags.license.Spec.AppSlug,
+				LicenseFile:      flags.licenseFile,
+				Namespace:        runtimeconfig.KotsadmNamespace,
+				AirgapBundle:     flags.airgapBundle,
+				ConfigValuesFile: flags.configValues,
+			}
+			return kotscli.Install(opts, msg)
+		},
 	}); err != nil {
 		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
 		return err
@@ -268,14 +279,7 @@ func runInstall2(cmd *cobra.Command, args []string, name string, flags Install2C
 		return err
 	}
 
-	// mark that the installation is installed as everything has been applied
-	installObject.Status.State = ecv1beta1.InstallationStateInstalled
-	if err := updateInstallation(cmd.Context(), installObject); err != nil {
-		metrics.ReportApplyFinished(cmd.Context(), "", flags.license, err)
-		return err
-	}
-
-	if err = kotscli.CreateHostSupportBundle(); err != nil {
+	if err = support.CreateHostSupportBundle(); err != nil {
 		logrus.Warnf("unable to create host support bundle: %v", err)
 	}
 

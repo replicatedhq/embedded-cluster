@@ -6,11 +6,12 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/support"
 )
 
 // PlaceHolder is a filename we use in some of the directories here so we can
 // commit them to git. Without having these files the unit tests tend to fail
-// with: "pkg/goods/goods.go:12:13: pattern bins/*: no matching files found".
+// with: "cmd/installer/goods/goods.go:12:13: pattern bins/*: no matching files found".
 const PlaceHolder = ".placeholder"
 
 // Materializer is an entity capable of materialize (write to disk) embedded assets.
@@ -74,18 +75,6 @@ func (m *Materializer) CalicoNetworkManagerConfig() error {
 	return nil
 }
 
-// SysctlConfig writes the embedded sysctl config to the /etc/sysctl.d directory.
-func (m *Materializer) SysctlConfig(dstpath string) error {
-	content, err := staticfs.ReadFile("static/99-embedded-cluster.conf")
-	if err != nil {
-		return fmt.Errorf("unable to open embedded sysctl config file: %w", err)
-	}
-	if err := os.WriteFile(dstpath, content, 0644); err != nil {
-		return fmt.Errorf("unable to write file: %w", err)
-	}
-	return nil
-}
-
 // Materialize writes to disk all embedded assets.
 func (m *Materializer) Materialize() error {
 	if err := m.Binaries(); err != nil {
@@ -114,9 +103,16 @@ func (m *Materializer) SupportFiles() error {
 		}
 		dstpath := runtimeconfig.PathToEmbeddedClusterSupportFile(entry.Name())
 		if err := os.WriteFile(dstpath, srcfile, 0644); err != nil {
-			return fmt.Errorf("unable to write file: %w", err)
+			return fmt.Errorf("unable to write file %s: %w", dstpath, err)
 		}
 	}
+
+	name := "host-support-bundle-remote.yaml"
+	dstpath := runtimeconfig.PathToEmbeddedClusterSupportFile(name)
+	if err := os.WriteFile(dstpath, support.GetRemoteHostSupportBundleSpec(), 0644); err != nil {
+		return fmt.Errorf("unable to write file %s: %w", dstpath, err)
+	}
+
 	return nil
 }
 

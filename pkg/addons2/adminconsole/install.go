@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
@@ -60,15 +59,9 @@ func (a *AdminConsole) Install(ctx context.Context, kcli client.Client, writer *
 
 	// install the application
 
-	if a.License != nil {
-		installOpts := kotscli.InstallOptions{
-			AppSlug:          a.License.Spec.AppSlug,
-			LicenseFile:      a.LicenseFile,
-			Namespace:        namespace,
-			AirgapBundle:     a.AirgapBundle,
-			ConfigValuesFile: a.ConfigValuesFile,
-		}
-		if err := kotscli.Install(installOpts, writer); err != nil {
+	if a.KotsInstaller != nil {
+		err := a.KotsInstaller(writer)
+		if err != nil {
 			return err
 		}
 	}

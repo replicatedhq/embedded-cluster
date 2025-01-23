@@ -25,6 +25,7 @@ type InstallOptions struct {
 	ConfigValuesFile        string
 	ServiceCIDR             string
 	DisasterRecoveryEnabled bool
+	KotsInstaller           adminconsole.KotsInstaller
 }
 
 func Install(ctx context.Context, opts InstallOptions) error {
@@ -70,12 +71,11 @@ func getAddOns(opts InstallOptions) []types.AddOn {
 
 	addOns = append(addOns, &adminconsole.AdminConsole{
 		Password:         opts.AdminConsolePwd,
-		License:          opts.License,
-		LicenseFile:      opts.LicenseFile,
 		AirgapBundle:     opts.AirgapBundle,
 		Proxy:            opts.Proxy,
 		PrivateCAs:       opts.PrivateCAs,
 		ConfigValuesFile: opts.ConfigValuesFile,
+		KotsInstaller:    opts.KotsInstaller,
 	})
 
 	return addOns

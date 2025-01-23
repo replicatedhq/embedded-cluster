@@ -79,7 +79,7 @@ function managerbin() {
         fail "file build/manager-linux-$ARCH.tgz not found"
     fi
 
-    manager_version="${EC_VERSION#v}" # remove the 'v' prefix
+    manager_version="${EC_VERSION}"
 
     # upload the binary to the bucket
     retry 3 aws s3 cp --no-progress "build/manager-linux-$ARCH.tgz" "s3://${S3_BUCKET}/manager-binaries/${manager_version}-${ARCH}.tar.gz"

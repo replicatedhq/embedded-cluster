@@ -7,21 +7,22 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"gopkg.in/yaml.v3"
 )
 
 type AdminConsole struct {
 	Password         string
-	License          *kotsv1beta1.License
-	LicenseFile      string
 	AirgapBundle     string
 	IsAirgap         bool
 	IsHA             bool
 	Proxy            *ecv1beta1.ProxySpec
 	PrivateCAs       []string
 	ConfigValuesFile string
+	KotsInstaller    KotsInstaller
 }
+
+type KotsInstaller func(msg *spinner.MessageWriter) error
 
 const (
 	releaseName = "admin-console"
