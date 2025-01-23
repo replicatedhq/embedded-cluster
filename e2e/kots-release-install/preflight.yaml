@@ -8,13 +8,13 @@ spec:
     - clusterResources: {}
   analyzers:
     - customResourceDefinition:
-        customResourceDefinitionName: installations.embeddedcluster.replicated.com
-        checkName: Embedded Cluster Installation CRD exists
+        customResourceDefinitionName: clusterconfigs.k0s.k0sproject.io
+        checkName: K0s ClusterConfig CRD exists
         outcomes:
           - fail:
-              message: The Embedded Cluster Installation CRD is not installed in the cluster. Please install the Embedded Cluster Operator.
+              message: The K0s ClusterConfig CRD is not installed in the cluster.
           - pass:
-              message: The Embedded Cluster Installation CRD is installed in the cluster.
+              message: The K0s ClusterConfig CRD is installed in the cluster.
     - customResourceDefinition:
         customResourceDefinitionName: configs.embeddedcluster.replicated.com
         checkName: Embedded Cluster Config CRD exists
