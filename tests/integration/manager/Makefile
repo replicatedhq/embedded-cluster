@@ -28,7 +28,7 @@ test:
 
 .PHONY: clean
 clean:
-	rm -f manager.test
+	rm -f manager.test ../../../pkg/goods/bins/manager
 	-docker rm -f $(CONTAINER_NAME) 2>/dev/null ; true
 
 .PHONY: build

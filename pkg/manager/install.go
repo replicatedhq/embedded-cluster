@@ -15,6 +15,8 @@ var (
 	_systemdUnitFileContents []byte
 
 	managerDropInFileContents = `[Service]
+Environment="DATA_DIR=%s"
+
 # Empty ExecStart= will clear out the previous ExecStart value
 ExecStart=
 ExecStart=%s start
@@ -138,6 +140,7 @@ func writeSystemdUnitFile() error {
 func writeDropInFile() error {
 	contents := fmt.Sprintf(
 		managerDropInFileContents,
+		runtimeconfig.EmbeddedClusterHomeDirectory(),
 		runtimeconfig.PathToEmbeddedClusterBinary("manager"),
 	)
 	err := systemd.WriteDropInFile(UnitName(), "embedded-cluster.conf", []byte(contents))
