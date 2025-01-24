@@ -28,6 +28,7 @@ main() {
 
     # the airgap version of this command does not require the kots CLI, which is why it is used here
     if ! ensure_app_deployed_airgap "$version"; then
+        echo "failed to find that version $version was deployed"
         exit 1
     fi
     if ! ensure_app_not_upgraded; then
