@@ -9,8 +9,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -48,10 +51,20 @@ func EnableHA(ctx context.Context, kcli client.Client, isAirgap bool, serviceCID
 	if isAirgap {
 		loading.Infof("Enabling high availability")
 
+		// install the helm chart
+		hcli, err := helm.NewHelm(helm.HelmOptions{
+			KubeConfig: runtimeconfig.PathToKubeConfig(),
+			K0sVersion: versions.K0sVersion,
+			AirgapPath: runtimeconfig.EmbeddedClusterChartsSubDir(),
+		})
+		if err != nil {
+			return errors.Wrap(err, "create helm client")
+		}
+
 		sw := &seaweedfs.SeaweedFS{
 			ServiceCIDR: serviceCIDR,
 		}
-		if err := sw.Install(ctx, kcli, nil); err != nil {
+		if err := sw.Install(ctx, kcli, hcli, nil); err != nil {
 			return errors.Wrap(err, "install seaweedfs")
 		}
 
