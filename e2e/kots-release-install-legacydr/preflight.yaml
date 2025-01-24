@@ -8,18 +8,10 @@ spec:
     - clusterResources: {}
   analyzers:
     - customResourceDefinition:
-        customResourceDefinitionName: installations.embeddedcluster.replicated.com
-        checkName: Embedded Cluster Installation CRD exists
+        customResourceDefinitionName: volumesnapshots.snapshot.storage.k8s.io
+        checkName: The Volume Snapshots CRD exists
         outcomes:
           - fail:
-              message: The Embedded Cluster Installation CRD is not installed in the cluster. Please install the Embedded Cluster Operator.
+              message: The Volume Snapshots CRD does not exist.
           - pass:
-              message: The Embedded Cluster Installation CRD is installed in the cluster.
-    - customResourceDefinition:
-        customResourceDefinitionName: configs.embeddedcluster.replicated.com
-        checkName: Embedded Cluster Config CRD exists
-        outcomes:
-          - fail:
-              message: The Embedded Cluster Config CRD is not installed in the cluster. Please install the Embedded Cluster Operator.
-          - pass:
-              message: The Embedded Cluster Config CRD is installed in the cluster.
+              message: The Volume Snapshots CRD exists.
