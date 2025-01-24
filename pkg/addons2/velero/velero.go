@@ -11,8 +11,7 @@ import (
 )
 
 type Velero struct {
-	Proxy    *ecv1beta1.ProxySpec
-	IsAirgap bool
+	Proxy *ecv1beta1.ProxySpec
 }
 
 const (

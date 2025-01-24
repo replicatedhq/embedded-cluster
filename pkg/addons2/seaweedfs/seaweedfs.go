@@ -11,7 +11,6 @@ import (
 
 type SeaweedFS struct {
 	ServiceCIDR string
-	IsAirgap    bool
 }
 
 const (

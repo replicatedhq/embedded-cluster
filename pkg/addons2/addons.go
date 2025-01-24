@@ -10,8 +10,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons2/velero"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -34,11 +37,26 @@ func Install(ctx context.Context, opts InstallOptions) error {
 		return errors.Wrap(err, "create kube client")
 	}
 
+	airgapChartsPath := ""
+	if opts.AirgapBundle != "" {
+		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
+	}
+
+	// install the helm chart
+	hcli, err := helm.NewHelm(helm.HelmOptions{
+		KubeConfig: runtimeconfig.PathToKubeConfig(),
+		K0sVersion: versions.K0sVersion,
+		AirgapPath: airgapChartsPath,
+	})
+	if err != nil {
+		return errors.Wrap(err, "create helm client")
+	}
+
 	for _, addon := range getAddOns(opts) {
 		loading := spinner.Start()
 		loading.Infof("Installing %s", addon.Name())
 
-		if err := addon.Install(ctx, kcli, loading); err != nil {
+		if err := addon.Install(ctx, kcli, hcli, loading); err != nil {
 			loading.CloseWithError()
 			return errors.Wrap(err, "install addon")
 		}
@@ -51,9 +69,7 @@ func Install(ctx context.Context, opts InstallOptions) error {
 
 func getAddOns(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
-		&openebs.OpenEBS{
-			IsAirgap: opts.AirgapBundle != "",
-		},
+		&openebs.OpenEBS{},
 	}
 
 	if opts.AirgapBundle != "" {
@@ -64,8 +80,7 @@ func getAddOns(opts InstallOptions) []types.AddOn {
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy:    opts.Proxy,
-			IsAirgap: opts.AirgapBundle != "",
+			Proxy: opts.Proxy,
 		})
 	}
 

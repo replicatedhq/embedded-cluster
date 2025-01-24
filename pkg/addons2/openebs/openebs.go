@@ -8,9 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type OpenEBS struct {
-	IsAirgap bool
-}
+type OpenEBS struct{}
 
 const (
 	releaseName = "openebs"
