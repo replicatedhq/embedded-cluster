@@ -504,7 +504,7 @@ func updateInstallation(ctx context.Context, install *ecv1beta1.Installation) er
 	}
 
 	if err := kubeutils.UpdateInstallation(ctx, kcli, install); err != nil {
-		return fmt.Errorf("Failed to update installation")
+		return fmt.Errorf("update installation")
 	}
 	return nil
 }
