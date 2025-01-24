@@ -42,19 +42,18 @@ func Install(ctx context.Context, opts InstallOptions) error {
 		airgapChartsPath = runtimeconfig.EmbeddedClusterChartsSubDir()
 	}
 
-	// install the helm chart
-	hcli, err := helm.NewHelm(helm.HelmOptions{
-		KubeConfig: runtimeconfig.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
-	})
-	if err != nil {
-		return errors.Wrap(err, "create helm client")
-	}
-
 	for _, addon := range getAddOns(opts) {
 		loading := spinner.Start()
 		loading.Infof("Installing %s", addon.Name())
+
+		hcli, err := helm.NewHelm(helm.HelmOptions{
+			KubeConfig: runtimeconfig.PathToKubeConfig(),
+			K0sVersion: versions.K0sVersion,
+			AirgapPath: airgapChartsPath,
+		})
+		if err != nil {
+			return errors.Wrap(err, "create helm client")
+		}
 
 		if err := addon.Install(ctx, kcli, hcli, loading); err != nil {
 			loading.CloseWithError()
