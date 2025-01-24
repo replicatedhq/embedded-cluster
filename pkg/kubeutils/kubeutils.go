@@ -228,6 +228,8 @@ func (k *KubeUtils) WaitForInstallation(ctx context.Context, cli client.Client, 
 }
 
 func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	in.Spec.SourceType = ecv1beta1.InstallationSourceTypeConfigMap
+
 	data, err := json.Marshal(in)
 	if err != nil {
 		return fmt.Errorf("marshal installation: %w", err)

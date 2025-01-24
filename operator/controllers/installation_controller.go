@@ -590,7 +590,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	if k8sutil.CheckConditionStatus(in.Status, v1beta1.DisableReconcileConditionType) == metav1.ConditionTrue {
+	if k8sutil.CheckConditionStatus(in.Status, v1beta1.ConditionTypeDisableReconcile) == metav1.ConditionTrue {
 		log.Info("Installation reconciliation is disabled, reconciliation ended")
 		return ctrl.Result{}, nil
 	}

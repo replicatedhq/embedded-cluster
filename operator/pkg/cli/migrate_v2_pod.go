@@ -74,9 +74,6 @@ var _migrateV2PodSpec = corev1.Pod{
 	},
 }
 
-// LogFunc can be used as an argument to Run to log messages.
-type LogFunc func(string, ...any)
-
 // runMigrateV2PodAndWait runs the v2 migration pod and waits for the pod to finish.
 func runMigrateV2PodAndWait(
 	ctx context.Context, logf LogFunc, cli client.Client,

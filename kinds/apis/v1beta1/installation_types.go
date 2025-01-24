@@ -35,6 +35,7 @@ const (
 	InstallationStateInstalled              string = "Installed"
 	InstallationStateKubernetesInstalled    string = "KubernetesInstalled"
 	InstallationStateAddonsInstalling       string = "AddonsInstalling"
+	InstallationStateAddonsInstalled        string = "AddonsInstalled"
 	InstallationStateHelmChartUpdateFailure string = "HelmChartUpdateFailure"
 	InstallationStateObsolete               string = "Obsolete"
 	InstallationStateFailed                 string = "Failed"
@@ -49,7 +50,8 @@ const (
 )
 
 const (
-	DisableReconcileConditionType = "DisableReconcile"
+	ConditionTypeV2MigrationInProgress = "V2MigrationInProgress"
+	ConditionTypeDisableReconcile      = "DisableReconcile"
 )
 
 // ConfigSecretEntryName holds the entry name we are looking for in the secret

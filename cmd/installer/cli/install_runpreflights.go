@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
-	"github.com/replicatedhq/embedded-cluster/pkg/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/preflights"
@@ -279,7 +280,17 @@ func getAddonsApplier(cmd *cobra.Command, opts addonsApplierOpts, adminConsolePw
 		}
 
 		addonOpts = append(addonOpts, addons.WithLicense(license))
-		addonOpts = append(addonOpts, addons.WithLicenseFile(opts.license))
+
+		addonOpts = append(addonOpts, addons.WithKotsInstaller(func(msg *spinner.MessageWriter) error {
+			opts := kotscli.InstallOptions{
+				AppSlug:          license.Spec.AppSlug,
+				LicenseFile:      opts.license,
+				Namespace:        runtimeconfig.KotsadmNamespace,
+				AirgapBundle:     opts.airgapBundle,
+				ConfigValuesFile: opts.configValues,
+			}
+			return kotscli.Install(opts, msg)
+		}))
 	}
 
 	if opts.airgapBundle != "" {

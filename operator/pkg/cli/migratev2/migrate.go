@@ -20,7 +20,17 @@ func Run(
 	in *ecv1beta1.Installation,
 	migrationSecret string, appSlug string, appVersionLabel string,
 ) error {
-	err := runManagerInstallPodsAndWait(ctx, logf, cli, in, migrationSecret, appSlug, appVersionLabel)
+	err := setV2MigrationInProgress(ctx, logf, cli, in)
+	if err != nil {
+		return fmt.Errorf("set v2 migration in progress: %w", err)
+	}
+
+	err = waitForInstallationStateInstalled(ctx, logf, cli, in)
+	if err != nil {
+		return fmt.Errorf("failed to wait for addon installation: %w", err)
+	}
+
+	err = runManagerInstallPodsAndWait(ctx, logf, cli, in, migrationSecret, appSlug, appVersionLabel)
 	if err != nil {
 		return fmt.Errorf("run manager install pods: %w", err)
 	}
@@ -44,6 +54,11 @@ func Run(
 	err = enableV2AdminConsole(ctx, logf, cli, in)
 	if err != nil {
 		return fmt.Errorf("enable v2 admin console: %w", err)
+	}
+
+	err = ensureInstallationStateInstalled(ctx, logf, cli, in)
+	if err != nil {
+		return fmt.Errorf("set installation state to installed: %w", err)
 	}
 
 	err = cleanupV1(ctx, logf, cli)
