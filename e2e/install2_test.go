@@ -25,7 +25,11 @@ func singleNodeInstallTest(t *testing.T, tc cluster.Cluster, additionalArgs []st
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// TODO: check installation state
+	t.Logf("%s: checking installation state for an install2 cluster", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
 }
 
 func singleNodeInstallUpgradeTest(t *testing.T, tc cluster.Cluster, additionalArgs []string) {
@@ -40,7 +44,11 @@ func singleNodeInstallUpgradeTest(t *testing.T, tc cluster.Cluster, additionalAr
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// TODO: check installation state
+	t.Logf("%s: checking installation state for an install2 cluster", time.Now().Format(time.RFC3339))
+	line = []string{"check-installation-state2.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -50,7 +58,7 @@ func singleNodeInstallUpgradeTest(t *testing.T, tc cluster.Cluster, additionalAr
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// TODO: check installation state
+	// TODO: check postupgrade installation state
 
 	t.Logf("%s: resetting admin console password", time.Now().Format(time.RFC3339))
 	newPassword := "newpass"
